@@ -16,6 +16,40 @@ wird. Für Sicherungen oder den Wechsel auf einen anderen Rechner gibt es die
 > **Tipp:** Über GitHub Pages (Settings → Pages → Branch auswählen) lässt sich
 > der Kalender auch als Webseite aufrufen, z. B. vom Tablet aus.
 
+## Gemeinsame Nutzung (Firmenlaufwerk / OneDrive)
+
+Mehrere Personen können denselben Datenstand nutzen – über eine gemeinsame
+JSON-Datei auf einem Netzlaufwerk oder in einem per Explorer synchronisierten
+OneDrive-Ordner. Benötigt wird **Microsoft Edge oder Google Chrome**.
+
+**Einrichtung (einmalig):**
+
+1. **Chef:** In der App oben auf **„Teilen"** klicken → „Neue gemeinsame Datei
+   anlegen" → als Speicherort das gemeinsame Laufwerk wählen (z. B.
+   `W:\Werkstatt\werkstatt-kalender-daten.json` oder den OneDrive-Ordner).
+   Die vorhandenen Einträge werden automatisch in die Datei übernommen.
+2. **Vertreter:** „Teilen" → „Vorhandene Datei öffnen (bearbeiten)" → dieselbe
+   Datei auswählen. Ab jetzt können beide eintragen; die Änderungen werden
+   Eintrag für Eintrag zusammengeführt, niemand überschreibt den anderen.
+3. **Alle anderen:** „Teilen" → „Vorhandene Datei nur ansehen". Sie sehen den
+   aktuellen Stand (automatische Aktualisierung alle 30 Sekunden), können aber
+   nichts in die Datei schreiben.
+
+**Gut zu wissen:**
+
+- Nach einem Browser-Neustart fragt der Browser aus Sicherheitsgründen einmal
+  nach: Oben erscheint eine gelbe Leiste mit **„Jetzt verbinden"** – ein Klick
+  genügt. (Edge/Chrome bieten nach mehrmaligem Erlauben an, sich die Freigabe
+  dauerhaft zu merken.)
+- Ist das Laufwerk kurz nicht erreichbar, wird lokal weitergespeichert und
+  eine Meldung angezeigt; beim nächsten Speichern/Verbinden wird wieder
+  zusammengeführt.
+- Wer wirklich nur ansehen darf, kann zusätzlich über die Laufwerks-Berechtigungen
+  der IT abgesichert werden (Datei/Ordner nur mit Leserecht freigeben) – dann
+  ist Schreiben technisch unmöglich, egal was in der App angeklickt wird.
+- Löschungen werden über eine interne Merkliste (180 Tage) zwischen den
+  Bearbeitern abgeglichen.
+
 ## Funktionen
 
 - **Monatsansicht** mit Kalenderwochen, bayerischen Feiertagen und

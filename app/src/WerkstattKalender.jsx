@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen } from "lucide-react";
+import * as sharedFile from "./sharedfile.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MONTHS = [
@@ -351,6 +352,56 @@ function App() {
   const [registerItem, setRegisterItem] = useState(null); // { category, name } | null
   const [settingsTpm, setSettingsTpm] = useState([]);
   const [settingsRi, setSettingsRi] = useState([]);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
+
+  // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
+  useEffect(() => {
+    let cancelled = false;
+    sharedFile.tryRestore().then((st) => { if (!cancelled) setShareState(st); });
+    const onUpdate = (ev) => {
+      const d = ev.detail || {};
+      if (Array.isArray(d.entries)) setEntries(d.entries);
+      if (d.config) {
+        if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(d.config.tpmAnlagen);
+        if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(d.config.riItems);
+      }
+    };
+    const onShareError = (ev) => setErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
+    window.addEventListener("werkstatt-shared-update", onUpdate);
+    window.addEventListener("werkstatt-shared-error", onShareError);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("werkstatt-shared-update", onUpdate);
+      window.removeEventListener("werkstatt-shared-error", onShareError);
+    };
+  }, []);
+
+  const connectShared = async (opts) => {
+    try {
+      await sharedFile.pickShared(opts);
+      setShareState({ status: "connected", name: sharedFile.fileName(), mode: opts.readOnly ? "read" : "readwrite" });
+      setErr(null);
+      setShareOpen(false);
+    } catch (e) {
+      if (e && e.name === "AbortError") return; // Dateiauswahl abgebrochen
+      setErr("Gemeinsame Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
+    }
+  };
+  const reconnectShared = async () => {
+    try {
+      const st = await sharedFile.reconnect();
+      setShareState(st);
+      setErr(null);
+    } catch (e) {
+      setErr("Gemeinsame Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
+    }
+  };
+  const disconnectShared = async () => {
+    await sharedFile.disconnect();
+    setShareState({ status: sharedFile.isSupported() ? "none" : "unsupported" });
+    setShareOpen(false);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -1351,6 +1402,14 @@ function App() {
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
           <button
+            onClick={() => setShareOpen(true)}
+            className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: shareState.status === "connected" ? "#2F7D4F" : "#4B5259" }}
+            title={shareState.status === "connected" ? `Gemeinsame Datei: ${shareState.name}` : "Gemeinsame Datei einrichten"}
+          >
+            <FolderOpen size={14} /> {shareState.status === "connected" ? (shareState.mode === "read" ? "Ansicht" : "Geteilt") : "Teilen"}
+          </button>
+          <button
             onClick={openSettings}
             className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
             style={{ backgroundColor: "#4B5259" }}
@@ -1380,6 +1439,21 @@ function App() {
           </button>
         </div>
       </div>
+
+      {/* Hinweisleisten zur gemeinsamen Datei */}
+      {shareState.status === "needs-permission" && (
+        <div className="no-print px-4 py-2 flex items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#FCEFD9", color: "#B8791F" }}>
+          <span>Gemeinsame Datei „{shareState.name}" ist nach dem Browser-Neustart getrennt.</span>
+          <button onClick={reconnectShared} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#B8791F" }}>
+            Jetzt verbinden
+          </button>
+        </div>
+      )}
+      {shareState.status === "connected" && shareState.mode === "read" && (
+        <div className="no-print px-4 py-2 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
+          Nur ansehen – angezeigt wird der gemeinsame Stand aus „{shareState.name}". Eigene Änderungen werden nicht in die Datei geschrieben.
+        </div>
+      )}
 
       {/* Filter + Legende + Stats */}
       {view !== "PLAN" && (
@@ -1696,6 +1770,83 @@ function App() {
           </div>
         );
       })()}
+
+      {/* Gemeinsame Datei einrichten */}
+      {shareOpen && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setShareOpen(false)}
+        >
+          <div
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "480px", maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-sm">Gemeinsame Datei (Firmenlaufwerk / OneDrive)</div>
+              <button onClick={() => setShareOpen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+
+            {!sharedFile.isSupported() ? (
+              <div className="text-sm text-slate-600 leading-relaxed">
+                Dieser Browser unterstützt den direkten Dateizugriff nicht. Bitte <strong>Microsoft Edge</strong> oder <strong>Google Chrome</strong> verwenden – dort funktioniert die gemeinsame Datei zuverlässig.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="text-xs text-slate-500 leading-relaxed">
+                  Alle Einträge werden in einer JSON-Datei gespeichert, die auf einem gemeinsamen Laufwerk liegt
+                  (Netzlaufwerk oder ein per Explorer synchronisierter OneDrive-Ordner). Wer die Datei
+                  <strong> zum Bearbeiten</strong> öffnet, kann Einträge ändern – wer sie <strong>nur ansieht</strong>, bekommt
+                  automatisch den aktuellen Stand angezeigt (Aktualisierung alle 30 Sekunden).
+                </div>
+
+                {shareState.status === "connected" ? (
+                  <div className="text-sm rounded px-3 py-2" style={{ backgroundColor: "#E5F3EA", color: "#2F7D4F" }}>
+                    Verbunden mit <strong>{shareState.name}</strong> ({shareState.mode === "read" ? "nur ansehen" : "bearbeiten"}).
+                  </div>
+                ) : (
+                  <div className="text-sm rounded px-3 py-2" style={{ backgroundColor: "#F4F5F6", color: "#5B6572" }}>
+                    Zurzeit wird nur lokal auf diesem Rechner gespeichert.
+                  </div>
+                )}
+
+                <button
+                  onClick={() => connectShared({ create: true })}
+                  className="text-sm font-bold py-2.5 rounded text-white"
+                  style={{ backgroundColor: "#22262B" }}
+                >
+                  Neue gemeinsame Datei anlegen …
+                </button>
+                <button
+                  onClick={() => connectShared({})}
+                  className="text-sm font-bold py-2.5 rounded text-white"
+                  style={{ backgroundColor: "#2F6690" }}
+                >
+                  Vorhandene Datei öffnen (bearbeiten) …
+                </button>
+                <button
+                  onClick={() => connectShared({ readOnly: true })}
+                  className="text-sm font-bold py-2.5 rounded border"
+                  style={{ borderColor: "#2F6690", color: "#2F6690", backgroundColor: "white" }}
+                >
+                  Vorhandene Datei nur ansehen …
+                </button>
+                {shareState.status === "connected" && (
+                  <button onClick={disconnectShared} className="text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">
+                    Verbindung trennen (dieser Rechner speichert dann nur lokal)
+                  </button>
+                )}
+
+                <div className="text-xs text-slate-400 leading-relaxed">
+                  Tipp: Der Chef legt die Datei einmal auf dem gemeinsamen Laufwerk an. Der Vertreter öffnet sie
+                  über „bearbeiten", alle anderen über „nur ansehen". Nach einem Browser-Neustart fragt der Browser
+                  aus Sicherheitsgründen einmal kurz nach – oben erscheint dann „Jetzt verbinden".
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Anlagen & R+I-Punkte verwalten */}
       {settingsOpen && (
