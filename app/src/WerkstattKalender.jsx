@@ -1524,7 +1524,10 @@ function App() {
             </>
           )}
           {/* Gemeinsame Datei: immer nur das kleine Ordner-Symbol, ganz rechts.
-              Grün = verbunden, Grau = noch nicht eingerichtet. */}
+              Grün = verbunden, Grau = noch nicht eingerichtet.
+              Nur-Leser sehen das Symbol nicht - sie sollen die Verbindung weder
+              trennen noch eine andere Datei wählen können. */}
+          {!readerMode && (
           <button
             onClick={() => setShareOpen(true)}
             className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
@@ -1536,6 +1539,7 @@ function App() {
           >
             <FolderOpen size={14} />
           </button>
+          )}
         </div>
       </div>
 
