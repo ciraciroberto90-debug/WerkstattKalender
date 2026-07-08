@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Entwurf – Cockpit (Startseite)</title>
+<link rel="stylesheet" href="gemeinsam.css">
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Cockpit</span>
+  <div class="tabs">
+    <span class="active">Cockpit</span><span>TPM-Kalender</span><span>Backlog</span><span>Personal</span><span>Anlagen</span>
+  </div>
+  <span class="datum">Mittwoch, 08.07.2026 · KW 28</span>
+  <span class="draft">ENTWURF – nicht funktional</span>
+</div>
+
+<main>
+  <div class="kpis">
+    <div class="kpi"><div class="num">4</div><div class="lbl">Heute fällig</div><div class="sub">2 TPM · 2 R+I</div></div>
+    <div class="kpi"><div class="num" style="color:#B23A34">3</div><div class="lbl">Überfällig</div><div class="sub">älteste: 6 Tage</div></div>
+    <div class="kpi"><div class="num">12</div><div class="lbl">Backlog offen</div><div class="sub">7 mechanisch · 5 elektrisch</div></div>
+    <div class="kpi"><div class="num" style="color:#2F7D4F">5/7</div><div class="lbl">Anwesend heute</div><div class="sub">1 Urlaub · 1 Schulung</div></div>
+    <div class="kpi"><div class="num">9</div><div class="lbl">Diese Woche erledigt</div><div class="sub">TPM, R+I &amp; Backlog</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.1fr 1.2fr 0.9fr;gap:12px;">
+
+    <div class="card">
+      <div class="head" style="color:#C97A2B">Heute fällig</div>
+      <div class="body" style="display:flex;flex-direction:column;gap:7px;">
+        <div style="display:flex;align-items:center;gap:8px;"><span class="b tpm">TPM</span><strong style="font-size:0.85rem;flex:1">B1</strong><span class="b offen">✕ Offen</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="b tpm">TPM</span><strong style="font-size:0.85rem;flex:1">Hygieneplan BTA</strong><span class="b erledigt">✓ Gemacht</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="b ri">R+I</span><strong style="font-size:0.85rem;flex:1">Sprinklerwartung</strong><span class="b offen">✕ Offen</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="b ri">R+I</span><strong style="font-size:0.85rem;flex:1">Kontrolle Verbrauchsmaterial BTA</strong><span class="b offen">✕ Offen</span></div>
+        <div class="hinweis">Klick auf einen Punkt → direkt abhaken oder Notiz anhängen (wie im Kalender).</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head" style="color:#B23A34">Überfällig &amp; kritisch (aus dem Backlog)</div>
+      <div class="body" style="display:flex;flex-direction:column;gap:7px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="prio hoch"></span><span class="b elek">Elektrisch</span>
+          <span style="font-size:0.85rem;flex:1"><strong>HRO</strong> – Endschalter Trocknerkette defekt</span>
+          <span class="mono" style="font-size:0.72rem;color:#B23A34">seit 6 Tagen</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="prio hoch"></span><span class="b mech">Mechanisch</span>
+          <span style="font-size:0.85rem;flex:1"><strong>VSM1</strong> – Lager Antriebswelle läuft heiß</span>
+          <span class="mono" style="font-size:0.72rem;color:#B23A34">seit 4 Tagen</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="prio mittel"></span><span class="b mech">Mechanisch</span>
+          <span style="font-size:0.85rem;flex:1"><strong>B2</strong> – Abdichtung Beschichtungskammer erneuern</span>
+          <span class="mono" style="font-size:0.72rem;color:#B8791F">seit 2 Tagen</span>
+        </div>
+        <div class="hinweis">Sortiert nach Priorität und Alter. Ein Klick öffnet die Arbeit im Backlog.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head" style="color:#2F6690">Personal heute</div>
+      <div class="body" style="display:flex;flex-direction:column;gap:7px;">
+        <div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:0.85rem;flex:1">M. Weber</strong><span class="b mech">Mechanik</span><span class="mono" style="font-size:0.72rem;color:#2F7D4F">TPM B1</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:0.85rem;flex:1">K. Schmidt</strong><span class="b elek">Elektrik</span><span class="mono" style="font-size:0.72rem;color:#2F7D4F">HRO Endschalter</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:0.85rem;flex:1">T. Braun</strong><span class="b mech">Mechanik</span><span class="mono" style="font-size:0.72rem;color:#2F7D4F">Sprinklerwartung</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:0.85rem;flex:1">S. Öztürk</strong><span class="b mech">Mechanik</span><span class="mono" style="font-size:0.72rem;color:#8A9099">frei einteilbar</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:0.85rem;flex:1">D. Fischer</strong><span class="b elek">Elektrik</span><span class="mono" style="font-size:0.72rem;color:#8A9099">frei einteilbar</span></div>
+        <div style="display:flex;align-items:center;gap:8px;opacity:0.55;"><strong style="font-size:0.85rem;flex:1">R. Klein</strong><span class="b" style="background:#F4F5F6;color:#8A9099;border:1px solid #C3C7CB">Urlaub</span></div>
+        <div style="display:flex;align-items:center;gap:8px;opacity:0.55;"><strong style="font-size:0.85rem;flex:1">J. Novak</strong><span class="b" style="background:#F4F5F6;color:#8A9099;border:1px solid #C3C7CB">Schulung</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="head" style="color:#2F7D4F">Zuletzt erledigt</div>
+    <div class="body" style="display:flex;gap:18px;flex-wrap:wrap;font-size:0.8rem;">
+      <span><span class="b tpm">TPM</span> OF320 <span class="mono" style="color:#8A9099">Mo 06.07.</span></span>
+      <span><span class="b ri">R+I</span> Wasserrundgang <span class="mono" style="color:#8A9099">Mo 06.07.</span></span>
+      <span><span class="b mech">Mech</span> RRO Kettenspanner nachgestellt <span class="mono" style="color:#8A9099">Di 07.07.</span></span>
+      <span><span class="b ri">R+I</span> Filterwartung / Schaltschränke <span class="mono" style="color:#8A9099">Di 07.07.</span></span>
+      <span><span class="b elek">Elek</span> TS200 Lichtschranke getauscht <span class="mono" style="color:#8A9099">Di 07.07.</span></span>
+    </div>
+  </div>
+
+  <div class="hinweis">Entwurf 1/4 – Cockpit-Startseite: Der erste Blick am Morgen. Alles Wichtige auf einer Seite, jede Kachel springt in den passenden Reiter.</div>
+</main>
+</body>
+</html>

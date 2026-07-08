@@ -1,0 +1,59 @@
+/* Gemeinsames Design der Cockpit-Entwürfe – angelehnt an den Werkstatt-Kalender */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #EBEDEF; color: #1e293b; }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+
+/* Kopfzeile */
+.topbar { background: #22262B; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
+.topbar .brand { font-weight: 900; font-size: 1.05rem; text-transform: uppercase; letter-spacing: -0.01em; }
+.tabs { display: flex; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; overflow: hidden; }
+.tabs span { padding: 6px 11px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; }
+.tabs span.active { background: #C97A2B; }
+.draft { margin-left: auto; background: #FCEFD9; color: #B8791F; font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+.datum { font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; color: #cbd5e1; }
+
+main { max-width: 1450px; margin: 0 auto; padding: 16px; }
+
+/* Karten & Kacheln */
+.card { background: #fff; border: 1px solid #E2E4E7; border-radius: 12px; box-shadow: 0 2px 8px rgba(20,22,25,0.06); }
+.card .head { padding: 10px 14px; border-bottom: 1px solid #E2E4E7; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #22262B; display: flex; align-items: center; gap: 8px; }
+.card .body { padding: 10px 14px; }
+
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+.kpi { background: #fff; border: 1px solid #E2E4E7; border-radius: 12px; padding: 12px 14px; }
+.kpi .num { font-size: 1.5rem; font-weight: 800; font-family: ui-monospace, Consolas, monospace; }
+.kpi .lbl { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #8A9099; margin-top: 2px; }
+.kpi .sub { font-size: 0.72rem; color: #5B6572; margin-top: 4px; }
+
+/* Badges */
+.b { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+.b.mech { background: #E3F0F0; color: #3D8B8B; border: 1px solid #3D8B8B; }
+.b.elek { background: #EFE9F9; color: #7C5CBF; border: 1px solid #7C5CBF; }
+.b.tpm { background: #F7E8D8; color: #C97A2B; border: 1px solid #C97A2B; }
+.b.ri { background: #E1EBF3; color: #2F6690; border: 1px solid #2F6690; }
+.b.offen { background: #FBE9E7; color: #B23A34; border: 1px solid #B23A34; }
+.b.geplant { background: #E1EBF3; color: #2F6690; border: 1px solid #2F6690; }
+.b.inarbeit { background: #FCEFD9; color: #B8791F; border: 1px solid #B8791F; }
+.b.erledigt { background: #E5F3EA; color: #2F7D4F; border: 1px solid #2F7D4F; }
+
+.prio { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
+.prio.hoch { background: #B23A34; }
+.prio.mittel { background: #C97A2B; }
+.prio.niedrig { background: #B7BEC6; }
+
+/* Tabellen */
+table { border-collapse: collapse; width: 100%; }
+th { text-align: left; padding: 8px 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #8A9099; border-bottom: 2px solid #22262B; }
+td { padding: 8px 10px; font-size: 0.82rem; border-bottom: 1px solid #E2E4E7; vertical-align: middle; }
+tr:hover td { background: #F7F8F9; }
+
+/* Filterleiste */
+.filter { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.chip { padding: 6px 12px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; background: #fff; border: 1px solid #D6D9DC; color: #5B6572; }
+.chip.active-dark { background: #22262B; color: #fff; border-color: #22262B; }
+.chip.active-mech { background: #3D8B8B; color: #fff; border-color: #3D8B8B; }
+.chip.active-elek { background: #7C5CBF; color: #fff; border-color: #7C5CBF; }
+.search { padding: 7px 12px; border: 1px solid #D6D9DC; border-radius: 6px; font-size: 0.8rem; color: #8A9099; background: #fff; min-width: 220px; }
+.btn-new { margin-left: auto; background: #22262B; color: #fff; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 8px 14px; border-radius: 6px; }
+
+.hinweis { font-size: 0.72rem; color: #8A9099; margin-top: 12px; }

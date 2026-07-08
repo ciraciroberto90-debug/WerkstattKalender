@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Entwurf – Backlog</title>
+<link rel="stylesheet" href="gemeinsam.css">
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Cockpit</span>
+  <div class="tabs">
+    <span>Cockpit</span><span>TPM-Kalender</span><span class="active">Backlog</span><span>Personal</span><span>Anlagen</span>
+  </div>
+  <span class="datum">Mittwoch, 08.07.2026 · KW 28</span>
+  <span class="draft">ENTWURF – nicht funktional</span>
+</div>
+
+<main>
+  <div class="filter">
+    <span class="chip active-dark">Alle (12)</span>
+    <span class="chip">Mechanisch (7)</span>
+    <span class="chip">Elektrisch (5)</span>
+    <span style="width:10px"></span>
+    <span class="chip">Nur offene</span>
+    <span class="chip">Prio: Hoch</span>
+    <span class="search">🔍 Suche: Anlage, Arbeit, Person …</span>
+    <span class="btn-new">+ Neue Arbeit melden</span>
+  </div>
+
+  <div class="card">
+    <div class="body" style="padding:0;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px">Prio</th>
+            <th style="width:110px">Anlage</th>
+            <th>Arbeit</th>
+            <th style="width:110px">Art</th>
+            <th style="width:100px">Gemeldet</th>
+            <th style="width:120px">Zugewiesen</th>
+            <th style="width:110px">Status</th>
+            <th style="width:44px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prio hoch" title="Hoch"></span></td>
+            <td><strong>HRO</strong></td>
+            <td>Endschalter Trocknerkette defekt – Maschine stoppt sporadisch</td>
+            <td><span class="b elek">Elektrisch</span></td>
+            <td class="mono">02.07.</td>
+            <td>K. Schmidt</td>
+            <td><span class="b inarbeit">In Arbeit</span></td>
+            <td>📝</td>
+          </tr>
+          <tr>
+            <td><span class="prio hoch"></span></td>
+            <td><strong>VSM1</strong></td>
+            <td>Lager Antriebswelle läuft heiß – Ersatzlager bestellt (ETA 10.07.)</td>
+            <td><span class="b mech">Mechanisch</span></td>
+            <td class="mono">04.07.</td>
+            <td>–</td>
+            <td><span class="b geplant">Eingeplant</span></td>
+            <td>📝</td>
+          </tr>
+          <tr>
+            <td><span class="prio mittel"></span></td>
+            <td><strong>B2</strong></td>
+            <td>Abdichtung Beschichtungskammer erneuern</td>
+            <td><span class="b mech">Mechanisch</span></td>
+            <td class="mono">06.07.</td>
+            <td>M. Weber</td>
+            <td><span class="b geplant">Eingeplant</span></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><span class="prio mittel"></span></td>
+            <td><strong>TS480</strong></td>
+            <td>Schutzhaube Riss – Ersatz anfertigen lassen</td>
+            <td><span class="b mech">Mechanisch</span></td>
+            <td class="mono">01.07.</td>
+            <td>–</td>
+            <td><span class="b offen">Offen</span></td>
+            <td>📝</td>
+          </tr>
+          <tr>
+            <td><span class="prio mittel"></span></td>
+            <td><strong>LTA1</strong></td>
+            <td>Frequenzumrichter meldet sporadisch Fehler F0022</td>
+            <td><span class="b elek">Elektrisch</span></td>
+            <td class="mono">30.06.</td>
+            <td>D. Fischer</td>
+            <td><span class="b offen">Offen</span></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><span class="prio niedrig"></span></td>
+            <td><strong>BTS</strong></td>
+            <td>Beleuchtung Wartungsbühne erneuern (LED)</td>
+            <td><span class="b elek">Elektrisch</span></td>
+            <td class="mono">25.06.</td>
+            <td>–</td>
+            <td><span class="b offen">Offen</span></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><span class="prio niedrig"></span></td>
+            <td><strong>Masseaufb.</strong></td>
+            <td>Podest-Geländer nachschweißen</td>
+            <td><span class="b mech">Mechanisch</span></td>
+            <td class="mono">22.06.</td>
+            <td>–</td>
+            <td><span class="b offen">Offen</span></td>
+            <td>📝</td>
+          </tr>
+          <tr style="opacity:0.5">
+            <td><span class="prio mittel"></span></td>
+            <td><strong>RRO</strong></td>
+            <td>Kettenspanner nachstellen</td>
+            <td><span class="b mech">Mechanisch</span></td>
+            <td class="mono">05.07.</td>
+            <td>T. Braun</td>
+            <td><span class="b erledigt">Erledigt 07.07.</span></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+    <div class="card">
+      <div class="head">Neue Arbeit melden (Dialog-Entwurf)</div>
+      <div class="body" style="font-size:0.8rem;color:#5B6572;line-height:1.7;">
+        <strong style="color:#22262B">Felder:</strong> Anlage (Auswahl aus Anlagenverzeichnis) · Art (Mechanisch/Elektrisch) ·
+        Kurzbeschreibung · Priorität (Hoch/Mittel/Niedrig) · Foto anhängen (optional) · Notiz.<br>
+        <strong style="color:#22262B">Automatisch:</strong> Meldedatum + Melder. Zuweisung &amp; Einplanung macht der Werkstattleiter später im Reiter „Personal".
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">Offene Arbeiten nach Anlage</div>
+      <div class="body" style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.8rem;">
+        <span><strong>HRO</strong> <span class="b mech">1</span> <span class="b elek">1</span></span>
+        <span><strong>VSM1</strong> <span class="b mech">2</span></span>
+        <span><strong>B2</strong> <span class="b mech">1</span></span>
+        <span><strong>TS480</strong> <span class="b mech">1</span></span>
+        <span><strong>LTA1</strong> <span class="b elek">2</span></span>
+        <span><strong>BTS</strong> <span class="b elek">1</span></span>
+        <span><strong>Masseaufb.</strong> <span class="b mech">2</span> <span class="b elek">1</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hinweis">Entwurf 2/4 – Backlog: Sammelstelle für alles, was an den Anlagen anfällt. Filter nach Mechanisch/Elektrisch, Priorität als Ampelpunkt, erledigte Arbeiten bleiben als Historie erhalten.</div>
+</main>
+</body>
+</html>

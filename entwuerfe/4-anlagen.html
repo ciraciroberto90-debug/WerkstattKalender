@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Entwurf – Anlagenverzeichnis</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .ampel { display:inline-block; width:11px; height:11px; border-radius:50%; }
+  .ampel.gruen { background:#2F7D4F; }
+  .ampel.gelb { background:#C97A2B; }
+  .ampel.rot { background:#B23A34; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Cockpit</span>
+  <div class="tabs">
+    <span>Cockpit</span><span>TPM-Kalender</span><span>Backlog</span><span>Personal</span><span class="active">Anlagen</span>
+  </div>
+  <span class="datum">Mittwoch, 08.07.2026 · KW 28</span>
+  <span class="draft">ENTWURF – nicht funktional</span>
+</div>
+
+<main>
+  <div class="filter">
+    <span class="chip active-dark">Alle Bereiche</span>
+    <span class="chip">Rohlingsfertigung</span>
+    <span class="chip">Beschichtung</span>
+    <span class="chip">Lufttechnik</span>
+    <span class="chip">Nur mit offenen Arbeiten</span>
+    <span class="search">🔍 Anlage suchen …</span>
+    <span class="btn-new">+ Anlage anlegen</span>
+  </div>
+
+  <div class="card">
+    <div class="body" style="padding:0;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px"></th>
+            <th style="width:160px">Anlage</th>
+            <th style="width:190px">Bereich / Rolle</th>
+            <th style="width:120px">Letzte Wartung</th>
+            <th style="width:130px">Nächste (Plan)</th>
+            <th>Offene Arbeiten</th>
+            <th style="width:100px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="ampel rot" title="Überfällige Arbeit mit hoher Prio"></span></td>
+            <td><strong>HRO</strong></td>
+            <td>Rohlingsfertigung · Montags-Rotation</td>
+            <td class="mono">13.07. <span style="color:#8A9099">(geplant)</span></td>
+            <td class="mono">Mo 13.07.</td>
+            <td><span class="b elek">1 elektrisch</span> <span class="b mech">1 mechanisch</span> <span style="font-size:0.72rem;color:#B23A34;font-weight:700">· 1 überfällig</span></td>
+            <td style="color:#2F6690;font-weight:700;font-size:0.75rem">Historie ›</td>
+          </tr>
+          <tr>
+            <td><span class="ampel gelb"></span></td>
+            <td><strong>VSM1</strong></td>
+            <td>Rohlingsfertigung · Taktstraße</td>
+            <td class="mono">03.07. ✓</td>
+            <td class="mono">Aug (Takt)</td>
+            <td><span class="b mech">2 mechanisch</span></td>
+            <td style="color:#2F6690;font-weight:700;font-size:0.75rem">Historie ›</td>
+          </tr>
+          <tr>
+            <td><span class="ampel gruen"></span></td>
+            <td><strong>RRO</strong></td>
+            <td>Rohlingsfertigung · Montags-Rotation</td>
+            <td class="mono">20.07. <span style="color:#8A9099">(geplant)</span></td>
+            <td class="mono">Mo 20.07.</td>
+            <td><span style="color:#8A9099;font-size:0.78rem">keine</span></td>
+            <td style="color:#2F6690;font-weight:700;font-size:0.75rem">Historie ›</td>
+          </tr>
+          <tr>
+            <td><span class="ampel gelb"></span></td>
+            <td><strong>B1</strong></td>
+            <td>Beschichtung · flexibel</td>
+            <td class="mono">heute fällig</td>
+            <td class="mono">Mi 08.07.</td>
+            <td><span style="color:#8A9099;font-size:0.78rem">keine</span></td>
+            <td style="color:#2F6690;font-weight:700;font-size:0.75rem">Historie ›</td>
+          </tr>
+          <tr>
+            <td><span class="ampel gruen"></span></td>
+            <td><strong>B2</strong></td>
+            <td>Beschichtung · Montags-Rotation</td>
+            <td class="mono">27.07. <span style="color:#8A9099">(geplant)</span></td>
+            <td class="mono">Mo 27.07.</td>
+            <td><span class="b mech">1 mechanisch</span></td>
+            <td style="color:#2F6690;font-weight:700;font-size:0.75rem">Historie ›</td>
+          </tr>
+          <tr>
+            <td><span class="ampel gruen"></span></td>
+            <td><strong>TS200</strong></td>
+            <td>Rohlingsfertigung · Taktstraße</td>
+            <td class="mono">16.07. <span style="color:#8A9099">(geplant)</span></td>
+            <td class="mono">Do 16.07.</td>
+            <td><span style="color:#8A9099;font-size:0.78rem">keine</span></td>
+            <td style="color:#2F6690;font-weight:700;font-size:0.75rem">Historie ›</td>
+          </tr>
+          <tr>
+            <td><span class="ampel gelb"></span></td>
+            <td><strong>LTA1</strong></td>
+            <td>Lufttechnik · flexibel Gruppe B</td>
+            <td class="mono">Jun ✓</td>
+            <td class="mono">Aug (2-Monats)</td>
+            <td><span class="b elek">2 elektrisch</span></td>
+            <td style="color:#2F6690;font-weight:700;font-size:0.75rem">Historie ›</td>
+          </tr>
+          <tr>
+            <td><span class="ampel gruen"></span></td>
+            <td><strong>Masseaufbereitung</strong></td>
+            <td>Rohlingsfertigung · flexibel Gruppe A</td>
+            <td class="mono">Jul ✓</td>
+            <td class="mono">Sep (2-Monats)</td>
+            <td><span class="b mech">2 mechanisch</span> <span class="b elek">1 elektrisch</span></td>
+            <td style="color:#2F6690;font-weight:700;font-size:0.75rem">Historie ›</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="head">Anlagen-Steckbrief (öffnet sich bei Klick auf eine Anlage – Entwurf)</div>
+    <div class="body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;font-size:0.8rem;line-height:1.7;color:#5B6572;">
+      <div><strong style="color:#22262B">Stammdaten:</strong><br>Name, Bereich, Rolle in der TPM-Rotation, Baujahr, Hersteller, Standort in der Halle.</div>
+      <div><strong style="color:#22262B">Komplette Historie:</strong><br>Alle TPM-Wartungen, R+I-Punkte und Backlog-Arbeiten dieser Anlage untereinander – mit Datum, Status und Notizen.</div>
+      <div><strong style="color:#22262B">Direkt-Aktionen:</strong><br>„Arbeit melden" (springt vorausgefüllt in den Backlog) und „Wartung eintragen" (springt in den Kalender).</div>
+    </div>
+  </div>
+
+  <div class="hinweis">Entwurf 4/4 – Anlagenverzeichnis: Eine Zeile pro Anlage mit Ampel (grün = alles im Plan, gelb = bald fällig / offene Arbeiten, rot = überfällig oder hohe Priorität). Die Anlagenliste kommt aus der bestehenden „Verwalten"-Liste – nichts doppelt pflegen.</div>
+</main>
+</body>
+</html>

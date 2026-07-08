@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Entwurf – Personal / Arbeitsplanung</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .woche { display: grid; grid-template-columns: 170px repeat(5, 1fr); }
+  .woche > div { border-bottom: 1px solid #E2E4E7; border-right: 1px solid #E2E4E7; padding: 6px; min-height: 74px; }
+  .woche .kopf { min-height: auto; padding: 8px 6px; text-align: center; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: #8A9099; background: #F7F8F9; }
+  .woche .person { display: flex; flex-direction: column; justify-content: center; gap: 3px; background: #F7F8F9; }
+  .woche .person strong { font-size: 0.85rem; }
+  .task { border-radius: 5px; padding: 3px 7px; font-size: 0.7rem; font-weight: 700; margin-bottom: 3px; line-height: 1.3; border: 1px solid; }
+  .task.tpm { background: #F7E8D8; color: #C97A2B; border-color: #C97A2B; }
+  .task.ri { background: #E1EBF3; color: #2F6690; border-color: #2F6690; }
+  .task.mech { background: #E3F0F0; color: #3D8B8B; border-color: #3D8B8B; }
+  .task.elek { background: #EFE9F9; color: #7C5CBF; border-color: #7C5CBF; }
+  .task.abw { background: #F4F5F6; color: #8A9099; border-color: #C3C7CB; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Cockpit</span>
+  <div class="tabs">
+    <span>Cockpit</span><span>TPM-Kalender</span><span>Backlog</span><span class="active">Personal</span><span>Anlagen</span>
+  </div>
+  <span class="datum">‹ &nbsp;KW 28: 06.07. – 10.07.2026&nbsp; ›</span>
+  <span class="draft">ENTWURF – nicht funktional</span>
+</div>
+
+<main>
+  <div class="card">
+    <div class="body" style="padding:0;overflow:hidden;border-radius:12px;">
+      <div class="woche">
+        <div class="kopf" style="text-align:left">Mitarbeiter</div>
+        <div class="kopf">Mo 06.07.</div>
+        <div class="kopf">Di 07.07.</div>
+        <div class="kopf" style="background:#FDF3E7;color:#C97A2B">Mi 08.07. (heute)</div>
+        <div class="kopf">Do 09.07.</div>
+        <div class="kopf">Fr 10.07.</div>
+
+        <div class="person"><strong>M. Weber</strong><span class="b mech" style="align-self:flex-start">Mechanik</span></div>
+        <div><span class="task tpm">TPM OF320</span></div>
+        <div><span class="task mech">RRO Kettenspanner</span></div>
+        <div style="background:#FFFDF9"><span class="task tpm">TPM B1</span><span class="task mech">B2 Abdichtung</span></div>
+        <div><span class="task mech">B2 Abdichtung (Forts.)</span></div>
+        <div></div>
+
+        <div class="person"><strong>K. Schmidt</strong><span class="b elek" style="align-self:flex-start">Elektrik</span></div>
+        <div><span class="task ri">Wasserrundgang</span></div>
+        <div><span class="task elek">TS200 Lichtschranke</span></div>
+        <div style="background:#FFFDF9"><span class="task elek">HRO Endschalter</span></div>
+        <div><span class="task elek">HRO Endschalter (Forts.)</span></div>
+        <div><span class="task ri">Elevatorprüfung</span></div>
+
+        <div class="person"><strong>T. Braun</strong><span class="b mech" style="align-self:flex-start">Mechanik</span></div>
+        <div></div>
+        <div><span class="task ri">Filterwartung</span></div>
+        <div style="background:#FFFDF9"><span class="task ri">Sprinklerwartung</span></div>
+        <div><span class="task mech">VSM1 Lager (wenn Teil da)</span></div>
+        <div><span class="task ri">Werkstattreinigung</span></div>
+
+        <div class="person"><strong>S. Öztürk</strong><span class="b mech" style="align-self:flex-start">Mechanik</span></div>
+        <div><span class="task mech">Masseaufb. Geländer</span></div>
+        <div></div>
+        <div style="background:#FFFDF9"></div>
+        <div></div>
+        <div><span class="task tpm">TPM VSM2</span></div>
+
+        <div class="person"><strong>D. Fischer</strong><span class="b elek" style="align-self:flex-start">Elektrik</span></div>
+        <div></div>
+        <div><span class="task elek">LTA1 FU-Fehler</span></div>
+        <div style="background:#FFFDF9"></div>
+        <div><span class="task ri">Fluormessungen</span></div>
+        <div></div>
+
+        <div class="person"><strong>R. Klein</strong><span class="b mech" style="align-self:flex-start">Mechanik</span></div>
+        <div><span class="task abw">Urlaub</span></div>
+        <div><span class="task abw">Urlaub</span></div>
+        <div style="background:#FFFDF9"><span class="task abw">Urlaub</span></div>
+        <div><span class="task abw">Urlaub</span></div>
+        <div><span class="task abw">Urlaub</span></div>
+
+        <div class="person"><strong>J. Novak</strong><span class="b elek" style="align-self:flex-start">Elektrik</span></div>
+        <div></div>
+        <div></div>
+        <div style="background:#FFFDF9"><span class="task abw">Schulung</span></div>
+        <div><span class="task abw">Schulung</span></div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-top:12px;">
+    <div class="card">
+      <div class="head">Noch nicht eingeplant (aus Backlog &amp; Wartungsplan)</div>
+      <div class="body" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="task mech" style="margin:0">TS480 Schutzhaube</span>
+        <span class="task elek" style="margin:0">BTS Beleuchtung LED</span>
+        <span class="task mech" style="margin:0">Masseaufb. Podest</span>
+        <span class="task tpm" style="margin:0">TPM TS320 (KW 29)</span>
+        <span class="task ri" style="margin:0">Strömungswächter (15.07.)</span>
+      </div>
+      <div class="body" style="padding-top:0" >
+        <div class="hinweis" style="margin-top:0">Idee: per Ziehen (Drag &amp; Drop) auf einen Tag/Mitarbeiter legen – oder per Klick „Einplanen…".</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">Legende</div>
+      <div class="body" style="display:flex;flex-direction:column;gap:6px;font-size:0.75rem;">
+        <span><span class="task tpm" style="margin:0;padding:1px 7px">TPM</span> Wartung nach Plan</span>
+        <span><span class="task ri" style="margin:0;padding:1px 7px">R+I</span> Rundgang &amp; Inspektion</span>
+        <span><span class="task mech" style="margin:0;padding:1px 7px">Mech</span> Backlog mechanisch</span>
+        <span><span class="task elek" style="margin:0;padding:1px 7px">Elek</span> Backlog elektrisch</span>
+        <span><span class="task abw" style="margin:0;padding:1px 7px">Grau</span> Urlaub / Schulung / Krank</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hinweis">Entwurf 3/4 – Personal / Arbeitsplanung: Wochenübersicht, wer wann was macht. TPM-Termine kommen automatisch aus dem Wartungsplan, Backlog-Arbeiten werden vom Werkstattleiter zugeteilt. Abwesenheiten werden hier gepflegt.</div>
+</main>
+</body>
+</html>
