@@ -319,8 +319,13 @@ function riOccurrencesInMonth(riItems, year, month, holidaysMap) {
 }
 
 function daysSinceLastDone(anlage, allEntries, referenceDate) {
+  // Es zählen nur Erledigungen VOR dem Referenztag (Monatsanfang): Sonst würde
+  // jedes Abhaken den laufenden Monatsplan sofort neu mischen und die Anlage
+  // im Plan auf einen anderen Tag springen. So bleibt der Plan im Monat stabil,
+  // die Rotation über die Monatsgrenzen hinweg rechnet weiter wie gehabt.
+  const refKey = dateKey(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
   const doneDates = allEntries
-    .filter((e) => e.category === "TPM" && e.name === anlage && e.status === "done")
+    .filter((e) => e.category === "TPM" && e.name === anlage && e.status === "done" && e.date < refKey)
     .map((e) => e.date)
     .sort();
   if (doneDates.length === 0) return Infinity; // noch nie gemacht -> gilt als am dringendsten
@@ -403,6 +408,12 @@ function App() {
     setShareState({ status: sharedFile.isSupported() ? "none" : "unsupported" });
     setShareOpen(false);
   };
+
+  // Nur-Leser (keine Schreibrechte auf die gemeinsame Datei) sehen ausschließlich den Plan.
+  const readerMode = shareState.status === "connected" && shareState.mode === "read";
+  useEffect(() => {
+    if (readerMode) setView("PLAN");
+  }, [readerMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -830,6 +841,17 @@ function App() {
   const maintenancePlan = maintenancePlanResult.assignments;
   const planSkipped = maintenancePlanResult.skipped;
 
+  // Erledigt-Abgleich für den Plan: gibt es zu einem Plan-Punkt (Datum + Anlage)
+  // einen Kalender-Eintrag mit Status "done", wird er im Plan grün dargestellt.
+  const planDoneKeys = useMemo(() => {
+    const set = new Set();
+    entries.forEach((e) => {
+      if (e.status === "done") set.add(`${e.date}|${e.name}`);
+    });
+    return set;
+  }, [entries]);
+  const isPlanDone = (p) => planDoneKeys.has(`${p.date}|${p.anlage}`);
+
   const applyPlanToCalendar = async () => {
     const riNamesNow = riItems.map((r) => r.name);
     const existingKeys = new Set(entries.map((e) => `${e.date}|${e.category}|${e.name}`));
@@ -1180,8 +1202,10 @@ function App() {
       }
       const dayPlans = planByDay.get(d) || [];
       dayPlans.forEach((p) => {
-        const c = planGroupColor(p.anlage, tpmAnlagen, riItems);
-        inner += `<div style="background:${c}18;color:${c};border:1px solid ${c};border-radius:4px;padding:2px 5px;margin-bottom:2px;font-size:10px;font-weight:700;line-height:1.3;word-break:break-word;overflow-wrap:break-word;">${escapeHtml(p.anlage)}</div>`;
+        const done = isPlanDone(p);
+        const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
+        const bg = done ? "#E5F3EA" : `${c}18`;
+        inner += `<div style="background:${bg};color:${c};border:1px solid ${c};border-radius:4px;padding:2px 5px;margin-bottom:2px;font-size:10px;font-weight:700;line-height:1.3;word-break:break-word;overflow-wrap:break-word;">${done ? "✓ " : ""}${escapeHtml(p.anlage)}</div>`;
       });
       const cellBg = holName ? "#FBE9E7" : weekend ? "#E5F0F8" : "white";
       const borderColor = isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#E2E4E7";
@@ -1362,18 +1386,20 @@ function App() {
       >
         <div className="flex items-center gap-3">
           <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Kalender</div>
-          <div className="flex rounded overflow-hidden border border-white/20">
-            {[["MONAT", "Monat"], ["JAHR", "Jahr"], ["PLAN", "Plan"], ["REGISTER", "Register"]].map(([v, label]) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className="px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
-                style={{ backgroundColor: view === v ? "#C97A2B" : "transparent", color: "white" }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {!readerMode && (
+            <div className="flex rounded overflow-hidden border border-white/20">
+              {[["MONAT", "Monat"], ["JAHR", "Jahr"], ["PLAN", "Plan"], ["REGISTER", "Register"]].map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className="px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
+                  style={{ backgroundColor: view === v ? "#C97A2B" : "transparent", color: "white" }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 text-white">
           {view === "MONAT" || view === "PLAN" ? (
@@ -1409,33 +1435,37 @@ function App() {
           >
             <Printer size={16} /> Drucken
           </button>
-          <button
-            onClick={openSettings}
-            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "#4B5259" }}
-            title="Anlagen & R+I-Punkte verwalten"
-            aria-label="Verwalten"
-          >
-            <Settings size={14} />
-          </button>
-          <button
-            onClick={() => fileInputRef.current && fileInputRef.current.click()}
-            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "#2F6690" }}
-            title="Datensicherung einlesen (Import)"
-            aria-label="Import"
-          >
-            <Upload size={14} />
-          </button>
-          <button
-            onClick={exportData}
-            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "#2F6690" }}
-            title="Alle Einträge als Datei sichern (Export)"
-            aria-label="Export"
-          >
-            <Download size={14} />
-          </button>
+          {!readerMode && (
+            <>
+              <button
+                onClick={openSettings}
+                className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#4B5259" }}
+                title="Anlagen & R+I-Punkte verwalten"
+                aria-label="Verwalten"
+              >
+                <Settings size={14} />
+              </button>
+              <button
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#2F6690" }}
+                title="Datensicherung einlesen (Import)"
+                aria-label="Import"
+              >
+                <Upload size={14} />
+              </button>
+              <button
+                onClick={exportData}
+                className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#2F6690" }}
+                title="Alle Einträge als Datei sichern (Export)"
+                aria-label="Export"
+              >
+                <Download size={14} />
+              </button>
+            </>
+          )}
           {/* Gemeinsame Datei: immer nur das kleine Ordner-Symbol, ganz rechts.
               Grün = verbunden, Grau = noch nicht eingerichtet. */}
           <button
@@ -2103,15 +2133,17 @@ function App() {
             <div className="text-sm font-bold uppercase tracking-wide" style={{ color: "#22262B" }}>
               Kalender – {MONTHS[month]} {year}
             </div>
-            <div className="no-print flex items-center gap-2">
-              <button
-                onClick={applyPlanToCalendar}
-                className="text-xs font-bold uppercase tracking-wide text-white px-3 py-2 rounded hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: "#22262B" }}
-              >
-                Plan in Kalender übernehmen
-              </button>
-            </div>
+            {!readerMode && (
+              <div className="no-print flex items-center gap-2">
+                <button
+                  onClick={applyPlanToCalendar}
+                  className="text-xs font-bold uppercase tracking-wide text-white px-3 py-2 rounded hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: "#22262B" }}
+                >
+                  Plan in Kalender übernehmen
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-1.5 mb-1.5">
@@ -2156,10 +2188,11 @@ function App() {
                         {holName && <div className="text-xs font-bold" style={{ color: "#B23A34", marginTop: "-4px" }}>{holName}</div>}
                         <div className="flex flex-col gap-1">
                           {dayPlans.map((p, pi) => {
-                            const c = planGroupColor(p.anlage, tpmAnlagen, riItems);
+                            const done = isPlanDone(p);
+                            const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
                             return (
-                              <div key={pi} className="text-xs font-bold rounded px-1.5 py-1" style={{ color: c, border: `1px solid ${c}`, backgroundColor: `${c}18`, wordBreak: "break-word", overflowWrap: "break-word" }}>
-                                {p.anlage}
+                              <div key={pi} className="text-xs font-bold rounded px-1.5 py-1" style={{ color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word" }}>
+                                {done ? "✓ " : ""}{p.anlage}
                               </div>
                             );
                           })}
@@ -2175,6 +2208,7 @@ function App() {
           <div className="mt-3 flex items-center gap-3 text-xs font-bold flex-wrap">
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#C97A2B" }} /> TPM</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CATS.RI.color }} /> R+I</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#2F7D4F" }} /> ✓ Erledigt</span>
           </div>
 
           <div style={{ breakBefore: "page" }}>
