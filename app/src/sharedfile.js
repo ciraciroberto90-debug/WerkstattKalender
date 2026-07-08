@@ -226,8 +226,13 @@ export async function pickShared({ create = false } = {}) {
   }
   fileHandle = handle;
   accessMode = "readwrite"; // adoptCurrentFile stuft bei fehlenden Laufwerks-Rechten auf "read" zurück
-  await idbSet("handle", handle);
-  await idbSet("mode", "readwrite");
+  try {
+    await idbSet("handle", handle);
+    await idbSet("mode", "readwrite");
+  } catch (e) {
+    // Verweis lässt sich nicht merken (z. B. IndexedDB blockiert) – Verbindung gilt
+    // trotzdem für diese Sitzung, nach dem Neustart muss die Datei neu gewählt werden.
+  }
   const data = await adoptCurrentFile(create);
   startPolling();
   return data;

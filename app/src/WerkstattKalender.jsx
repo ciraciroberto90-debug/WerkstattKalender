@@ -1402,14 +1402,27 @@ function App() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
-          <button
-            onClick={() => setShareOpen(true)}
-            className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: shareState.status === "connected" ? "#2F7D4F" : "#4B5259" }}
-            title={shareState.status === "connected" ? `Gemeinsame Datei: ${shareState.name}` : "Gemeinsame Datei einrichten"}
-          >
-            <FolderOpen size={14} /> {shareState.status === "connected" ? (shareState.mode === "read" ? "Ansicht" : "Geteilt") : "Teilen"}
-          </button>
+          {shareState.status === "connected" ? (
+            // Verbunden: nur noch ein kleines grünes Symbol (öffnet bei Bedarf den Dialog)
+            <button
+              onClick={() => setShareOpen(true)}
+              className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "#2F7D4F" }}
+              title={`Gemeinsame Datei verbunden: ${shareState.name}${shareState.mode === "read" ? " (nur ansehen)" : ""}`}
+              aria-label="Gemeinsame Datei"
+            >
+              <FolderOpen size={14} />
+            </button>
+          ) : (
+            <button
+              onClick={() => setShareOpen(true)}
+              className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "#4B5259" }}
+              title="Gemeinsame Datei einrichten"
+            >
+              <FolderOpen size={14} /> Teilen
+            </button>
+          )}
           <button
             onClick={openSettings}
             className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
