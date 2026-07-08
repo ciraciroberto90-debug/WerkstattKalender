@@ -2193,7 +2193,7 @@ function App() {
                   className="text-xs font-bold uppercase tracking-wide text-white px-3 py-2 rounded hover:opacity-90 transition-opacity"
                   style={{ backgroundColor: "#22262B" }}
                 >
-                  Plan in Kalender übernehmen
+                  Plan in Auswertung übernehmen
                 </button>
               </div>
             )}
