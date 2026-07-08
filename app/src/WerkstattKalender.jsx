@@ -380,7 +380,8 @@ function App() {
   const connectShared = async (opts) => {
     try {
       await sharedFile.pickShared(opts);
-      setShareState({ status: "connected", name: sharedFile.fileName(), mode: opts.readOnly ? "read" : "readwrite" });
+      // Ob bearbeitet werden darf, entscheiden die Datei-Rechte auf dem Laufwerk (IT-Freigabe).
+      setShareState({ status: "connected", name: sharedFile.fileName(), mode: sharedFile.canWrite() ? "readwrite" : "read" });
       setErr(null);
       setShareOpen(false);
     } catch (e) {
@@ -1451,7 +1452,7 @@ function App() {
       )}
       {shareState.status === "connected" && shareState.mode === "read" && (
         <div className="no-print px-4 py-2 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
-          Nur ansehen – angezeigt wird der gemeinsame Stand aus „{shareState.name}". Eigene Änderungen werden nicht in die Datei geschrieben.
+          Nur ansehen – für „{shareState.name}" bestehen keine Schreibrechte. Angezeigt wird der gemeinsame Stand; eigene Änderungen werden nicht gespeichert.
         </div>
       )}
 
@@ -1795,9 +1796,10 @@ function App() {
               <div className="flex flex-col gap-3">
                 <div className="text-xs text-slate-500 leading-relaxed">
                   Alle Einträge werden in einer JSON-Datei gespeichert, die auf einem gemeinsamen Laufwerk liegt
-                  (Netzlaufwerk oder ein per Explorer synchronisierter OneDrive-Ordner). Wer die Datei
-                  <strong> zum Bearbeiten</strong> öffnet, kann Einträge ändern – wer sie <strong>nur ansieht</strong>, bekommt
-                  automatisch den aktuellen Stand angezeigt (Aktualisierung alle 30 Sekunden).
+                  (Netzlaufwerk oder ein per Explorer synchronisierter OneDrive-Ordner). <strong>Wer die Datei
+                  bearbeiten darf, legen die Datei-Rechte auf dem Laufwerk fest</strong> (IT-Freigabe): Mit
+                  Schreibrechten kann man Einträge ändern, ohne Schreibrechte zeigt die App automatisch nur den
+                  aktuellen Stand an (Aktualisierung alle 30 Sekunden).
                 </div>
 
                 {shareState.status === "connected" ? (
@@ -1822,14 +1824,7 @@ function App() {
                   className="text-sm font-bold py-2.5 rounded text-white"
                   style={{ backgroundColor: "#2F6690" }}
                 >
-                  Vorhandene Datei öffnen (bearbeiten) …
-                </button>
-                <button
-                  onClick={() => connectShared({ readOnly: true })}
-                  className="text-sm font-bold py-2.5 rounded border"
-                  style={{ borderColor: "#2F6690", color: "#2F6690", backgroundColor: "white" }}
-                >
-                  Vorhandene Datei nur ansehen …
+                  Vorhandene Datei öffnen …
                 </button>
                 {shareState.status === "connected" && (
                   <button onClick={disconnectShared} className="text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">
@@ -1838,9 +1833,11 @@ function App() {
                 )}
 
                 <div className="text-xs text-slate-400 leading-relaxed">
-                  Tipp: Der Chef legt die Datei einmal auf dem gemeinsamen Laufwerk an. Der Vertreter öffnet sie
-                  über „bearbeiten", alle anderen über „nur ansehen". Nach einem Browser-Neustart fragt der Browser
-                  aus Sicherheitsgründen einmal kurz nach – oben erscheint dann „Jetzt verbinden".
+                  Tipp: Die Datei einmal auf dem gemeinsamen Laufwerk anlegen, danach öffnen alle anderen sie über
+                  „Vorhandene Datei öffnen". Schreibrechte auf die Datei bekommen nur die Bearbeiter (über die
+                  IT-Freigabe) – bei allen anderen schaltet die App automatisch auf „nur ansehen". Nach einem
+                  Browser-Neustart fragt der Browser aus Sicherheitsgründen einmal kurz nach – oben erscheint dann
+                  „Jetzt verbinden".
                 </div>
               </div>
             )}

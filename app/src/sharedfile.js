@@ -179,6 +179,9 @@ function readLocalJSON(key) {
 }
 
 /* ---------- Datei übernehmen (nach Auswahl oder beim Start) ---------- */
+// Ob jemand bearbeiten darf, entscheiden die Datei-Rechte auf dem Laufwerk
+// (von der IT vergeben): Schlägt das Schreiben dort fehl, schaltet die App
+// automatisch auf "nur ansehen" um.
 async function adoptCurrentFile(justCreated) {
   let data = justCreated ? emptyData() : await readFileData();
 
@@ -192,8 +195,14 @@ async function adoptCurrentFile(justCreated) {
       const localConfig = readLocalJSON(CONFIG_KEY);
       if (localConfig) config = { ...localConfig, updatedAt: nowISO() };
     }
-    data = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config };
-    await writeFileData(data);
+    const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config };
+    try {
+      await writeFileData(candidate);
+      data = candidate;
+    } catch (e) {
+      if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
+      accessMode = "read"; // keine Schreibrechte (IT-Freigabe) -> nur ansehen
+    }
   }
 
   lastSavedAt = data.savedAt;
@@ -203,7 +212,7 @@ async function adoptCurrentFile(justCreated) {
 }
 
 /* ---------- Verbinden / Trennen ---------- */
-export async function pickShared({ create = false, readOnly = false } = {}) {
+export async function pickShared({ create = false } = {}) {
   const types = [{ description: "Werkstatt-Kalender Daten", accept: { "application/json": [".json"] } }];
   let handle;
   if (create) {
@@ -211,15 +220,14 @@ export async function pickShared({ create = false, readOnly = false } = {}) {
   } else {
     [handle] = await window.showOpenFilePicker({ types });
   }
-  const mode = readOnly ? "read" : "readwrite";
-  if (!readOnly && handle.requestPermission) {
+  if (handle.requestPermission) {
     const p = await handle.requestPermission({ mode: "readwrite" });
-    if (p !== "granted") throw new Error("Schreibzugriff auf die Datei wurde nicht erlaubt.");
+    if (p !== "granted") throw new Error("Der Zugriff auf die Datei wurde nicht erlaubt.");
   }
   fileHandle = handle;
-  accessMode = mode;
+  accessMode = "readwrite"; // adoptCurrentFile stuft bei fehlenden Laufwerks-Rechten auf "read" zurück
   await idbSet("handle", handle);
-  await idbSet("mode", mode);
+  await idbSet("mode", "readwrite");
   const data = await adoptCurrentFile(create);
   startPolling();
   return data;
@@ -247,7 +255,7 @@ export async function tryRestore() {
       dispatchError("Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
     }
     startPolling();
-    return { status: "connected", name: handle.name, mode };
+    return { status: "connected", name: handle.name, mode: accessMode };
   }
   return { status: "needs-permission", name: handle.name, mode };
 }
@@ -263,7 +271,7 @@ export async function reconnect() {
   accessMode = mode;
   await adoptCurrentFile(false);
   startPolling();
-  return { status: "connected", name: handle.name, mode };
+  return { status: "connected", name: handle.name, mode: accessMode };
 }
 
 export async function disconnect() {

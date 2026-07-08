@@ -22,18 +22,24 @@ Mehrere Personen können denselben Datenstand nutzen – über eine gemeinsame
 JSON-Datei auf einem Netzlaufwerk oder in einem per Explorer synchronisierten
 OneDrive-Ordner. Benötigt wird **Microsoft Edge oder Google Chrome**.
 
+**Wer bearbeiten darf, bestimmen die Datei-Rechte auf dem Laufwerk** (von der
+IT vergeben): Bearbeiter bekommen Schreibrechte auf die Datei, alle anderen
+nur Leserechte. Die App erkennt das automatisch – ohne Schreibrechte schaltet
+sie auf „nur ansehen" um (blaue Hinweisleiste).
+
 **Einrichtung (einmalig):**
 
-1. **Chef:** In der App oben auf **„Teilen"** klicken → „Neue gemeinsame Datei
-   anlegen" → als Speicherort das gemeinsame Laufwerk wählen (z. B.
-   `W:\Werkstatt\werkstatt-kalender-daten.json` oder den OneDrive-Ordner).
-   Die vorhandenen Einträge werden automatisch in die Datei übernommen.
-2. **Vertreter:** „Teilen" → „Vorhandene Datei öffnen (bearbeiten)" → dieselbe
-   Datei auswählen. Ab jetzt können beide eintragen; die Änderungen werden
-   Eintrag für Eintrag zusammengeführt, niemand überschreibt den anderen.
-3. **Alle anderen:** „Teilen" → „Vorhandene Datei nur ansehen". Sie sehen den
-   aktuellen Stand (automatische Aktualisierung alle 30 Sekunden), können aber
-   nichts in die Datei schreiben.
+1. **IT:** Ordner auf dem Firmenlaufwerk freigeben – Chef + Vertreter mit
+   Schreibrechten, alle anderen nur mit Leserechten.
+2. **Chef:** In der App oben auf **„Teilen"** klicken → „Neue gemeinsame Datei
+   anlegen" → als Speicherort diesen Ordner wählen (z. B.
+   `W:\Werkstatt\werkstatt-kalender-daten.json`). Die vorhandenen Einträge
+   werden automatisch in die Datei übernommen.
+3. **Alle anderen (Vertreter wie Zuschauer):** „Teilen" → „Vorhandene Datei
+   öffnen" → dieselbe Datei auswählen. Wer Schreibrechte hat, kann bearbeiten
+   (Änderungen werden Eintrag für Eintrag zusammengeführt, niemand
+   überschreibt den anderen); alle übrigen sehen den aktuellen Stand
+   (automatische Aktualisierung alle 30 Sekunden).
 
 **Gut zu wissen:**
 
@@ -44,9 +50,9 @@ OneDrive-Ordner. Benötigt wird **Microsoft Edge oder Google Chrome**.
 - Ist das Laufwerk kurz nicht erreichbar, wird lokal weitergespeichert und
   eine Meldung angezeigt; beim nächsten Speichern/Verbinden wird wieder
   zusammengeführt.
-- Wer wirklich nur ansehen darf, kann zusätzlich über die Laufwerks-Berechtigungen
-  der IT abgesichert werden (Datei/Ordner nur mit Leserecht freigeben) – dann
-  ist Schreiben technisch unmöglich, egal was in der App angeklickt wird.
+- Die Absicherung über Laufwerks-Rechte gilt auf Betriebssystem-Ebene und ist
+  nicht austricksbar – ohne Schreibrecht landet nie eine Änderung in der Datei,
+  egal was in der App angeklickt wird.
 - Löschungen werden über eine interne Merkliste (180 Tage) zwischen den
   Bearbeitern abgeglichen.
 
