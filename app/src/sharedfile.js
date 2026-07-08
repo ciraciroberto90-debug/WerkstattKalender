@@ -294,29 +294,75 @@ export async function disconnect() {
 }
 
 /* ---------- Speichern (wird von storage.js aufgerufen) ---------- */
+// Mit Kontroll-Lesung: Schreiben zwei Bearbeiter im exakt selben Moment,
+// würde sonst stumm der Letzte gewinnen. Deshalb wird nach dem Schreiben
+// kurz zurückgelesen und geprüft, ob die eigenen Änderungen wirklich in der
+// Datei stehen - falls nicht, wird neu zusammengeführt und nachgespeichert.
 export async function saveEntries(nextEntries, prevEntries) {
   if (!fileHandle || accessMode !== "readwrite") return null;
-  const fileData = await readFileData().catch(() => emptyData());
   const { stamped, removed } = stampEntries(nextEntries, prevEntries);
-  const deleted = { ...fileData.deleted };
-  const t = nowISO();
-  removed.forEach((id) => { deleted[id] = t; });
-  pruneTombstones(deleted);
-  const merged = mergeEntries(fileData.entries, stamped, deleted);
-  const out = { format: FORMAT, savedAt: t, entries: merged, deleted, config: fileData.config };
-  await writeFileData(out);
-  lastSavedAt = t;
-  return merged;
+  const delStamp = nowISO();
+  let merged = null;
+
+  for (let versuch = 0; versuch < 3; versuch++) {
+    const fileData = await readFileData().catch(() => emptyData());
+    const deleted = { ...fileData.deleted };
+    removed.forEach((id) => {
+      if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
+    });
+    pruneTombstones(deleted);
+    merged = mergeEntries(fileData.entries, stamped, deleted);
+    const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: fileData.config };
+    await writeFileData(out);
+    lastSavedAt = out.savedAt;
+
+    const kontrolle = await readFileData().catch(() => null);
+    if (kontrolle && changesConfirmed(kontrolle, stamped, removed, delStamp)) {
+      // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
+      lastSavedAt = kontrolle.savedAt;
+      return mergeEntries(kontrolle.entries, [], kontrolle.deleted);
+    }
+    // Kollision: kurz zufällig warten, damit sich zwei Speichernde entzerren, dann neuer Versuch
+    await new Promise((r) => setTimeout(r, 60 + Math.floor(Math.random() * 120)));
+  }
+  return merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
+}
+
+// Stehen alle eigenen Änderungen (und Löschungen) im zurückgelesenen Stand?
+function changesConfirmed(data, stamped, removed, delStamp) {
+  const byId = new Map(data.entries.map((e) => [e.id, e]));
+  for (const e of stamped) {
+    const v = byId.get(e.id);
+    if (v && String(v.updatedAt || "") >= String(e.updatedAt || "")) continue;
+    const delAt = data.deleted && data.deleted[e.id];
+    if (delAt && String(delAt) >= String(e.updatedAt || "")) continue; // inzwischen bewusst gelöscht
+    return false;
+  }
+  for (const id of removed) {
+    const v = byId.get(id);
+    if (!v) continue; // Eintrag ist weg - gut
+    if (String(v.updatedAt || "") > delStamp) continue; // nach der Löschung neu bearbeitet - Bearbeitung gewinnt
+    const delAt = data.deleted && data.deleted[id];
+    if (!delAt || String(delAt) < delStamp) return false;
+  }
+  return true;
 }
 
 export async function saveConfig(configObj) {
   if (!fileHandle || accessMode !== "readwrite") return null;
-  const fileData = await readFileData().catch(() => emptyData());
-  const t = nowISO();
-  const out = { ...fileData, format: FORMAT, savedAt: t, config: { ...configObj, updatedAt: t } };
-  await writeFileData(out);
-  lastSavedAt = t;
-  return out.config;
+  let saved = null;
+  for (let versuch = 0; versuch < 3; versuch++) {
+    const fileData = await readFileData().catch(() => emptyData());
+    const t = nowISO();
+    const out = { ...fileData, format: FORMAT, savedAt: t, config: { ...configObj, updatedAt: t } };
+    await writeFileData(out);
+    lastSavedAt = t;
+    saved = out.config;
+    const kontrolle = await readFileData().catch(() => null);
+    if (kontrolle && kontrolle.config && String(kontrolle.config.updatedAt || "") >= t) return saved;
+    await new Promise((r) => setTimeout(r, 60 + Math.floor(Math.random() * 120)));
+  }
+  return saved;
 }
 
 /* ---------- Änderungen der anderen abholen ---------- */
