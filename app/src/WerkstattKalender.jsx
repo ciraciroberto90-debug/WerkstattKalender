@@ -337,7 +337,7 @@ function App() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [view, setView] = useState("MONAT"); // 'MONAT' | 'JAHR'
+  const [view, setView] = useState("PLAN"); // 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (MONAT/JAHR = Auswertung)
   const [entries, setEntries] = useState([]);
   const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
   const [riItems, setRiItems] = useState(DEFAULT_RI_ITEMS);
@@ -852,6 +852,27 @@ function App() {
   }, [entries]);
   const isPlanDone = (p) => planDoneKeys.has(`${p.date}|${p.anlage}`);
 
+  // Bearbeiten direkt aus dem Plan: Klick auf einen Plan-Punkt öffnet den
+  // Eintrag (Gemacht/Offen/Notiz). Gibt es noch keinen Kalender-Eintrag zu
+  // diesem Punkt, wird er dabei automatisch angelegt (Status: offen).
+  const openPlanEntry = async (p) => {
+    if (readerMode) return;
+    let entry = entries.find((e) => e.date === p.date && e.name === p.anlage);
+    if (!entry) {
+      const category = riItems.some((r) => r.name === p.anlage) ? "RI" : "TPM";
+      entry = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        date: p.date,
+        category,
+        name: p.anlage,
+        status: "open",
+        note: "",
+      };
+      await persist([...entries, entry]);
+    }
+    openEditModal(entry);
+  };
+
   const applyPlanToCalendar = async () => {
     const riNamesNow = riItems.map((r) => r.name);
     const existingKeys = new Set(entries.map((e) => `${e.date}|${e.category}|${e.name}`));
@@ -1201,11 +1222,11 @@ function App() {
         inner += `<div style="font-size:9px;font-weight:700;color:#B23A34;margin-bottom:2px;">${escapeHtml(holName)}</div>`;
       }
       const dayPlans = planByDay.get(d) || [];
+      // Druckvorlage bleibt bewusst neutral (ohne Erledigt-Status): Sie wird am
+      // Monatsanfang ausgehängt; der Live-Status ist am Bildschirm zu sehen.
       dayPlans.forEach((p) => {
-        const done = isPlanDone(p);
-        const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
-        const bg = done ? "#E5F3EA" : `${c}18`;
-        inner += `<div style="background:${bg};color:${c};border:1px solid ${c};border-radius:4px;padding:2px 5px;margin-bottom:2px;font-size:10px;font-weight:700;line-height:1.3;word-break:break-word;overflow-wrap:break-word;">${done ? "✓ " : ""}${escapeHtml(p.anlage)}</div>`;
+        const c = planGroupColor(p.anlage, tpmAnlagen, riItems);
+        inner += `<div style="background:${c}18;color:${c};border:1px solid ${c};border-radius:4px;padding:2px 5px;margin-bottom:2px;font-size:10px;font-weight:700;line-height:1.3;word-break:break-word;overflow-wrap:break-word;">${escapeHtml(p.anlage)}</div>`;
       });
       const cellBg = holName ? "#FBE9E7" : weekend ? "#E5F0F8" : "white";
       const borderColor = isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#E2E4E7";
@@ -1387,18 +1408,37 @@ function App() {
         <div className="flex items-center gap-3">
           <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Kalender</div>
           {!readerMode && (
-            <div className="flex rounded overflow-hidden border border-white/20">
-              {[["MONAT", "Monat"], ["JAHR", "Jahr"], ["PLAN", "Plan"], ["REGISTER", "Register"]].map(([v, label]) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className="px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
-                  style={{ backgroundColor: view === v ? "#C97A2B" : "transparent", color: "white" }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="flex rounded overflow-hidden border border-white/20">
+                {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
+                  const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => setView(v === "AUSWERTUNG" ? "MONAT" : v)}
+                      className="px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
+                      style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              {(view === "MONAT" || view === "JAHR") && (
+                <div className="flex rounded overflow-hidden border border-white/20">
+                  {[["MONAT", "Monat"], ["JAHR", "Jahr"]].map(([v, label]) => (
+                    <button
+                      key={v}
+                      onClick={() => setView(v)}
+                      className="px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
+                      style={{ backgroundColor: view === v ? "#4B5259" : "transparent", color: "white" }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
         <div className="flex items-center gap-1 text-white">
@@ -2191,9 +2231,16 @@ function App() {
                             const done = isPlanDone(p);
                             const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
                             return (
-                              <div key={pi} className="text-xs font-bold rounded px-1.5 py-1" style={{ color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word" }}>
+                              <button
+                                key={pi}
+                                onClick={() => openPlanEntry(p)}
+                                disabled={readerMode}
+                                className="text-xs font-bold rounded px-1.5 py-1 text-left w-full"
+                                style={{ color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
+                                title={readerMode ? undefined : "Klicken zum Abhaken / Notiz"}
+                              >
                                 {done ? "✓ " : ""}{p.anlage}
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
