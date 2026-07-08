@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Werkstatt-Kalender</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --border: #d9dce1;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --accent: #1d4ed8;
+    --accent-dark: #1e40af;
+    --danger: #dc2626;
+    --slot-h: 26px; /* Höhe pro 30 Minuten */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  button { font: inherit; cursor: pointer; }
+  input, select, textarea { font: inherit; color: inherit; }
+
+  /* ---------- Kopfzeile ---------- */
+  header {
+    background: #111827;
+    color: #fff;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em; }
+  header h1 span { color: #93c5fd; }
+  .nav-group { display: flex; align-items: center; gap: 6px; }
+  .nav-group .label {
+    min-width: 210px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .btn {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 7px;
+    padding: 7px 12px;
+    font-size: 0.9rem;
+  }
+  .btn:hover { background: #eef0f3; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: var(--accent-dark); }
+  .btn.ghost { background: transparent; border-color: #4b5563; color: #e5e7eb; }
+  .btn.ghost:hover { background: #1f2937; }
+  .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .view-switch { display: flex; border: 1px solid #4b5563; border-radius: 7px; overflow: hidden; }
+  .view-switch button {
+    background: transparent; color: #e5e7eb; border: none; padding: 7px 14px; font-size: 0.9rem;
+  }
+  .view-switch button.active { background: var(--accent); color: #fff; font-weight: 600; }
+  header .spacer { flex: 1; }
+  header input[type="search"] {
+    padding: 7px 10px; border-radius: 7px; border: 1px solid #4b5563;
+    background: #1f2937; color: #fff; width: 190px;
+  }
+  header input[type="search"]::placeholder { color: #9ca3af; }
+
+  /* ---------- Hauptbereich ---------- */
+  main { padding: 14px 16px 40px; max-width: 1500px; margin: 0 auto; }
+
+  /* ---------- Kalender-Raster ---------- */
+  .calendar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow-x: auto;
+  }
+  .cal-grid { display: grid; min-width: 760px; }
+  .cal-head {
+    padding: 8px 6px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.88rem;
+    border-bottom: 2px solid var(--border);
+    border-left: 1px solid var(--border);
+    background: #f9fafb;
+    position: sticky; top: 0;
+  }
+  .cal-head.today-col { background: #dbeafe; color: var(--accent-dark); }
+  .cal-head small { display: block; font-weight: 400; color: var(--muted); }
+  .time-col {
+    border-left: none !important;
+  }
+  .time-cell {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: right;
+    padding: 2px 6px 0 4px;
+    height: var(--slot-h);
+    border-top: 1px solid transparent;
+  }
+  .time-cell.hour { border-top-color: transparent; }
+  .day-col { position: relative; border-left: 1px solid var(--border); }
+  .slot {
+    height: var(--slot-h);
+    border-top: 1px dashed #eceef1;
+  }
+  .slot.hour { border-top: 1px solid var(--border); }
+  .slot:hover { background: #f0f6ff; cursor: copy; }
+  .day-col.weekend .slot { background: #fafafa; }
+
+  .appt {
+    position: absolute;
+    left: 3px; right: 3px;
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 0.75rem;
+    line-height: 1.25;
+    overflow: hidden;
+    cursor: pointer;
+    color: #fff;
+    border-left: 4px solid rgba(0,0,0,0.25);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+  }
+  .appt:hover { filter: brightness(1.08); }
+  .appt .t { font-weight: 700; }
+  .appt .k { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .appt .d { opacity: 0.92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .appt.done { opacity: 0.55; text-decoration: line-through; }
+  .appt.overlap-left { left: 50%; }
+
+  /* ---------- Listenansicht ---------- */
+  .list-panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow-x: auto;
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 900px; }
+  th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+  th { background: #f9fafb; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
+  tbody tr:hover { background: #f0f6ff; cursor: pointer; }
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+  }
+  .cat-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  /* ---------- Modale ---------- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 4vh 12px; z-index: 100; overflow-y: auto;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--panel); border-radius: 12px; width: 100%; max-width: 560px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+  }
+  .modal-head h2 { font-size: 1.05rem; }
+  .modal-head .close { background: none; border: none; font-size: 1.4rem; color: var(--muted); line-height: 1; }
+  .modal-body { padding: 16px 18px; }
+  .modal-foot {
+    display: flex; gap: 8px; justify-content: flex-end;
+    padding: 12px 18px; border-top: 1px solid var(--border);
+  }
+  .modal-foot .left { margin-right: auto; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  label.field { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+  label.field input, label.field select, label.field textarea {
+    display: block; width: 100%; margin-top: 4px;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+    background: #fff; font-size: 0.92rem;
+  }
+  label.field textarea { resize: vertical; min-height: 60px; }
+  .warn {
+    display: none; margin-top: 12px; padding: 9px 12px; border-radius: 7px;
+    background: #fef3c7; color: #92400e; font-size: 0.85rem; border: 1px solid #fcd34d;
+  }
+  .warn.show { display: block; }
+
+  /* Mechaniker-Verwaltung */
+  .mech-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .mech-row:last-child { border-bottom: none; }
+  .mech-row .name { flex: 1; font-weight: 600; }
+  .mech-add { display: flex; gap: 8px; margin-top: 12px; }
+  .mech-add input { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; }
+
+  /* Statistikleiste */
+  .stats {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 16px; min-width: 130px;
+  }
+  .stat .num { font-size: 1.4rem; font-weight: 700; }
+  .stat .lbl { font-size: 0.78rem; color: var(--muted); }
+
+  .empty-hint { text-align: center; color: var(--muted); padding: 40px 10px; font-size: 0.95rem; }
+
+  /* ---------- Druck ---------- */
+  @media print {
+    header, .stats, .no-print { display: none !important; }
+    body { background: #fff; }
+    main { padding: 0; max-width: none; }
+    .calendar, .list-panel { border: none; }
+    .print-title { display: block !important; font-size: 1.1rem; margin-bottom: 8px; }
+  }
+  .print-title { display: none; }
+
+  @media (max-width: 720px) {
+    header { gap: 8px; }
+    .nav-group .label { min-width: 0; font-size: 0.85rem; }
+    header input[type="search"] { width: 130px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔧 Werkstatt<span>Kalender</span></h1>
+  <div class="nav-group no-print">
+    <button class="btn ghost" id="btnPrev" title="Zurück">‹</button>
+    <button class="btn ghost" id="btnToday">Heute</button>
+    <button class="btn ghost" id="btnNext" title="Weiter">›</button>
+    <span class="label" id="rangeLabel"></span>
+  </div>
+  <div class="view-switch no-print">
+    <button data-view="week" class="active">Woche</button>
+    <button data-view="day">Tag</button>
+    <button data-view="list">Liste</button>
+  </div>
+  <div class="spacer"></div>
+  <input type="search" id="search" placeholder="Suche: Kunde, Kennzeichen …">
+  <button class="btn ghost" id="btnMechs">👥 Mechaniker</button>
+  <button class="btn ghost" id="btnExport" title="Alle Daten als Datei sichern">⬇ Sichern</button>
+  <button class="btn ghost" id="btnImport" title="Datensicherung einlesen">⬆ Laden</button>
+  <button class="btn ghost" onclick="window.print()">🖨 Drucken</button>
+  <button class="btn primary" id="btnNew">+ Neuer Termin</button>
+  <input type="file" id="importFile" accept=".json" hidden>
+</header>
+
+<main>
+  <div class="stats no-print" id="stats"></div>
+  <div class="print-title" id="printTitle"></div>
+  <div id="viewRoot"></div>
+</main>
+
+<!-- Termin-Dialog -->
+<div class="overlay" id="apptOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="apptTitle">Neuer Termin</h2>
+      <button class="close" data-close="apptOverlay">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="apptForm" class="form-grid">
+        <label class="field">Datum
+          <input type="date" name="date" required>
+        </label>
+        <label class="field">Uhrzeit
+          <input type="time" name="start" step="900" required>
+        </label>
+        <label class="field">Dauer
+          <select name="duration">
+            <option value="30">30 Min.</option>
+            <option value="60" selected>1 Std.</option>
+            <option value="90">1,5 Std.</option>
+            <option value="120">2 Std.</option>
+            <option value="180">3 Std.</option>
+            <option value="240">4 Std.</option>
+            <option value="360">6 Std.</option>
+            <option value="480">Ganzer Tag</option>
+          </select>
+        </label>
+        <label class="field">Status
+          <select name="status">
+            <option value="geplant">Geplant</option>
+            <option value="inarbeit">In Arbeit</option>
+            <option value="fertig">Fertig</option>
+            <option value="abgeholt">Abgeholt</option>
+          </select>
+        </label>
+        <label class="field">Kunde *
+          <input type="text" name="kunde" required placeholder="z. B. Müller">
+        </label>
+        <label class="field">Telefon
+          <input type="tel" name="telefon" placeholder="z. B. 0171 2345678">
+        </label>
+        <label class="field">Fahrzeug
+          <input type="text" name="fahrzeug" placeholder="z. B. VW Golf VII">
+        </label>
+        <label class="field">Kennzeichen
+          <input type="text" name="kennzeichen" placeholder="z. B. B-AB 1234" style="text-transform:uppercase">
+        </label>
+        <label class="field">Arbeit
+          <select name="kategorie" id="katSelect"></select>
+        </label>
+        <label class="field">Mechaniker
+          <select name="mechaniker" id="mechSelect"></select>
+        </label>
+        <label class="field full">Beschreibung / Notizen
+          <textarea name="notizen" placeholder="z. B. Klappern vorne rechts, Ersatzteil bestellt …"></textarea>
+        </label>
+      </form>
+      <div class="warn" id="overlapWarn"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger left" id="btnDelete" style="display:none">Löschen</button>
+      <button class="btn" data-close="apptOverlay">Abbrechen</button>
+      <button class="btn primary" id="btnSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mechaniker-Dialog -->
+<div class="overlay" id="mechOverlay">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <h2>Mechaniker verwalten</h2>
+      <button class="close" data-close="mechOverlay">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="mechList"></div>
+      <div class="mech-add">
+        <input type="text" id="mechName" placeholder="Name des Mechanikers">
+        <button class="btn primary" id="btnMechAdd">Hinzufügen</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="mechOverlay">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ================= Konfiguration ================= */
+const START_HOUR = 7;    // Werkstatt öffnet
+const END_HOUR   = 18;   // Werkstatt schließt
+const SLOT_MIN   = 30;   // Rasterung in Minuten
+const STORE_KEY  = 'werkstattkalender.v1';
+
+const KATEGORIEN = {
+  inspektion: { name: 'Inspektion / Service', color: '#2563eb' },
+  reparatur:  { name: 'Reparatur',            color: '#ea580c' },
+  reifen:     { name: 'Reifen / Räder',       color: '#059669' },
+  huau:       { name: 'HU / AU (TÜV)',        color: '#7c3aed' },
+  elektrik:   { name: 'Elektrik / Diagnose',  color: '#0891b2' },
+  karosserie: { name: 'Karosserie / Lack',    color: '#be123c' },
+  sonstiges:  { name: 'Sonstiges',            color: '#6b7280' },
+};
+
+const STATUS = {
+  geplant:  { name: 'Geplant',   bg: '#e5e7eb', fg: '#374151' },
+  inarbeit: { name: 'In Arbeit', bg: '#fef3c7', fg: '#92400e' },
+  fertig:   { name: 'Fertig',    bg: '#d1fae5', fg: '#065f46' },
+  abgeholt: { name: 'Abgeholt',  bg: '#dbeafe', fg: '#1e40af' },
+};
+
+/* ================= Datenhaltung ================= */
+let state = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) { console.error('Laden fehlgeschlagen', e); }
+  return seed();
+}
+
+function save() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+
+function seed() {
+  const heute = isoDate(new Date());
+  return {
+    mechanics: ['Chef', 'Geselle 1', 'Geselle 2'],
+    appointments: [
+      { id: uid(), date: heute, start: '08:00', duration: 90,  kunde: 'Beispiel: Müller', telefon: '0170 1234567',
+        fahrzeug: 'VW Golf VII', kennzeichen: 'B-MU 1234', kategorie: 'inspektion',
+        mechaniker: 'Geselle 1', notizen: 'Großer Service, Ölwechsel', status: 'geplant' },
+      { id: uid(), date: heute, start: '10:00', duration: 60,  kunde: 'Beispiel: Schmidt', telefon: '',
+        fahrzeug: 'BMW 320d', kennzeichen: 'B-SC 456', kategorie: 'huau',
+        mechaniker: 'Chef', notizen: 'HU-Termin 11:30 beim Prüfer', status: 'geplant' },
+      { id: uid(), date: heute, start: '13:30', duration: 120, kunde: 'Beispiel: Yilmaz', telefon: '',
+        fahrzeug: 'Opel Astra', kennzeichen: 'B-YZ 789', kategorie: 'reparatur',
+        mechaniker: 'Geselle 2', notizen: 'Bremsen vorne komplett', status: 'geplant' },
+    ],
+  };
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+/* ================= Datums-Helfer ================= */
+function isoDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function parseISO(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function mondayOf(d) {
+  const x = new Date(d);
+  const diff = (x.getDay() + 6) % 7; // Mo=0 … So=6
+  x.setDate(x.getDate() - diff);
+  return x;
+}
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function fmtDay(d) { return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }); }
+function fmtLong(d) { return d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }); }
+function toMin(hhmm) { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; }
+function toHHMM(min) { return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
+function kw(d) {
+  const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = x.getUTCDay() || 7;
+  x.setUTCDate(x.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+  return Math.ceil(((x - yearStart) / 86400000 + 1) / 7);
+}
+
+/* ================= Ansichts-Zustand ================= */
+let view = 'week';               // week | day | list
+let cursor = new Date();         // aktuelles Bezugsdatum
+let searchTerm = '';
+
+/* ================= Rendering ================= */
+const viewRoot = document.getElementById('viewRoot');
+
+function render() {
+  renderStats();
+  renderRangeLabel();
+  if (view === 'week') renderCalendar(6);
+  else if (view === 'day') renderCalendar(1);
+  else renderList();
+}
+
+function renderRangeLabel() {
+  const lbl = document.getElementById('rangeLabel');
+  const pt = document.getElementById('printTitle');
+  let text;
+  if (view === 'day') {
+    text = fmtLong(cursor);
+  } else if (view === 'week') {
+    const mo = mondayOf(cursor), sa = addDays(mo, 5);
+    text = 'KW ' + kw(mo) + ': ' + fmtDay(mo) + ' – ' + fmtDay(sa) + mo.getFullYear();
+  } else {
+    text = 'Alle Termine';
+  }
+  lbl.textContent = text;
+  pt.textContent = 'Werkstatt-Kalender – ' + text;
+}
+
+function apptsFor(dateStr) {
+  return state.appointments
+    .filter(a => a.date === dateStr && matchesSearch(a))
+    .sort((a, b) => toMin(a.start) - toMin(b.start));
+}
+
+function matchesSearch(a) {
+  if (!searchTerm) return true;
+  const s = searchTerm.toLowerCase();
+  return [a.kunde, a.kennzeichen, a.fahrzeug, a.mechaniker, a.notizen, KATEGORIEN[a.kategorie]?.name]
+    .some(v => (v || '').toLowerCase().includes(s));
+}
+
+function renderStats() {
+  const heute = isoDate(new Date());
+  const todays = state.appointments.filter(a => a.date === heute);
+  const offen = todays.filter(a => a.status === 'geplant' || a.status === 'inarbeit').length;
+  const fertig = todays.filter(a => a.status === 'fertig' || a.status === 'abgeholt').length;
+  const mo = isoDate(mondayOf(new Date())), sa = isoDate(addDays(mondayOf(new Date()), 5));
+  const woche = state.appointments.filter(a => a.date >= mo && a.date <= sa).length;
+  document.getElementById('stats').innerHTML =
+    stat(todays.length, 'Termine heute') + stat(offen, 'davon offen') +
+    stat(fertig, 'davon fertig') + stat(woche, 'Termine diese Woche');
+  function stat(n, l) { return '<div class="stat"><div class="num">' + n + '</div><div class="lbl">' + l + '</div></div>'; }
+}
+
+/* ---------- Kalender (Woche/Tag) ---------- */
+function renderCalendar(numDays) {
+  const firstDay = numDays === 1 ? new Date(cursor) : mondayOf(cursor);
+  const slots = (END_HOUR - START_HOUR) * 60 / SLOT_MIN;
+  const heute = isoDate(new Date());
+
+  let colsCss = '52px repeat(' + numDays + ', 1fr)';
+  let html = '<div class="calendar"><div class="cal-grid" style="grid-template-columns:' + colsCss + '">';
+
+  // Kopfzeile
+  html += '<div class="cal-head time-col"></div>';
+  for (let i = 0; i < numDays; i++) {
+    const d = addDays(firstDay, i);
+    const cls = isoDate(d) === heute ? ' today-col' : '';
+    html += '<div class="cal-head' + cls + '">' + d.toLocaleDateString('de-DE', { weekday: 'long' }) +
+            '<small>' + d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + '</small></div>';
+  }
+
+  // Zeitspalte
+  html += '<div class="time-col">';
+  for (let s = 0; s < slots; s++) {
+    const min = START_HOUR * 60 + s * SLOT_MIN;
+    const isHour = min % 60 === 0;
+    html += '<div class="time-cell' + (isHour ? ' hour' : '') + '">' + (isHour ? toHHMM(min) : '') + '</div>';
+  }
+  html += '</div>';
+
+  // Tagesspalten
+  for (let i = 0; i < numDays; i++) {
+    const d = addDays(firstDay, i);
+    const ds = isoDate(d);
+    const isSat = d.getDay() === 6;
+    html += '<div class="day-col' + (isSat ? ' weekend' : '') + '" data-date="' + ds + '">';
+    for (let s = 0; s < slots; s++) {
+      const min = START_HOUR * 60 + s * SLOT_MIN;
+      html += '<div class="slot' + (min % 60 === 0 ? ' hour' : '') + '" data-min="' + min + '"></div>';
+    }
+    // Termine einzeichnen
+    const dayAppts = apptsFor(ds);
+    dayAppts.forEach((a, idx) => {
+      const startMin = toMin(a.start);
+      const top = (startMin - START_HOUR * 60) / SLOT_MIN * getSlotH();
+      const height = Math.max(a.duration / SLOT_MIN * getSlotH() - 2, 20);
+      const kat = KATEGORIEN[a.kategorie] || KATEGORIEN.sonstiges;
+      const doneCls = (a.status === 'fertig' || a.status === 'abgeholt') ? ' done' : '';
+      // simple Überlappungs-Optik: zweiter Termin gleicher Zeit rückt nach rechts
+      const overlap = dayAppts.slice(0, idx).some(b =>
+        toMin(b.start) < startMin + a.duration && startMin < toMin(b.start) + b.duration);
+      html += '<div class="appt' + doneCls + (overlap ? ' overlap-left' : '') + '" data-id="' + a.id + '"' +
+              ' style="top:' + top + 'px;height:' + height + 'px;background:' + kat.color + '"' +
+              ' title="' + esc(a.kunde + ' – ' + kat.name + (a.mechaniker ? ' – ' + a.mechaniker : '')) + '">' +
+              '<span class="t">' + a.start + '</span> ' +
+              '<span class="k">' + esc(a.kunde) + '</span>' +
+              '<div class="d">' + esc([a.kennzeichen, a.mechaniker].filter(Boolean).join(' · ')) + '</div>' +
+              '</div>';
+    });
+    html += '</div>';
+  }
+
+  html += '</div></div>';
+  viewRoot.innerHTML = html;
+
+  // Klick auf freien Slot → neuer Termin
+  viewRoot.querySelectorAll('.slot').forEach(el => {
+    el.addEventListener('click', () => {
+      const date = el.parentElement.dataset.date;
+      openAppt(null, { date, start: toHHMM(Number(el.dataset.min)) });
+    });
+  });
+  // Klick auf Termin → bearbeiten
+  viewRoot.querySelectorAll('.appt').forEach(el => {
+    el.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      openAppt(el.dataset.id);
+    });
+  });
+}
+
+function getSlotH() {
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 26;
+}
+
+/* ---------- Liste ---------- */
+function renderList() {
+  const appts = state.appointments
+    .filter(matchesSearch)
+    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+  if (!appts.length) {
+    viewRoot.innerHTML = '<div class="list-panel"><div class="empty-hint">Keine Termine gefunden.</div></div>';
+    return;
+  }
+
+  let rows = appts.map(a => {
+    const kat = KATEGORIEN[a.kategorie] || KATEGORIEN.sonstiges;
+    const st = STATUS[a.status] || STATUS.geplant;
+    const d = parseISO(a.date);
+    return '<tr data-id="' + a.id + '">' +
+      '<td>' + d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' }) + '</td>' +
+      '<td>' + a.start + ' (' + fmtDur(a.duration) + ')</td>' +
+      '<td><strong>' + esc(a.kunde) + '</strong>' + (a.telefon ? '<br><small>' + esc(a.telefon) + '</small>' : '') + '</td>' +
+      '<td>' + esc(a.fahrzeug || '–') + (a.kennzeichen ? '<br><small>' + esc(a.kennzeichen) + '</small>' : '') + '</td>' +
+      '<td><span class="cat-dot" style="background:' + kat.color + '"></span>' + kat.name + '</td>' +
+      '<td>' + esc(a.mechaniker || '–') + '</td>' +
+      '<td><span class="badge" style="background:' + st.bg + ';color:' + st.fg + '">' + st.name + '</span></td>' +
+      '<td>' + esc(a.notizen || '') + '</td>' +
+      '</tr>';
+  }).join('');
+
+  viewRoot.innerHTML =
+    '<div class="list-panel"><table><thead><tr>' +
+    '<th>Datum</th><th>Zeit</th><th>Kunde</th><th>Fahrzeug</th><th>Arbeit</th><th>Mechaniker</th><th>Status</th><th>Notizen</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+
+  viewRoot.querySelectorAll('tbody tr').forEach(tr => {
+    tr.addEventListener('click', () => openAppt(tr.dataset.id));
+  });
+}
+
+function fmtDur(min) {
+  if (min < 60) return min + ' Min.';
+  const h = min / 60;
+  return (h % 1 === 0 ? h : h.toFixed(1).replace('.', ',')) + ' Std.';
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ================= Termin-Dialog ================= */
+const apptOverlay = document.getElementById('apptOverlay');
+const apptForm = document.getElementById('apptForm');
+let editingId = null;
+
+function fillSelects() {
+  const katSel = document.getElementById('katSelect');
+  katSel.innerHTML = Object.entries(KATEGORIEN)
+    .map(([k, v]) => '<option value="' + k + '">' + v.name + '</option>').join('');
+  const mechSel = document.getElementById('mechSelect');
+  mechSel.innerHTML = '<option value="">– nicht zugewiesen –</option>' +
+    state.mechanics.map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>').join('');
+}
+
+function openAppt(id, preset) {
+  editingId = id;
+  fillSelects();
+  apptForm.reset();
+  document.getElementById('overlapWarn').classList.remove('show');
+  document.getElementById('apptTitle').textContent = id ? 'Termin bearbeiten' : 'Neuer Termin';
+  document.getElementById('btnDelete').style.display = id ? '' : 'none';
+
+  const f = apptForm.elements;
+  if (id) {
+    const a = state.appointments.find(x => x.id === id);
+    if (!a) return;
+    f.date.value = a.date; f.start.value = a.start; f.duration.value = a.duration;
+    f.status.value = a.status; f.kunde.value = a.kunde; f.telefon.value = a.telefon || '';
+    f.fahrzeug.value = a.fahrzeug || ''; f.kennzeichen.value = a.kennzeichen || '';
+    f.kategorie.value = a.kategorie; f.mechaniker.value = a.mechaniker || '';
+    f.notizen.value = a.notizen || '';
+  } else {
+    f.date.value = (preset && preset.date) || isoDate(cursor);
+    f.start.value = (preset && preset.start) || '08:00';
+  }
+  apptOverlay.classList.add('open');
+  setTimeout(() => f.kunde.focus(), 50);
+}
+
+function checkOverlap(data, ignoreId) {
+  if (!data.mechaniker) return null;
+  const s = toMin(data.start), e = s + Number(data.duration);
+  const clash = state.appointments.find(a =>
+    a.id !== ignoreId && a.date === data.date && a.mechaniker === data.mechaniker &&
+    toMin(a.start) < e && s < toMin(a.start) + a.duration);
+  return clash || null;
+}
+
+document.getElementById('btnSave').addEventListener('click', () => {
+  if (!apptForm.reportValidity()) return;
+  const f = apptForm.elements;
+  const data = {
+    date: f.date.value, start: f.start.value, duration: Number(f.duration.value),
+    status: f.status.value, kunde: f.kunde.value.trim(), telefon: f.telefon.value.trim(),
+    fahrzeug: f.fahrzeug.value.trim(), kennzeichen: f.kennzeichen.value.trim().toUpperCase(),
+    kategorie: f.kategorie.value, mechaniker: f.mechaniker.value, notizen: f.notizen.value.trim(),
+  };
+
+  // Überlappungswarnung (einmalig, zweiter Klick speichert trotzdem)
+  const warn = document.getElementById('overlapWarn');
+  const clash = checkOverlap(data, editingId);
+  if (clash && !warn.classList.contains('show')) {
+    warn.textContent = '⚠ ' + data.mechaniker + ' hat um ' + clash.start + ' bereits einen Termin (' +
+      esc(clash.kunde) + '). Nochmal auf „Speichern" klicken, um trotzdem zu speichern.';
+    warn.classList.add('show');
+    return;
+  }
+
+  if (editingId) {
+    const a = state.appointments.find(x => x.id === editingId);
+    Object.assign(a, data);
+  } else {
+    state.appointments.push({ id: uid(), ...data });
+  }
+  save();
+  closeOverlays();
+  render();
+});
+
+document.getElementById('btnDelete').addEventListener('click', () => {
+  if (!editingId) return;
+  if (!confirm('Diesen Termin wirklich löschen?')) return;
+  state.appointments = state.appointments.filter(a => a.id !== editingId);
+  save();
+  closeOverlays();
+  render();
+});
+
+/* ================= Mechaniker-Dialog ================= */
+const mechOverlay = document.getElementById('mechOverlay');
+
+function renderMechList() {
+  const el = document.getElementById('mechList');
+  if (!state.mechanics.length) {
+    el.innerHTML = '<div class="empty-hint" style="padding:16px">Noch keine Mechaniker angelegt.</div>';
+    return;
+  }
+  el.innerHTML = state.mechanics.map((m, i) =>
+    '<div class="mech-row"><span class="name">' + esc(m) + '</span>' +
+    '<button class="btn" data-del-mech="' + i + '">Entfernen</button></div>').join('');
+  el.querySelectorAll('[data-del-mech]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.delMech);
+      const name = state.mechanics[idx];
+      const used = state.appointments.filter(a => a.mechaniker === name).length;
+      if (used && !confirm(name + ' ist ' + used + ' Termin(en) zugewiesen. Trotzdem entfernen? (Termine bleiben erhalten)')) return;
+      state.mechanics.splice(idx, 1);
+      save();
+      renderMechList();
+      render();
+    });
+  });
+}
+
+document.getElementById('btnMechs').addEventListener('click', () => {
+  renderMechList();
+  mechOverlay.classList.add('open');
+});
+
+document.getElementById('btnMechAdd').addEventListener('click', addMech);
+document.getElementById('mechName').addEventListener('keydown', e => { if (e.key === 'Enter') addMech(); });
+
+function addMech() {
+  const inp = document.getElementById('mechName');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (state.mechanics.includes(name)) { alert('Diesen Namen gibt es schon.'); return; }
+  state.mechanics.push(name);
+  save();
+  inp.value = '';
+  renderMechList();
+}
+
+/* ================= Export / Import ================= */
+document.getElementById('btnExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'werkstattkalender-sicherung-' + isoDate(new Date()) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('btnImport').addEventListener('click', () => document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.appointments) || !Array.isArray(data.mechanics)) throw new Error('Format');
+      if (!confirm('Sicherung mit ' + data.appointments.length + ' Terminen laden? Aktuelle Daten werden ersetzt.')) return;
+      state = data;
+      save();
+      render();
+    } catch {
+      alert('Datei konnte nicht gelesen werden. Bitte eine gültige Sicherungsdatei wählen.');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+/* ================= Navigation & globale Events ================= */
+document.getElementById('btnPrev').addEventListener('click', () => { shift(-1); });
+document.getElementById('btnNext').addEventListener('click', () => { shift(1); });
+document.getElementById('btnToday').addEventListener('click', () => { cursor = new Date(); render(); });
+function shift(dir) {
+  cursor = addDays(cursor, view === 'day' ? dir : dir * 7);
+  render();
+}
+
+document.querySelectorAll('.view-switch button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.view-switch button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    view = btn.dataset.view;
+    render();
+  });
+});
+
+document.getElementById('search').addEventListener('input', (e) => {
+  searchTerm = e.target.value.trim();
+  render();
+});
+
+document.getElementById('btnNew').addEventListener('click', () => openAppt(null));
+
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => document.getElementById(btn.dataset.close).classList.remove('open'));
+});
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('mousedown', (e) => { if (e.target === ov) ov.classList.remove('open'); });
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeOverlays(); });
+function closeOverlays() { document.querySelectorAll('.overlay').forEach(o => o.classList.remove('open')); }
+
+/* ================= Start ================= */
+save();   // Seed ggf. persistieren
+render();
+</script>
+</body>
+</html>
