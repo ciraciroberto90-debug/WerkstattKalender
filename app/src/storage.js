@@ -36,8 +36,9 @@ window.storage = {
         } else if (key === CONFIG_KEY) {
           await shared.saveConfig(JSON.parse(value));
         }
+        shared.dispatchOk();
       } catch (e) {
-        shared.dispatchError("In der gemeinsamen Datei konnte nicht gespeichert werden (Laufwerk erreichbar? Datei gesperrt?). Lokal ist alles gesichert.");
+        shared.dispatchError("In der gemeinsamen Datei konnte nicht gespeichert werden (Laufwerk erreichbar? Datei gesperrt?). Lokal ist alles gesichert – beim nächsten erfolgreichen Speichern wird automatisch abgeglichen.");
       }
     }
     return { key, value };

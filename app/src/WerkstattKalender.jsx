@@ -359,6 +359,7 @@ function App() {
   const [settingsRi, setSettingsRi] = useState([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
+  const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
 
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
   useEffect(() => {
@@ -372,13 +373,16 @@ function App() {
         if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(d.config.riItems);
       }
     };
-    const onShareError = (ev) => setErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
+    const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
+    const onShareOk = () => setShareErr(null);
     window.addEventListener("werkstatt-shared-update", onUpdate);
     window.addEventListener("werkstatt-shared-error", onShareError);
+    window.addEventListener("werkstatt-shared-ok", onShareOk);
     return () => {
       cancelled = true;
       window.removeEventListener("werkstatt-shared-update", onUpdate);
       window.removeEventListener("werkstatt-shared-error", onShareError);
+      window.removeEventListener("werkstatt-shared-ok", onShareOk);
     };
   }, []);
 
@@ -781,8 +785,12 @@ function App() {
       const key = dateKey(year, month, d);
       if (holidays.get(key)) continue;
       if (dow === 2) {
-        const prevKey = dateKey(year, month, d - 1);
-        if (mondayUsedKeys.has(prevKey)) continue; // Dienstag nach genutztem Montag frei lassen
+        // Dienstag nach genutztem Montag frei lassen - auch über die Monatsgrenze:
+        // Ist der 1. ein Dienstag, liegt der Vortag-Montag noch im Vormonat.
+        const prev = new Date(year, month, d - 1);
+        const prevKey = dateKey(prev.getFullYear(), prev.getMonth(), prev.getDate());
+        const prevHoliday = !!getHolidays(prev.getFullYear()).get(prevKey);
+        if (!prevHoliday && mondayAnlage(prev, tpmAnlagen) !== "") continue;
       }
       candidateDays.push(d);
     }
@@ -1534,6 +1542,11 @@ function App() {
       {shareState.status === "connected" && shareState.mode === "read" && (
         <div className="no-print px-4 py-2 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
           Nur ansehen – für „{shareState.name}" bestehen keine Schreibrechte. Angezeigt wird der gemeinsame Stand; eigene Änderungen werden nicht gespeichert.
+        </div>
+      )}
+      {shareErr && (
+        <div className="no-print px-4 py-2 text-xs font-bold" style={{ backgroundColor: "#FBE9E7", color: "#B23A34" }}>
+          ⚠ {shareErr}
         </div>
       )}
 

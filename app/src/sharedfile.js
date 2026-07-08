@@ -81,6 +81,9 @@ function dispatchUpdate(data) {
 export function dispatchError(message) {
   window.dispatchEvent(new CustomEvent("werkstatt-shared-error", { detail: message }));
 }
+export function dispatchOk() {
+  window.dispatchEvent(new CustomEvent("werkstatt-shared-ok"));
+}
 
 function nowISO() {
   return new Date().toISOString();
