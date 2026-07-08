@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp dist/index.html ../index.html",
+    "build": "vite build && cp dist/index.html ../Werkstatt_Kalender_TPM.html",
     "preview": "vite preview"
   },
   "dependencies": {

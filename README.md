@@ -5,8 +5,8 @@ im Browser läuft: **ohne Installation, ohne Internet, ohne Anmeldung**.
 
 ## So startest du das Programm
 
-1. Die Datei **`index.html`** herunterladen (Code → Download ZIP, oder nur die Datei).
-2. Doppelklick auf `index.html` – der Kalender öffnet sich im Browser. Fertig.
+1. Die Datei **`Werkstatt_Kalender_TPM.html`** herunterladen (Code → Download ZIP, oder nur die Datei).
+2. Doppelklick auf `Werkstatt_Kalender_TPM.html` – der Kalender öffnet sich im Browser. Fertig.
 
 Alle Einträge werden **lokal im Browser gespeichert** und bleiben nach dem
 Schließen erhalten – solange derselbe Browser auf demselben Rechner verwendet
@@ -88,6 +88,6 @@ Speicher der Claude-Artifact-Umgebung (`window.storage`) ist in
 ```bash
 cd app
 npm install
-npm run build   # baut alles in eine Datei und legt sie als ../index.html ab
+npm run build   # baut alles in eine Datei und legt sie als ../Werkstatt_Kalender_TPM.html ab
 npm run dev     # Entwicklungs-Server mit Live-Reload
 ```

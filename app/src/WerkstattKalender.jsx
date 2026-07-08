@@ -1424,6 +1424,13 @@ function App() {
             </button>
           )}
           <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: "#C97A2B" }}
+          >
+            <Printer size={16} /> Drucken
+          </button>
+          <button
             onClick={openSettings}
             className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
             style={{ backgroundColor: "#4B5259" }}
@@ -1432,24 +1439,21 @@ function App() {
           </button>
           <button
             onClick={() => fileInputRef.current && fileInputRef.current.click()}
-            className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
+            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
             style={{ backgroundColor: "#2F6690" }}
+            title="Datensicherung einlesen (Import)"
+            aria-label="Import"
           >
-            <Upload size={14} /> Import
+            <Upload size={14} />
           </button>
           <button
             onClick={exportData}
-            className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
+            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
             style={{ backgroundColor: "#2F6690" }}
+            title="Alle Einträge als Datei sichern (Export)"
+            aria-label="Export"
           >
-            <Download size={14} /> Export
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "#C97A2B" }}
-          >
-            <Printer size={16} /> Drucken
+            <Download size={14} />
           </button>
         </div>
       </div>
