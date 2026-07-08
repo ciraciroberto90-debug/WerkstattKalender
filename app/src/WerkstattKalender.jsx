@@ -337,7 +337,11 @@ function App() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [view, setView] = useState("PLAN"); // 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (MONAT/JAHR = Auswertung)
+  const [view, setView] = useState("PLAN"); // 'COCKPIT' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
+  const [lastTpmView, setLastTpmView] = useState("PLAN"); // merkt das Untermenü beim Wechsel zu Cockpit
+  useEffect(() => {
+    if (view !== "COCKPIT") setLastTpmView(view);
+  }, [view]);
   const [entries, setEntries] = useState([]);
   const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
   const [riItems, setRiItems] = useState(DEFAULT_RI_ITEMS);
@@ -1417,14 +1421,15 @@ function App() {
           <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Kalender</div>
           {!readerMode && (
             <>
+              {/* Hauptbereiche */}
               <div className="flex rounded overflow-hidden border border-white/20">
-                {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
-                  const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
+                {[["COCKPIT", "Cockpit"], ["TPM", "TPM"]].map(([v, label]) => {
+                  const active = v === "COCKPIT" ? view === "COCKPIT" : view !== "COCKPIT";
                   return (
                     <button
                       key={v}
-                      onClick={() => setView(v === "AUSWERTUNG" ? "MONAT" : v)}
-                      className="px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
+                      onClick={() => setView(v === "COCKPIT" ? "COCKPIT" : lastTpmView)}
+                      className="px-3 py-1.5 text-xs font-black uppercase tracking-wide"
                       style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
                     >
                       {label}
@@ -1432,18 +1437,22 @@ function App() {
                   );
                 })}
               </div>
-              {(view === "MONAT" || view === "JAHR") && (
-                <div className="flex rounded overflow-hidden border border-white/20">
-                  {[["MONAT", "Monat"], ["JAHR", "Jahr"]].map(([v, label]) => (
-                    <button
-                      key={v}
-                      onClick={() => setView(v)}
-                      className="px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
-                      style={{ backgroundColor: view === v ? "#4B5259" : "transparent", color: "white" }}
-                    >
-                      {label}
-                    </button>
-                  ))}
+              {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
+              {view !== "COCKPIT" && (
+                <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                  {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
+                    const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => setView(v === "AUSWERTUNG" ? "MONAT" : v)}
+                        className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
+                        style={{ backgroundColor: active ? "#4B5259" : "transparent", color: active ? "#fff" : "#B7BEC6" }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </>
@@ -1470,9 +1479,9 @@ function App() {
                 <ChevronRight size={18} />
               </button>
             </>
-          ) : (
+          ) : view === "REGISTER" ? (
             <div className="font-mono text-sm px-2">Alle Termine</div>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
@@ -1551,8 +1560,22 @@ function App() {
       )}
 
       {/* Filter + Legende + Stats */}
-      {view !== "PLAN" && (
+      {view !== "PLAN" && view !== "COCKPIT" && (
         <div className="no-print px-4 py-3 flex flex-wrap items-center gap-4 border-b bg-white" style={{ borderColor: "#D6D9DC" }}>
+          {(view === "MONAT" || view === "JAHR") && (
+            <div className="flex rounded overflow-hidden border" style={{ borderColor: "#D6D9DC" }}>
+              {[["MONAT", "Monat"], ["JAHR", "Jahr"]].map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${view === v ? "text-white" : "bg-white text-slate-600"}`}
+                  style={view === v ? { backgroundColor: "#C97A2B" } : {}}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex rounded overflow-hidden border" style={{ borderColor: "#D6D9DC" }}>
             {["ALL", "TPM", "RI"].map((f) => (
               <button
@@ -1588,6 +1611,18 @@ function App() {
         <div className="font-mono text-sm">{printSuffix}</div>
         {view !== "PLAN" && <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen</div>}
       </div>
+
+      {/* Cockpit: Platzhalter für den künftigen Ausbau (Personal, Backlog, Anlagen) */}
+      {view === "COCKPIT" && (
+        <div className="no-print p-10 max-w-3xl mx-auto rounded-xl mt-6 text-center" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
+          <div className="text-lg font-black uppercase tracking-tight mb-2" style={{ color: "#22262B" }}>🚧 Cockpit</div>
+          <div className="text-sm text-slate-500 leading-relaxed">
+            Dieser Bereich ist in Vorbereitung: Personal- &amp; Arbeitsplanung, Backlog
+            (mechanisch/elektrisch) und Anlagenverzeichnis.<br />
+            Die Wartung läuft komplett unter dem Bereich „TPM" weiter.
+          </div>
+        </div>
+      )}
 
       {/* Tages-Kalender (nur Monatsansicht, nur zur Eingabe, nicht im Druck) */}
       {view === "MONAT" && (
@@ -2430,9 +2465,11 @@ function App() {
         </div>
       )}
 
+      {view !== "COCKPIT" && (
       <div className="no-print max-w-5xl mx-auto px-4 pb-6 pt-3 text-xs text-slate-400">
         Tipp: "Drucken" öffnet die Druckvorlage in einem neuen Tab (Pop-ups für diese Seite bitte erlauben) – bei der Monatsansicht zuerst als übersichtliche Kalenderseite, danach die Anlagen-Matrix. Falls der Browser Pop-ups blockiert, wird stattdessen automatisch eine Datei heruntergeladen. Filter oben auf "TPM" oder "R+I" stellen für den separaten Ausdruck je Kategorie. Am Jahresende einfach auf "Jahr" umschalten und drucken.
       </div>
+      )}
     </div>
   );
 }
