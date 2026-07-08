@@ -1411,10 +1411,12 @@ function App() {
           </button>
           <button
             onClick={openSettings}
-            className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
+            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
             style={{ backgroundColor: "#4B5259" }}
+            title="Anlagen & R+I-Punkte verwalten"
+            aria-label="Verwalten"
           >
-            <Settings size={14} /> Verwalten
+            <Settings size={14} />
           </button>
           <button
             onClick={() => fileInputRef.current && fileInputRef.current.click()}
