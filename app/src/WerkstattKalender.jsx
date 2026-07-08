@@ -1402,27 +1402,6 @@ function App() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
-          {shareState.status === "connected" ? (
-            // Verbunden: nur noch ein kleines grünes Symbol (öffnet bei Bedarf den Dialog)
-            <button
-              onClick={() => setShareOpen(true)}
-              className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: "#2F7D4F" }}
-              title={`Gemeinsame Datei verbunden: ${shareState.name}${shareState.mode === "read" ? " (nur ansehen)" : ""}`}
-              aria-label="Gemeinsame Datei"
-            >
-              <FolderOpen size={14} />
-            </button>
-          ) : (
-            <button
-              onClick={() => setShareOpen(true)}
-              className="flex items-center gap-1.5 text-white px-2.5 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: "#4B5259" }}
-              title="Gemeinsame Datei einrichten"
-            >
-              <FolderOpen size={14} /> Teilen
-            </button>
-          )}
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
@@ -1454,6 +1433,19 @@ function App() {
             aria-label="Export"
           >
             <Download size={14} />
+          </button>
+          {/* Gemeinsame Datei: immer nur das kleine Ordner-Symbol, ganz rechts.
+              Grün = verbunden, Grau = noch nicht eingerichtet. */}
+          <button
+            onClick={() => setShareOpen(true)}
+            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: shareState.status === "connected" ? "#2F7D4F" : "#4B5259" }}
+            title={shareState.status === "connected"
+              ? `Gemeinsame Datei verbunden: ${shareState.name}${shareState.mode === "read" ? " (nur ansehen)" : ""}`
+              : "Gemeinsame Datei einrichten (Teilen)"}
+            aria-label="Gemeinsame Datei"
+          >
+            <FolderOpen size={14} />
           </button>
         </div>
       </div>
