@@ -42,6 +42,21 @@ const ADDABLE_ROLES = ["takt", "b1", "flexA", "flexB"];
 
 const OTHER_VALUE = "__SONSTIGES__";
 
+// Backlog-Arbeiten (Kategorie ARBEIT): Prioritäten und Gewerke - Felder 1:1 aus dem Excel-Arbeitsbuch
+const ARBEIT_PRIO = {
+  hoch: { label: "Prio 1", color: "#B23A34" },
+  mittel: { label: "Prio 2", color: "#C97A2B" },
+  niedrig: { label: "Prio 3", color: "#8A9099" },
+  ohne: { label: "ohne Prio", color: "#D6D9DC" },
+};
+const ARBEIT_ART = {
+  mech: { label: "Mechanisch", kurz: "Mech", color: "#3D8B8B" },
+  elek: { label: "Elektrisch", kurz: "Elek", color: "#7C5CBF" },
+  beide: { label: "Mech + Elek", kurz: "M+E", color: "#3D8B8B" },
+  "": { label: "unbestimmt", kurz: "?", color: "#8A9099" },
+};
+const PRIO_REIHENFOLGE = { hoch: 0, mittel: 1, niedrig: 2, ohne: 3 };
+
 // R+I-Punkte aus Todoist importiert (Stand: Juli 2026). "Wasserrundgang" und
 // "Filterwartung / Schaltschränke" liefen doppelt in Todoist - hier zusammengeführt.
 // type: "weekly" (weekday), "biweekly" (weekday, anchor), "monthly-day" (day),
@@ -363,6 +378,16 @@ function App() {
   const [settingsRi, setSettingsRi] = useState([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
+  // Cockpit: Untermenü + Backlog-Filter + Arbeit-Dialog
+  const [cockpitTab, setCockpitTab] = useState("UEBERSICHT"); // UEBERSICHT | BACKLOG
+  const [blArt, setBlArt] = useState("ALLE"); // ALLE | mech | elek
+  const [blNurPrio1, setBlNurPrio1] = useState(false);
+  const [blAzubi, setBlAzubi] = useState(false);
+  const [blStillstand, setBlStillstand] = useState(false);
+  const [blErledigte, setBlErledigte] = useState(false);
+  const [blSuche, setBlSuche] = useState("");
+  const [arbeitModal, setArbeitModal] = useState(null); // null | {mode:'add'} | {mode:'edit', id}
+  const [aDraft, setADraft] = useState(null);
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
   const [zettelOpen, setZettelOpen] = useState(false);
   const [zettelText, setZettelText] = useState("");
@@ -621,14 +646,25 @@ function App() {
       );
       if (valid.length === 0) throw new Error("Keine gültigen Einträge in der Datei gefunden");
       const rejected = parsed.length - valid.length;
+      let next = valid;
+      let meldung = rejected > 0 ? `Import ok, aber ${rejected} ungültige Zeile(n) übersprungen.` : null;
       if (entries.length > 0) {
-        const ok = window.confirm(
-          `${valid.length} Einträge importieren und deine aktuellen ${entries.length} Einträge ersetzen?${rejected > 0 ? `\n(${rejected} ungültige Zeilen werden übersprungen.)` : ""}`
+        const hinzu = window.confirm(
+          `${valid.length} Einträge gefunden.${rejected > 0 ? `\n(${rejected} ungültige Zeilen werden übersprungen.)` : ""}\n\nOK = zu den bestehenden ${entries.length} Einträgen HINZUFÜGEN\nAbbrechen = weiter zur Frage "komplett ersetzen"`
         );
-        if (!ok) { e.target.value = ""; return; }
+        if (hinzu) {
+          const vorhandeneIds = new Set(entries.map((x) => x.id));
+          const neue = valid.filter((x) => !vorhandeneIds.has(x.id));
+          next = [...entries, ...neue];
+          meldung = `${neue.length} Einträge hinzugefügt${valid.length - neue.length > 0 ? `, ${valid.length - neue.length} bereits vorhandene übersprungen` : ""}.`;
+        } else {
+          const ersetzen = window.confirm(`Wirklich ALLE bestehenden ${entries.length} Einträge löschen und durch die ${valid.length} importierten ersetzen?`);
+          if (!ersetzen) { e.target.value = ""; return; }
+          meldung = `Bestand ersetzt: ${valid.length} Einträge importiert.` + (rejected > 0 ? ` (${rejected} ungültige übersprungen)` : "");
+        }
       }
-      await persist(valid);
-      setErr(rejected > 0 ? `Import ok, aber ${rejected} ungültige Zeile(n) übersprungen.` : null);
+      await persist(next);
+      setErr(meldung);
     } catch (importErr) {
       setErr("Import ist fehlgeschlagen. Ist das die richtige Export-Datei?");
     }
@@ -923,6 +959,67 @@ function App() {
   const deleteZettel = async (id) => {
     if (!window.confirm("Diese Notiz von der Pinnwand nehmen?")) return;
     await persist(entries.filter((e) => e.id !== id));
+  };
+
+  // ---- Backlog (Kategorie ARBEIT) ----
+  const arbeiten = entries.filter((e) => e.category === "ARBEIT");
+  const arbeitenOffen = arbeiten.filter((e) => e.status !== "done");
+  const saeubere = (t) => String(t || "").replace(/\s+/g, " ").trim();
+  const backlogListe = (blErledigte ? arbeiten.filter((e) => e.status === "done") : arbeitenOffen)
+    .filter((e) => blArt === "ALLE" || e.art === blArt || e.art === "beide")
+    .filter((e) => !blNurPrio1 || e.prio === "hoch")
+    .filter((e) => !blAzubi || e.azubi)
+    .filter((e) => !blStillstand || e.stillstand)
+    .filter((e) => {
+      const q = blSuche.trim().toLowerCase();
+      return !q || `${e.name} ${e.note}`.toLowerCase().includes(q);
+    })
+    .sort((a, b) => blErledigte
+      ? String(b.erledigtAm || b.date).localeCompare(String(a.erledigtAm || a.date))
+      : (PRIO_REIHENFOLGE[a.prio ?? "ohne"] - PRIO_REIHENFOLGE[b.prio ?? "ohne"]) || a.name.localeCompare(b.name, "de"));
+  const blZaehl = (art) => arbeitenOffen.filter((e) => e.art === art || e.art === "beide").length;
+  const bereichOptionen = useMemo(() => {
+    const s = new Set(tpmAnlagen.map((a) => a.name));
+    arbeiten.forEach((a) => s.add(a.name));
+    return Array.from(s).filter(Boolean).sort((a, b) => a.localeCompare(b, "de"));
+  }, [tpmAnlagen, entries]);
+
+  const openArbeitNeu = () => {
+    setADraft({ anlage: "", anlageCustom: "", note: "", prio: "ohne", art: "mech", azubi: false, stillstand: false });
+    setArbeitModal({ mode: "add" });
+  };
+  const openArbeitEdit = (a) => {
+    setADraft({ anlage: a.name, anlageCustom: "", note: a.note || "", prio: a.prio || "ohne", art: a.art ?? "", azubi: !!a.azubi, stillstand: !!a.stillstand });
+    setArbeitModal({ mode: "edit", id: a.id });
+  };
+  const saveArbeit = async () => {
+    const anlage = saeubere(aDraft.anlage === OTHER_VALUE ? aDraft.anlageCustom : aDraft.anlage);
+    const note = saeubere(aDraft.note);
+    if (!anlage || !note) return;
+    if (arbeitModal.mode === "add") {
+      const a = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        date: todayKey, category: "ARBEIT", name: anlage, status: "open", note,
+        prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand,
+        zeit: new Date().toISOString(),
+      };
+      await persist([...entries, a]);
+    } else {
+      await persist(entries.map((e) => e.id === arbeitModal.id
+        ? { ...e, name: anlage, note, prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand }
+        : e));
+    }
+    setArbeitModal(null);
+  };
+  const setArbeitStatus = async (id, status) => {
+    await persist(entries.map((e) => e.id === id
+      ? { ...e, status, erledigtAm: status === "done" ? todayKey : undefined }
+      : e));
+  };
+  const deleteArbeit = async (id) => {
+    if (!window.confirm("Diese Arbeit endgültig löschen?")) return;
+    await persist(entries.filter((e) => e.id !== id));
+    setArbeitModal(null);
   };
 
   // Erledigt-Abgleich für den Plan: gibt es zu einem Plan-Punkt (Datum + Anlage)
@@ -1513,9 +1610,16 @@ function App() {
               {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
               {view === "COCKPIT" ? (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  <button className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide" style={{ backgroundColor: "#4B5259", color: "#fff" }}>
-                    Übersicht
-                  </button>
+                  {[["UEBERSICHT", "Übersicht"], ["BACKLOG", "Backlog"]].map(([v, label]) => (
+                    <button
+                      key={v}
+                      onClick={() => setCockpitTab(v)}
+                      className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
+                      style={{ backgroundColor: cockpitTab === v ? "#4B5259" : "transparent", color: cockpitTab === v ? "#fff" : "#B7BEC6" }}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               ) : (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
@@ -1687,7 +1791,7 @@ function App() {
       </div>
 
       {/* Cockpit: Übersicht (Kennzahlen + Tagesliste + Pinnwand) */}
-      {view === "COCKPIT" && (
+      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
           {/* Kennzahlen-Kacheln */}
           <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
@@ -1777,6 +1881,8 @@ function App() {
                 <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
                   <textarea
                     autoFocus
+                    spellCheck
+                    lang="de"
                     value={zettelText}
                     onChange={(e) => setZettelText(e.target.value)}
                     placeholder="Was sollen die anderen wissen? (z. B. Ersatzteil kommt Do. früh)"
@@ -1904,6 +2010,206 @@ function App() {
         </div>
       )}
 
+      {/* Cockpit: Backlog (Arbeiten aus dem Arbeitsbuch) */}
+      {view === "COCKPIT" && cockpitTab === "BACKLOG" && (
+        <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            {[["ALLE", `Alle (${arbeitenOffen.length})`], ["mech", `Mechanisch (${blZaehl("mech")})`], ["elek", `Elektrisch (${blZaehl("elek")})`]].map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setBlArt(v)}
+                className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wide border ${blArt === v ? "text-white" : "bg-white text-slate-600"}`}
+                style={blArt === v ? { backgroundColor: v === "mech" ? "#3D8B8B" : v === "elek" ? "#7C5CBF" : "#22262B", borderColor: "transparent" } : { borderColor: "#D6D9DC" }}
+              >
+                {label}
+              </button>
+            ))}
+            <span style={{ width: "6px" }} />
+            {[[blNurPrio1, setBlNurPrio1, "Prio 1"], [blAzubi, setBlAzubi, "🎓 Azubi"], [blStillstand, setBlStillstand, "⛔ Stillstand"], [blErledigte, setBlErledigte, "Erledigte"]].map(([wert, setter, label]) => (
+              <button
+                key={label}
+                onClick={() => setter(!wert)}
+                className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wide border ${wert ? "text-white" : "bg-white text-slate-600"}`}
+                style={wert ? { backgroundColor: "#22262B", borderColor: "transparent" } : { borderColor: "#D6D9DC" }}
+              >
+                {label}
+              </button>
+            ))}
+            <input
+              type="search"
+              value={blSuche}
+              onChange={(e) => setBlSuche(e.target.value)}
+              placeholder="🔍 Suche: Anlage, Arbeit …"
+              className="text-sm border rounded px-3 py-1.5"
+              style={{ borderColor: "#D6D9DC", minWidth: "220px" }}
+            />
+            <button
+              onClick={openArbeitNeu}
+              className="ml-auto text-xs font-bold uppercase tracking-wide text-white px-3.5 py-2 rounded"
+              style={{ backgroundColor: "#22262B" }}
+            >
+              + Neue Arbeit
+            </button>
+          </div>
+
+          <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "0.85rem" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #22262B" }}>
+                    <th style={{ width: "40px", padding: "8px 10px" }} title="Priorität">Prio</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px", width: "160px" }}>Anlage / Bereich</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px" }}>Arbeit</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px", width: "90px" }}>Art</th>
+                    <th style={{ padding: "8px 6px", width: "72px" }} title="Azubi-geeignet / nur bei Stillstand">🎓⛔</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px", width: "100px" }}>{blErledigte ? "Erledigt am" : "Gemeldet"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {backlogListe.length === 0 && (
+                    <tr><td colSpan={6} className="text-center text-slate-400 italic" style={{ padding: "24px" }}>Keine Arbeiten gefunden.</td></tr>
+                  )}
+                  {backlogListe.map((a) => {
+                    const prio = ARBEIT_PRIO[a.prio ?? "ohne"] || ARBEIT_PRIO.ohne;
+                    const art = ARBEIT_ART[a.art ?? ""] || ARBEIT_ART[""];
+                    return (
+                      <tr
+                        key={a.id}
+                        onClick={() => openArbeitEdit(a)}
+                        style={{ borderBottom: "1px solid #E2E4E7", cursor: "pointer", opacity: a.status === "done" ? 0.6 : 1 }}
+                        title="Klicken zum Bearbeiten"
+                      >
+                        <td style={{ textAlign: "center" }}>
+                          <span style={{ display: "inline-block", width: "11px", height: "11px", borderRadius: "50%", backgroundColor: prio.color }} title={prio.label} />
+                        </td>
+                        <td style={{ padding: "7px 10px", fontWeight: 700, whiteSpace: "nowrap" }}>{a.name}</td>
+                        <td style={{ padding: "7px 10px" }}>{a.note}</td>
+                        <td style={{ padding: "7px 10px" }}>
+                          {a.art === "beide" ? (
+                            <><span className="text-xs font-bold" style={{ color: ARBEIT_ART.mech.color }}>Mech</span> <span className="text-xs font-bold" style={{ color: ARBEIT_ART.elek.color }}>+ Elek</span></>
+                          ) : (
+                            <span className="text-xs font-bold" style={{ color: art.color }}>{art.kurz}</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: "center", fontSize: "0.85rem" }}>{a.azubi ? "🎓" : ""}{a.stillstand ? "⛔" : ""}</td>
+                        <td className="font-mono" style={{ padding: "7px 10px", fontSize: "0.72rem", color: "#8A9099" }}>
+                          {formatDateDE(blErledigte ? (a.erledigtAm || a.date) : a.date)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="text-xs text-slate-400 mt-2">
+            {blErledigte
+              ? `${backlogListe.length} erledigte Arbeiten (Archiv). Klick auf eine Zeile zum Ansehen oder Zurückholen.`
+              : `${backlogListe.length} von ${arbeitenOffen.length} offenen Arbeiten angezeigt · Klick auf eine Zeile öffnet die Arbeit.`}
+          </div>
+        </div>
+      )}
+
+      {/* Arbeit anlegen / bearbeiten */}
+      {arbeitModal && aDraft && (() => {
+        const live = arbeitModal.mode === "edit" ? entries.find((e) => e.id === arbeitModal.id) : null;
+        if (arbeitModal.mode === "edit" && !live) return null;
+        return (
+          <div
+            className="no-print"
+            style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+            onClick={() => setArbeitModal(null)}
+          >
+            <div
+              style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "520px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+              onClick={(ev) => ev.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="font-bold text-sm">{arbeitModal.mode === "add" ? "Neue Arbeit" : "Arbeit bearbeiten"}</div>
+                <button onClick={() => setArbeitModal(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <select
+                    value={aDraft.anlage}
+                    onChange={(ev) => setADraft({ ...aDraft, anlage: ev.target.value })}
+                    className="flex-1 text-sm border rounded px-3 py-2"
+                    style={{ borderColor: "#D6D9DC" }}
+                  >
+                    <option value="">– Anlage / Bereich wählen –</option>
+                    {bereichOptionen.map((b) => <option key={b} value={b}>{b}</option>)}
+                    <option value={OTHER_VALUE}>Neuer Bereich …</option>
+                  </select>
+                  {aDraft.anlage === OTHER_VALUE && (
+                    <input
+                      autoFocus
+                      value={aDraft.anlageCustom}
+                      onChange={(ev) => setADraft({ ...aDraft, anlageCustom: ev.target.value })}
+                      placeholder="z. B. Halle 3"
+                      className="flex-1 text-sm border rounded px-3 py-2"
+                      style={{ borderColor: "#D6D9DC" }}
+                    />
+                  )}
+                </div>
+
+                <textarea
+                  value={aDraft.note}
+                  onChange={(ev) => setADraft({ ...aDraft, note: ev.target.value })}
+                  placeholder="Was ist zu tun?"
+                  rows={3}
+                  spellCheck
+                  lang="de"
+                  className="text-sm border rounded px-3 py-2"
+                  style={{ borderColor: "#D6D9DC", resize: "vertical" }}
+                />
+
+                <div className="flex gap-2">
+                  <select value={aDraft.prio} onChange={(ev) => setADraft({ ...aDraft, prio: ev.target.value })} className="flex-1 text-sm border rounded px-2 py-2" style={{ borderColor: "#D6D9DC" }}>
+                    {Object.entries(ARBEIT_PRIO).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                  <select value={aDraft.art} onChange={(ev) => setADraft({ ...aDraft, art: ev.target.value })} className="flex-1 text-sm border rounded px-2 py-2" style={{ borderColor: "#D6D9DC" }}>
+                    <option value="mech">Mechanisch</option>
+                    <option value="elek">Elektrisch</option>
+                    <option value="beide">Mech + Elek</option>
+                    <option value="">unbestimmt</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-4 text-sm">
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={aDraft.azubi} onChange={(ev) => setADraft({ ...aDraft, azubi: ev.target.checked })} /> 🎓 Azubi-geeignet</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={aDraft.stillstand} onChange={(ev) => setADraft({ ...aDraft, stillstand: ev.target.checked })} /> ⛔ nur bei Stillstand</label>
+                </div>
+
+                {arbeitModal.mode === "edit" && live && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setArbeitStatus(live.id, live.status === "done" ? "open" : "done")}
+                      className={`flex-1 text-sm font-bold py-2 rounded ${live.status === "done" ? "bg-slate-100 text-slate-600" : "bg-emerald-600 text-white"}`}
+                    >
+                      {live.status === "done" ? "↩ Wieder öffnen" : "✓ Erledigt melden"}
+                    </button>
+                    <button onClick={() => deleteArbeit(live.id)} className="text-sm font-bold py-2 px-4 rounded bg-red-50 text-red-700 border border-red-200">Löschen</button>
+                  </div>
+                )}
+
+                <div className="flex gap-2 mt-1">
+                  <button
+                    disabled={!saeubere(aDraft.anlage === OTHER_VALUE ? aDraft.anlageCustom : aDraft.anlage) || !saeubere(aDraft.note)}
+                    onClick={saveArbeit}
+                    className="flex-1 text-sm font-bold py-2.5 rounded text-white disabled:opacity-40"
+                    style={{ backgroundColor: "#22262B" }}
+                  >
+                    Speichern
+                  </button>
+                  <button onClick={() => setArbeitModal(null)} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Eintrag hinzufügen / bearbeiten: geräumiges Modal statt enger Zellen-Erweiterung */}
       {modal && (() => {
         const liveEntry = modal.mode === "edit" ? entries.find((e) => e.id === modal.id) : null;
@@ -2029,6 +2335,8 @@ function App() {
                         </button>
                       </div>
                       <textarea
+                        spellCheck
+                        lang="de"
                         value={draftNote}
                         onChange={(e) => setDraftNote(e.target.value)}
                         placeholder="Notiz (optional)"
@@ -2079,6 +2387,8 @@ function App() {
                       </button>
                     </div>
                     <textarea
+                      spellCheck
+                      lang="de"
                       value={noteDraft}
                       onChange={(ev) => setNoteDraft(ev.target.value)}
                       placeholder="Notiz…"
