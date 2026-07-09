@@ -921,7 +921,7 @@ function App() {
     setZettelOpen(false);
   };
   const deleteZettel = async (id) => {
-    if (!window.confirm("Diesen Zettel von der Pinnwand nehmen?")) return;
+    if (!window.confirm("Diese Notiz von der Pinnwand nehmen?")) return;
     await persist(entries.filter((e) => e.id !== id));
   };
 
@@ -1764,10 +1764,12 @@ function App() {
                 <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>📌 Pinnwand</span>
                 <button
                   onClick={() => setZettelOpen(!zettelOpen)}
-                  className="ml-auto text-xs font-bold uppercase px-3 py-1.5 rounded text-white"
-                  style={{ backgroundColor: "#22262B" }}
+                  className="ml-auto flex items-center justify-center rounded text-white font-black"
+                  style={{ backgroundColor: "#22262B", width: "26px", height: "26px", fontSize: "1rem", lineHeight: 1 }}
+                  title="Neue Notiz anpinnen"
+                  aria-label="Neue Notiz anpinnen"
                 >
-                  + Zettel
+                  +
                 </button>
               </div>
 
@@ -1804,7 +1806,7 @@ function App() {
               )}
 
               {zettelListe.length === 0 && !zettelOpen && (
-                <div className="text-xs italic text-slate-400">Noch keine Zettel. Über „+ Zettel" hinterlässt du eine Notiz für alle – z. B. für die Übergabe an deinen Vertreter.</div>
+                <div className="text-xs italic text-slate-400">Noch keine Notizen. Über das + hinterlässt du eine Notiz für alle – z. B. für die Übergabe an deinen Vertreter.</div>
               )}
               <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
                 {zettelListe.map((z) => (
@@ -1812,8 +1814,8 @@ function App() {
                     <button
                       onClick={() => deleteZettel(z.id)}
                       className="absolute top-1.5 right-2 text-slate-400 hover:text-red-600 font-bold"
-                      title="Zettel abnehmen"
-                      aria-label="Zettel abnehmen"
+                      title="Notiz abnehmen"
+                      aria-label="Notiz abnehmen"
                     >
                       ×
                     </button>
