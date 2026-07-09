@@ -56,6 +56,17 @@ const ARBEIT_ART = {
   "": { label: "unbestimmt", kurz: "?", color: "#8A9099" },
 };
 const PRIO_REIHENFOLGE = { hoch: 0, mittel: 1, niedrig: 2, ohne: 3 };
+// Gewerke des Teams - Farben passend zur Arbeits-Art im Backlog
+const TEAM_ROLLEN = {
+  mech: { label: "Mechaniker", color: "#3D8B8B" },
+  elek: { label: "Elektriker", color: "#7C5CBF" },
+  azubi: { label: "Azubi", color: "#C97A2B" },
+  "": { label: "ohne Gewerk", color: "#5B6572" },
+};
+// Alte Team-Einträge (reine Namen) in die neue Form {name, rolle} überführen
+const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
+  .map((t) => (typeof t === "string" ? { name: t, rolle: "" } : { name: String(t.name || ""), rolle: TEAM_ROLLEN[t.rolle] ? t.rolle : "" }))
+  .filter((t) => t.name.trim());
 
 // R+I-Punkte aus Todoist importiert (Stand: Juli 2026). "Wasserrundgang" und
 // "Filterwartung / Schaltschränke" liefen doppelt in Todoist - hier zusammengeführt.
@@ -408,7 +419,7 @@ function App() {
       if (d.config) {
         if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(d.config.tpmAnlagen);
         if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(d.config.riItems);
-        if (Array.isArray(d.config.team)) setTeam(d.config.team.filter((t) => typeof t === "string" && t.trim()));
+        if (Array.isArray(d.config.team)) setTeam(normalisiereTeam(d.config.team));
       }
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
@@ -504,7 +515,7 @@ function App() {
             if (validRi.length > 0) setRiItems(validRi);
           }
           if (Array.isArray(parsed.team)) {
-            setTeam(parsed.team.filter((t) => typeof t === "string" && t.trim()));
+            setTeam(normalisiereTeam(parsed.team));
           }
         }
       } catch (e) {
@@ -560,7 +571,7 @@ function App() {
   const openSettings = () => {
     setSettingsTpm(tpmAnlagen.map((a) => ({ ...a })));
     setSettingsRi(riItems.map((r) => ({ ...r })));
-    setSettingsTeam([...team]);
+    setSettingsTeam(team.map((t) => ({ ...t })));
     setSettingsOpen(true);
   };
 
@@ -579,11 +590,14 @@ function App() {
       if (updated && updated.name.trim() !== old.name) riRenames.set(old.name, updated.name.trim());
     });
 
-    const cleanTeam = settingsTeam.map((t) => t.trim()).filter(Boolean);
+    const cleanTeam = settingsTeam
+      .map((t) => ({ name: t.name.trim(), rolle: t.rolle || "" }))
+      .filter((t) => t.name);
     const teamRenames = new Map();
-    team.forEach((old, i) => {
-      if (settingsTeam[i] !== undefined && settingsTeam[i].trim() && settingsTeam[i].trim() !== old) {
-        teamRenames.set(old, settingsTeam[i].trim());
+    team.forEach((alt, i) => {
+      const neu = settingsTeam[i];
+      if (neu && neu.name.trim() && neu.name.trim() !== alt.name) {
+        teamRenames.set(alt.name, neu.name.trim());
       }
     });
 
@@ -982,12 +996,11 @@ function App() {
 
   // ---- Personen-Helfer (Zuweisung & Planung) ----
   const personKuerzel = (n) => String(n).trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-  const personFarbe = (n) => {
-    const farben = ["#2F6690", "#7C5CBF", "#3D8B8B", "#C97A2B", "#B23A34", "#5B6572"];
-    let h = 0;
-    for (const c of String(n)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    return farben[h % farben.length];
+  const rolleVon = (name) => {
+    const t = team.find((x) => x.name === name);
+    return t ? t.rolle : "";
   };
+  const personFarbe = (n) => TEAM_ROLLEN[rolleVon(n)].color;
 
   // ---- Backlog (Kategorie ARBEIT) ----
   const arbeiten = entries.filter((e) => e.category === "ARBEIT");
@@ -2196,7 +2209,7 @@ function App() {
             >
               <option value="ALLE">Person: alle</option>
               <option value="NIEMAND">– nicht zugewiesen –</option>
-              {team.map((t) => <option key={t} value={t}>{t}</option>)}
+              {team.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
             </select>
             <select
               value={blAnlage}
@@ -2363,11 +2376,17 @@ function App() {
                   ))}
 
                   {/* Eine Zeile pro Person */}
-                  {team.map((person) => (
+                  {team.map((mitglied) => {
+                    const person = mitglied.name;
+                    const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
+                    return (
                     <React.Fragment key={person}>
                       <div style={{ padding: "10px", borderBottom: "1px solid #E2E4E7", background: "#F7F8F9", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "24px", height: "24px", fontSize: "0.62rem", backgroundColor: personFarbe(person), flexShrink: 0 }}>{personKuerzel(person)}</span>
-                        <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>{person}</span>
+                        <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "24px", height: "24px", fontSize: "0.62rem", backgroundColor: rolle.color, flexShrink: 0 }}>{personKuerzel(person)}</span>
+                        <span>
+                          <span style={{ fontSize: "0.8rem", fontWeight: 700, display: "block" }}>{person}</span>
+                          <span className="font-bold uppercase" style={{ fontSize: "0.56rem", color: rolle.color, letterSpacing: "0.04em" }}>{rolle.label}</span>
+                        </span>
                       </div>
                       {planungTage.map((t) => (
                         <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
@@ -2391,7 +2410,8 @@ function App() {
                         </div>
                       ))}
                     </React.Fragment>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -2607,8 +2627,8 @@ function App() {
                     title="Zugewiesen an"
                   >
                     <option value="">– niemand zugewiesen –</option>
-                    {team.map((t) => <option key={t} value={t}>{t}</option>)}
-                    {aDraft.wer && !team.includes(aDraft.wer) && <option value={aDraft.wer}>{aDraft.wer}</option>}
+                    {team.map((t) => <option key={t.name} value={t.name}>{t.name} ({TEAM_ROLLEN[t.rolle || ""].label})</option>)}
+                    {aDraft.wer && !team.some((t) => t.name === aDraft.wer) && <option value={aDraft.wer}>{aDraft.wer}</option>}
                   </select>
                   <input
                     type="date"
@@ -3143,23 +3163,40 @@ function App() {
             <div className="flex flex-col gap-1.5 mb-2">
               {settingsTeam.map((t, idx) => (
                 <div key={idx} className="flex gap-1.5 items-center">
+                  <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "22px", height: "22px", fontSize: "0.58rem", backgroundColor: TEAM_ROLLEN[t.rolle || ""].color, flexShrink: 0 }}>
+                    {t.name.trim() ? t.name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "?"}
+                  </span>
                   <input
-                    value={t}
+                    value={t.name}
                     onChange={(e) => {
                       const v = e.target.value;
-                      setSettingsTeam((prev) => prev.map((x, i) => (i === idx ? v : x)));
+                      setSettingsTeam((prev) => prev.map((x, i) => (i === idx ? { ...x, name: v } : x)));
                     }}
                     placeholder="Name, z. B. K. Schmidt"
                     className="flex-1 text-sm border rounded px-2 py-1.5"
                     style={{ borderColor: "#D6D9DC" }}
                   />
+                  <select
+                    value={t.rolle || ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSettingsTeam((prev) => prev.map((x, i) => (i === idx ? { ...x, rolle: v } : x)));
+                    }}
+                    className="text-xs border rounded px-1.5 py-1.5 font-bold"
+                    style={{ borderColor: "#D6D9DC", width: "130px", color: TEAM_ROLLEN[t.rolle || ""].color }}
+                  >
+                    <option value="mech">Mechaniker</option>
+                    <option value="elek">Elektriker</option>
+                    <option value="azubi">Azubi</option>
+                    <option value="">ohne Gewerk</option>
+                  </select>
                   <button onClick={() => setSettingsTeam((prev) => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-red-600 p-1" aria-label="Person entfernen">
                     <X size={14} />
                   </button>
                 </div>
               ))}
             </div>
-            <button onClick={() => setSettingsTeam((prev) => [...prev, ""])} className="text-xs font-bold mb-5" style={{ color: "#22262B" }}>
+            <button onClick={() => setSettingsTeam((prev) => [...prev, { name: "", rolle: "mech" }])} className="text-xs font-bold mb-5" style={{ color: "#22262B" }}>
               + Person hinzufügen
             </button>
 
