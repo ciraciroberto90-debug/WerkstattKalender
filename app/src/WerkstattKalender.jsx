@@ -720,8 +720,23 @@ function App() {
   // Erledigt-Quote in Prozent (bezogen auf erledigt + offen im gewählten Zeitraum)
   const quoteBasis = scopeEntries.filter((e) => e.status === "done" || e.status === "open").length;
   const donePercent = quoteBasis > 0 ? Math.round((doneCount / quoteBasis) * 100) : null;
+
   const openCount = scopeEntries.filter((e) => e.status === "open").length;
   const notesList = scopeEntries.filter((e) => e.note && e.note.trim()).sort((a, b) => a.date.localeCompare(b.date));
+
+  // Kleine Legende + Zähler unter dem Kalender (statt in der Filterleiste - die bleibt schlank)
+  const legendeKlein = (
+    <div className="no-print flex flex-wrap items-center gap-3 mt-2 px-1 text-slate-400" style={{ fontSize: "11px" }}>
+      <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-emerald-600" /> Gemacht</span>
+      <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-600" /> Nicht gemacht</span>
+      <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded" style={{ backgroundColor: "#FBE9E7", border: "1px solid #B23A34" }} /> Feiertag</span>
+      <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded" style={{ backgroundColor: "#E5F0F8", border: "1px solid #C8DDEE" }} /> Wochenende</span>
+      <span className="ml-auto font-mono">
+        <span className="text-emerald-700 font-bold">{doneCount} erledigt</span> · <span className="text-red-700 font-bold">{openCount} offen</span>
+        {donePercent !== null && <> · <span className="font-bold" style={{ color: "#22262B" }}>{donePercent} %</span></>}
+      </span>
+    </div>
+  );
 
   const changeMonth = (delta) => {
     let m = month + delta;
@@ -1596,18 +1611,6 @@ function App() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-bold">
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-600" /> Gemacht</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-red-600" /> Nicht gemacht</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded" style={{ backgroundColor: "#FBE9E7", border: "1px solid #B23A34" }} /> Feiertag</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded" style={{ backgroundColor: "#E5F0F8", border: "1px solid #C8DDEE" }} /> Wochenende</span>
-          </div>
-
-          <div className="flex gap-3 ml-auto text-xs font-mono">
-            <span className="text-emerald-700 font-bold">{doneCount} erledigt</span>
-            <span className="text-red-700 font-bold">{openCount} offen</span>
-            {donePercent !== null && <span className="font-bold" style={{ color: "#22262B" }}>{donePercent} %</span>}
-          </div>
         </div>
       )}
 
@@ -1701,6 +1704,7 @@ function App() {
               </div>
             </div>
           ))}
+          {legendeKlein}
         </div>
       )}
 
@@ -2219,6 +2223,7 @@ function App() {
         ) : (
           renderCategoryBlock(filter, false)
         )}
+        {view === "JAHR" && legendeKlein}
       </div>
       )}
 
