@@ -363,6 +363,10 @@ function App() {
   const [settingsRi, setSettingsRi] = useState([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
+  // Pinnwand (Cockpit-Übersicht): neuer Zettel
+  const [zettelOpen, setZettelOpen] = useState(false);
+  const [zettelText, setZettelText] = useState("");
+  const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
 
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
@@ -698,7 +702,7 @@ function App() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   const visibleEntries = useMemo(
-    () => entries.filter((e) => filter === "ALL" || e.category === filter),
+    () => entries.filter((e) => (e.category === "TPM" || e.category === "RI") && (filter === "ALL" || e.category === filter)),
     [entries, filter]
   );
   const entriesByDate = useMemo(() => {
@@ -753,8 +757,9 @@ function App() {
 
 
   // ---- Wartungsplan (fortlaufende Rotation) ----
-  const computeMaintenancePlan = () => {
-    const dim = daysInMonth;
+  const computeMaintenancePlan = (py = year, pm = month) => {
+    const hol = getHolidays(py);
+    const dim = new Date(py, pm + 1, 0).getDate();
     const taktNames = tpmAnlagen.filter((a) => a.role === "takt").map((a) => a.name);
     const monday34Names = tpmAnlagen.filter((a) => a.role === "monday3" || a.role === "monday4").map((a) => a.name);
     const flexANames = tpmAnlagen.filter((a) => a.role === "flexA").map((a) => a.name);
@@ -763,11 +768,11 @@ function App() {
 
     const mondayAssignments = [];
     for (let d = 1; d <= dim; d++) {
-      const dow = new Date(year, month, d).getDay();
+      const dow = new Date(py, pm, d).getDay();
       if (dow !== 1) continue;
-      const key = dateKey(year, month, d);
-      if (holidays.get(key)) continue; // Feiertags-Montag: Slot entfällt diesen Zyklus
-      const anlage = mondayAnlage(new Date(year, month, d), tpmAnlagen);
+      const key = dateKey(py, pm, d);
+      if (hol.get(key)) continue; // Feiertags-Montag: Slot entfällt diesen Zyklus
+      const anlage = mondayAnlage(new Date(py, pm, d), tpmAnlagen);
       if (anlage) mondayAssignments.push({ day: d, date: key, anlage });
     }
 
@@ -777,39 +782,39 @@ function App() {
     const taktQueue = taktNames.filter((a) => !taktDoneThisMonth.has(a));
 
     const b2b3Weeks = new Set(
-      mondayAssignments.filter((m) => monday34Names.includes(m.anlage)).map((m) => weekBucketKey(year, month, m.day))
+      mondayAssignments.filter((m) => monday34Names.includes(m.anlage)).map((m) => weekBucketKey(py, pm, m.day))
     );
     // Randfall: Beginnt der Monat nicht an einem Montag, kann der Montag der ersten (Teil-)Woche
     // noch im Vormonat liegen - dessen Rolle wird sonst übersehen.
     {
-      const firstDow = new Date(year, month, 1).getDay(); // 0=So..6=Sa
+      const firstDow = new Date(py, pm, 1).getDay(); // 0=So..6=Sa
       if (firstDow !== 1) {
-        const boundaryMonday = new Date(year, month, 1 - ((firstDow + 6) % 7));
+        const boundaryMonday = new Date(py, pm, 1 - ((firstDow + 6) % 7));
         const boundaryKey = dateKey(boundaryMonday.getFullYear(), boundaryMonday.getMonth(), boundaryMonday.getDate());
         if (!getHolidays(boundaryMonday.getFullYear()).get(boundaryKey)) {
           const boundaryAnlage = mondayAnlage(boundaryMonday, tpmAnlagen);
           if (monday34Names.includes(boundaryAnlage)) {
-            b2b3Weeks.add(weekBucketKey(year, month, 1));
+            b2b3Weeks.add(weekBucketKey(py, pm, 1));
           }
         }
       }
     }
 
-    const monthIndexAbs = year * 12 + month;
+    const monthIndexAbs = py * 12 + pm;
     const flexPair = monthIndexAbs % 2 === 0 ? flexANames : flexBNames;
 
     const mondayUsedKeys = new Set(mondayAssignments.map((m) => m.date));
 
     const candidateDays = [];
     for (let d = 1; d <= dim; d++) {
-      const dow = new Date(year, month, d).getDay(); // 2..5 = Di..Fr
+      const dow = new Date(py, pm, d).getDay(); // 2..5 = Di..Fr
       if (dow < 2 || dow > 5) continue;
-      const key = dateKey(year, month, d);
-      if (holidays.get(key)) continue;
+      const key = dateKey(py, pm, d);
+      if (hol.get(key)) continue;
       if (dow === 2) {
         // Dienstag nach genutztem Montag frei lassen - auch über die Monatsgrenze:
         // Ist der 1. ein Dienstag, liegt der Vortag-Montag noch im Vormonat.
-        const prev = new Date(year, month, d - 1);
+        const prev = new Date(py, pm, d - 1);
         const prevKey = dateKey(prev.getFullYear(), prev.getMonth(), prev.getDate());
         const prevHoliday = !!getHolidays(prev.getFullYear()).get(prevKey);
         if (!prevHoliday && mondayAnlage(prev, tpmAnlagen) !== "") continue;
@@ -819,12 +824,12 @@ function App() {
 
     // Kein Fallback mehr, der die B2/B3-Wochen-Regel ignoriert: findet sich kein freier Tag
     // außerhalb der B2/B3-Woche, setzt B1 in diesem Monat schlicht aus (wie B+T/flexible Gruppe).
-    let b1Day = b1Item ? candidateDays.find((d) => !b2b3Weeks.has(weekBucketKey(year, month, d))) : undefined;
+    let b1Day = b1Item ? candidateDays.find((d) => !b2b3Weeks.has(weekBucketKey(py, pm, d))) : undefined;
 
     const remainingDays = candidateDays.filter((d) => d !== b1Day);
     // Priorität: die Taktstraßen-Anlage mit der stabilen id "bt" gilt (laut Absprache) wie die
     // flexible Gruppe als unkritisch und darf bei Platzmangel zuerst einen Monat aussetzen.
-    const planReference = new Date(year, month, 1);
+    const planReference = new Date(py, pm, 1);
     const lowPriorityItem = tpmAnlagen.find((a) => a.id === "bt");
     const lowPriorityName = lowPriorityItem ? lowPriorityItem.name : null;
     const priorityTakt = taktQueue
@@ -836,7 +841,7 @@ function App() {
     const weekdayAssignments = [];
     const usedDays = new Set();
     if (b1Day !== undefined && b1Item) {
-      weekdayAssignments.push({ day: b1Day, date: dateKey(year, month, b1Day), anlage: b1Item.name });
+      weekdayAssignments.push({ day: b1Day, date: dateKey(py, pm, b1Day), anlage: b1Item.name });
       usedDays.add(b1Day);
     }
 
@@ -853,11 +858,11 @@ function App() {
       usedDays.add(remainingDays[idx]);
       idx += 2; // eine Lücke von einem Tag einhalten
     }
-    placed.forEach((p) => weekdayAssignments.push({ day: p.day, date: dateKey(year, month, p.day), anlage: p.anlage }));
+    placed.forEach((p) => weekdayAssignments.push({ day: p.day, date: dateKey(py, pm, p.day), anlage: p.anlage }));
 
-    const riAssignments = riOccurrencesInMonth(riItems, year, month, holidays).map((r) => ({
+    const riAssignments = riOccurrencesInMonth(riItems, py, pm, hol).map((r) => ({
       day: r.day,
-      date: dateKey(year, month, r.day),
+      date: dateKey(py, pm, r.day),
       anlage: r.name,
     }));
 
@@ -871,11 +876,61 @@ function App() {
   const maintenancePlan = maintenancePlanResult.assignments;
   const planSkipped = maintenancePlanResult.skipped;
 
+  // ---- Cockpit-Übersicht: alles bezogen auf HEUTE (unabhängig vom angezeigten Monat) ----
+  const todayPlanResult = view === "COCKPIT" && heavyReady
+    ? computeMaintenancePlan(today.getFullYear(), today.getMonth())
+    : { assignments: [], skipped: [] };
+  const kalenderEntries = entries.filter((e) => e.category === "TPM" || e.category === "RI");
+  const zettelListe = entries
+    .filter((e) => e.category === "NOTIZ")
+    .sort((a, b) => String(b.zeit || b.date).localeCompare(String(a.zeit || a.date)));
+  const heutePlan = todayPlanResult.assignments.filter((p) => p.date === todayKey);
+  const statusFuerPlanPunkt = (p) => {
+    const e = kalenderEntries.find((x) => x.date === p.date && x.name === p.anlage);
+    return e ? e.status : null;
+  };
+  const heuteErledigtCount = kalenderEntries.filter((e) => e.date === todayKey && e.status === "done").length;
+  const ueberfaellige = kalenderEntries
+    .filter((e) => e.status === "open" && e.date < todayKey)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const quoteFuer = (list) => {
+    const d = list.filter((e) => e.status === "done").length;
+    const basis = list.filter((e) => e.status === "done" || e.status === "open").length;
+    return basis > 0 ? Math.round((d / basis) * 100) : null;
+  };
+  const quoteMonatHeute = quoteFuer(kalenderEntries.filter((e) => e.date.startsWith(todayKey.slice(0, 7))));
+  const quoteJahrHeute = quoteFuer(kalenderEntries.filter((e) => e.date.startsWith(todayKey.slice(0, 4) + "-")));
+
+  const ZETTEL_FARBEN = { gelb: "#FEF9C3", blau: "#E0F2FE", gruen: "#DCFCE7" };
+  const addZettel = async () => {
+    if (!zettelText.trim() || !zettelName.trim()) return;
+    localStorage.setItem("werkstatt-kalender-name", zettelName.trim());
+    const farben = Object.keys(ZETTEL_FARBEN);
+    const zettel = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      date: todayKey,
+      category: "NOTIZ",
+      name: zettelName.trim(),
+      status: "open",
+      note: zettelText.trim(),
+      zeit: new Date().toISOString(),
+      farbe: farben[zettelListe.length % farben.length],
+    };
+    await persist([...entries, zettel]);
+    setZettelText("");
+    setZettelOpen(false);
+  };
+  const deleteZettel = async (id) => {
+    if (!window.confirm("Diesen Zettel von der Pinnwand nehmen?")) return;
+    await persist(entries.filter((e) => e.id !== id));
+  };
+
   // Erledigt-Abgleich für den Plan: gibt es zu einem Plan-Punkt (Datum + Anlage)
   // einen Kalender-Eintrag mit Status "done", wird er im Plan grün dargestellt.
   const planDoneKeys = useMemo(() => {
     const set = new Set();
     entries.forEach((e) => {
+      if (e.category !== "TPM" && e.category !== "RI") return;
       if (e.status === "done") set.add(`${e.date}|${e.name}`);
     });
     return set;
@@ -1456,7 +1511,13 @@ function App() {
                 })}
               </div>
               {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
-              {view !== "COCKPIT" && (
+              {view === "COCKPIT" ? (
+                <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                  <button className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide" style={{ backgroundColor: "#4B5259", color: "#fff" }}>
+                    Übersicht
+                  </button>
+                </div>
+              ) : (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
                   {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
                     const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
@@ -1503,13 +1564,15 @@ function App() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "#C97A2B" }}
-          >
-            <Printer size={16} /> Drucken
-          </button>
+          {view !== "COCKPIT" && (
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "#C97A2B" }}
+            >
+              <Printer size={16} /> Drucken
+            </button>
+          )}
           {!readerMode && (
             <>
               <button
@@ -1623,14 +1686,145 @@ function App() {
         {view !== "PLAN" && <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen{donePercent !== null ? ` · ${donePercent} %` : ""}</div>}
       </div>
 
-      {/* Cockpit: Platzhalter für den künftigen Ausbau (Personal, Backlog, Anlagen) */}
+      {/* Cockpit: Übersicht (Kennzahlen + Tagesliste + Pinnwand) */}
       {view === "COCKPIT" && (
-        <div className="no-print p-10 max-w-3xl mx-auto rounded-xl mt-6 text-center" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
-          <div className="text-lg font-black uppercase tracking-tight mb-2" style={{ color: "#22262B" }}>🚧 Cockpit</div>
-          <div className="text-sm text-slate-500 leading-relaxed">
-            Dieser Bereich ist in Vorbereitung: Personal- &amp; Arbeitsplanung, Backlog
-            (mechanisch/elektrisch) und Anlagenverzeichnis.<br />
-            Die Wartung läuft komplett unter dem Bereich „TPM" weiter.
+        <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+          {/* Kennzahlen-Kacheln */}
+          <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
+            {[
+              [heutePlan.length, "Heute fällig", "#22262B"],
+              [heuteErledigtCount, "Heute erledigt", "#2F7D4F"],
+              [ueberfaellige.length, "Überfällig", ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F"],
+              [todayPlanResult.assignments.length, "Diesen Monat geplant", "#22262B"],
+              [quoteMonatHeute !== null ? quoteMonatHeute + " %" : "–", "Quote " + MONTHS[today.getMonth()], "#2F7D4F"],
+              [quoteJahrHeute !== null ? quoteJahrHeute + " %" : "–", "Quote " + today.getFullYear(), "#2F7D4F"],
+            ].map(([num, label, color]) => (
+              <div key={label} className="rounded-xl px-3.5 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                <div className="font-mono font-extrabold" style={{ fontSize: "1.4rem", color }}>{num}</div>
+                <div className="text-xs font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.68rem" }}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-4" style={{ gridTemplateColumns: "1.05fr 1fr" }}>
+            {/* Tagesliste */}
+            <div>
+              <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: "#22262B" }}>
+                Heute · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
+              </div>
+              {heutePlan.length === 0 && (
+                <div className="text-xs italic text-slate-400 mb-3">Heute steht laut Plan nichts an.</div>
+              )}
+              {heutePlan.map((p) => {
+                const st = statusFuerPlanPunkt(p);
+                const kat = riItems.some((r) => r.name === p.anlage) ? "RI" : "TPM";
+                return (
+                  <button
+                    key={p.anlage}
+                    onClick={() => openPlanEntry(p)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1.5 text-left"
+                    style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}
+                  >
+                    <span
+                      className="flex items-center justify-center rounded font-black text-white"
+                      style={{ width: "20px", height: "20px", fontSize: "0.7rem", backgroundColor: st === "done" ? "#2F7D4F" : "transparent", border: st === "done" ? "none" : "2px solid #C3C7CB" }}
+                    >
+                      {st === "done" ? "✓" : ""}
+                    </span>
+                    <span className="text-xs font-bold uppercase" style={{ color: CATS[kat].color }}>{CATS[kat].label}</span>
+                    <strong className="text-sm flex-1" style={{ textDecoration: st === "done" ? "line-through" : "none", color: st === "done" ? "#8A9099" : "#22262B" }}>{p.anlage}</strong>
+                  </button>
+                );
+              })}
+
+              {ueberfaellige.length > 0 && (
+                <>
+                  <div className="text-xs font-extrabold uppercase tracking-wide mt-4 mb-2" style={{ color: "#B23A34" }}>Liegengeblieben ({ueberfaellige.length})</div>
+                  {ueberfaellige.slice(0, 8).map((e) => (
+                    <button
+                      key={e.id}
+                      onClick={() => openEditModal(e)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1.5 text-left"
+                      style={{ backgroundColor: "#FDF6F5", border: "1px solid #E8B4AE" }}
+                    >
+                      <span className="rounded" style={{ width: "20px", height: "20px", border: "2px solid #C3C7CB", backgroundColor: "white" }} />
+                      <span className="text-xs font-bold uppercase" style={{ color: CATS[e.category].color }}>{CATS[e.category].label}</span>
+                      <strong className="text-sm flex-1">{e.name}</strong>
+                      <span className="font-mono text-xs" style={{ color: "#B23A34" }}>{formatDateDE(e.date)}</span>
+                    </button>
+                  ))}
+                  {ueberfaellige.length > 8 && <div className="text-xs text-slate-400">… und {ueberfaellige.length - 8} weitere (siehe TPM → Auswertung)</div>}
+                </>
+              )}
+            </div>
+
+            {/* Pinnwand */}
+            <div>
+              <div className="flex items-center mb-2">
+                <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>📌 Pinnwand</span>
+                <button
+                  onClick={() => setZettelOpen(!zettelOpen)}
+                  className="ml-auto text-xs font-bold uppercase px-3 py-1.5 rounded text-white"
+                  style={{ backgroundColor: "#22262B" }}
+                >
+                  + Zettel
+                </button>
+              </div>
+
+              {zettelOpen && (
+                <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                  <textarea
+                    autoFocus
+                    value={zettelText}
+                    onChange={(e) => setZettelText(e.target.value)}
+                    placeholder="Was sollen die anderen wissen? (z. B. Ersatzteil kommt Do. früh)"
+                    rows={3}
+                    className="w-full text-sm border rounded px-3 py-2 mb-2"
+                    style={{ borderColor: "#D6D9DC", resize: "vertical" }}
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      value={zettelName}
+                      onChange={(e) => setZettelName(e.target.value)}
+                      placeholder="Dein Name/Kürzel"
+                      className="text-sm border rounded px-3 py-1.5"
+                      style={{ borderColor: "#D6D9DC", width: "160px" }}
+                    />
+                    <button
+                      onClick={addZettel}
+                      disabled={!zettelText.trim() || !zettelName.trim()}
+                      className="text-sm font-bold px-4 py-1.5 rounded text-white disabled:opacity-40"
+                      style={{ backgroundColor: "#2F7D4F" }}
+                    >
+                      Anpinnen
+                    </button>
+                    <button onClick={() => setZettelOpen(false)} className="text-sm px-3 py-1.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
+                  </div>
+                </div>
+              )}
+
+              {zettelListe.length === 0 && !zettelOpen && (
+                <div className="text-xs italic text-slate-400">Noch keine Zettel. Über „+ Zettel" hinterlässt du eine Notiz für alle – z. B. für die Übergabe an deinen Vertreter.</div>
+              )}
+              <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                {zettelListe.map((z) => (
+                  <div key={z.id} className="relative p-3" style={{ backgroundColor: ZETTEL_FARBEN[z.farbe] || ZETTEL_FARBEN.gelb, borderRadius: "4px 4px 12px 4px", boxShadow: "2px 3px 8px rgba(20,22,25,0.12)" }}>
+                    <button
+                      onClick={() => deleteZettel(z.id)}
+                      className="absolute top-1.5 right-2 text-slate-400 hover:text-red-600 font-bold"
+                      title="Zettel abnehmen"
+                      aria-label="Zettel abnehmen"
+                    >
+                      ×
+                    </button>
+                    <div className="text-sm pr-4" style={{ color: "#39414B", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{z.note}</div>
+                    <div className="text-right mt-2" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
+                      {z.name} · {z.zeit ? new Date(z.zeit).toLocaleDateString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : formatDateDE(z.date)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
