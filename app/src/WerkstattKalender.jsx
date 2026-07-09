@@ -1292,7 +1292,7 @@ function App() {
     let body = `<div style="text-align:center;margin-bottom:18px;">
       <div style="font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:0.02em;">${escapeHtml(printPrefix)}</div>
       <div style="font-family:monospace;font-size:13px;margin-top:2px;">${escapeHtml(printSuffix)}</div>
-      ${view !== "PLAN" ? `<div style="font-family:monospace;font-size:11px;margin-top:4px;">${doneCount} erledigt · ${openCount} offen${donePercent !== null ? ` · ${donePercent} % erledigt` : ""}</div>` : ""}
+      ${view !== "PLAN" ? `<div style="font-family:monospace;font-size:11px;margin-top:4px;">${doneCount} erledigt · ${openCount} offen${donePercent !== null ? ` · ${donePercent} %` : ""}</div>` : ""}
     </div>`;
 
     if (view === "PLAN") {
@@ -1606,7 +1606,7 @@ function App() {
           <div className="flex gap-3 ml-auto text-xs font-mono">
             <span className="text-emerald-700 font-bold">{doneCount} erledigt</span>
             <span className="text-red-700 font-bold">{openCount} offen</span>
-            {donePercent !== null && <span className="font-bold" style={{ color: "#22262B" }}>{donePercent} % erledigt</span>}
+            {donePercent !== null && <span className="font-bold" style={{ color: "#22262B" }}>{donePercent} %</span>}
           </div>
         </div>
       )}
@@ -1617,7 +1617,7 @@ function App() {
       <div className="print-only text-center py-2">
         <div className="font-black text-2xl uppercase tracking-tight">{printPrefix}</div>
         <div className="font-mono text-sm">{printSuffix}</div>
-        {view !== "PLAN" && <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen{donePercent !== null ? ` · ${donePercent} % erledigt` : ""}</div>}
+        {view !== "PLAN" && <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen{donePercent !== null ? ` · ${donePercent} %` : ""}</div>}
       </div>
 
       {/* Cockpit: Platzhalter für den künftigen Ausbau (Personal, Backlog, Anlagen) */}
