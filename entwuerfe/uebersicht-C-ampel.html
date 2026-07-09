@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Übersicht C – Der Hallen-Blick</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .subtabs { display:flex; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); }
+  .subtabs span { padding:5px 10px; font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#B7BEC6; }
+  .subtabs span.active { background:#4B5259; color:#fff; }
+  .tile { border-radius:12px; padding:14px; border:1px solid #E2E4E7; background:#fff; }
+  .tile.r { background:#FBE9E7; border-color:#B23A34; }
+  .tile.y { background:#FCEFD9; border-color:#C97A2B; }
+  .tile.g { background:#F3FAF5; border-color:#BFE0CB; }
+  .tile .name { font-weight:900; font-size:1.05rem; }
+  .tile .info { font-size:0.72rem; color:#5B6572; margin-top:6px; line-height:1.6; }
+  .tile .status { font-size:0.68rem; font-weight:800; text-transform:uppercase; margin-top:2px; }
+  .tile.r .status { color:#B23A34; } .tile.y .status { color:#B8791F; } .tile.g .status { color:#2F7D4F; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <div class="subtabs"><span class="active">Übersicht</span></div>
+  <span class="datum">Mi, 08.07.2026 · KW 28</span>
+  <span class="draft">VORLAGE C</span>
+</div>
+
+<main>
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+    <div style="font-size:1.1rem;font-weight:900;">Anlagen-Status</div>
+    <span style="font-size:0.72rem;color:#8A9099;">🔴 1 überfällig/kritisch · 🟡 4 fällig · 🟢 12 im Plan</span>
+    <span style="margin-left:auto;font-family:ui-monospace,Consolas,monospace;font-size:0.8rem;">Heute: <strong style="color:#2F7D4F">1 ✓</strong> · <strong style="color:#B23A34">3 offen</strong> · Juli <strong style="color:#2F7D4F">86 %</strong></span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;">
+    <div class="tile r"><div class="name">HRO</div><div class="status">Überfällig</div><div class="info">TPM Mo 13.07.<br>Trocknerkette ölen seit Mo offen</div></div>
+    <div class="tile y"><div class="name">B1</div><div class="status">Heute fällig</div><div class="info">TPM heute<br>flexible Beschichtung</div></div>
+    <div class="tile y"><div class="name">VSM1</div><div class="status">Bald fällig</div><div class="info">TPM ✓ 03.07.<br>nächste: August</div></div>
+    <div class="tile y"><div class="name">TS480</div><div class="status">Diese Woche</div><div class="info">TPM Mi 22.07.</div></div>
+    <div class="tile y"><div class="name">LTA1</div><div class="status">Bald fällig</div><div class="info">2-Monats-Gruppe<br>August dran</div></div>
+    <div class="tile g"><div class="name">RRO</div><div class="status">Im Plan</div><div class="info">TPM Mo 20.07.</div></div>
+    <div class="tile g"><div class="name">B2</div><div class="status">Im Plan</div><div class="info">TPM Mo 27.07.</div></div>
+    <div class="tile g"><div class="name">B3</div><div class="status">Im Plan</div><div class="info">TPM Aug</div></div>
+    <div class="tile g"><div class="name">BTS</div><div class="status">Im Plan</div><div class="info">TPM ✓ 01.07.</div></div>
+    <div class="tile g"><div class="name">VSM2</div><div class="status">Im Plan</div><div class="info">TPM Fr 10.07.</div></div>
+    <div class="tile g"><div class="name">TS200</div><div class="status">Im Plan</div><div class="info">TPM Do 16.07.</div></div>
+    <div class="tile g"><div class="name">TS320</div><div class="status">Im Plan</div><div class="info">TPM Fr 24.07.</div></div>
+    <div class="tile g"><div class="name">OF320</div><div class="status">Im Plan</div><div class="info">TPM ✓ 06.07. (nachgeholt)</div></div>
+    <div class="tile g"><div class="name">B+T</div><div class="status">Im Plan</div><div class="info">TPM Do 30.07.</div></div>
+    <div class="tile g"><div class="name">Masseaufb.</div><div class="status">Im Plan</div><div class="info">Gruppe A · Sep</div></div>
+    <div class="tile g"><div class="name">Wikler</div><div class="status">Im Plan</div><div class="info">Gruppe A · Sep</div></div>
+    <div class="tile g"><div class="name">LTA2</div><div class="status">Im Plan</div><div class="info">Gruppe B · Aug</div></div>
+    <div class="tile" style="display:flex;align-items:center;justify-content:center;color:#B7BEC6;font-size:0.8rem;">R+I-Punkte →<br>eigene Reihe</div>
+  </div>
+
+  <div class="hinweis" style="margin-top:14px;">Vorlage C · „Der Hallen-Blick": Die Anlagen stehen im Mittelpunkt – eine Kachel pro Anlage, Farbe = Zustand, direkt aus TPM-Plan und offenen Einträgen berechnet. Klick auf eine Kachel öffnet später den Anlagen-Steckbrief. Denkt wie ein Werkstattleiter: „Wo muss ich hin?" statt „Was steht auf der Liste?"</div>
+</main>
+</body>
+</html>

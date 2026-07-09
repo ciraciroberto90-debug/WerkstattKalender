@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Übersicht B – Das Kennzahlen-Cockpit</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .subtabs { display:flex; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); }
+  .subtabs span { padding:5px 10px; font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#B7BEC6; }
+  .subtabs span.active { background:#4B5259; color:#fff; }
+  .balken { height:14px; border-radius:7px; background:#EDEEF0; overflow:hidden; display:flex; }
+  .balken i { display:block; height:100%; }
+  .wochen { display:flex; gap:6px; align-items:flex-end; height:90px; }
+  .wochen .w { flex:1; display:flex; flex-direction:column; justify-content:flex-end; gap:2px; }
+  .wochen .w i { display:block; border-radius:3px; }
+  .wochen .lbl { text-align:center; font-size:0.62rem; color:#8A9099; margin-top:4px; font-family:ui-monospace,Consolas,monospace; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <div class="subtabs"><span class="active">Übersicht</span></div>
+  <span class="datum">Mi, 08.07.2026 · KW 28</span>
+  <span class="draft">VORLAGE B</span>
+</div>
+
+<main>
+  <div class="kpis" style="grid-template-columns:repeat(6,1fr);">
+    <div class="kpi"><div class="num">4</div><div class="lbl">Heute fällig</div></div>
+    <div class="kpi"><div class="num" style="color:#2F7D4F">1</div><div class="lbl">Heute erledigt</div></div>
+    <div class="kpi"><div class="num" style="color:#B23A34">3</div><div class="lbl">Überfällig</div></div>
+    <div class="kpi"><div class="num">31</div><div class="lbl">Diesen Monat geplant</div></div>
+    <div class="kpi"><div class="num" style="color:#2F7D4F">86 %</div><div class="lbl">Quote Juli</div></div>
+    <div class="kpi"><div class="num" style="color:#2F7D4F">91 %</div><div class="lbl">Quote 2026</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="card">
+      <div class="head">Monatsfortschritt Juli</div>
+      <div class="body">
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#8A9099;margin-bottom:6px;">
+          <span><strong style="color:#2F7D4F">24 gemacht</strong> · <strong style="color:#B23A34">4 offen</strong> · 14 kommen noch</span><span>42 gesamt</span>
+        </div>
+        <div class="balken"><i style="width:57%;background:#2F7D4F"></i><i style="width:9%;background:#B23A34"></i></div>
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#8A9099;margin:14px 0 6px;">
+          <span>Nur TPM</span><span>10 / 13</span>
+        </div>
+        <div class="balken" style="height:10px;"><i style="width:70%;background:#C97A2B"></i><i style="width:7%;background:#B23A34"></i></div>
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#8A9099;margin:14px 0 6px;">
+          <span>Nur R+I</span><span>14 / 29</span>
+        </div>
+        <div class="balken" style="height:10px;"><i style="width:48%;background:#2F6690"></i><i style="width:10%;background:#B23A34"></i></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head">Letzte 7 Tage <span style="color:#8A9099;font-weight:400;text-transform:none">(grün gemacht · rot liegengeblieben)</span></div>
+      <div class="body">
+        <div class="wochen">
+          <div class="w"><i style="height:52px;background:#2F7D4F"></i><div class="lbl">Mi</div></div>
+          <div class="w"><i style="height:36px;background:#2F7D4F"></i><i style="height:10px;background:#B23A34"></i><div class="lbl">Do</div></div>
+          <div class="w"><i style="height:44px;background:#2F7D4F"></i><div class="lbl">Fr</div></div>
+          <div class="w"><i style="height:6px;background:#EDEEF0"></i><div class="lbl">Sa</div></div>
+          <div class="w"><i style="height:6px;background:#EDEEF0"></i><div class="lbl">So</div></div>
+          <div class="w"><i style="height:30px;background:#2F7D4F"></i><i style="height:20px;background:#B23A34"></i><div class="lbl">Mo</div></div>
+          <div class="w"><i style="height:40px;background:#2F7D4F"></i><i style="height:10px;background:#B23A34"></i><div class="lbl">Di</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+    <div class="card">
+      <div class="head" style="color:#B23A34">Überfällig (3)</div>
+      <div class="body" style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;">
+        <div style="display:flex;gap:8px;"><span class="b ri">R+I</span><strong style="flex:1">Kompressor Rundgang</strong><span class="mono" style="color:#B23A34;font-size:0.72rem">seit Di</span></div>
+        <div style="display:flex;gap:8px;"><span class="b tpm">TPM</span><strong style="flex:1">OF320</strong><span class="mono" style="color:#B23A34;font-size:0.72rem">seit Mo</span></div>
+        <div style="display:flex;gap:8px;"><span class="b ri">R+I</span><strong style="flex:1">Wasserrundgang</strong><span class="mono" style="color:#B23A34;font-size:0.72rem">seit Mo</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">Sorgenkinder <span style="color:#8A9099;font-weight:400;text-transform:none">(meiste Ausfälle 12 Monate)</span></div>
+      <div class="body" style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;">
+        <div style="display:flex;gap:8px;align-items:center;"><strong style="width:120px">HRO</strong><div class="balken" style="flex:1;height:8px;"><i style="width:34%;background:#B23A34"></i></div><span class="mono" style="font-size:0.72rem;color:#8A9099">4 Ausfälle</span></div>
+        <div style="display:flex;gap:8px;align-items:center;"><strong style="width:120px">Sprinklerwartung</strong><div class="balken" style="flex:1;height:8px;"><i style="width:25%;background:#B23A34"></i></div><span class="mono" style="font-size:0.72rem;color:#8A9099">3 Ausfälle</span></div>
+        <div style="display:flex;gap:8px;align-items:center;"><strong style="width:120px">B+T</strong><div class="balken" style="flex:1;height:8px;"><i style="width:17%;background:#B23A34"></i></div><span class="mono" style="font-size:0.72rem;color:#8A9099">2 Ausfälle</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hinweis">Vorlage B · „Das Kennzahlen-Cockpit": für den Zahlenmenschen und fürs Berichten nach oben. Fortschrittsbalken pro Kategorie, 7-Tage-Verlauf, Jahresquote und die „Sorgenkinder"-Liste (welche Anlage frisst die meiste Zeit?). Alles aus vorhandenen TPM-Daten berechenbar.</div>
+</main>
+</body>
+</html>

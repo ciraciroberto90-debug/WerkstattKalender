@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Übersicht D – Die Pinnwand</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .subtabs { display:flex; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); }
+  .subtabs span { padding:5px 10px; font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#B7BEC6; }
+  .subtabs span.active { background:#4B5259; color:#fff; }
+  .zettel { border-radius:4px 4px 12px 4px; padding:12px 14px; box-shadow:2px 3px 8px rgba(20,22,25,0.12); position:relative; }
+  .zettel::before { content:""; position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:44px; height:12px; background:rgba(0,0,0,0.08); border-radius:2px; }
+  .zettel.gelb { background:#FEF9C3; }
+  .zettel.blau { background:#E0F2FE; }
+  .zettel.gruen { background:#DCFCE7; }
+  .zettel .von { font-size:0.62rem; color:#8A9099; margin-top:8px; text-align:right; }
+  .zettel .txt { font-size:0.82rem; color:#39414B; line-height:1.5; }
+  .check { display:flex; align-items:center; gap:10px; padding:9px 12px; background:#fff; border:1px solid #E2E4E7; border-radius:9px; margin-bottom:7px; font-size:0.9rem; }
+  .box { width:20px; height:20px; border:2px solid #C3C7CB; border-radius:5px; }
+  .box.ok { background:#2F7D4F; border-color:#2F7D4F; position:relative; }
+  .box.ok::after { content:"✓"; color:#fff; font-size:0.75rem; font-weight:900; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <div class="subtabs"><span class="active">Übersicht</span></div>
+  <span class="datum">Mi, 08.07.2026 · KW 28</span>
+  <span class="draft">VORLAGE D</span>
+</div>
+
+<main>
+  <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:16px;">
+    <div>
+      <div style="font-size:0.8rem;font-weight:800;text-transform:uppercase;color:#22262B;margin-bottom:8px;">Heute · Mi 08.07. <span style="color:#8A9099;font-weight:400;text-transform:none;">– 1 von 4 erledigt</span></div>
+      <div class="check"><span class="box ok"></span><span class="b tpm">TPM</span><strong style="flex:1;text-decoration:line-through;color:#8A9099;">B1</strong></div>
+      <div class="check"><span class="box"></span><span class="b ri">R+I</span><strong style="flex:1">Sprinklerwartung</strong></div>
+      <div class="check"><span class="box"></span><span class="b ri">R+I</span><strong style="flex:1">Hygieneplan BTA</strong></div>
+      <div class="check"><span class="box"></span><span class="b ri">R+I</span><strong style="flex:1">Kontrolle Verbrauchsmaterial BTA</strong></div>
+
+      <div style="font-size:0.8rem;font-weight:800;text-transform:uppercase;color:#B23A34;margin:16px 0 8px;">Liegengeblieben</div>
+      <div class="check" style="border-color:#E8B4AE;background:#FDF6F5;"><span class="box"></span><span class="b ri">R+I</span><strong style="flex:1">Kompressor Rundgang</strong><span class="mono" style="font-size:0.7rem;color:#B23A34">Di</span></div>
+      <div class="check" style="border-color:#E8B4AE;background:#FDF6F5;"><span class="box"></span><span class="b tpm">TPM</span><strong style="flex:1">OF320</strong><span class="mono" style="font-size:0.7rem;color:#B23A34">Mo</span></div>
+      <div class="check" style="border-color:#E8B4AE;background:#FDF6F5;"><span class="box"></span><span class="b ri">R+I</span><strong style="flex:1">Wasserrundgang</strong><span class="mono" style="font-size:0.7rem;color:#B23A34">Mo</span></div>
+    </div>
+
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:0.8rem;font-weight:800;text-transform:uppercase;color:#22262B;">📌 Pinnwand</span>
+        <span class="chip" style="margin-left:auto;background:#22262B;color:#fff;border-color:#22262B;">+ Zettel</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="zettel gelb">
+          <div class="txt"><strong>VSM1-Lager</strong> kommt laut Spedition <strong>Do. früh</strong>. Einbau direkt einplanen!</div>
+          <div class="von">R. Ciraci · Di 15:40</div>
+        </div>
+        <div class="zettel blau">
+          <div class="txt"><strong>HRO Endschalter</strong> nur provisorisch überbrückt. Nicht auf Automatik lassen ohne Sichtkontrolle.</div>
+          <div class="von">K. Schmidt · Di 13:10</div>
+        </div>
+        <div class="zettel gruen">
+          <div class="txt">Neue <strong>Kettenspray-Kartuschen</strong> sind da, Lager Regal 3 unten.</div>
+          <div class="von">M. Weber · Mo 09:20</div>
+        </div>
+        <div class="zettel gelb">
+          <div class="txt"><strong>14.07. Abwasserproben</strong> (LRA) – Flaschen stehen schon im Labor-Kühlschrank.</div>
+          <div class="von">R. Ciraci · Mo 08:05</div>
+        </div>
+      </div>
+      <div style="font-size:0.7rem;color:#8A9099;margin-top:10px;">Zettel verschwinden nicht von allein – abnehmen kann sie nur, wer sie angepinnt hat (oder du als Werkstattleitung).</div>
+    </div>
+  </div>
+
+  <div class="hinweis" style="margin-top:16px;">Vorlage D · „Die Pinnwand": ersetzt die Zettelwirtschaft am schwarzen Brett. Links die Tages-Checkliste (direkt abhakbar), rechts digitale Haftnotizen von dir und dem Vertreter – mit Name und Zeit, für alle Leser sichtbar. Das wäre der erste Baustein mit einer <strong>neuen Datenart</strong> (Notizen) in eurer gemeinsamen Datei.</div>
+</main>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Übersicht A – Der schnelle Blick</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .subtabs { display:flex; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); }
+  .subtabs span { padding:5px 10px; font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#B7BEC6; }
+  .subtabs span.active { background:#4B5259; color:#fff; }
+  .gross { font-size:1.05rem; }
+  .heute-zeile { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid #E2E4E7; border-radius:10px; background:#fff; margin-bottom:8px; }
+  .haken { width:26px; height:26px; border-radius:7px; border:2px solid #C3C7CB; display:flex; align-items:center; justify-content:center; font-weight:900; }
+  .haken.ok { background:#E5F3EA; border-color:#2F7D4F; color:#2F7D4F; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <div class="subtabs"><span class="active">Übersicht</span></div>
+  <span class="datum">Mi, 08.07.2026 · KW 28</span>
+  <span class="draft">VORLAGE A</span>
+</div>
+
+<main style="max-width:900px;">
+  <div style="display:flex;align-items:baseline;gap:14px;margin:6px 0 16px;">
+    <div style="font-size:1.3rem;font-weight:900;">Guten Morgen! 4 Punkte stehen heute an.</div>
+    <div style="margin-left:auto;font-family:ui-monospace,Consolas,monospace;font-size:0.85rem;color:#8A9099;">Juli: <strong style="color:#2F7D4F">86 %</strong> erledigt</div>
+  </div>
+
+  <div class="heute-zeile gross"><span class="haken ok">✓</span><span class="b tpm">TPM</span><strong style="flex:1">B1</strong><span style="color:#8A9099;font-size:0.8rem">erledigt 08:15</span></div>
+  <div class="heute-zeile gross"><span class="haken"></span><span class="b ri">R+I</span><strong style="flex:1">Sprinklerwartung</strong><span style="color:#8A9099;font-size:0.8rem">alle 2 Wochen</span></div>
+  <div class="heute-zeile gross"><span class="haken"></span><span class="b ri">R+I</span><strong style="flex:1">Hygieneplan BTA</strong><span style="color:#8A9099;font-size:0.8rem">monatlich</span></div>
+  <div class="heute-zeile gross"><span class="haken"></span><span class="b ri">R+I</span><strong style="flex:1">Kontrolle Verbrauchsmaterial BTA</strong><span style="color:#8A9099;font-size:0.8rem">monatlich</span></div>
+
+  <div class="card" style="margin-top:16px;border-color:#E8B4AE;">
+    <div class="head" style="color:#B23A34;">⚠ Noch offen aus den letzten Tagen (3)</div>
+    <div class="body" style="display:flex;flex-direction:column;gap:7px;">
+      <div style="display:flex;gap:8px;align-items:center;font-size:0.85rem;"><span class="b ri">R+I</span><strong style="flex:1">Kompressor Rundgang</strong><span class="mono" style="color:#B23A34;font-size:0.72rem">Di 07.07.</span></div>
+      <div style="display:flex;gap:8px;align-items:center;font-size:0.85rem;"><span class="b tpm">TPM</span><strong style="flex:1">OF320</strong><span class="mono" style="color:#B23A34;font-size:0.72rem">Mo 06.07.</span></div>
+      <div style="display:flex;gap:8px;align-items:center;font-size:0.85rem;"><span class="b ri">R+I</span><strong style="flex:1">Wasserrundgang</strong><span class="mono" style="color:#B23A34;font-size:0.72rem">Mo 06.07.</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:14px;margin-top:16px;font-size:0.8rem;color:#8A9099;">
+    <span><strong style="color:#22262B">Morgen:</strong> Elevatorprüfung + Ölen · Werkstattreinigung · Kompressor Rundgang</span>
+  </div>
+
+  <div class="hinweis">Vorlage A · „Der schnelle Blick": bewusst nur eine Frage beantworten – <strong>Was ist heute zu tun, was hängt?</strong> Große Zeilen, direkt abhakbar, kein Schnickschnack. Ideal wenn die Übersicht vor allem morgens 30 Sekunden angeschaut wird.</div>
+</main>
+</body>
+</html>
