@@ -357,6 +357,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
   const [riItems, setRiItems] = useState(DEFAULT_RI_ITEMS);
+  const [team, setTeam] = useState([]); // Werkstatt-Team (für Zuweisung & Arbeitsplanung)
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("ALL");
   const [modal, setModal] = useState(null); // null | {mode:'add', date} | {mode:'edit', id}
@@ -373,6 +374,7 @@ function App() {
   const [registerItem, setRegisterItem] = useState(null); // { category, name } | null
   const [settingsTpm, setSettingsTpm] = useState([]);
   const [settingsRi, setSettingsRi] = useState([]);
+  const [settingsTeam, setSettingsTeam] = useState([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
   // Cockpit: Untermenü + Backlog-Filter + Arbeit-Dialog
@@ -380,12 +382,16 @@ function App() {
   const [blArt, setBlArt] = useState("ALLE"); // ALLE | mech | elek
   const [blPrio, setBlPrio] = useState("ALLE"); // ALLE | hoch | mittel | niedrig | ohne
   const [blAnlage, setBlAnlage] = useState("ALLE");
+  const [blWer, setBlWer] = useState("ALLE"); // ALLE | NIEMAND | Personenname
   const [blAzubi, setBlAzubi] = useState(false);
   const [blStillstand, setBlStillstand] = useState(false);
   const [blErledigte, setBlErledigte] = useState(false);
   const [blSuche, setBlSuche] = useState("");
-  const [arbeitModal, setArbeitModal] = useState(null); // null | {mode:'add'} | {mode:'edit', id}
+  const [arbeitModal, setArbeitModal] = useState(null); // null | {mode:'add', ausZettel?} | {mode:'edit', id}
   const [aDraft, setADraft] = useState(null);
+  const [akteAnlage, setAkteAnlage] = useState(null); // Anlagen-Akte (Name) | null
+  const [planungCursor, setPlanungCursor] = useState(() => new Date()); // Woche der Arbeitsplanung
+  const [planungPicker, setPlanungPicker] = useState(null); // {person, datum} | null
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
   const [zettelOpen, setZettelOpen] = useState(false);
   const [zettelText, setZettelText] = useState("");
@@ -402,6 +408,7 @@ function App() {
       if (d.config) {
         if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(d.config.tpmAnlagen);
         if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(d.config.riItems);
+        if (Array.isArray(d.config.team)) setTeam(d.config.team.filter((t) => typeof t === "string" && t.trim()));
       }
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
@@ -496,6 +503,9 @@ function App() {
             );
             if (validRi.length > 0) setRiItems(validRi);
           }
+          if (Array.isArray(parsed.team)) {
+            setTeam(parsed.team.filter((t) => typeof t === "string" && t.trim()));
+          }
         }
       } catch (e) {
         if (retriesLeft > 0) {
@@ -509,14 +519,15 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const persistConfig = async (nextTpm, nextRi) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team) => {
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
+    setTeam(nextTeam);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -549,6 +560,7 @@ function App() {
   const openSettings = () => {
     setSettingsTpm(tpmAnlagen.map((a) => ({ ...a })));
     setSettingsRi(riItems.map((r) => ({ ...r })));
+    setSettingsTeam([...team]);
     setSettingsOpen(true);
   };
 
@@ -567,16 +579,25 @@ function App() {
       if (updated && updated.name.trim() !== old.name) riRenames.set(old.name, updated.name.trim());
     });
 
+    const cleanTeam = settingsTeam.map((t) => t.trim()).filter(Boolean);
+    const teamRenames = new Map();
+    team.forEach((old, i) => {
+      if (settingsTeam[i] !== undefined && settingsTeam[i].trim() && settingsTeam[i].trim() !== old) {
+        teamRenames.set(old, settingsTeam[i].trim());
+      }
+    });
+
     let nextEntries = entries;
-    if (tpmRenames.size > 0 || riRenames.size > 0) {
+    if (tpmRenames.size > 0 || riRenames.size > 0 || teamRenames.size > 0) {
       nextEntries = entries.map((e) => {
         if (e.category === "TPM" && tpmRenames.has(e.name)) return { ...e, name: tpmRenames.get(e.name) };
         if (e.category === "RI" && riRenames.has(e.name)) return { ...e, name: riRenames.get(e.name) };
+        if (e.category === "ARBEIT" && e.wer && teamRenames.has(e.wer)) return { ...e, wer: teamRenames.get(e.wer) };
         return e;
       });
     }
 
-    await persistConfig(cleanTpm, cleanRi);
+    await persistConfig(cleanTpm, cleanRi, cleanTeam);
     if (nextEntries !== entries) await persist(nextEntries);
     setSettingsOpen(false);
   };
@@ -955,8 +976,17 @@ function App() {
     setZettelOpen(false);
   };
   const deleteZettel = async (id) => {
-    if (!window.confirm("Diese Notiz von der Pinnwand nehmen?")) return;
+    if (!window.confirm("Diesen Zettel entfernen?")) return;
     await persist(entries.filter((e) => e.id !== id));
+  };
+
+  // ---- Personen-Helfer (Zuweisung & Planung) ----
+  const personKuerzel = (n) => String(n).trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  const personFarbe = (n) => {
+    const farben = ["#2F6690", "#7C5CBF", "#3D8B8B", "#C97A2B", "#B23A34", "#5B6572"];
+    let h = 0;
+    for (const c of String(n)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return farben[h % farben.length];
   };
 
   // ---- Backlog (Kategorie ARBEIT) ----
@@ -967,6 +997,7 @@ function App() {
     .filter((e) => blArt === "ALLE" || e.art === blArt || e.art === "beide")
     .filter((e) => blPrio === "ALLE" || (e.prio ?? "ohne") === blPrio)
     .filter((e) => blAnlage === "ALLE" || e.name === blAnlage)
+    .filter((e) => blWer === "ALLE" || (blWer === "NIEMAND" ? !e.wer : e.wer === blWer))
     .filter((e) => !blAzubi || e.azubi)
     .filter((e) => !blStillstand || e.stillstand)
     .filter((e) => {
@@ -987,13 +1018,33 @@ function App() {
     return Array.from(s).filter(Boolean).sort((a, b) => a.localeCompare(b, "de"));
   }, [tpmAnlagen, entries]);
 
-  const openArbeitNeu = () => {
-    setADraft({ anlage: "", anlageCustom: "", note: "", prio: "ohne", art: "mech", azubi: false, stillstand: false });
-    setArbeitModal({ mode: "add" });
+  const openArbeitNeu = (vorgabe = {}) => {
+    setADraft({
+      anlage: vorgabe.anlage || "", anlageCustom: "", note: vorgabe.note || "",
+      prio: "ohne", art: vorgabe.art || "mech", azubi: false, stillstand: false,
+      wer: "", geplant: "", melder: vorgabe.melder || "",
+    });
+    setArbeitModal({ mode: "add", ausZettel: vorgabe.ausZettel || null });
   };
   const openArbeitEdit = (a) => {
-    setADraft({ anlage: a.name, anlageCustom: "", note: a.note || "", prio: a.prio || "ohne", art: a.art ?? "", azubi: !!a.azubi, stillstand: !!a.stillstand });
+    setADraft({
+      anlage: a.name, anlageCustom: "", note: a.note || "", prio: a.prio || "ohne",
+      art: a.art ?? "", azubi: !!a.azubi, stillstand: !!a.stillstand,
+      wer: a.wer || "", geplant: a.geplant || "", melder: a.melder || "",
+    });
     setArbeitModal({ mode: "edit", id: a.id });
+  };
+  // Zettel -> Arbeit: bekannten Anlagennamen im Text erraten
+  const rateAnlage = (text) => {
+    const t = String(text).toLowerCase();
+    let best = "";
+    bereichOptionen.forEach((b) => {
+      if (b.length > best.length && t.includes(b.toLowerCase())) best = b;
+    });
+    return best;
+  };
+  const zettelZuArbeit = (z) => {
+    openArbeitNeu({ note: z.note, melder: z.name, ausZettel: z.id, anlage: rateAnlage(z.note) });
   };
   const saveArbeit = async () => {
     const anlage = saeubere(aDraft.anlage === OTHER_VALUE ? aDraft.anlageCustom : aDraft.anlage);
@@ -1004,12 +1055,15 @@ function App() {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         date: todayKey, category: "ARBEIT", name: anlage, status: "open", note,
         prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand,
+        wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined, melder: aDraft.melder || undefined,
         zeit: new Date().toISOString(),
       };
-      await persist([...entries, a]);
+      // Kam die Arbeit von einem Pinnwand-Zettel, wird er in derselben Speicherung entfernt
+      const basis = arbeitModal.ausZettel ? entries.filter((e) => e.id !== arbeitModal.ausZettel) : entries;
+      await persist([...basis, a]);
     } else {
       await persist(entries.map((e) => e.id === arbeitModal.id
-        ? { ...e, name: anlage, note, prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand }
+        ? { ...e, name: anlage, note, prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand, wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined }
         : e));
     }
     setArbeitModal(null);
@@ -1019,6 +1073,57 @@ function App() {
       ? { ...e, status, erledigtAm: status === "done" ? todayKey : undefined }
       : e));
   };
+  // ---- Anlagen-Akte ----
+  const akteDaten = (() => {
+    if (!akteAnlage) return null;
+    const offene = arbeitenOffen.filter((a) => a.name === akteAnlage);
+    const erledigte = arbeiten
+      .filter((a) => a.name === akteAnlage && a.status === "done")
+      .sort((x, y) => String(y.erledigtAm || y.date).localeCompare(String(x.erledigtAm || x.date)))
+      .slice(0, 5);
+    const historie = kalenderEntries
+      .filter((e) => e.name === akteAnlage || (e.category === "RI" && e.name.toLowerCase().includes(akteAnlage.toLowerCase())))
+      .sort((x, y) => y.date.localeCompare(x.date))
+      .slice(0, 10);
+    const tpm12 = kalenderEntries.filter((e) => {
+      if (e.category !== "TPM" || e.name !== akteAnlage) return false;
+      const grenze = new Date(); grenze.setDate(grenze.getDate() - 365);
+      return new Date(e.date + "T00:00:00") >= grenze;
+    });
+    const quote = quoteFuer(tpm12);
+    const tpmItem = tpmAnlagen.find((a) => a.name === akteAnlage);
+    const naechste = todayPlanResult.assignments.find((p) => p.anlage === akteAnlage && p.date >= todayKey);
+    return { offene, erledigte, historie, quote, tpmItem, naechste };
+  })();
+
+  // ---- Arbeitsplanung (Wochenraster) ----
+  const planungMontag = (() => {
+    const d = new Date(planungCursor);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+  const planungTage = [0, 1, 2, 3, 4].map((i) => {
+    const d = addDays(planungMontag, i);
+    return { datum: d, key: dateKey(d.getFullYear(), d.getMonth(), d.getDate()) };
+  });
+  // TPM/R+I-Termine der Woche (Woche kann über die Monatsgrenze gehen -> beide Monate rechnen)
+  const wochenPlan = (() => {
+    if (view !== "COCKPIT" || cockpitTab !== "PLANUNG" || !heavyReady) return [];
+    const monate = new Map();
+    planungTage.forEach((t) => monate.set(`${t.datum.getFullYear()}-${t.datum.getMonth()}`, [t.datum.getFullYear(), t.datum.getMonth()]));
+    const alle = [];
+    monate.forEach(([y, m]) => alle.push(...computeMaintenancePlan(y, m).assignments));
+    const keys = new Set(planungTage.map((t) => t.key));
+    return alle.filter((p) => keys.has(p.date));
+  })();
+  const geplantFuer = (person, tagKey) =>
+    arbeitenOffen.filter((a) => a.wer === person && a.geplant === tagKey);
+  const einplanen = async (arbeitId, person, tagKey) => {
+    await persist(entries.map((e) => (e.id === arbeitId ? { ...e, wer: person, geplant: tagKey } : e)));
+    setPlanungPicker(null);
+  };
+
   const deleteArbeit = async (id) => {
     if (!window.confirm("Diese Arbeit endgültig löschen?")) return;
     await persist(entries.filter((e) => e.id !== id));
@@ -1616,7 +1721,7 @@ function App() {
               {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
               {view === "COCKPIT" ? (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["UEBERSICHT", "Übersicht"], ["BACKLOG", "Backlog"]].map(([v, label]) => (
+                  {[["UEBERSICHT", "Übersicht"], ["BACKLOG", "Backlog"], ["PLANUNG", "Planung"]].map(([v, label]) => (
                     <button
                       key={v}
                       onClick={() => setCockpitTab(v)}
@@ -1952,17 +2057,26 @@ function App() {
               <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
                 {zettelListe.map((z) => (
                   <div key={z.id} className="relative p-3" style={{ backgroundColor: ZETTEL_FARBEN[z.farbe] || ZETTEL_FARBEN.gelb, borderRadius: "4px 4px 12px 4px", boxShadow: "2px 3px 8px rgba(20,22,25,0.12)" }}>
-                    <button
-                      onClick={() => deleteZettel(z.id)}
-                      className="absolute top-1.5 right-2 text-slate-400 hover:text-red-600 font-bold"
-                      title="Notiz abnehmen"
-                      aria-label="Notiz abnehmen"
-                    >
-                      ×
-                    </button>
-                    <div className="text-sm pr-4" style={{ color: "#39414B", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{z.note}</div>
-                    <div className="text-right mt-2" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
+                    <div className="text-sm" style={{ color: "#39414B", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{z.note}</div>
+                    <div className="text-right mt-1.5" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
                       {z.name} · {z.zeit ? new Date(z.zeit).toLocaleDateString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : formatDateDE(z.date)}
+                    </div>
+                    <div className="flex gap-1.5 mt-2">
+                      <button
+                        onClick={() => zettelZuArbeit(z)}
+                        className="font-extrabold uppercase rounded text-white"
+                        style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "#22262B" }}
+                      >
+                        ➜ Zur Arbeit machen
+                      </button>
+                      <button
+                        onClick={() => deleteZettel(z.id)}
+                        className="font-extrabold uppercase rounded"
+                        style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "rgba(0,0,0,0.07)", color: "#5B6572" }}
+                        title="Zettel entfernen"
+                      >
+                        × Zettel entfernen
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -2074,6 +2188,17 @@ function App() {
               <option value="ohne">ohne Prio</option>
             </select>
             <select
+              value={blWer}
+              onChange={(e) => setBlWer(e.target.value)}
+              className="text-xs font-bold uppercase border rounded px-2 py-1.5 bg-white"
+              style={{ borderColor: blWer === "ALLE" ? "#D6D9DC" : "#22262B", color: blWer === "ALLE" ? "#5B6572" : "#22262B" }}
+              title="Nach Person filtern"
+            >
+              <option value="ALLE">Person: alle</option>
+              <option value="NIEMAND">– nicht zugewiesen –</option>
+              {team.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select
               value={blAnlage}
               onChange={(e) => setBlAnlage(e.target.value)}
               className="text-xs font-bold uppercase border rounded px-2 py-1.5 bg-white"
@@ -2120,12 +2245,13 @@ function App() {
                     <th style={{ textAlign: "left", padding: "8px 10px" }}>Arbeit</th>
                     <th style={{ textAlign: "left", padding: "8px 10px", width: "90px" }}>Art</th>
                     <th style={{ padding: "8px 6px", width: "72px" }} title="Azubi-geeignet / nur bei Stillstand">🎓⛔</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px", width: "110px" }}>Wer</th>
                     <th style={{ textAlign: "left", padding: "8px 10px", width: "100px" }}>{blErledigte ? "Erledigt am" : "Gemeldet"}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {backlogListe.length === 0 && (
-                    <tr><td colSpan={6} className="text-center text-slate-400 italic" style={{ padding: "24px" }}>Keine Arbeiten gefunden.</td></tr>
+                    <tr><td colSpan={7} className="text-center text-slate-400 italic" style={{ padding: "24px" }}>Keine Arbeiten gefunden.</td></tr>
                   )}
                   {backlogListe.map((a) => {
                     const prio = ARBEIT_PRIO[a.prio ?? "ohne"] || ARBEIT_PRIO.ohne;
@@ -2140,7 +2266,16 @@ function App() {
                         <td style={{ textAlign: "center" }}>
                           <span style={{ display: "inline-block", width: "11px", height: "11px", borderRadius: "50%", backgroundColor: prio.color }} title={prio.label} />
                         </td>
-                        <td style={{ padding: "7px 10px", fontWeight: 700, whiteSpace: "nowrap" }}>{a.name}</td>
+                        <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); setAkteAnlage(a.name); }}
+                            className="font-bold hover:underline"
+                            style={{ textDecorationStyle: "dotted", color: "#22262B" }}
+                            title="Anlagen-Akte öffnen"
+                          >
+                            {a.name}
+                          </button>
+                        </td>
                         <td style={{ padding: "7px 10px" }}>{a.note}</td>
                         <td style={{ padding: "7px 10px" }}>
                           {a.art === "beide" ? (
@@ -2150,6 +2285,16 @@ function App() {
                           )}
                         </td>
                         <td style={{ textAlign: "center", fontSize: "0.85rem" }}>{a.azubi ? "🎓" : ""}{a.stillstand ? "⛔" : ""}</td>
+                        <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+                          {a.wer ? (
+                            <span className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "20px", height: "20px", fontSize: "0.58rem", backgroundColor: personFarbe(a.wer) }}>{personKuerzel(a.wer)}</span>
+                              <span style={{ fontSize: "0.72rem" }}>{a.wer}</span>
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: "0.72rem", color: "#C3C7CB" }}>–</span>
+                          )}
+                        </td>
                         <td className="font-mono" style={{ padding: "7px 10px", fontSize: "0.72rem", color: "#8A9099" }}>
                           {formatDateDE(blErledigte ? (a.erledigtAm || a.date) : a.date)}
                         </td>
@@ -2164,6 +2309,217 @@ function App() {
             {blErledigte
               ? `${backlogListe.length} erledigte Arbeiten (Archiv). Klick auf eine Zeile zum Ansehen oder Zurückholen.`
               : `${backlogListe.length} von ${arbeitenOffen.length} offenen Arbeiten angezeigt · Klick auf eine Zeile öffnet die Arbeit.`}
+          </div>
+        </div>
+      )}
+
+      {/* Cockpit: Arbeitsplanung (Wochenraster) */}
+      {view === "COCKPIT" && cockpitTab === "PLANUNG" && (
+        <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <button onClick={() => setPlanungCursor(addDays(planungMontag, -7))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Vorige Woche">‹</button>
+            <button onClick={() => setPlanungCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
+            <button onClick={() => setPlanungCursor(addDays(planungMontag, 7))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächste Woche">›</button>
+            <span className="font-mono text-sm font-bold ml-2">
+              KW {getISOWeek(planungMontag)}: {planungMontag.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(planungMontag, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+            </span>
+            <span className="ml-auto text-xs text-slate-400">Zuweisen: ＋ in einer Tageszelle klicken</span>
+          </div>
+
+          {team.length === 0 ? (
+            <div className="rounded-xl p-8 text-center text-sm text-slate-500" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+              Noch kein Team angelegt. Öffne den <strong>⚙-Verwalten-Dialog</strong> und trage unter „Team" deine Leute ein – danach kannst du hier Arbeiten auf Personen und Tage verteilen.
+            </div>
+          ) : (
+            <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+              <div style={{ overflowX: "auto" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "150px repeat(5, 1fr)", minWidth: "900px" }}>
+                  {/* Kopfzeile */}
+                  <div style={{ padding: "8px 10px", background: "#F7F8F9", borderBottom: "2px solid #22262B", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099" }}>Mitarbeiter</div>
+                  {planungTage.map((t) => {
+                    const istHeute = t.key === todayKey;
+                    const feiertag = getHolidays(t.datum.getFullYear()).get(t.key);
+                    return (
+                      <div key={t.key} style={{ padding: "8px 6px", textAlign: "center", background: istHeute ? "#FDF3E7" : "#F7F8F9", borderBottom: "2px solid #22262B", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: feiertag ? "#B23A34" : istHeute ? "#C97A2B" : "#8A9099" }}>
+                        {t.datum.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}{feiertag ? <div style={{ fontSize: "0.6rem" }}>{feiertag}</div> : null}
+                      </div>
+                    );
+                  })}
+
+                  {/* Feste Zeile: Wartungsplan */}
+                  <div style={{ padding: "8px 10px", borderBottom: "1px solid #E2E4E7", background: "#FBF7F1", fontSize: "0.72rem", fontWeight: 800, color: "#C97A2B" }}>Wartungsplan<br /><span style={{ fontWeight: 400, color: "#8A9099" }}>TPM &amp; R+I (fest)</span></div>
+                  {planungTage.map((t) => (
+                    <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: "#FFFDF9", minHeight: "56px" }}>
+                      {wochenPlan.filter((p) => p.date === t.key).map((p, i) => {
+                        const done = isPlanDone(p);
+                        const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
+                        return (
+                          <button key={i} onClick={() => openPlanEntry(p)} className="block w-full text-left rounded font-bold mb-1" style={{ fontSize: "0.66rem", padding: "2px 6px", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18` }}>
+                            {done ? "✓ " : ""}{p.anlage}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+
+                  {/* Eine Zeile pro Person */}
+                  {team.map((person) => (
+                    <React.Fragment key={person}>
+                      <div style={{ padding: "10px", borderBottom: "1px solid #E2E4E7", background: "#F7F8F9", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "24px", height: "24px", fontSize: "0.62rem", backgroundColor: personFarbe(person), flexShrink: 0 }}>{personKuerzel(person)}</span>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>{person}</span>
+                      </div>
+                      {planungTage.map((t) => (
+                        <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
+                          {geplantFuer(person, t.key).map((a) => {
+                            const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
+                            return (
+                              <button key={a.id} onClick={() => openArbeitEdit(a)} className="block w-full text-left rounded font-bold mb-1" style={{ fontSize: "0.66rem", padding: "2px 6px", color: c, border: `1px solid ${c}`, backgroundColor: `${c}14`, wordBreak: "break-word" }} title={a.note}>
+                                {a.name}: {a.note.length > 34 ? a.note.slice(0, 34) + "…" : a.note}
+                              </button>
+                            );
+                          })}
+                          <button
+                            onClick={() => setPlanungPicker({ person, datum: t.key })}
+                            className="text-slate-300 hover:text-slate-600 font-black"
+                            style={{ fontSize: "0.85rem", lineHeight: 1 }}
+                            title={`Arbeit für ${person} an diesem Tag einplanen`}
+                            aria-label="Arbeit einplanen"
+                          >
+                            ＋
+                          </button>
+                        </div>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Noch nicht eingeplante offene Arbeiten */}
+          {team.length > 0 && (
+            <div className="mt-3 text-xs text-slate-400">
+              {(() => {
+                const unverplant = arbeitenOffen.filter((a) => !a.geplant);
+                return `${unverplant.length} offene Arbeiten sind noch keinem Tag zugeordnet – über ＋ in einer Zelle oder im Backlog (Feld „geplant für") einplanen.`;
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Einplanen-Auswahl: offene Arbeit für Person + Tag wählen */}
+      {planungPicker && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setPlanungPicker(null)}
+        >
+          <div
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "560px", maxWidth: "100%", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-sm">
+                Arbeit einplanen – {planungPicker.person}, {formatDateDE(planungPicker.datum)}
+              </div>
+              <button onClick={() => setPlanungPicker(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+            {arbeitenOffen.length === 0 ? (
+              <div className="text-sm italic text-slate-400 py-4">Keine offenen Arbeiten im Backlog.</div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {arbeitenOffen
+                  .slice()
+                  .sort((a, b) => (PRIO_REIHENFOLGE[a.prio ?? "ohne"] - PRIO_REIHENFOLGE[b.prio ?? "ohne"]) || a.name.localeCompare(b.name, "de"))
+                  .map((a) => {
+                    const prio = ARBEIT_PRIO[a.prio ?? "ohne"] || ARBEIT_PRIO.ohne;
+                    const belegt = a.geplant && a.wer;
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => einplanen(a.id, planungPicker.person, planungPicker.datum)}
+                        className="flex items-center gap-2 text-left rounded px-2.5 py-1.5 border hover:bg-slate-50"
+                        style={{ borderColor: "#E2E4E7", fontSize: "0.8rem" }}
+                      >
+                        <span style={{ display: "inline-block", width: "9px", height: "9px", borderRadius: "50%", backgroundColor: prio.color, flexShrink: 0 }} />
+                        <strong style={{ whiteSpace: "nowrap" }}>{a.name}</strong>
+                        <span className="flex-1" style={{ color: "#39414B" }}>{a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}</span>
+                        {belegt && <span className="font-mono" style={{ fontSize: "0.62rem", color: "#B8791F" }} title="bereits eingeplant - wird umgeplant">{a.wer} · {formatDateDE(a.geplant)}</span>}
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Anlagen-Akte */}
+      {akteAnlage && akteDaten && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setAkteAnlage(null)}
+        >
+          <div
+            style={{ backgroundColor: "white", borderRadius: "12px", padding: "20px 22px", width: "860px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 16px 50px rgba(0,0,0,0.35)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
+              <span style={{ fontSize: "1.15rem", fontWeight: 900 }}>{akteAnlage}</span>
+              {akteDaten.tpmItem && <span className="b tpm text-xs font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: "#F7E8D8", color: "#C97A2B", border: "1px solid #C97A2B" }}>{planGroupLabel(akteAnlage, tpmAnlagen, riItems) || "TPM-Anlage"}</span>}
+              <span className="font-mono text-xs" style={{ color: "#8A9099" }}>
+                {akteDaten.quote !== null && <>TPM-Quote 12 Mon.: <strong style={{ color: "#2F7D4F" }}>{akteDaten.quote} %</strong> · </>}
+                {akteDaten.naechste ? <>nächste Wartung: <strong>{formatDateDE(akteDaten.naechste.date)}</strong></> : null}
+              </span>
+              <span className="ml-auto flex gap-2">
+                <button
+                  onClick={() => { const n = akteAnlage; setAkteAnlage(null); openArbeitNeu({ anlage: n }); }}
+                  className="text-xs font-bold uppercase px-3 py-1.5 rounded text-white"
+                  style={{ backgroundColor: "#22262B" }}
+                >
+                  + Arbeit melden
+                </button>
+                <button onClick={() => setAkteAnlage(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+              </span>
+            </div>
+
+            <button
+              onClick={() => { setBlAnlage(akteAnlage); setBlErledigte(false); setBlArt("ALLE"); setBlPrio("ALLE"); setBlWer("ALLE"); setBlSuche(""); setAkteAnlage(null); setCockpitTab("BACKLOG"); setView("COCKPIT"); }}
+              className="w-full flex items-center gap-3 rounded-lg px-3.5 py-2.5 mb-4 text-left"
+              style={{ backgroundColor: "#FDF6F5", border: "1px solid #E8B4AE" }}
+            >
+              <span className="text-sm font-bold" style={{ color: "#B23A34" }}>{akteDaten.offene.length} offene {akteDaten.offene.length === 1 ? "Arbeit" : "Arbeiten"} zu dieser Anlage</span>
+              <span className="ml-auto text-xs font-bold uppercase px-3 py-1.5 rounded text-white" style={{ backgroundColor: "#B23A34" }}>➜ Im Backlog anzeigen</span>
+            </button>
+
+            <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <div>
+                <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: "#2F7D4F" }}>Zuletzt erledigt</div>
+                {akteDaten.erledigte.length === 0 && <div className="text-xs italic text-slate-400">Noch nichts erledigt.</div>}
+                {akteDaten.erledigte.map((a) => (
+                  <div key={a.id} className="flex items-center gap-2 px-2 py-1.5 rounded text-xs" style={{ backgroundColor: "#F7F8F9", marginBottom: "4px" }}>
+                    <span className="font-mono" style={{ color: "#8A9099", minWidth: "58px" }}>{formatDateDE(a.erledigtAm || a.date)}</span>
+                    <span className="flex-1">{a.note}</span>
+                    <span style={{ color: "#2F7D4F", fontWeight: 700 }}>✓</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: "#8A9099" }}>Wartungs-Historie (TPM &amp; R+I)</div>
+                {akteDaten.historie.length === 0 && <div className="text-xs italic text-slate-400">Noch keine Wartungseinträge.</div>}
+                {akteDaten.historie.map((e) => (
+                  <div key={e.id} className="flex items-center gap-2 px-2 py-1.5 rounded text-xs" style={{ backgroundColor: "#F7F8F9", marginBottom: "4px" }}>
+                    <span className="font-mono" style={{ color: "#8A9099", minWidth: "58px" }}>{formatDateDE(e.date)}</span>
+                    <span className="font-bold uppercase" style={{ color: CATS[e.category].color, fontSize: "0.62rem" }}>{CATS[e.category].label}</span>
+                    <span className="flex-1">{e.category === "TPM" ? "Wartung" : e.name}{e.note && e.note.trim() ? <span style={{ color: "#8A9099" }}> 📝 „{e.note}"</span> : null}</span>
+                    <span style={{ color: e.status === "done" ? "#2F7D4F" : "#B23A34", fontWeight: 700 }}>{e.status === "done" ? "✓" : "✕"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2183,7 +2539,10 @@ function App() {
               onClick={(ev) => ev.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="font-bold text-sm">{arbeitModal.mode === "add" ? "Neue Arbeit" : "Arbeit bearbeiten"}</div>
+                <div className="font-bold text-sm">
+                  {arbeitModal.mode === "add" ? "Neue Arbeit" : "Arbeit bearbeiten"}
+                  {arbeitModal.ausZettel && aDraft.melder && <span className="font-normal text-slate-400"> – aus Notiz von {aDraft.melder}</span>}
+                </div>
                 <button onClick={() => setArbeitModal(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
               </div>
 
@@ -2239,6 +2598,34 @@ function App() {
                   <label className="flex items-center gap-2"><input type="checkbox" checked={aDraft.stillstand} onChange={(ev) => setADraft({ ...aDraft, stillstand: ev.target.checked })} /> ⛔ nur bei Stillstand</label>
                 </div>
 
+                <div className="flex gap-2">
+                  <select
+                    value={aDraft.wer}
+                    onChange={(ev) => setADraft({ ...aDraft, wer: ev.target.value })}
+                    className="flex-1 text-sm border rounded px-2 py-2"
+                    style={{ borderColor: "#D6D9DC" }}
+                    title="Zugewiesen an"
+                  >
+                    <option value="">– niemand zugewiesen –</option>
+                    {team.map((t) => <option key={t} value={t}>{t}</option>)}
+                    {aDraft.wer && !team.includes(aDraft.wer) && <option value={aDraft.wer}>{aDraft.wer}</option>}
+                  </select>
+                  <input
+                    type="date"
+                    value={aDraft.geplant}
+                    onChange={(ev) => setADraft({ ...aDraft, geplant: ev.target.value })}
+                    className="text-sm border rounded px-2 py-2"
+                    style={{ borderColor: "#D6D9DC", width: "160px" }}
+                    title="Geplant für (Tag)"
+                  />
+                </div>
+                {team.length === 0 && (
+                  <div className="text-xs text-slate-400">Tipp: Dein Team legst du im ⚙-Verwalten-Dialog an – dann kannst du Arbeiten zuweisen und im Reiter „Planung" auf Tage verteilen.</div>
+                )}
+                {aDraft.melder && (
+                  <div className="text-xs text-slate-400">📌 gemeldet von {aDraft.melder}</div>
+                )}
+
                 {arbeitModal.mode === "edit" && live && (
                   <div className="flex gap-2">
                     <button
@@ -2258,7 +2645,7 @@ function App() {
                     className="flex-1 text-sm font-bold py-2.5 rounded text-white disabled:opacity-40"
                     style={{ backgroundColor: "#22262B" }}
                   >
-                    Speichern
+                    {arbeitModal.ausZettel ? "Speichern & Zettel entfernen" : "Speichern"}
                   </button>
                   <button onClick={() => setArbeitModal(null)} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
                 </div>
@@ -2750,6 +3137,30 @@ function App() {
             </div>
             <button onClick={addSettingsRi} className="text-xs font-bold mb-5" style={{ color: CATS.RI.color }}>
               + R+I-Punkt hinzufügen
+            </button>
+
+            <div className="text-xs font-bold uppercase mb-2" style={{ color: "#22262B" }}>Team (für Zuweisung &amp; Arbeitsplanung)</div>
+            <div className="flex flex-col gap-1.5 mb-2">
+              {settingsTeam.map((t, idx) => (
+                <div key={idx} className="flex gap-1.5 items-center">
+                  <input
+                    value={t}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSettingsTeam((prev) => prev.map((x, i) => (i === idx ? v : x)));
+                    }}
+                    placeholder="Name, z. B. K. Schmidt"
+                    className="flex-1 text-sm border rounded px-2 py-1.5"
+                    style={{ borderColor: "#D6D9DC" }}
+                  />
+                  <button onClick={() => setSettingsTeam((prev) => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-red-600 p-1" aria-label="Person entfernen">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setSettingsTeam((prev) => [...prev, ""])} className="text-xs font-bold mb-5" style={{ color: "#22262B" }}>
+              + Person hinzufügen
             </button>
 
             <div className="flex gap-2 pt-2 border-t" style={{ borderColor: "#E2E4E7" }}>

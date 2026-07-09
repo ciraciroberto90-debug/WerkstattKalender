@@ -167,10 +167,8 @@ function syncLocal(data) {
   try {
     localStorage.setItem(ENTRIES_KEY, JSON.stringify(data.entries));
     if (data.config) {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify({
-        tpmAnlagen: data.config.tpmAnlagen,
-        riItems: data.config.riItems,
-      }));
+      const { updatedAt, ...cfg } = data.config;
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); // alle Felder (tpmAnlagen, riItems, team, ...)
     }
   } catch (e) { /* voller Speicher o. ä. – nicht kritisch */ }
 }
