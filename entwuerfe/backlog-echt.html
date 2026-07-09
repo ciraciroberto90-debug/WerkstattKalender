@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><title>Backlog-Entwurf mit echten Daten</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .subtabs { display:flex; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); }
+  .subtabs span { padding:5px 10px; font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#B7BEC6; }
+  .subtabs span.active { background:#4B5259; color:#fff; }
+</style></head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <div class="subtabs"><span>Übersicht</span><span class="active">Backlog</span></div>
+  <span class="datum">aus deiner Excel · 125 offene Arbeiten</span>
+  <span class="draft">ENTWURF – echte Daten</span>
+</div>
+<main>
+  <div class="filter">
+    <span class="chip active-dark">Alle (125)</span>
+    <span class="chip">Mechanisch (56)</span>
+    <span class="chip">Elektrisch (75)</span>
+    <span style="width:8px"></span>
+    <span class="chip">Prio 1 (4)</span>
+    <span class="chip">🎓 Azubi (47)</span>
+    <span class="chip">⛔ Stillstand (23)</span>
+    <span class="chip">Erledigte zeigen</span>
+    <span class="search">🔍 Suche: Anlage, Arbeit …</span>
+    <span class="btn-new">+ Neue Arbeit</span>
+  </div>
+  <div class="card"><div class="body" style="padding:0;">
+    <table>
+      <thead><tr>
+        <th style="width:36px">Prio</th><th style="width:150px">Anlage / Bereich</th><th>Arbeit</th>
+        <th style="width:90px">Art</th><th style="width:70px">Merkmale</th><th style="width:90px">Status</th>
+      </tr></thead>
+      <tbody><tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#B23A34" title="Prio hoch"></span></td>
+      <td><strong>TS480</strong></td>
+      <td>Fehlende Lager am Putzband (Aufnahmen)</td>
+      <td><span class="b mech">Mech</span></td>
+      <td style="font-size:0.9rem"><span title="Azubi-geeignet">🎓</span> </td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#B23A34" title="Prio hoch"></span></td>
+      <td><strong>Roberto</strong></td>
+      <td>Loto dokumente und unterweisung durchführen</td>
+      <td><span class="b" style="background:#F4F5F6;color:#8A9099;border:1px solid #C3C7CB">?</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#B23A34" title="Prio hoch"></span></td>
+      <td><strong>TS320</strong></td>
+      <td>Fremdlüfter Spindel überprüfen</td>
+      <td><span class="b elek">Elek</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#B23A34" title="Prio hoch"></span></td>
+      <td><strong>BVM</strong></td>
+      <td>Not Aus Leiste Entladehubtisch, Kabelbruch</td>
+      <td><span class="b elek">Elek</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>Beschichtung</strong></td>
+      <td>Ventil u. Druckspeicher prüfen an Reinigungskabine Kellerfilter</td>
+      <td><span class="b mech">Mech</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>VSM1</strong></td>
+      <td>Schmiesystem prüfen</td>
+      <td><span class="b mech">Mech</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>B3</strong></td>
+      <td>Stellklappen Kuka / Vakuum</td>
+      <td><span class="b mech">Mech</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>HRO</strong></td>
+      <td>RFZ Antriebs-räder wechseln ?</td>
+      <td><span class="b mech">Mech</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>B+T</strong></td>
+      <td>An der BuT sind einige Sensorhalterungen locker, müssen mittlerweile alle kontrolliert werden</td>
+      <td><span class="b mech">M</span> <span class="b elek">E</span></td>
+      <td style="font-size:0.9rem"><span title="Azubi-geeignet">🎓</span> </td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>Gebäude</strong></td>
+      <td>Matte für Versand / (schohnmatte) Rolf Melzer</td>
+      <td><span class="b mech">Mech</span></td>
+      <td style="font-size:0.9rem"><span title="Azubi-geeignet">🎓</span> </td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>B3</strong></td>
+      <td>Klaus / Defekter Schlauch zu Sensoren ?</td>
+      <td><span class="b mech">Mech</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>Polyprint</strong></td>
+      <td>Zylinder Hubtisch undicht ? (Klaus G.)</td>
+      <td><span class="b mech">Mech</span></td>
+      <td style="font-size:0.9rem"><span title="Nur bei Stillstand">⛔</span></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>B2</strong></td>
+      <td>B2 Filter für Farbkabine für die Abreinigung eine Differenzdruckregelung einbauen</td>
+      <td><span class="b elek">Elek</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>Gebäude</strong></td>
+      <td>Lampenband Ofenhalle von A7 bis Wärmetauscher austauschen (Verbindungen teilw. Brüchig)</td>
+      <td><span class="b elek">Elek</span></td>
+      <td style="font-size:0.9rem"></td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>TS320</strong></td>
+      <td>Beleuchtung optimieren im Bereich der Formenkontrolle (Im Bereich der Formenkontrolle zusätzlic</td>
+      <td><span class="b elek">Elek</span></td>
+      <td style="font-size:0.9rem"><span title="Azubi-geeignet">🎓</span> </td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#C97A2B" title="Prio mittel"></span></td>
+      <td><strong>TS480</strong></td>
+      <td>Beleuchtung optimieren im Bereich der Formenkontrolle (Im Bereich der Formenkontrolle zusätzlic</td>
+      <td><span class="b elek">Elek</span></td>
+      <td style="font-size:0.9rem"><span title="Azubi-geeignet">🎓</span> </td>
+      <td><span class="b offen">Offen</span></td>
+    </tr>
+</tbody>
+    </table>
+  </div></div>
+  <div class="hinweis">Entwurf mit deinen echten Daten (16 von 125 Zeilen, sortiert nach Prio). Spalten 1:1 aus deiner Excel übernommen: Prio1-3 → Ampelpunkt, MW/EW → Mechanisch/Elektrisch, Azubi → 🎓, Stillstand → ⛔. Klick auf eine Zeile öffnet die Arbeit (Status ändern, Notiz, erledigt melden). Erledigte wandern mit Datum ins Archiv – wie dein „Erledigt"-Blatt.</div>
+</main>
+</body>
+</html>
