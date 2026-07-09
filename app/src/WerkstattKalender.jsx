@@ -1745,14 +1745,19 @@ function App() {
       )}
       {shareState.status === "connected" && shareState.mode === "read" && (
         <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
-          <span>Nur ansehen – für „{shareState.name}" bestehen keine Schreibrechte. Angezeigt wird der gemeinsame Stand; eigene Änderungen werden nicht gespeichert.</span>
+          <span>
+            Nur ansehen – für „{shareState.name}" bestehen keine Schreibrechte. Angezeigt wird der gemeinsame Stand; eigene Änderungen werden nicht gespeichert.
+            {sharedFile.getLastWriteError() && (
+              <span className="block font-normal" style={{ color: "#5B87AB" }}>Technischer Grund: {sharedFile.getLastWriteError()}</span>
+            )}
+          </span>
           <button
             onClick={async () => {
               try {
                 const st = await sharedFile.retryWrite();
                 setShareState(st);
                 setErr(st.mode === "read"
-                  ? "Schreibzugriff weiterhin nicht möglich. Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte?"
+                  ? `Schreibzugriff weiterhin nicht möglich (${sharedFile.getLastWriteError() || "unbekannter Grund"}). Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte? Ordner von OneDrive/Defender geschützt?`
                   : null);
               } catch (e2) {
                 setErr("Gemeinsame Datei: " + (e2 && e2.message ? e2.message : "Erneuter Versuch fehlgeschlagen."));
@@ -1762,6 +1767,13 @@ function App() {
             style={{ backgroundColor: "#2F6690" }}
           >
             Schreibzugriff erneut versuchen
+          </button>
+          <button
+            onClick={() => setShareOpen(true)}
+            className="px-2.5 py-1 rounded border"
+            style={{ borderColor: "#2F6690", color: "#2F6690", backgroundColor: "white" }}
+          >
+            Andere Datei wählen …
           </button>
         </div>
       )}

@@ -18,6 +18,8 @@ const POLL_MS = 30000; // alle 30 s nach Änderungen der anderen schauen
 
 let fileHandle = null;
 let accessMode = null; // "readwrite" | "read"
+let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt scheiterte
+export function getLastWriteError() { return lastWriteError; }
 let lastSavedAt = null;
 let pollTimer = null;
 
@@ -202,7 +204,9 @@ async function adoptCurrentFile(justCreated) {
     try {
       await writeFileData(candidate);
       data = candidate;
+      lastWriteError = null;
     } catch (e) {
+      lastWriteError = `${e && e.name ? e.name : "Fehler"}: ${e && e.message ? e.message : e}`;
       if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
       accessMode = "read"; // keine Schreibrechte (IT-Freigabe) -> nur ansehen
     }
