@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Vorlage 7 – Wer macht's (Zuweisung)</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .avatar { display:inline-flex; width:22px; height:22px; border-radius:50%; color:#fff; font-size:0.6rem; font-weight:800; align-items:center; justify-content:center; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Backlog mit Personen</span>
+  <span class="draft">VORLAGE 7 – Zuweisung</span>
+</div>
+<main>
+  <div class="filter">
+    <span class="chip active-dark">Alle (125)</span>
+    <span class="chip">Mechanisch (56)</span>
+    <span class="chip">Elektrisch (75)</span>
+    <span class="chip" style="border-color:#22262B;color:#22262B;">Person: alle ▾</span>
+    <span class="chip">Prio: alle ▾</span>
+    <span class="chip">Anlage: alle ▾</span>
+    <span class="chip" style="background:#FCEFD9;border-color:#C97A2B;color:#B8791F;">Nicht zugewiesen (98)</span>
+    <span class="search">🔍 Suche …</span>
+  </div>
+
+  <div class="card"><div class="body" style="padding:0;">
+    <table>
+      <thead><tr>
+        <th style="width:36px">Prio</th><th style="width:130px">Anlage</th><th>Arbeit</th>
+        <th style="width:70px">Art</th><th style="width:120px">Wer</th><th style="width:90px">Gemeldet</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><span class="prio hoch"></span></td><td><strong>VSM1</strong></td><td>Neue Presse Ventil Insel vorbereiten – Absprache mit Kevin Cz</td><td><span style="color:#3D8B8B;font-weight:700;font-size:0.75rem">Mech</span></td>
+          <td><span class="avatar" style="background:#2F6690">TB</span> <span style="font-size:0.75rem;">T. Braun</span></td><td class="mono" style="font-size:0.72rem;color:#8A9099">09.07.</td></tr>
+        <tr><td><span class="prio hoch"></span></td><td><strong>BVM</strong></td><td>Not-Aus-Leiste Entladehubtisch, Kabelbruch</td><td><span style="color:#7C5CBF;font-weight:700;font-size:0.75rem">Elek</span></td>
+          <td><span class="avatar" style="background:#7C5CBF">KS</span> <span style="font-size:0.75rem;">K. Schmidt</span></td><td class="mono" style="font-size:0.72rem;color:#8A9099">09.07.</td></tr>
+        <tr><td><span class="prio mittel"></span></td><td><strong>B2</strong></td><td>Zyklon Hauptkabine Prüfen (DL)</td><td><span style="color:#3D8B8B;font-weight:700;font-size:0.75rem">Mech</span></td>
+          <td><span class="avatar" style="background:#C97A2B">AZ</span> <span style="font-size:0.75rem;">Azubi Nico</span></td><td class="mono" style="font-size:0.72rem;color:#8A9099">09.07.</td></tr>
+        <tr style="background:#FDFBF5;"><td><span class="prio mittel"></span></td><td><strong>HRO</strong></td><td>RFZ Antriebs-räder wechseln ?</td><td><span style="color:#3D8B8B;font-weight:700;font-size:0.75rem">Mech</span></td>
+          <td><span style="font-size:0.72rem;color:#C3C7CB;">– offen –</span></td><td class="mono" style="font-size:0.72rem;color:#8A9099">09.07.</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+    <div class="card">
+      <div class="head">Im Arbeit-Dialog: neues Feld „Zugewiesen an"</div>
+      <div class="body" style="font-size:0.82rem;color:#5B6572;line-height:1.9;">
+        Auswahlmenü mit eurem Team: <strong>– niemand – / R. Ciraci / [Vertreter] / T. Braun / K. Schmidt / Azubi Nico …</strong><br>
+        Optional dazu ein Datum „geplant für" (z. B. nächster Stillstandstag) – noch keine große Personalplanung, nur ein Merkzettel, wer dran ist.
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">Im Verwalten-Dialog (⚙): neuer Abschnitt „Team"</div>
+      <div class="body" style="font-size:0.82rem;color:#5B6572;line-height:1.9;">
+        Einfache Namensliste wie bei den Anlagen: hinzufügen, umbenennen, entfernen.<br>
+        Diese Liste ist später <strong>die Grundlage für die Personalplanung</strong> (Wochenraster) – einmal gepflegt, doppelt genutzt.
+      </div>
+    </div>
+  </div>
+  <div class="hinweis" style="margin-top:12px;">Dazu: Filter „Person: …" und der Schnellfilter „Nicht zugewiesen" (orange) – dein täglicher Verteil-Blick. In der Cockpit-Übersicht könnte die Tagesliste dann zeigen: „HRO Endschalter – K. Schmidt".</div>
+</main>
+</body>
+</html>

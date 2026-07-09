@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Vorlage 5 – Anlagen-Akte</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .dim { position:relative; }
+  .dim::after { content:""; position:absolute; inset:0; background:rgba(20,22,25,0.45); }
+  .akte { position:relative; z-index:2; background:#fff; border-radius:12px; box-shadow:0 16px 50px rgba(0,0,0,0.35); max-width:900px; margin:-330px auto 0; padding:20px 22px; }
+  .zeile { display:flex; gap:10px; align-items:center; padding:6px 10px; border-radius:8px; font-size:0.8rem; }
+  .zeile:nth-child(odd) { background:#F7F8F9; }
+  .zeile .dat { font-family:ui-monospace,Consolas,monospace; font-size:0.7rem; color:#8A9099; min-width:66px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Backlog · Klick auf „HRO"</span>
+  <span class="draft">VORLAGE 5 – Anlagen-Akte</span>
+</div>
+<main>
+  <div class="dim">
+    <div class="card" style="opacity:0.9;"><div class="body" style="padding:8px 12px;font-size:0.8rem;color:#8A9099;">
+      (Backlog-Tabelle im Hintergrund … Klick auf einen <u>Anlagennamen</u> öffnet die Akte)
+      <div style="height:330px;"></div>
+    </div></div>
+  </div>
+
+  <div class="akte">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <span style="font-size:1.15rem;font-weight:900;">HRO</span>
+      <span class="b tpm">Montags-Rotation</span>
+      <span style="font-family:ui-monospace,Consolas,monospace;font-size:0.75rem;color:#8A9099;">TPM-Quote 12 Mon.: <strong style="color:#2F7D4F">83 %</strong> · nächste Wartung: <strong>Mo 13.07.</strong></span>
+      <span style="margin-left:auto;display:flex;gap:8px;">
+        <span class="chip" style="background:#22262B;color:#fff;border-color:#22262B;">+ Arbeit melden</span>
+        <span class="chip">× Schließen</span>
+      </span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+      <div>
+        <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#B23A34;margin-bottom:6px;">Offene Arbeiten (3)</div>
+        <div class="zeile"><span class="prio mittel"></span><span class="b mech">Mech</span><span style="flex:1">RFZ Antriebs-räder wechseln ?</span></div>
+        <div class="zeile"><span class="prio mittel"></span><span class="b mech">Mech</span><span style="flex:1">RFZ Fahrbare Ebene wackelt</span><span title="Nur bei Stillstand">⛔</span></div>
+        <div class="zeile"><span class="prio mittel"></span><span class="b mech">Mech</span><span style="flex:1">RFZ Positionen neu befestigen (Fahrantrieb)</span><span title="Nur bei Stillstand">⛔</span></div>
+
+        <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#2F7D4F;margin:14px 0 6px;">Zuletzt erledigt</div>
+        <div class="zeile"><span class="dat">23.07.</span><span class="b mech">Mech</span><span style="flex:1">Kette Kürzen / Letzte Trocknerkette</span><span style="color:#2F7D4F;font-weight:700">✓</span></div>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#8A9099;margin-bottom:6px;">Wartungs-Historie (TPM &amp; R+I)</div>
+        <div class="zeile"><span class="dat">07.07.</span><span class="b ri">R+I</span><span style="flex:1">HRO Trocknerketten Ölen</span><span style="color:#2F7D4F;font-weight:700">✓</span></div>
+        <div class="zeile"><span class="dat">15.06.</span><span class="b tpm">TPM</span><span style="flex:1">Monats-Wartung <span style="color:#8A9099">📝 „Kette 2 verschlissen"</span></span><span style="color:#2F7D4F;font-weight:700">✓</span></div>
+        <div class="zeile"><span class="dat">11.05.</span><span class="b tpm">TPM</span><span style="flex:1">Monats-Wartung</span><span style="color:#2F7D4F;font-weight:700">✓</span></div>
+        <div class="zeile"><span class="dat">06.04.</span><span class="b tpm">TPM</span><span style="flex:1">Monats-Wartung</span><span style="color:#B23A34;font-weight:700">✕ ausgefallen</span></div>
+        <div style="font-size:0.68rem;color:#8A9099;margin-top:10px;">Alles aus deinen vorhandenen Daten zusammengezogen – TPM-Kalender, R+I und Backlog dieser Anlage an einem Ort. Erreichbar per Klick auf jeden Anlagennamen (Backlog, später auch Ampel/Register).</div>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

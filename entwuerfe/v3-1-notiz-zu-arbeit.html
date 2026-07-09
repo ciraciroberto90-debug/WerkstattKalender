@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Vorlage 1 – Notiz wird Arbeit</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .zettel { border-radius:4px 4px 12px 4px; padding:12px 14px; box-shadow:2px 3px 8px rgba(20,22,25,0.12); position:relative; }
+  .zettel.gelb { background:#FEF9C3; } .zettel.blau { background:#E0F2FE; }
+  .zettel .txt { font-size:0.82rem; color:#39414B; line-height:1.5; }
+  .zettel .von { font-size:0.62rem; color:#8A9099; margin-top:8px; text-align:right; }
+  .zettel .aktionen { display:flex; gap:6px; margin-top:8px; }
+  .zbtn { font-size:0.66rem; font-weight:800; text-transform:uppercase; padding:3px 8px; border-radius:5px; }
+  .zbtn.arbeit { background:#22262B; color:#fff; }
+  .zbtn.weg { background:rgba(0,0,0,0.07); color:#5B6572; }
+  .dialog { background:#fff; border-radius:10px; padding:18px; box-shadow:0 12px 40px rgba(0,0,0,0.25); width:420px; }
+  .feld { width:100%; border:1px solid #D6D9DC; border-radius:7px; padding:8px 10px; font-size:0.85rem; margin-bottom:8px; background:#fff; }
+  .hl { background:#FEF9C3; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Übersicht · Pinnwand</span>
+  <span class="draft">VORLAGE 1 – Notiz ➜ Arbeit</span>
+</div>
+<main>
+  <div style="display:grid;grid-template-columns:1fr 1.1fr;gap:24px;align-items:start;">
+    <div>
+      <div style="font-size:0.8rem;font-weight:800;text-transform:uppercase;margin-bottom:8px;">📌 Pinnwand – jeder Zettel bekommt zwei kleine Knöpfe</div>
+      <div style="display:grid;gap:12px;">
+        <div class="zettel gelb">
+          <div class="txt"><strong>VSM1-Lager</strong> kommt Do. früh – Einbau direkt einplanen!</div>
+          <div class="von">R. Ciraci · Mi, 15:40</div>
+          <div class="aktionen"><span class="zbtn arbeit">➜ Zur Arbeit machen</span><span class="zbtn weg">× abnehmen</span></div>
+        </div>
+        <div class="zettel blau">
+          <div class="txt"><strong>HRO Endschalter</strong> nur provisorisch überbrückt – Halterung muss richtig gemacht werden.</div>
+          <div class="von">K. Schmidt · Mi, 13:10</div>
+          <div class="aktionen"><span class="zbtn arbeit" style="outline:3px solid #C97A2B;">➜ Zur Arbeit machen</span><span class="zbtn weg">× abnehmen</span></div>
+        </div>
+      </div>
+      <div class="hinweis" style="margin-top:14px;">Klick auf „➜ Zur Arbeit machen" öffnet rechts den bekannten Arbeit-Dialog – <strong>der Text ist schon drin</strong>, du ergänzt nur Anlage, Prio und Art. Beim Speichern wird der Zettel automatisch von der Pinnwand genommen (die Info steckt ja jetzt im Backlog).</div>
+    </div>
+    <div>
+      <div style="font-size:0.8rem;font-weight:800;text-transform:uppercase;margin-bottom:8px;">So öffnet sich der Dialog – vorausgefüllt</div>
+      <div class="dialog">
+        <div style="font-weight:700;font-size:0.9rem;margin-bottom:12px;">Neue Arbeit <span style="color:#8A9099;font-weight:400;">– aus Notiz von K. Schmidt</span></div>
+        <select class="feld"><option>– Anlage / Bereich wählen – (Vorschlag: HRO ✨)</option></select>
+        <textarea class="feld hl" rows="3">HRO Endschalter nur provisorisch überbrückt – Halterung muss richtig gemacht werden.</textarea>
+        <div style="display:flex;gap:8px;">
+          <select class="feld"><option>Prio 2</option></select>
+          <select class="feld"><option>Elektrisch</option></select>
+        </div>
+        <div style="font-size:0.8rem;color:#5B6572;margin:4px 0 10px;">☐ 🎓 Azubi-geeignet &nbsp; ☐ ⛔ nur bei Stillstand</div>
+        <div style="display:flex;gap:8px;">
+          <span style="flex:1;text-align:center;background:#22262B;color:#fff;font-weight:700;font-size:0.85rem;padding:9px;border-radius:7px;">Speichern & Zettel abnehmen</span>
+          <span style="flex:1;text-align:center;background:#F4F5F6;color:#8A9099;font-weight:700;font-size:0.85rem;padding:9px;border-radius:7px;">Abbrechen</span>
+        </div>
+      </div>
+      <div class="hinweis" style="margin-top:12px;">✨ Kleiner Bonus: Steht im Zettel ein bekannter Anlagenname (hier „HRO"), schlägt die App die Anlage gleich vor. Der Zettel-Verfasser wird als „gemeldet von" in der Arbeit vermerkt.</div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
