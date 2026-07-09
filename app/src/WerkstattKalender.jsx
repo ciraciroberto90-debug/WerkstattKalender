@@ -1744,8 +1744,25 @@ function App() {
         </div>
       )}
       {shareState.status === "connected" && shareState.mode === "read" && (
-        <div className="no-print px-4 py-2 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
-          Nur ansehen – für „{shareState.name}" bestehen keine Schreibrechte. Angezeigt wird der gemeinsame Stand; eigene Änderungen werden nicht gespeichert.
+        <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
+          <span>Nur ansehen – für „{shareState.name}" bestehen keine Schreibrechte. Angezeigt wird der gemeinsame Stand; eigene Änderungen werden nicht gespeichert.</span>
+          <button
+            onClick={async () => {
+              try {
+                const st = await sharedFile.retryWrite();
+                setShareState(st);
+                setErr(st.mode === "read"
+                  ? "Schreibzugriff weiterhin nicht möglich. Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte?"
+                  : null);
+              } catch (e2) {
+                setErr("Gemeinsame Datei: " + (e2 && e2.message ? e2.message : "Erneuter Versuch fehlgeschlagen."));
+              }
+            }}
+            className="px-2.5 py-1 rounded text-white"
+            style={{ backgroundColor: "#2F6690" }}
+          >
+            Schreibzugriff erneut versuchen
+          </button>
         </div>
       )}
       {shareErr && (

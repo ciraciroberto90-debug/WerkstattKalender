@@ -282,6 +282,21 @@ export async function reconnect() {
   return { status: "connected", name: handle.name, mode: accessMode };
 }
 
+// Schreibzugriff erneut versuchen (z. B. wenn die Datei beim ersten Verbinden
+// gesperrt/schreibgeschützt war und man eigentlich Bearbeiter ist).
+export async function retryWrite() {
+  if (!fileHandle) throw new Error("Keine Datei verbunden.");
+  if (fileHandle.requestPermission) {
+    const p = await fileHandle.requestPermission({ mode: "readwrite" });
+    if (p !== "granted") throw new Error("Der Browser hat den Schreibzugriff nicht erlaubt.");
+  }
+  accessMode = "readwrite";
+  try { await idbSet("mode", "readwrite"); } catch (e) { /* egal */ }
+  await adoptCurrentFile(false); // testet das Schreiben - fällt bei Verbot automatisch auf "read" zurück
+  startPolling();
+  return { status: "connected", name: fileHandle.name, mode: accessMode };
+}
+
 export async function disconnect() {
   stopPolling();
   fileHandle = null;
