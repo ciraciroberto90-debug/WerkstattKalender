@@ -352,11 +352,8 @@ function App() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [view, setView] = useState("PLAN"); // 'COCKPIT' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
-  const [lastTpmView, setLastTpmView] = useState("PLAN"); // merkt das Untermenü beim Wechsel zu Cockpit
-  useEffect(() => {
-    if (view !== "COCKPIT") setLastTpmView(view);
-  }, [view]);
+  // Start immer im Cockpit auf der Übersicht; Hauptreiter springen stets auf ihren ersten Unterpunkt
+  const [view, setView] = useState("COCKPIT"); // 'COCKPIT' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
   const [entries, setEntries] = useState([]);
   const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
   const [riItems, setRiItems] = useState(DEFAULT_RI_ITEMS);
@@ -381,7 +378,8 @@ function App() {
   // Cockpit: Untermenü + Backlog-Filter + Arbeit-Dialog
   const [cockpitTab, setCockpitTab] = useState("UEBERSICHT"); // UEBERSICHT | BACKLOG
   const [blArt, setBlArt] = useState("ALLE"); // ALLE | mech | elek
-  const [blNurPrio1, setBlNurPrio1] = useState(false);
+  const [blPrio, setBlPrio] = useState("ALLE"); // ALLE | hoch | mittel | niedrig | ohne
+  const [blAnlage, setBlAnlage] = useState("ALLE");
   const [blAzubi, setBlAzubi] = useState(false);
   const [blStillstand, setBlStillstand] = useState(false);
   const [blErledigte, setBlErledigte] = useState(false);
@@ -967,7 +965,8 @@ function App() {
   const saeubere = (t) => String(t || "").replace(/\s+/g, " ").trim();
   const backlogListe = (blErledigte ? arbeiten.filter((e) => e.status === "done") : arbeitenOffen)
     .filter((e) => blArt === "ALLE" || e.art === blArt || e.art === "beide")
-    .filter((e) => !blNurPrio1 || e.prio === "hoch")
+    .filter((e) => blPrio === "ALLE" || (e.prio ?? "ohne") === blPrio)
+    .filter((e) => blAnlage === "ALLE" || e.name === blAnlage)
     .filter((e) => !blAzubi || e.azubi)
     .filter((e) => !blStillstand || e.stillstand)
     .filter((e) => {
@@ -978,6 +977,10 @@ function App() {
       ? String(b.erledigtAm || b.date).localeCompare(String(a.erledigtAm || a.date))
       : (PRIO_REIHENFOLGE[a.prio ?? "ohne"] - PRIO_REIHENFOLGE[b.prio ?? "ohne"]) || a.name.localeCompare(b.name, "de"));
   const blZaehl = (art) => arbeitenOffen.filter((e) => e.art === art || e.art === "beide").length;
+  const blAnlagenOptionen = useMemo(
+    () => Array.from(new Set(arbeiten.map((a) => a.name))).filter(Boolean).sort((a, b) => a.localeCompare(b, "de")),
+    [entries]
+  );
   const bereichOptionen = useMemo(() => {
     const s = new Set(tpmAnlagen.map((a) => a.name));
     arbeiten.forEach((a) => s.add(a.name));
@@ -1598,7 +1601,10 @@ function App() {
                   return (
                     <button
                       key={v}
-                      onClick={() => setView(v === "COCKPIT" ? "COCKPIT" : lastTpmView)}
+                      onClick={() => {
+                        if (v === "COCKPIT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
+                        else setView("PLAN");
+                      }}
                       className="px-3 py-1.5 text-xs font-black uppercase tracking-wide"
                       style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
                     >
@@ -2025,7 +2031,30 @@ function App() {
               </button>
             ))}
             <span style={{ width: "6px" }} />
-            {[[blNurPrio1, setBlNurPrio1, "Prio 1"], [blAzubi, setBlAzubi, "🎓 Azubi"], [blStillstand, setBlStillstand, "⛔ Stillstand"], [blErledigte, setBlErledigte, "Erledigte"]].map(([wert, setter, label]) => (
+            <select
+              value={blPrio}
+              onChange={(e) => setBlPrio(e.target.value)}
+              className="text-xs font-bold uppercase border rounded px-2 py-1.5 bg-white"
+              style={{ borderColor: blPrio === "ALLE" ? "#D6D9DC" : "#22262B", color: blPrio === "ALLE" ? "#5B6572" : "#22262B" }}
+              title="Nach Priorität filtern"
+            >
+              <option value="ALLE">Prio: alle</option>
+              <option value="hoch">Prio 1</option>
+              <option value="mittel">Prio 2</option>
+              <option value="niedrig">Prio 3</option>
+              <option value="ohne">ohne Prio</option>
+            </select>
+            <select
+              value={blAnlage}
+              onChange={(e) => setBlAnlage(e.target.value)}
+              className="text-xs font-bold uppercase border rounded px-2 py-1.5 bg-white"
+              style={{ borderColor: blAnlage === "ALLE" ? "#D6D9DC" : "#22262B", color: blAnlage === "ALLE" ? "#5B6572" : "#22262B", maxWidth: "190px" }}
+              title="Nach Anlage/Bereich filtern"
+            >
+              <option value="ALLE">Anlage: alle</option>
+              {blAnlagenOptionen.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            {[[blAzubi, setBlAzubi, "🎓 Azubi"], [blStillstand, setBlStillstand, "⛔ Stillstand"], [blErledigte, setBlErledigte, "Erledigte"]].map(([wert, setter, label]) => (
               <button
                 key={label}
                 onClick={() => setter(!wert)}
