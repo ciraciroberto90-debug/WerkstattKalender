@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Entwurf v2 – TV-Modus (Werkstatt-Monitor)</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:#16191D; color:#E8EAED; min-height:100vh; }
+  .mono { font-family:ui-monospace,Consolas,monospace; }
+  header { display:flex; align-items:center; gap:20px; padding:18px 28px; border-bottom:1px solid #2A2F35; }
+  header .titel { font-size:1.4rem; font-weight:900; text-transform:uppercase; letter-spacing:0.02em; }
+  header .titel span { color:#C97A2B; }
+  header .uhr { margin-left:auto; font-family:ui-monospace,Consolas,monospace; font-size:1.6rem; font-weight:700; }
+  header .datum { font-family:ui-monospace,Consolas,monospace; color:#9AA1A9; font-size:0.95rem; }
+  .draft { background:#3A2E17; color:#E5B567; font-size:0.7rem; font-weight:700; padding:4px 10px; border-radius:999px; }
+  main { padding:20px 28px; display:grid; grid-template-columns:1.2fr 1fr; gap:16px; }
+  .panel { background:#1E2227; border:1px solid #2A2F35; border-radius:14px; padding:16px 18px; }
+  .panel h2 { font-size:0.8rem; text-transform:uppercase; letter-spacing:0.06em; color:#9AA1A9; margin-bottom:12px; }
+  .task { display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:10px; background:#23282E; margin-bottom:8px; font-size:1.05rem; }
+  .task .zeit { font-family:ui-monospace,Consolas,monospace; color:#9AA1A9; font-size:0.85rem; min-width:52px; }
+  .tag { padding:2px 10px; border-radius:5px; font-size:0.72rem; font-weight:800; text-transform:uppercase; }
+  .tag.tpm { background:#3A2E17; color:#E5A155; } .tag.ri { background:#17242F; color:#6FA8D6; }
+  .tag.mech { background:#152726; color:#5FB3B3; } .tag.elek { background:#221A31; color:#A78BDA; }
+  .done { color:#5FBF84; font-weight:800; } .open { color:#E06C62; font-weight:800; }
+  .wer { margin-left:auto; color:#9AA1A9; font-size:0.85rem; }
+  .ampeln { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; }
+  .a { background:#23282E; border-radius:10px; padding:10px; text-align:center; }
+  .a .n { font-weight:800; font-size:0.95rem; }
+  .a .d { width:14px; height:14px; border-radius:50%; margin:8px auto 0; }
+  .gr { background:#3AA46A; } .ge { background:#D9913B; } .ro { background:#D65A50; box-shadow:0 0 12px rgba(214,90,80,0.6); }
+  .quote { font-size:3.2rem; font-weight:900; color:#5FBF84; line-height:1; }
+  .fuss { grid-column:1 / -1; text-align:center; color:#6B7280; font-size:0.75rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="titel">Werkstatt<span>·</span>Tagesplan</span>
+  <span class="datum">Mittwoch, 08. Juli 2026 · KW 28</span>
+  <span class="draft">ENTWURF – nicht funktional</span>
+  <span class="uhr">09:42</span>
+</header>
+
+<main>
+  <div class="panel">
+    <h2>Heute in der Werkstatt</h2>
+    <div class="task"><span class="zeit">✓</span><span class="tag tpm">TPM</span><strong>B1</strong><span class="wer">M. Weber</span><span class="done">erledigt</span></div>
+    <div class="task"><span class="zeit">offen</span><span class="tag ri">R+I</span><strong>Sprinklerwartung</strong><span class="wer">T. Braun</span><span class="open">✕</span></div>
+    <div class="task"><span class="zeit">offen</span><span class="tag ri">R+I</span><strong>Hygieneplan BTA</strong><span class="wer">–</span><span class="open">✕</span></div>
+    <div class="task"><span class="zeit">läuft</span><span class="tag elek">Elek</span><strong>HRO Endschalter</strong><span class="wer">K. Schmidt</span><span style="color:#D9913B;font-weight:800">in Arbeit</span></div>
+    <h2 style="margin-top:18px;">Morgen</h2>
+    <div class="task" style="opacity:0.7"><span class="zeit">Do</span><span class="tag ri">R+I</span><strong>Elevatorprüfung + Ölen</strong><span class="wer">K. Schmidt</span></div>
+    <div class="task" style="opacity:0.7"><span class="zeit">Do</span><span class="tag mech">Mech</span><strong>VSM1 Lager einbauen (Teil kommt früh)</strong><span class="wer">T. Braun</span></div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="panel" style="display:flex;align-items:center;gap:24px;">
+      <div>
+        <h2 style="margin-bottom:4px;">TPM-Quote Juli</h2>
+        <div class="quote">86 %</div>
+      </div>
+      <div style="flex:1;color:#9AA1A9;font-size:0.9rem;line-height:1.8;">
+        6 von 7 Punkten diese Woche erledigt<br>
+        <span style="color:#E06C62;font-weight:700">3 überfällig</span> · 12 im Backlog
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Anlagen-Ampel</h2>
+      <div class="ampeln">
+        <div class="a"><div class="n">HRO</div><div class="d ro"></div></div>
+        <div class="a"><div class="n">VSM1</div><div class="d ge"></div></div>
+        <div class="a"><div class="n">RRO</div><div class="d gr"></div></div>
+        <div class="a"><div class="n">B1</div><div class="d ge"></div></div>
+        <div class="a"><div class="n">B2</div><div class="d gr"></div></div>
+        <div class="a"><div class="n">BTS</div><div class="d gr"></div></div>
+        <div class="a"><div class="n">TS200</div><div class="d gr"></div></div>
+        <div class="a"><div class="n">TS320</div><div class="d gr"></div></div>
+        <div class="a"><div class="n">TS480</div><div class="d ge"></div></div>
+        <div class="a"><div class="n">OF320</div><div class="d gr"></div></div>
+        <div class="a"><div class="n">LTA1</div><div class="d ge"></div></div>
+        <div class="a"><div class="n">LTA2</div><div class="d gr"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fuss">TV-Modus · aktualisiert sich automatisch alle 30 Sekunden aus der gemeinsamen Datei · reine Anzeige, keine Bedienung nötig</div>
+</main>
+</body>
+</html>

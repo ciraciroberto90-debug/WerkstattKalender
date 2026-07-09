@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Entwurf v2 – Anlagen-Steckbrief</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .subtabs { display:flex; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); }
+  .subtabs span { padding:5px 10px; font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#B7BEC6; }
+  .subtabs span.active { background:#4B5259; color:#fff; }
+  .zeile { display:flex; gap:10px; align-items:center; padding:6px 10px; border-radius:8px; font-size:0.8rem; }
+  .zeile:nth-child(odd) { background:#F7F8F9; }
+  .zeile .dat { font-family:ui-monospace,Consolas,monospace; font-size:0.72rem; color:#8A9099; min-width:70px; }
+  .sparkline { display:flex; gap:3px; align-items:flex-end; height:34px; }
+  .sparkline i { width:14px; border-radius:3px 3px 0 0; background:#2F7D4F; display:block; }
+  .sparkline i.o { background:#B23A34; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <div class="subtabs"><span>Übersicht</span><span>Backlog</span><span>Personal</span><span class="active">Anlagen</span></div>
+  <span class="datum">Mi, 08.07.2026</span>
+  <span class="draft">ENTWURF – nicht funktional</span>
+</div>
+
+<main>
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:12px;">
+    <!-- Linke Liste -->
+    <div class="card">
+      <div class="head">Anlagen</div>
+      <div class="body" style="display:flex;flex-direction:column;gap:4px;padding:8px;">
+        <div class="zeile" style="background:#FDF3E7;border:1px solid #C97A2B;"><strong style="flex:1">HRO</strong><span class="prio hoch"></span></div>
+        <div class="zeile"><strong style="flex:1">RRO</strong></div>
+        <div class="zeile"><strong style="flex:1">VSM1</strong><span class="prio mittel"></span></div>
+        <div class="zeile"><strong style="flex:1">VSM2</strong></div>
+        <div class="zeile"><strong style="flex:1">BTS</strong><span class="prio niedrig"></span></div>
+        <div class="zeile"><strong style="flex:1">B1</strong></div>
+        <div class="zeile"><strong style="flex:1">B2</strong><span class="prio mittel"></span></div>
+        <div class="zeile" style="color:#8A9099">… alle 17 Anlagen</div>
+      </div>
+    </div>
+
+    <!-- Steckbrief rechts -->
+    <div class="card">
+      <div class="head" style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1rem;font-weight:900;">HRO</span>
+        <span class="b tpm">Montags-Rotation</span>
+        <span style="color:#8A9099;font-weight:400;text-transform:none;">Rohlingsfertigung · Halle 2</span>
+        <span style="margin-left:auto;display:flex;gap:8px;">
+          <span class="chip" style="background:#22262B;color:#fff;border-color:#22262B;">+ Arbeit melden</span>
+          <span class="chip">Wartung eintragen</span>
+        </span>
+      </div>
+      <div class="body" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#8A9099;margin-bottom:6px;">Offene Arbeiten (2)</div>
+          <div class="zeile"><span class="prio hoch"></span><span class="b elek">Elek</span><span style="flex:1">Endschalter Trocknerkette defekt</span><span class="b inarbeit">In Arbeit</span></div>
+          <div class="zeile"><span class="prio mittel"></span><span class="b mech">Mech</span><span style="flex:1">Kettenführung prüfen/ausrichten</span><span class="b offen">Offen</span></div>
+
+          <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#8A9099;margin:14px 0 6px;">Letzte Ereignisse</div>
+          <div class="zeile"><span class="dat">07.07.</span><span class="b ri">R+I</span><span style="flex:1">HRO Trocknerketten Ölen</span><span style="color:#2F7D4F;font-weight:700">✓</span></div>
+          <div class="zeile"><span class="dat">15.06.</span><span class="b tpm">TPM</span><span style="flex:1">Monats-Wartung <span style="color:#8A9099">„Kette 2 stark verschlissen"</span> 📝</span><span style="color:#2F7D4F;font-weight:700">✓</span></div>
+          <div class="zeile"><span class="dat">11.05.</span><span class="b tpm">TPM</span><span style="flex:1">Monats-Wartung</span><span style="color:#2F7D4F;font-weight:700">✓</span></div>
+          <div class="zeile"><span class="dat">06.04.</span><span class="b tpm">TPM</span><span style="flex:1">Monats-Wartung</span><span style="color:#B23A34;font-weight:700">✕ ausgefallen</span></div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#8A9099;margin-bottom:6px;">TPM-Verlauf 12 Monate <span style="font-weight:400;text-transform:none">(grün = gemacht, rot = ausgefallen)</span></div>
+          <div class="sparkline">
+            <i style="height:100%"></i><i style="height:100%"></i><i style="height:100%"></i><i class="o" style="height:55%"></i><i style="height:100%"></i><i style="height:100%"></i><i style="height:100%"></i><i style="height:100%"></i><i class="o" style="height:55%"></i><i style="height:100%"></i><i style="height:100%"></i><i style="height:100%"></i>
+          </div>
+          <div style="font-size:0.68rem;color:#8A9099;margin-top:4px;">Aug 25 – Jul 26 · Quote: <strong style="color:#2F7D4F">83 %</strong></div>
+
+          <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#8A9099;margin:16px 0 6px;">Stammdaten</div>
+          <div style="font-size:0.8rem;color:#39414B;line-height:1.8;">
+            Nächste TPM: <strong>Mo 13.07.2026</strong><br>
+            Häufigste Probleme: Trocknerkette (4× in 12 Mon.)<br>
+            Verknüpfte R+I-Punkte: HRO Trocknerketten Ölen (monatl., 22.)<br>
+            Dokumente: 📄 Schmierplan · 📄 E-Schema <span style="color:#B7BEC6">(Ablage als Datei-Link)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hinweis">Entwurf v2 · Anlagen-Steckbrief: links die Anlagenliste (Punkt = höchste offene Priorität), rechts alles zu einer Anlage – offene Arbeiten, komplette Historie aus TPM/R+I/Backlog, 12-Monats-Verlauf und Direktaktionen. So beantwortet sich „Was war da nochmal mit der HRO?" in fünf Sekunden.</div>
+</main>
+</body>
+</html>

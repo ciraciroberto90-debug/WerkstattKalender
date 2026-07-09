@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Entwurf v2 – Cockpit Übersicht</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .subtabs { display:flex; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); }
+  .subtabs span { padding:5px 10px; font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#B7BEC6; }
+  .subtabs span.active { background:#4B5259; color:#fff; }
+  .ampel-tile { border-radius:10px; padding:10px 12px; border:1px solid #E2E4E7; background:#fff; display:flex; flex-direction:column; gap:4px; }
+  .ampel-tile .kopf { display:flex; align-items:center; justify-content:space-between; }
+  .ampel-tile .name { font-weight:800; font-size:0.9rem; }
+  .dot { width:12px; height:12px; border-radius:50%; }
+  .dot.g { background:#2F7D4F; } .dot.y { background:#C97A2B; } .dot.r { background:#B23A34; }
+  .ampel-tile .sub { font-size:0.68rem; color:#8A9099; line-height:1.5; }
+  .uebergabe { background:#FFFBEB; border:1px solid #FCD34D; border-radius:10px; padding:10px 14px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <div class="subtabs"><span class="active">Übersicht</span><span>Backlog</span><span>Personal</span><span>Anlagen</span></div>
+  <span class="datum">Mi, 08.07.2026 · KW 28</span>
+  <span class="draft">ENTWURF – nicht funktional</span>
+</div>
+
+<main>
+  <div class="kpis">
+    <div class="kpi"><div class="num">4</div><div class="lbl">Heute fällig (TPM/R+I)</div><div class="sub">1 schon erledigt</div></div>
+    <div class="kpi"><div class="num" style="color:#B23A34">3</div><div class="lbl">Überfällig</div><div class="sub">älteste: 6 Tage</div></div>
+    <div class="kpi"><div class="num">12</div><div class="lbl">Backlog offen</div><div class="sub"><span style="color:#3D8B8B;font-weight:700">7 mech</span> · <span style="color:#7C5CBF;font-weight:700">5 elek</span></div></div>
+    <div class="kpi"><div class="num" style="color:#2F7D4F">5/7</div><div class="lbl">Anwesend</div><div class="sub">1 Urlaub · 1 Schulung</div></div>
+    <div class="kpi"><div class="num" style="color:#2F7D4F">86 %</div><div class="lbl">TPM-Quote Juli</div><div class="sub">Stand heute</div></div>
+  </div>
+
+  <div class="uebergabe" style="margin-bottom:12px;">
+    <div style="font-size:0.7rem;font-weight:800;text-transform:uppercase;color:#B8791F;margin-bottom:4px;">📓 Übergabe / Notiz des Tages</div>
+    <div style="font-size:0.85rem;color:#5B6572;">„VSM1-Ersatzlager kommt laut Spedition Do. früh. HRO läuft wieder, aber Endschalter nur provisorisch – K. Schmidt macht Do. weiter. Abwasserproben nicht vergessen (14.07.)!" <span style="color:#B7BEC6">– R. Ciraci, gestern 15:40</span></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:12px;">
+    <div class="card">
+      <div class="head" style="color:#C97A2B">Heute · Mittwoch 08.07.</div>
+      <div class="body" style="display:flex;flex-direction:column;gap:7px;">
+        <div style="display:flex;align-items:center;gap:8px;"><span class="b tpm">TPM</span><strong style="font-size:0.85rem;flex:1">B1</strong><span style="font-size:0.72rem;color:#8A9099">M. Weber</span><span class="b erledigt">✓</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="b ri">R+I</span><strong style="font-size:0.85rem;flex:1">Sprinklerwartung</strong><span style="font-size:0.72rem;color:#8A9099">T. Braun</span><span class="b offen">✕</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="b ri">R+I</span><strong style="font-size:0.85rem;flex:1">Hygieneplan BTA</strong><span style="font-size:0.72rem;color:#8A9099">–</span><span class="b offen">✕</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="b elek">Elek</span><strong style="font-size:0.85rem;flex:1">HRO Endschalter (Backlog, Prio hoch)</strong><span style="font-size:0.72rem;color:#8A9099">K. Schmidt</span><span class="b inarbeit">läuft</span></div>
+        <div class="hinweis">Zusammengezogen aus TPM-Plan + eingeplantem Backlog. Abhaken direkt hier.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head" style="color:#B23A34">Braucht Entscheidung / überfällig</div>
+      <div class="body" style="display:flex;flex-direction:column;gap:7px;">
+        <div style="display:flex;align-items:center;gap:8px;"><span class="prio hoch"></span><span class="b elek">Elek</span><span style="font-size:0.85rem;flex:1"><strong>HRO</strong> Endschalter – Ersatzteil nötig?</span><span class="mono" style="font-size:0.7rem;color:#B23A34">6 T.</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="prio hoch"></span><span class="b mech">Mech</span><span style="font-size:0.85rem;flex:1"><strong>VSM1</strong> Lager – Teil kommt Do., wer baut ein?</span><span class="mono" style="font-size:0.7rem;color:#B23A34">4 T.</span></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="prio mittel"></span><span class="b ri">R+I</span><span style="font-size:0.85rem;flex:1"><strong>Kompressor Rundgang</strong> von Di. nicht gemacht</span><span class="mono" style="font-size:0.7rem;color:#B8791F">1 T.</span></div>
+        <div class="hinweis">Klick = zuweisen, verschieben oder abhaken. Nichts geht mehr unter.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="head">Anlagen-Ampel <span style="color:#8A9099;font-weight:400;text-transform:none">(grün = im Plan · gelb = fällig/offene Arbeiten · rot = überfällig/Prio hoch)</span></div>
+    <div class="body" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;">
+      <div class="ampel-tile"><div class="kopf"><span class="name">HRO</span><span class="dot r"></span></div><div class="sub">TPM: Mo 13.07.<br>2 offene Arbeiten</div></div>
+      <div class="ampel-tile"><div class="kopf"><span class="name">VSM1</span><span class="dot y"></span></div><div class="sub">TPM: ✓ 03.07.<br>2 offene Arbeiten</div></div>
+      <div class="ampel-tile"><div class="kopf"><span class="name">RRO</span><span class="dot g"></span></div><div class="sub">TPM: Mo 20.07.<br>keine Arbeiten</div></div>
+      <div class="ampel-tile"><div class="kopf"><span class="name">B1</span><span class="dot y"></span></div><div class="sub">TPM: heute fällig<br>keine Arbeiten</div></div>
+      <div class="ampel-tile"><div class="kopf"><span class="name">B2</span><span class="dot g"></span></div><div class="sub">TPM: Mo 27.07.<br>1 offene Arbeit</div></div>
+      <div class="ampel-tile"><div class="kopf"><span class="name">LTA1</span><span class="dot y"></span></div><div class="sub">TPM: Aug<br>2 offene Arbeiten</div></div>
+    </div>
+  </div>
+
+  <div class="hinweis">Entwurf v2 · Cockpit-Übersicht: dein Morgen-Startbildschirm. Neu gegenüber v1: Übergabe-Notiz, TPM-Quote als Kennzahl und die Anlagen-Ampel direkt auf der Startseite.</div>
+</main>
+</body>
+</html>

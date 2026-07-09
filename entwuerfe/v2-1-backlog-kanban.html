@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Entwurf v2 – Backlog als Kanban</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .subtabs { display:flex; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.06); }
+  .subtabs span { padding:5px 10px; font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#B7BEC6; }
+  .subtabs span.active { background:#4B5259; color:#fff; }
+  .board { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .spalte { background:#F0F1F3; border-radius:10px; padding:8px; }
+  .spalte h3 { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:#5B6572; padding:2px 6px 8px; display:flex; justify-content:space-between; }
+  .karte { background:#fff; border:1px solid #E2E4E7; border-left-width:4px; border-radius:8px; padding:8px 10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(20,22,25,0.06); }
+  .karte.mech { border-left-color:#3D8B8B; } .karte.elek { border-left-color:#7C5CBF; }
+  .karte .anlage { font-weight:800; font-size:0.8rem; }
+  .karte .txt { font-size:0.78rem; color:#39414B; margin:3px 0; line-height:1.4; }
+  .karte .fuss { display:flex; align-items:center; gap:6px; font-size:0.66rem; color:#8A9099; }
+  .avatar { width:18px; height:18px; border-radius:50%; background:#2F6690; color:#fff; font-size:0.6rem; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <div class="subtabs"><span>Übersicht</span><span class="active">Backlog</span><span>Personal</span><span>Anlagen</span></div>
+  <span class="datum">Mi, 08.07.2026</span>
+  <span class="draft">ENTWURF – nicht funktional</span>
+</div>
+
+<main>
+  <div class="filter">
+    <span class="chip active-dark">Alle (13)</span>
+    <span class="chip">Mechanisch (7)</span>
+    <span class="chip">Elektrisch (6)</span>
+    <span class="search">🔍 Anlage, Arbeit, Person …</span>
+    <span class="btn-new">+ Neue Arbeit melden</span>
+  </div>
+
+  <div class="board">
+    <div class="spalte">
+      <h3>Offen <span>5</span></h3>
+      <div class="karte mech"><div class="anlage">TS480 <span class="prio mittel" style="float:right;margin-top:4px"></span></div><div class="txt">Schutzhaube Riss – Ersatz anfertigen lassen</div><div class="fuss">gemeldet 01.07. · Foto 📷</div></div>
+      <div class="karte elek"><div class="anlage">BTS <span class="prio niedrig" style="float:right;margin-top:4px"></span></div><div class="txt">Beleuchtung Wartungsbühne auf LED</div><div class="fuss">gemeldet 25.06.</div></div>
+      <div class="karte mech"><div class="anlage">Masseaufbereitung <span class="prio niedrig" style="float:right;margin-top:4px"></span></div><div class="txt">Podest-Geländer nachschweißen</div><div class="fuss">gemeldet 22.06. · Notiz 📝</div></div>
+      <div class="karte elek"><div class="anlage">LTA2 <span class="prio mittel" style="float:right;margin-top:4px"></span></div><div class="txt">Klemmkasten Deckel ersetzen</div><div class="fuss">gemeldet gestern</div></div>
+    </div>
+    <div class="spalte">
+      <h3>Eingeplant <span>3</span></h3>
+      <div class="karte mech"><div class="anlage">VSM1 <span class="prio hoch" style="float:right;margin-top:4px"></span></div><div class="txt">Lager Antriebswelle tauschen (Teil kommt Do.)</div><div class="fuss"><span class="avatar">TB</span> T. Braun · Do 09.07.</div></div>
+      <div class="karte mech"><div class="anlage">B2 <span class="prio mittel" style="float:right;margin-top:4px"></span></div><div class="txt">Abdichtung Beschichtungskammer erneuern</div><div class="fuss"><span class="avatar">MW</span> M. Weber · Mi–Do</div></div>
+      <div class="karte elek"><div class="anlage">LTA1 <span class="prio mittel" style="float:right;margin-top:4px"></span></div><div class="txt">FU-Fehler F0022 eingrenzen</div><div class="fuss"><span class="avatar" style="background:#7C5CBF">DF</span> D. Fischer · Di 07.07.</div></div>
+    </div>
+    <div class="spalte">
+      <h3>In Arbeit <span>2</span></h3>
+      <div class="karte elek"><div class="anlage">HRO <span class="prio hoch" style="float:right;margin-top:4px"></span></div><div class="txt">Endschalter Trocknerkette defekt – provisorisch überbrückt</div><div class="fuss"><span class="avatar" style="background:#7C5CBF">KS</span> K. Schmidt · seit Mo</div></div>
+      <div class="karte mech"><div class="anlage">Wikler <span class="prio mittel" style="float:right;margin-top:4px"></span></div><div class="txt">Führungsrolle eingelaufen, Ersatz einpassen</div><div class="fuss"><span class="avatar">SÖ</span> S. Öztürk</div></div>
+    </div>
+    <div class="spalte" style="background:#EAF4EE">
+      <h3>Erledigt (Juli) <span>3</span></h3>
+      <div class="karte mech" style="opacity:0.65"><div class="anlage">RRO ✓</div><div class="txt">Kettenspanner nachgestellt</div><div class="fuss">07.07. · T. Braun</div></div>
+      <div class="karte elek" style="opacity:0.65"><div class="anlage">TS200 ✓</div><div class="txt">Lichtschranke getauscht</div><div class="fuss">07.07. · K. Schmidt</div></div>
+      <div class="karte mech" style="opacity:0.65"><div class="anlage">OF320 ✓</div><div class="txt">Absaugschlauch ersetzt</div><div class="fuss">03.07. · M. Weber</div></div>
+    </div>
+  </div>
+
+  <div class="hinweis">Entwurf v2 · Backlog als Kanban-Board: Karten wandern per Ziehen von links nach rechts. Farbstreifen = Mechanisch (türkis) / Elektrisch (lila), Punkt = Priorität, Kreis = zugewiesene Person. Alternativ bleibt die Tabellen-Ansicht aus Entwurf v1 umschaltbar.</div>
+</main>
+</body>
+</html>
