@@ -75,6 +75,12 @@ sie auf „nur ansehen" um (blaue Hinweisleiste).
   Einträge
 - **Drucken**: fertige Druckvorlagen (A4 quer für Kalender/Matrix, Notizen
   auf eigener Hochformat-Seite)
+- **Schichtplan-Matrix** (Cockpit → Schichtplan): der ganze Monat wie das
+  Excel-Blatt „Daten" – Zeilen = Team (Reihenfolge per ↑/↓ im
+  ⚙-Verwalten-Dialog), Spalten = Tage mit KW-Zeile, Wochenenden grau,
+  Feiertage rot; Klick auf eine Zelle öffnet die Schicht-Auswahl
+  (volle Wörter, Farben wie überall) – Einträge gelten sofort auch in
+  der Arbeitsplanung
 - **Arbeitsplanung mit Werkstattschichtplan** (Cockpit → Planung):
   Kalenderwochen direkt anklickbar oder per „📅 KW wählen" weit
   vorausspringen; pro Person und Tag steht oben in der Zelle die Schicht

@@ -435,6 +435,8 @@ function App() {
   const [schichtPicker, setSchichtPicker] = useState(null); // {person, datum} | null - Schicht setzen
   const [schichtGanzeWoche, setSchichtGanzeWoche] = useState(true); // Auswahl im Schicht-Dialog
   const [planNotiz, setPlanNotiz] = useState(null); // {person, datum, id?, text} | null - freie Notiz in Planungszelle
+  const [matrixCursor, setMatrixCursor] = useState(() => new Date()); // Monat der Schichtplan-Matrix
+  const [matrixPick, setMatrixPick] = useState(null); // {person, datum, links, oben} | null - Zellen-Dropdown
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
   const [zettelOpen, setZettelOpen] = useState(false);
   const [zettelText, setZettelText] = useState("");
@@ -603,7 +605,9 @@ function App() {
   const openSettings = () => {
     setSettingsTpm(tpmAnlagen.map((a) => ({ ...a })));
     setSettingsRi(riItems.map((r) => ({ ...r })));
-    setSettingsTeam(team.map((t) => ({ ...t })));
+    // _orig merkt sich den Namen beim Öffnen - so bleiben Umbenennungen auch
+    // nach Umsortieren (↑/↓) der richtigen Person zugeordnet
+    setSettingsTeam(team.map((t) => ({ ...t, _orig: t.name })));
     setSettingsOpen(true);
   };
 
@@ -626,10 +630,9 @@ function App() {
       .map((t) => ({ name: t.name.trim(), rolle: t.rolle || "" }))
       .filter((t) => t.name);
     const teamRenames = new Map();
-    team.forEach((alt, i) => {
-      const neu = settingsTeam[i];
-      if (neu && neu.name.trim() && neu.name.trim() !== alt.name) {
-        teamRenames.set(alt.name, neu.name.trim());
+    settingsTeam.forEach((t) => {
+      if (t._orig && t.name.trim() && t.name.trim() !== t._orig) {
+        teamRenames.set(t._orig, t.name.trim());
       }
     });
 
@@ -639,6 +642,7 @@ function App() {
         if (e.category === "TPM" && tpmRenames.has(e.name)) return { ...e, name: tpmRenames.get(e.name) };
         if (e.category === "RI" && riRenames.has(e.name)) return { ...e, name: riRenames.get(e.name) };
         if (e.category === "ARBEIT" && e.wer && teamRenames.has(e.wer)) return { ...e, wer: teamRenames.get(e.wer) };
+        if ((e.category === "SCHICHT" || e.category === "PLANNOTIZ") && teamRenames.has(e.name)) return { ...e, name: teamRenames.get(e.name) };
         return e;
       });
     }
@@ -1186,7 +1190,9 @@ function App() {
   const schichtFuer = (person, tagKey) => {
     const tag = entries.find((e) => e.category === "SCHICHT" && e.scope === "tag" && e.name === person && e.date === tagKey);
     if (tag) return SCHICHTEN[tag.wert] ? tag.wert : null;
-    const wKey = isoWocheKey(new Date(tagKey + "T00:00:00"));
+    const d = new Date(tagKey + "T00:00:00");
+    if (d.getDay() === 0 || d.getDay() === 6) return null; // Wochen-Schicht gilt nur Mo-Fr
+    const wKey = isoWocheKey(d);
     const woche = entries.find((e) => e.category === "SCHICHT" && e.scope === "woche" && e.name === person && e.woche === wKey);
     return woche && SCHICHTEN[woche.wert] ? woche.wert : null;
   };
@@ -1833,7 +1839,7 @@ function App() {
               {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
               {view === "COCKPIT" ? (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["UEBERSICHT", "Übersicht"], ["BACKLOG", "Backlog"], ["PLANUNG", "Planung"]].map(([v, label]) => (
+                  {[["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"]].map(([v, label]) => (
                     <button
                       key={v}
                       onClick={() => setCockpitTab(v)}
@@ -2595,6 +2601,147 @@ function App() {
               })()}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Cockpit: Schichtplan-Matrix - Monat wie das Excel-Blatt "Daten", nur zum Schichten eintragen */}
+      {view === "COCKPIT" && cockpitTab === "SCHICHTPLAN" && (() => {
+        const my = matrixCursor.getFullYear();
+        const mm = matrixCursor.getMonth();
+        const tageImMonat = new Date(my, mm + 1, 0).getDate();
+        const feiertage = getHolidays(my);
+        const tage = Array.from({ length: tageImMonat }, (_, i) => {
+          const d = new Date(my, mm, i + 1);
+          return { nr: i + 1, key: dateKey(my, mm, i + 1), dow: d.getDay(), kw: getISOWeek(d) };
+        });
+        const kwSegmente = [];
+        tage.forEach((t) => {
+          const letzte = kwSegmente[kwSegmente.length - 1];
+          if (letzte && letzte.kw === t.kw) letzte.span++;
+          else kwSegmente.push({ kw: t.kw, span: 1 });
+        });
+        const zellBreite = "66px";
+        return (
+          <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <button onClick={() => setMatrixCursor(new Date(my, mm - 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Voriger Monat">‹</button>
+              <button onClick={() => setMatrixCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
+              <button onClick={() => setMatrixCursor(new Date(my, mm + 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächster Monat">›</button>
+              <span className="font-mono text-sm font-bold ml-2">{MONTHS[mm]} {my}</span>
+              <span className="ml-auto text-xs text-slate-400">Werkstattschichtplan – Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung</span>
+            </div>
+
+            {team.length === 0 ? (
+              <div className="rounded-xl p-8 text-center text-sm text-slate-500" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                Noch kein Team angelegt. Öffne den <strong>⚙-Verwalten-Dialog</strong> und trage unter „Team" deine Leute ein.
+              </div>
+            ) : (
+              <div className="rounded-xl" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", overflowX: "auto", padding: "4px" }}>
+                <table style={{ borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ border: "1px solid #E2E4E7", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>KW</th>
+                      {kwSegmente.map((s, i) => (
+                        <th key={i} colSpan={s.span} style={{ border: "1px solid #E2E4E7", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, color: "#8A9099", padding: "3px 2px" }}>KW {s.kw}</th>
+                      ))}
+                    </tr>
+                    <tr>
+                      <th style={{ border: "1px solid #E2E4E7", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>Mitarbeiter</th>
+                      {tage.map((t) => {
+                        const we = t.dow === 0 || t.dow === 6;
+                        const ft = feiertage.get(t.key);
+                        const heutig = t.key === todayKey;
+                        return (
+                          <th key={t.key} title={ft || undefined} style={{ border: "1px solid #E2E4E7", minWidth: zellBreite, background: ft ? "#FBE9E7" : heutig ? "#FDF3E7" : we ? "#E5F0F8" : "#F7F8F9", fontSize: "0.58rem", fontWeight: 800, color: ft ? "#B23A34" : heutig ? "#C97A2B" : we ? "#7FA6C4" : "#8A9099", padding: "3px 2px" }}>
+                            {WEEKDAYS[(t.dow + 6) % 7]}<br />{t.nr}.
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {team.map((mitglied) => {
+                      const person = mitglied.name;
+                      const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
+                      return (
+                        <tr key={person}>
+                          <td style={{ border: "1px solid #E2E4E7", background: "#F7F8F9", padding: "4px 8px", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>
+                            <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold mr-1.5" style={{ width: "18px", height: "18px", fontSize: "0.52rem", backgroundColor: rolle.color, verticalAlign: "middle" }} title={rolle.label}>{personKuerzel(person)}</span>
+                            <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>{person}</span>
+                          </td>
+                          {tage.map((t) => {
+                            const we = t.dow === 0 || t.dow === 6;
+                            const schicht = schichtFuer(person, t.key);
+                            return (
+                              <td key={t.key} style={{ border: "1px solid #E2E4E7", padding: 0, background: we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white" }}>
+                                <button
+                                  onClick={(ev) => {
+                                    const r = ev.currentTarget.getBoundingClientRect();
+                                    setMatrixPick({
+                                      person,
+                                      datum: t.key,
+                                      links: Math.max(8, Math.min(r.left, window.innerWidth - 200)),
+                                      oben: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 400)),
+                                    });
+                                  }}
+                                  className="block w-full font-extrabold"
+                                  style={schicht
+                                    ? { minWidth: zellBreite, height: "26px", fontSize: "0.58rem", color: "white", backgroundColor: SCHICHTEN[schicht].color, whiteSpace: "nowrap", overflow: "hidden" }
+                                    : { minWidth: zellBreite, height: "26px", fontSize: "0.7rem", color: "#D6D9DC", backgroundColor: "transparent" }}
+                                  title={`${person} · ${formatDateDE(t.key)}${schicht ? " · " + schicht : ""}`}
+                                  aria-label={`Matrix ${person} ${t.key}`}
+                                >
+                                  {schicht || "·"}
+                                </button>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {team.length > 0 && (
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                {Object.entries(SCHICHTEN).map(([name, s]) => (
+                  <span key={name} className="rounded font-black uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: "white", backgroundColor: s.color }}>{name}</span>
+                ))}
+                <span className="text-xs text-slate-400">· Reihenfolge der Leute änderst du im ⚙-Verwalten-Dialog (↑/↓) · ganze Wochen setzt du am schnellsten in der Planung</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Zellen-Dropdown der Schichtplan-Matrix */}
+      {matrixPick && (
+        <div className="no-print" style={{ position: "fixed", inset: 0, zIndex: 70 }} onClick={() => setMatrixPick(null)}>
+          <div
+            style={{ position: "fixed", left: matrixPick.links, top: matrixPick.oben, backgroundColor: "white", borderRadius: "8px", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", padding: "6px", width: "190px", zIndex: 71 }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="text-xs font-bold px-1 pb-1" style={{ color: "#8A9099" }}>{matrixPick.person} · {formatDateDE(matrixPick.datum)}</div>
+            {Object.entries(SCHICHTEN).map(([name, s]) => (
+              <button
+                key={name}
+                onClick={() => { setzeSchicht(matrixPick.person, matrixPick.datum, name, false); setMatrixPick(null); }}
+                className="block w-full text-left rounded font-bold text-white mb-0.5"
+                style={{ fontSize: "0.7rem", padding: "4px 8px", backgroundColor: s.color }}
+              >
+                {name}
+              </button>
+            ))}
+            <button
+              onClick={() => { setzeSchicht(matrixPick.person, matrixPick.datum, "-", false); setMatrixPick(null); }}
+              className="block w-full text-left rounded font-bold border"
+              style={{ fontSize: "0.7rem", padding: "4px 8px", backgroundColor: "white", color: "#5B6572", borderColor: "#D6D9DC" }}
+            >
+              – keine Schicht
+            </button>
+          </div>
         </div>
       )}
 
@@ -3460,6 +3607,18 @@ function App() {
                     <option value="azubi">Azubi</option>
                     <option value="">ohne Gewerk</option>
                   </select>
+                  <button
+                    onClick={() => setSettingsTeam((prev) => { if (idx === 0) return prev; const n = [...prev]; [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]]; return n; })}
+                    className="text-slate-400 hover:text-slate-700 p-1 font-bold"
+                    aria-label="Person nach oben"
+                    title="Nach oben (Reihenfolge in Schichtplan & Planung)"
+                  >↑</button>
+                  <button
+                    onClick={() => setSettingsTeam((prev) => { if (idx >= prev.length - 1) return prev; const n = [...prev]; [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]]; return n; })}
+                    className="text-slate-400 hover:text-slate-700 p-1 font-bold"
+                    aria-label="Person nach unten"
+                    title="Nach unten (Reihenfolge in Schichtplan & Planung)"
+                  >↓</button>
                   <button onClick={() => setSettingsTeam((prev) => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-red-600 p-1" aria-label="Person entfernen">
                     <X size={14} />
                   </button>
