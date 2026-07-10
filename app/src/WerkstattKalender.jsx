@@ -2376,17 +2376,16 @@ function App() {
                   ))}
 
                   {/* Eine Zeile pro Person */}
-                  {team.map((mitglied) => {
+                  {[...team]
+                    .sort((a, b) => ({ mech: 0, elek: 1, azubi: 2, "": 3 }[a.rolle || ""] - { mech: 0, elek: 1, azubi: 2, "": 3 }[b.rolle || ""]))
+                    .map((mitglied) => {
                     const person = mitglied.name;
                     const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
                     return (
                     <React.Fragment key={person}>
                       <div style={{ padding: "10px", borderBottom: "1px solid #E2E4E7", background: "#F7F8F9", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "24px", height: "24px", fontSize: "0.62rem", backgroundColor: rolle.color, flexShrink: 0 }}>{personKuerzel(person)}</span>
-                        <span>
-                          <span style={{ fontSize: "0.8rem", fontWeight: 700, display: "block" }}>{person}</span>
-                          <span className="font-bold uppercase" style={{ fontSize: "0.56rem", color: rolle.color, letterSpacing: "0.04em" }}>{rolle.label}</span>
-                        </span>
+                        <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "24px", height: "24px", fontSize: "0.62rem", backgroundColor: rolle.color, flexShrink: 0 }} title={rolle.label}>{personKuerzel(person)}</span>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>{person}</span>
                       </div>
                       {planungTage.map((t) => (
                         <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
