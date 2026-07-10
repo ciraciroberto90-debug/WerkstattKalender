@@ -71,15 +71,15 @@ const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
 // Werkstattschichtplan - Schichtarten wie das Excel-Dropdown (Blatt "Daten").
 // Der Schlüssel ist zugleich der gespeicherte Wert und die Anzeige.
 const SCHICHTEN = {
-  "Früh": { color: "#2F7D4F" },
-  "Spät": { color: "#C97A2B" },
-  "Spät mit B": { color: "#B8791F" },
-  "Nacht": { color: "#22262B" },
-  "Bereits.": { color: "#8A9099" },
-  "Schule": { color: "#7C5CBF" },
-  "Krank": { color: "#B23A34" },
-  "Urlaub": { color: "#2F6690" },
-  "Mainsite": { color: "#3D8B8B" },
+  "Früh": { color: "#2F7D4F", kurz: "F" },
+  "Spät": { color: "#C97A2B", kurz: "S" },
+  "Spät mit B": { color: "#B8791F", kurz: "SB" },
+  "Nacht": { color: "#22262B", kurz: "N" },
+  "Bereits.": { color: "#8A9099", kurz: "B" },
+  "Schule": { color: "#7C5CBF", kurz: "Sch" },
+  "Krank": { color: "#B23A34", kurz: "K" },
+  "Urlaub": { color: "#2F6690", kurz: "U" },
+  "Mainsite": { color: "#3D8B8B", kurz: "M" },
 };
 // Wer ganztags fehlt, bekommt in der Zelle kein ＋ (nichts einplanen)
 const SCHICHT_ABWESEND = new Set(["Krank", "Urlaub", "Schule"]);
@@ -1163,9 +1163,9 @@ function App() {
     d.setHours(0, 0, 0, 0);
     return d;
   })();
-  const planungTage = [0, 1, 2, 3, 4].map((i) => {
+  const planungTage = [0, 1, 2, 3, 4, 5, 6].map((i) => {
     const d = addDays(planungMontag, i);
-    return { datum: d, key: dateKey(d.getFullYear(), d.getMonth(), d.getDate()) };
+    return { datum: d, key: dateKey(d.getFullYear(), d.getMonth(), d.getDate()), we: i >= 5 };
   });
   // TPM/R+I-Termine der Woche (Woche kann über die Monatsgrenze gehen -> beide Monate rechnen)
   const wochenPlan = (() => {
@@ -2450,7 +2450,7 @@ function App() {
                   style={aktiv
                     ? { backgroundColor: "#C97A2B", color: "white", borderColor: "#C97A2B" }
                     : { backgroundColor: "white", color: "#5B6572", borderColor: "#D6D9DC", outline: heutig ? "2px solid #C97A2B" : "none" }}
-                  title={`${m.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${addDays(m, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}`}
+                  title={`${m.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${addDays(m, 6).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}`}
                 >
                   KW {getISOWeek(m)}
                 </button>
@@ -2472,13 +2472,13 @@ function App() {
                 const v = dateKey(m.getFullYear(), m.getMonth(), m.getDate());
                 return (
                   <option key={v} value={v}>
-                    KW {getISOWeek(m)} · {m.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(m, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                    KW {getISOWeek(m)} · {m.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(m, 6).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
                   </option>
                 );
               })}
             </select>
             <span className="font-mono text-sm font-bold ml-2">
-              {planungMontag.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(planungMontag, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              {planungMontag.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(planungMontag, 6).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </span>
           </div>
 
@@ -2489,14 +2489,14 @@ function App() {
           ) : (
             <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
               <div style={{ overflowX: "auto" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "150px repeat(5, 1fr)", minWidth: "900px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "150px repeat(5, 1fr) 0.55fr 0.55fr", minWidth: "980px" }}>
                   {/* Kopfzeile */}
                   <div style={{ padding: "8px 10px", background: "#F7F8F9", borderBottom: "2px solid #22262B", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099" }}>Mitarbeiter</div>
                   {planungTage.map((t) => {
                     const istHeute = t.key === todayKey;
                     const feiertag = getHolidays(t.datum.getFullYear()).get(t.key);
                     return (
-                      <div key={t.key} style={{ padding: "8px 6px", textAlign: "center", background: istHeute ? "#FDF3E7" : "#F7F8F9", borderBottom: "2px solid #22262B", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: feiertag ? "#B23A34" : istHeute ? "#C97A2B" : "#8A9099" }}>
+                      <div key={t.key} style={{ padding: "8px 6px", textAlign: "center", background: istHeute ? "#FDF3E7" : t.we ? "#E5F0F8" : "#F7F8F9", borderBottom: "2px solid #22262B", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: feiertag ? "#B23A34" : istHeute ? "#C97A2B" : t.we ? "#7FA6C4" : "#8A9099" }}>
                         {t.datum.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}{feiertag ? <div style={{ fontSize: "0.6rem" }}>{feiertag}</div> : null}
                       </div>
                     );
@@ -2505,7 +2505,7 @@ function App() {
                   {/* Feste Zeile: Wartungsplan */}
                   <div style={{ padding: "8px 10px", borderBottom: "1px solid #E2E4E7", background: "#FBF7F1", fontSize: "0.72rem", fontWeight: 800, color: "#C97A2B" }}>Wartungsplan<br /><span style={{ fontWeight: 400, color: "#8A9099" }}>TPM &amp; R+I (fest)</span></div>
                   {planungTage.map((t) => (
-                    <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: "#FFFDF9", minHeight: "56px" }}>
+                    <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : "#FFFDF9", minHeight: "56px" }}>
                       {wochenPlan.filter((p) => p.date === t.key).map((p, i) => {
                         const done = isPlanDone(p);
                         const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
@@ -2529,26 +2529,26 @@ function App() {
                     const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
                     return (
                     <React.Fragment key={person}>
-                      <div style={{ padding: "10px", borderBottom: "1px solid #E2E4E7", background: "#F7F8F9", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "24px", height: "24px", fontSize: "0.62rem", backgroundColor: rolle.color, flexShrink: 0 }} title={rolle.label}>{personKuerzel(person)}</span>
-                        <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>{person}</span>
+                      <div style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)", background: rolle.color, display: "flex", flexDirection: "column", justifyContent: "center" }} title={rolle.label}>
+                        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "white", lineHeight: 1.15 }}>{person}</span>
+                        <span style={{ fontSize: "0.56rem", fontWeight: 600, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{rolle.label}</span>
                       </div>
                       {planungTage.map((t) => {
                         const schicht = schichtFuer(person, t.key);
                         const abwesend = schicht && SCHICHT_ABWESEND.has(schicht);
                         return (
-                        <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
-                          {/* Schicht (Werkstattschichtplan): Klick = ändern */}
+                        <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
+                          {/* Schicht (Werkstattschichtplan) als Kürzel: Klick = ändern */}
                           <button
-                            onClick={() => { setSchichtGanzeWoche(!schicht); setSchichtPicker({ person, datum: t.key }); }}
-                            className="inline-block rounded font-black uppercase mb-1"
+                            onClick={() => { setSchichtGanzeWoche(!schicht && !t.we); setSchichtPicker({ person, datum: t.key }); }}
+                            className="inline-flex items-center justify-center rounded font-black mb-1"
                             style={schicht
-                              ? { fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: "white", backgroundColor: SCHICHTEN[schicht].color }
-                              : { fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: "#C3C7CB", backgroundColor: "transparent", border: "1px dashed #D6D9DC" }}
-                            title={`Schicht für ${person} setzen`}
+                              ? { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "white", backgroundColor: SCHICHTEN[schicht].color }
+                              : { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "#C3C7CB", backgroundColor: "transparent", border: "1px dashed #D6D9DC" }}
+                            title={schicht ? `${schicht} – Schicht für ${person} ändern` : `Schicht für ${person} setzen`}
                             aria-label={`Schicht ${person} ${t.key}`}
                           >
-                            {schicht || "Schicht?"}
+                            {schicht ? SCHICHTEN[schicht].kurz : "?"}
                           </button>
                           {geplantFuer(person, t.key).map((a) => {
                             const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
@@ -2603,13 +2603,16 @@ function App() {
             </div>
           )}
 
-          {/* Schicht-Legende */}
+          {/* Schicht-Legende (Kürzel) */}
           {team.length > 0 && (
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <div className="mt-3 flex items-center gap-x-3 gap-y-1 flex-wrap">
               {Object.entries(SCHICHTEN).map(([name, s]) => (
-                <span key={name} className="rounded font-black uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: "white", backgroundColor: s.color }}>{name}</span>
+                <span key={name} className="inline-flex items-center gap-1" style={{ fontSize: "0.66rem", fontWeight: 700, color: "#5B6572" }}>
+                  <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: s.color }}>{s.kurz}</span>
+                  {name}
+                </span>
               ))}
-              <span className="text-xs text-slate-400">· Klick auf die Schicht in einer Zelle ändert sie (Tag oder ganze Woche)</span>
+              <span className="text-xs text-slate-400">· Klick auf das Kürzel in einer Zelle ändert die Schicht (Tag oder ganze Woche)</span>
             </div>
           )}
 
