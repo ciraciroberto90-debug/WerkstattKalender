@@ -2072,13 +2072,21 @@ function App() {
           {/* Heute da: nur wer wirklich in der Werkstatt ist (Früh / Spät / Nacht) */}
           {team.length > 0 && (() => {
             const heutige = team
-              .map((m) => ({ name: m.name, schicht: schichtFuer(m.name, todayKey) }))
+              .map((m) => ({ name: m.name, rolle: m.rolle || "", schicht: schichtFuer(m.name, todayKey) }))
               .filter((x) => x.schicht);
+            // Ohne eingetragene Schicht = deckt die Tagschicht ab, zählt als Früh
+            // (gilt nur für Leute mit Gewerk - "Sonstige" bleiben hier draußen)
+            const ohneSchicht = team
+              .filter((m) => (m.rolle || "") !== "" && !schichtFuer(m.name, todayKey))
+              .map((m) => ({ name: m.name, schicht: "Früh" }));
             const spalten = [
               ["Früh", ["Früh"]],
               ["Spät / Spät mit B", ["Spät", "Spät mit B"]],
               ["Nacht", ["Nacht"]],
-            ].map(([titel, arten]) => [titel, heutige.filter((x) => arten.includes(x.schicht))]);
+            ].map(([titel, arten]) => [
+              titel,
+              [...heutige.filter((x) => arten.includes(x.schicht)), ...(arten.includes("Früh") ? ohneSchicht : [])],
+            ]);
             const daCount = spalten.reduce((s, [, liste]) => s + liste.length, 0);
             const chip = (s) => (
               <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
@@ -2090,7 +2098,7 @@ function App() {
                   <span className="font-mono text-xs" style={{ color: "#8A9099" }}>{daCount} in der Werkstatt · aus dem Schichtplan</span>
                   <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
                 </div>
-                {heutige.length === 0 ? (
+                {daCount === 0 ? (
                   <div className="text-xs italic text-slate-400">Für heute sind noch keine Schichten eingetragen – trag sie unter Cockpit → Schichtplan ein.</div>
                 ) : (
                   <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
