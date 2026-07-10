@@ -2069,55 +2069,65 @@ function App() {
             ))}
           </div>
 
-          {/* Heute da: nur wer wirklich in der Werkstatt ist (Früh / Spät / Nacht) */}
+          {/* Heute da: zeigt nur die gerade LAUFENDE Schicht (Früh 06-14, Spät 14-22, Nacht 22-06) */}
           {team.length > 0 && (() => {
-            const heutige = team
-              .map((m) => ({ name: m.name, rolle: m.rolle || "", schicht: schichtFuer(m.name, todayKey) }))
-              .filter((x) => x.schicht);
-            // Ohne eingetragene Schicht = deckt die Tagschicht ab, zählt als Früh
-            // (gilt nur für Leute mit Gewerk - "Sonstige" bleiben hier draußen)
-            const ohneSchicht = team
-              .filter((m) => (m.rolle || "") !== "" && !schichtFuer(m.name, todayKey))
-              .map((m) => ({ name: m.name, schicht: "Früh" }));
-            const spalten = [
-              ["Früh", ["Früh"]],
-              ["Spät / Spät mit B", ["Spät", "Spät mit B"]],
-              ["Nacht", ["Nacht"]],
-            ].map(([titel, arten]) => [
-              titel,
-              [...heutige.filter((x) => arten.includes(x.schicht)), ...(arten.includes("Früh") ? ohneSchicht : [])],
-            ]);
-            const daCount = spalten.reduce((s, [, liste]) => s + liste.length, 0);
+            const jetzt = new Date();
+            const stunde = jetzt.getHours();
+            const aktuell = stunde >= 6 && stunde < 14 ? "FRUEH" : stunde >= 14 && stunde < 22 ? "SPAET" : "NACHT";
+            const tagKeyVon = (d) => dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+            // Nach Mitternacht (0-6 Uhr) läuft noch die Nachtschicht vom Vortag
+            const bezugsTag = aktuell === "NACHT" && stunde < 6 ? tagKeyVon(addDays(jetzt, -1)) : tagKeyVon(jetzt);
+            // Crew einer Schicht an einem Tag; Früh enthält auch alle mit Gewerk
+            // OHNE eingetragene Schicht (= Tagschicht), "Sonstige" bleiben draußen
+            const crewFuer = (typ, tag) => {
+              const arten = { FRUEH: ["Früh"], SPAET: ["Spät", "Spät mit B"], NACHT: ["Nacht"] }[typ];
+              const crew = team
+                .map((m) => ({ name: m.name, rolle: m.rolle || "", schicht: schichtFuer(m.name, tag) }))
+                .filter((x) => x.schicht && arten.includes(x.schicht));
+              if (typ === "FRUEH") {
+                team.forEach((m) => {
+                  if ((m.rolle || "") !== "" && !schichtFuer(m.name, tag)) crew.push({ name: m.name, schicht: "Früh" });
+                });
+              }
+              return crew;
+            };
+            const SCHICHT_INFO = {
+              FRUEH: { label: "Frühschicht", zeit: "06:00 – 14:00" },
+              SPAET: { label: "Spätschicht", zeit: "14:00 – 22:00" },
+              NACHT: { label: "Nachtschicht", zeit: "22:00 – 06:00" },
+            };
+            const crew = crewFuer(aktuell, bezugsTag);
+            // Vorschau auf die nächste Schicht (Nacht -> Früh des Folgetags, wenn es schon nach 22 Uhr ist)
+            const naechste = aktuell === "FRUEH"
+              ? { typ: "SPAET", tag: tagKeyVon(jetzt), ab: "14:00" }
+              : aktuell === "SPAET"
+                ? { typ: "NACHT", tag: tagKeyVon(jetzt), ab: "22:00" }
+                : { typ: "FRUEH", tag: stunde >= 22 ? tagKeyVon(addDays(jetzt, 1)) : tagKeyVon(jetzt), ab: "06:00" };
+            const naechsteCrew = crewFuer(naechste.typ, naechste.tag);
             const chip = (s) => (
               <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
             );
             return (
               <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Heute da</span>
-                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>{daCount} in der Werkstatt · aus dem Schichtplan</span>
+                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Jetzt da · {SCHICHT_INFO[aktuell].label}</span>
+                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>{SCHICHT_INFO[aktuell].zeit} Uhr · {crew.length} in der Werkstatt</span>
                   <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
                 </div>
-                {daCount === 0 ? (
-                  <div className="text-xs italic text-slate-400">Für heute sind noch keine Schichten eingetragen – trag sie unter Cockpit → Schichtplan ein.</div>
+                {crew.length === 0 ? (
+                  <div className="text-xs italic text-slate-400">Gerade ist laut Schichtplan niemand eingetragen.</div>
                 ) : (
-                  <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-                    {spalten.map(([titel, liste]) => (
-                      <div key={titel}>
-                        <div className="text-xs font-bold uppercase mb-1.5" style={{ color: "#8A9099", fontSize: "0.62rem" }}>{titel}</div>
-                        {liste.length === 0 ? (
-                          <div className="text-xs" style={{ color: "#C3C7CB" }}>–</div>
-                        ) : (
-                          liste.map((x) => (
-                            <div key={x.name} className="flex items-center gap-1.5 mb-1" style={{ fontSize: "0.76rem", fontWeight: 700, color: "#39414B" }}>
-                              {chip(x.schicht)}{x.name}
-                            </div>
-                          ))
-                        )}
-                      </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                    {crew.map((x) => (
+                      <span key={x.name} className="inline-flex items-center gap-1.5" style={{ fontSize: "0.76rem", fontWeight: 700, color: "#39414B" }}>
+                        {chip(x.schicht)}{x.name}
+                      </span>
                     ))}
                   </div>
                 )}
+                <div className="mt-2 pt-2 text-xs" style={{ borderTop: "1px dashed #E2E4E7", color: "#8A9099" }}>
+                  ab {naechste.ab} Uhr ({SCHICHT_INFO[naechste.typ].label}): {naechsteCrew.length > 0 ? naechsteCrew.map((x) => x.name).join(" · ") : "niemand eingetragen"}
+                </div>
               </div>
             );
           })()}
