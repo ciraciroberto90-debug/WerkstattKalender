@@ -68,6 +68,22 @@ const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
   .map((t) => (typeof t === "string" ? { name: t, rolle: "" } : { name: String(t.name || ""), rolle: TEAM_ROLLEN[t.rolle] ? t.rolle : "" }))
   .filter((t) => t.name.trim());
 
+// Werkstattschichtplan - Schichtarten wie das Excel-Dropdown (Blatt "Daten").
+// Der Schlüssel ist zugleich der gespeicherte Wert und die Anzeige.
+const SCHICHTEN = {
+  "Früh": { color: "#2F7D4F" },
+  "Spät": { color: "#C97A2B" },
+  "Spät mit B": { color: "#B8791F" },
+  "Nacht": { color: "#22262B" },
+  "Bereits.": { color: "#8A9099" },
+  "Schule": { color: "#7C5CBF" },
+  "Krank": { color: "#B23A34" },
+  "Urlaub": { color: "#2F6690" },
+  "Mainsite": { color: "#3D8B8B" },
+};
+// Wer ganztags fehlt, bekommt in der Zelle kein ＋ (nichts einplanen)
+const SCHICHT_ABWESEND = new Set(["Krank", "Urlaub", "Schule"]);
+
 // R+I-Punkte aus Todoist importiert (Stand: Juli 2026). "Wasserrundgang" und
 // "Filterwartung / Schaltschränke" liefen doppelt in Todoist - hier zusammengeführt.
 // type: "weekly" (weekday), "biweekly" (weekday, anchor), "monthly-day" (day),
@@ -135,6 +151,19 @@ function getISOWeek(date) {
   const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
   firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
   return 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000));
+}
+
+// Wochen-Schlüssel für Schicht-Einträge, z. B. "2026-W28". Das ISO-Jahr ist das
+// Jahr des Donnerstags der Woche (wichtig am Jahreswechsel).
+function isoWocheKey(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 3);
+  return `${d.getFullYear()}-W${pad(getISOWeek(date))}`;
+}
+function montagVon(iso) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
 }
 
 function chunkIntoWeeks(cells) {
@@ -403,6 +432,9 @@ function App() {
   const [akteAnlage, setAkteAnlage] = useState(null); // Anlagen-Akte (Name) | null
   const [planungCursor, setPlanungCursor] = useState(() => new Date()); // Woche der Arbeitsplanung
   const [planungPicker, setPlanungPicker] = useState(null); // {person, datum} | null
+  const [schichtPicker, setSchichtPicker] = useState(null); // {person, datum} | null - Schicht setzen
+  const [schichtGanzeWoche, setSchichtGanzeWoche] = useState(true); // Auswahl im Schicht-Dialog
+  const [planNotiz, setPlanNotiz] = useState(null); // {person, datum, id?, text} | null - freie Notiz in Planungszelle
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
   const [zettelOpen, setZettelOpen] = useState(false);
   const [zettelText, setZettelText] = useState("");
@@ -672,7 +704,17 @@ function App() {
     if (!file) return;
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text);
+      let parsed = JSON.parse(text);
+      // Migrations-Format: { entries: [...], team: [...] } - Team wird in die Verwaltung übernommen
+      if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.entries)) {
+        if (Array.isArray(parsed.team)) {
+          const neuTeam = normalisiereTeam(parsed.team).filter((t) => !team.some((v) => v.name === t.name));
+          if (neuTeam.length > 0 && window.confirm(`${neuTeam.length} neue Team-Mitglieder in der Datei gefunden. Zum Team hinzufügen?`)) {
+            await persistConfig(tpmAnlagen, riItems, [...team, ...neuTeam]);
+          }
+        }
+        parsed = parsed.entries;
+      }
       if (!Array.isArray(parsed)) throw new Error("Ungültiges Format");
       const valid = parsed.filter(
         (en) => en && typeof en.date === "string" && typeof en.category === "string" && typeof en.name === "string"
@@ -1135,6 +1177,63 @@ function App() {
   const einplanen = async (arbeitId, person, tagKey) => {
     await persist(entries.map((e) => (e.id === arbeitId ? { ...e, wer: person, geplant: tagKey } : e)));
     setPlanungPicker(null);
+  };
+
+  // ---- Werkstattschichtplan ----
+  // Schicht-Einträge: scope "woche" (gilt Mo-Fr, id schicht-w|Person|2026-W28) und
+  // scope "tag" (Tages-Ausnahme, id schicht-t|Person|2026-07-08). Tag schlägt Woche.
+  // wert "-" als Tages-Ausnahme heißt: an diesem Tag keine Schicht trotz Wochen-Schicht.
+  const schichtFuer = (person, tagKey) => {
+    const tag = entries.find((e) => e.category === "SCHICHT" && e.scope === "tag" && e.name === person && e.date === tagKey);
+    if (tag) return SCHICHTEN[tag.wert] ? tag.wert : null;
+    const wKey = isoWocheKey(new Date(tagKey + "T00:00:00"));
+    const woche = entries.find((e) => e.category === "SCHICHT" && e.scope === "woche" && e.name === person && e.woche === wKey);
+    return woche && SCHICHTEN[woche.wert] ? woche.wert : null;
+  };
+  const setzeSchicht = async (person, tagKey, wert, ganzeWoche) => {
+    const montag = montagVon(tagKey);
+    const wKey = isoWocheKey(montag);
+    const wochenTage = [0, 1, 2, 3, 4].map((i) => { const d = addDays(montag, i); return dateKey(d.getFullYear(), d.getMonth(), d.getDate()); });
+    let next;
+    if (ganzeWoche) {
+      // Wochen-Schicht setzen und alle Tages-Ausnahmen dieser Woche aufräumen
+      next = entries.filter((e) => !(e.category === "SCHICHT" && e.name === person &&
+        ((e.scope === "woche" && e.woche === wKey) || (e.scope === "tag" && wochenTage.includes(e.date)))));
+      if (SCHICHTEN[wert]) {
+        next = [...next, { id: `schicht-w|${person}|${wKey}`, date: dateKey(montag.getFullYear(), montag.getMonth(), montag.getDate()), category: "SCHICHT", name: person, scope: "woche", woche: wKey, wert }];
+      }
+    } else {
+      next = entries.filter((e) => !(e.category === "SCHICHT" && e.scope === "tag" && e.name === person && e.date === tagKey));
+      const hatWoche = entries.some((e) => e.category === "SCHICHT" && e.scope === "woche" && e.name === person && e.woche === wKey);
+      if (SCHICHTEN[wert] || hatWoche) {
+        // "-" wird nur als Ausnahme gespeichert, wenn eine Wochen-Schicht zu überstimmen ist
+        next = [...next, { id: `schicht-t|${person}|${tagKey}`, date: tagKey, category: "SCHICHT", name: person, scope: "tag", wert: SCHICHTEN[wert] ? wert : "-" }];
+      }
+    }
+    await persist(next);
+    setSchichtPicker(null);
+  };
+
+  // Freie Notizen in Planungszellen (Kategorie PLANNOTIZ)
+  const notizenFuer = (person, tagKey) =>
+    entries.filter((e) => e.category === "PLANNOTIZ" && e.name === person && e.date === tagKey);
+  const savePlanNotiz = async () => {
+    if (!planNotiz) return;
+    const text = saeubere(planNotiz.text || "");
+    if (!text) { setPlanNotiz(null); return; }
+    let next;
+    if (planNotiz.id) {
+      next = entries.map((e) => (e.id === planNotiz.id ? { ...e, note: text } : e));
+    } else {
+      next = [...entries, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: planNotiz.datum, category: "PLANNOTIZ", name: planNotiz.person, note: text }];
+    }
+    await persist(next);
+    setPlanNotiz(null);
+  };
+  const deletePlanNotiz = async () => {
+    if (!planNotiz || !planNotiz.id) return;
+    await persist(entries.filter((e) => e.id !== planNotiz.id));
+    setPlanNotiz(null);
   };
 
   const deleteArbeit = async (id) => {
@@ -2329,14 +2428,51 @@ function App() {
       {/* Cockpit: Arbeitsplanung (Wochenraster) */}
       {view === "COCKPIT" && cockpitTab === "PLANUNG" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
             <button onClick={() => setPlanungCursor(addDays(planungMontag, -7))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Vorige Woche">‹</button>
-            <button onClick={() => setPlanungCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
+            {/* KW-Leiste: Wochen rund um die gewählte direkt anklickbar */}
+            {[-2, -1, 0, 1, 2, 3, 4].map((off) => {
+              const m = addDays(planungMontag, off * 7);
+              const aktiv = off === 0;
+              const heutig = isoWocheKey(m) === isoWocheKey(new Date());
+              return (
+                <button
+                  key={off}
+                  onClick={() => setPlanungCursor(m)}
+                  className="px-2.5 py-1.5 rounded border font-mono text-xs font-bold"
+                  style={aktiv
+                    ? { backgroundColor: "#C97A2B", color: "white", borderColor: "#C97A2B" }
+                    : { backgroundColor: "white", color: "#5B6572", borderColor: "#D6D9DC", outline: heutig ? "2px solid #C97A2B" : "none" }}
+                  title={`${m.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${addDays(m, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}`}
+                >
+                  KW {getISOWeek(m)}
+                </button>
+              );
+            })}
             <button onClick={() => setPlanungCursor(addDays(planungMontag, 7))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächste Woche">›</button>
+            <button onClick={() => setPlanungCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
+            {/* Sprung zu jeder beliebigen Woche (z. B. Urlaub weit im Voraus eintragen) */}
+            <select
+              value=""
+              onChange={(ev) => { if (ev.target.value) setPlanungCursor(new Date(ev.target.value + "T00:00:00")); }}
+              className="px-2 py-1.5 rounded border bg-white text-xs font-bold"
+              style={{ borderColor: "#D6D9DC", color: "#5B6572" }}
+              aria-label="KW wählen"
+            >
+              <option value="">📅 KW wählen …</option>
+              {Array.from({ length: 71 }, (_, i) => {
+                const m = addDays(montagVon(dateKey(today.getFullYear(), today.getMonth(), today.getDate())), (i - 6) * 7);
+                const v = dateKey(m.getFullYear(), m.getMonth(), m.getDate());
+                return (
+                  <option key={v} value={v}>
+                    KW {getISOWeek(m)} · {m.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(m, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                  </option>
+                );
+              })}
+            </select>
             <span className="font-mono text-sm font-bold ml-2">
-              KW {getISOWeek(planungMontag)}: {planungMontag.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(planungMontag, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              {planungMontag.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(planungMontag, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </span>
-            <span className="ml-auto text-xs text-slate-400">Zuweisen: ＋ in einer Tageszelle klicken</span>
           </div>
 
           {team.length === 0 ? (
@@ -2387,8 +2523,23 @@ function App() {
                         <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "24px", height: "24px", fontSize: "0.62rem", backgroundColor: rolle.color, flexShrink: 0 }} title={rolle.label}>{personKuerzel(person)}</span>
                         <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>{person}</span>
                       </div>
-                      {planungTage.map((t) => (
+                      {planungTage.map((t) => {
+                        const schicht = schichtFuer(person, t.key);
+                        const abwesend = schicht && SCHICHT_ABWESEND.has(schicht);
+                        return (
                         <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
+                          {/* Schicht (Werkstattschichtplan): Klick = ändern */}
+                          <button
+                            onClick={() => { setSchichtGanzeWoche(!schicht); setSchichtPicker({ person, datum: t.key }); }}
+                            className="inline-block rounded font-black uppercase mb-1"
+                            style={schicht
+                              ? { fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: "white", backgroundColor: SCHICHTEN[schicht].color }
+                              : { fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: "#C3C7CB", backgroundColor: "transparent", border: "1px dashed #D6D9DC" }}
+                            title={`Schicht für ${person} setzen`}
+                            aria-label={`Schicht ${person} ${t.key}`}
+                          >
+                            {schicht || "Schicht?"}
+                          </button>
                           {geplantFuer(person, t.key).map((a) => {
                             const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
                             return (
@@ -2397,17 +2548,26 @@ function App() {
                               </button>
                             );
                           })}
-                          <button
-                            onClick={() => setPlanungPicker({ person, datum: t.key })}
-                            className="text-slate-300 hover:text-slate-600 font-black"
-                            style={{ fontSize: "0.85rem", lineHeight: 1 }}
-                            title={`Arbeit für ${person} an diesem Tag einplanen`}
-                            aria-label="Arbeit einplanen"
-                          >
-                            ＋
-                          </button>
+                          {/* Freie Notizen/Infos (gelb) */}
+                          {notizenFuer(person, t.key).map((n) => (
+                            <button key={n.id} onClick={() => setPlanNotiz({ person, datum: t.key, id: n.id, text: n.note })} className="block w-full text-left rounded font-semibold mb-1" style={{ fontSize: "0.66rem", padding: "2px 6px", color: "#39414B", border: "1px solid #E5D77A", backgroundColor: "#FEF9C3", wordBreak: "break-word" }} title={n.note}>
+                              📝 {n.note.length > 34 ? n.note.slice(0, 34) + "…" : n.note}
+                            </button>
+                          ))}
+                          {!abwesend && (
+                            <button
+                              onClick={() => setPlanungPicker({ person, datum: t.key })}
+                              className="text-slate-300 hover:text-slate-600 font-black"
+                              style={{ fontSize: "0.85rem", lineHeight: 1 }}
+                              title={`Arbeit oder Notiz für ${person} an diesem Tag eintragen`}
+                              aria-label="Arbeit oder Notiz eintragen"
+                            >
+                              ＋
+                            </button>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </React.Fragment>
                     );
                   })}
@@ -2416,9 +2576,19 @@ function App() {
             </div>
           )}
 
+          {/* Schicht-Legende */}
+          {team.length > 0 && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              {Object.entries(SCHICHTEN).map(([name, s]) => (
+                <span key={name} className="rounded font-black uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: "white", backgroundColor: s.color }}>{name}</span>
+              ))}
+              <span className="text-xs text-slate-400">· Klick auf die Schicht in einer Zelle ändert sie (Tag oder ganze Woche)</span>
+            </div>
+          )}
+
           {/* Noch nicht eingeplante offene Arbeiten */}
           {team.length > 0 && (
-            <div className="mt-3 text-xs text-slate-400">
+            <div className="mt-2 text-xs text-slate-400">
               {(() => {
                 const unverplant = arbeitenOffen.filter((a) => !a.geplant);
                 return `${unverplant.length} offene Arbeiten sind noch keinem Tag zugeordnet – über ＋ in einer Zelle oder im Backlog (Feld „geplant für") einplanen.`;
@@ -2445,6 +2615,13 @@ function App() {
               </div>
               <button onClick={() => setPlanungPicker(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
             </div>
+            <button
+              onClick={() => { const p = planungPicker; setPlanungPicker(null); setPlanNotiz({ person: p.person, datum: p.datum, text: "" }); }}
+              className="w-full text-left rounded px-2.5 py-2 border mb-3 font-semibold"
+              style={{ borderColor: "#E5D77A", backgroundColor: "#FEF9C3", fontSize: "0.8rem", color: "#39414B" }}
+            >
+              📝 Stattdessen freie Notiz eintragen (Info, Termin, Hinweis – ohne Backlog)
+            </button>
             {arbeitenOffen.length === 0 ? (
               <div className="text-sm italic text-slate-400 py-4">Keine offenen Arbeiten im Backlog.</div>
             ) : (
@@ -2471,6 +2648,100 @@ function App() {
                   })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Schicht setzen (Werkstattschichtplan) */}
+      {schichtPicker && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setSchichtPicker(null)}
+        >
+          <div
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-sm">Schicht – {schichtPicker.person}</div>
+              <button onClick={() => setSchichtPicker(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => setSchichtGanzeWoche(true)}
+                className="flex-1 rounded px-2 py-2 text-xs font-bold uppercase border"
+                style={schichtGanzeWoche ? { backgroundColor: "#22262B", color: "white", borderColor: "#22262B" } : { backgroundColor: "white", color: "#5B6572", borderColor: "#D6D9DC" }}
+              >
+                Ganze Woche (Mo–Fr)
+              </button>
+              <button
+                onClick={() => setSchichtGanzeWoche(false)}
+                className="flex-1 rounded px-2 py-2 text-xs font-bold uppercase border"
+                style={!schichtGanzeWoche ? { backgroundColor: "#22262B", color: "white", borderColor: "#22262B" } : { backgroundColor: "white", color: "#5B6572", borderColor: "#D6D9DC" }}
+              >
+                Nur {formatDateDE(schichtPicker.datum)}
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+              {Object.entries(SCHICHTEN).map(([name, s]) => (
+                <button
+                  key={name}
+                  onClick={() => setzeSchicht(schichtPicker.person, schichtPicker.datum, name, schichtGanzeWoche)}
+                  className="rounded px-2 py-2 text-xs font-black uppercase text-white"
+                  style={{ backgroundColor: s.color, letterSpacing: "0.03em" }}
+                >
+                  {name}
+                </button>
+              ))}
+              <button
+                onClick={() => setzeSchicht(schichtPicker.person, schichtPicker.datum, "-", schichtGanzeWoche)}
+                className="rounded px-2 py-2 text-xs font-black uppercase border"
+                style={{ backgroundColor: "white", color: "#5B6572", borderColor: "#D6D9DC" }}
+              >
+                – keine Schicht
+              </button>
+            </div>
+            <div className="mt-3 text-xs text-slate-400">
+              „Ganze Woche" setzt Mo–Fr dieser KW und räumt Tages-Ausnahmen auf. „Nur Tag" ändert nur diesen einen Tag (z. B. Mittwoch Mainsite, Rest Früh).
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Freie Notiz in einer Planungszelle */}
+      {planNotiz && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setPlanNotiz(null)}
+        >
+          <div
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-sm">📝 Notiz – {planNotiz.person}, {formatDateDE(planNotiz.datum)}</div>
+              <button onClick={() => setPlanNotiz(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+            <textarea
+              value={planNotiz.text}
+              onChange={(ev) => setPlanNotiz({ ...planNotiz, text: ev.target.value })}
+              rows={3}
+              autoFocus
+              spellCheck
+              lang="de"
+              placeholder="z. B. ab 8:30 Zahnarzt, kommt später …"
+              className="w-full rounded border px-2.5 py-2 text-sm"
+              style={{ borderColor: "#D6D9DC", backgroundColor: "#FEF9C3" }}
+            />
+            <div className="flex gap-2 mt-3">
+              <button onClick={savePlanNotiz} className="flex-1 rounded px-3 py-2 text-sm font-bold text-white" style={{ backgroundColor: "#22262B" }}>Speichern</button>
+              {planNotiz.id && (
+                <button onClick={deletePlanNotiz} className="rounded px-3 py-2 text-sm font-bold" style={{ backgroundColor: "#FBE9E7", color: "#B23A34" }}>Löschen</button>
+              )}
+              <button onClick={() => setPlanNotiz(null)} className="rounded px-3 py-2 text-sm font-bold" style={{ backgroundColor: "#F4F5F6", color: "#8A9099" }}>Abbrechen</button>
+            </div>
           </div>
         </div>
       )}

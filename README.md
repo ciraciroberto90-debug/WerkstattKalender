@@ -75,7 +75,16 @@ sie auf „nur ansehen" um (blaue Hinweisleiste).
   Einträge
 - **Drucken**: fertige Druckvorlagen (A4 quer für Kalender/Matrix, Notizen
   auf eigener Hochformat-Seite)
-- **Export/Import** aller Einträge als JSON-Datei
+- **Arbeitsplanung mit Werkstattschichtplan** (Cockpit → Planung):
+  Kalenderwochen direkt anklickbar oder per „📅 KW wählen" weit
+  vorausspringen; pro Person und Tag steht oben in der Zelle die Schicht
+  (Früh/Spät/Spät mit B/Nacht/Bereitschaft/Schule/Krank/Urlaub/Mainsite) –
+  Klick auf die Schicht ändert sie für die ganze Woche oder nur einen Tag;
+  das ＋ in der Zelle trägt eine Arbeit aus dem Backlog **oder eine freie
+  Notiz** (gelb, z. B. „ab 8:30 Zahnarzt") ein; wer Urlaub/Krank/Schule hat,
+  bekommt kein ＋
+- **Export/Import** aller Einträge als JSON-Datei; der Import versteht auch
+  Migrationsdateien mit Team-Liste (`{ "team": [...], "entries": [...] }`)
 
 ## Für Entwickler: selbst bauen
 
