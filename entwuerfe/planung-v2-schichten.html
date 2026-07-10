@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Vorlage – Planung mit Schichtplan, KW-Wahl und Notizen</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .kwleiste { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+  .kw { padding:4px 9px; border-radius:6px; font-size:0.68rem; font-weight:800; font-family:ui-monospace,Consolas,monospace; background:#fff; border:1px solid #D6D9DC; color:#5B6572; }
+  .kw.aktiv { background:#C97A2B; color:#fff; border-color:#C97A2B; }
+  .kw.heute { outline:2px solid #C97A2B; }
+  .raster { display:grid; grid-template-columns:150px repeat(5, 1fr); background:#fff; border:1px solid #E2E4E7; border-radius:12px; overflow:hidden; }
+  .kopf { padding:8px 6px; text-align:center; background:#F7F8F9; border-bottom:2px solid #22262B; font-size:0.68rem; font-weight:800; text-transform:uppercase; color:#8A9099; }
+  .pers { padding:8px 10px; border-bottom:1px solid #E2E4E7; background:#F7F8F9; display:flex; align-items:center; gap:8px; }
+  .pers .av { width:24px; height:24px; border-radius:50%; color:#fff; font-size:0.6rem; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .zelle { padding:5px; border-bottom:1px solid #E2E4E7; border-left:1px solid #EDEEF0; min-height:64px; }
+  .schicht { display:inline-block; font-size:0.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.03em; padding:2px 7px; border-radius:4px; color:#fff; margin-bottom:4px; cursor:pointer; }
+  .arbeit { display:block; font-size:0.64rem; font-weight:700; padding:2px 6px; border-radius:4px; margin-bottom:3px; }
+  .notiz { display:block; font-size:0.64rem; font-weight:600; padding:2px 6px; border-radius:4px; margin-bottom:3px; background:#FEF9C3; color:#39414B; border:1px solid #E5D77A; }
+  .plus { color:#C3C7CB; font-weight:900; font-size:0.8rem; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Planung · mit Schichtplan</span>
+  <span class="draft">VORLAGE – nicht funktional</span>
+</div>
+<main>
+  <!-- KW-Leiste: direkt anklickbar -->
+  <div class="kwleiste" style="margin-bottom:10px;">
+    <span class="kw">‹</span>
+    <span class="kw">KW 25</span><span class="kw">KW 26</span><span class="kw">KW 27</span>
+    <span class="kw aktiv">KW 28</span>
+    <span class="kw">KW 29</span><span class="kw">KW 30</span><span class="kw">KW 31</span><span class="kw">KW 32</span>
+    <span class="kw">›</span>
+    <span style="margin-left:8px;" class="kw">📅 KW wählen …</span>
+    <span class="mono" style="margin-left:auto;font-size:0.8rem;font-weight:700;">06.07. – 10.07.2026</span>
+  </div>
+
+  <div class="raster">
+    <div class="kopf" style="text-align:left;">Mitarbeiter</div>
+    <div class="kopf">Mo., 06.07.</div><div class="kopf">Di., 07.07.</div><div class="kopf" style="background:#FDF3E7;color:#C97A2B;">Mi., 08.07.</div><div class="kopf">Do., 09.07.</div><div class="kopf">Fr., 10.07.</div>
+
+    <div class="pers" style="background:#FBF7F1;"><span style="font-size:0.72rem;font-weight:800;color:#C97A2B;">Wartungsplan<br><span style="font-weight:400;color:#8A9099;">TPM &amp; R+I (fest)</span></span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="arbeit" style="color:#C97A2B;border:1px solid #C97A2B;background:#C97A2B18;">OF320</span><span class="arbeit" style="color:#2F6690;border:1px solid #2F6690;background:#2F669018;">Wasserrundgang</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="arbeit" style="color:#2F6690;border:1px solid #2F6690;background:#2F669018;">Filterwartung</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="arbeit" style="color:#2F7D4F;border:1px solid #2F7D4F;background:#E5F3EA;">✓ B1</span><span class="arbeit" style="color:#2F6690;border:1px solid #2F6690;background:#2F669018;">Hygieneplan BTA</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="arbeit" style="color:#2F6690;border:1px solid #2F6690;background:#2F669018;">Elevatorprüfung</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="arbeit" style="color:#C97A2B;border:1px solid #C97A2B;background:#C97A2B18;">VSM2</span></div>
+
+    <div class="pers"><span class="av" style="background:#3D8B8B;">BT</span><span style="font-size:0.8rem;font-weight:700;">Balles Tobias</span></div>
+    <div class="zelle"><span class="schicht" style="background:#B8791F;">Spät mit B</span><br><span class="arbeit" style="color:#3D8B8B;border:1px solid #3D8B8B;background:#3D8B8B14;">B2: TPM B2</span><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#B8791F;">Spät mit B</span><br><span class="plus">＋</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="schicht" style="background:#B8791F;">Spät mit B</span><br><span class="notiz">📝 ab 8:30 Zahnarzt, kommt später</span><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#B8791F;">Spät mit B</span><br><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#B8791F;">Spät mit B</span><br><span class="plus">＋</span></div>
+
+    <div class="pers"><span class="av" style="background:#3D8B8B;">TV</span><span style="font-size:0.8rem;font-weight:700;">Tiano Vincenzo</span></div>
+    <div class="zelle"><span class="schicht" style="background:#2F7D4F;">Früh</span><br><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#2F7D4F;">Früh</span><br><span class="arbeit" style="color:#3D8B8B;border:1px solid #3D8B8B;background:#3D8B8B14;">HRO: Rollen tauschen</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="schicht" style="background:#2F7D4F;">Früh</span><br><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#2F7D4F;">Früh</span><br><span class="notiz">📝 Trocknerdüsen TS480 vorbereiten</span></div>
+    <div class="zelle"><span class="schicht" style="background:#2F7D4F;">Früh</span><br><span class="plus">＋</span></div>
+
+    <div class="pers"><span class="av" style="background:#7C5CBF;">YM</span><span style="font-size:0.8rem;font-weight:700;">Yakar Mehmet</span></div>
+    <div class="zelle"><span class="schicht" style="background:#22262B;">Nacht</span><br><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#22262B;">Nacht</span><br><span class="plus">＋</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="schicht" style="background:#22262B;">Nacht</span><br><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#22262B;">Nacht</span><br><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#22262B;">Nacht</span><br><span class="plus">＋</span></div>
+
+    <div class="pers"><span class="av" style="background:#3D8B8B;">KT</span><span style="font-size:0.8rem;font-weight:700;">Kranich Thomas</span></div>
+    <div class="zelle"><span class="schicht" style="background:#2F6690;">Urlaub</span></div>
+    <div class="zelle"><span class="schicht" style="background:#2F6690;">Urlaub</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="schicht" style="background:#2F6690;">Urlaub</span></div>
+    <div class="zelle"><span class="schicht" style="background:#2F6690;">Urlaub</span></div>
+    <div class="zelle"><span class="schicht" style="background:#2F6690;">Urlaub</span></div>
+
+    <div class="pers"><span class="av" style="background:#C97A2B;">BL</span><span style="font-size:0.8rem;font-weight:700;">Becker Lukas</span></div>
+    <div class="zelle"><span class="schicht" style="background:#7C5CBF;">Schule</span></div>
+    <div class="zelle"><span class="schicht" style="background:#7C5CBF;">Schule</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="schicht" style="background:#3D8B8B;">Mainsite</span><br><span class="plus">＋</span></div>
+    <div class="zelle"><span class="schicht" style="background:#B23A34;">Krank</span></div>
+    <div class="zelle"><span class="schicht" style="background:#B23A34;">Krank</span></div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:0.68rem;font-weight:700;">
+    <span class="schicht" style="background:#2F7D4F;">Früh</span>
+    <span class="schicht" style="background:#C97A2B;">Spät</span>
+    <span class="schicht" style="background:#B8791F;">Spät mit B</span>
+    <span class="schicht" style="background:#22262B;">Nacht</span>
+    <span class="schicht" style="background:#8A9099;">Bereits.</span>
+    <span class="schicht" style="background:#7C5CBF;">Schule</span>
+    <span class="schicht" style="background:#B23A34;">Krank</span>
+    <span class="schicht" style="background:#2F6690;">Urlaub</span>
+    <span class="schicht" style="background:#3D8B8B;">Mainsite</span>
+    <span style="color:#8A9099;font-weight:400;align-self:center;">· Klick auf die Schicht ändert sie (Auswahl wie dein Excel-Dropdown) · „ganze Woche setzen" mit einem Klick</span>
+  </div>
+
+  <div class="hinweis" style="margin-top:12px;">
+    <strong>Neu gegenüber heute:</strong> ① KW-Leiste oben – jede Woche direkt anklickbar, „📅 KW wählen" springt zu jeder beliebigen Woche (auch weit voraus fürs Urlaubseintragen).
+    ② Jede Zelle zeigt oben die <strong>Schicht</strong> (Klick = ändern, Farben wie Legende) – dein Blatt „Daten" lebt damit direkt im Raster.
+    ③ Das ＋ fragt jetzt: <strong>Arbeit aus dem Backlog</strong> ODER <strong>freie Notiz</strong> 📝 (gelb) – für Infos wie „ab 8:30 Zahnarzt" oder „Trocknerdüsen vorbereiten", genau wie deine Arbeiten-Spalte in den KW-Blättern.
+    Urlaub/Krank/Schule ganztags blendet das ＋ aus – wer nicht da ist, bekommt nichts eingeplant.
+  </div>
+</main>
+</body>
+</html>
