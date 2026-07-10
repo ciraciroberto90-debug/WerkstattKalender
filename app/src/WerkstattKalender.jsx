@@ -435,6 +435,7 @@ function App() {
   const [schichtPicker, setSchichtPicker] = useState(null); // {person, datum} | null - Schicht setzen
   const [schichtGanzeWoche, setSchichtGanzeWoche] = useState(true); // Auswahl im Schicht-Dialog
   const [planNotiz, setPlanNotiz] = useState(null); // {person, datum, id?, text} | null - freie Notiz in Planungszelle
+  const [sonstigeOffen, setSonstigeOffen] = useState(false); // Planung: Gruppe "Sonstige" (ohne Gewerk) aufgeklappt?
   const [matrixCursor, setMatrixCursor] = useState(() => new Date()); // Monat der Schichtplan-Matrix
   const [matrixPick, setMatrixPick] = useState(null); // {person, datum, links, oben} | null - Zellen-Dropdown
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
@@ -2517,10 +2518,13 @@ function App() {
                     </div>
                   ))}
 
-                  {/* Eine Zeile pro Person */}
-                  {[...team]
-                    .sort((a, b) => ({ mech: 0, elek: 1, azubi: 2, "": 3 }[a.rolle || ""] - { mech: 0, elek: 1, azubi: 2, "": 3 }[b.rolle || ""]))
-                    .map((mitglied) => {
+                  {/* Eine Zeile pro Person; ohne Gewerk gesammelt unter "Sonstige" (zugeklappt) */}
+                  {(() => {
+                    const haupt = [...team]
+                      .filter((t) => (t.rolle || "") !== "")
+                      .sort((a, b) => ({ mech: 0, elek: 1, azubi: 2 }[a.rolle] - { mech: 0, elek: 1, azubi: 2 }[b.rolle]));
+                    const sonstige = team.filter((t) => (t.rolle || "") === "");
+                    const zeile = (mitglied) => {
                     const person = mitglied.name;
                     const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
                     return (
@@ -2576,7 +2580,24 @@ function App() {
                       })}
                     </React.Fragment>
                     );
-                  })}
+                    };
+                    return (
+                      <>
+                        {haupt.map(zeile)}
+                        {sonstige.length > 0 && (
+                          <button
+                            onClick={() => setSonstigeOffen((o) => !o)}
+                            className="text-left"
+                            style={{ gridColumn: "1 / -1", padding: "8px 10px", borderBottom: "1px solid #E2E4E7", background: "#F0F1F3", fontSize: "0.72rem", fontWeight: 800, color: "#5B6572" }}
+                            aria-label="Sonstige auf- oder zuklappen"
+                          >
+                            {sonstigeOffen ? "▾" : "▸"} Sonstige ({sonstige.length}) <span style={{ fontWeight: 400, color: "#8A9099" }}>– ohne Gewerk · zum {sonstigeOffen ? "Zuklappen" : "Aufklappen"} klicken</span>
+                          </button>
+                        )}
+                        {sonstigeOffen && sonstige.map(zeile)}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
