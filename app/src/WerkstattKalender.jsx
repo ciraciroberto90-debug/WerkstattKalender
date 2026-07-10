@@ -2096,37 +2096,41 @@ function App() {
               SPAET: { label: "Spätschicht", zeit: "14:00 – 22:00" },
               NACHT: { label: "Nachtschicht", zeit: "22:00 – 06:00" },
             };
-            const crew = crewFuer(aktuell, bezugsTag);
-            // Vorschau auf die nächste Schicht (Nacht -> Früh des Folgetags, wenn es schon nach 22 Uhr ist)
-            const naechste = aktuell === "FRUEH"
-              ? { typ: "SPAET", tag: tagKeyVon(jetzt), ab: "14:00" }
-              : aktuell === "SPAET"
-                ? { typ: "NACHT", tag: tagKeyVon(jetzt), ab: "22:00" }
-                : { typ: "FRUEH", tag: stunde >= 22 ? tagKeyVon(addDays(jetzt, 1)) : tagKeyVon(jetzt), ab: "06:00" };
-            const naechsteCrew = crewFuer(naechste.typ, naechste.tag);
+            // Zähler = wer JETZT in der Halle steht (laufende Schicht, nach Mitternacht die vom Vortag)
+            const jetztCrew = crewFuer(aktuell, bezugsTag);
+            const heuteKey2 = tagKeyVon(jetzt);
+            const spalten = [
+              ["FRUEH", "Früh"],
+              ["SPAET", "Spät / Spät mit B"],
+              ["NACHT", "Nacht"],
+            ].map(([typ, titel]) => [typ, titel, crewFuer(typ, heuteKey2)]);
             const chip = (s) => (
               <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
             );
             return (
               <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Jetzt da · {SCHICHT_INFO[aktuell].label}</span>
-                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>{SCHICHT_INFO[aktuell].zeit} Uhr · {crew.length} in der Werkstatt</span>
+                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Heute da</span>
+                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>jetzt läuft {SCHICHT_INFO[aktuell].label} ({SCHICHT_INFO[aktuell].zeit} Uhr) · <strong style={{ color: "#22262B" }}>{jetztCrew.length} in der Werkstatt</strong></span>
                   <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
                 </div>
-                {crew.length === 0 ? (
-                  <div className="text-xs italic text-slate-400">Gerade ist laut Schichtplan niemand eingetragen.</div>
-                ) : (
-                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                    {crew.map((x) => (
-                      <span key={x.name} className="inline-flex items-center gap-1.5" style={{ fontSize: "0.76rem", fontWeight: 700, color: "#39414B" }}>
-                        {chip(x.schicht)}{x.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-2 pt-2 text-xs" style={{ borderTop: "1px dashed #E2E4E7", color: "#8A9099" }}>
-                  ab {naechste.ab} Uhr ({SCHICHT_INFO[naechste.typ].label}): {naechsteCrew.length > 0 ? naechsteCrew.map((x) => x.name).join(" · ") : "niemand eingetragen"}
+                <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                  {spalten.map(([typ, titel, liste]) => (
+                    <div key={typ}>
+                      <div className="text-xs font-bold uppercase mb-1.5" style={{ color: typ === aktuell ? "#C97A2B" : "#8A9099", fontSize: "0.62rem" }}>
+                        {titel}{typ === aktuell ? " · läuft jetzt" : ""}
+                      </div>
+                      {liste.length === 0 ? (
+                        <div className="text-xs" style={{ color: "#C3C7CB" }}>–</div>
+                      ) : (
+                        liste.map((x) => (
+                          <div key={x.name} className="flex items-center gap-1.5 mb-1" style={{ fontSize: "0.76rem", fontWeight: 700, color: typ === aktuell ? "#22262B" : "#8A9099" }}>
+                            {chip(x.schicht)}{x.name}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             );
