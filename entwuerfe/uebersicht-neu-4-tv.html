@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Übersicht-Idee 4 – TV-Modus für den Werkstatt-Monitor</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  body { background:#16181B; }
+  .tv { border-radius:16px; padding:20px 26px; color:#fff; }
+  .tvkopf { display:flex; align-items:baseline; gap:18px; border-bottom:1px solid #2E3238; padding-bottom:12px; margin-bottom:16px; }
+  .uhr { font-size:2.4rem; font-weight:900; font-family:ui-monospace,Consolas,monospace; }
+  .dat { font-size:0.95rem; color:#9AA0A6; }
+  .spalten { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+  .box { background:#1F2226; border:1px solid #2E3238; border-radius:12px; padding:14px 16px; }
+  .box .t { font-size:0.66rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#9AA0A6; margin-bottom:10px; }
+  .gz { font-size:0.95rem; font-weight:700; line-height:2.1; }
+  .sk { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:22px; padding:0 6px; border-radius:5px; color:#fff; font-size:0.7rem; font-weight:900; margin-right:8px; }
+  .lauf { margin-top:16px; background:#1F2226; border:1px solid #2E3238; border-radius:10px; padding:8px 14px; font-size:0.8rem; color:#C9CDD2; white-space:nowrap; overflow:hidden; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Übersicht · Idee 4</span>
+  <span class="draft">IDEE 4 – TV-Modus (Vollbild-Knopf)</span>
+</div>
+<main>
+  <div class="tv">
+    <div class="tvkopf">
+      <span class="uhr">06:42</span>
+      <span class="dat">Freitag, 10. Juli 2026 · KW 28</span>
+      <span style="margin-left:auto;font-size:0.8rem;color:#7FD1A0;font-weight:800;">● Alle Daten live aus der gemeinsamen Datei</span>
+    </div>
+    <div class="spalten">
+      <div class="box">
+        <div class="t">Heute da</div>
+        <div class="gz">
+          <div><span class="sk" style="background:#2F7D4F;">F</span>Tiano · Ott · Ciraci</div>
+          <div><span class="sk" style="background:#C97A2B;">S</span>Wiesner</div>
+          <div><span class="sk" style="background:#B8791F;">SB</span>Balles</div>
+          <div><span class="sk" style="background:#22262B;border:1px solid #4A4F55;">N</span>Yakar</div>
+          <div><span class="sk" style="background:#B23A34;">–</span><span style="color:#9AA0A6;">Kranich (U) · Becker (K)</span></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="t">Heute fällig</div>
+        <div class="gz">
+          <div>⬜ VSM2 <span style="color:#9AA0A6;font-size:0.75rem;">TPM</span></div>
+          <div>⬜ Werkstattreinigung <span style="color:#9AA0A6;font-size:0.75rem;">R+I</span></div>
+          <div style="color:#7FD1A0;">✅ Fluormessungen HF</div>
+        </div>
+        <div style="margin-top:10px;font-size:2rem;font-weight:900;font-family:ui-monospace,Consolas,monospace;color:#E8A0A0;">5 <span style="font-size:0.75rem;color:#9AA0A6;font-weight:600;">überfällige Wartungen</span></div>
+      </div>
+      <div class="box">
+        <div class="t">Backlog-Stand</div>
+        <div style="font-size:2rem;font-weight:900;font-family:ui-monospace,Consolas,monospace;">118 <span style="font-size:0.75rem;color:#9AA0A6;font-weight:600;">offen</span></div>
+        <div style="font-size:0.85rem;color:#E8A0A0;font-weight:700;margin-top:4px;">🔴 3 × Prio 1</div>
+        <div style="font-size:0.85rem;color:#F0B27A;font-weight:700;">🟠 21 × Prio 2</div>
+        <div style="margin-top:8px;font-size:0.8rem;color:#7FD1A0;">✓ 17 erledigt diese Woche</div>
+      </div>
+    </div>
+    <div class="lauf">+++ Mo. 13.07.: B2 Montags-Rotation · Kranich noch bis 17.07. im Urlaub +++ Di. 14.07.: TÜV-Termin 9 Uhr (Notiz R. Ciraci) +++ Nächster Stillstand 18.07.: TS480 Trocknerdüsen eingeplant +++</div>
+  </div>
+
+  <div class="hinweis" style="margin-top:14px;background:#fff;">
+    <strong>Idee 4 (Must-have-Kandidat):</strong> Ein <strong>TV-Modus-Knopf</strong> oben in der Übersicht: schaltet auf dunkles Vollbild mit großer Uhr – gemacht für einen <strong>Monitor in der Werkstatt</strong>. Zeigt nur Lesbares aus 3 Metern: Wer ist da (aus dem Schichtplan), was ist heute fällig, Backlog-Stand, unten ein <strong>Laufband</strong> mit den nächsten Terminen und Notizen. Aktualisiert sich alle 30 Sekunden von selbst aus der gemeinsamen Datei – der Rechner am Monitor braucht nur Lese-Rechte. ESC beendet den Modus.
+  </div>
+</main>
+</body>
+</html>

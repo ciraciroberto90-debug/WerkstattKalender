@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Übersicht-Idee 3 – 7-Tage-Ausblick + Top-Arbeiten</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .woche { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:14px; }
+  .tagk { background:#fff; border:1px solid #E2E4E7; border-radius:10px; padding:8px; min-height:110px; }
+  .tagk.heute { border:2px solid #C97A2B; background:#FFFDF9; }
+  .tagk.we { background:#F4F8FB; }
+  .tagk .kopf { font-size:0.62rem; font-weight:800; text-transform:uppercase; color:#8A9099; margin-bottom:5px; }
+  .tagk.heute .kopf { color:#C97A2B; }
+  .pkt { font-size:0.6rem; font-weight:700; border-radius:4px; padding:1px 5px; margin-bottom:3px; display:block; }
+  .fehlt { font-size:0.58rem; color:#8A9099; margin-top:4px; border-top:1px dashed #E2E4E7; padding-top:3px; }
+  .karte { background:#fff; border:1px solid #E2E4E7; border-radius:12px; padding:14px 16px; }
+  .titel { font-size:0.68rem; font-weight:800; text-transform:uppercase; color:#8A9099; margin-bottom:10px; }
+  .top { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; margin-bottom:6px; background:#F7F8F9; }
+  .top .platz { font-size:1.05rem; font-weight:900; color:#C3C7CB; font-family:ui-monospace,Consolas,monospace; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Übersicht · Idee 3</span>
+  <span class="draft">IDEE 3 – Wochen-Ausblick</span>
+</div>
+<main>
+  <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;color:#8A9099;margin-bottom:8px;">📅 Deine nächsten 7 Tage – Wartungen, Abwesenheiten, Notizen</div>
+  <div class="woche">
+    <div class="tagk heute"><div class="kopf">Fr. 10.07. · heute</div>
+      <span class="pkt" style="color:#C97A2B;border:1px solid #C97A2B;background:#C97A2B14;">VSM2</span>
+      <span class="pkt" style="color:#2F6690;border:1px solid #2F6690;background:#2F669014;">Werkstattreinigung</span>
+      <div class="fehlt">🏖 Kranich · 🤒 Becker</div>
+    </div>
+    <div class="tagk we"><div class="kopf">Sa. 11.07.</div><span class="pkt" style="color:#8A9099;border:1px solid #8A9099;background:#8A909914;">Bereitschaft: Yakar</span></div>
+    <div class="tagk we"><div class="kopf">So. 12.07.</div></div>
+    <div class="tagk"><div class="kopf">Mo. 13.07.</div>
+      <span class="pkt" style="color:#C97A2B;border:1px solid #C97A2B;background:#C97A2B14;">B2 (Montags-Rot.)</span>
+      <span class="pkt" style="color:#2F6690;border:1px solid #2F6690;background:#2F669014;">Wasserrundgang</span>
+      <div class="fehlt">🏖 Kranich (bis 17.)</div>
+    </div>
+    <div class="tagk"><div class="kopf">Di. 14.07.</div>
+      <span class="pkt" style="color:#2F6690;border:1px solid #2F6690;background:#2F669014;">Wasserproben LRA</span>
+      <span class="pkt" style="background:#FEF9C3;color:#39414B;border:1px solid #E5D77A;">📝 TÜV-Termin 9 Uhr</span>
+    </div>
+    <div class="tagk"><div class="kopf">Mi. 15.07.</div>
+      <span class="pkt" style="color:#2F6690;border:1px solid #2F6690;background:#2F669014;">Strömungswächter</span>
+      <span class="pkt" style="color:#2F6690;border:1px solid #2F6690;background:#2F669014;">Sprinklerwartung</span>
+    </div>
+    <div class="tagk"><div class="kopf">Do. 16.07.</div>
+      <span class="pkt" style="color:#2F6690;border:1px solid #2F6690;background:#2F669014;">Elevatorprüfung</span>
+      <div class="fehlt">🎂 Wiesner Jan wird 34</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div class="karte">
+      <div class="titel">🏆 Deine Top 3 – dringendste offene Arbeiten</div>
+      <div class="top"><span class="platz">1.</span><span style="width:9px;height:9px;border-radius:50%;background:#B23A34;"></span><div style="flex:1;"><strong style="font-size:0.78rem;">SILO</strong> <span style="font-size:0.74rem;color:#39414B;">Not-Aus Schalter defekt</span></div><span style="font-size:0.6rem;color:#8A9099;">seit 12 T.</span></div>
+      <div class="top"><span class="platz">2.</span><span style="width:9px;height:9px;border-radius:50%;background:#B23A34;"></span><div style="flex:1;"><strong style="font-size:0.78rem;">HRO</strong> <span style="font-size:0.74rem;color:#39414B;">Endschalter provisorisch überbrückt</span></div><span style="font-size:0.6rem;color:#8A9099;">seit 8 T.</span></div>
+      <div class="top"><span class="platz">3.</span><span style="width:9px;height:9px;border-radius:50%;background:#C97A2B;"></span><div style="flex:1;"><strong style="font-size:0.78rem;">TS480</strong> <span style="font-size:0.74rem;color:#39414B;">Trocknerdüsen tauschen (⛔ Stillstand)</span></div><span style="font-size:0.6rem;color:#8A9099;">nächster Stillstand: 18.07.</span></div>
+      <div style="font-size:0.64rem;color:#8A9099;margin-top:6px;">Sortiert nach Prio + Alter. Klick öffnet die Arbeit im Backlog.</div>
+    </div>
+    <div class="karte">
+      <div class="titel">📊 Zahl der Woche</div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <span style="font-size:2.6rem;font-weight:900;font-family:ui-monospace,Consolas,monospace;color:#2F7D4F;">17</span>
+        <div style="font-size:0.78rem;color:#39414B;">Arbeiten hat dein Team diese Woche erledigt –<br><strong>4 mehr als letzte Woche</strong> 💪</div>
+      </div>
+      <div style="display:flex;gap:3px;margin-top:12px;align-items:flex-end;height:44px;">
+        <div style="flex:1;background:#D6E8DC;height:40%;border-radius:3px 3px 0 0;"></div>
+        <div style="flex:1;background:#D6E8DC;height:55%;border-radius:3px 3px 0 0;"></div>
+        <div style="flex:1;background:#D6E8DC;height:35%;border-radius:3px 3px 0 0;"></div>
+        <div style="flex:1;background:#D6E8DC;height:65%;border-radius:3px 3px 0 0;"></div>
+        <div style="flex:1;background:#2F7D4F;height:100%;border-radius:3px 3px 0 0;"></div>
+      </div>
+      <div style="font-size:0.6rem;color:#8A9099;margin-top:3px;">letzte 5 Wochen</div>
+    </div>
+  </div>
+
+  <div class="hinweis" style="margin-top:14px;">
+    <strong>Idee 3:</strong> Der <strong>7-Tage-Ausblick</strong> zieht alles zusammen, was du eh schon pflegst: Wartungsplan, Abwesenheiten aus dem Schichtplan, Planungs-Notizen – als Wochenleiste zum Vorausschauen („was kommt Montag auf mich zu?"). Darunter die <strong>Top-3-Arbeiten</strong> nach Prio + Alter (mit Stillstands-Hinweis) und eine kleine <strong>Erledigt-Kurve</strong> als Motivation fürs Team.
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Übersicht-Idee 1 – Guten-Morgen-Kopf + Anwesenheits-Band</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .hero { background:linear-gradient(120deg,#22262B,#3a3f45); border-radius:14px; padding:18px 22px; color:#fff; display:flex; align-items:center; gap:22px; margin-bottom:14px; }
+  .hero .gruss { font-size:1.25rem; font-weight:900; }
+  .hero .sub { font-size:0.74rem; color:#B8BdC4; margin-top:2px; }
+  .hero .stat { text-align:center; padding:0 14px; border-left:1px solid rgba(255,255,255,0.15); }
+  .hero .stat .z { font-size:1.5rem; font-weight:900; font-family:ui-monospace,Consolas,monospace; }
+  .hero .stat .l { font-size:0.58rem; text-transform:uppercase; letter-spacing:0.06em; color:#B8BDC4; }
+  .band { background:#fff; border:1px solid #E2E4E7; border-radius:12px; padding:12px 16px; margin-bottom:14px; }
+  .band .titel { font-size:0.68rem; font-weight:800; text-transform:uppercase; color:#8A9099; margin-bottom:8px; }
+  .gr { display:flex; gap:18px; flex-wrap:wrap; }
+  .gr .sp { min-width:150px; }
+  .gr .sk { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:18px; padding:0 5px; border-radius:4px; color:#fff; font-size:0.6rem; font-weight:900; margin-right:6px; }
+  .gr .nm { font-size:0.76rem; font-weight:700; color:#39414B; }
+  .gr .p { display:flex; align-items:center; margin-bottom:3px; }
+  .abw { background:#FDF6F5; border:1px solid #E8B4AE; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Übersicht · Idee 1</span>
+  <span class="draft">IDEE 1 – Morgen-Kopf + Wer-ist-da-Band</span>
+</div>
+<main>
+  <div class="hero">
+    <div style="flex:1;">
+      <div class="gruss">Guten Morgen, Roberto 👋</div>
+      <div class="sub">Freitag, 10. Juli 2026 · KW 28 · 3 Wartungen heute · nächster Feiertag: Mariä Himmelfahrt (15.08.)</div>
+    </div>
+    <div class="stat"><div class="z" style="color:#7FD1A0;">14</div><div class="l">heute da</div></div>
+    <div class="stat"><div class="z" style="color:#F0B27A;">3</div><div class="l">Urlaub/Krank</div></div>
+    <div class="stat"><div class="z" style="color:#E8A0A0;">5</div><div class="l">überfällig</div></div>
+  </div>
+
+  <div class="band">
+    <div class="titel">👷 Heute in der Werkstatt – direkt aus deinem Schichtplan</div>
+    <div class="gr">
+      <div class="sp">
+        <div class="p"><span class="sk" style="background:#2F7D4F;">F</span><span class="nm">Tiano Vincenzo</span></div>
+        <div class="p"><span class="sk" style="background:#2F7D4F;">F</span><span class="nm">Ott Jonas</span></div>
+        <div class="p"><span class="sk" style="background:#2F7D4F;">F</span><span class="nm">Ciraci Roberto</span></div>
+      </div>
+      <div class="sp">
+        <div class="p"><span class="sk" style="background:#C97A2B;">S</span><span class="nm">Wiesner Jan</span></div>
+        <div class="p"><span class="sk" style="background:#B8791F;">SB</span><span class="nm">Balles Tobias</span></div>
+      </div>
+      <div class="sp">
+        <div class="p"><span class="sk" style="background:#22262B;">N</span><span class="nm">Yakar Mehmet</span></div>
+        <div class="p"><span class="sk" style="background:#3D8B8B;">M</span><span class="nm">Hofer Lorenz</span></div>
+      </div>
+      <div class="sp" style="border-left:1px dashed #E2E4E7;padding-left:18px;">
+        <div class="p"><span class="sk" style="background:#2F6690;">U</span><span class="nm" style="color:#8A9099;">Kranich Thomas <span style="font-weight:400;">(bis 17.07.)</span></span></div>
+        <div class="p"><span class="sk" style="background:#B23A34;">K</span><span class="nm" style="color:#8A9099;">Becker Lukas</span></div>
+        <div class="p"><span class="sk" style="background:#7C5CBF;">Sch</span><span class="nm" style="color:#8A9099;">Klick Jan, Rentzios N.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div class="band" style="margin:0;">
+      <div class="titel">🔧 Heute fällig</div>
+      <div style="font-size:0.78rem;line-height:2;">
+        <div>⬜ <strong>VSM2</strong> – Taktstraße <span style="color:#8A9099;">(TPM)</span></div>
+        <div>✅ <strong>Fluormessungen HF Absorber</strong> <span style="color:#8A9099;">(R+I)</span></div>
+        <div>⬜ <strong>Werkstattreinigung</strong> <span style="color:#8A9099;">(R+I)</span></div>
+      </div>
+    </div>
+    <div class="band abw" style="margin:0;">
+      <div class="titel" style="color:#B23A34;">⚠️ Braucht deinen Blick</div>
+      <div style="font-size:0.78rem;line-height:2;">
+        <div>🔴 <strong>5 überfällige Wartungen</strong> – älteste: B3 (Mo. 29.06.)</div>
+        <div>🟠 <strong>3 Prio-1-Arbeiten</strong> unverplant im Backlog</div>
+        <div>📌 <strong>2 neue Zettel</strong> an der Pinnwand seit gestern</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hinweis" style="margin-top:14px;">
+    <strong>Idee 1:</strong> Persönlicher Kopf mit Datum/KW und den drei wichtigsten Zahlen. Darunter das <strong>„Wer ist heute da"-Band direkt aus deinem Schichtplan</strong> – Früh/Spät/Nacht-Spalten, rechts abgetrennt wer fehlt (mit „Urlaub bis…"). Dann „Heute fällig" zum Abhaken und eine rote Karte, die dir NUR zeigt, was Aufmerksamkeit braucht. Pinnwand bleibt darunter wie bisher.
+  </div>
+</main>
+</body>
+</html>
