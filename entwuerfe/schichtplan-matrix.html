@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Vorlage – Schichtplan-Matrix (wie Excel-Blatt „Daten")</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .monatnav { display:flex; gap:6px; align-items:center; margin-bottom:8px; }
+  .mbtn { padding:4px 10px; border-radius:6px; font-size:0.72rem; font-weight:800; background:#fff; border:1px solid #D6D9DC; color:#5B6572; }
+  .pinsel { display:flex; gap:5px; align-items:center; flex-wrap:wrap; margin-bottom:10px; padding:8px 10px; background:#fff; border:1px solid #E2E4E7; border-radius:10px; }
+  .pchip { font-size:0.62rem; font-weight:900; text-transform:uppercase; letter-spacing:0.03em; padding:3px 9px; border-radius:5px; color:#fff; cursor:pointer; }
+  .pchip.aktiv { outline:3px solid #22262B; outline-offset:1px; }
+  table.matrix { border-collapse:collapse; background:#fff; font-size:0.62rem; }
+  .matrix th, .matrix td { border:1px solid #E2E4E7; text-align:center; padding:0; }
+  .matrix th { background:#F7F8F9; font-weight:800; color:#8A9099; font-size:0.58rem; padding:3px 2px; }
+  .matrix th.we { background:#E5F0F8; color:#7FA6C4; }
+  .matrix th.ft { background:#FBE9E7; color:#B23A34; }
+  .matrix th.heute { background:#FDF3E7; color:#C97A2B; }
+  .matrix td.name { text-align:left; padding:4px 8px; font-size:0.7rem; font-weight:700; background:#F7F8F9; white-space:nowrap; }
+  .matrix td.name .av { display:inline-flex; width:17px; height:17px; border-radius:50%; color:#fff; font-size:0.5rem; font-weight:800; align-items:center; justify-content:center; margin-right:6px; vertical-align:middle; }
+  .z { display:block; width:26px; height:20px; line-height:20px; font-weight:900; color:#fff; }
+  .we .z, td.we { background:#EFF5FA; }
+  .leer { color:#D6D9DC; font-weight:400; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum" style="background:#3a3f45;border-radius:6px;padding:2px 10px;">Übersicht · Backlog · Planung · <strong style="color:#fff;">Schichtplan</strong></span>
+  <span class="draft">VORLAGE – nicht funktional</span>
+</div>
+<main>
+  <div class="monatnav">
+    <span class="mbtn">‹</span>
+    <span class="mbtn">Heute</span>
+    <span class="mbtn">›</span>
+    <span style="font-family:ui-monospace,Consolas,monospace;font-size:0.95rem;font-weight:800;margin-left:6px;">Juli 2026</span>
+    <span style="margin-left:auto;font-size:0.68rem;color:#8A9099;">Genau wie dein Excel-Blatt „Daten" – nur zum Schichten eintragen</span>
+  </div>
+
+  <!-- Der Stift: erst Schicht wählen, dann Tage anklicken -->
+  <div class="pinsel">
+    <span style="font-size:0.66rem;font-weight:800;text-transform:uppercase;color:#8A9099;">✏️ Stift:</span>
+    <span class="pchip" style="background:#2F7D4F;">Früh</span>
+    <span class="pchip" style="background:#C97A2B;">Spät</span>
+    <span class="pchip" style="background:#B8791F;">Spät mit B</span>
+    <span class="pchip" style="background:#22262B;">Nacht</span>
+    <span class="pchip" style="background:#8A9099;">Bereits.</span>
+    <span class="pchip" style="background:#7C5CBF;">Schule</span>
+    <span class="pchip" style="background:#B23A34;">Krank</span>
+    <span class="pchip aktiv" style="background:#2F6690;">Urlaub</span>
+    <span class="pchip" style="background:#3D8B8B;">Mainsite</span>
+    <span class="pchip" style="background:#fff;color:#5B6572;border:1px solid #D6D9DC;">– löschen</span>
+    <span style="font-size:0.66rem;color:#8A9099;margin-left:6px;">→ dann Tage anklicken oder <strong>über mehrere Tage ziehen</strong> (z. B. ganzer Urlaub in einem Zug)</span>
+  </div>
+
+  <div style="overflow-x:auto;background:#fff;border:1px solid #E2E4E7;border-radius:12px;padding:6px;">
+    <table class="matrix">
+      <tr>
+        <th style="text-align:left;padding-left:8px;">KW</th>
+        <th colspan="5">KW 27</th><th class="we"></th><th class="we"></th>
+        <th colspan="5">KW 28</th><th class="we"></th><th class="we"></th>
+        <th colspan="5">KW 29</th>
+      </tr>
+      <tr>
+        <th style="text-align:left;padding-left:8px;">Mitarbeiter</th>
+        <th>Mi<br>1.</th><th>Do<br>2.</th><th>Fr<br>3.</th><th class="we">Sa<br>4.</th><th class="we">So<br>5.</th>
+        <th>Mo<br>6.</th><th>Di<br>7.</th><th>Mi<br>8.</th><th>Do<br>9.</th><th class="heute">Fr<br>10.</th><th class="we">Sa<br>11.</th><th class="we">So<br>12.</th>
+        <th>Mo<br>13.</th><th>Di<br>14.</th><th>Mi<br>15.</th><th>Do<br>16.</th><th>Fr<br>17.</th>
+      </tr>
+      <tr>
+        <td class="name"><span class="av" style="background:#3D8B8B;">BT</span>Balles Tobias</td>
+        <td><span class="z" style="background:#C97A2B;">S</span></td><td><span class="z" style="background:#C97A2B;">S</span></td><td><span class="z" style="background:#C97A2B;">S</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#B8791F;">SB</span></td><td><span class="z" style="background:#B8791F;">SB</span></td><td><span class="z" style="background:#B8791F;">SB</span></td><td><span class="z" style="background:#B8791F;">SB</span></td><td><span class="z" style="background:#B8791F;">SB</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="av" style="background:#3D8B8B;">TV</span>Tiano Vincenzo</td>
+        <td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#3D8B8B;">M</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#C97A2B;">S</span></td><td><span class="z" style="background:#C97A2B;">S</span></td><td><span class="z" style="background:#C97A2B;">S</span></td><td><span class="z" style="background:#C97A2B;">S</span></td><td><span class="z" style="background:#C97A2B;">S</span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="av" style="background:#7C5CBF;">YM</span>Yakar Mehmet</td>
+        <td><span class="z" style="background:#22262B;">N</span></td><td><span class="z" style="background:#22262B;">N</span></td><td><span class="z" style="background:#22262B;">N</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#22262B;">N</span></td><td><span class="z" style="background:#22262B;">N</span></td><td><span class="z" style="background:#22262B;">N</span></td><td><span class="z" style="background:#22262B;">N</span></td><td><span class="z" style="background:#22262B;">N</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="leer">·</span></td><td><span class="leer">·</span></td><td><span class="leer">·</span></td><td><span class="leer">·</span></td><td><span class="leer">·</span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="av" style="background:#3D8B8B;">KT</span>Kranich Thomas</td>
+        <td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="av" style="background:#C97A2B;">BL</span>Becker Lukas</td>
+        <td><span class="z" style="background:#7C5CBF;">Sch</span></td><td><span class="z" style="background:#7C5CBF;">Sch</span></td><td><span class="z" style="background:#7C5CBF;">Sch</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td><span class="z" style="background:#2F6690;">U</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td><td><span class="z" style="background:#2F7D4F;">F</span></td>
+      </tr>
+      <tr>
+        <td class="name"><span class="av" style="background:#C97A2B;">HL</span>Hofer Lorenz</td>
+        <td><span class="z" style="background:#3D8B8B;">M</span></td><td><span class="z" style="background:#3D8B8B;">M</span></td><td><span class="z" style="background:#3D8B8B;">M</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="z" style="background:#3D8B8B;">M</span></td><td><span class="z" style="background:#3D8B8B;">M</span></td><td><span class="z" style="background:#3D8B8B;">M</span></td><td><span class="z" style="background:#3D8B8B;">M</span></td><td><span class="z" style="background:#3D8B8B;">M</span></td><td class="we"></td><td class="we"></td>
+        <td><span class="leer">·</span></td><td><span class="leer">·</span></td><td><span class="z" style="background:#B23A34;">K</span></td><td><span class="z" style="background:#B23A34;">K</span></td><td><span class="leer">·</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:0.64rem;font-weight:700;align-items:center;">
+    <span style="color:#8A9099;text-transform:uppercase;font-size:0.6rem;">Kürzel:</span>
+    <span class="pchip" style="background:#2F7D4F;cursor:default;">F = Früh</span>
+    <span class="pchip" style="background:#C97A2B;cursor:default;">S = Spät</span>
+    <span class="pchip" style="background:#B8791F;cursor:default;">SB = Spät mit B</span>
+    <span class="pchip" style="background:#22262B;cursor:default;">N = Nacht</span>
+    <span class="pchip" style="background:#8A9099;cursor:default;">B = Bereits.</span>
+    <span class="pchip" style="background:#7C5CBF;cursor:default;">Sch = Schule</span>
+    <span class="pchip" style="background:#B23A34;cursor:default;">K = Krank</span>
+    <span class="pchip" style="background:#2F6690;cursor:default;">U = Urlaub</span>
+    <span class="pchip" style="background:#3D8B8B;cursor:default;">M = Mainsite</span>
+  </div>
+
+  <div class="hinweis" style="margin-top:12px;">
+    <strong>So funktioniert es:</strong> Neuer Unterpunkt <strong>„Schichtplan"</strong> im Cockpit (neben Planung) – dein Blatt „Daten" als Monats-Matrix.
+    ① Oben beim <strong>✏️ Stift</strong> eine Schicht wählen (hier: Urlaub). ② Dann in der Tabelle die Tage <strong>anklicken oder mit gedrückter Maustaste über mehrere Tage ziehen</strong> – so trägst du einen 2-Wochen-Urlaub in einer Bewegung ein. „– löschen" nimmt Schichten wieder raus.
+    Monat vor/zurück mit ‹ › wie gewohnt. Wochenenden sind ausgegraut, der heutige Tag ist markiert, Feiertage rot.
+    <strong>Alles landet sofort in der Arbeitsplanung</strong> – gleiche Daten, nur zwei Ansichten: hier schnell eintragen (viele Tage, alle Leute), in der Planung die Woche im Detail mit Arbeiten und Notizen.
+  </div>
+</main>
+</body>
+</html>
