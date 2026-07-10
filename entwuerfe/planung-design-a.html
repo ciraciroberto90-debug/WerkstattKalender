@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Planung Design A – Kürzel-Badge, Wochenende schmal</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .raster { display:grid; grid-template-columns:170px repeat(5,1fr) 0.45fr 0.45fr; background:#fff; border:1px solid #E2E4E7; border-radius:12px; overflow:hidden; }
+  .kopf { padding:8px 6px; text-align:center; background:#F7F8F9; border-bottom:2px solid #22262B; font-size:0.66rem; font-weight:800; text-transform:uppercase; color:#8A9099; }
+  .kopf.we { background:#E5F0F8; color:#7FA6C4; }
+  .kopf.heute { background:#FDF3E7; color:#C97A2B; }
+  .pers { padding:10px; border-bottom:1px solid rgba(255,255,255,0.25); display:flex; align-items:center; gap:8px; color:#fff; }
+  .pers .n { font-size:0.8rem; font-weight:800; line-height:1.15; }
+  .pers .g { font-size:0.58rem; font-weight:600; opacity:0.85; text-transform:uppercase; letter-spacing:0.04em; }
+  .zelle { padding:5px; border-bottom:1px solid #E2E4E7; border-left:1px solid #EDEEF0; min-height:58px; position:relative; }
+  .zelle.we { background:#EFF5FA; }
+  .kz { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:18px; padding:0 4px; border-radius:4px; color:#fff; font-size:0.6rem; font-weight:900; margin-bottom:3px; }
+  .arbeit { display:block; font-size:0.64rem; font-weight:700; padding:2px 6px; border-radius:4px; margin-bottom:3px; }
+  .notiz { display:block; font-size:0.64rem; font-weight:600; padding:2px 6px; border-radius:4px; margin-bottom:3px; background:#FEF9C3; color:#39414B; border:1px solid #E5D77A; }
+  .plus { color:#C3C7CB; font-weight:900; font-size:0.8rem; }
+  .sonst { grid-column:1 / -1; padding:8px 10px; background:#F0F1F3; border-bottom:1px solid #E2E4E7; font-size:0.72rem; font-weight:800; color:#5B6572; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Planung · Design A</span>
+  <span class="draft">VORLAGE A – Badge + schmales Wochenende</span>
+</div>
+<main>
+  <div style="display:flex;gap:4px;align-items:center;margin-bottom:10px;">
+    <span style="padding:4px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;background:#fff;border:1px solid #D6D9DC;color:#5B6572;">‹</span>
+    <span style="padding:4px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;background:#C97A2B;color:#fff;">KW 28</span>
+    <span style="padding:4px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;background:#fff;border:1px solid #D6D9DC;color:#5B6572;">KW 29</span>
+    <span style="padding:4px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;background:#fff;border:1px solid #D6D9DC;color:#5B6572;">›</span>
+    <span class="mono" style="margin-left:auto;font-size:0.8rem;font-weight:700;">06.07. – 12.07.2026</span>
+  </div>
+
+  <div class="raster">
+    <div class="kopf" style="text-align:left;">Mitarbeiter</div>
+    <div class="kopf">Mo. 06.</div><div class="kopf">Di. 07.</div><div class="kopf">Mi. 08.</div><div class="kopf">Do. 09.</div><div class="kopf heute">Fr. 10.</div><div class="kopf we">Sa. 11.</div><div class="kopf we">So. 12.</div>
+
+    <div class="pers" style="background:#3D8B8B;"><div><div class="n">Tiano Vincenzo</div><div class="g">Mechaniker</div></div></div>
+    <div class="zelle"><span class="kz" style="background:#2F7D4F;">F</span><span class="arbeit" style="color:#3D8B8B;border:1px solid #3D8B8B;background:#3D8B8B14;">HRO: Rollen tauschen</span><span class="plus">＋</span></div>
+    <div class="zelle"><span class="kz" style="background:#2F7D4F;">F</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="kz" style="background:#3D8B8B;">M</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="kz" style="background:#2F7D4F;">F</span><span class="notiz">📝 Trocknerdüsen vorbereiten</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="kz" style="background:#2F7D4F;">F</span> <span class="plus">＋</span></div>
+    <div class="zelle we"></div>
+    <div class="zelle we"></div>
+
+    <div class="pers" style="background:#7C5CBF;"><div><div class="n">Yakar Mehmet</div><div class="g">Elektriker</div></div></div>
+    <div class="zelle"><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle we"><span class="kz" style="background:#8A9099;">B</span></div>
+    <div class="zelle we"></div>
+
+    <div class="pers" style="background:#C97A2B;"><div><div class="n">Klick Jan</div><div class="g">Azubi</div></div></div>
+    <div class="zelle"><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle"><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle"><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle"><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle we"></div>
+    <div class="zelle we"></div>
+
+    <div class="sonst">▸ Sonstige (12) <span style="font-weight:400;color:#8A9099;">– ohne Gewerk · zum Aufklappen klicken</span></div>
+  </div>
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;font-size:0.62rem;font-weight:800;align-items:center;color:#5B6572;">
+    <span class="kz" style="background:#2F7D4F;">F</span> Früh
+    <span class="kz" style="background:#C97A2B;">S</span> Spät
+    <span class="kz" style="background:#B8791F;">SB</span> Spät mit B
+    <span class="kz" style="background:#22262B;">N</span> Nacht
+    <span class="kz" style="background:#8A9099;">B</span> Bereits.
+    <span class="kz" style="background:#7C5CBF;">Sch</span> Schule
+    <span class="kz" style="background:#B23A34;">K</span> Krank
+    <span class="kz" style="background:#2F6690;">U</span> Urlaub
+    <span class="kz" style="background:#3D8B8B;">M</span> Mainsite
+  </div>
+
+  <div class="hinweis" style="margin-top:12px;">
+    <strong>Design A:</strong> Namenskachel komplett in Gewerk-Farbe (mit Gewerk klein darunter), Schicht als kleines <strong>Kürzel-Badge</strong> oben links in der Zelle, daneben ＋. Sa/So sind <strong>schmaler</strong> als die Arbeitstage (meist leer, brauchen wenig Platz) – Schichten wie Bereitschaft passen trotzdem rein. Arbeiten und Notizen wie gehabt.
+  </div>
+</main>
+</body>
+</html>

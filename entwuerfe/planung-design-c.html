@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Planung Design C – Schichtband unter dem Datum</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  .raster { display:grid; grid-template-columns:56px 130px repeat(7,1fr); background:#fff; border:1px solid #E2E4E7; border-radius:12px; overflow:hidden; }
+  .kopf { padding:8px 6px; text-align:center; background:#F7F8F9; border-bottom:2px solid #22262B; font-size:0.66rem; font-weight:800; text-transform:uppercase; color:#8A9099; }
+  .kopf.we { background:#E5F0F8; color:#7FA6C4; }
+  .kopf.heute { background:#FDF3E7; color:#C97A2B; }
+  .gband { writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; color:#fff; font-size:0.62rem; font-weight:900; text-transform:uppercase; letter-spacing:0.12em; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.3); }
+  .pers { padding:10px 8px; border-bottom:1px solid #E2E4E7; background:#F7F8F9; display:flex; align-items:center; }
+  .pers .n { font-size:0.78rem; font-weight:800; line-height:1.15; }
+  .band { display:block; height:6px; border-radius:3px; margin-bottom:4px; }
+  .zelle { padding:5px; border-bottom:1px solid #E2E4E7; border-left:1px solid #EDEEF0; min-height:58px; position:relative; }
+  .zelle.we { background:#EFF5FA; }
+  .kz { font-size:0.58rem; font-weight:900; color:#fff; padding:1px 5px; border-radius:3px; }
+  .arbeit { display:block; font-size:0.64rem; font-weight:700; padding:2px 6px; border-radius:4px; margin-bottom:3px; }
+  .notiz { display:block; font-size:0.64rem; font-weight:600; padding:2px 6px; border-radius:4px; margin-bottom:3px; background:#FEF9C3; color:#39414B; border:1px solid #E5D77A; }
+  .plus { color:#C3C7CB; font-weight:900; font-size:0.8rem; }
+  .sonst { grid-column:1 / -1; padding:8px 10px; background:#F0F1F3; border-bottom:1px solid #E2E4E7; font-size:0.72rem; font-weight:800; color:#5B6572; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">Werkstatt-Kalender</span>
+  <div class="tabs"><span class="active">Cockpit</span><span>TPM</span></div>
+  <span class="datum">Planung · Design C</span>
+  <span class="draft">VORLAGE C – Gewerk-Band + Schichtstreifen</span>
+</div>
+<main>
+  <div style="display:flex;gap:4px;align-items:center;margin-bottom:10px;">
+    <span style="padding:4px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;background:#fff;border:1px solid #D6D9DC;color:#5B6572;">‹</span>
+    <span style="padding:4px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;background:#C97A2B;color:#fff;">KW 28</span>
+    <span style="padding:4px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;background:#fff;border:1px solid #D6D9DC;color:#5B6572;">KW 29</span>
+    <span style="padding:4px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;background:#fff;border:1px solid #D6D9DC;color:#5B6572;">›</span>
+    <span class="mono" style="margin-left:auto;font-size:0.8rem;font-weight:700;">06.07. – 12.07.2026</span>
+  </div>
+
+  <div class="raster">
+    <div class="kopf"></div>
+    <div class="kopf" style="text-align:left;">Name</div>
+    <div class="kopf">Mo. 06.</div><div class="kopf">Di. 07.</div><div class="kopf">Mi. 08.</div><div class="kopf">Do. 09.</div><div class="kopf heute">Fr. 10.</div><div class="kopf we">Sa. 11.</div><div class="kopf we">So. 12.</div>
+
+    <div class="gband" style="background:#3D8B8B;grid-row:span 2;">Mechanik</div>
+    <div class="pers"><div class="n">Tiano Vincenzo</div></div>
+    <div class="zelle"><span class="band" style="background:#2F7D4F;"></span><span class="kz" style="background:#2F7D4F;">F</span><span class="arbeit" style="color:#3D8B8B;border:1px solid #3D8B8B;background:#3D8B8B14;">HRO: Rollen tauschen</span><span class="plus">＋</span></div>
+    <div class="zelle"><span class="band" style="background:#2F7D4F;"></span><span class="kz" style="background:#2F7D4F;">F</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="band" style="background:#3D8B8B;"></span><span class="kz" style="background:#3D8B8B;">M</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="band" style="background:#2F7D4F;"></span><span class="kz" style="background:#2F7D4F;">F</span><span class="notiz">📝 Trocknerdüsen vorbereiten</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="band" style="background:#2F7D4F;"></span><span class="kz" style="background:#2F7D4F;">F</span> <span class="plus">＋</span></div>
+    <div class="zelle we"></div>
+    <div class="zelle we"></div>
+
+    <div class="pers"><div class="n">Kranich Thomas</div></div>
+    <div class="zelle"><span class="band" style="background:#2F6690;"></span><span class="kz" style="background:#2F6690;">U</span></div>
+    <div class="zelle"><span class="band" style="background:#2F6690;"></span><span class="kz" style="background:#2F6690;">U</span></div>
+    <div class="zelle"><span class="band" style="background:#2F6690;"></span><span class="kz" style="background:#2F6690;">U</span></div>
+    <div class="zelle"><span class="band" style="background:#2F6690;"></span><span class="kz" style="background:#2F6690;">U</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="band" style="background:#2F6690;"></span><span class="kz" style="background:#2F6690;">U</span></div>
+    <div class="zelle we"></div>
+    <div class="zelle we"></div>
+
+    <div class="gband" style="background:#7C5CBF;">Elektrik</div>
+    <div class="pers"><div class="n">Yakar Mehmet</div></div>
+    <div class="zelle"><span class="band" style="background:#22262B;"></span><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="band" style="background:#22262B;"></span><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="band" style="background:#22262B;"></span><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle"><span class="band" style="background:#22262B;"></span><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="band" style="background:#22262B;"></span><span class="kz" style="background:#22262B;">N</span> <span class="plus">＋</span></div>
+    <div class="zelle we"><span class="band" style="background:#8A9099;"></span><span class="kz" style="background:#8A9099;">B</span></div>
+    <div class="zelle we"></div>
+
+    <div class="gband" style="background:#C97A2B;">Azubis</div>
+    <div class="pers"><div class="n">Klick Jan</div></div>
+    <div class="zelle"><span class="band" style="background:#7C5CBF;"></span><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle"><span class="band" style="background:#7C5CBF;"></span><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle"><span class="band" style="background:#7C5CBF;"></span><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle"><span class="band" style="background:#7C5CBF;"></span><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle" style="background:#FFFDF9;"><span class="band" style="background:#7C5CBF;"></span><span class="kz" style="background:#7C5CBF;">Sch</span></div>
+    <div class="zelle we"></div>
+    <div class="zelle we"></div>
+
+    <div class="sonst">▸ Sonstige (12) <span style="font-weight:400;color:#8A9099;">– ohne Gewerk · zum Aufklappen klicken</span></div>
+  </div>
+
+  <div class="hinweis" style="margin-top:12px;">
+    <strong>Design C:</strong> Das Gewerk steht als <strong>farbiges Band senkrecht links</strong> und fasst die ganze Gruppe zusammen (Mechanik / Elektrik / Azubis) – die Namenszeile bleibt hell und ruhig. In jeder Zelle läuft oben ein <strong>dünner Schichtstreifen</strong> in der Schichtfarbe + kleines Kürzel. Wochenende in voller Breite, hellblau.
+  </div>
+</main>
+</body>
+</html>
