@@ -2069,17 +2069,17 @@ function App() {
             ))}
           </div>
 
-          {/* Heute da: Anwesenheit aus dem Werkstattschichtplan */}
+          {/* Heute da: nur wer wirklich in der Werkstatt ist (Früh / Spät / Nacht) */}
           {team.length > 0 && (() => {
             const heutige = team
               .map((m) => ({ name: m.name, schicht: schichtFuer(m.name, todayKey) }))
               .filter((x) => x.schicht);
-            const anwesend = heutige.filter((x) => !SCHICHT_ABWESEND.has(x.schicht));
-            const abwesend = heutige.filter((x) => SCHICHT_ABWESEND.has(x.schicht));
-            const gruppen = Object.keys(SCHICHTEN)
-              .filter((s) => !SCHICHT_ABWESEND.has(s))
-              .map((s) => [s, anwesend.filter((x) => x.schicht === s)])
-              .filter(([, liste]) => liste.length > 0);
+            const spalten = [
+              ["Früh", ["Früh"]],
+              ["Spät / Spät mit B", ["Spät", "Spät mit B"]],
+              ["Nacht", ["Nacht"]],
+            ].map(([titel, arten]) => [titel, heutige.filter((x) => arten.includes(x.schicht))]);
+            const daCount = spalten.reduce((s, [, liste]) => s + liste.length, 0);
             const chip = (s) => (
               <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
             );
@@ -2087,26 +2087,27 @@ function App() {
               <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Heute da</span>
-                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>{anwesend.length} da{abwesend.length > 0 ? ` · ${abwesend.length} abwesend` : ""} · aus dem Schichtplan</span>
+                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>{daCount} in der Werkstatt · aus dem Schichtplan</span>
                   <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
                 </div>
                 {heutige.length === 0 ? (
                   <div className="text-xs italic text-slate-400">Für heute sind noch keine Schichten eingetragen – trag sie unter Cockpit → Schichtplan ein.</div>
                 ) : (
-                  <div className="flex flex-wrap gap-x-5 gap-y-1.5 items-start">
-                    {gruppen.map(([s, liste]) => (
-                      <span key={s} className="inline-flex items-center gap-1.5" style={{ fontSize: "0.76rem", fontWeight: 700, color: "#39414B" }}>
-                        {chip(s)}
-                        {liste.map((x) => x.name).join(" · ")}
-                      </span>
+                  <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                    {spalten.map(([titel, liste]) => (
+                      <div key={titel}>
+                        <div className="text-xs font-bold uppercase mb-1.5" style={{ color: "#8A9099", fontSize: "0.62rem" }}>{titel}</div>
+                        {liste.length === 0 ? (
+                          <div className="text-xs" style={{ color: "#C3C7CB" }}>–</div>
+                        ) : (
+                          liste.map((x) => (
+                            <div key={x.name} className="flex items-center gap-1.5 mb-1" style={{ fontSize: "0.76rem", fontWeight: 700, color: "#39414B" }}>
+                              {chip(x.schicht)}{x.name}
+                            </div>
+                          ))
+                        )}
+                      </div>
                     ))}
-                    {abwesend.length > 0 && (
-                      <span className="inline-flex items-center gap-1.5" style={{ fontSize: "0.76rem", fontWeight: 600, color: "#8A9099", borderLeft: "1px dashed #D6D9DC", paddingLeft: "14px" }}>
-                        {abwesend.map((x) => (
-                          <span key={x.name} className="inline-flex items-center gap-1 mr-2">{chip(x.schicht)}{x.name}</span>
-                        ))}
-                      </span>
-                    )}
                   </div>
                 )}
               </div>
