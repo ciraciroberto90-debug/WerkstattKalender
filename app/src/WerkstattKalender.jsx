@@ -2111,14 +2111,14 @@ function App() {
               <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Heute da</span>
-                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>jetzt läuft {SCHICHT_INFO[aktuell].label} ({SCHICHT_INFO[aktuell].zeit} Uhr) · <strong style={{ color: "#22262B" }}>{jetztCrew.length} in der Werkstatt</strong></span>
+                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>({SCHICHT_INFO[aktuell].zeit}) <strong style={{ color: "#22262B" }}>{jetztCrew.length} in der Werkstatt</strong></span>
                   <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
                 </div>
                 <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
                   {spalten.map(([typ, titel, liste]) => (
                     <div key={typ}>
                       <div className="text-xs font-bold uppercase mb-1.5" style={{ color: typ === aktuell ? "#C97A2B" : "#8A9099", fontSize: "0.62rem" }}>
-                        {titel}{typ === aktuell ? " · läuft jetzt" : ""}
+                        {titel}
                       </div>
                       {liste.length === 0 ? (
                         <div className="text-xs" style={{ color: "#C3C7CB" }}>–</div>
