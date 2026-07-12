@@ -505,6 +505,12 @@ function App() {
     if (readerMode) setView("PLAN");
   }, [readerMode]);
 
+  // ...html?monitor=1 kennzeichnet ein dediziertes Kiosk-Gerät (Bildschirm in der
+  // Werkstatt ohne eigenen Arbeitsplatz). NUR dort ist der Werkstatt-Monitor auch
+  // für Nur-Leser erreichbar - ein normaler Leser (Kollege am eigenen PC) soll
+  // weiterhin ausschließlich den Plan sehen, wie ursprünglich festgelegt.
+  const kioskMonitor = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("monitor") === "1";
+
   // Werkstatt-Monitor: Uhr sekündlich aktualisieren, ESC beendet den Vollbild-Modus,
   // Bildschirm bleibt wach (wichtig für einen Kiosk-Rechner ohne Nutzereingaben)
   useEffect(() => {
@@ -523,10 +529,9 @@ function App() {
     };
   }, [monitorOpen]);
 
-  // Für einen Kiosk-Rechner: Aufruf mit ...html?monitor=1 öffnet den Werkstatt-Monitor
-  // automatisch, sobald die gemeinsame Datei verbunden ist - kein Klick nötig.
+  // Kiosk-Gerät: Monitor automatisch öffnen, sobald die gemeinsame Datei verbunden ist.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("monitor") !== "1") return;
+    if (!kioskMonitor) return;
     if (shareState.status === "connected") setMonitorOpen(true);
   }, [shareState.status]);
 
@@ -1988,15 +1993,17 @@ function App() {
               <Settings size={14} />
             </button>
           )}
-          <button
-            onClick={() => setMonitorOpen(true)}
-            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "#4B5259" }}
-            title="Werkstatt-Monitor (Vollbild)"
-            aria-label="Werkstatt-Monitor"
-          >
-            <Tv size={14} />
-          </button>
+          {(!readerMode || kioskMonitor) && (
+            <button
+              onClick={() => setMonitorOpen(true)}
+              className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "#4B5259" }}
+              title="Werkstatt-Monitor (Vollbild)"
+              aria-label="Werkstatt-Monitor"
+            >
+              <Tv size={14} />
+            </button>
+          )}
           {!readerMode && (
             <>
               <button
