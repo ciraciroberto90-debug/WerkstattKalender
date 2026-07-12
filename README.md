@@ -91,6 +91,45 @@ sie auf „nur ansehen" um (blaue Hinweisleiste).
   bekommt kein ＋
 - **Export/Import** aller Einträge als JSON-Datei; der Import versteht auch
   Migrationsdateien mit Team-Liste (`{ "team": [...], "entries": [...] }`)
+- **Werkstatt-Monitor** (📺-Symbol oben): dunkles Vollbild-Dashboard für einen
+  Bildschirm in der Werkstatt – wer gerade da ist (aus dem Schichtplan), was
+  heute an Wartungen fällig/überfällig ist, Backlog-Stand, und ein Laufband
+  mit Pinnwand-Zetteln, die dafür markiert wurden. ESC oder der
+  „Beenden"-Knopf schließt ihn wieder. Für einen eigenen Monitor ohne
+  zusätzlichen Arbeitsplatz: siehe „Werkstatt-Monitor extern betreiben"
+  weiter unten.
+
+## Werkstatt-Monitor extern betreiben (eigener Bildschirm in der Werkstatt)
+
+Ein Bildschirm allein kann kein Programm ausführen – es braucht immer einen
+kleinen Rechner dahinter. Damit davon **nichts zu sehen ist**, reicht ein
+unauffälliger Mini-PC oder Raspberry Pi, der direkt hinter dem Monitor
+verschwindet (VESA-Halterung).
+
+1. **Gerät besorgen** – zwei bewährte Varianten:
+   - *Mini-PC mit Windows* (z. B. Intel NUC, Beelink, HP EliteDesk Mini,
+     ca. 150–300 €): funktioniert genau wie ein normaler Firmenrechner –
+     eure IT kennt sich damit sofort aus, Netzlaufwerk einbinden wie bei
+     jedem anderen PC.
+   - *Raspberry Pi* (ca. 80–120 € komplett): günstiger, braucht aber etwas
+     Linux-Grundwissen zum Einbinden der Netzwerk-Freigabe.
+2. **Ans Netzwerk anschließen** (am besten LAN-Kabel) – Zugriff auf dasselbe
+   Firmenlaufwerk wie du, mit **Nur-Lese-Recht** auf den Ordner (siehe
+   „Gemeinsame Nutzung" oben).
+3. **Chrome/Edge/Chromium installieren**, die Datei einmal mit dem Zusatz
+   `?monitor=1` öffnen, z. B. `Werkstatt_Kalender_TPM.html?monitor=1`, und
+   über das Ordner-Symbol einmalig mit der gemeinsamen Datei verbinden.
+   Der Werkstatt-Monitor öffnet sich danach **von selbst** – auch bei jedem
+   künftigen Neustart, ganz ohne Tastatur oder Maus.
+4. **Browser im Kiosk-/Vollbildmodus automatisch starten lassen** (z. B.
+   über die Windows-Aufgabenplanung oder Autostart-Ordner mit dem Parameter
+   `--kiosk` und dem Datei-Pfad samt `?monitor=1`).
+5. **Energiesparen/Bildschirmschoner am Gerät deaktivieren**, damit der
+   Monitor nicht einschläft (der Werkstatt-Monitor hält den Bildschirm
+   zusätzlich selbst wach, solange er offen ist).
+6. Fertig – der Mini-PC/Pi hängt unsichtbar hinter dem Monitor, zeigt
+   dauerhaft den Werkstatt-Monitor und aktualisiert sich automatisch alle
+   30 Sekunden aus der gemeinsamen Datei.
 
 ## Für Entwickler: selbst bauen
 

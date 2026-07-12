@@ -505,14 +505,30 @@ function App() {
     if (readerMode) setView("PLAN");
   }, [readerMode]);
 
-  // Werkstatt-Monitor: Uhr sekündlich aktualisieren, ESC beendet den Vollbild-Modus
+  // Werkstatt-Monitor: Uhr sekündlich aktualisieren, ESC beendet den Vollbild-Modus,
+  // Bildschirm bleibt wach (wichtig für einen Kiosk-Rechner ohne Nutzereingaben)
   useEffect(() => {
     if (!monitorOpen) return;
     const t = setInterval(() => setMonitorUhr(new Date()), 1000);
     const onKey = (e) => { if (e.key === "Escape") setMonitorOpen(false); };
     window.addEventListener("keydown", onKey);
-    return () => { clearInterval(t); window.removeEventListener("keydown", onKey); };
+    let wakeLock = null;
+    if (navigator.wakeLock) {
+      navigator.wakeLock.request("screen").then((wl) => { wakeLock = wl; }).catch(() => {});
+    }
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("keydown", onKey);
+      if (wakeLock) wakeLock.release().catch(() => {});
+    };
   }, [monitorOpen]);
+
+  // Für einen Kiosk-Rechner: Aufruf mit ...html?monitor=1 öffnet den Werkstatt-Monitor
+  // automatisch, sobald die gemeinsame Datei verbunden ist - kein Klick nötig.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("monitor") !== "1") return;
+    if (shareState.status === "connected") setMonitorOpen(true);
+  }, [shareState.status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1962,25 +1978,27 @@ function App() {
             </button>
           )}
           {!readerMode && (
+            <button
+              onClick={openSettings}
+              className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "#4B5259" }}
+              title="Anlagen & R+I-Punkte verwalten"
+              aria-label="Verwalten"
+            >
+              <Settings size={14} />
+            </button>
+          )}
+          <button
+            onClick={() => setMonitorOpen(true)}
+            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: "#4B5259" }}
+            title="Werkstatt-Monitor (Vollbild)"
+            aria-label="Werkstatt-Monitor"
+          >
+            <Tv size={14} />
+          </button>
+          {!readerMode && (
             <>
-              <button
-                onClick={openSettings}
-                className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: "#4B5259" }}
-                title="Anlagen & R+I-Punkte verwalten"
-                aria-label="Verwalten"
-              >
-                <Settings size={14} />
-              </button>
-              <button
-                onClick={() => setMonitorOpen(true)}
-                className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: "#4B5259" }}
-                title="Werkstatt-Monitor (Vollbild)"
-                aria-label="Werkstatt-Monitor"
-              >
-                <Tv size={14} />
-              </button>
               <button
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
