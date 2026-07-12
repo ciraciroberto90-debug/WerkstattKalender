@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Monitor A – Schichttafel (dunkel)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui,'Segoe UI',sans-serif; }
+  body { background:#16181B; color:#fff; padding:28px 36px; min-height:100vh; }
+  .kopf { display:flex; align-items:baseline; gap:24px; border-bottom:2px solid #2E3238; padding-bottom:16px; margin-bottom:22px; }
+  .uhr { font-size:4rem; font-weight:900; font-family:ui-monospace,Consolas,monospace; line-height:1; }
+  .dat { font-size:1.3rem; color:#9AA0A6; }
+  .live { margin-left:auto; font-size:1rem; color:#7FD1A0; font-weight:800; }
+  .spalten { display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:22px; }
+  .box { background:#1F2226; border:1px solid #2E3238; border-radius:14px; padding:20px 22px; }
+  .box .t { font-size:0.95rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:#9AA0A6; margin-bottom:14px; }
+  .crew { font-size:1.5rem; font-weight:800; line-height:2; }
+  .sk { display:inline-flex; align-items:center; justify-content:center; min-width:44px; height:36px; padding:0 10px; border-radius:8px; color:#fff; font-size:1.1rem; font-weight:900; margin-right:14px; vertical-align:middle; }
+  .fael { font-size:1.5rem; font-weight:800; line-height:2; }
+  .gross { font-size:4.5rem; font-weight:900; font-family:ui-monospace,Consolas,monospace; line-height:1.1; }
+  .lauf { margin-top:22px; background:#1F2226; border:1px solid #2E3238; border-radius:12px; padding:14px 20px; font-size:1.25rem; color:#C9CDD2; white-space:nowrap; overflow:hidden; }
+  .hinweis { margin-top:18px; background:#FDF3E7; color:#39414B; border-radius:10px; padding:12px 16px; font-size:0.85rem; line-height:1.55; }
+</style>
+</head>
+<body>
+  <div class="kopf">
+    <span class="uhr">09:41</span>
+    <span class="dat">Freitag, 10. Juli 2026 · KW 28<br>Frühschicht (06:00 – 14:00)</span>
+    <span class="live">● live · Stand 09:41:12</span>
+  </div>
+  <div class="spalten">
+    <div class="box">
+      <div class="t">Jetzt in der Werkstatt · 7</div>
+      <div class="crew">
+        <div><span class="sk" style="background:#2F7D4F;">F</span>Tiano Vincenzo</div>
+        <div><span class="sk" style="background:#2F7D4F;">F</span>Ott Jonas</div>
+        <div><span class="sk" style="background:#2F7D4F;">F</span>Ciraci Roberto</div>
+        <div><span class="sk" style="background:#2F7D4F;">F</span>Akyüz · Wittmann · Radke · Rudno</div>
+        <div style="color:#6B7178;font-size:1.1rem;margin-top:10px;">ab 14:00 <span class="sk" style="background:#B8791F;min-width:36px;height:28px;font-size:0.9rem;">SB</span>Balles <span class="sk" style="background:#C97A2B;min-width:36px;height:28px;font-size:0.9rem;">S</span>Wiesner · ab 22:00 <span class="sk" style="background:#22262B;border:1px solid #4A4F55;min-width:36px;height:28px;font-size:0.9rem;">N</span>Yakar</div>
+      </div>
+    </div>
+    <div class="box">
+      <div class="t">Heute fällig</div>
+      <div class="fael">
+        <div>⬜ VSM2 <span style="color:#9AA0A6;font-size:1rem;">TPM</span></div>
+        <div>⬜ Werkstattreinigung <span style="color:#9AA0A6;font-size:1rem;">R+I</span></div>
+        <div style="color:#7FD1A0;">✅ Fluormessungen HF</div>
+      </div>
+      <div style="margin-top:18px;display:flex;align-items:baseline;gap:12px;">
+        <span class="gross" style="color:#E8A0A0;">5</span>
+        <span style="font-size:1.1rem;color:#9AA0A6;">überfällige<br>Wartungen</span>
+      </div>
+    </div>
+    <div class="box">
+      <div class="t">Backlog</div>
+      <div style="display:flex;align-items:baseline;gap:12px;">
+        <span class="gross">118</span>
+        <span style="font-size:1.1rem;color:#9AA0A6;">offene<br>Arbeiten</span>
+      </div>
+      <div style="font-size:1.35rem;font-weight:800;margin-top:14px;color:#E8A0A0;">🔴 3 × Prio 1</div>
+      <div style="font-size:1.35rem;font-weight:800;color:#F0B27A;">🟠 21 × Prio 2</div>
+      <div style="font-size:1.2rem;margin-top:14px;color:#7FD1A0;">✓ 17 erledigt diese Woche</div>
+    </div>
+  </div>
+  <div class="lauf">+++ Mo. 13.07.: B2 Montags-Rotation +++ Kranich Thomas im Urlaub bis 17.07. +++ Di. 14.07.: TÜV-Termin 9:00 Uhr +++ Stillstand 18.07.: TS480 Trocknerdüsen eingeplant +++</div>
+  <div class="hinweis"><strong>Monitor A „Schichttafel":</strong> dunkel, drei große Karten – wer ist da (mit Vorschau auf die nächsten Schichten), was ist heute fällig, Backlog-Stand. Unten Laufband mit den nächsten Terminen und Pinnwand-Notizen. Große Uhr, alles aus 4–5 m lesbar. Öffnet sich über einen 📺-Knopf in der Übersicht, ESC beendet. Aktualisiert sich alle 30 s aus der gemeinsamen Datei (Lese-Rechte am Monitor-PC genügen).</div>
+</body>
+</html>

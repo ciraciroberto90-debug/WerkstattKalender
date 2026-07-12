@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Monitor B – Ampel-Wand (Anlagen im Fokus)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui,'Segoe UI',sans-serif; }
+  body { background:#16181B; color:#fff; padding:28px 36px; min-height:100vh; }
+  .kopf { display:flex; align-items:center; gap:20px; margin-bottom:22px; }
+  .kopf h1 { font-size:1.6rem; font-weight:900; text-transform:uppercase; letter-spacing:0.08em; }
+  .uhr { margin-left:auto; font-size:2.4rem; font-weight:900; font-family:ui-monospace,Consolas,monospace; }
+  .haupt { display:grid; grid-template-columns:2.4fr 1fr; gap:22px; }
+  .wand { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+  .anl { border-radius:14px; padding:18px 12px; text-align:center; }
+  .anl .n { font-size:1.7rem; font-weight:900; }
+  .anl .d { font-size:0.95rem; opacity:0.92; margin-top:4px; }
+  .seite { background:#1F2226; border:1px solid #2E3238; border-radius:14px; padding:18px 20px; }
+  .seite .t { font-size:0.9rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:#9AA0A6; margin-bottom:12px; }
+  .sk { display:inline-flex; align-items:center; justify-content:center; min-width:36px; height:28px; padding:0 8px; border-radius:6px; color:#fff; font-size:0.9rem; font-weight:900; margin-right:10px; vertical-align:middle; }
+  .crew { font-size:1.15rem; font-weight:700; line-height:1.9; }
+  .hinweis { margin-top:18px; background:#FDF3E7; color:#39414B; border-radius:10px; padding:12px 16px; font-size:0.85rem; line-height:1.55; }
+</style>
+</head>
+<body>
+  <div class="kopf">
+    <h1>🚦 Anlagen-Status</h1>
+    <span style="font-size:1.1rem;color:#9AA0A6;">Freitag, 10.07.2026 · KW 28</span>
+    <span class="uhr">09:41</span>
+  </div>
+  <div class="haupt">
+    <div class="wand">
+      <div class="anl" style="background:#2F7D4F;"><div class="n">HRO</div><div class="d">Mo. gewartet ✓</div></div>
+      <div class="anl" style="background:#2F7D4F;"><div class="n">RRO</div><div class="d">vor 6 Tagen ✓</div></div>
+      <div class="anl" style="background:#B8791F;"><div class="n">B2</div><div class="d">fällig Mo. 13.07.</div></div>
+      <div class="anl" style="background:#B23A34;"><div class="n">B3</div><div class="d">überfällig 11 Tage!</div></div>
+      <div class="anl" style="background:#2F7D4F;"><div class="n">B1</div><div class="d">Mi. gewartet ✓</div></div>
+      <div class="anl" style="background:#B8791F;"><div class="n">VSM2</div><div class="d">HEUTE fällig</div></div>
+      <div class="anl" style="background:#2F7D4F;"><div class="n">VSM1</div><div class="d">vor 3 Tagen ✓</div></div>
+      <div class="anl" style="background:#2F7D4F;"><div class="n">BTS</div><div class="d">vor 8 Tagen ✓</div></div>
+      <div class="anl" style="background:#B23A34;"><div class="n">TS320</div><div class="d">überfällig 4 Tage</div></div>
+      <div class="anl" style="background:#2F7D4F;"><div class="n">TS480</div><div class="d">vor 2 Tagen ✓</div></div>
+      <div class="anl" style="background:#2F7D4F;"><div class="n">TS200</div><div class="d">vor 5 Tagen ✓</div></div>
+      <div class="anl" style="background:#2F7D4F;"><div class="n">OF320</div><div class="d">Mo. gewartet ✓</div></div>
+      <div class="anl" style="background:#2F7D4F;"><div class="n">B+T</div><div class="d">vor 9 Tagen ✓</div></div>
+      <div class="anl" style="background:#3E434A;"><div class="n" style="color:#B7BEC6;">LTA1</div><div class="d" style="color:#8A9099;">erst Sept. dran</div></div>
+      <div class="anl" style="background:#3E434A;"><div class="n" style="color:#B7BEC6;">Wikler</div><div class="d" style="color:#8A9099;">erst Aug. dran</div></div>
+    </div>
+    <div>
+      <div class="seite" style="margin-bottom:16px;">
+        <div class="t">Jetzt da · Frühschicht · 7</div>
+        <div class="crew">
+          <div><span class="sk" style="background:#2F7D4F;">F</span>Tiano · Ott · Ciraci</div>
+          <div><span class="sk" style="background:#2F7D4F;">F</span>Akyüz · Wittmann</div>
+          <div><span class="sk" style="background:#2F7D4F;">F</span>Radke · Rudno</div>
+        </div>
+      </div>
+      <div class="seite">
+        <div class="t">Heute fällig</div>
+        <div class="crew">
+          <div>⬜ VSM2</div>
+          <div>⬜ Werkstattreinigung</div>
+          <div style="color:#7FD1A0;">✅ Fluormessungen</div>
+        </div>
+        <div style="margin-top:12px;font-size:1.5rem;font-weight:900;color:#E8A0A0;">5 überfällig</div>
+      </div>
+    </div>
+  </div>
+  <div class="hinweis"><strong>Monitor B „Ampel-Wand":</strong> Die Anlagen dominieren – jede Kachel groß und farbig: grün = frisch gewartet, gelb = diese Woche/heute fällig, rot = überfällig (mit Tagen), grau = noch lange nicht dran. Rechts schmal: wer jetzt da ist + Heute-fällig-Liste. Perfekt, wenn der Monitor vor allem den <strong>Maschinenzustand</strong> zeigen soll.</div>
+</body>
+</html>
