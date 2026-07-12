@@ -443,6 +443,8 @@ function App() {
   const [zettelText, setZettelText] = useState("");
   const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
+  const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
+  const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
   useEffect(() => {
@@ -502,6 +504,15 @@ function App() {
   useEffect(() => {
     if (readerMode) setView("PLAN");
   }, [readerMode]);
+
+  // Werkstatt-Monitor: Uhr sekündlich aktualisieren, ESC beendet den Vollbild-Modus
+  useEffect(() => {
+    if (!monitorOpen) return;
+    const t = setInterval(() => setMonitorUhr(new Date()), 1000);
+    const onKey = (e) => { if (e.key === "Escape") setMonitorOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => { clearInterval(t); window.removeEventListener("keydown", onKey); };
+  }, [monitorOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1031,6 +1042,7 @@ function App() {
       note: zettelText.trim(),
       zeit: new Date().toISOString(),
       farbe: farben[zettelListe.length % farben.length],
+      monitor: false,
     };
     await persist([...entries, zettel]);
     setZettelText("");
@@ -1039,6 +1051,9 @@ function App() {
   const deleteZettel = async (id) => {
     if (!window.confirm("Diesen Zettel entfernen?")) return;
     await persist(entries.filter((e) => e.id !== id));
+  };
+  const toggleZettelMonitor = async (id) => {
+    await persist(entries.map((e) => (e.id === id ? { ...e, monitor: !e.monitor } : e)));
   };
 
   // ---- Personen-Helfer (Zuweisung & Planung) ----
@@ -1197,6 +1212,45 @@ function App() {
     const woche = entries.find((e) => e.category === "SCHICHT" && e.scope === "woche" && e.name === person && e.woche === wKey);
     return woche && SCHICHTEN[woche.wert] ? woche.wert : null;
   };
+
+  // ---- Werkstatt-Monitor: wer ist JETZT da (Früh 06-14, Spät 14-22, Nacht 22-06) ----
+  // Genutzt vom Cockpit-Übersicht-Kachel "Heute da" und vom Vollbild-Monitor.
+  const jetztInDerWerkstatt = (() => {
+    const jetzt = new Date();
+    const stunde = jetzt.getHours();
+    const aktuell = stunde >= 6 && stunde < 14 ? "FRUEH" : stunde >= 14 && stunde < 22 ? "SPAET" : "NACHT";
+    const tagKeyVon = (d) => dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    // Nach Mitternacht (0-6 Uhr) läuft noch die Nachtschicht vom Vortag
+    const bezugsTag = aktuell === "NACHT" && stunde < 6 ? tagKeyVon(addDays(jetzt, -1)) : tagKeyVon(jetzt);
+    // Crew einer Schicht an einem Tag; Früh enthält auch alle mit Gewerk
+    // OHNE eingetragene Schicht (= Tagschicht), "Sonstige" bleiben draußen
+    const crewFuer = (typ, tag) => {
+      const arten = { FRUEH: ["Früh"], SPAET: ["Spät", "Spät mit B"], NACHT: ["Nacht"] }[typ];
+      const crew = team
+        .map((m) => ({ name: m.name, rolle: m.rolle || "", schicht: schichtFuer(m.name, tag) }))
+        .filter((x) => x.schicht && arten.includes(x.schicht));
+      if (typ === "FRUEH") {
+        team.forEach((m) => {
+          if ((m.rolle || "") !== "" && !schichtFuer(m.name, tag)) crew.push({ name: m.name, schicht: "Früh" });
+        });
+      }
+      return crew;
+    };
+    const SCHICHT_INFO = {
+      FRUEH: { label: "Frühschicht", zeit: "06:00 – 14:00" },
+      SPAET: { label: "Spätschicht", zeit: "14:00 – 22:00" },
+      NACHT: { label: "Nachtschicht", zeit: "22:00 – 06:00" },
+    };
+    const jetztCrew = crewFuer(aktuell, bezugsTag);
+    const heuteKey2 = tagKeyVon(jetzt);
+    const spalten = [
+      ["FRUEH", "Früh"],
+      ["SPAET", "Spät / Spät mit B"],
+      ["NACHT", "Nacht"],
+    ].map(([typ, titel]) => [typ, titel, crewFuer(typ, heuteKey2)]);
+    return { aktuell, SCHICHT_INFO, jetztCrew, spalten };
+  })();
+
   const setzeSchicht = async (person, tagKey, wert, ganzeWoche) => {
     const montag = montagVon(tagKey);
     const wKey = isoWocheKey(montag);
@@ -2071,39 +2125,7 @@ function App() {
 
           {/* Heute da: zeigt nur die gerade LAUFENDE Schicht (Früh 06-14, Spät 14-22, Nacht 22-06) */}
           {team.length > 0 && (() => {
-            const jetzt = new Date();
-            const stunde = jetzt.getHours();
-            const aktuell = stunde >= 6 && stunde < 14 ? "FRUEH" : stunde >= 14 && stunde < 22 ? "SPAET" : "NACHT";
-            const tagKeyVon = (d) => dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-            // Nach Mitternacht (0-6 Uhr) läuft noch die Nachtschicht vom Vortag
-            const bezugsTag = aktuell === "NACHT" && stunde < 6 ? tagKeyVon(addDays(jetzt, -1)) : tagKeyVon(jetzt);
-            // Crew einer Schicht an einem Tag; Früh enthält auch alle mit Gewerk
-            // OHNE eingetragene Schicht (= Tagschicht), "Sonstige" bleiben draußen
-            const crewFuer = (typ, tag) => {
-              const arten = { FRUEH: ["Früh"], SPAET: ["Spät", "Spät mit B"], NACHT: ["Nacht"] }[typ];
-              const crew = team
-                .map((m) => ({ name: m.name, rolle: m.rolle || "", schicht: schichtFuer(m.name, tag) }))
-                .filter((x) => x.schicht && arten.includes(x.schicht));
-              if (typ === "FRUEH") {
-                team.forEach((m) => {
-                  if ((m.rolle || "") !== "" && !schichtFuer(m.name, tag)) crew.push({ name: m.name, schicht: "Früh" });
-                });
-              }
-              return crew;
-            };
-            const SCHICHT_INFO = {
-              FRUEH: { label: "Frühschicht", zeit: "06:00 – 14:00" },
-              SPAET: { label: "Spätschicht", zeit: "14:00 – 22:00" },
-              NACHT: { label: "Nachtschicht", zeit: "22:00 – 06:00" },
-            };
-            // Zähler = wer JETZT in der Halle steht (laufende Schicht, nach Mitternacht die vom Vortag)
-            const jetztCrew = crewFuer(aktuell, bezugsTag);
-            const heuteKey2 = tagKeyVon(jetzt);
-            const spalten = [
-              ["FRUEH", "Früh"],
-              ["SPAET", "Spät / Spät mit B"],
-              ["NACHT", "Nacht"],
-            ].map(([typ, titel]) => [typ, titel, crewFuer(typ, heuteKey2)]);
+            const { aktuell, SCHICHT_INFO, jetztCrew, spalten } = jetztInDerWerkstatt;
             const chip = (s) => (
               <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
             );
@@ -2112,7 +2134,8 @@ function App() {
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Heute da</span>
                   <span className="font-mono text-xs" style={{ color: "#8A9099" }}>({SCHICHT_INFO[aktuell].zeit}) <strong style={{ color: "#22262B" }}>{jetztCrew.length} in der Werkstatt</strong></span>
-                  <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
+                  <button onClick={() => setMonitorOpen(true)} className="ml-auto flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded" style={{ color: "#fff", backgroundColor: "#22262B" }} title="Werkstatt-Monitor (Vollbild)">📺 Monitor</button>
+                  <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
                 </div>
                 <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
                   {spalten.map(([typ, titel, liste]) => (
@@ -2247,13 +2270,23 @@ function App() {
                     <div className="text-right mt-1.5" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
                       {z.name} · {z.zeit ? new Date(z.zeit).toLocaleDateString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : formatDateDE(z.date)}
                     </div>
-                    <div className="flex gap-1.5 mt-2">
+                    <div className="flex gap-1.5 mt-2 flex-wrap">
                       <button
                         onClick={() => zettelZuArbeit(z)}
                         className="font-extrabold uppercase rounded text-white"
                         style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "#22262B" }}
                       >
                         ➜ Zur Arbeit machen
+                      </button>
+                      <button
+                        onClick={() => toggleZettelMonitor(z.id)}
+                        className="font-extrabold uppercase rounded"
+                        style={z.monitor
+                          ? { fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "#22262B", color: "white" }
+                          : { fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "rgba(0,0,0,0.07)", color: "#5B6572" }}
+                        title="Auf dem Werkstatt-Monitor im Laufband anzeigen"
+                      >
+                        📺 {z.monitor ? "Im Monitor" : "In Monitor anzeigen"}
                       </button>
                       <button
                         onClick={() => deleteZettel(z.id)}
@@ -4015,6 +4048,97 @@ function App() {
         Tipp: "Drucken" öffnet die Druckvorlage in einem neuen Tab (Pop-ups für diese Seite bitte erlauben) – bei der Monatsansicht zuerst als übersichtliche Kalenderseite, danach die Anlagen-Matrix. Falls der Browser Pop-ups blockiert, wird stattdessen automatisch eine Datei heruntergeladen. Filter oben auf "TPM" oder "R+I" stellen für den separaten Ausdruck je Kategorie. Am Jahresende einfach auf "Jahr" umschalten und drucken.
       </div>
       )}
+
+      {/* Werkstatt-Monitor: Vollbild-Dashboard für einen Monitor in der Werkstatt */}
+      {monitorOpen && (() => {
+        const { aktuell, SCHICHT_INFO, jetztCrew } = jetztInDerWerkstatt;
+        const chip = (s) => (
+          <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "34px", height: "26px", padding: "0 8px", fontSize: "0.8rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0, marginRight: "10px" }}>{SCHICHTEN[s].kurz}</span>
+        );
+        const prioHoch = arbeitenOffen.filter((a) => a.prio === "hoch").length;
+        const prioMittel = arbeitenOffen.filter((a) => a.prio === "mittel").length;
+        const wocheGrenze = dateKey(addDays(monitorUhr, -7).getFullYear(), addDays(monitorUhr, -7).getMonth(), addDays(monitorUhr, -7).getDate());
+        const erledigtWoche = arbeiten.filter((a) => a.status === "done" && a.erledigtAm && a.erledigtAm >= wocheGrenze).length;
+        const monitorZettel = zettelListe.filter((z) => z.monitor);
+        return (
+          <div
+            id="werkstatt-monitor"
+            className="no-print"
+            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#16181B", color: "#fff", padding: "28px 36px", display: "flex", flexDirection: "column", fontVariantNumeric: "tabular-nums" }}
+          >
+            <div className="flex items-baseline gap-6" style={{ borderBottom: "2px solid #2E3238", paddingBottom: "16px", marginBottom: "22px" }}>
+              <span style={{ fontSize: "4rem", fontWeight: 900, fontFamily: "ui-monospace,Consolas,monospace", lineHeight: 1 }}>
+                {monitorUhr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              <span style={{ fontSize: "1.3rem", color: "#9AA0A6" }}>
+                {monitorUhr.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })} · KW {getISOWeek(monitorUhr)}<br />
+                {SCHICHT_INFO[aktuell].label} ({SCHICHT_INFO[aktuell].zeit})
+              </span>
+              <button
+                onClick={() => setMonitorOpen(false)}
+                className="ml-auto rounded font-bold"
+                style={{ backgroundColor: "#2E3238", color: "#fff", padding: "8px 16px", fontSize: "1rem" }}
+              >
+                × Beenden (ESC)
+              </button>
+            </div>
+            <div className="grid gap-6" style={{ gridTemplateColumns: "1.2fr 1fr 1fr", flex: 1, minHeight: 0 }}>
+              <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
+                <div style={{ fontSize: "0.95rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9AA0A6", marginBottom: "14px" }}>
+                  Jetzt in der Werkstatt · {jetztCrew.length}
+                </div>
+                {jetztCrew.length === 0 ? (
+                  <div style={{ fontSize: "1.2rem", color: "#6B7178" }}>Gerade ist laut Schichtplan niemand eingetragen.</div>
+                ) : (
+                  <div style={{ fontSize: "1.5rem", fontWeight: 800, lineHeight: 2 }}>
+                    {jetztCrew.map((x) => (
+                      <div key={x.name}>{chip(x.schicht)}{x.name}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
+                <div style={{ fontSize: "0.95rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9AA0A6", marginBottom: "14px" }}>Heute fällig</div>
+                {heutePlan.length === 0 ? (
+                  <div style={{ fontSize: "1.2rem", color: "#6B7178" }}>Heute steht laut Plan nichts an.</div>
+                ) : (
+                  <div style={{ fontSize: "1.5rem", fontWeight: 800, lineHeight: 2 }}>
+                    {heutePlan.map((p) => {
+                      const st = statusFuerPlanPunkt(p);
+                      return (
+                        <div key={p.anlage} style={{ color: st === "done" ? "#7FD1A0" : "#fff" }}>
+                          {st === "done" ? "✅" : "⬜"} {p.anlage}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {ueberfaellige.length > 0 && (
+                  <div style={{ marginTop: "18px", display: "flex", alignItems: "baseline", gap: "12px" }}>
+                    <span style={{ fontSize: "4.5rem", fontWeight: 900, fontFamily: "ui-monospace,Consolas,monospace", lineHeight: 1, color: "#E8A0A0" }}>{ueberfaellige.length}</span>
+                    <span style={{ fontSize: "1.1rem", color: "#9AA0A6" }}>überfällige<br />Wartungen</span>
+                  </div>
+                )}
+              </div>
+              <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
+                <div style={{ fontSize: "0.95rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9AA0A6", marginBottom: "14px" }}>Backlog</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}>
+                  <span style={{ fontSize: "4.5rem", fontWeight: 900, fontFamily: "ui-monospace,Consolas,monospace", lineHeight: 1 }}>{arbeitenOffen.length}</span>
+                  <span style={{ fontSize: "1.1rem", color: "#9AA0A6" }}>offene<br />Arbeiten</span>
+                </div>
+                {prioHoch > 0 && <div style={{ fontSize: "1.35rem", fontWeight: 800, marginTop: "14px", color: "#E8A0A0" }}>🔴 {prioHoch} × Prio 1</div>}
+                {prioMittel > 0 && <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#F0B27A" }}>🟠 {prioMittel} × Prio 2</div>}
+                <div style={{ fontSize: "1.2rem", marginTop: "14px", color: "#7FD1A0" }}>✓ {erledigtWoche} erledigt diese Woche</div>
+              </div>
+            </div>
+            {monitorZettel.length > 0 && (
+              <div style={{ marginTop: "22px", background: "#1F2226", border: "1px solid #2E3238", borderRadius: "12px", padding: "14px 20px", fontSize: "1.25rem", color: "#C9CDD2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {monitorZettel.map((z) => `${z.note} (${z.name})`).join("   +++   ")}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
