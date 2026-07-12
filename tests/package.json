@@ -1,0 +1,12 @@
+{
+  "name": "werkstatt-kalender-tests",
+  "version": "1.0.0",
+  "description": "Hardness and integration tests for WerkstattKalender",
+  "scripts": {
+    "test": "node run-hardness-tests.sh",
+    "test:hardness": "bash run-hardness-tests.sh"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.40.0"
+  }
+}
