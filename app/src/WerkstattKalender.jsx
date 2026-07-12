@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -1973,6 +1973,15 @@ function App() {
                 <Settings size={14} />
               </button>
               <button
+                onClick={() => setMonitorOpen(true)}
+                className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#4B5259" }}
+                title="Werkstatt-Monitor (Vollbild)"
+                aria-label="Werkstatt-Monitor"
+              >
+                <Tv size={14} />
+              </button>
+              <button
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: "#2F6690" }}
@@ -2134,8 +2143,7 @@ function App() {
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Heute da</span>
                   <span className="font-mono text-xs" style={{ color: "#8A9099" }}>({SCHICHT_INFO[aktuell].zeit}) <strong style={{ color: "#22262B" }}>{jetztCrew.length} in der Werkstatt</strong></span>
-                  <button onClick={() => setMonitorOpen(true)} className="ml-auto flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded" style={{ color: "#fff", backgroundColor: "#22262B" }} title="Werkstatt-Monitor (Vollbild)">📺 Monitor</button>
-                  <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
+                  <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
                 </div>
                 <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
                   {spalten.map(([typ, titel, liste]) => (
