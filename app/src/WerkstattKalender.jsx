@@ -1447,7 +1447,7 @@ function App() {
             {rows.map((name) => (
               <tr key={name}>
                 <td
-                  style={{ padding: "2px 8px", fontWeight: 700, whiteSpace: "nowrap", borderRight: "1px solid #E2E4E7", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textDecorationColor: "#C3C7CB" }}
+                  style={{ padding: "2px 8px", fontWeight: 700, whiteSpace: "nowrap", borderRight: "1.5px solid #6B7280", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textDecorationColor: "#C3C7CB" }}
                   onClick={() => setRegisterItem({ category, name })}
                   title="Historie anzeigen"
                 >
@@ -1575,7 +1575,7 @@ function App() {
     });
     html += `</tr></thead><tbody>`;
     rows.forEach((name) => {
-      html += `<tr><td style="padding:2px 8px;font-weight:700;white-space:nowrap;border-right:1px solid #E2E4E7;">${escapeHtml(name)}</td>`;
+      html += `<tr><td style="padding:2px 8px;font-weight:700;white-space:nowrap;border-right:1.5px solid #6B7280;">${escapeHtml(name)}</td>`;
       days.forEach((d) => {
         const { state, hasNote } = monthCellStatus(index, name, d);
         const c = STATUS_COLORS[state];
@@ -1601,7 +1601,7 @@ function App() {
     MONTHS_SHORT.forEach((m) => { html += `<th style="padding:6px 3px;font-weight:600;color:#8A9099;">${m}</th>`; });
     html += `</tr></thead><tbody>`;
     rows.forEach((name) => {
-      html += `<tr><td style="padding:5px 10px;font-weight:700;white-space:nowrap;border-right:1px solid #E2E4E7;">${escapeHtml(name)}</td>`;
+      html += `<tr><td style="padding:5px 10px;font-weight:700;white-space:nowrap;border-right:1.5px solid #6B7280;">${escapeHtml(name)}</td>`;
       MONTHS_SHORT.forEach((m, mIdx) => {
         const { state, d, o, hasNote } = yearCellStatus(index, name, mIdx);
         const c = STATUS_COLORS[state];
@@ -1625,7 +1625,7 @@ function App() {
       <th style="text-align:left;padding:4px 8px;">Notiz</th>
     </tr></thead><tbody>`;
     notesList.forEach((e) => {
-      html += `<tr style="border-bottom:1px solid #E2E4E7;">
+      html += `<tr style="border-bottom:1.5px solid #6B7280;">
         <td style="padding:4px 8px;font-family:monospace;white-space:nowrap;">${escapeHtml(formatDateDE(e.date))}</td>
         <td style="padding:4px 8px;font-weight:700;color:${CATS[e.category].color};">${escapeHtml(CATS[e.category].label)}</td>
         <td style="padding:4px 8px;font-weight:600;">${escapeHtml(e.name)}</td>
@@ -1663,8 +1663,8 @@ function App() {
         </div>`;
       });
       const cellBg = holName ? "#FBE9E7" : weekend ? "#E5F0F8" : "white";
-      const borderColor = isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#E2E4E7";
-      return `<div style="border:${isToday ? "2px" : "1px"} solid ${borderColor};border-radius:6px;padding:5px;min-height:80px;background:${cellBg};">${inner}</div>`;
+      const borderColor = isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#6B7280";
+      return `<div style="border:${isToday ? "2px" : "1.5px"} solid ${borderColor};border-radius:6px;padding:5px;min-height:80px;background:${cellBg};">${inner}</div>`;
     };
 
     const weekRows = chunkIntoWeeks(cells)
@@ -1713,8 +1713,8 @@ function App() {
         inner += `<div style="background:${c}18;color:${c};border:1px solid ${c};border-radius:4px;padding:2px 5px;margin-bottom:2px;font-size:10px;font-weight:700;line-height:1.3;word-break:break-word;overflow-wrap:break-word;">${escapeHtml(p.anlage)}</div>`;
       });
       const cellBg = holName ? "#FBE9E7" : weekend ? "#E5F0F8" : "white";
-      const borderColor = isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#E2E4E7";
-      return `<div style="border:${isToday ? "2px" : "1px"} solid ${borderColor};border-radius:6px;padding:5px;min-height:80px;background:${cellBg};">${inner}</div>`;
+      const borderColor = isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#6B7280";
+      return `<div style="border:${isToday ? "2px" : "1.5px"} solid ${borderColor};border-radius:6px;padding:5px;min-height:80px;background:${cellBg};">${inner}</div>`;
     };
 
     const weekRows = chunkIntoWeeks(cells)
@@ -1745,7 +1745,7 @@ function App() {
     maintenancePlan.forEach((p) => {
       const dt = new Date(year, month, p.day);
       const wd = dt.toLocaleDateString("de-DE", { weekday: "long" });
-      html += `<tr style="border-bottom:1px solid #E2E4E7;">
+      html += `<tr style="border-bottom:1.5px solid #6B7280;">
         <td style="padding:5px 10px;font-family:monospace;">${escapeHtml(formatDateDE(p.date))}</td>
         <td style="padding:5px 10px;">${escapeHtml(wd)}</td>
         <td style="padding:5px 10px;font-weight:700;">${escapeHtml(p.anlage)}</td>
@@ -2369,8 +2369,8 @@ function App() {
                       style={{
                         minHeight: "132px",
                         backgroundColor: holName ? "#FBE9E7" : weekend ? "#E5F0F8" : "white",
-                        borderColor: isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#E2E4E7",
-                        borderWidth: isToday ? "2px" : "1px",
+                        borderColor: isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#6B7280",
+                        borderWidth: isToday ? "2px" : "1.5px",
                       }}
                     >
                       <div className="flex items-center justify-between">
@@ -2512,7 +2512,7 @@ function App() {
                       <tr
                         key={a.id}
                         onClick={() => openArbeitEdit(a)}
-                        style={{ borderBottom: "1px solid #E2E4E7", cursor: "pointer", opacity: a.status === "done" ? 0.6 : 1 }}
+                        style={{ borderBottom: "1.5px solid #6B7280", cursor: "pointer", opacity: a.status === "done" ? 0.6 : 1 }}
                         title="Klicken zum Bearbeiten"
                       >
                         <td style={{ textAlign: "center" }}>
@@ -2636,9 +2636,9 @@ function App() {
                   })}
 
                   {/* Feste Zeile: Wartungsplan */}
-                  <div style={{ padding: "8px 10px", borderBottom: "1px solid #E2E4E7", background: "#FBF7F1", fontSize: "0.72rem", fontWeight: 800, color: "#C97A2B" }}>Wartungsplan<br /><span style={{ fontWeight: 400, color: "#8A9099" }}>TPM &amp; R+I (fest)</span></div>
+                  <div style={{ padding: "8px 10px", borderBottom: "1.5px solid #6B7280", background: "#FBF7F1", fontSize: "0.72rem", fontWeight: 800, color: "#C97A2B" }}>Wartungsplan<br /><span style={{ fontWeight: 400, color: "#8A9099" }}>TPM &amp; R+I (fest)</span></div>
                   {planungTage.map((t) => (
-                    <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : "#FFFDF9", minHeight: "56px" }}>
+                    <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : "#FFFDF9", minHeight: "56px" }}>
                       {wochenPlan.filter((p) => p.date === t.key).map((p, i) => {
                         const done = isPlanDone(p);
                         const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
@@ -2670,7 +2670,7 @@ function App() {
                         const schicht = schichtFuer(person, t.key);
                         const abwesend = schicht && SCHICHT_ABWESEND.has(schicht);
                         return (
-                        <div key={t.key} style={{ padding: "6px", borderBottom: "1px solid #E2E4E7", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
+                        <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
                           {/* Schicht (Werkstattschichtplan) als Kürzel: Klick = ändern */}
                           <button
                             onClick={() => { setSchichtGanzeWoche(!schicht && !t.we); setSchichtPicker({ person, datum: t.key }); }}
@@ -2721,7 +2721,7 @@ function App() {
                           <button
                             onClick={() => setSonstigeOffen((o) => !o)}
                             className="text-left"
-                            style={{ gridColumn: "1 / -1", padding: "8px 10px", borderBottom: "1px solid #E2E4E7", background: "#F0F1F3", fontSize: "0.72rem", fontWeight: 800, color: "#5B6572" }}
+                            style={{ gridColumn: "1 / -1", padding: "8px 10px", borderBottom: "1.5px solid #6B7280", background: "#F0F1F3", fontSize: "0.72rem", fontWeight: 800, color: "#5B6572" }}
                             aria-label="Sonstige auf- oder zuklappen"
                           >
                             {sonstigeOffen ? "▾" : "▸"} Sonstige ({sonstige.length}) <span style={{ fontWeight: 400, color: "#8A9099" }}>– ohne Gewerk · zum {sonstigeOffen ? "Zuklappen" : "Aufklappen"} klicken</span>
@@ -2789,27 +2789,27 @@ function App() {
             </div>
 
             {team.length === 0 ? (
-              <div className="rounded-xl p-8 text-center text-sm text-slate-500" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+              <div className="rounded-xl p-8 text-center text-sm text-slate-500" style={{ backgroundColor: "white", border: "1.5px solid #6B7280" }}>
                 Noch kein Team angelegt. Öffne den <strong>⚙-Verwalten-Dialog</strong> und trage unter „Team" deine Leute ein.
               </div>
             ) : (
-              <div className="rounded-xl" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", overflowX: "auto", padding: "4px" }}>
+              <div className="rounded-xl" style={{ backgroundColor: "white", border: "1.5px solid #6B7280", overflowX: "auto", padding: "4px" }}>
                 <table style={{ borderCollapse: "collapse" }}>
                   <thead>
                     <tr>
-                      <th style={{ border: "1px solid #E2E4E7", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>KW</th>
+                      <th style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>KW</th>
                       {kwSegmente.map((s, i) => (
-                        <th key={i} colSpan={s.span} style={{ border: "1px solid #E2E4E7", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, color: "#8A9099", padding: "3px 2px" }}>KW {s.kw}</th>
+                        <th key={i} colSpan={s.span} style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, color: "#8A9099", padding: "3px 2px" }}>KW {s.kw}</th>
                       ))}
                     </tr>
                     <tr>
-                      <th style={{ border: "1px solid #E2E4E7", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>Mitarbeiter</th>
+                      <th style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>Mitarbeiter</th>
                       {tage.map((t) => {
                         const we = t.dow === 0 || t.dow === 6;
                         const ft = feiertage.get(t.key);
                         const heutig = t.key === todayKey;
                         return (
-                          <th key={t.key} title={ft || undefined} style={{ border: "1px solid #E2E4E7", minWidth: zellBreite, background: ft ? "#FBE9E7" : heutig ? "#FDF3E7" : we ? "#E5F0F8" : "#F7F8F9", fontSize: "0.58rem", fontWeight: 800, color: ft ? "#B23A34" : heutig ? "#C97A2B" : we ? "#7FA6C4" : "#8A9099", padding: "3px 2px" }}>
+                          <th key={t.key} title={ft || undefined} style={{ border: "1.5px solid #6B7280", minWidth: zellBreite, background: ft ? "#FBE9E7" : heutig ? "#FDF3E7" : we ? "#E5F0F8" : "#F7F8F9", fontSize: "0.58rem", fontWeight: 800, color: ft ? "#B23A34" : heutig ? "#C97A2B" : we ? "#7FA6C4" : "#8A9099", padding: "3px 2px" }}>
                             {WEEKDAYS[(t.dow + 6) % 7]}<br />{t.nr}.
                           </th>
                         );
@@ -2822,7 +2822,7 @@ function App() {
                       const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
                       return (
                         <tr key={person}>
-                          <td style={{ border: "1px solid #E2E4E7", background: "#F7F8F9", padding: "4px 8px", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>
+                          <td style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", padding: "4px 8px", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>
                             <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold mr-1.5" style={{ width: "18px", height: "18px", fontSize: "0.52rem", backgroundColor: rolle.color, verticalAlign: "middle" }} title={rolle.label}>{personKuerzel(person)}</span>
                             <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>{person}</span>
                           </td>
@@ -2830,7 +2830,7 @@ function App() {
                             const we = t.dow === 0 || t.dow === 6;
                             const schicht = schichtFuer(person, t.key);
                             return (
-                              <td key={t.key} style={{ border: "1px solid #E2E4E7", padding: 0, background: we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white" }}>
+                              <td key={t.key} style={{ border: "1.5px solid #6B7280", padding: 0, background: we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white" }}>
                                 <button
                                   onClick={(ev) => {
                                     const r = ev.currentTarget.getBoundingClientRect();
