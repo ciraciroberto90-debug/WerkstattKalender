@@ -2813,7 +2813,17 @@ function App() {
                         const ft = feiertage.get(t.key);
                         const heutig = t.key === todayKey;
                         return (
-                          <th key={t.key} title={ft || undefined} style={{ border: "1.5px solid #6B7280", minWidth: zellBreite, background: ft ? "#FBE9E7" : heutig ? "#FDF3E7" : we ? "#E5F0F8" : "#F7F8F9", fontSize: "0.58rem", fontWeight: 800, color: ft ? "#B23A34" : heutig ? "#C97A2B" : we ? "#7FA6C4" : "#8A9099", padding: "3px 2px" }}>
+                          <th key={t.key} title={ft || undefined} style={{
+                            border: "1.5px solid #6B7280",
+                            borderLeft: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
+                            borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
+                            borderTop: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
+                            minWidth: zellBreite,
+                            background: ft ? "#FBE9E7" : heutig ? "#C97A2B" : we ? "#E5F0F8" : "#F7F8F9",
+                            fontSize: "0.58rem", fontWeight: 800,
+                            color: ft ? "#B23A34" : heutig ? "white" : we ? "#7FA6C4" : "#8A9099",
+                            padding: "3px 2px",
+                          }}>
                             {WEEKDAYS[(t.dow + 6) % 7]}<br />{t.nr}.
                           </th>
                         );
@@ -2833,8 +2843,15 @@ function App() {
                           {tage.map((t) => {
                             const we = t.dow === 0 || t.dow === 6;
                             const schicht = schichtFuer(person, t.key);
+                            const heutig = t.key === todayKey;
                             return (
-                              <td key={t.key} style={{ border: "1.5px solid #6B7280", padding: 0, background: we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white" }}>
+                              <td key={t.key} style={{
+                                border: "1.5px solid #6B7280",
+                                borderLeft: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
+                                borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
+                                padding: 0,
+                                background: heutig ? "#FDF3E7" : we ? "#EFF5FA" : "white",
+                              }}>
                                 <button
                                   onClick={(ev) => {
                                     const r = ev.currentTarget.getBoundingClientRect();
