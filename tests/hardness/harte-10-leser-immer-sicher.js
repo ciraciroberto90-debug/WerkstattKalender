@@ -31,9 +31,9 @@ const mockHandle = (mode) => ({
 
     ok('S1: "Übersicht"-Tab sichtbar (Nur-Lesen-Standard)', await page.getByRole('button', { name: 'Übersicht', exact: true }).count() === 1);
     ok('S1: "Schichtplan"-Tab sichtbar', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 1);
+    ok('S1: "Planung"-Tab sichtbar (erlaubt, nur ansehen)', await page.getByRole('button', { name: 'Planung', exact: true }).count() === 1);
     ok('S1: "TPM-Plan"-Tab sichtbar', await page.getByRole('button', { name: 'TPM-Plan', exact: true }).count() === 1);
     ok('S1: "Backlog"-Tab NICHT sichtbar (noch nicht verbunden = sicherer Standard)', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
-    ok('S1: "Planung"-Tab NICHT sichtbar', await page.getByRole('button', { name: 'Planung', exact: true }).count() === 0);
     ok('S1: "Cockpit"-Hauptreiter NICHT sichtbar', await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 0);
     ok('S1: "Gemeinsame Datei"-Knopf IST sichtbar (sonst könnte sich niemand verbinden!)', await page.locator('button[aria-label="Gemeinsame Datei"]').count() === 1);
     await page.close();
@@ -101,6 +101,46 @@ const mockHandle = (mode) => ({
 
     ok('S4: Solo-Browser (kein FS-Access) - volle App nutzbar ("Cockpit" sichtbar)', await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 1);
     ok('S4: "Backlog" erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
+    await page.close();
+  }
+
+  // ---- Szenario 5: Leser darf "Planung" ANSEHEN, aber NICHTS darin ändern ----
+  {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    page.on('pageerror', (e) => console.log('PAGEERROR (S5):', e.message));
+    await page.addInitScript(() => {
+      const handle = {
+        name: 'kalender-daten.json', kind: 'file',
+        async getFile() { return new File(['{"format":"werkstatt-kalender-v1","savedAt":null,"entries":[],"deleted":{},"config":{"team":[{"name":"Leser Test","rolle":"mech"}]}}'], 'kalender-daten.json', { type: 'application/json' }); },
+        async createWritable() { throw new Error('NotAllowedError: nur Lesen'); },
+        async queryPermission() { return 'granted'; },
+        async requestPermission() { return 'granted'; },
+      };
+      window.showOpenFilePicker = async () => [handle];
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(500);
+    await page.locator('button[aria-label="Gemeinsame Datei"]').click();
+    await page.getByText('Vorhandene Datei öffnen …').click();
+    await page.waitForTimeout(800);
+
+    await page.getByRole('button', { name: 'Planung', exact: true }).click();
+    await page.waitForTimeout(400);
+
+    // Schicht-Kürzel-Knopf ("?") für die Person muss deaktiviert sein (kein Klick möglich)
+    const schichtBtn = page.locator('button[aria-label^="Schicht Leser Test"]').first();
+    ok('S5: Schicht-Knopf in der Planung ist deaktiviert (disabled)', await schichtBtn.isDisabled().catch(() => false));
+
+    // "+"-Knopf (Arbeit/Notiz eintragen) darf gar nicht erst existieren
+    const plusBtn = page.getByRole('button', { name: 'Arbeit oder Notiz eintragen' });
+    ok('S5: "+"-Knopf (Arbeit/Notiz eintragen) ist NICHT vorhanden', await plusBtn.count() === 0);
+
+    // Klick auf den (deaktivierten) Schicht-Knopf darf keinen Picker öffnen
+    await schichtBtn.click({ force: true }).catch(() => {});
+    await page.waitForTimeout(300);
+    const pickerOffen = await page.locator('text=Schicht – Leser Test').count();
+    ok('S5: Klick auf Schicht-Knopf öffnet KEINEN Bearbeiten-Picker', pickerOffen === 0);
+
     await page.close();
   }
 

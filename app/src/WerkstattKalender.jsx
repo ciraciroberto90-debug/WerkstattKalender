@@ -519,13 +519,13 @@ function App() {
   // sich niemand jemals verbinden).
   const confirmedReadOnly = shareChecked && shareState.status === "connected" && shareState.mode === "read";
   // Sicherheits-Klammer: solange (noch) Nur-Leser, ist ausschließlich Übersicht,
-  // Schichtplan oder TPM-Plan erlaubt - jede andere Ansicht wird sofort auf
-  // Übersicht zurückgesetzt (z. B. falls Schreibrechte während der Sitzung
+  // Schichtplan, Planung oder TPM-Plan erlaubt - jede andere Ansicht wird sofort
+  // auf Übersicht zurückgesetzt (z. B. falls Schreibrechte während der Sitzung
   // wegfallen, oder direkt beim allerersten Laden, bevor überhaupt geprüft ist).
   useEffect(() => {
     if (!readerMode) return;
     if (view !== "COCKPIT" && view !== "PLAN") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
-    if (view === "COCKPIT" && cockpitTab !== "UEBERSICHT" && cockpitTab !== "SCHICHTPLAN") setCockpitTab("UEBERSICHT");
+    if (view === "COCKPIT" && !["UEBERSICHT", "SCHICHTPLAN", "PLANUNG"].includes(cockpitTab)) setCockpitTab("UEBERSICHT");
   }, [readerMode, view, cockpitTab]);
 
   // ...html?monitor=1 kennzeichnet ein dediziertes Kiosk-Gerät (Bildschirm in der
@@ -621,6 +621,7 @@ function App() {
   }, []);
 
   const persistConfig = async (nextTpm, nextRi, nextTeam = team) => {
+    if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
     setTeam(nextTeam);
@@ -737,6 +738,7 @@ function App() {
   const fileInputRef = useRef(null);
 
   const persist = async (next) => {
+    if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setEntries(next);
     const attempt = async (retriesLeft) => {
       try {
@@ -1159,6 +1161,7 @@ function App() {
     setArbeitModal({ mode: "add", ausZettel: vorgabe.ausZettel || null });
   };
   const openArbeitEdit = (a) => {
+    if (readerMode) return;
     setADraft({
       anlage: a.name, anlageCustom: "", note: a.note || "", prio: a.prio || "ohne",
       art: a.art ?? "", azubi: !!a.azubi, stillstand: !!a.stillstand,
@@ -1309,6 +1312,7 @@ function App() {
   })();
 
   const setzeSchicht = async (person, tagKey, wert, ganzeWoche) => {
+    if (readerMode) return;
     const montag = montagVon(tagKey);
     const wKey = isoWocheKey(montag);
     const wochenTage = [0, 1, 2, 3, 4].map((i) => { const d = addDays(montag, i); return dateKey(d.getFullYear(), d.getMonth(), d.getDate()); });
@@ -1336,7 +1340,7 @@ function App() {
   const notizenFuer = (person, tagKey) =>
     entries.filter((e) => e.category === "PLANNOTIZ" && e.name === person && e.date === tagKey);
   const savePlanNotiz = async () => {
-    if (!planNotiz) return;
+    if (readerMode || !planNotiz) return;
     const text = saeubere(planNotiz.text || "");
     if (!text) { setPlanNotiz(null); return; }
     let next;
@@ -1929,12 +1933,13 @@ function App() {
           <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Kalender</div>
           {readerMode ? (
             // Nur-Lesen (auch bevor die Verbindung zur gemeinsamen Datei überhaupt
-            // steht - siehe readerMode-Definition oben): ausschließlich diese 3
-            // Ansichten, nie die vollen Cockpit-Tabs (Backlog/Planung/Auswertung/Register).
+            // steht - siehe readerMode-Definition oben): ausschließlich diese 4
+            // Ansichten, nie die vollen Cockpit-Tabs (Backlog/Auswertung/Register).
             <div className="flex rounded overflow-hidden border border-white/20">
               {[
                 ["COCKPIT_UEBERSICHT", "Übersicht"],
                 ["COCKPIT_SCHICHTPLAN", "Schichtplan"],
+                ["COCKPIT_PLANUNG", "Planung"],
                 ["PLAN", "TPM-Plan"],
               ].map(([key, label]) => {
                 const active = key === "PLAN" ? view === "PLAN" : (view === "COCKPIT" && cockpitTab === key.replace("COCKPIT_", ""));
@@ -2737,11 +2742,12 @@ function App() {
                         <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
                           {/* Schicht (Werkstattschichtplan) als Kürzel: Klick = ändern */}
                           <button
-                            onClick={() => { setSchichtGanzeWoche(!schicht && !t.we); setSchichtPicker({ person, datum: t.key }); }}
+                            onClick={() => { if (readerMode) return; setSchichtGanzeWoche(!schicht && !t.we); setSchichtPicker({ person, datum: t.key }); }}
+                            disabled={readerMode}
                             className="inline-flex items-center justify-center rounded font-black mb-1"
                             style={schicht
-                              ? { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "white", backgroundColor: SCHICHTEN[schicht].color }
-                              : { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "#C3C7CB", backgroundColor: "transparent", border: "1px dashed #D6D9DC" }}
+                              ? { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "white", backgroundColor: SCHICHTEN[schicht].color, cursor: readerMode ? "default" : "pointer" }
+                              : { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "#C3C7CB", backgroundColor: "transparent", border: "1px dashed #D6D9DC", cursor: readerMode ? "default" : "pointer" }}
                             title={schicht ? `${schicht} – Schicht für ${person} ändern` : `Schicht für ${person} setzen`}
                             aria-label={`Schicht ${person} ${t.key}`}
                           >
@@ -2757,11 +2763,18 @@ function App() {
                           })}
                           {/* Freie Notizen/Infos (gelb) */}
                           {notizenFuer(person, t.key).map((n) => (
-                            <button key={n.id} onClick={() => setPlanNotiz({ person, datum: t.key, id: n.id, text: n.note })} className="block w-full text-left rounded font-semibold mb-1" style={{ fontSize: "0.66rem", padding: "2px 6px", color: "#39414B", border: "1px solid #E5D77A", backgroundColor: "#FEF9C3", wordBreak: "break-word" }} title={n.note}>
+                            <button
+                              key={n.id}
+                              onClick={() => { if (readerMode) return; setPlanNotiz({ person, datum: t.key, id: n.id, text: n.note }); }}
+                              disabled={readerMode}
+                              className="block w-full text-left rounded font-semibold mb-1"
+                              style={{ fontSize: "0.66rem", padding: "2px 6px", color: "#39414B", border: "1px solid #E5D77A", backgroundColor: "#FEF9C3", wordBreak: "break-word", cursor: readerMode ? "default" : "pointer" }}
+                              title={n.note}
+                            >
                               📝 {n.note.length > 34 ? n.note.slice(0, 34) + "…" : n.note}
                             </button>
                           ))}
-                          {!abwesend && (
+                          {!abwesend && !readerMode && (
                             <button
                               onClick={() => setPlanungPicker({ person, datum: t.key })}
                               className="text-slate-300 hover:text-slate-600 font-black"
