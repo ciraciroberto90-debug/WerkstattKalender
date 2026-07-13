@@ -143,6 +143,18 @@ function formatDateDE(iso) {
   return `${d}.${m}.${y}`;
 }
 
+// "vor X Min." usw. für die "zuletzt aktualisiert"-Anzeige der gemeinsamen Datei.
+function formatVorZeit(iso) {
+  if (!iso) return null;
+  const sek = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (sek < 15) return "gerade eben";
+  if (sek < 60) return `vor ${sek} Sek.`;
+  const min = Math.round(sek / 60);
+  if (min < 60) return `vor ${min} Min.`;
+  const std = Math.round(min / 60);
+  return `vor ${std} Std.`;
+}
+
 function getISOWeek(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = (d.getUTCDay() + 6) % 7;
@@ -448,6 +460,13 @@ function App() {
   const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
+  const [syncTick, setSyncTick] = useState(0); // erzwingt Neu-Rendern für die "zuletzt aktualisiert"-Anzeige
+
+  // Nur zum Auffrischen der "zuletzt aktualisiert vor..."-Anzeige, kein Datenzugriff.
+  useEffect(() => {
+    const t = setInterval(() => setSyncTick((n) => n + 1), 15000);
+    return () => clearInterval(t);
+  }, []);
 
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
   useEffect(() => {
@@ -2093,22 +2112,29 @@ function App() {
               </button>
             </>
           )}
-          {/* Gemeinsame Datei: immer nur das kleine Ordner-Symbol, ganz rechts.
+          {/* Gemeinsame Datei: kleines Ordner-Symbol + "zuletzt aktualisiert"-Anzeige.
               Grün = verbunden, Grau = noch nicht eingerichtet.
               Nur-Leser sehen das Symbol nicht - sie sollen die Verbindung weder
               trennen noch eine andere Datei wählen können. */}
           {!confirmedReadOnly && (
-          <button
-            onClick={() => setShareOpen(true)}
-            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: shareState.status === "connected" ? "#2F7D4F" : "#4B5259" }}
-            title={shareState.status === "connected"
-              ? `Gemeinsame Datei verbunden: ${shareState.name}${shareState.mode === "read" ? " (nur ansehen)" : ""}`
-              : "Gemeinsame Datei einrichten (Teilen)"}
-            aria-label="Gemeinsame Datei"
-          >
-            <FolderOpen size={14} />
-          </button>
+          <>
+            {shareState.status === "connected" && sharedFile.getLastSuccessfulSyncAt() && (
+              <span key={syncTick} className="font-mono text-[11px]" style={{ color: "#B7BEC6" }} title="Zeitpunkt der letzten erfolgreichen Synchronisation mit der gemeinsamen Datei">
+                {formatVorZeit(sharedFile.getLastSuccessfulSyncAt())}
+              </span>
+            )}
+            <button
+              onClick={() => setShareOpen(true)}
+              className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: shareState.status === "connected" ? "#2F7D4F" : "#4B5259" }}
+              title={shareState.status === "connected"
+                ? `Gemeinsame Datei verbunden: ${shareState.name}${shareState.mode === "read" ? " (nur ansehen)" : ""}`
+                : "Gemeinsame Datei einrichten (Teilen)"}
+              aria-label="Gemeinsame Datei"
+            >
+              <FolderOpen size={14} />
+            </button>
+          </>
           )}
         </div>
       </div>

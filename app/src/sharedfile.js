@@ -379,34 +379,56 @@ export async function saveEntries(nextEntries, prevEntries) {
   const { stamped, removed } = stampEntries(nextEntries, prevEntries);
   const delStamp = nowISO();
   let merged = null;
+  let letzterFehler = null;
 
-  for (let versuch = 0; versuch < 3; versuch++) {
-    const fileData = await readFileData().catch(() => emptyData());
-    const deleted = { ...fileData.deleted };
-    removed.forEach((id) => {
-      if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
-    });
-    pruneTombstones(deleted);
-    merged = mergeEntries(fileData.entries, stamped, deleted);
-    const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: fileData.config };
-    await writeFileData(out);
-    lastSavedAt = out.savedAt;
+  for (let versuch = 0; versuch < 5; versuch++) {
+    try {
+      // WICHTIG: Ein Lesefehler hier darf NIE stillschweigend als "Datei ist
+      // leer" behandelt werden - das würde sonst beim Schreiben den ganzen
+      // Bestand der anderen überschreiben. Schlägt das Lesen fehl, gilt das
+      // wie eine Kollision: kurz warten, neuer Versuch.
+      const fileData = await readFileData();
+      const deleted = { ...fileData.deleted };
+      removed.forEach((id) => {
+        if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
+      });
+      pruneTombstones(deleted);
+      merged = mergeEntries(fileData.entries, stamped, deleted);
+      const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: fileData.config };
 
-    const kontrolle = await readFileData().catch(() => null);
-    if (kontrolle && changesConfirmed(kontrolle, stamped, removed, delStamp)) {
-      // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
-      lastSavedAt = kontrolle.savedAt;
-      const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
-      await recordBackup(bestaetigt, kontrolle.config);
-      return bestaetigt;
+      // Optimistische Sperre: unmittelbar vor dem Schreiben nochmal ganz kurz
+      // prüfen, ob die Datei seit unserem Lesen oben noch denselben Stand hat.
+      // Hat inzwischen jemand anderes geschrieben (echte Gleichzeitigkeit),
+      // würden wir sonst dessen bereits bestätigte Änderung unbemerkt
+      // überschreiben - lieber jetzt abbrechen und mit dem NEUEN Stand neu
+      // zusammenführen, statt das erst nach dem Schreiben zu bemerken.
+      const nochAktuell = await readFileData();
+      if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
+        throw new Error("Kollision: Datei wurde zwischenzeitlich von anderer Stelle geändert");
+      }
+
+      await writeFileData(out);
+      lastSavedAt = out.savedAt;
+
+      const kontrolle = await readFileData();
+      if (changesConfirmed(kontrolle, stamped, removed, delStamp)) {
+        // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
+        lastSavedAt = kontrolle.savedAt;
+        const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
+        await recordBackup(bestaetigt, kontrolle.config);
+        return bestaetigt;
+      }
+    } catch (e) {
+      letzterFehler = e;
     }
-    // Kollision: kurz zufällig warten, damit sich zwei Speichernde entzerren, dann neuer Versuch
-    await new Promise((r) => setTimeout(r, 60 + Math.floor(Math.random() * 120)));
+    // Kollision oder vorübergehender Fehler: kurz warten (steigend), dann neuer Versuch
+    await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 150)));
   }
-  // Nach 3 Versuchen weiterhin nicht bestätigt - nicht mehr still weitermachen,
+  // Nach mehreren Versuchen weiterhin nicht bestätigt - nicht mehr still weitermachen,
   // sondern deutlich warnen. Lokal ist nichts verloren (localStorage + Sicherung).
-  dispatchError("Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden (evtl. schreiben gerade mehrere gleichzeitig). Nichts ist verloren - bitte Seite neu laden und kurz prüfen.");
-  await recordBackup(merged, null);
+  const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
+  dispatchError(`Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten, dann erscheint automatisch ein Hinweis zum erneuten Versuch.`);
+  if (merged) await recordBackup(merged, null);
   return merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
 }
 
@@ -433,39 +455,76 @@ function changesConfirmed(data, stamped, removed, delStamp) {
 export async function saveConfig(configObj) {
   if (!fileHandle || accessMode !== "readwrite") return null;
   let saved = null;
-  for (let versuch = 0; versuch < 3; versuch++) {
-    const fileData = await readFileData().catch(() => emptyData());
-    const t = nowISO();
-    const out = { ...fileData, format: FORMAT, savedAt: t, config: { ...configObj, updatedAt: t } };
-    await writeFileData(out);
-    lastSavedAt = t;
-    saved = out.config;
-    const kontrolle = await readFileData().catch(() => null);
-    if (kontrolle && kontrolle.config && String(kontrolle.config.updatedAt || "") >= t) {
-      await recordBackup(kontrolle.entries, kontrolle.config);
-      return saved;
+  let letzterFehler = null;
+  for (let versuch = 0; versuch < 5; versuch++) {
+    try {
+      const fileData = await readFileData();
+      const t = nowISO();
+      const out = { ...fileData, format: FORMAT, savedAt: t, config: { ...configObj, updatedAt: t } };
+
+      // Optimistische Sperre wie bei saveEntries: nicht auf Basis eines
+      // veralteten Stands schreiben, sonst könnte eine zeitgleiche
+      // Einträge-Änderung von jemand anderem überschrieben werden.
+      const nochAktuell = await readFileData();
+      if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
+        throw new Error("Kollision: Datei wurde zwischenzeitlich von anderer Stelle geändert");
+      }
+
+      await writeFileData(out);
+      lastSavedAt = t;
+      saved = out.config;
+      const kontrolle = await readFileData();
+      if (kontrolle.config && String(kontrolle.config.updatedAt || "") >= t) {
+        await recordBackup(kontrolle.entries, kontrolle.config);
+        return saved;
+      }
+    } catch (e) {
+      letzterFehler = e;
     }
-    await new Promise((r) => setTimeout(r, 60 + Math.floor(Math.random() * 120)));
+    await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 150)));
   }
-  dispatchError("Die Anlagen-/Team-Liste konnte nicht sicher in der gemeinsamen Datei bestätigt werden. Nichts ist verloren - bitte Seite neu laden und kurz prüfen.");
+  const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
+  dispatchError(`Die Anlagen-/Team-Liste konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten und erneut versuchen.`);
   return saved;
 }
 
 /* ---------- Änderungen der anderen abholen ---------- */
+let pollFehlerFolge = 0; // aufeinanderfolgende gescheiterte Poll-Versuche
+let pollWarnungAktiv = false;
+let lastSuccessfulSyncAt = null; // für die "zuletzt aktualisiert"-Anzeige
+export function getLastSuccessfulSyncAt() { return lastSuccessfulSyncAt; }
+const POLL_FEHLER_SCHWELLE = 3; // ab 3 Fehlversuchen in Folge (~90s) wird gewarnt
+
 export async function pollNow() {
   if (!fileHandle) return;
   try {
     const data = await readFileData();
+    lastSuccessfulSyncAt = nowISO();
+    if (pollFehlerFolge >= POLL_FEHLER_SCHWELLE || pollWarnungAktiv) {
+      // War zwischenzeitlich nicht erreichbar, jetzt wieder da - Entwarnung geben.
+      dispatchOk();
+      pollWarnungAktiv = false;
+    }
+    pollFehlerFolge = 0;
     if (data.savedAt && data.savedAt !== lastSavedAt) {
       lastSavedAt = data.savedAt;
       syncLocal(data);
       dispatchUpdate(data);
       await recordBackup(data.entries, data.config);
     }
-  } catch (e) { /* Laufwerk kurz weg – nächster Versuch beim nächsten Intervall */ }
+  } catch (e) {
+    pollFehlerFolge++;
+    if (pollFehlerFolge === POLL_FEHLER_SCHWELLE) {
+      pollWarnungAktiv = true;
+      dispatchError(`Gemeinsame Datei ist seit ca. ${Math.round((POLL_FEHLER_SCHWELLE * POLL_MS) / 1000)} Sekunden nicht erreichbar (${e && e.name ? e.name : "Fehler"}). Deine Eingaben bleiben lokal gesichert - die App versucht automatisch weiter, es wieder zu verbinden.`);
+    }
+  }
 }
 function startPolling() {
   stopPolling();
+  pollFehlerFolge = 0;
+  pollWarnungAktiv = false;
+  lastSuccessfulSyncAt = nowISO();
   pollTimer = setInterval(pollNow, POLL_MS);
 }
 function stopPolling() {
@@ -483,5 +542,6 @@ if (typeof window !== "undefined") {
       return data;
     },
     poll: pollNow,
+    getLastSuccessfulSyncAt: () => lastSuccessfulSyncAt,
   };
 }

@@ -8,6 +8,21 @@ import * as shared from "./sharedfile.js";
 const ENTRIES_KEY = "werkstatt-kalender-entries";
 const CONFIG_KEY = "werkstatt-kalender-config";
 
+// Erkennt jede inhaltliche Abweichung zwischen dem, was gerade gespeichert
+// werden sollte, und dem tatsächlich zusammengeführten Ergebnis - nicht nur
+// eine andere Anzahl. Sonst würde z. B. eine zeitgleich geänderte Notiz des
+// anderen Bearbeiters (gleiche Anzahl Einträge, aber anderer Inhalt) erst
+// beim nächsten Hintergrund-Abgleich (bis zu 30s später) sichtbar werden.
+function unterscheidetSichVon(next, merged) {
+  if (next.length !== merged.length) return true;
+  const strip = ({ updatedAt, ...rest }) => rest;
+  const nextById = new Map(next.map((e) => [e.id, JSON.stringify(strip(e))]));
+  for (const e of merged) {
+    if (nextById.get(e.id) !== JSON.stringify(strip(e))) return true;
+  }
+  return false;
+}
+
 window.storage = {
   async get(key) {
     const value = localStorage.getItem(key);
@@ -26,8 +41,11 @@ window.storage = {
           if (merged) {
             const mergedRaw = JSON.stringify(merged);
             localStorage.setItem(key, mergedRaw);
-            // Kamen beim Zusammenführen Einträge der anderen dazu, App informieren.
-            if (merged.length !== next.length) {
+            // Kam beim Zusammenführen irgendetwas anderes heraus als das, was
+            // gerade gespeichert werden sollte (neue Einträge, gelöschte,
+            // oder inhaltlich geänderte) - App sofort informieren, nicht erst
+            // beim nächsten Hintergrund-Abgleich.
+            if (unterscheidetSichVon(next, merged)) {
               window.dispatchEvent(new CustomEvent("werkstatt-shared-update", {
                 detail: { entries: merged, config: null },
               }));
