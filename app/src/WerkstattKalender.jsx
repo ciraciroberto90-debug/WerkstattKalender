@@ -1915,7 +1915,9 @@ function App() {
               {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
               {view === "COCKPIT" ? (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"]].map(([v, label]) => (
+                  {[["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"]]
+                    .filter(([v]) => !readerMode || ["UEBERSICHT", "SCHICHTPLAN"].includes(v))
+                    .map(([v, label]) => (
                     <button
                       key={v}
                       onClick={() => setCockpitTab(v)}
@@ -1928,7 +1930,9 @@ function App() {
                 </div>
               ) : (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
+                  {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]]
+                    .filter(([v]) => !readerMode || v === "PLAN")
+                    .map(([v, label]) => {
                     const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
                     return (
                       <button
@@ -2092,6 +2096,16 @@ function App() {
       {shareErr && (
         <div className="no-print px-4 py-2 text-xs font-bold" style={{ backgroundColor: "#FBE9E7", color: "#B23A34" }}>
           ⚠ {shareErr}
+        </div>
+      )}
+
+      {readerMode && (
+        <div className="no-print px-4 py-3 text-xs font-bold flex items-center gap-3" style={{ backgroundColor: "#E5F0F8", color: "#2F6690", borderBottom: "1.5px solid #6B7280" }}>
+          <span style={{ fontSize: "18px" }}>🔒</span>
+          <div>
+            <div>Du siehst die aktuelle Planung, Schichten und TPM-Plan.</div>
+            <div style={{ opacity: 0.8 }}>Änderungen? Frag Roberto oder deinen Vertreter.</div>
+          </div>
         </div>
       )}
 
