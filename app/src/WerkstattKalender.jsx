@@ -1252,7 +1252,7 @@ function App() {
         .filter((x) => x.schicht && arten.includes(x.schicht));
       if (typ === "FRUEH") {
         team.forEach((m) => {
-          if ((m.rolle || "") !== "" && !schichtFuer(m.name, tag)) crew.push({ name: m.name, schicht: "Früh" });
+          if ((m.rolle || "") !== "" && !schichtFuer(m.name, tag)) crew.push({ name: m.name, schicht: null });
         });
       }
       return crew;
@@ -2164,8 +2164,10 @@ function App() {
           {/* Heute da: zeigt nur die gerade LAUFENDE Schicht (Früh 06-14, Spät 14-22, Nacht 22-06) */}
           {team.length > 0 && (() => {
             const { aktuell, SCHICHT_INFO, jetztCrew, spalten } = jetztInDerWerkstatt;
-            const chip = (s) => (
+            const chip = (s) => s ? (
               <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
+            ) : (
+              <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: "#E2E4E7", color: "#8A9099", flexShrink: 0 }} title="Keine Schicht eingetragen">–</span>
             );
             return (
               <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
@@ -2786,9 +2788,9 @@ function App() {
           <div className="no-print max-w-7xl mx-auto px-4 mt-4">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               <button onClick={() => setMatrixCursor(new Date(my, mm - 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Voriger Monat">‹</button>
-              <button onClick={() => setMatrixCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
-              <button onClick={() => setMatrixCursor(new Date(my, mm + 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächster Monat">›</button>
               <span className="font-mono text-sm font-bold ml-2">{MONTHS[mm]} {my}</span>
+              <button onClick={() => setMatrixCursor(new Date(my, mm + 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächster Monat">›</button>
+              <button onClick={() => setMatrixCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
               <span className="ml-auto text-xs text-slate-400">Werkstattschichtplan – Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung</span>
             </div>
 
@@ -4106,8 +4108,10 @@ function App() {
       {/* Werkstatt-Monitor: Vollbild-Dashboard für einen Monitor in der Werkstatt */}
       {monitorOpen && (() => {
         const { aktuell, SCHICHT_INFO, jetztCrew } = jetztInDerWerkstatt;
-        const chip = (s) => (
+        const chip = (s) => s ? (
           <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "34px", height: "26px", padding: "0 8px", fontSize: "0.8rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0, marginRight: "10px" }}>{SCHICHTEN[s].kurz}</span>
+        ) : (
+          <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "34px", height: "26px", padding: "0 8px", fontSize: "0.8rem", backgroundColor: "#2E3238", color: "#9AA0A6", flexShrink: 0, marginRight: "10px" }}>–</span>
         );
         const prioHoch = arbeitenOffen.filter((a) => a.prio === "hoch").length;
         const prioMittel = arbeitenOffen.filter((a) => a.prio === "mittel").length;
