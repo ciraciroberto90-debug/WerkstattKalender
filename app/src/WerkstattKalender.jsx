@@ -71,14 +71,14 @@ const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
 // Werkstattschichtplan - Schichtarten wie das Excel-Dropdown (Blatt "Daten").
 // Der Schlüssel ist zugleich der gespeicherte Wert und die Anzeige.
 const SCHICHTEN = {
-  "Früh": { color: "#2F7D4F", kurz: "F" },
-  "Spät": { color: "#C97A2B", kurz: "S" },
-  "Spät mit B": { color: "#B8791F", kurz: "SB" },
-  "Nacht": { color: "#22262B", kurz: "N" },
+  "Früh": { color: "#C9A227", kurz: "F" },
+  "Spät": { color: "#2E9B4F", kurz: "S" },
+  "Spät mit B": { color: "#1F7A3D", kurz: "SB" },
+  "Nacht": { color: "#2F6690", kurz: "N" },
   "Bereits.": { color: "#8A9099", kurz: "B" },
   "Schule": { color: "#7C5CBF", kurz: "Sch" },
   "Krank": { color: "#B23A34", kurz: "K" },
-  "Urlaub": { color: "#2F6690", kurz: "U" },
+  "Urlaub": { color: "#C97A2B", kurz: "U" },
   "Mainsite": { color: "#3D8B8B", kurz: "M" },
 };
 // Wer ganztags fehlt, bekommt in der Zelle kein ＋ (nichts einplanen)
