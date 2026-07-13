@@ -2099,16 +2099,6 @@ function App() {
         </div>
       )}
 
-      {readerMode && (
-        <div className="no-print px-4 py-3 text-xs font-bold flex items-center gap-3" style={{ backgroundColor: "#E5F0F8", color: "#2F6690", borderBottom: "1.5px solid #6B7280" }}>
-          <span style={{ fontSize: "18px" }}>🔒</span>
-          <div>
-            <div>Du siehst die aktuelle Planung, Schichten und TPM-Plan.</div>
-            <div style={{ opacity: 0.8 }}>Änderungen? Frag Roberto oder deinen Vertreter.</div>
-          </div>
-        </div>
-      )}
-
       {/* Filter + Legende + Stats */}
       {view !== "PLAN" && view !== "COCKPIT" && (
         <div className="no-print px-4 py-3 flex flex-wrap items-center gap-4 border-b bg-white" style={{ borderColor: "#D6D9DC" }}>
