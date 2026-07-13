@@ -9,6 +9,8 @@
 
 const IDB_NAME = "werkstatt-kalender-fs";
 const IDB_STORE = "handles";
+const IDB_BACKUP_STORE = "backups";
+const BACKUP_MAX_COUNT = 30; // lokale Sicherungen (pro Gerät) - Sicherheitsnetz gegen Datenverlust
 const FORMAT = "werkstatt-kalender-v1";
 const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 3600 * 1000; // Lösch-Merkliste: 180 Tage aufheben
 
@@ -40,8 +42,12 @@ export function fileName() {
 /* ---------- IndexedDB (merkt sich die gewählte Datei) ---------- */
 function idbOpen() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    const req = indexedDB.open(IDB_NAME, 2);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+      if (!db.objectStoreNames.contains(IDB_BACKUP_STORE)) db.createObjectStore(IDB_BACKUP_STORE);
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -72,6 +78,58 @@ async function idbDel(key) {
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
+}
+
+/* ---------- Lokale Sicherungen (Sicherheitsnetz gegen Datenverlust) ---------- */
+// Bei jedem bestätigten Speichern bzw. jeder abgeholten Änderung wird der
+// komplette Stand zusätzlich lokal (pro Gerät, IndexedDB) abgelegt. Rein
+// software-seitig, keine zusätzliche Technik/Server nötig.
+async function idbAddBackup(snapshot) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_BACKUP_STORE, "readwrite");
+    tx.objectStore(IDB_BACKUP_STORE).put(snapshot, snapshot.ts);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+async function idbGetAllBackups() {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_BACKUP_STORE, "readonly");
+    const req = tx.objectStore(IDB_BACKUP_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => db.close();
+  });
+}
+async function idbDelBackup(ts) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_BACKUP_STORE, "readwrite");
+    tx.objectStore(IDB_BACKUP_STORE).delete(ts);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+async function recordBackup(entries, config) {
+  try {
+    const ts = nowISO();
+    await idbAddBackup({ ts, entries: entries || [], config: config || null });
+    const all = await idbGetAllBackups();
+    if (all.length > BACKUP_MAX_COUNT) {
+      const sorted = all.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+      const zuViel = sorted.slice(0, sorted.length - BACKUP_MAX_COUNT);
+      for (const b of zuViel) await idbDelBackup(b.ts);
+    }
+  } catch (e) { /* Sicherung ist ein Zusatz - das eigentliche Speichern hat schon geklappt */ }
+}
+// Neueste zuerst - fürs Anzeigen/Wiederherstellen im Verwalten-Dialog.
+export async function listBackups() {
+  try {
+    const all = await idbGetAllBackups();
+    return all.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
+  } catch (e) { return []; }
 }
 
 /* ---------- Ereignisse an die App ---------- */
@@ -213,6 +271,7 @@ async function adoptCurrentFile(justCreated) {
   lastSavedAt = data.savedAt;
   syncLocal(data);
   dispatchUpdate(data);
+  await recordBackup(data.entries, data.config);
   return data;
 }
 
@@ -337,11 +396,17 @@ export async function saveEntries(nextEntries, prevEntries) {
     if (kontrolle && changesConfirmed(kontrolle, stamped, removed, delStamp)) {
       // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
       lastSavedAt = kontrolle.savedAt;
-      return mergeEntries(kontrolle.entries, [], kontrolle.deleted);
+      const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
+      await recordBackup(bestaetigt, kontrolle.config);
+      return bestaetigt;
     }
     // Kollision: kurz zufällig warten, damit sich zwei Speichernde entzerren, dann neuer Versuch
     await new Promise((r) => setTimeout(r, 60 + Math.floor(Math.random() * 120)));
   }
+  // Nach 3 Versuchen weiterhin nicht bestätigt - nicht mehr still weitermachen,
+  // sondern deutlich warnen. Lokal ist nichts verloren (localStorage + Sicherung).
+  dispatchError("Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden (evtl. schreiben gerade mehrere gleichzeitig). Nichts ist verloren - bitte Seite neu laden und kurz prüfen.");
+  await recordBackup(merged, null);
   return merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
 }
 
@@ -376,9 +441,13 @@ export async function saveConfig(configObj) {
     lastSavedAt = t;
     saved = out.config;
     const kontrolle = await readFileData().catch(() => null);
-    if (kontrolle && kontrolle.config && String(kontrolle.config.updatedAt || "") >= t) return saved;
+    if (kontrolle && kontrolle.config && String(kontrolle.config.updatedAt || "") >= t) {
+      await recordBackup(kontrolle.entries, kontrolle.config);
+      return saved;
+    }
     await new Promise((r) => setTimeout(r, 60 + Math.floor(Math.random() * 120)));
   }
+  dispatchError("Die Anlagen-/Team-Liste konnte nicht sicher in der gemeinsamen Datei bestätigt werden. Nichts ist verloren - bitte Seite neu laden und kurz prüfen.");
   return saved;
 }
 
@@ -391,6 +460,7 @@ export async function pollNow() {
       lastSavedAt = data.savedAt;
       syncLocal(data);
       dispatchUpdate(data);
+      await recordBackup(data.entries, data.config);
     }
   } catch (e) { /* Laufwerk kurz weg – nächster Versuch beim nächsten Intervall */ }
 }

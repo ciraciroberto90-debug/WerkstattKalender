@@ -415,6 +415,8 @@ function App() {
   const [settingsTpm, setSettingsTpm] = useState([]);
   const [settingsRi, setSettingsRi] = useState([]);
   const [settingsTeam, setSettingsTeam] = useState([]);
+  const [backups, setBackups] = useState([]); // lokale Sicherungen (Sicherheitsnetz), neueste zuerst
+  const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
   // Cockpit: Untermenü + Backlog-Filter + Arbeit-Dialog
@@ -642,6 +644,19 @@ function App() {
     // nach Umsortieren (↑/↓) der richtigen Person zugeordnet
     setSettingsTeam(team.map((t) => ({ ...t, _orig: t.name })));
     setSettingsOpen(true);
+    sharedFile.listBackups().then(setBackups).catch(() => setBackups([]));
+  };
+
+  // Sicherung wiederherstellen (Sicherheitsnetz gegen Datenverlust): ersetzt
+  // den aktuellen Stand durch den einer früheren, lokal gesicherten Version.
+  const restoreBackup = async (backup) => {
+    await persist(backup.entries || []);
+    if (backup.config) {
+      const { tpmAnlagen: bTpm, riItems: bRi, team: bTeam } = backup.config;
+      await persistConfig(bTpm || [], bRi || [], bTeam || []);
+    }
+    setRestoreConfirm(null);
+    setSettingsOpen(false);
   };
 
   const saveSettings = async () => {
@@ -3809,6 +3824,28 @@ function App() {
               + Person hinzufügen
             </button>
 
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Sicherungen (dieses Gerät)</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Bei jedem Speichern wird der Stand hier zusätzlich lokal gesichert - falls doch mal etwas schiefgeht, kannst du eine frühere Version wiederherstellen.
+            </div>
+            {backups.length === 0 ? (
+              <div className="text-xs italic mb-5" style={{ color: "#C3C7CB" }}>Noch keine Sicherung vorhanden.</div>
+            ) : (
+              <div className="flex flex-col gap-1 mb-5" style={{ maxHeight: "160px", overflowY: "auto" }}>
+                {backups.slice(0, 15).map((b) => (
+                  <div key={b.ts} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded" style={{ backgroundColor: "#F7F8F9" }}>
+                    <span className="text-xs font-mono" style={{ color: "#5B6572" }}>
+                      {new Date(b.ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      <span style={{ color: "#C3C7CB" }}> · {(b.entries || []).length} Einträge</span>
+                    </span>
+                    <button onClick={() => setRestoreConfirm(b)} className="text-xs font-bold flex-shrink-0" style={{ color: "#2F6690" }}>
+                      Wiederherstellen
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="flex gap-2 pt-2 border-t" style={{ borderColor: "#E2E4E7" }}>
               <button
                 onClick={saveSettings}
@@ -3823,6 +3860,39 @@ function App() {
             </div>
             <div className="text-xs text-slate-400 mt-3">
               Umbenennen überträgt sich automatisch auf bestehende Kalender-Einträge. Montags-Rotation-Slots und die B1-Rolle sollten je nur einmal vergeben sein, sonst greift automatisch der erste Treffer.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sicherung wiederherstellen: bestätigen, da das den aktuellen Stand ersetzt */}
+      {restoreConfirm && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "16px" }}
+          onClick={() => setRestoreConfirm(null)}
+        >
+          <div
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "420px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="font-bold text-sm mb-2">Sicherung wiederherstellen?</div>
+            <div className="text-xs mb-4" style={{ color: "#5B6572" }}>
+              Der aktuelle Stand wird durch die Sicherung vom{" "}
+              <strong>{new Date(restoreConfirm.ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</strong>{" "}
+              ersetzt ({(restoreConfirm.entries || []).length} Einträge). Das gilt auch für alle anderen, die die gemeinsame Datei nutzen.
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => restoreBackup(restoreConfirm)}
+                className="flex-1 text-sm font-bold py-2.5 rounded text-white"
+                style={{ backgroundColor: "#B23A34" }}
+              >
+                Ja, wiederherstellen
+              </button>
+              <button onClick={() => setRestoreConfirm(null)} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">
+                Abbrechen
+              </button>
             </div>
           </div>
         </div>
