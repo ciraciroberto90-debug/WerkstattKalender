@@ -21,7 +21,12 @@ const POLL_MS = 30000; // alle 30 s nach Änderungen der anderen schauen
 let fileHandle = null;
 let accessMode = null; // "readwrite" | "read"
 let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt scheiterte
+let lastWriteErrorName = null; // DOMException-Name, z. B. "NotAllowedError" oder "NoModificationAllowedError"
 export function getLastWriteError() { return lastWriteError; }
+// "NotAllowedError" = echte Rechte-Verweigerung (Datei-Rechte auf dem Laufwerk sagen "nur lesen").
+// Alles andere (z. B. "NoModificationAllowedError") deutet auf ein technisches Problem des
+// Laufwerks/Servers hin, NICHT auf fehlende Rechte - dafür gibt es den alternativen Speicher-Weg.
+export function writeFailureLooksLikePermission() { return lastWriteErrorName === "NotAllowedError"; }
 let lastSavedAt = null;
 let pollTimer = null;
 
@@ -261,8 +266,10 @@ async function adoptCurrentFile(justCreated) {
       await writeFileData(candidate);
       data = candidate;
       lastWriteError = null;
+      lastWriteErrorName = null;
     } catch (e) {
       lastWriteError = `${e && e.name ? e.name : "Fehler"}: ${e && e.message ? e.message : e}`;
+      lastWriteErrorName = e && e.name ? e.name : null;
       if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
       accessMode = "read"; // keine Schreibrechte (IT-Freigabe) -> nur ansehen
     }
@@ -472,6 +479,57 @@ function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 
+/* ---------- Alternativer Speicher-Weg (Browser-Download statt createWritable) ---------
+ * Für Laufwerke, die den normalen atomaren Schreibvorgang technisch nicht
+ * unterstützen (erkennbar an writeFailureLooksLikePermission() === false,
+ * z. B. "NoModificationAllowedError"): Lesen läuft weiter ganz normal über
+ * die File System Access API (das funktioniert dort ja bereits zuverlässig).
+ * Schreiben läuft stattdessen über den klassischen Browser-Download - eine
+ * komplett andere Technik, unabhängig vom fehlschlagenden createWritable.
+ * Bewusst manuell (zwei Knöpfe: Aktualisieren / Speichern), nicht automatisch
+ * im Hintergrund, damit der Nutzer die Kontrolle über den Download-Zeitpunkt
+ * behält (Speicherort im Download-Dialog muss zur gemeinsamen Datei passen).
+ */
+export async function manualPull() {
+  if (!fileHandle) return null;
+  const data = await readFileData();
+  lastSavedAt = data.savedAt;
+  syncLocal(data);
+  dispatchUpdate(data);
+  await recordBackup(data.entries, data.config);
+  return data;
+}
+
+export async function manualPush(nextEntries, prevEntries, configObj) {
+  if (!fileHandle) return null;
+  const fileData = await readFileData().catch(() => emptyData());
+  const { stamped, removed } = stampEntries(nextEntries, prevEntries);
+  const delStamp = nowISO();
+  const deleted = { ...fileData.deleted };
+  removed.forEach((id) => {
+    if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
+  });
+  pruneTombstones(deleted);
+  const merged = mergeEntries(fileData.entries, stamped, deleted);
+  const config = configObj ? { ...configObj, updatedAt: nowISO() } : fileData.config;
+  const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config };
+
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileHandle.name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+  lastSavedAt = out.savedAt;
+  syncLocal(out);
+  await recordBackup(out.entries, out.config);
+  return out;
+}
+
 /* ---------- Test-Zugang (für automatisierte Tests, ohne Datei-Dialog) ---------- */
 if (typeof window !== "undefined") {
   window.__wkSharedTest = {
@@ -483,5 +541,8 @@ if (typeof window !== "undefined") {
       return data;
     },
     poll: pollNow,
+    manualPull,
+    manualPush,
+    getLastWriteErrorName: () => lastWriteErrorName,
   };
 }

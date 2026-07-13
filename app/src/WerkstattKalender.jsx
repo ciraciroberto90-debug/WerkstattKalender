@@ -446,6 +446,8 @@ function App() {
   const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
   const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
+  const [manualWriteMode, setManualWriteMode] = useState(false); // alternativer Speicher-Weg (Download) aktiv
+  const [lastPulledSnapshot, setLastPulledSnapshot] = useState(null); // Basis für den nächsten "Speichern"-Abgleich
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
@@ -507,12 +509,37 @@ function App() {
 
   // Nur wer NACHWEISLICH Schreibrechte auf die gemeinsame Datei hat (oder die
   // Funktion technisch gar nicht existiert, z. B. Firefox/Safari -> reiner
-  // Solo-Betrieb) bekommt die volle App. ALLE anderen Fälle - insbesondere
-  // "noch nicht verbunden" (frisch geöffnete App, Verbindung steht noch aus) -
-  // gelten bewusst als Nur-Leser, bis das Gegenteil bewiesen ist. So sehen
-  // reine Leser nie versehentlich für einen Moment die vollen Cockpit-Tabs.
-  const vollzugriff = shareChecked && (shareState.status === "unsupported" || shareState.mode === "readwrite");
+  // Solo-Betrieb), oder den alternativen Speicher-Weg aktiviert hat, bekommt
+  // die volle App. ALLE anderen Fälle - insbesondere "noch nicht verbunden"
+  // (frisch geöffnete App, Verbindung steht noch aus) - gelten bewusst als
+  // Nur-Leser, bis das Gegenteil bewiesen ist. So sehen reine Leser nie
+  // versehentlich für einen Moment die vollen Cockpit-Tabs.
+  const vollzugriff = shareChecked && (shareState.status === "unsupported" || shareState.mode === "readwrite" || manualWriteMode);
   const readerMode = !vollzugriff;
+
+  // Alternativer Speicher-Weg (Download statt createWritable) für Laufwerke,
+  // die den atomaren Schreibvorgang technisch nicht unterstützen. Nur nutzbar,
+  // wenn der letzte Schreibfehler NICHT nach echter Rechte-Verweigerung
+  // aussieht (siehe sharedFile.writeFailureLooksLikePermission) - so kann ein
+  // echter Nur-Leser das nicht als Umgehung missbrauchen.
+  const aktiviereManuellenModus = async () => {
+    setManualWriteMode(true);
+    const data = await sharedFile.manualPull();
+    if (data) setLastPulledSnapshot({ entries: data.entries, config: data.config });
+  };
+  const manualAktualisieren = async () => {
+    const data = await sharedFile.manualPull();
+    if (data) setLastPulledSnapshot({ entries: data.entries, config: data.config });
+  };
+  const manualSpeichern = async () => {
+    const configObj = { tpmAnlagen, riItems, team };
+    const prevEntries = lastPulledSnapshot ? lastPulledSnapshot.entries : [];
+    const out = await sharedFile.manualPush(entries, prevEntries, configObj);
+    if (out) {
+      setEntries(out.entries);
+      setLastPulledSnapshot({ entries: out.entries, config: out.config });
+    }
+  };
   // Enger gefasst als readerMode: nur wer TATSÄCHLICH schon verbunden UND
   // bestätigt Nur-Lesen ist. Wichtig für den "Gemeinsame Datei"-Knopf selbst -
   // der muss sichtbar bleiben, bevor überhaupt verbunden wurde (sonst könnte
@@ -2122,7 +2149,20 @@ function App() {
           </button>
         </div>
       )}
-      {shareState.status === "connected" && shareState.mode === "read" && (
+      {manualWriteMode && (
+        <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#E5F3EA", color: "#2F7D4F" }}>
+          <span>
+            Alternativer Speicher-Weg aktiv (Download statt automatischem Schreiben). Eigene Änderungen werden lokal gespeichert - auf „Speichern" klicken, um sie in die gemeinsame Datei zu übertragen. Vor dem Weiterarbeiten kurz „Aktualisieren", um Änderungen der anderen zu holen.
+          </span>
+          <button onClick={manualAktualisieren} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#2F7D4F" }}>
+            🔄 Aktualisieren
+          </button>
+          <button onClick={manualSpeichern} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#22262B" }}>
+            💾 Speichern
+          </button>
+        </div>
+      )}
+      {!manualWriteMode && shareState.status === "connected" && shareState.mode === "read" && (
         <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
           <span>
             Nur ansehen – für „{shareState.name}" bestehen keine Schreibrechte. Angezeigt wird der gemeinsame Stand; eigene Änderungen werden nicht gespeichert.
@@ -2147,6 +2187,11 @@ function App() {
           >
             Schreibzugriff erneut versuchen
           </button>
+          {!sharedFile.writeFailureLooksLikePermission() && (
+            <button onClick={aktiviereManuellenModus} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#C97A2B" }} title="Schreiben ist technisch fehlgeschlagen, nicht wegen fehlender Rechte - alternativer Weg über Download">
+              Alternativen Speicher-Weg nutzen
+            </button>
+          )}
           <button
             onClick={() => setShareOpen(true)}
             className="px-2.5 py-1 rounded border"
