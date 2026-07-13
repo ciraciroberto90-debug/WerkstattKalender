@@ -13,6 +13,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
   await page.clock.setFixedTime(new Date('2025-12-29T09:00:00')); // Montag, KW01/2026
+  // Solo-Betrieb ohne File System Access API (wie Firefox/Safari) - dort gilt
+  // die App als volle Solo-Instanz, nicht als "noch nicht verbundener Leser".
+  await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker; });
   await page.goto(APP);
   await page.evaluate(() => {
     localStorage.setItem('werkstatt-kalender-config', JSON.stringify({

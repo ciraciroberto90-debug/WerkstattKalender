@@ -445,13 +445,14 @@ function App() {
   const [zettelText, setZettelText] = useState("");
   const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
+  const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
   useEffect(() => {
     let cancelled = false;
-    sharedFile.tryRestore().then((st) => { if (!cancelled) setShareState(st); });
+    sharedFile.tryRestore().then((st) => { if (!cancelled) { setShareState(st); setShareChecked(true); } });
     const onUpdate = (ev) => {
       const d = ev.detail || {};
       if (Array.isArray(d.entries)) setEntries(d.entries);
@@ -479,6 +480,7 @@ function App() {
       await sharedFile.pickShared(opts);
       // Ob bearbeitet werden darf, entscheiden die Datei-Rechte auf dem Laufwerk (IT-Freigabe).
       setShareState({ status: "connected", name: sharedFile.fileName(), mode: sharedFile.canWrite() ? "readwrite" : "read" });
+      setShareChecked(true);
       setErr(null);
       setShareOpen(false);
     } catch (e) {
@@ -490,6 +492,7 @@ function App() {
     try {
       const st = await sharedFile.reconnect();
       setShareState(st);
+      setShareChecked(true);
       setErr(null);
     } catch (e) {
       setErr("Gemeinsame Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
@@ -498,14 +501,32 @@ function App() {
   const disconnectShared = async () => {
     await sharedFile.disconnect();
     setShareState({ status: sharedFile.isSupported() ? "none" : "unsupported" });
+    setShareChecked(true);
     setShareOpen(false);
   };
 
-  // Nur-Leser (keine Schreibrechte auf die gemeinsame Datei) sehen ausschließlich den Plan.
-  const readerMode = shareState.status === "connected" && shareState.mode === "read";
+  // Nur wer NACHWEISLICH Schreibrechte auf die gemeinsame Datei hat (oder die
+  // Funktion technisch gar nicht existiert, z. B. Firefox/Safari -> reiner
+  // Solo-Betrieb) bekommt die volle App. ALLE anderen Fälle - insbesondere
+  // "noch nicht verbunden" (frisch geöffnete App, Verbindung steht noch aus) -
+  // gelten bewusst als Nur-Leser, bis das Gegenteil bewiesen ist. So sehen
+  // reine Leser nie versehentlich für einen Moment die vollen Cockpit-Tabs.
+  const vollzugriff = shareChecked && (shareState.status === "unsupported" || shareState.mode === "readwrite");
+  const readerMode = !vollzugriff;
+  // Enger gefasst als readerMode: nur wer TATSÄCHLICH schon verbunden UND
+  // bestätigt Nur-Lesen ist. Wichtig für den "Gemeinsame Datei"-Knopf selbst -
+  // der muss sichtbar bleiben, bevor überhaupt verbunden wurde (sonst könnte
+  // sich niemand jemals verbinden).
+  const confirmedReadOnly = shareChecked && shareState.status === "connected" && shareState.mode === "read";
+  // Sicherheits-Klammer: solange (noch) Nur-Leser, ist ausschließlich Übersicht,
+  // Schichtplan oder TPM-Plan erlaubt - jede andere Ansicht wird sofort auf
+  // Übersicht zurückgesetzt (z. B. falls Schreibrechte während der Sitzung
+  // wegfallen, oder direkt beim allerersten Laden, bevor überhaupt geprüft ist).
   useEffect(() => {
-    if (readerMode) setView("PLAN");
-  }, [readerMode]);
+    if (!readerMode) return;
+    if (view !== "COCKPIT" && view !== "PLAN") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
+    if (view === "COCKPIT" && cockpitTab !== "UEBERSICHT" && cockpitTab !== "SCHICHTPLAN") setCockpitTab("UEBERSICHT");
+  }, [readerMode, view, cockpitTab]);
 
   // ...html?monitor=1 kennzeichnet ein dediziertes Kiosk-Gerät (Bildschirm in der
   // Werkstatt ohne eigenen Arbeitsplatz). NUR dort ist der Werkstatt-Monitor auch
@@ -1906,7 +1927,33 @@ function App() {
       >
         <div className="flex items-center gap-3">
           <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Kalender</div>
-          {!readerMode && (
+          {readerMode ? (
+            // Nur-Lesen (auch bevor die Verbindung zur gemeinsamen Datei überhaupt
+            // steht - siehe readerMode-Definition oben): ausschließlich diese 3
+            // Ansichten, nie die vollen Cockpit-Tabs (Backlog/Planung/Auswertung/Register).
+            <div className="flex rounded overflow-hidden border border-white/20">
+              {[
+                ["COCKPIT_UEBERSICHT", "Übersicht"],
+                ["COCKPIT_SCHICHTPLAN", "Schichtplan"],
+                ["PLAN", "TPM-Plan"],
+              ].map(([key, label]) => {
+                const active = key === "PLAN" ? view === "PLAN" : (view === "COCKPIT" && cockpitTab === key.replace("COCKPIT_", ""));
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      if (key === "PLAN") setView("PLAN");
+                      else { setView("COCKPIT"); setCockpitTab(key.replace("COCKPIT_", "")); }
+                    }}
+                    className="px-3 py-1.5 text-xs font-black uppercase tracking-wide"
+                    style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
             <>
               {/* Hauptbereiche */}
               <div className="flex rounded overflow-hidden border border-white/20">
@@ -1930,9 +1977,7 @@ function App() {
               {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
               {view === "COCKPIT" ? (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"]]
-                    .filter(([v]) => !readerMode || ["UEBERSICHT", "SCHICHTPLAN"].includes(v))
-                    .map(([v, label]) => (
+                  {[["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"]].map(([v, label]) => (
                     <button
                       key={v}
                       onClick={() => setCockpitTab(v)}
@@ -1945,9 +1990,7 @@ function App() {
                 </div>
               ) : (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]]
-                    .filter(([v]) => !readerMode || v === "PLAN")
-                    .map(([v, label]) => {
+                  {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
                     const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
                     return (
                       <button
@@ -2049,7 +2092,7 @@ function App() {
               Grün = verbunden, Grau = noch nicht eingerichtet.
               Nur-Leser sehen das Symbol nicht - sie sollen die Verbindung weder
               trennen noch eine andere Datei wählen können. */}
-          {!readerMode && (
+          {!confirmedReadOnly && (
           <button
             onClick={() => setShareOpen(true)}
             className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
@@ -3550,7 +3593,7 @@ function App() {
                 >
                   Vorhandene Datei öffnen …
                 </button>
-                {shareState.status === "connected" && (
+                {shareState.status === "connected" && shareState.mode !== "read" && (
                   <button onClick={disconnectShared} className="text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">
                     Verbindung trennen (dieser Rechner speichert dann nur lokal)
                   </button>

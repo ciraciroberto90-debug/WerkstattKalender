@@ -34,6 +34,9 @@ function grosserBestand() {
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('dialog', (d) => d.accept());
   await page.clock.setFixedTime(new Date('2026-07-10T09:00:00'));
+  // Solo-Betrieb ohne File System Access API (wie Firefox/Safari) - dort gilt
+  // die App als volle Solo-Instanz, nicht als "noch nicht verbundener Leser".
+  await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker; });
   await page.goto(APP);
   const { team, entries } = grosserBestand();
   await page.evaluate(({ team, entries }) => {

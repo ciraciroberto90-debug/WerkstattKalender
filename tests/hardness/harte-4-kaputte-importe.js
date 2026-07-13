@@ -29,6 +29,11 @@ for (const [name, content] of faelle) fs.writeFileSync(path.join(TMP, name), con
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('dialog', (d) => d.accept());
+  // Solo-Betrieb ohne File System Access API testen (wie Firefox/Safari) -
+  // dort gilt die App bewusst als volle Solo-Instanz, nicht als "noch nicht
+  // verbundener Nur-Leser" (der Unterschied gilt nur für Chrome/Edge, wo
+  // eine "Gemeinsame Datei" grundsätzlich möglich wäre).
+  await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker; });
   await page.goto(APP);
   await page.evaluate(() => {
     localStorage.setItem('werkstatt-kalender-entries', JSON.stringify([
