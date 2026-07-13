@@ -474,7 +474,13 @@ function App() {
     sharedFile.tryRestore().then((st) => { if (!cancelled) { setShareState(st); setShareChecked(true); } });
     const onUpdate = (ev) => {
       const d = ev.detail || {};
-      if (Array.isArray(d.entries)) setEntries(d.entries);
+      // Zusammenführen statt Ersetzen: Ein sehr kurz zurückliegender eigener
+      // Speicherstand (z. B. gerade eben bestätigt) darf durch einen von der
+      // Datei abgeholten, minimal älteren Stand nicht stillschweigend aus der
+      // Ansicht verschwinden - jeweils der neuere Zeitstempel je Eintrag gewinnt.
+      if (Array.isArray(d.entries)) {
+        setEntries((prev) => sharedFile.mergeEntries(d.entries, prev || [], d.deleted || {}));
+      }
       if (d.config) {
         if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(d.config.tpmAnlagen);
         if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(d.config.riItems);

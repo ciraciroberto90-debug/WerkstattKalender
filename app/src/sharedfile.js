@@ -135,7 +135,7 @@ export async function listBackups() {
 /* ---------- Ereignisse an die App ---------- */
 function dispatchUpdate(data) {
   window.dispatchEvent(new CustomEvent("werkstatt-shared-update", {
-    detail: { entries: data.entries, config: data.config },
+    detail: { entries: data.entries, config: data.config, deleted: data.deleted },
   }));
 }
 export function dispatchError(message) {
@@ -411,11 +411,12 @@ export async function saveEntries(nextEntries, prevEntries) {
       lastSavedAt = out.savedAt;
 
       const kontrolle = await readFileData();
-      if (changesConfirmed(kontrolle, stamped, removed, delStamp)) {
+      if (changesConfirmed(kontrolle, stamped, removed, delStamp) && keinVerlustGegenueber(fileData, kontrolle, removed)) {
         // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
         lastSavedAt = kontrolle.savedAt;
         const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
         await recordBackup(bestaetigt, kontrolle.config);
+        nachpruefenUndHeilen(stamped, removed, delStamp);
         return bestaetigt;
       }
     } catch (e) {
@@ -430,6 +431,62 @@ export async function saveEntries(nextEntries, prevEntries) {
   dispatchError(`Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten, dann erscheint automatisch ein Hinweis zum erneuten Versuch.`);
   if (merged) await recordBackup(merged, null);
   return merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
+}
+
+// Letzte Sicherheitsebene gegen ein extrem seltenes, aber reales Zeitfenster:
+// Zwischen unserer eigenen Bestätigung (kontrolle oben) und diesem Moment kann
+// ein anderer Bearbeiter, der VOR unserem Schreiben zu lesen begonnen hatte,
+// seinerseits noch schreiben und dabei unversehens genau unsere gerade erst
+// bestätigte Änderung überschreiben - das eigene Speichern hat zu diesem
+// Zeitpunkt aber schon "erfolgreich" zurückgemeldet. Ohne diese Nachprüfung
+// bliebe das nur lokal sichtbar (siehe Merge in onUpdate), aber in der Datei
+// selbst dauerhaft verschwunden. Läuft im Hintergrund, meldet dem Nutzer
+// nichts (kein Grund zur Sorge) und heilt sich selbst.
+function nachpruefenUndHeilen(stamped, removed, delStamp) {
+  setTimeout(async () => {
+    if (!fileHandle || accessMode !== "readwrite") return;
+    try {
+      const data = await readFileData();
+      if (changesConfirmed(data, stamped, removed, delStamp)) return; // alles noch da - nichts zu tun
+      const deleted = { ...data.deleted };
+      removed.forEach((id) => {
+        if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
+      });
+      pruneTombstones(deleted);
+      const merged = mergeEntries(data.entries, stamped, deleted);
+      const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: data.config };
+      await writeFileData(out);
+      lastSavedAt = out.savedAt;
+      const kontrolle = await readFileData();
+      if (changesConfirmed(kontrolle, stamped, removed, delStamp)) {
+        lastSavedAt = kontrolle.savedAt;
+        syncLocal(kontrolle);
+        dispatchUpdate(kontrolle);
+        await recordBackup(mergeEntries(kontrolle.entries, [], kontrolle.deleted), kontrolle.config);
+      }
+    } catch (e) {
+      // Nächster planmäßiger Poll bzw. die nächste eigene Bearbeitung gleicht ohnehin ab.
+    }
+  }, 1200);
+}
+
+// Zusätzlich zu changesConfirmed: ist gegenüber dem gelesenen Ausgangsstand
+// (fileData) unerwartet etwas verschwunden? Das schließt das letzte, sehr
+// kleine Zeitfenster zwischen der optimistischen Prüfung und dem
+// tatsächlichen Schreiben - falls dort doch zwei Schreibvorgänge ineinander
+// gerieten, würde die einfache "ist meine Änderung drin"-Prüfung das nicht
+// bemerken, wenn ausgerechnet unser eigener Schreibvorgang zuletzt gewonnen,
+// dabei aber die Änderung der anderen Seite verdrängt hat.
+function keinVerlustGegenueber(fileData, kontrolle, removed) {
+  const removedSet = new Set(removed);
+  const kontrolleIds = new Set(kontrolle.entries.map((e) => e.id));
+  for (const e of fileData.entries) {
+    if (removedSet.has(e.id) || kontrolleIds.has(e.id)) continue;
+    const delAt = kontrolle.deleted && kontrolle.deleted[e.id];
+    if (delAt && String(delAt) >= String(e.updatedAt || "")) continue; // zwischenzeitlich legitim gelöscht
+    return false; // unerwartet verschwunden
+  }
+  return true;
 }
 
 // Stehen alle eigenen Änderungen (und Löschungen) im zurückgelesenen Stand?
