@@ -3,6 +3,41 @@ import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Uplo
 import * as sharedFile from "./sharedfile.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+
+// Halbkreis-Anzeige für die Erledigungs-Quoten in der Übersicht: füllt sich
+// beim Anzeigen langsam bis zum Zielwert, die Prozentzahl steht in der Mitte.
+function HalbkreisQuote({ prozent, label }) {
+  const [anim, setAnim] = useState(0);
+  useEffect(() => {
+    if (prozent === null || prozent === undefined) { setAnim(0); return; }
+    // erst mit 0 rendern, dann Zielwert setzen - so ist die Füll-Animation sichtbar
+    const t = setTimeout(() => setAnim(prozent), 100);
+    return () => clearTimeout(t);
+  }, [prozent]);
+  const umfang = Math.PI * 34; // Länge des Halbkreis-Bogens (Radius 34)
+  const gefuellt = umfang * (Math.min(100, Math.max(0, anim)) / 100);
+  return (
+    <div className="rounded-xl px-3.5 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", textAlign: "center" }}>
+      <svg viewBox="0 0 84 48" style={{ width: "84px", height: "48px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}: ${prozent !== null && prozent !== undefined ? prozent + " %" : "keine Daten"}`}>
+        <path d="M 8 44 A 34 34 0 0 1 76 44" fill="none" stroke="#EDEEF0" strokeWidth="8" strokeLinecap="round" />
+        <path
+          d="M 8 44 A 34 34 0 0 1 76 44"
+          fill="none"
+          stroke="#2F7D4F"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={umfang}
+          strokeDashoffset={umfang - gefuellt}
+          style={{ transition: "stroke-dashoffset 1.4s ease-out" }}
+        />
+        <text x="42" y="43" textAnchor="middle" fontFamily="ui-monospace,Consolas,monospace" fontWeight="800" fontSize="15" fill="#22262B">
+          {prozent !== null && prozent !== undefined ? `${prozent}%` : "–"}
+        </text>
+      </svg>
+      <div className="text-xs font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.68rem" }}>{label}</div>
+    </div>
+  );
+}
 const MONTHS = [
   "Januar", "Februar", "März", "April", "Mai", "Juni",
   "Juli", "August", "September", "Oktober", "November", "Dezember",
@@ -72,7 +107,7 @@ const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
 // Der Schlüssel ist zugleich der gespeicherte Wert und die Anzeige.
 const SCHICHTEN = {
   "Früh": { color: "#F0C230", text: "#2B2200", kurz: "F" },
-  "Spät": { color: "#2E9B4F", kurz: "S" },
+  "Spät": { color: "#1F7A3D", kurz: "S" },
   "Spät mit B": { color: "#1F7A3D", kurz: "SB" },
   "Nacht": { color: "#2F6690", kurz: "N" },
   "Bereits.": { color: "#8A9099", kurz: "B" },
@@ -446,6 +481,8 @@ function App() {
   const [akteAnlage, setAkteAnlage] = useState(null); // Anlagen-Akte (Name) | null
   const [planungCursor, setPlanungCursor] = useState(() => new Date()); // Woche der Arbeitsplanung
   const [planungPicker, setPlanungPicker] = useState(null); // {person, datum} | null
+  const [pickerArt, setPickerArt] = useState("ALLE"); // Filter im Einplanen-Popup: ALLE | mech | elek | azubi
+  const [pickerSuche, setPickerSuche] = useState(""); // Suche im Einplanen-Popup
   const [schichtPicker, setSchichtPicker] = useState(null); // {person, datum} | null - Schicht setzen
   const [schichtGanzeWoche, setSchichtGanzeWoche] = useState(true); // Auswahl im Schicht-Dialog
   const [planNotiz, setPlanNotiz] = useState(null); // {person, datum, id?, text} | null - freie Notiz in Planungszelle
@@ -454,6 +491,7 @@ function App() {
   const [matrixPick, setMatrixPick] = useState(null); // {person, datum, links, oben} | null - Zellen-Dropdown
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
   const [zettelOpen, setZettelOpen] = useState(false);
+  const [zettelSuche, setZettelSuche] = useState(""); // Mini-Suche in der Pinnwand
   const [zettelText, setZettelText] = useState("");
   const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
@@ -1128,6 +1166,14 @@ function App() {
   const quoteJahrHeute = quoteFuer(kalenderEntries.filter((e) => e.date.startsWith(todayKey.slice(0, 4) + "-")));
 
   const ZETTEL_FARBEN = { gelb: "#FEF9C3", blau: "#E0F2FE", gruen: "#DCFCE7" };
+  // Feste Farben je Verfasser-Kürzel (Wunsch: RC immer blau, AR immer gelb),
+  // alle anderen behalten die abwechselnde Zufallsfarbe des Zettels.
+  const zettelFarbeFuer = (z) => {
+    const wer = String(z.name || "").trim().toUpperCase();
+    if (wer === "RC") return ZETTEL_FARBEN.blau;
+    if (wer === "AR") return ZETTEL_FARBEN.gelb;
+    return ZETTEL_FARBEN[z.farbe] || ZETTEL_FARBEN.gelb;
+  };
   const addZettel = async () => {
     if (!zettelText.trim() || !zettelName.trim()) return;
     localStorage.setItem("werkstatt-kalender-name", zettelName.trim());
@@ -1985,13 +2031,11 @@ function App() {
         .join("");
       return `<tr><td style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 6px;font-weight:700;white-space:nowrap;">${escapeHtml(person)}</td>${zellen}</tr>`;
     };
+    // Ausdruck bewusst ohne die "Sonstige"-Gruppe (ohne Gewerk) - auf Papier
+    // interessiert nur die eigentliche Werkstatt-Mannschaft.
     const rang = { mech: 0, elek: 1, azubi: 2 };
     const haupt = [...team].filter((m) => (m.rolle || "") !== "").sort((a, b) => rang[a.rolle] - rang[b.rolle]);
-    const sonstige = team.filter((m) => (m.rolle || "") === "");
-    const sonstigeZeile = sonstige.length > 0
-      ? `<tr><td colspan="${tage.length + 1}" style="border:1px solid #6B7280;background:#F0F1F3;padding:3px 6px;font-weight:800;color:#5B6572;font-size:9px;">Sonstige (${sonstige.length}) – ohne Gewerk</td></tr>`
-      : "";
-    const zeilen = haupt.map(zeileFuer).join("") + sonstigeZeile + sonstige.map(zeileFuer).join("");
+    const zeilen = haupt.map(zeileFuer).join("");
 
     const legende = Object.entries(SCHICHTEN)
       .map(([name, s]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11px;font-weight:700;color:#39414B;"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${s.color};"></span>${escapeHtml(name)}</span>`)
@@ -2055,8 +2099,9 @@ function App() {
         .join("")}
     </tr>`;
 
-    const rang = { mech: 0, elek: 1, azubi: 2, "": 3 };
-    const alleTeam = [...team].sort((a, b) => (rang[a.rolle || ""] ?? 3) - (rang[b.rolle || ""] ?? 3));
+    // Ausdruck bewusst ohne die "Sonstige"-Gruppe (ohne Gewerk).
+    const rang = { mech: 0, elek: 1, azubi: 2 };
+    const alleTeam = [...team].filter((m) => (m.rolle || "") !== "").sort((a, b) => rang[a.rolle] - rang[b.rolle]);
     const personZeilen = alleTeam
       .map((mitglied) => {
         const person = mitglied.name;
@@ -2435,14 +2480,14 @@ function App() {
               [heuteErledigtCount, "Heute erledigt", "#2F7D4F"],
               [ueberfaellige.length, "Überfällig", ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F"],
               [todayPlanResult.assignments.length, "Diesen Monat geplant", "#22262B"],
-              [quoteMonatHeute !== null ? quoteMonatHeute + " %" : "–", "Quote " + MONTHS[today.getMonth()], "#2F7D4F"],
-              [quoteJahrHeute !== null ? quoteJahrHeute + " %" : "–", "Quote " + today.getFullYear(), "#2F7D4F"],
             ].map(([num, label, color]) => (
               <div key={label} className="rounded-xl px-3.5 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
                 <div className="font-mono font-extrabold" style={{ fontSize: "1.4rem", color }}>{num}</div>
                 <div className="text-xs font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.68rem" }}>{label}</div>
               </div>
             ))}
+            <HalbkreisQuote prozent={quoteMonatHeute} label={"Quote " + MONTHS[today.getMonth()]} />
+            <HalbkreisQuote prozent={quoteJahrHeute} label={"Quote " + today.getFullYear()} />
           </div>
 
           {/* Heute da: zeigt nur die gerade LAUFENDE Schicht (Früh 06-14, Spät 14-22, Nacht 22-06) */}
@@ -2536,12 +2581,21 @@ function App() {
 
             {/* Pinnwand */}
             <div>
-              <div className="flex items-center mb-2">
+              <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>📌 Pinnwand</span>
+                <input
+                  type="search"
+                  value={zettelSuche}
+                  onChange={(e) => setZettelSuche(e.target.value)}
+                  placeholder="🔍 Suche …"
+                  className="text-xs border rounded px-2 py-1 ml-auto"
+                  style={{ borderColor: "#D6D9DC", width: "150px" }}
+                  aria-label="Pinnwand durchsuchen"
+                />
                 <button
                   onClick={() => setZettelOpen(!zettelOpen)}
-                  className="ml-auto flex items-center justify-center rounded text-white font-black"
-                  style={{ backgroundColor: "#22262B", width: "26px", height: "26px", fontSize: "1rem", lineHeight: 1 }}
+                  className="flex items-center justify-center rounded text-white font-black"
+                  style={{ backgroundColor: "#22262B", width: "26px", height: "26px", fontSize: "1rem", lineHeight: 1, flexShrink: 0 }}
                   title="Neue Notiz anpinnen"
                   aria-label="Neue Notiz anpinnen"
                 >
@@ -2586,9 +2640,14 @@ function App() {
               {zettelListe.length === 0 && !zettelOpen && (
                 <div className="text-xs italic text-slate-400">Noch keine Notizen. Über das + hinterlässt du eine Notiz für alle – z. B. für die Übergabe an deinen Vertreter.</div>
               )}
+              {(() => {
+                const q = zettelSuche.trim().toLowerCase();
+                const sichtbar = q ? zettelListe.filter((z) => `${z.note} ${z.name}`.toLowerCase().includes(q)) : zettelListe;
+                if (q && sichtbar.length === 0) return <div className="text-xs italic text-slate-400">Kein Zettel passt zur Suche.</div>;
+                return (
               <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                {zettelListe.map((z) => (
-                  <div key={z.id} className="relative p-3" style={{ backgroundColor: ZETTEL_FARBEN[z.farbe] || ZETTEL_FARBEN.gelb, borderRadius: "4px 4px 12px 4px", boxShadow: "2px 3px 8px rgba(20,22,25,0.12)" }}>
+                {sichtbar.map((z) => (
+                  <div key={z.id} className="relative p-3" style={{ backgroundColor: zettelFarbeFuer(z), borderRadius: "4px 4px 12px 4px", boxShadow: "2px 3px 8px rgba(20,22,25,0.12)" }}>
                     <div className="text-sm" style={{ color: "#39414B", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{z.note}</div>
                     <div className="text-right mt-1.5" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
                       {z.name} · {z.zeit ? new Date(z.zeit).toLocaleDateString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : formatDateDE(z.date)}
@@ -2623,6 +2682,8 @@ function App() {
                   </div>
                 ))}
               </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2968,7 +3029,17 @@ function App() {
                         const schicht = schichtFuer(person, t.key);
                         const abwesend = schicht && SCHICHT_ABWESEND.has(schicht);
                         return (
-                        <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative" }}>
+                        <div
+                          key={t.key}
+                          onClick={(ev) => {
+                            // Klick auf die LEERE Kachelfläche (nicht auf Schicht/Arbeit/Notiz/＋)
+                            // öffnet direkt den Notiz-Dialog - ohne Umweg über das Einplanen-Popup.
+                            if (readerMode || ev.target !== ev.currentTarget) return;
+                            setPlanNotiz({ person, datum: t.key, text: "" });
+                          }}
+                          title={readerMode ? undefined : "Klick auf freie Fläche: Notiz direkt eintragen"}
+                          style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative", cursor: readerMode ? "default" : "pointer" }}
+                        >
                           {/* Schicht (Werkstattschichtplan) als Kürzel: Klick = ändern */}
                           <button
                             onClick={() => { if (readerMode) return; setSchichtGanzeWoche(!schicht && !t.we); setSchichtPicker({ person, datum: t.key }); }}
@@ -3005,7 +3076,7 @@ function App() {
                           ))}
                           {!abwesend && !readerMode && (
                             <button
-                              onClick={() => setPlanungPicker({ person, datum: t.key })}
+                              onClick={() => { setPickerArt("ALLE"); setPickerSuche(""); setPlanungPicker({ person, datum: t.key }); }}
                               className="text-slate-300 hover:text-slate-600 font-black"
                               style={{ fontSize: "0.85rem", lineHeight: 1 }}
                               title={`Arbeit oder Notiz für ${person} an diesem Tag eintragen`}
@@ -3266,15 +3337,16 @@ function App() {
         </div>
       )}
 
-      {/* Einplanen-Auswahl: offene Arbeit für Person + Tag wählen */}
+      {/* Einplanen-Auswahl: offene Arbeit für Person + Tag wählen.
+          Rechtsbündig statt mittig, damit der Wochenplan dahinter sichtbar bleibt. */}
       {planungPicker && (
         <div
           className="no-print"
-          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.35)", display: "flex", alignItems: "center", justifyContent: "flex-end", zIndex: 60, padding: "16px" }}
           onClick={() => setPlanungPicker(null)}
         >
           <div
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "560px", maxWidth: "100%", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "560px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
@@ -3290,32 +3362,66 @@ function App() {
             >
               📝 Stattdessen freie Notiz eintragen (Info, Termin, Hinweis – ohne Backlog)
             </button>
-            {arbeitenOffen.length === 0 ? (
-              <div className="text-sm italic text-slate-400 py-4">Keine offenen Arbeiten im Backlog.</div>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {arbeitenOffen
-                  .slice()
-                  .sort((a, b) => (PRIO_REIHENFOLGE[a.prio ?? "ohne"] - PRIO_REIHENFOLGE[b.prio ?? "ohne"]) || a.name.localeCompare(b.name, "de"))
-                  .map((a) => {
-                    const prio = ARBEIT_PRIO[a.prio ?? "ohne"] || ARBEIT_PRIO.ohne;
-                    const belegt = a.geplant && a.wer;
-                    return (
-                      <button
-                        key={a.id}
-                        onClick={() => einplanen(a.id, planungPicker.person, planungPicker.datum)}
-                        className="flex items-center gap-2 text-left rounded px-2.5 py-1.5 border hover:bg-slate-50"
-                        style={{ borderColor: "#E2E4E7", fontSize: "0.8rem" }}
-                      >
-                        <span style={{ display: "inline-block", width: "9px", height: "9px", borderRadius: "50%", backgroundColor: prio.color, flexShrink: 0 }} />
-                        <strong style={{ whiteSpace: "nowrap" }}>{a.name}</strong>
-                        <span className="flex-1" style={{ color: "#39414B" }}>{a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}</span>
-                        {belegt && <span className="font-mono" style={{ fontSize: "0.62rem", color: "#B8791F" }} title="bereits eingeplant - wird umgeplant">{a.wer} · {formatDateDE(a.geplant)}</span>}
-                      </button>
-                    );
-                  })}
-              </div>
-            )}
+            {/* Filter + Suche, damit man bei vollem Backlog schnell die richtige Arbeit findet */}
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              {[["ALLE", "Alle"], ["mech", "Mechanisch"], ["elek", "Elektrisch"], ["azubi", "🎓 Azubi"]].map(([wert, label]) => (
+                <button
+                  key={wert}
+                  onClick={() => setPickerArt(wert)}
+                  className="rounded border px-2 py-1 text-xs font-bold"
+                  style={pickerArt === wert
+                    ? { backgroundColor: "#22262B", color: "white", borderColor: "#22262B" }
+                    : { backgroundColor: "white", color: "#5B6572", borderColor: "#D6D9DC" }}
+                >
+                  {label}
+                </button>
+              ))}
+              <input
+                type="search"
+                value={pickerSuche}
+                onChange={(e) => setPickerSuche(e.target.value)}
+                placeholder="🔍 Anlage, Arbeit …"
+                className="text-xs border rounded px-2 py-1 flex-1"
+                style={{ borderColor: "#D6D9DC", minWidth: "140px" }}
+              />
+            </div>
+            {(() => {
+              const q = pickerSuche.trim().toLowerCase();
+              const passt = (a) => {
+                if (pickerArt === "azubi" && !a.azubi) return false;
+                if ((pickerArt === "mech" || pickerArt === "elek") && a.art !== pickerArt && a.art !== "beide") return false;
+                if (q && !`${a.name} ${a.note} ${a.wer || ""}`.toLowerCase().includes(q)) return false;
+                return true;
+              };
+              const treffer = arbeitenOffen.filter(passt);
+              if (arbeitenOffen.length === 0) return <div className="text-sm italic text-slate-400 py-4">Keine offenen Arbeiten im Backlog.</div>;
+              if (treffer.length === 0) return <div className="text-sm italic text-slate-400 py-4">Keine Arbeit passt zu Filter/Suche.</div>;
+              return (
+                <div className="flex flex-col gap-1.5">
+                  {treffer
+                    .slice()
+                    .sort((a, b) => (PRIO_REIHENFOLGE[a.prio ?? "ohne"] - PRIO_REIHENFOLGE[b.prio ?? "ohne"]) || a.name.localeCompare(b.name, "de"))
+                    .map((a) => {
+                      const prio = ARBEIT_PRIO[a.prio ?? "ohne"] || ARBEIT_PRIO.ohne;
+                      const belegt = a.geplant && a.wer;
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => einplanen(a.id, planungPicker.person, planungPicker.datum)}
+                          className="flex items-center gap-2 text-left rounded px-2.5 py-1.5 border hover:bg-slate-50"
+                          style={{ borderColor: "#E2E4E7", fontSize: "0.8rem" }}
+                        >
+                          <span style={{ display: "inline-block", width: "9px", height: "9px", borderRadius: "50%", backgroundColor: prio.color, flexShrink: 0 }} />
+                          <strong style={{ whiteSpace: "nowrap" }}>{a.name}</strong>
+                          <span className="flex-1" style={{ color: "#39414B" }}>{a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}</span>
+                          {a.azubi ? <span title="Azubi-geeignet">🎓</span> : null}
+                          {belegt && <span className="font-mono" style={{ fontSize: "0.62rem", color: "#B8791F" }} title="bereits eingeplant - wird umgeplant">{a.wer} · {formatDateDE(a.geplant)}</span>}
+                        </button>
+                      );
+                    })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
