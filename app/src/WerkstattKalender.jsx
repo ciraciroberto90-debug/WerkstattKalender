@@ -1953,7 +1953,8 @@ function App() {
       .map((t) => {
         const we = t.dow === 0 || t.dow === 6;
         const ft = feiertage.get(t.key);
-        return `<th style="border:1px solid #6B7280;min-width:20px;background:${ft ? "#FBE9E7" : we ? "#E5F0F8" : "#F7F8F9"};padding:2px 1px;font-weight:800;color:${ft ? "#B23A34" : we ? "#5B87AB" : "#8A9099"};">${WEEKDAYS[(t.dow + 6) % 7]}<br/>${t.nr}</th>`;
+        const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
+        return `<th style="border:1px solid #6B7280;${kwStart ? "border-left:2.5px solid #22262B;" : ""}min-width:20px;background:${ft ? "#FBE9E7" : we ? "#E5F0F8" : "#F7F8F9"};padding:2px 1px;font-weight:800;color:${ft ? "#B23A34" : we ? "#5B87AB" : "#8A9099"};">${WEEKDAYS[(t.dow + 6) % 7]}<br/>${t.nr}</th>`;
       })
       .join("");
     const zeilen = team
@@ -1963,9 +1964,10 @@ function App() {
           .map((t) => {
             const we = t.dow === 0 || t.dow === 6;
             const schicht = schichtFuer(person, t.key);
+            const kwStart = t.dow === 1;
             const bg = schicht ? SCHICHTEN[schicht].color : we ? "#EFF5FA" : "white";
             const fg = schicht ? "white" : "#D6D9DC";
-            return `<td style="border:1px solid #6B7280;text-align:center;padding:2px 1px;background:${bg};color:${fg};font-weight:800;">${schicht ? escapeHtml(SCHICHTEN[schicht].kurz) : "·"}</td>`;
+            return `<td style="border:1px solid #6B7280;${kwStart ? "border-left:2.5px solid #22262B;" : ""}text-align:center;padding:2px 1px;background:${bg};color:${fg};font-weight:800;">${schicht ? escapeHtml(SCHICHTEN[schicht].kurz) : "·"}</td>`;
           })
           .join("");
         return `<tr><td style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 6px;font-weight:700;white-space:nowrap;">${escapeHtml(person)}</td>${zellen}</tr>`;
@@ -3101,10 +3103,11 @@ function App() {
                         const we = t.dow === 0 || t.dow === 6;
                         const ft = feiertage.get(t.key);
                         const heutig = t.key === todayKey;
+                        const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
                         return (
                           <th key={t.key} title={ft || undefined} style={{
                             border: "1.5px solid #6B7280",
-                            borderLeft: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
+                            borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : "1.5px solid #6B7280",
                             borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                             borderTop: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                             minWidth: zellBreite,
@@ -3133,10 +3136,11 @@ function App() {
                             const we = t.dow === 0 || t.dow === 6;
                             const schicht = schichtFuer(person, t.key);
                             const heutig = t.key === todayKey;
+                            const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
                             return (
                               <td key={t.key} style={{
                                 border: "1.5px solid #6B7280",
-                                borderLeft: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
+                                borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : "1.5px solid #6B7280",
                                 borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                                 padding: 0,
                                 background: heutig ? "#FDF3E7" : we ? "#EFF5FA" : "white",
