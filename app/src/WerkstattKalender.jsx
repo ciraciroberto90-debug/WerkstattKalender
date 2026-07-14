@@ -1887,8 +1887,10 @@ function App() {
     </head><body>${body}</body></html>`;
   };
 
-  const handlePrint = () => {
-    const html = buildPrintDocument();
+  // Gemeinsame Druck-/Popup-Logik, damit TPM-Plan, Schichtplan und Planung
+  // dieselbe zuverlässige Fallback-Kette (Popup -> Download bei blockiertem
+  // Popup) nutzen, statt sie dreimal separat zu pflegen.
+  const openPrintWindow = (html, downloadName) => {
     let popup = null;
     try {
       popup = window.open("", "_blank");
@@ -1910,7 +1912,7 @@ function App() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `werkstatt-kalender-${view.toLowerCase()}-${year}${view === "MONAT" ? "-" + pad(month + 1) : ""}.html`;
+        a.download = downloadName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1920,6 +1922,172 @@ function App() {
         setErr("Drucken hat nicht geklappt. Bitte Pop-up-Blocker für diese Seite deaktivieren und erneut versuchen.");
       }
     }
+  };
+
+  const handlePrint = () => {
+    const html = buildPrintDocument();
+    openPrintWindow(html, `werkstatt-kalender-${view.toLowerCase()}-${year}${view === "MONAT" ? "-" + pad(month + 1) : ""}.html`);
+  };
+
+  // ---- Druckvorlage Schichtplan (Monatsmatrix, wie im Cockpit-Reiter "Schichtplan") ----
+  const buildSchichtplanPrintHTML = () => {
+    const my = matrixCursor.getFullYear();
+    const mm = matrixCursor.getMonth();
+    const tageImMonat = new Date(my, mm + 1, 0).getDate();
+    const feiertage = getHolidays(my);
+    const tage = Array.from({ length: tageImMonat }, (_, i) => {
+      const d = new Date(my, mm, i + 1);
+      return { nr: i + 1, key: dateKey(my, mm, i + 1), dow: d.getDay(), kw: getISOWeek(d) };
+    });
+    const kwSegmente = [];
+    tage.forEach((t) => {
+      const letzte = kwSegmente[kwSegmente.length - 1];
+      if (letzte && letzte.kw === t.kw) letzte.span++;
+      else kwSegmente.push({ kw: t.kw, span: 1 });
+    });
+
+    const kwZeile = kwSegmente
+      .map((s) => `<th colspan="${s.span}" style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 2px;font-weight:700;color:#8A9099;">KW ${s.kw}</th>`)
+      .join("");
+    const tagZeile = tage
+      .map((t) => {
+        const we = t.dow === 0 || t.dow === 6;
+        const ft = feiertage.get(t.key);
+        return `<th style="border:1px solid #6B7280;min-width:20px;background:${ft ? "#FBE9E7" : we ? "#E5F0F8" : "#F7F8F9"};padding:2px 1px;font-weight:800;color:${ft ? "#B23A34" : we ? "#5B87AB" : "#8A9099"};">${WEEKDAYS[(t.dow + 6) % 7]}<br/>${t.nr}</th>`;
+      })
+      .join("");
+    const zeilen = team
+      .map((mitglied) => {
+        const person = mitglied.name;
+        const zellen = tage
+          .map((t) => {
+            const we = t.dow === 0 || t.dow === 6;
+            const schicht = schichtFuer(person, t.key);
+            const bg = schicht ? SCHICHTEN[schicht].color : we ? "#EFF5FA" : "white";
+            const fg = schicht ? "white" : "#D6D9DC";
+            return `<td style="border:1px solid #6B7280;text-align:center;padding:2px 1px;background:${bg};color:${fg};font-weight:800;">${schicht ? escapeHtml(SCHICHTEN[schicht].kurz) : "·"}</td>`;
+          })
+          .join("");
+        return `<tr><td style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 6px;font-weight:700;white-space:nowrap;">${escapeHtml(person)}</td>${zellen}</tr>`;
+      })
+      .join("");
+
+    const legende = Object.entries(SCHICHTEN)
+      .map(([name, s]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11px;font-weight:700;color:#39414B;"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${s.color};"></span>${escapeHtml(name)}</span>`)
+      .join("");
+
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Schichtplan ${escapeHtml(MONTHS[mm])} ${my}</title>
+      <style>
+        @page { size: A4 landscape; margin: 8mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 12px; }
+        table { border-collapse: collapse; font-size: 9px; width: 100%; }
+      </style>
+    </head><body>
+      <div style="text-align:center;margin-bottom:14px;">
+        <div style="font-weight:900;font-size:20px;text-transform:uppercase;letter-spacing:0.02em;">Schichtplan</div>
+        <div style="font-family:monospace;font-size:12px;margin-top:2px;">${escapeHtml(MONTHS[mm])} ${my}</div>
+      </div>
+      <table>
+        <thead>
+          <tr><th style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 6px;text-align:left;"></th>${kwZeile}</tr>
+          <tr><th style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 6px;text-align:left;font-weight:800;text-transform:uppercase;color:#8A9099;">Mitarbeiter</th>${tagZeile}</tr>
+        </thead>
+        <tbody>${zeilen}</tbody>
+      </table>
+      <div style="margin-top:14px;">${legende}</div>
+    </body></html>`;
+  };
+
+  const handlePrintSchichtplan = () => {
+    const html = buildSchichtplanPrintHTML();
+    openPrintWindow(html, `werkstatt-schichtplan-${matrixCursor.getFullYear()}-${pad(matrixCursor.getMonth() + 1)}.html`);
+  };
+
+  // ---- Druckvorlage Planung (Wochenansicht, wie im Cockpit-Reiter "Planung") ----
+  const buildPlanungPrintHTML = () => {
+    const kw = getISOWeek(planungMontag);
+    const vonStr = planungMontag.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const bisStr = addDays(planungMontag, 6).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+    const kopfZellen = planungTage
+      .map((t) => {
+        const feiertag = getHolidays(t.datum.getFullYear()).get(t.key);
+        return `<th style="border:1px solid #6B7280;padding:4px 3px;background:${feiertag ? "#FBE9E7" : t.we ? "#E5F0F8" : "#F7F8F9"};font-weight:800;color:${feiertag ? "#B23A34" : t.we ? "#5B87AB" : "#8A9099"};font-size:9px;text-transform:uppercase;">${t.datum.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}${feiertag ? `<div style="font-size:8px;">${escapeHtml(feiertag)}</div>` : ""}</th>`;
+      })
+      .join("");
+
+    const wartungZeile = `<tr>
+      <td style="border:1px solid #6B7280;padding:4px 6px;background:#FBF7F1;font-weight:800;color:#C97A2B;font-size:10px;">Wartungsplan<div style="font-weight:400;color:#8A9099;font-size:9px;">TPM &amp; R+I</div></td>
+      ${planungTage
+        .map((t) => {
+          const eintraege = wochenPlan
+            .filter((p) => p.date === t.key)
+            .map((p) => {
+              const done = isPlanDone(p);
+              const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
+              return `<div style="font-size:8.5px;font-weight:700;color:${c};border:1px solid ${c};border-radius:3px;padding:1px 4px;margin-bottom:2px;">${done ? "✓ " : ""}${escapeHtml(p.anlage)}</div>`;
+            })
+            .join("");
+          return `<td style="border:1px solid #6B7280;padding:3px;vertical-align:top;background:${t.we ? "#EFF5FA" : "#FFFDF9"};">${eintraege}</td>`;
+        })
+        .join("")}
+    </tr>`;
+
+    const rang = { mech: 0, elek: 1, azubi: 2, "": 3 };
+    const alleTeam = [...team].sort((a, b) => (rang[a.rolle || ""] ?? 3) - (rang[b.rolle || ""] ?? 3));
+    const personZeilen = alleTeam
+      .map((mitglied) => {
+        const person = mitglied.name;
+        const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
+        const zellen = planungTage
+          .map((t) => {
+            const schicht = schichtFuer(person, t.key);
+            const arbeiten = geplantFuer(person, t.key)
+              .map((a) => {
+                const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
+                return `<div style="font-size:8.5px;font-weight:700;color:${c};border:1px solid ${c};border-radius:3px;padding:1px 4px;margin-bottom:2px;">${escapeHtml(a.name)}: ${escapeHtml(a.note)}</div>`;
+              })
+              .join("");
+            const notizen = notizenFuer(person, t.key)
+              .map((n) => `<div style="font-size:8.5px;font-weight:600;color:#39414B;border:1px solid #E5D77A;background:#FEF9C3;border-radius:3px;padding:1px 4px;margin-bottom:2px;">📝 ${escapeHtml(n.note)}</div>`)
+              .join("");
+            const schichtBadge = schicht
+              ? `<div style="display:inline-block;font-size:8px;font-weight:800;color:white;background:${SCHICHTEN[schicht].color};border-radius:3px;padding:1px 5px;margin-bottom:3px;">${escapeHtml(SCHICHTEN[schicht].kurz)}</div>`
+              : "";
+            return `<td style="border:1px solid #6B7280;padding:3px;vertical-align:top;background:${t.we ? "#EFF5FA" : "white"};">${schichtBadge}${arbeiten}${notizen}</td>`;
+          })
+          .join("");
+        return `<tr>
+          <td style="border:1px solid #6B7280;padding:4px 6px;background:${rolle.color};color:white;font-weight:800;font-size:10px;">${escapeHtml(person)}<div style="font-weight:600;font-size:8px;text-transform:uppercase;color:rgba(255,255,255,0.85);">${escapeHtml(rolle.label)}</div></td>
+          ${zellen}
+        </tr>`;
+      })
+      .join("");
+
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Planung KW ${kw}</title>
+      <style>
+        @page { size: A4 landscape; margin: 8mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 12px; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+      </style>
+    </head><body>
+      <div style="text-align:center;margin-bottom:14px;">
+        <div style="font-weight:900;font-size:20px;text-transform:uppercase;letter-spacing:0.02em;">Planung</div>
+        <div style="font-family:monospace;font-size:12px;margin-top:2px;">KW ${kw} · ${vonStr} – ${bisStr}</div>
+      </div>
+      <table>
+        <colgroup><col style="width:130px;">${planungTage.map(() => `<col>`).join("")}</colgroup>
+        <thead><tr><th style="border:1px solid #6B7280;padding:4px 6px;background:#F7F8F9;text-align:left;font-size:9px;font-weight:800;text-transform:uppercase;color:#8A9099;">Mitarbeiter</th>${kopfZellen}</tr></thead>
+        <tbody>${wartungZeile}${personZeilen}</tbody>
+      </table>
+    </body></html>`;
+  };
+
+  const handlePrintPlanung = () => {
+    const html = buildPlanungPrintHTML();
+    openPrintWindow(html, `werkstatt-planung-kw${getISOWeek(planungMontag)}-${planungMontag.getFullYear()}.html`);
   };
 
   const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Kalender" : CATS[filter].full;
@@ -2692,6 +2860,14 @@ function App() {
             })}
             <button onClick={() => setPlanungCursor(addDays(planungMontag, 7))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächste Woche">›</button>
             <button onClick={() => setPlanungCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
+            <button
+              onClick={handlePrintPlanung}
+              className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "#C97A2B" }}
+              aria-label="Planung drucken"
+            >
+              <Printer size={14} /> Drucken
+            </button>
             {/* Sprung zu jeder beliebigen Woche (z. B. Urlaub weit im Voraus eintragen) */}
             <select
               value=""
@@ -2894,6 +3070,14 @@ function App() {
               <span className="font-mono text-sm font-bold ml-2">{MONTHS[mm]} {my}</span>
               <button onClick={() => setMatrixCursor(new Date(my, mm + 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächster Monat">›</button>
               <button onClick={() => setMatrixCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
+              <button
+                onClick={handlePrintSchichtplan}
+                className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#C97A2B" }}
+                aria-label="Schichtplan drucken"
+              >
+                <Printer size={14} /> Drucken
+              </button>
               <span className="ml-auto text-xs text-slate-400">Werkstattschichtplan – Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung</span>
             </div>
 
