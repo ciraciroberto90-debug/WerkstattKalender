@@ -105,17 +105,31 @@ const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
 
 // Werkstattschichtplan - Schichtarten wie das Excel-Dropdown (Blatt "Daten").
 // Der Schlüssel ist zugleich der gespeicherte Wert und die Anzeige.
-const SCHICHTEN = {
+// Feste Grundausstattung; eigene weitere Schichtarten kommen über den
+// ⚙-Verwalten-Dialog dazu und sind IMMER grau (Farbschema ist fix:
+// nur Früh/Spät/Nacht sind farbig).
+const SCHICHT_GRAU = "#8A9099";
+const SCHICHTEN_BASIS = {
   "Früh": { color: "#F0C230", text: "#2B2200", kurz: "F" },
   "Spät": { color: "#1F7A3D", kurz: "S" },
   "Spät mit B": { color: "#1F7A3D", kurz: "SB" },
   "Nacht": { color: "#2F6690", kurz: "N" },
-  "Bereits.": { color: "#8A9099", kurz: "B" },
-  "Schule": { color: "#8A9099", kurz: "Sch" },
-  "Krank": { color: "#8A9099", kurz: "K" },
-  "Urlaub": { color: "#8A9099", kurz: "U" },
-  "Mainsite": { color: "#8A9099", kurz: "M" },
+  "Bereits.": { color: SCHICHT_GRAU, kurz: "B" },
+  "Schule": { color: SCHICHT_GRAU, kurz: "Sch" },
+  "Krank": { color: SCHICHT_GRAU, kurz: "K" },
+  "Urlaub": { color: SCHICHT_GRAU, kurz: "U" },
+  "Mainsite": { color: SCHICHT_GRAU, kurz: "M" },
 };
+// Kürzel für eigene Schichtarten: Anfangsbuchstaben der Wörter, sonst die ersten 2 Zeichen.
+const schichtKurz = (name) => {
+  const woerter = String(name).trim().split(/\s+/).filter(Boolean);
+  const k = woerter.length > 1 ? woerter.map((w) => w[0]).join("") : String(name).trim().slice(0, 2);
+  return k.slice(0, 3).toUpperCase();
+};
+const normalisiereExtraSchichten = (arr) => (Array.isArray(arr) ? arr : [])
+  .map((s) => (typeof s === "string" ? { name: s } : s))
+  .filter((s) => s && typeof s.name === "string" && s.name.trim() && !SCHICHTEN_BASIS[s.name.trim()])
+  .map((s) => ({ name: s.name.trim(), kurz: (s.kurz || "").trim() || schichtKurz(s.name) }));
 // Wer ganztags fehlt, bekommt in der Zelle kein ＋ (nichts einplanen)
 const SCHICHT_ABWESEND = new Set(["Krank", "Urlaub", "Schule"]);
 
@@ -445,6 +459,16 @@ function App() {
   const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
   const [riItems, setRiItems] = useState(DEFAULT_RI_ITEMS);
   const [team, setTeam] = useState([]); // Werkstatt-Team (für Zuweisung & Arbeitsplanung)
+  const [extraSchichten, setExtraSchichten] = useState([]); // eigene Schichtarten aus dem ⚙-Dialog (immer grau)
+  // Alle Schichtarten: feste Grundausstattung + eigene (grau). Der Name ist
+  // zugleich der gespeicherte Wert - identisch zur bisherigen Logik.
+  const SCHICHTEN = useMemo(() => {
+    const out = { ...SCHICHTEN_BASIS };
+    extraSchichten.forEach((s) => {
+      if (!out[s.name]) out[s.name] = { color: SCHICHT_GRAU, kurz: s.kurz };
+    });
+    return out;
+  }, [extraSchichten]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("ALL");
   const [modal, setModal] = useState(null); // null | {mode:'add', date} | {mode:'edit', id}
@@ -462,6 +486,8 @@ function App() {
   const [settingsTpm, setSettingsTpm] = useState([]);
   const [settingsRi, setSettingsRi] = useState([]);
   const [settingsTeam, setSettingsTeam] = useState([]);
+  const [settingsSchichten, setSettingsSchichten] = useState([]); // eigene Schichtarten im ⚙-Dialog
+  const [neueSchichtName, setNeueSchichtName] = useState("");
   const [backups, setBackups] = useState([]); // lokale Sicherungen (Sicherheitsnetz), neueste zuerst
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
@@ -523,6 +549,7 @@ function App() {
         if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(d.config.tpmAnlagen);
         if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(d.config.riItems);
         if (Array.isArray(d.config.team)) setTeam(normalisiereTeam(d.config.team));
+        if (Array.isArray(d.config.extraSchichten)) setExtraSchichten(normalisiereExtraSchichten(d.config.extraSchichten));
       }
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
@@ -670,6 +697,9 @@ function App() {
           if (Array.isArray(parsed.team)) {
             setTeam(normalisiereTeam(parsed.team));
           }
+          if (Array.isArray(parsed.extraSchichten)) {
+            setExtraSchichten(normalisiereExtraSchichten(parsed.extraSchichten));
+          }
         }
       } catch (e) {
         if (retriesLeft > 0) {
@@ -683,16 +713,17 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
     setTeam(nextTeam);
+    setExtraSchichten(nextExtraSchichten);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -728,6 +759,8 @@ function App() {
     // _orig merkt sich den Namen beim Öffnen - so bleiben Umbenennungen auch
     // nach Umsortieren (↑/↓) der richtigen Person zugeordnet
     setSettingsTeam(team.map((t) => ({ ...t, _orig: t.name })));
+    setSettingsSchichten(extraSchichten.map((s) => ({ ...s })));
+    setNeueSchichtName("");
     setSettingsOpen(true);
     sharedFile.listBackups().then(setBackups).catch(() => setBackups([]));
   };
@@ -737,8 +770,8 @@ function App() {
   const restoreBackup = async (backup) => {
     await persist(backup.entries || []);
     if (backup.config) {
-      const { tpmAnlagen: bTpm, riItems: bRi, team: bTeam } = backup.config;
-      await persistConfig(bTpm || [], bRi || [], bTeam || []);
+      const { tpmAnlagen: bTpm, riItems: bRi, team: bTeam, extraSchichten: bExtra } = backup.config;
+      await persistConfig(bTpm || [], bRi || [], bTeam || [], normalisiereExtraSchichten(bExtra));
     }
     setRestoreConfirm(null);
     setSettingsOpen(false);
@@ -780,7 +813,7 @@ function App() {
       });
     }
 
-    await persistConfig(cleanTpm, cleanRi, cleanTeam);
+    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten));
     if (nextEntries !== entries) await persist(nextEntries);
     setSettingsOpen(false);
   };
@@ -1199,6 +1232,11 @@ function App() {
   };
   const toggleZettelMonitor = async (id) => {
     await persist(entries.map((e) => (e.id === id ? { ...e, monitor: !e.monitor } : e)));
+  };
+  // Veröffentlichen = auch für Nur-Leser sichtbar. Unveröffentlichte Zettel
+  // sind intern - nur für Personen mit Bearbeiter-Rechten gedacht.
+  const toggleZettelVeroeffentlicht = async (id) => {
+    await persist(entries.map((e) => (e.id === id ? { ...e, veroeffentlicht: !e.veroeffentlicht } : e)));
   };
 
   // ---- Personen-Helfer (Zuweisung & Planung) ----
@@ -2125,7 +2163,7 @@ function App() {
           })
           .join("");
         return `<tr>
-          <td style="border:1px solid #6B7280;padding:4px 6px;background:${rolle.color};color:white;font-weight:800;font-size:10px;">${escapeHtml(person)}<div style="font-weight:600;font-size:8px;text-transform:uppercase;color:rgba(255,255,255,0.85);">${escapeHtml(rolle.label)}</div></td>
+          <td style="border:1px solid #6B7280;padding:4px 6px;background:#F7F8F9;font-weight:700;font-size:10px;white-space:nowrap;"><span style="display:inline-block;width:13px;height:13px;border-radius:50%;background:${rolle.color};color:white;font-weight:800;font-size:7px;text-align:center;line-height:13px;vertical-align:middle;margin-right:4px;">${escapeHtml(personKuerzel(person))}</span>${escapeHtml(person)}</td>
           ${zellen}
         </tr>`;
       })
@@ -2592,15 +2630,17 @@ function App() {
                   style={{ borderColor: "#D6D9DC", width: "150px" }}
                   aria-label="Pinnwand durchsuchen"
                 />
-                <button
-                  onClick={() => setZettelOpen(!zettelOpen)}
-                  className="flex items-center justify-center rounded text-white font-black"
-                  style={{ backgroundColor: "#22262B", width: "26px", height: "26px", fontSize: "1rem", lineHeight: 1, flexShrink: 0 }}
-                  title="Neue Notiz anpinnen"
-                  aria-label="Neue Notiz anpinnen"
-                >
-                  +
-                </button>
+                {!readerMode && (
+                  <button
+                    onClick={() => setZettelOpen(!zettelOpen)}
+                    className="flex items-center justify-center rounded text-white font-black"
+                    style={{ backgroundColor: "#22262B", width: "26px", height: "26px", fontSize: "1rem", lineHeight: 1, flexShrink: 0 }}
+                    title="Neue Notiz anpinnen"
+                    aria-label="Neue Notiz anpinnen"
+                  >
+                    +
+                  </button>
+                )}
               </div>
 
               {zettelOpen && (
@@ -2642,8 +2682,14 @@ function App() {
               )}
               {(() => {
                 const q = zettelSuche.trim().toLowerCase();
-                const sichtbar = q ? zettelListe.filter((z) => `${z.note} ${z.name}`.toLowerCase().includes(q)) : zettelListe;
+                // Nur-Leser sehen ausschließlich veröffentlichte Zettel (🌐) -
+                // alle anderen Notizen sind intern für die Bearbeiter gedacht.
+                const basis = readerMode ? zettelListe.filter((z) => z.veroeffentlicht) : zettelListe;
+                const sichtbar = q ? basis.filter((z) => `${z.note} ${z.name}`.toLowerCase().includes(q)) : basis;
                 if (q && sichtbar.length === 0) return <div className="text-xs italic text-slate-400">Kein Zettel passt zur Suche.</div>;
+                const iconStil = (aktiv) => aktiv
+                  ? { fontSize: "0.78rem", width: "26px", height: "24px", backgroundColor: "#22262B", color: "white" }
+                  : { fontSize: "0.78rem", width: "26px", height: "24px", backgroundColor: "rgba(0,0,0,0.07)", color: "#5B6572" };
                 return (
               <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
                 {sichtbar.map((z) => (
@@ -2652,7 +2698,8 @@ function App() {
                     <div className="text-right mt-1.5" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
                       {z.name} · {z.zeit ? new Date(z.zeit).toLocaleDateString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : formatDateDE(z.date)}
                     </div>
-                    <div className="flex gap-1.5 mt-2 flex-wrap">
+                    {!readerMode && (
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                       <button
                         onClick={() => zettelZuArbeit(z)}
                         className="font-extrabold uppercase rounded text-white"
@@ -2662,23 +2709,33 @@ function App() {
                       </button>
                       <button
                         onClick={() => toggleZettelMonitor(z.id)}
-                        className="font-extrabold uppercase rounded"
-                        style={z.monitor
-                          ? { fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "#22262B", color: "white" }
-                          : { fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "rgba(0,0,0,0.07)", color: "#5B6572" }}
-                        title="Auf dem Werkstatt-Monitor im Laufband anzeigen"
+                        className="inline-flex items-center justify-center rounded"
+                        style={iconStil(z.monitor)}
+                        title={z.monitor ? "Läuft im Werkstatt-Monitor - Klick schaltet aus" : "Auf dem Werkstatt-Monitor im Laufband anzeigen"}
+                        aria-label={z.monitor ? "Nicht mehr im Monitor anzeigen" : "Im Monitor anzeigen"}
                       >
-                        📺 {z.monitor ? "Im Monitor" : "In Monitor anzeigen"}
+                        📺
+                      </button>
+                      <button
+                        onClick={() => toggleZettelVeroeffentlicht(z.id)}
+                        className="inline-flex items-center justify-center rounded"
+                        style={iconStil(z.veroeffentlicht)}
+                        title={z.veroeffentlicht ? "Veröffentlicht: auch Nur-Leser sehen diesen Zettel - Klick macht ihn wieder intern" : "Veröffentlichen: auch für Nur-Leser sichtbar machen (sonst nur für Bearbeiter)"}
+                        aria-label={z.veroeffentlicht ? "Veröffentlichung zurücknehmen" : "Veröffentlichen"}
+                      >
+                        🌐
                       </button>
                       <button
                         onClick={() => deleteZettel(z.id)}
-                        className="font-extrabold uppercase rounded"
-                        style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "rgba(0,0,0,0.07)", color: "#5B6572" }}
+                        className="inline-flex items-center justify-center rounded font-extrabold"
+                        style={{ ...iconStil(false), fontSize: "0.9rem" }}
                         title="Zettel entfernen"
+                        aria-label="Zettel entfernen"
                       >
-                        × Zettel entfernen
+                        ×
                       </button>
                     </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -3021,9 +3078,9 @@ function App() {
                     const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
                     return (
                     <React.Fragment key={person}>
-                      <div style={{ padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.25)", background: rolle.color, display: "flex", flexDirection: "column", justifyContent: "center" }} title={rolle.label}>
-                        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "white", lineHeight: 1.15 }}>{person}</span>
-                        <span style={{ fontSize: "0.56rem", fontWeight: 600, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{rolle.label}</span>
+                      <div style={{ padding: "8px 10px", borderBottom: "1.5px solid #6B7280", background: "#F7F8F9", display: "flex", alignItems: "center" }} title={rolle.label}>
+                        <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold mr-1.5" style={{ width: "18px", height: "18px", fontSize: "0.52rem", backgroundColor: rolle.color, flexShrink: 0 }}>{personKuerzel(person)}</span>
+                        <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#22262B" }}>{person}</span>
                       </div>
                       {planungTage.map((t) => {
                         const schicht = schichtFuer(person, t.key);
@@ -4255,6 +4312,60 @@ function App() {
             <button onClick={() => setSettingsTeam((prev) => [...prev, { name: "", rolle: "mech" }])} className="text-xs font-bold mb-5" style={{ color: "#22262B" }}>
               + Person hinzufügen
             </button>
+
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Schichtarten</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Feste Schichtarten (Farben sind fix, nur Früh/Spät/Nacht farbig) plus eigene – neue Schichtarten sind automatisch grau.
+            </div>
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              {Object.entries(SCHICHTEN_BASIS).map(([name, s]) => (
+                <span key={name} className="rounded font-black uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: s.text || "white", backgroundColor: s.color }}>{name}</span>
+              ))}
+            </div>
+            {settingsSchichten.length > 0 && (
+              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                {settingsSchichten.map((s, idx) => (
+                  <span key={s.name} className="inline-flex items-center gap-1 rounded font-black uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 4px 2px 7px", color: "white", backgroundColor: SCHICHT_GRAU }}>
+                    {s.name} ({s.kurz})
+                    <button
+                      onClick={() => setSettingsSchichten((prev) => prev.filter((_, i) => i !== idx))}
+                      className="hover:opacity-70"
+                      aria-label={`Schichtart ${s.name} entfernen`}
+                      title="Eigene Schichtart entfernen (bereits eingetragene Schichten bleiben in den Daten)"
+                    ><X size={11} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2 mb-5">
+              <input
+                value={neueSchichtName}
+                onChange={(e) => setNeueSchichtName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  const n = neueSchichtName.trim();
+                  if (!n || SCHICHTEN_BASIS[n] || settingsSchichten.some((s) => s.name === n)) return;
+                  setSettingsSchichten((prev) => [...prev, { name: n, kurz: schichtKurz(n) }]);
+                  setNeueSchichtName("");
+                }}
+                placeholder="Neue Schichtart, z. B. Lehrgang"
+                className="text-sm border rounded px-2 py-1.5"
+                style={{ borderColor: "#D6D9DC", width: "220px" }}
+                aria-label="Neue Schichtart"
+              />
+              <button
+                onClick={() => {
+                  const n = neueSchichtName.trim();
+                  if (!n || SCHICHTEN_BASIS[n] || settingsSchichten.some((s) => s.name === n)) return;
+                  setSettingsSchichten((prev) => [...prev, { name: n, kurz: schichtKurz(n) }]);
+                  setNeueSchichtName("");
+                }}
+                className="text-xs font-bold"
+                style={{ color: "#22262B" }}
+              >
+                + Schichtart hinzufügen
+              </button>
+            </div>
 
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Sicherungen (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
