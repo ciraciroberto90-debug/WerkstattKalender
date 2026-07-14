@@ -53,7 +53,7 @@ const setzeSchicht = async (page, person, schicht) => {
 
   // ---- Situation A: drei Bearbeiter gleichzeitig ----
   {
-    const team = [{ name: 'Anna' }, { name: 'Bernd' }, { name: 'Carla' }];
+    const team = [{ name: 'Anna', rolle: 'mech' }, { name: 'Bernd', rolle: 'elek' }, { name: 'Carla', rolle: 'azubi' }];
     const drive = { 'kalender-daten.json': JSON.stringify({
       format: 'werkstatt-kalender-v1', savedAt: new Date().toISOString(),
       entries: [], deleted: {}, config: { tpmAnlagen: [], riItems: [], team },
@@ -197,7 +197,7 @@ const setzeSchicht = async (page, person, schicht) => {
   {
     const drive = { 'kalender-daten.json': JSON.stringify({
       format: 'werkstatt-kalender-v1', savedAt: new Date().toISOString(),
-      entries: [], deleted: {}, config: { tpmAnlagen: [], riItems: [], team: [{ name: 'Dora' }, { name: 'Elias' }] },
+      entries: [], deleted: {}, config: { tpmAnlagen: [], riItems: [], team: [{ name: 'Dora', rolle: 'mech' }, { name: 'Elias', rolle: 'elek' }] },
     }) };
     const p1 = await makeUser(browser, drive, '2026-07-13T09:00:00');
     const p2 = await makeUser(browser, drive, '2026-07-13T09:00:01');

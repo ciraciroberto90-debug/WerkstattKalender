@@ -60,7 +60,11 @@ function grosserBestand() {
   await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
   await page.waitForTimeout(600);
   ok('Schichtplan-Matrix mit 60 Zeilen öffnet zügig (< 5s)', Date.now() - t2 < 5000);
-  ok('60 Personenzeilen in der Matrix', await page.locator('tbody tr').count() === 60);
+  // 45 mit Gewerk direkt sichtbar + 1 "Sonstige"-Aufklapp-Zeile (15 ohne Gewerk sind zunächst eingeklappt)
+  ok('45 Personenzeilen + 1 "Sonstige"-Zeile in der Matrix (eingeklappt)', await page.locator('tbody tr').count() === 46);
+  await page.getByRole('button', { name: 'Sonstige auf- oder zuklappen' }).click();
+  await page.waitForTimeout(200);
+  ok('Nach Aufklappen: alle 60 Personenzeilen + 1 "Sonstige"-Zeile sichtbar', await page.locator('tbody tr').count() === 61);
 
   const t3 = Date.now();
   await page.getByRole('button', { name: 'Planung', exact: true }).click();

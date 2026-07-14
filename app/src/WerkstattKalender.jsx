@@ -71,15 +71,15 @@ const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
 // Werkstattschichtplan - Schichtarten wie das Excel-Dropdown (Blatt "Daten").
 // Der Schlüssel ist zugleich der gespeicherte Wert und die Anzeige.
 const SCHICHTEN = {
-  "Früh": { color: "#C9A227", kurz: "F" },
+  "Früh": { color: "#F0C230", text: "#2B2200", kurz: "F" },
   "Spät": { color: "#2E9B4F", kurz: "S" },
-  "Spät mit B": { color: "#1F7A3D", kurz: "SB" },
+  "Spät mit B": { color: "#8A9099", kurz: "SB" },
   "Nacht": { color: "#2F6690", kurz: "N" },
   "Bereits.": { color: "#8A9099", kurz: "B" },
-  "Schule": { color: "#7C5CBF", kurz: "Sch" },
-  "Krank": { color: "#B23A34", kurz: "K" },
-  "Urlaub": { color: "#C97A2B", kurz: "U" },
-  "Mainsite": { color: "#3D8B8B", kurz: "M" },
+  "Schule": { color: "#8A9099", kurz: "Sch" },
+  "Krank": { color: "#8A9099", kurz: "K" },
+  "Urlaub": { color: "#8A9099", kurz: "U" },
+  "Mainsite": { color: "#8A9099", kurz: "M" },
 };
 // Wer ganztags fehlt, bekommt in der Zelle kein ＋ (nichts einplanen)
 const SCHICHT_ABWESEND = new Set(["Krank", "Urlaub", "Schule"]);
@@ -761,6 +761,21 @@ function App() {
   }, [view, year, month, filter, loading]);
 
   const fileInputRef = useRef(null);
+
+  // Schichtplan-Matrix: beim Öffnen (bzw. wenn der aktuelle Monat angezeigt wird)
+  // automatisch so weit nach rechts scrollen, dass die aktuelle Woche direkt
+  // neben der Namensspalte steht - nicht erst ab dem 1. des Monats.
+  const matrixScrollRef = useRef(null);
+  useEffect(() => {
+    const container = matrixScrollRef.current;
+    if (!container) return;
+    const istAktuellerMonat = matrixCursor.getFullYear() === today.getFullYear() && matrixCursor.getMonth() === today.getMonth();
+    if (!istAktuellerMonat) { container.scrollLeft = 0; return; }
+    const montag = montagVon(todayKey);
+    const zielKey = dateKey(montag.getFullYear(), montag.getMonth(), montag.getDate());
+    const zielEl = container.querySelector(`[data-daykey="${zielKey}"]`);
+    if (zielEl) container.scrollLeft = Math.max(0, zielEl.offsetLeft - 110);
+  }, [matrixCursor, cockpitTab, view, team.length]);
 
   const persist = async (next) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
@@ -1949,30 +1964,34 @@ function App() {
     const kwZeile = kwSegmente
       .map((s) => `<th colspan="${s.span}" style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 2px;font-weight:700;color:#8A9099;">KW ${s.kw}</th>`)
       .join("");
+    const randFuer = (t) => (t.dow === 1 ? "border-left:2.5px solid #22262B;" : t.dow === 6 ? "border-left:2px solid #4B5259;" : "");
     const tagZeile = tage
       .map((t) => {
         const we = t.dow === 0 || t.dow === 6;
         const ft = feiertage.get(t.key);
-        const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
-        return `<th style="border:1px solid #6B7280;${kwStart ? "border-left:2.5px solid #22262B;" : ""}min-width:20px;background:${ft ? "#FBE9E7" : we ? "#E5F0F8" : "#F7F8F9"};padding:2px 1px;font-weight:800;color:${ft ? "#B23A34" : we ? "#5B87AB" : "#8A9099"};">${WEEKDAYS[(t.dow + 6) % 7]}<br/>${t.nr}</th>`;
+        return `<th style="border:1px solid #6B7280;${randFuer(t)}min-width:20px;background:${ft ? "#FBE9E7" : we ? "#E5F0F8" : "#F7F8F9"};padding:2px 1px;font-weight:800;color:${ft ? "#B23A34" : we ? "#5B87AB" : "#8A9099"};">${WEEKDAYS[(t.dow + 6) % 7]}<br/>${t.nr}</th>`;
       })
       .join("");
-    const zeilen = team
-      .map((mitglied) => {
-        const person = mitglied.name;
-        const zellen = tage
-          .map((t) => {
-            const we = t.dow === 0 || t.dow === 6;
-            const schicht = schichtFuer(person, t.key);
-            const kwStart = t.dow === 1;
-            const bg = schicht ? SCHICHTEN[schicht].color : we ? "#EFF5FA" : "white";
-            const fg = schicht ? "white" : "#D6D9DC";
-            return `<td style="border:1px solid #6B7280;${kwStart ? "border-left:2.5px solid #22262B;" : ""}text-align:center;padding:2px 1px;background:${bg};color:${fg};font-weight:800;">${schicht ? escapeHtml(SCHICHTEN[schicht].kurz) : "·"}</td>`;
-          })
-          .join("");
-        return `<tr><td style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 6px;font-weight:700;white-space:nowrap;">${escapeHtml(person)}</td>${zellen}</tr>`;
-      })
-      .join("");
+    const zeileFuer = (mitglied) => {
+      const person = mitglied.name;
+      const zellen = tage
+        .map((t) => {
+          const we = t.dow === 0 || t.dow === 6;
+          const schicht = schichtFuer(person, t.key);
+          const bg = schicht ? SCHICHTEN[schicht].color : we ? "#EFF5FA" : "white";
+          const fg = schicht ? (SCHICHTEN[schicht].text || "white") : "#D6D9DC";
+          return `<td style="border:1px solid #6B7280;${randFuer(t)}text-align:center;padding:2px 1px;background:${bg};color:${fg};font-weight:800;">${schicht ? escapeHtml(SCHICHTEN[schicht].kurz) : "·"}</td>`;
+        })
+        .join("");
+      return `<tr><td style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 6px;font-weight:700;white-space:nowrap;">${escapeHtml(person)}</td>${zellen}</tr>`;
+    };
+    const rang = { mech: 0, elek: 1, azubi: 2 };
+    const haupt = [...team].filter((m) => (m.rolle || "") !== "").sort((a, b) => rang[a.rolle] - rang[b.rolle]);
+    const sonstige = team.filter((m) => (m.rolle || "") === "");
+    const sonstigeZeile = sonstige.length > 0
+      ? `<tr><td colspan="${tage.length + 1}" style="border:1px solid #6B7280;background:#F0F1F3;padding:3px 6px;font-weight:800;color:#5B6572;font-size:9px;">Sonstige (${sonstige.length}) – ohne Gewerk</td></tr>`
+      : "";
+    const zeilen = haupt.map(zeileFuer).join("") + sonstigeZeile + sonstige.map(zeileFuer).join("");
 
     const legende = Object.entries(SCHICHTEN)
       .map(([name, s]) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11px;font-weight:700;color:#39414B;"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${s.color};"></span>${escapeHtml(name)}</span>`)
@@ -2055,7 +2074,7 @@ function App() {
               .map((n) => `<div style="font-size:8.5px;font-weight:600;color:#39414B;border:1px solid #E5D77A;background:#FEF9C3;border-radius:3px;padding:1px 4px;margin-bottom:2px;">📝 ${escapeHtml(n.note)}</div>`)
               .join("");
             const schichtBadge = schicht
-              ? `<div style="display:inline-block;font-size:8px;font-weight:800;color:white;background:${SCHICHTEN[schicht].color};border-radius:3px;padding:1px 5px;margin-bottom:3px;">${escapeHtml(SCHICHTEN[schicht].kurz)}</div>`
+              ? `<div style="display:inline-block;font-size:8px;font-weight:800;color:${SCHICHTEN[schicht].text || "white"};background:${SCHICHTEN[schicht].color};border-radius:3px;padding:1px 5px;margin-bottom:3px;">${escapeHtml(SCHICHTEN[schicht].kurz)}</div>`
               : "";
             return `<td style="border:1px solid #6B7280;padding:3px;vertical-align:top;background:${t.we ? "#EFF5FA" : "white"};">${schichtBadge}${arbeiten}${notizen}</td>`;
           })
@@ -2430,7 +2449,7 @@ function App() {
           {team.length > 0 && (() => {
             const { aktuell, SCHICHT_INFO, jetztCrew, spalten } = jetztInDerWerkstatt;
             const chip = (s) => s ? (
-              <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
+              <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: SCHICHTEN[s].text || "white", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
             ) : (
               <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: "#E2E4E7", color: "#8A9099", flexShrink: 0 }} title="Keine Schicht eingetragen">–</span>
             );
@@ -2956,7 +2975,7 @@ function App() {
                             disabled={readerMode}
                             className="inline-flex items-center justify-center rounded font-black mb-1"
                             style={schicht
-                              ? { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "white", backgroundColor: SCHICHTEN[schicht].color, cursor: readerMode ? "default" : "pointer" }
+                              ? { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: SCHICHTEN[schicht].text || "white", backgroundColor: SCHICHTEN[schicht].color, cursor: readerMode ? "default" : "pointer" }
                               : { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "#C3C7CB", backgroundColor: "transparent", border: "1px dashed #D6D9DC", cursor: readerMode ? "default" : "pointer" }}
                             title={schicht ? `${schicht} – Schicht für ${person} ändern` : `Schicht für ${person} setzen`}
                             aria-label={`Schicht ${person} ${t.key}`}
@@ -3028,7 +3047,7 @@ function App() {
             <div className="mt-3 flex items-center gap-x-3 gap-y-1 flex-wrap">
               {Object.entries(SCHICHTEN).map(([name, s]) => (
                 <span key={name} className="inline-flex items-center gap-1" style={{ fontSize: "0.66rem", fontWeight: 700, color: "#5B6572" }}>
-                  <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: s.color }}>{s.kurz}</span>
+                  <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: s.text || "white", backgroundColor: s.color }}>{s.kurz}</span>
                   {name}
                 </span>
               ))}
@@ -3088,7 +3107,7 @@ function App() {
                 Noch kein Team angelegt. Öffne den <strong>⚙-Verwalten-Dialog</strong> und trage unter „Team" deine Leute ein.
               </div>
             ) : (
-              <div className="rounded-xl" style={{ backgroundColor: "white", border: "1.5px solid #6B7280", overflowX: "auto", padding: "4px" }}>
+              <div ref={matrixScrollRef} className="rounded-xl" style={{ backgroundColor: "white", border: "1.5px solid #6B7280", overflowX: "auto", padding: "4px" }}>
                 <table style={{ borderCollapse: "collapse" }}>
                   <thead>
                     <tr>
@@ -3104,10 +3123,11 @@ function App() {
                         const ft = feiertage.get(t.key);
                         const heutig = t.key === todayKey;
                         const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
+                        const wochenendStart = t.dow === 6; // Samstag = Beginn des Wochenendes - Abgrenzung zum Freitag davor
                         return (
-                          <th key={t.key} title={ft || undefined} style={{
+                          <th key={t.key} data-daykey={t.key} title={ft || undefined} style={{
                             border: "1.5px solid #6B7280",
-                            borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : "1.5px solid #6B7280",
+                            borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : wochenendStart ? "2.5px solid #4B5259" : "1.5px solid #6B7280",
                             borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                             borderTop: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                             minWidth: zellBreite,
@@ -3123,53 +3143,83 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {team.map((mitglied) => {
-                      const person = mitglied.name;
-                      const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
+                    {(() => {
+                      const rang = { mech: 0, elek: 1, azubi: 2 };
+                      const haupt = [...team].filter((m) => (m.rolle || "") !== "").sort((a, b) => rang[a.rolle] - rang[b.rolle]);
+                      const sonstige = team.filter((m) => (m.rolle || "") === "");
+                      const zeile = (mitglied) => {
+                        const person = mitglied.name;
+                        const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
+                        return (
+                          <tr key={person}>
+                            <td style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", padding: "4px 8px", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>
+                              <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold mr-1.5" style={{ width: "18px", height: "18px", fontSize: "0.52rem", backgroundColor: rolle.color, verticalAlign: "middle" }} title={rolle.label}>{personKuerzel(person)}</span>
+                              <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>{person}</span>
+                            </td>
+                            {tage.map((t) => {
+                              const we = t.dow === 0 || t.dow === 6;
+                              const schicht = schichtFuer(person, t.key);
+                              const heutig = t.key === todayKey;
+                              const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
+                              const wochenendStart = t.dow === 6; // Samstag = Beginn des Wochenendes - Abgrenzung zum Freitag davor
+                              return (
+                                <td key={t.key} style={{
+                                  border: "1.5px solid #6B7280",
+                                  borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : wochenendStart ? "2.5px solid #4B5259" : "1.5px solid #6B7280",
+                                  borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
+                                  padding: 0,
+                                  background: heutig ? "#FDF3E7" : we ? "#EFF5FA" : "white",
+                                }}>
+                                  <button
+                                    onClick={(ev) => {
+                                      const r = ev.currentTarget.getBoundingClientRect();
+                                      setMatrixPick({
+                                        person,
+                                        datum: t.key,
+                                        links: Math.max(8, Math.min(r.left, window.innerWidth - 200)),
+                                        oben: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 400)),
+                                      });
+                                    }}
+                                    className="block w-full font-extrabold"
+                                    style={schicht
+                                      ? { minWidth: zellBreite, height: "26px", fontSize: "0.58rem", color: SCHICHTEN[schicht].text || "white", backgroundColor: SCHICHTEN[schicht].color, whiteSpace: "nowrap", overflow: "hidden" }
+                                      : { minWidth: zellBreite, height: "26px", fontSize: "0.7rem", color: "#D6D9DC", backgroundColor: "transparent" }}
+                                    title={`${person} · ${formatDateDE(t.key)}${schicht ? " · " + schicht : ""}`}
+                                    aria-label={`Matrix ${person} ${t.key}`}
+                                  >
+                                    {schicht || "·"}
+                                  </button>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      };
                       return (
-                        <tr key={person}>
-                          <td style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", padding: "4px 8px", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>
-                            <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold mr-1.5" style={{ width: "18px", height: "18px", fontSize: "0.52rem", backgroundColor: rolle.color, verticalAlign: "middle" }} title={rolle.label}>{personKuerzel(person)}</span>
-                            <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>{person}</span>
-                          </td>
-                          {tage.map((t) => {
-                            const we = t.dow === 0 || t.dow === 6;
-                            const schicht = schichtFuer(person, t.key);
-                            const heutig = t.key === todayKey;
-                            const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
-                            return (
-                              <td key={t.key} style={{
-                                border: "1.5px solid #6B7280",
-                                borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : "1.5px solid #6B7280",
-                                borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
-                                padding: 0,
-                                background: heutig ? "#FDF3E7" : we ? "#EFF5FA" : "white",
-                              }}>
+                        <>
+                          {haupt.map(zeile)}
+                          {sonstige.length > 0 && (
+                            <tr>
+                              <td colSpan={tage.length + 1} style={{ border: "1.5px solid #6B7280", padding: 0, background: "#F0F1F3" }}>
+                                {/* Sticky auf dem Knopf selbst, nicht auf der (spaltenübergreifenden) Zelle -
+                                    eine so breite Zelle hat sonst keinen Spielraum, in dem "sticky" wirken könnte,
+                                    und der Knopf würde beim automatischen Scrollen zur aktuellen Woche aus dem
+                                    sichtbaren Bereich verschwinden. */}
                                 <button
-                                  onClick={(ev) => {
-                                    const r = ev.currentTarget.getBoundingClientRect();
-                                    setMatrixPick({
-                                      person,
-                                      datum: t.key,
-                                      links: Math.max(8, Math.min(r.left, window.innerWidth - 200)),
-                                      oben: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 400)),
-                                    });
-                                  }}
-                                  className="block w-full font-extrabold"
-                                  style={schicht
-                                    ? { minWidth: zellBreite, height: "26px", fontSize: "0.58rem", color: "white", backgroundColor: SCHICHTEN[schicht].color, whiteSpace: "nowrap", overflow: "hidden" }
-                                    : { minWidth: zellBreite, height: "26px", fontSize: "0.7rem", color: "#D6D9DC", backgroundColor: "transparent" }}
-                                  title={`${person} · ${formatDateDE(t.key)}${schicht ? " · " + schicht : ""}`}
-                                  aria-label={`Matrix ${person} ${t.key}`}
+                                  onClick={() => setSonstigeOffen((o) => !o)}
+                                  className="text-left"
+                                  style={{ position: "sticky", left: 0, display: "inline-block", whiteSpace: "nowrap", padding: "6px 8px", fontSize: "0.68rem", fontWeight: 800, color: "#5B6572" }}
+                                  aria-label="Sonstige auf- oder zuklappen"
                                 >
-                                  {schicht || "·"}
+                                  {sonstigeOffen ? "▾" : "▸"} Sonstige ({sonstige.length}) <span style={{ fontWeight: 400, color: "#8A9099" }}>– ohne Gewerk</span>
                                 </button>
                               </td>
-                            );
-                          })}
-                        </tr>
+                            </tr>
+                          )}
+                          {sonstigeOffen && sonstige.map(zeile)}
+                        </>
                       );
-                    })}
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -3178,7 +3228,7 @@ function App() {
             {team.length > 0 && (
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 {Object.entries(SCHICHTEN).map(([name, s]) => (
-                  <span key={name} className="rounded font-black uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: "white", backgroundColor: s.color }}>{name}</span>
+                  <span key={name} className="rounded font-black uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: s.text || "white", backgroundColor: s.color }}>{name}</span>
                 ))}
                 <span className="text-xs text-slate-400">· Reihenfolge der Leute änderst du im ⚙-Verwalten-Dialog (↑/↓) · ganze Wochen setzt du am schnellsten in der Planung</span>
               </div>
@@ -3199,8 +3249,8 @@ function App() {
               <button
                 key={name}
                 onClick={() => { setzeSchicht(matrixPick.person, matrixPick.datum, name, false); setMatrixPick(null); }}
-                className="block w-full text-left rounded font-bold text-white mb-0.5"
-                style={{ fontSize: "0.7rem", padding: "4px 8px", backgroundColor: s.color }}
+                className="block w-full text-left rounded font-bold mb-0.5"
+                style={{ fontSize: "0.7rem", padding: "4px 8px", color: s.text || "white", backgroundColor: s.color }}
               >
                 {name}
               </button>
@@ -3306,8 +3356,8 @@ function App() {
                 <button
                   key={name}
                   onClick={() => setzeSchicht(schichtPicker.person, schichtPicker.datum, name, schichtGanzeWoche)}
-                  className="rounded px-2 py-2 text-xs font-black uppercase text-white"
-                  style={{ backgroundColor: s.color, letterSpacing: "0.03em" }}
+                  className="rounded px-2 py-2 text-xs font-black uppercase"
+                  style={{ backgroundColor: s.color, color: s.text || "white", letterSpacing: "0.03em" }}
                 >
                   {name}
                 </button>
@@ -4455,7 +4505,7 @@ function App() {
       {monitorOpen && (() => {
         const { aktuell, SCHICHT_INFO, jetztCrew } = jetztInDerWerkstatt;
         const chip = (s) => s ? (
-          <span className="inline-flex items-center justify-center rounded font-black text-white" style={{ minWidth: "34px", height: "26px", padding: "0 8px", fontSize: "0.8rem", backgroundColor: SCHICHTEN[s].color, flexShrink: 0, marginRight: "10px" }}>{SCHICHTEN[s].kurz}</span>
+          <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "34px", height: "26px", padding: "0 8px", fontSize: "0.8rem", color: SCHICHTEN[s].text || "white", backgroundColor: SCHICHTEN[s].color, flexShrink: 0, marginRight: "10px" }}>{SCHICHTEN[s].kurz}</span>
         ) : (
           <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "34px", height: "26px", padding: "0 8px", fontSize: "0.8rem", backgroundColor: "#2E3238", color: "#9AA0A6", flexShrink: 0, marginRight: "10px" }}>–</span>
         );
@@ -4535,11 +4585,21 @@ function App() {
                 <div style={{ fontSize: "1.2rem", marginTop: "14px", color: "#7FD1A0" }}>✓ {erledigtWoche} erledigt diese Woche</div>
               </div>
             </div>
-            {monitorZettel.length > 0 && (
-              <div style={{ marginTop: "22px", background: "#1F2226", border: "1px solid #2E3238", borderRadius: "12px", padding: "14px 20px", fontSize: "1.25rem", color: "#C9CDD2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {monitorZettel.map((z) => `${z.note} (${z.name})`).join("   +++   ")}
-              </div>
-            )}
+            {monitorZettel.length > 0 && (() => {
+              const laufschriftText = monitorZettel.map((z) => `${z.note} (${z.name})`).join("   +++   ");
+              const dauer = Math.max(15, laufschriftText.length * 0.13);
+              return (
+                <div style={{ marginTop: "22px", background: "#1F2226", border: "1px solid #2E3238", borderRadius: "12px", padding: "14px 0 14px 20px", overflow: "hidden" }}>
+                  <style>{`
+                    @keyframes werkstattLaufschrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+                  `}</style>
+                  <div style={{ display: "inline-flex", whiteSpace: "nowrap", animation: `werkstattLaufschrift ${dauer}s linear infinite` }}>
+                    <span style={{ fontSize: "1.25rem", color: "#C9CDD2", paddingRight: "80px" }}>{laufschriftText}</span>
+                    <span style={{ fontSize: "1.25rem", color: "#C9CDD2", paddingRight: "80px" }}>{laufschriftText}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         );
       })()}
