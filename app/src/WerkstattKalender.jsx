@@ -73,7 +73,7 @@ const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
 const SCHICHTEN = {
   "Früh": { color: "#F0C230", text: "#2B2200", kurz: "F" },
   "Spät": { color: "#2E9B4F", kurz: "S" },
-  "Spät mit B": { color: "#8A9099", kurz: "SB" },
+  "Spät mit B": { color: "#1F7A3D", kurz: "SB" },
   "Nacht": { color: "#2F6690", kurz: "N" },
   "Bereits.": { color: "#8A9099", kurz: "B" },
   "Schule": { color: "#8A9099", kurz: "Sch" },
