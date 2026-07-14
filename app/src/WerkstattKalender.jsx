@@ -2048,7 +2048,7 @@ function App() {
     const kwZeile = kwSegmente
       .map((s) => `<th colspan="${s.span}" style="border:1px solid #6B7280;background:#F7F8F9;padding:3px 2px;font-weight:700;color:#8A9099;">KW ${s.kw}</th>`)
       .join("");
-    const randFuer = (t) => (t.dow === 1 ? "border-left:2.5px solid #22262B;" : t.dow === 6 ? "border-left:2px solid #4B5259;" : "");
+    const randFuer = (t) => (t.dow === 1 || t.dow === 6 ? "border-left:2.5px solid #22262B;" : "");
     const tagZeile = tage
       .map((t) => {
         const we = t.dow === 0 || t.dow === 6;
@@ -3044,8 +3044,10 @@ function App() {
                   {planungTage.map((t) => {
                     const istHeute = t.key === todayKey;
                     const feiertag = getHolidays(t.datum.getFullYear()).get(t.key);
+                    // Deutliche Spaltenlinien wie im Schichtplan; Samstag bekommt die dunkle Wochenend-Trennlinie
+                    const spaltenRand = t.datum.getDay() === 6 ? "3px solid #22262B" : "1.5px solid #6B7280";
                     return (
-                      <div key={t.key} style={{ padding: "8px 6px", textAlign: "center", background: istHeute ? "#FDF3E7" : t.we ? "#E5F0F8" : "#F7F8F9", borderBottom: "2px solid #22262B", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: feiertag ? "#B23A34" : istHeute ? "#C97A2B" : t.we ? "#7FA6C4" : "#8A9099" }}>
+                      <div key={t.key} style={{ padding: "8px 6px", textAlign: "center", background: istHeute ? "#FDF3E7" : t.we ? "#E5F0F8" : "#F7F8F9", borderBottom: "2px solid #22262B", borderLeft: spaltenRand, fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: feiertag ? "#B23A34" : istHeute ? "#C97A2B" : t.we ? "#7FA6C4" : "#8A9099" }}>
                         {t.datum.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}{feiertag ? <div style={{ fontSize: "0.6rem" }}>{feiertag}</div> : null}
                       </div>
                     );
@@ -3054,7 +3056,7 @@ function App() {
                   {/* Feste Zeile: Wartungsplan */}
                   <div style={{ padding: "8px 10px", borderBottom: "1.5px solid #6B7280", background: "#FBF7F1", fontSize: "0.72rem", fontWeight: 800, color: "#C97A2B" }}>Wartungsplan<br /><span style={{ fontWeight: 400, color: "#8A9099" }}>TPM &amp; R+I (fest)</span></div>
                   {planungTage.map((t) => (
-                    <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : "#FFFDF9", minHeight: "56px" }}>
+                    <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: t.datum.getDay() === 6 ? "3px solid #22262B" : "1.5px solid #6B7280", background: t.we ? "#EFF5FA" : "#FFFDF9", minHeight: "56px" }}>
                       {wochenPlan.filter((p) => p.date === t.key).map((p, i) => {
                         const done = isPlanDone(p);
                         const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
@@ -3095,7 +3097,7 @@ function App() {
                             setPlanNotiz({ person, datum: t.key, text: "" });
                           }}
                           title={readerMode ? undefined : "Klick auf freie Fläche: Notiz direkt eintragen"}
-                          style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1px solid #EDEEF0", background: t.we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative", cursor: readerMode ? "default" : "pointer" }}
+                          style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: t.datum.getDay() === 6 ? "3px solid #22262B" : "1.5px solid #6B7280", background: t.we ? "#EFF5FA" : t.key === todayKey ? "#FFFDF9" : "white", minHeight: "56px", position: "relative", cursor: readerMode ? "default" : "pointer" }}
                         >
                           {/* Schicht (Werkstattschichtplan) als Kürzel: Klick = ändern */}
                           <button
@@ -3255,7 +3257,7 @@ function App() {
                         return (
                           <th key={t.key} data-daykey={t.key} title={ft || undefined} style={{
                             border: "1.5px solid #6B7280",
-                            borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : wochenendStart ? "2.5px solid #4B5259" : "1.5px solid #6B7280",
+                            borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : wochenendStart ? "3px solid #22262B" : "1.5px solid #6B7280",
                             borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                             borderTop: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                             minWidth: zellBreite,
@@ -3293,7 +3295,7 @@ function App() {
                               return (
                                 <td key={t.key} style={{
                                   border: "1.5px solid #6B7280",
-                                  borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : wochenendStart ? "2.5px solid #4B5259" : "1.5px solid #6B7280",
+                                  borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : wochenendStart ? "3px solid #22262B" : "1.5px solid #6B7280",
                                   borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                                   padding: 0,
                                   background: heutig ? "#FDF3E7" : we ? "#EFF5FA" : "white",
