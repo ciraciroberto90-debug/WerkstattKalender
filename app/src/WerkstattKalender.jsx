@@ -3558,11 +3558,18 @@ function App() {
             <textarea
               value={planNotiz.text}
               onChange={(ev) => setPlanNotiz({ ...planNotiz, text: ev.target.value })}
+              onKeyDown={(ev) => {
+                // Enter = speichern; neue Zeile weiterhin über Umschalt+Enter möglich
+                if (ev.key === "Enter" && !ev.shiftKey) {
+                  ev.preventDefault();
+                  savePlanNotiz();
+                }
+              }}
               rows={3}
               autoFocus
               spellCheck
               lang="de"
-              placeholder="z. B. ab 8:30 Zahnarzt, kommt später …"
+              placeholder="z. B. ab 8:30 Zahnarzt, kommt später … (Enter = speichern)"
               className="w-full rounded border px-2.5 py-2 text-sm"
               style={{ borderColor: "#D6D9DC", backgroundColor: "#FEF9C3" }}
             />
