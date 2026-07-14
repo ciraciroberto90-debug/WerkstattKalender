@@ -3045,7 +3045,7 @@ function App() {
                     const istHeute = t.key === todayKey;
                     const feiertag = getHolidays(t.datum.getFullYear()).get(t.key);
                     // Deutliche Spaltenlinien wie im Schichtplan; Samstag bekommt die dunkle Wochenend-Trennlinie
-                    const spaltenRand = t.datum.getDay() === 6 ? "3px solid #22262B" : "1.5px solid #6B7280";
+                    const spaltenRand = "1.5px solid #6B7280";
                     return (
                       <div key={t.key} style={{ padding: "8px 6px", textAlign: "center", background: istHeute ? "#F5D8AC" : t.we ? "#E5F0F8" : "#F7F8F9", borderBottom: "2px solid #22262B", borderLeft: spaltenRand, fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: feiertag ? "#B23A34" : istHeute ? "#8F5A17" : t.we ? "#7FA6C4" : "#8A9099" }}>
                         {t.datum.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}{feiertag ? <div style={{ fontSize: "0.6rem" }}>{feiertag}</div> : null}
@@ -3056,7 +3056,7 @@ function App() {
                   {/* Feste Zeile: Wartungsplan */}
                   <div style={{ padding: "8px 10px", borderBottom: "1.5px solid #6B7280", background: "#FBF7F1", fontSize: "0.72rem", fontWeight: 800, color: "#C97A2B" }}>Wartungsplan<br /><span style={{ fontWeight: 400, color: "#8A9099" }}>TPM &amp; R+I (fest)</span></div>
                   {planungTage.map((t) => (
-                    <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: t.datum.getDay() === 6 ? "3px solid #22262B" : "1.5px solid #6B7280", background: t.key === todayKey ? "#FAE6C6" : t.we ? "#EFF5FA" : "#FFFDF9", minHeight: "56px" }}>
+                    <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1.5px solid #6B7280", background: t.key === todayKey ? "#FAE6C6" : t.we ? "#EFF5FA" : "#FFFDF9", minHeight: "56px" }}>
                       {wochenPlan.filter((p) => p.date === t.key).map((p, i) => {
                         const done = isPlanDone(p);
                         const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
@@ -3097,7 +3097,7 @@ function App() {
                             setPlanNotiz({ person, datum: t.key, text: "" });
                           }}
                           title={readerMode ? undefined : "Klick auf freie Fläche: Notiz direkt eintragen"}
-                          style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: t.datum.getDay() === 6 ? "3px solid #22262B" : "1.5px solid #6B7280", background: t.key === todayKey ? "#FAE6C6" : t.we ? "#EFF5FA" : "white", minHeight: "56px", position: "relative", cursor: readerMode ? "default" : "pointer" }}
+                          style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1.5px solid #6B7280", background: t.key === todayKey ? "#FAE6C6" : t.we ? "#EFF5FA" : "white", minHeight: "56px", position: "relative", cursor: readerMode ? "default" : "pointer" }}
                         >
                           {/* Schicht (Werkstattschichtplan) als Kürzel: Klick = ändern */}
                           <button
