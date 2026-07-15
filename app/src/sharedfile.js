@@ -272,6 +272,10 @@ async function adoptCurrentFile(justCreated) {
       lastWriteError = `${e && e.name ? e.name : "Fehler"}: ${e && e.message ? e.message : e}`;
       if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
       accessMode = "read"; // keine Schreibrechte (IT-Freigabe) -> nur ansehen
+      // WICHTIG: Zurückstufung auch merken. Sonst stünde nach dem nächsten
+      // Browser-Neustart fälschlich "readwrite" in der Merkliste und ein reiner
+      // Leser würde bis zum Klick auf "Jetzt verbinden" als Bearbeiter gelten.
+      try { await idbSet("mode", "read"); } catch (e2) { /* egal */ }
     }
   }
 

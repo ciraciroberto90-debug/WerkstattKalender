@@ -144,6 +144,77 @@ const mockHandle = (mode) => ({
     await page.close();
   }
 
+  // ---- Szenario 6: Schreibschutz-Banner für Leser ist schlicht (keine verlockenden Knöpfe) ----
+  {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    page.on('pageerror', (e) => console.log('PAGEERROR (S6):', e.message));
+    await page.addInitScript(() => {
+      const handle = {
+        name: 'kalender-daten.json', kind: 'file',
+        async getFile() { return new File(['{"format":"werkstatt-kalender-v1","savedAt":"2026-01-01T00:00:00.000Z","entries":[],"deleted":{},"config":{}}'], 'kalender-daten.json', { type: 'application/json' }); },
+        async createWritable() { const e = new Error('nur Lesen'); e.name = 'NotAllowedError'; throw e; },
+        async queryPermission() { return 'granted'; },
+        async requestPermission() { return 'granted'; },
+      };
+      window.showOpenFilePicker = async () => [handle];
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(500);
+    await page.locator('button[aria-label="Gemeinsame Datei"]').click();
+    await page.getByText('Vorhandene Datei öffnen …').click();
+    await page.waitForTimeout(900);
+
+    const text = await page.locator('body').innerText();
+    ok('S6: Banner zeigt "Schreibschutz"', text.includes('Schreibschutz'));
+    ok('S6: Banner zeigt die Aktualisierungs-Anzeige', text.includes('Aktualisiert:') && /gerade eben|vor \d+ (Sek|Min|Std)\./.test(text));
+    ok('S6: KEIN "Andere Datei wählen" für Leser', !text.includes('Andere Datei wählen'));
+    ok('S6: KEIN "Schreibzugriff erneut versuchen" für Leser', !text.includes('Schreibzugriff erneut versuchen'));
+
+    // Zurückstufung wurde gemerkt: Nach Browser-Neustart darf der Leser nie
+    // wieder (auch nicht kurz) als Bearbeiter gelten.
+    const gemerkterModus = await page.evaluate(() => new Promise((resolve) => {
+      const req = indexedDB.open('werkstatt-kalender-fs');
+      req.onsuccess = () => {
+        const db = req.result;
+        const tx = db.transaction('handles', 'readonly');
+        const g = tx.objectStore('handles').get('mode');
+        g.onsuccess = () => { db.close(); resolve(g.result); };
+        g.onerror = () => { db.close(); resolve(null); };
+      };
+      req.onerror = () => resolve(null);
+    }));
+    ok('S6: Gemerkter Modus in IndexedDB ist "read" (nicht mehr fälschlich "readwrite")', gemerkterModus === 'read');
+
+    await page.close();
+  }
+
+  // ---- Szenario 7: ?verwalten=1 blendet die Rettungs-Knöpfe wieder ein (für Bearbeiter) ----
+  {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    page.on('pageerror', (e) => console.log('PAGEERROR (S7):', e.message));
+    await page.addInitScript(() => {
+      const handle = {
+        name: 'kalender-daten.json', kind: 'file',
+        async getFile() { return new File(['{"format":"werkstatt-kalender-v1","savedAt":"2026-01-01T00:00:00.000Z","entries":[],"deleted":{},"config":{}}'], 'kalender-daten.json', { type: 'application/json' }); },
+        async createWritable() { const e = new Error('nur Lesen'); e.name = 'NotAllowedError'; throw e; },
+        async queryPermission() { return 'granted'; },
+        async requestPermission() { return 'granted'; },
+      };
+      window.showOpenFilePicker = async () => [handle];
+    });
+    await page.goto(APP + '?verwalten=1');
+    await page.waitForTimeout(500);
+    await page.locator('button[aria-label="Gemeinsame Datei"]').click();
+    await page.getByText('Vorhandene Datei öffnen …').click();
+    await page.waitForTimeout(900);
+
+    const text = await page.locator('body').innerText();
+    ok('S7: Mit ?verwalten=1 ist "Schreibzugriff erneut versuchen" sichtbar', text.includes('Schreibzugriff erneut versuchen'));
+    ok('S7: Mit ?verwalten=1 ist "Andere Datei wählen" sichtbar', text.includes('Andere Datei wählen'));
+
+    await page.close();
+  }
+
   console.log(`\n${pass} PASS / ${fail} FAIL`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

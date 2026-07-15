@@ -4,6 +4,23 @@ import * as sharedFile from "./sharedfile.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
+// "Zuletzt aktualisiert"-Anzeige der gemeinsamen Datei: tickt sekündlich,
+// aber nur diese kleine Komponente rendert neu - nicht die ganze App.
+function SyncAnzeige({ style }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const at = sharedFile.getLastSuccessfulSyncAt();
+  if (!at) return null;
+  return (
+    <span className="font-mono text-[11px]" style={style} title="Zeitpunkt der letzten erfolgreichen Synchronisation mit der gemeinsamen Datei">
+      {formatVorZeit(at)}
+    </span>
+  );
+}
+
 // Halbkreis-Anzeige für die Erledigungs-Quoten in der Übersicht: füllt sich
 // beim Anzeigen langsam bis zum Zielwert, die Prozentzahl steht in der Mitte.
 function HalbkreisQuote({ prozent, label }) {
@@ -525,13 +542,6 @@ function App() {
   const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
-  const [syncTick, setSyncTick] = useState(0); // erzwingt Neu-Rendern für die "zuletzt aktualisiert"-Anzeige
-
-  // Nur zum Auffrischen der "zuletzt aktualisiert vor..."-Anzeige, kein Datenzugriff.
-  useEffect(() => {
-    const t = setInterval(() => setSyncTick((n) => n + 1), 15000);
-    return () => clearInterval(t);
-  }, []);
 
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
   useEffect(() => {
@@ -611,7 +621,11 @@ function App() {
   // "noch nicht verbunden" (frisch geöffnete App, Verbindung steht noch aus) -
   // gelten bewusst als Nur-Leser, bis das Gegenteil bewiesen ist. So sehen
   // reine Leser nie versehentlich für einen Moment die vollen Cockpit-Tabs.
-  const vollzugriff = shareChecked && (shareState.status === "unsupported" || shareState.mode === "readwrite");
+  // "readwrite" zählt nur, wenn die Verbindung WIRKLICH steht - der Zustand
+  // "nach Browser-Neustart getrennt" (needs-permission) trägt zwar den gemerkten
+  // Modus, ist aber unbestätigt und gilt deshalb als Nur-Lesen, bis der Nutzer
+  // auf "Jetzt verbinden" klickt und die Schreibrechte erneut bewiesen sind.
+  const vollzugriff = shareChecked && (shareState.status === "unsupported" || (shareState.status === "connected" && shareState.mode === "readwrite"));
   const readerMode = !vollzugriff;
   // Enger gefasst als readerMode: nur wer TATSÄCHLICH schon verbunden UND
   // bestätigt Nur-Lesen ist. Wichtig für den "Gemeinsame Datei"-Knopf selbst -
@@ -633,6 +647,11 @@ function App() {
   // für Nur-Leser erreichbar - ein normaler Leser (Kollege am eigenen PC) soll
   // weiterhin ausschließlich den Plan sehen, wie ursprünglich festgelegt.
   const kioskMonitor = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("monitor") === "1";
+  // ...html?verwalten=1: blendet im Schreibschutz-Banner die Rettungs-Knöpfe ein
+  // (Schreibzugriff erneut versuchen / Andere Datei wählen) - für den Fall, dass
+  // ein BEARBEITER fälschlich im Schreibschutz gelandet ist. Normale Leser sehen
+  // diese Knöpfe nicht (zu verlockend).
+  const rettungsModus = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("verwalten") === "1";
 
   // Werkstatt-Monitor: Uhr sekündlich aktualisieren, ESC beendet den Vollbild-Modus,
   // Bildschirm bleibt wach (wichtig für einen Kiosk-Rechner ohne Nutzereingaben)
@@ -2417,11 +2436,7 @@ function App() {
               trennen noch eine andere Datei wählen können. */}
           {!confirmedReadOnly && (
           <>
-            {shareState.status === "connected" && sharedFile.getLastSuccessfulSyncAt() && (
-              <span key={syncTick} className="font-mono text-[11px]" style={{ color: "#B7BEC6" }} title="Zeitpunkt der letzten erfolgreichen Synchronisation mit der gemeinsamen Datei">
-                {formatVorZeit(sharedFile.getLastSuccessfulSyncAt())}
-              </span>
-            )}
+            {shareState.status === "connected" && <SyncAnzeige style={{ color: "#B7BEC6" }} />}
             <button
               onClick={() => setShareOpen(true)}
               className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
@@ -2449,36 +2464,43 @@ function App() {
       )}
       {shareState.status === "connected" && shareState.mode === "read" && (
         <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
-          <span>
-            Nur ansehen – für „{shareState.name}" bestehen keine Schreibrechte. Angezeigt wird der gemeinsame Stand; eigene Änderungen werden nicht gespeichert.
-            {sharedFile.getLastWriteError() && (
-              <span className="block font-normal" style={{ color: "#5B87AB" }}>Technischer Grund: {sharedFile.getLastWriteError()}</span>
-            )}
-          </span>
-          <button
-            onClick={async () => {
-              try {
-                const st = await sharedFile.retryWrite();
-                setShareState(st);
-                setErr(st.mode === "read"
-                  ? `Schreibzugriff weiterhin nicht möglich (${sharedFile.getLastWriteError() || "unbekannter Grund"}). Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte? Ordner von OneDrive/Defender geschützt?`
-                  : null);
-              } catch (e2) {
-                setErr("Gemeinsame Datei: " + (e2 && e2.message ? e2.message : "Erneuter Versuch fehlgeschlagen."));
-              }
-            }}
-            className="px-2.5 py-1 rounded text-white"
-            style={{ backgroundColor: "#2F6690" }}
-          >
-            Schreibzugriff erneut versuchen
-          </button>
-          <button
-            onClick={() => setShareOpen(true)}
-            className="px-2.5 py-1 rounded border"
-            style={{ borderColor: "#2F6690", color: "#2F6690", backgroundColor: "white" }}
-          >
-            Andere Datei wählen …
-          </button>
+          <span>🔒 Schreibschutz – dieser Rechner zeigt den gemeinsamen Stand nur an.</span>
+          <span className="font-normal" style={{ color: "#5B87AB" }}>Aktualisiert: <SyncAnzeige style={{ color: "#5B87AB" }} /></span>
+          {/* Rettungs-Werkzeuge bewusst versteckt: Für echte Leser wäre "Andere Datei
+              wählen" zu verlockend. Ein Bearbeiter, der hier fälschlich gelandet ist
+              (Datei gesperrt o. ä.), öffnet die App einmalig mit ?verwalten=1 in der
+              Adresszeile - dann erscheinen die Knöpfe. */}
+          {rettungsModus && (
+            <>
+              {sharedFile.getLastWriteError() && (
+                <span className="font-normal" style={{ color: "#5B87AB" }}>Technischer Grund: {sharedFile.getLastWriteError()}</span>
+              )}
+              <button
+                onClick={async () => {
+                  try {
+                    const st = await sharedFile.retryWrite();
+                    setShareState(st);
+                    setErr(st.mode === "read"
+                      ? `Schreibzugriff weiterhin nicht möglich (${sharedFile.getLastWriteError() || "unbekannter Grund"}). Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte? Ordner von OneDrive/Defender geschützt?`
+                      : null);
+                  } catch (e2) {
+                    setErr("Gemeinsame Datei: " + (e2 && e2.message ? e2.message : "Erneuter Versuch fehlgeschlagen."));
+                  }
+                }}
+                className="px-2.5 py-1 rounded text-white"
+                style={{ backgroundColor: "#2F6690" }}
+              >
+                Schreibzugriff erneut versuchen
+              </button>
+              <button
+                onClick={() => setShareOpen(true)}
+                className="px-2.5 py-1 rounded border"
+                style={{ borderColor: "#2F6690", color: "#2F6690", backgroundColor: "white" }}
+              >
+                Andere Datei wählen …
+              </button>
+            </>
+          )}
         </div>
       )}
       {shareErr && (
