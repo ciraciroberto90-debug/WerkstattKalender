@@ -3062,6 +3062,8 @@ function App() {
                     const istHeute = t.key === todayKey;
                     const feiertag = getHolidays(t.datum.getFullYear()).get(t.key);
                     const tagesPlan = wochenPlan.filter((p) => p.date === t.key);
+                    // Sa/So kompakt: nur Personen zeigen, die an dem Tag eine Schicht haben
+                    const tagesPersonen = t.we ? haupt.filter((m) => schichtFuer(m.name, t.key)) : haupt;
                     return (
                       <div key={t.key} data-planungstag={t.key} className="overflow-hidden" style={{ border: "1.5px solid #6B7280", borderRadius: "6px", backgroundColor: "white", marginBottom: "6px" }}>
                         {/* Tages-Balken */}
@@ -3100,13 +3102,24 @@ function App() {
                                   })}
                                 </td>
                               </tr>
-                              {haupt.map((mitglied) => {
+                              {t.we && tagesPersonen.length === 0 && (
+                                <tr>
+                                  <td colSpan={3} style={{ padding: "3px 10px", borderTop: "1px solid #E2E4E7", color: "#8A9099", fontSize: "0.7rem", fontStyle: "italic" }}>
+                                    Niemand eingeteilt – Wochenend-Schichten trägst du am schnellsten im Schichtplan ein.
+                                  </td>
+                                </tr>
+                              )}
+                              {tagesPersonen.map((mitglied) => {
                                 const person = mitglied.name;
+                                const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
                                 const schicht = schichtFuer(person, t.key);
                                 const abwesend = schicht && SCHICHT_ABWESEND.has(schicht);
                                 return (
                                   <tr key={person}>
-                                    <td style={{ padding: "2px 10px", borderTop: "1px solid #E2E4E7", borderRight: trennRand, fontWeight: 700, whiteSpace: "nowrap", color: "#22262B" }}>{person}</td>
+                                    <td style={{ padding: "2px 10px", borderTop: "1px solid #E2E4E7", borderRight: trennRand, fontWeight: 700, whiteSpace: "nowrap", color: "#22262B" }} title={rolle.label}>
+                                      <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold mr-1.5" style={{ width: "17px", height: "17px", fontSize: "0.5rem", backgroundColor: rolle.color, flexShrink: 0, verticalAlign: "middle" }}>{personKuerzel(person)}</span>
+                                      {person}
+                                    </td>
                                     <td style={{ padding: "2px 8px", borderTop: "1px solid #E2E4E7", borderRight: trennRand }}>
                                       <button
                                         onClick={() => { if (readerMode) return; setSchichtGanzeWoche(!schicht && !t.we); setSchichtPicker({ person, datum: t.key }); }}
