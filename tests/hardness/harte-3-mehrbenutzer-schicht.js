@@ -80,7 +80,7 @@ async function connect(page, create) {
 
   await admin2.clock.setFixedTime(new Date('2026-07-10T09:00:04Z'));
   // Admin2 zusätzlich: freie Notiz für Person A hinterlassen (ohne Schicht von Person A gesehen zu haben)
-  const zelleA_bei2 = admin2.locator('button[aria-label="Schicht Person A 2026-07-10"]').locator('xpath=..');
+  const zelleA_bei2 = admin2.locator('button[aria-label="Schicht Person A 2026-07-10"]').locator('xpath=ancestor::tr');
   await zelleA_bei2.getByRole('button', { name: 'Arbeit oder Notiz eintragen' }).click();
   await admin2.waitForTimeout(150);
   await admin2.getByRole('button', { name: /Stattdessen freie Notiz/ }).click();
@@ -101,7 +101,7 @@ async function connect(page, create) {
   // Admin1 muss jetzt auch Person B (Nacht) UND die Notiz von Admin2 sehen
   const schichtB_bei1 = (await admin1.locator('button[aria-label="Schicht Person B 2026-07-10"]').innerText()).trim().toLowerCase();
   check('Admin1 sieht Schicht von Admin2 (Person B = Nacht)', schichtB_bei1 === 'n');
-  const zelleA_bei1 = admin1.locator('button[aria-label="Schicht Person A 2026-07-10"]').locator('xpath=..');
+  const zelleA_bei1 = admin1.locator('button[aria-label="Schicht Person A 2026-07-10"]').locator('xpath=ancestor::tr');
   check('Admin1 sieht die Notiz von Admin2', await zelleA_bei1.locator('button', { hasText: 'Von Admin2' }).count() === 1);
 
   // Admin2 muss die Schicht von Admin1 sehen (Person A = Früh), OBWOHL Admin2

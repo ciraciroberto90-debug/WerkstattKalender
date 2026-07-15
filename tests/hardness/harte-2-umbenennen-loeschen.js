@@ -34,7 +34,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   await page.waitForTimeout(150);
   await page.locator('div[style*="fixed"]').last().getByRole('button', { name: 'Früh', exact: true }).click();
   await page.waitForTimeout(300);
-  const zelle = page.locator('button[aria-label="Schicht Alt Name 2026-07-10"]').locator('xpath=..');
+  const zelle = page.locator('button[aria-label="Schicht Alt Name 2026-07-10"]').locator('xpath=ancestor::tr');
   await zelle.getByRole('button', { name: 'Arbeit oder Notiz eintragen' }).click();
   await page.waitForTimeout(150);
   await page.getByRole('button', { name: /Stattdessen freie Notiz/ }).click();
@@ -56,7 +56,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   ok('Nach Umbenennen: Schicht steht unter neuem Namen', schichtNeu !== null && schichtNeu.trim().toLowerCase() === 'f');
   const alterWeg = await page.locator('button[aria-label="Schicht Alt Name 2026-07-10"]').count();
   ok('Alter Name taucht nicht mehr auf', alterWeg === 0);
-  const zelleNeu = page.locator('button[aria-label="Schicht Neuer Name 2026-07-10"]').locator('xpath=..');
+  const zelleNeu = page.locator('button[aria-label="Schicht Neuer Name 2026-07-10"]').locator('xpath=ancestor::tr');
   ok('Notiz ist unter dem neuen Namen sichtbar', await zelleNeu.locator('button', { hasText: 'Testnotiz' }).count() === 1);
 
   // Team-Mitglied komplett entfernen -> verwaiste Schicht-/Notiz-Einträge bleiben in den Daten,

@@ -848,6 +848,17 @@ function App() {
     if (zielEl) container.scrollLeft = Math.max(0, zielEl.offsetLeft - 110);
   }, [matrixCursor, cockpitTab, view, team.length]);
 
+  // Planung (Tage untereinander): beim Öffnen der aktuellen Woche direkt zum
+  // heutigen Tages-Block springen, statt oben bei Montag anzufangen.
+  useEffect(() => {
+    if (view !== "COCKPIT" || cockpitTab !== "PLANUNG") return;
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-planungstag="${todayKey}"]`);
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 110 });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [view, cockpitTab, planungCursor, team.length]);
+
   const persist = async (next) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setEntries(next);
@@ -3036,140 +3047,133 @@ function App() {
               Noch kein Team angelegt. Öffne den <strong>⚙-Verwalten-Dialog</strong> und trage unter „Team" deine Leute ein – danach kannst du hier Arbeiten auf Personen und Tage verteilen.
             </div>
           ) : (
-            <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
-              <div style={{ overflowX: "auto" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "150px repeat(5, 1fr) 0.55fr 0.55fr", minWidth: "980px" }}>
-                  {/* Kopfzeile */}
-                  <div style={{ padding: "8px 10px", background: "#F7F8F9", borderBottom: "2px solid #22262B", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099" }}>Mitarbeiter</div>
+            (() => {
+              // Zeilen-Layout (wie das Excel-KW-Blatt): Tage untereinander als Blöcke,
+              // eine Zeile je Person. Personen OHNE Gewerk erscheinen hier bewusst
+              // gar nicht - die Planung gilt nur der eigentlichen Werkstatt-Mannschaft.
+              const haupt = [...team]
+                .filter((t) => (t.rolle || "") !== "")
+                .sort((a, b) => ({ mech: 0, elek: 1, azubi: 2 }[a.rolle] - { mech: 0, elek: 1, azubi: 2 }[b.rolle]));
+              const thStil = { background: "#F7F8F9", fontSize: "0.6rem", textTransform: "uppercase", color: "#8A9099", letterSpacing: "0.04em", textAlign: "left", padding: "2px 10px", borderBottom: "1.5px solid #6B7280" };
+              const trennRand = "2px solid #22262B"; // Trennspalte nach "Person" und nach "Schicht"
+              return (
+                <div>
                   {planungTage.map((t) => {
                     const istHeute = t.key === todayKey;
                     const feiertag = getHolidays(t.datum.getFullYear()).get(t.key);
-                    // Deutliche Spaltenlinien wie im Schichtplan; Samstag bekommt die dunkle Wochenend-Trennlinie
-                    const spaltenRand = "1.5px solid #6B7280";
+                    const tagesPlan = wochenPlan.filter((p) => p.date === t.key);
                     return (
-                      <div key={t.key} style={{ padding: "8px 6px", textAlign: "center", background: istHeute ? "#F5D8AC" : t.we ? "#E5F0F8" : "#F7F8F9", borderBottom: "2px solid #22262B", borderLeft: spaltenRand, fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", color: feiertag ? "#B23A34" : istHeute ? "#8F5A17" : t.we ? "#7FA6C4" : "#8A9099" }}>
-                        {t.datum.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}{feiertag ? <div style={{ fontSize: "0.6rem" }}>{feiertag}</div> : null}
+                      <div key={t.key} data-planungstag={t.key} className="overflow-hidden" style={{ border: "1.5px solid #6B7280", borderRadius: "6px", backgroundColor: "white", marginBottom: "6px" }}>
+                        {/* Tages-Balken */}
+                        <div style={{ background: istHeute ? "#C97A2B" : t.we ? "#7FA6C4" : "#4B5259", color: "white", padding: "4px 10px", display: "flex", gap: "10px", alignItems: "baseline", flexWrap: "wrap", fontWeight: 800, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          {t.datum.toLocaleDateString("de-DE", { weekday: "long" })}
+                          <span className="font-mono" style={{ fontWeight: 400, opacity: 0.9, fontSize: "0.7rem", textTransform: "none", letterSpacing: 0 }}>
+                            {t.datum.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })} · KW {getISOWeek(t.datum)}{istHeute ? " · HEUTE" : ""}
+                          </span>
+                          {feiertag && <span style={{ fontSize: "0.7rem", color: "#FFE3DE" }}>{feiertag}</span>}
+                        </div>
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "0.75rem" }}>
+                            <thead>
+                              <tr>
+                                <th style={{ ...thStil, width: "170px", borderRight: trennRand }}>Person</th>
+                                <th style={{ ...thStil, width: "64px", borderRight: trennRand }}>Schicht</th>
+                                <th style={thStil}>Arbeiten &amp; Notizen</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {/* Wartungsplan-Zeile: durch kräftige schwarze Linien hervorgehoben */}
+                              <tr>
+                                <td style={{ padding: "3px 10px", background: "#FBF7F1", borderTop: trennRand, borderBottom: trennRand, borderRight: trennRand, fontWeight: 800, color: "#C97A2B", whiteSpace: "nowrap" }}>Wartungsplan</td>
+                                <td style={{ background: "#FBF7F1", borderTop: trennRand, borderBottom: trennRand, borderRight: trennRand }}></td>
+                                <td style={{ padding: "3px 10px", background: "#FBF7F1", borderTop: trennRand, borderBottom: trennRand }}>
+                                  {tagesPlan.length === 0 ? (
+                                    <span style={{ color: "#C3C7CB", fontSize: "0.7rem" }}>–</span>
+                                  ) : tagesPlan.map((p, i) => {
+                                    const done = isPlanDone(p);
+                                    const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
+                                    return (
+                                      <button key={i} onClick={() => openPlanEntry(p)} className="rounded font-bold" style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18` }}>
+                                        {done ? "✓ " : ""}{p.anlage}
+                                      </button>
+                                    );
+                                  })}
+                                </td>
+                              </tr>
+                              {haupt.map((mitglied) => {
+                                const person = mitglied.name;
+                                const schicht = schichtFuer(person, t.key);
+                                const abwesend = schicht && SCHICHT_ABWESEND.has(schicht);
+                                return (
+                                  <tr key={person}>
+                                    <td style={{ padding: "2px 10px", borderTop: "1px solid #E2E4E7", borderRight: trennRand, fontWeight: 700, whiteSpace: "nowrap", color: "#22262B" }}>{person}</td>
+                                    <td style={{ padding: "2px 8px", borderTop: "1px solid #E2E4E7", borderRight: trennRand }}>
+                                      <button
+                                        onClick={() => { if (readerMode) return; setSchichtGanzeWoche(!schicht && !t.we); setSchichtPicker({ person, datum: t.key }); }}
+                                        disabled={readerMode}
+                                        className="inline-flex items-center justify-center rounded font-black"
+                                        style={schicht
+                                          ? { minWidth: "24px", height: "17px", padding: "0 5px", fontSize: "0.6rem", color: SCHICHTEN[schicht].text || "white", backgroundColor: SCHICHTEN[schicht].color, cursor: readerMode ? "default" : "pointer" }
+                                          : { minWidth: "24px", height: "17px", padding: "0 5px", fontSize: "0.6rem", color: "#C3C7CB", backgroundColor: "transparent", border: "1px dashed #D6D9DC", cursor: readerMode ? "default" : "pointer" }}
+                                        title={schicht ? `${schicht} – Schicht für ${person} ändern` : `Schicht für ${person} setzen`}
+                                        aria-label={`Schicht ${person} ${t.key}`}
+                                      >
+                                        {schicht ? SCHICHTEN[schicht].kurz : "?"}
+                                      </button>
+                                    </td>
+                                    <td
+                                      onClick={(ev) => {
+                                        // Klick auf die leere Fläche der Zeile öffnet direkt den Notiz-Dialog
+                                        if (readerMode || ev.target !== ev.currentTarget) return;
+                                        setPlanNotiz({ person, datum: t.key, text: "" });
+                                      }}
+                                      title={readerMode ? undefined : "Klick auf freie Fläche: Notiz direkt eintragen"}
+                                      style={{ padding: "2px 10px", borderTop: "1px solid #E2E4E7", cursor: readerMode ? "default" : "pointer" }}
+                                    >
+                                      {geplantFuer(person, t.key).map((a) => {
+                                        const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
+                                        return (
+                                          <button key={a.id} onClick={() => openArbeitEdit(a)} className="rounded font-bold text-left" style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: `${c}14`, wordBreak: "break-word" }} title={a.note}>
+                                            {a.name}: {a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}
+                                          </button>
+                                        );
+                                      })}
+                                      {notizenFuer(person, t.key).map((n) => (
+                                        <button
+                                          key={n.id}
+                                          onClick={() => { if (readerMode) return; setPlanNotiz({ person, datum: t.key, id: n.id, text: n.note }); }}
+                                          disabled={readerMode}
+                                          className="rounded font-semibold text-left"
+                                          style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: "#39414B", border: "1px solid #E5D77A", backgroundColor: "#FEF9C3", wordBreak: "break-word", cursor: readerMode ? "default" : "pointer" }}
+                                          title={n.note}
+                                        >
+                                          📝 {n.note.length > 60 ? n.note.slice(0, 60) + "…" : n.note}
+                                        </button>
+                                      ))}
+                                      {!abwesend && !readerMode && (
+                                        <button
+                                          onClick={() => { setPickerArt("ALLE"); setPickerSuche(""); setPlanungPicker({ person, datum: t.key }); }}
+                                          className="text-slate-300 hover:text-slate-600 font-black"
+                                          style={{ fontSize: "0.8rem", lineHeight: 1, verticalAlign: "middle" }}
+                                          title={`Arbeit oder Notiz für ${person} an diesem Tag eintragen`}
+                                          aria-label="Arbeit oder Notiz eintragen"
+                                        >
+                                          ＋
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     );
                   })}
-
-                  {/* Feste Zeile: Wartungsplan */}
-                  <div style={{ padding: "8px 10px", borderBottom: "1.5px solid #6B7280", background: "#FBF7F1", fontSize: "0.72rem", fontWeight: 800, color: "#C97A2B" }}>Wartungsplan<br /><span style={{ fontWeight: 400, color: "#8A9099" }}>TPM &amp; R+I (fest)</span></div>
-                  {planungTage.map((t) => (
-                    <div key={t.key} style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1.5px solid #6B7280", background: t.key === todayKey ? "#FAE6C6" : t.we ? "#EFF5FA" : "#FFFDF9", minHeight: "56px" }}>
-                      {wochenPlan.filter((p) => p.date === t.key).map((p, i) => {
-                        const done = isPlanDone(p);
-                        const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
-                        return (
-                          <button key={i} onClick={() => openPlanEntry(p)} className="block w-full text-left rounded font-bold mb-1" style={{ fontSize: "0.66rem", padding: "2px 6px", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18` }}>
-                            {done ? "✓ " : ""}{p.anlage}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-
-                  {/* Eine Zeile pro Person; ohne Gewerk gesammelt unter "Sonstige" (zugeklappt) */}
-                  {(() => {
-                    const haupt = [...team]
-                      .filter((t) => (t.rolle || "") !== "")
-                      .sort((a, b) => ({ mech: 0, elek: 1, azubi: 2 }[a.rolle] - { mech: 0, elek: 1, azubi: 2 }[b.rolle]));
-                    const sonstige = team.filter((t) => (t.rolle || "") === "");
-                    const zeile = (mitglied) => {
-                    const person = mitglied.name;
-                    const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
-                    return (
-                    <React.Fragment key={person}>
-                      <div style={{ padding: "8px 10px", borderBottom: "1.5px solid #6B7280", background: "#F7F8F9", display: "flex", alignItems: "center" }} title={rolle.label}>
-                        <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold mr-1.5" style={{ width: "18px", height: "18px", fontSize: "0.52rem", backgroundColor: rolle.color, flexShrink: 0 }}>{personKuerzel(person)}</span>
-                        <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#22262B" }}>{person}</span>
-                      </div>
-                      {planungTage.map((t) => {
-                        const schicht = schichtFuer(person, t.key);
-                        const abwesend = schicht && SCHICHT_ABWESEND.has(schicht);
-                        return (
-                        <div
-                          key={t.key}
-                          onClick={(ev) => {
-                            // Klick auf die LEERE Kachelfläche (nicht auf Schicht/Arbeit/Notiz/＋)
-                            // öffnet direkt den Notiz-Dialog - ohne Umweg über das Einplanen-Popup.
-                            if (readerMode || ev.target !== ev.currentTarget) return;
-                            setPlanNotiz({ person, datum: t.key, text: "" });
-                          }}
-                          title={readerMode ? undefined : "Klick auf freie Fläche: Notiz direkt eintragen"}
-                          style={{ padding: "6px", borderBottom: "1.5px solid #6B7280", borderLeft: "1.5px solid #6B7280", background: t.key === todayKey ? "#FAE6C6" : t.we ? "#EFF5FA" : "white", minHeight: "56px", position: "relative", cursor: readerMode ? "default" : "pointer" }}
-                        >
-                          {/* Schicht (Werkstattschichtplan) als Kürzel: Klick = ändern */}
-                          <button
-                            onClick={() => { if (readerMode) return; setSchichtGanzeWoche(!schicht && !t.we); setSchichtPicker({ person, datum: t.key }); }}
-                            disabled={readerMode}
-                            className="inline-flex items-center justify-center rounded font-black mb-1"
-                            style={schicht
-                              ? { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: SCHICHTEN[schicht].text || "white", backgroundColor: SCHICHTEN[schicht].color, cursor: readerMode ? "default" : "pointer" }
-                              : { minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: "#C3C7CB", backgroundColor: "transparent", border: "1px dashed #D6D9DC", cursor: readerMode ? "default" : "pointer" }}
-                            title={schicht ? `${schicht} – Schicht für ${person} ändern` : `Schicht für ${person} setzen`}
-                            aria-label={`Schicht ${person} ${t.key}`}
-                          >
-                            {schicht ? SCHICHTEN[schicht].kurz : "?"}
-                          </button>
-                          {geplantFuer(person, t.key).map((a) => {
-                            const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
-                            return (
-                              <button key={a.id} onClick={() => openArbeitEdit(a)} className="block w-full text-left rounded font-bold mb-1" style={{ fontSize: "0.66rem", padding: "2px 6px", color: c, border: `1px solid ${c}`, backgroundColor: `${c}14`, wordBreak: "break-word" }} title={a.note}>
-                                {a.name}: {a.note.length > 34 ? a.note.slice(0, 34) + "…" : a.note}
-                              </button>
-                            );
-                          })}
-                          {/* Freie Notizen/Infos (gelb) */}
-                          {notizenFuer(person, t.key).map((n) => (
-                            <button
-                              key={n.id}
-                              onClick={() => { if (readerMode) return; setPlanNotiz({ person, datum: t.key, id: n.id, text: n.note }); }}
-                              disabled={readerMode}
-                              className="block w-full text-left rounded font-semibold mb-1"
-                              style={{ fontSize: "0.66rem", padding: "2px 6px", color: "#39414B", border: "1px solid #E5D77A", backgroundColor: "#FEF9C3", wordBreak: "break-word", cursor: readerMode ? "default" : "pointer" }}
-                              title={n.note}
-                            >
-                              📝 {n.note.length > 34 ? n.note.slice(0, 34) + "…" : n.note}
-                            </button>
-                          ))}
-                          {!abwesend && !readerMode && (
-                            <button
-                              onClick={() => { setPickerArt("ALLE"); setPickerSuche(""); setPlanungPicker({ person, datum: t.key }); }}
-                              className="text-slate-300 hover:text-slate-600 font-black"
-                              style={{ fontSize: "0.85rem", lineHeight: 1 }}
-                              title={`Arbeit oder Notiz für ${person} an diesem Tag eintragen`}
-                              aria-label="Arbeit oder Notiz eintragen"
-                            >
-                              ＋
-                            </button>
-                          )}
-                        </div>
-                        );
-                      })}
-                    </React.Fragment>
-                    );
-                    };
-                    return (
-                      <>
-                        {haupt.map(zeile)}
-                        {sonstige.length > 0 && (
-                          <button
-                            onClick={() => setSonstigeOffen((o) => !o)}
-                            className="text-left"
-                            style={{ gridColumn: "1 / -1", padding: "8px 10px", borderBottom: "1.5px solid #6B7280", background: "#F0F1F3", fontSize: "0.72rem", fontWeight: 800, color: "#5B6572" }}
-                            aria-label="Sonstige auf- oder zuklappen"
-                          >
-                            {sonstigeOffen ? "▾" : "▸"} Sonstige ({sonstige.length}) <span style={{ fontWeight: 400, color: "#8A9099" }}>– ohne Gewerk · zum {sonstigeOffen ? "Zuklappen" : "Aufklappen"} klicken</span>
-                          </button>
-                        )}
-                        {sonstigeOffen && sonstige.map(zeile)}
-                      </>
-                    );
-                  })()}
                 </div>
-              </div>
-            </div>
+              );
+            })()
           )}
 
           {/* Schicht-Legende (Kürzel) */}
