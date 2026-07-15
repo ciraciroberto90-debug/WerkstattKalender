@@ -24,6 +24,9 @@ let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt sch
 export function getLastWriteError() { return lastWriteError; }
 let lastSavedAt = null;
 let pollTimer = null;
+// Konflikt-Wächter: Ordner-Zugriff, um OneDrive-Konfliktkopien automatisch einzusammeln
+let folderHandle = null;
+let folderPerm = "none"; // "ok" | "needs-permission" | "none"
 
 /* ---------- Status ---------- */
 export function isSupported() {
@@ -143,6 +146,10 @@ export function dispatchError(message) {
 }
 export function dispatchOk() {
   window.dispatchEvent(new CustomEvent("werkstatt-shared-ok"));
+}
+// Grüne Hinweis-Meldung (kein Fehler), z. B. "Konfliktkopie eingesammelt"
+function dispatchInfo(message) {
+  window.dispatchEvent(new CustomEvent("werkstatt-shared-info", { detail: message }));
 }
 
 function nowISO() {
@@ -311,6 +318,16 @@ export async function tryRestore() {
     mode = (await idbGet("mode")) || "readwrite";
   } catch (e) { /* IndexedDB nicht verfügbar */ }
   if (!handle) return { status: "none" };
+  // Konflikt-Wächter: gemerkten Ordner mit wiederherstellen (falls eingerichtet)
+  try {
+    const fh = await idbGet("folder");
+    if (fh) {
+      folderHandle = fh;
+      let fp = "prompt";
+      try { fp = await fh.queryPermission({ mode: "readwrite" }); } catch (e) { /* ältere Browser */ }
+      folderPerm = fp === "granted" ? "ok" : "needs-permission";
+    }
+  } catch (e) { /* IndexedDB nicht verfügbar */ }
   let perm = "prompt";
   try {
     perm = await handle.queryPermission({ mode });
@@ -363,10 +380,141 @@ export async function disconnect() {
   fileHandle = null;
   accessMode = null;
   lastSavedAt = null;
+  folderHandle = null;
+  folderPerm = "none";
   try {
     await idbDel("handle");
     await idbDel("mode");
+    await idbDel("folder");
   } catch (e) { /* egal */ }
+}
+
+/* ---------- Konflikt-Wächter ---------- */
+// OneDrive kann Konflikte bei JSON-Dateien nicht selbst zusammenführen - es
+// legt Kopien wie "werkstatt-kalender-daten-GERAET.json" an. Mit einmaliger
+// Ordner-Freigabe sammelt die App solche Kopien automatisch ein: Inhalt wird
+// Eintrag für Eintrag in die Hauptdatei gemerged (dieselbe Logik wie beim
+// gleichzeitigen Bearbeiten), danach wird die Kopie gelöscht.
+export function folderStatus() {
+  return folderHandle ? folderPerm : "none";
+}
+export function folderName() {
+  return folderHandle ? folderHandle.name : "";
+}
+export async function pickFolder() {
+  const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+  if (handle.requestPermission) {
+    const p = await handle.requestPermission({ mode: "readwrite" });
+    if (p !== "granted") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
+  }
+  folderHandle = handle;
+  folderPerm = "ok";
+  try { await idbSet("folder", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
+  await sammleKonfliktkopien();
+  return { name: handle.name };
+}
+export async function reconnectFolder() {
+  const h = folderHandle || (await idbGet("folder"));
+  if (!h) throw new Error("Kein gemerkter Ordner gefunden.");
+  const p = await h.requestPermission({ mode: "readwrite" });
+  if (p !== "granted") throw new Error("Der Zugriff wurde nicht erlaubt.");
+  folderHandle = h;
+  folderPerm = "ok";
+  await sammleKonfliktkopien();
+  return { name: h.name };
+}
+export async function forgetFolder() {
+  folderHandle = null;
+  folderPerm = "none";
+  try { await idbDel("folder"); } catch (e) { /* egal */ }
+}
+
+// Inhalt einer Konfliktkopie in die Hauptdatei einpflegen (mit Kontroll-Lesung
+// und optimistischer Sperre wie beim normalen Speichern). Gibt zurück, wie
+// viele Einträge aus der Kopie tatsächlich neu übernommen wurden.
+async function mergeKopieInDatei(kopie) {
+  let letzterFehler = null;
+  for (let versuch = 0; versuch < 5; versuch++) {
+    try {
+      const fileData = await readFileData();
+      const deleted = { ...fileData.deleted };
+      Object.entries(kopie.deleted || {}).forEach(([id, at]) => {
+        if (!deleted[id] || String(deleted[id]) < String(at)) deleted[id] = at;
+      });
+      pruneTombstones(deleted);
+      const merged = mergeEntries(fileData.entries, kopie.entries, deleted);
+      const vorher = new Map(fileData.entries.map((e) => [e.id, String(e.updatedAt || "")]));
+      let uebernommen = 0;
+      kopie.entries.forEach((e) => {
+        const delAt = deleted[e.id];
+        if (delAt && String(delAt) >= String(e.updatedAt || "")) return;
+        const alt = vorher.get(e.id);
+        if (alt === undefined || String(e.updatedAt || "") > alt) uebernommen++;
+      });
+      let config = fileData.config;
+      if (kopie.config && (!config || String(kopie.config.updatedAt || "") > String(config.updatedAt || ""))) {
+        config = kopie.config;
+      }
+      const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config };
+      const nochAktuell = await readFileData();
+      if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
+        throw new Error("Kollision: Datei wurde zwischenzeitlich geändert");
+      }
+      await writeFileData(out);
+      lastSavedAt = out.savedAt;
+      const kontrolle = await readFileData();
+      if (String(kontrolle.savedAt || "") !== String(out.savedAt || "")) {
+        throw new Error("Kontroll-Lesung stimmt nicht überein");
+      }
+      syncLocal(out);
+      dispatchUpdate(out);
+      await recordBackup(merged, config);
+      return uebernommen;
+    } catch (e) {
+      letzterFehler = e;
+    }
+    await new Promise((r) => setTimeout(r, 150 + versuch * 150));
+  }
+  throw letzterFehler || new Error("Zusammenführen nicht bestätigt");
+}
+
+let konfliktScanLaeuft = false;
+export async function sammleKonfliktkopien() {
+  if (!fileHandle || accessMode !== "readwrite" || !folderHandle || folderPerm !== "ok" || konfliktScanLaeuft) return;
+  konfliktScanLaeuft = true;
+  try {
+    const basis = fileHandle.name.replace(/\.json$/i, "");
+    const kandidaten = [];
+    for await (const [name, handle] of folderHandle.entries()) {
+      if (!handle || handle.kind !== "file") continue;
+      if (!/\.json$/i.test(name)) continue;
+      if (name === fileHandle.name) continue;
+      if (!name.startsWith(basis + "-")) continue;
+      kandidaten.push([name, handle]);
+    }
+    for (const [name, handle] of kandidaten) {
+      try {
+        const file = await handle.getFile();
+        const text = await file.text();
+        if (!text.trim()) {
+          await folderHandle.removeEntry(name);
+          continue;
+        }
+        const kopie = normalizeData(JSON.parse(text));
+        // Inhalt der Kopie sicherheitshalber lokal aufheben, BEVOR sie gelöscht wird
+        await recordBackup(kopie.entries, kopie.config);
+        const uebernommen = await mergeKopieInDatei(kopie);
+        await folderHandle.removeEntry(name);
+        dispatchInfo(`OneDrive-Konfliktkopie „${name}" automatisch eingesammelt${uebernommen > 0 ? ` – ${uebernommen} Änderung(en) übernommen` : " – sie enthielt nichts Neues"}. Die Kopie wurde gelöscht, eine lokale Sicherung liegt unter ⚙ → Sicherungen.`);
+      } catch (e) {
+        // Merge nicht bestätigt -> Kopie NICHT löschen; der nächste Abgleich versucht es erneut.
+      }
+    }
+  } catch (e) {
+    // Ordner gerade nicht erreichbar - nächster Abgleich versucht es wieder.
+  } finally {
+    konfliktScanLaeuft = false;
+  }
 }
 
 /* ---------- Speichern (wird von storage.js aufgerufen) ---------- */
@@ -569,6 +717,8 @@ export async function pollNow() {
       dispatchUpdate(data);
       await recordBackup(data.entries, data.config);
     }
+    // Konflikt-Wächter: bei jedem Abgleich nach OneDrive-Konfliktkopien schauen
+    sammleKonfliktkopien();
   } catch (e) {
     pollFehlerFolge++;
     if (pollFehlerFolge === POLL_FEHLER_SCHWELLE) {
@@ -583,6 +733,8 @@ function startPolling() {
   pollWarnungAktiv = false;
   lastSuccessfulSyncAt = nowISO();
   pollTimer = setInterval(pollNow, POLL_MS);
+  // Direkt beim Verbinden einmal nach liegengebliebenen Konfliktkopien schauen
+  sammleKonfliktkopien();
 }
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
@@ -600,5 +752,10 @@ if (typeof window !== "undefined") {
     },
     poll: pollNow,
     getLastSuccessfulSyncAt: () => lastSuccessfulSyncAt,
+    adoptFolder(handle) {
+      folderHandle = handle;
+      folderPerm = "ok";
+    },
+    sammle: sammleKonfliktkopien,
   };
 }

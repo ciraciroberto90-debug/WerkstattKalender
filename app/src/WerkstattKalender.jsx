@@ -521,6 +521,7 @@ function App() {
   const [zettelText, setZettelText] = useState("");
   const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
+  const [shareInfo, setShareInfo] = useState(null); // grüne Hinweis-Meldung (z. B. Konfliktkopie eingesammelt), verschwindet von selbst
   const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
@@ -554,14 +555,23 @@ function App() {
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
     const onShareOk = () => setShareErr(null);
+    let infoTimer = null;
+    const onShareInfo = (ev) => {
+      setShareInfo(ev.detail || null);
+      if (infoTimer) clearTimeout(infoTimer);
+      infoTimer = setTimeout(() => setShareInfo(null), 15000);
+    };
     window.addEventListener("werkstatt-shared-update", onUpdate);
     window.addEventListener("werkstatt-shared-error", onShareError);
     window.addEventListener("werkstatt-shared-ok", onShareOk);
+    window.addEventListener("werkstatt-shared-info", onShareInfo);
     return () => {
       cancelled = true;
+      if (infoTimer) clearTimeout(infoTimer);
       window.removeEventListener("werkstatt-shared-update", onUpdate);
       window.removeEventListener("werkstatt-shared-error", onShareError);
       window.removeEventListener("werkstatt-shared-ok", onShareOk);
+      window.removeEventListener("werkstatt-shared-info", onShareInfo);
     };
   }, []);
 
@@ -2476,6 +2486,11 @@ function App() {
           ⚠ {shareErr}
         </div>
       )}
+      {shareInfo && (
+        <div className="no-print px-4 py-2 text-xs font-bold" style={{ backgroundColor: "#E5F3EA", color: "#2F7D4F" }}>
+          ✓ {shareInfo}
+        </div>
+      )}
 
       {/* Filter + Legende + Stats */}
       {view !== "PLAN" && view !== "COCKPIT" && (
@@ -4069,6 +4084,52 @@ function App() {
                   <button onClick={disconnectShared} className="text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">
                     Verbindung trennen (dieser Rechner speichert dann nur lokal)
                   </button>
+                )}
+
+                {/* Konflikt-Wächter: OneDrive-Konfliktkopien automatisch einsammeln */}
+                {shareState.status === "connected" && shareState.mode !== "read" && (
+                  <div className="rounded px-3 py-2.5" style={{ border: "1.5px solid #6B7280", backgroundColor: "#F7F8F9" }}>
+                    <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Konflikt-Wächter</div>
+                    <div className="text-xs mb-2" style={{ color: "#8A9099", lineHeight: 1.5 }}>
+                      OneDrive legt bei Sync-Konflikten Kopien wie „…-GERÄTENAME.json" an. Mit einmaliger
+                      Ordner-Freigabe sammelt die App solche Kopien automatisch ein: Der Inhalt wird sicher in die
+                      Hauptdatei übernommen, die Kopie danach gelöscht – du bekommst dann eine kurze grüne Meldung.
+                    </div>
+                    {sharedFile.folderStatus() === "ok" ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold" style={{ color: "#2F7D4F" }}>✓ Aktiv – überwacht „{sharedFile.folderName()}"</span>
+                        <button
+                          onClick={async () => { await sharedFile.forgetFolder(); setShareState({ ...shareState }); }}
+                          className="text-xs font-bold underline"
+                          style={{ color: "#8A9099" }}
+                        >
+                          abschalten
+                        </button>
+                      </div>
+                    ) : sharedFile.folderStatus() === "needs-permission" ? (
+                      <button
+                        onClick={async () => {
+                          try { await sharedFile.reconnectFolder(); setShareState({ ...shareState }); }
+                          catch (e) { setErr("Konflikt-Wächter: " + (e && e.message ? e.message : "Freigabe fehlgeschlagen.")); }
+                        }}
+                        className="text-xs font-bold py-2 px-3 rounded text-white"
+                        style={{ backgroundColor: "#C97A2B" }}
+                      >
+                        Ordner-Zugriff erneut erlauben (nach Browser-Neustart)
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          try { await sharedFile.pickFolder(); setShareState({ ...shareState }); }
+                          catch (e) { if (e && e.name !== "AbortError") setErr("Konflikt-Wächter: " + (e && e.message ? e.message : "Freigabe fehlgeschlagen.")); }
+                        }}
+                        className="text-xs font-bold py-2 px-3 rounded text-white"
+                        style={{ backgroundColor: "#2F6690" }}
+                      >
+                        Werkstatt-Ordner freigeben … (Ordner mit der Daten-Datei wählen)
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 <div className="text-xs text-slate-400 leading-relaxed">
