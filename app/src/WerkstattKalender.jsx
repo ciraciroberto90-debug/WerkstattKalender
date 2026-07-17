@@ -150,6 +150,18 @@ const normalisiereExtraSchichten = (arr) => (Array.isArray(arr) ? arr : [])
 // Wer ganztags fehlt, bekommt in der Zelle kein ＋ (nichts einplanen)
 const SCHICHT_ABWESEND = new Set(["Krank", "Urlaub", "Schule"]);
 
+// Schichten für Störberichte (Auswahl beim Melden, wie im Schichtbuch)
+const STOER_SCHICHTEN = ["Früh", "Spät", "Nacht"];
+// Anlagenteile (pro Anlage) - werden im ⚙-Dialog gepflegt und in der Störungs-
+// Maske ausgewählt. Struktur: { id, anlage, name }.
+const normalisiereAnlagenteile = (arr) => (Array.isArray(arr) ? arr : [])
+  .filter((t) => t && typeof t.name === "string" && t.name.trim() && typeof t.anlage === "string")
+  .map((t) => ({
+    id: typeof t.id === "string" && t.id ? t.id : `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    anlage: t.anlage.trim(),
+    name: t.name.trim(),
+  }));
+
 // R+I-Punkte aus Todoist importiert (Stand: Juli 2026). "Wasserrundgang" und
 // "Filterwartung / Schaltschränke" liefen doppelt in Todoist - hier zusammengeführt.
 // type: "weekly" (weekday), "biweekly" (weekday, anchor), "monthly-day" (day),
@@ -485,6 +497,7 @@ function App() {
   const [riItems, setRiItems] = useState(DEFAULT_RI_ITEMS);
   const [team, setTeam] = useState([]); // Werkstatt-Team (für Zuweisung & Arbeitsplanung)
   const [extraSchichten, setExtraSchichten] = useState([]); // eigene Schichtarten aus dem ⚙-Dialog (immer grau)
+  const [anlagenteile, setAnlagenteile] = useState([]); // Anlagenteile pro Anlage (⚙-Dialog), für Störungs-Maske
   // Alle Schichtarten: feste Grundausstattung + eigene (grau). Der Name ist
   // zugleich der gespeicherte Wert - identisch zur bisherigen Logik.
   const SCHICHTEN = useMemo(() => {
@@ -512,6 +525,9 @@ function App() {
   const [settingsRi, setSettingsRi] = useState([]);
   const [settingsTeam, setSettingsTeam] = useState([]);
   const [settingsSchichten, setSettingsSchichten] = useState([]); // eigene Schichtarten im ⚙-Dialog
+  const [settingsAnlagenteile, setSettingsAnlagenteile] = useState([]); // Anlagenteile im ⚙-Dialog
+  const [neuesTeilAnlage, setNeuesTeilAnlage] = useState(""); // Auswahl beim Anlegen eines Anlagenteils
+  const [neuesTeilName, setNeuesTeilName] = useState("");
   const [neueSchichtName, setNeueSchichtName] = useState("");
   const [backups, setBackups] = useState([]); // lokale Sicherungen (Sicherheitsnetz), neueste zuerst
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
@@ -558,6 +574,7 @@ function App() {
   const [stoerModal, setStoerModal] = useState(null); // null | {mode:'add'} | {mode:'edit', id}
   const [sDraft, setSDraft] = useState(null); // Entwurf im Melden/Bearbeiten-Dialog
   const [stoerErledigteZeigen, setStoerErledigteZeigen] = useState(false); // erledigte Störungen einblenden
+  const [stoerOffeneTage, setStoerOffeneTage] = useState(null); // aufgeklappte Datums-Gruppen (null = Vorgabe: neuester Tag offen)
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
@@ -579,6 +596,7 @@ function App() {
         if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(d.config.riItems);
         if (Array.isArray(d.config.team)) setTeam(normalisiereTeam(d.config.team));
         if (Array.isArray(d.config.extraSchichten)) setExtraSchichten(normalisiereExtraSchichten(d.config.extraSchichten));
+        if (Array.isArray(d.config.anlagenteile)) setAnlagenteile(normalisiereAnlagenteile(d.config.anlagenteile));
       }
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
@@ -728,12 +746,15 @@ function App() {
     const melder = String(draft.melder || "").trim();
     if (melder) localStorage.setItem("werkstatt-kalender-name", melder);
     const offen = draft.status !== "erledigt";
+    const datum = draft.date || jetzt.slice(0, 10);
     if (draft.id) {
       const vorher = stoerungen.find((s) => s.id === draft.id);
       const behobenAt = offen ? null : (vorher && vorher.behobenAt) || jetzt;
       const next = stoerungen.map((s) => (s.id === draft.id ? {
         ...s,
-        anlage: draft.anlage, stoerung: draft.stoerung, ursache: draft.ursache,
+        date: datum, schicht: draft.schicht || s.schicht || "Früh",
+        anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
+        stoerung: draft.stoerung, ursache: draft.ursache,
         getan: draft.getan, nochZuTun: offen ? draft.nochZuTun : "",
         dringlichkeit: draft.dringlichkeit, melder, offen, behobenAt,
       } : s));
@@ -741,8 +762,10 @@ function App() {
     } else {
       const s = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        date: jetzt.slice(0, 10),
-        anlage: draft.anlage, stoerung: draft.stoerung, ursache: draft.ursache || "",
+        date: datum,
+        schicht: draft.schicht || "Früh",
+        anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
+        stoerung: draft.stoerung, ursache: draft.ursache || "",
         getan: draft.getan || "", nochZuTun: offen ? (draft.nochZuTun || "") : "",
         dringlichkeit: draft.dringlichkeit || "steht",
         melder, offen, gemeldetAt: jetzt, behobenAt: offen ? null : jetzt,
@@ -771,6 +794,88 @@ function App() {
     return String(b.gemeldetAt || b.date).localeCompare(String(a.gemeldetAt || a.date));
   });
   const stoerOffenCount = stoerungen.filter((s) => s.offen).length;
+  const stoerOffeneListe = stoerungenSortiert.filter((s) => s.offen); // für die Übersicht-Gedankenstütze
+
+  // ---- Schichtbuch-Gruppierung: nach Datum, darin nach Schicht (Früh/Spät/Nacht) ----
+  const stoerSichtbar = stoerungenSortiert.filter((s) => s.offen || stoerErledigteZeigen);
+  const stoerGruppen = (() => {
+    const proTag = new Map();
+    stoerSichtbar.forEach((s) => {
+      const d = s.date || "—";
+      if (!proTag.has(d)) proTag.set(d, []);
+      proTag.get(d).push(s);
+    });
+    return Array.from(proTag.keys())
+      .sort((a, b) => String(b).localeCompare(String(a)))
+      .map((d) => {
+        const liste = proTag.get(d);
+        const proSchicht = STOER_SCHICHTEN.map((sch) => [sch, liste.filter((s) => s.schicht === sch)]);
+        const ohne = liste.filter((s) => !STOER_SCHICHTEN.includes(s.schicht));
+        if (ohne.length) proSchicht.push(["—", ohne]);
+        return { datum: d, liste, proSchicht: proSchicht.filter(([, arr]) => arr.length > 0), offen: liste.filter((s) => s.offen).length };
+      });
+  })();
+  const istTagOffen = (d, idx) => (stoerOffeneTage === null ? idx === 0 : stoerOffeneTage.has(d));
+  const toggleStoerTag = (d) => setStoerOffeneTage((prev) => {
+    const basis = prev === null ? new Set(stoerGruppen[0] ? [stoerGruppen[0].datum] : []) : new Set(prev);
+    if (basis.has(d)) basis.delete(d); else basis.add(d);
+    return basis;
+  });
+
+  // Eine einzelne Störungs-Karte (im Schichtbuch unter der jeweiligen Schicht)
+  const renderStoerKarte = (s) => {
+    const dr = STOER_DRINGLICHKEIT[s.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
+    return (
+      <div key={s.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderLeft: `5px solid ${s.offen ? "#C0392B" : "#1F7A3D"}`, boxShadow: "0 1px 5px rgba(20,22,25,0.05)", opacity: s.offen ? 1 : 0.85 }}>
+        <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap">
+          <span className="font-extrabold" style={{ fontSize: "0.98rem", color: "#22262B" }}>{s.anlage || "—"}</span>
+          {s.anlagenteil && <span className="rounded" style={{ fontSize: "0.7rem", padding: "2px 7px", backgroundColor: "#EEF1F4", color: "#5B6572", fontWeight: 700 }}>{s.anlagenteil}</span>}
+          {s.offen
+            ? <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: dr.bg, color: dr.color }}>{dr.kurz}</span>
+            : <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#EAF3EC", color: "#1F7A3D" }}>✓ behoben</span>}
+          <span className="ml-auto" />
+          {stoerDarfSchreiben ? (
+            <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #E2E4E7" }}>
+              <button onClick={() => { if (!s.offen) stoerStatusUmschalten(s.id); }} className="font-bold" style={{ fontSize: "0.76rem", padding: "4px 11px", backgroundColor: s.offen ? "#C0392B" : "transparent", color: s.offen ? "#fff" : "#5B6572" }}>{s.offen ? "● Offen" : "Offen"}</button>
+              <button onClick={() => { if (s.offen) stoerStatusUmschalten(s.id); }} className="font-bold" style={{ fontSize: "0.76rem", padding: "4px 11px", backgroundColor: !s.offen ? "#1F7A3D" : "transparent", color: !s.offen ? "#fff" : "#5B6572" }}>{!s.offen ? "● Erledigt" : "Erledigt"}</button>
+            </div>
+          ) : (
+            <span className="text-xs font-bold" style={{ color: s.offen ? "#C0392B" : "#1F7A3D" }}>{s.offen ? "Offen" : "Erledigt"}</span>
+          )}
+        </div>
+        <div className="px-4 pb-2.5">
+          {[["⚠ Störungs Beschreibung", s.stoerung], ["🔍 Störungs Ursache", s.ursache], ["🔧 Sofort Maßnahme", s.getan]].map(([lab, val], i) => (
+            (val && String(val).trim()) ? (
+              <div key={i} className="py-1.5" style={{ borderTop: i === 0 ? "none" : "1px solid #EFF1F3" }}>
+                <div className="font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.5px", color: "#8A9099", marginBottom: "2px" }}>{lab}</div>
+                <div style={{ fontSize: "0.9rem", color: "#39414B", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{val}</div>
+              </div>
+            ) : null
+          ))}
+          {s.offen && s.nochZuTun && String(s.nochZuTun).trim() && (
+            <div className="mt-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#FBEAE8" }}>
+              <div className="font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.5px", color: "#C0392B", marginBottom: "2px" }}>📌 Zu Planende Maßnahme</div>
+              <div style={{ fontSize: "0.9rem", color: "#39414B", fontWeight: 600, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{s.nochZuTun}</div>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", fontSize: "0.73rem", color: "#8A9099" }}>
+          <span>{s.melder ? `${s.melder} · ` : ""}gemeldet {s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : ""} Uhr</span>
+          {!s.offen && s.behobenAt && <span>· behoben {new Date(s.behobenAt).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+          <span className="ml-auto" />
+          {stoerDarfSchreiben && (
+            <>
+              <button disabled title="Weiterleiten kommt in einer späteren Version" className="rounded font-bold inline-flex items-center gap-1" style={{ fontSize: "0.7rem", padding: "3px 8px", border: "1.5px dashed #C4CBD2", color: "#A6AEB6", cursor: "not-allowed" }}>
+                📤 Weiterleiten <span style={{ fontSize: "0.54rem", backgroundColor: "#FBF3DA", color: "#9A6B00", padding: "1px 5px", borderRadius: "10px" }}>bald</span>
+              </button>
+              <button onClick={() => { setSDraft({ id: s.id, date: s.date || todayKey, schicht: s.schicht || "", anlage: s.anlage || "", anlagenteil: s.anlagenteil || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", dringlichkeit: s.dringlichkeit || "steht", status: s.offen ? "offen" : "erledigt", melder: s.melder || "" }); setStoerModal({ mode: "edit", id: s.id }); }} className="rounded font-bold text-white" style={{ fontSize: "0.7rem", padding: "4px 11px", backgroundColor: "#22262B" }}>Bearbeiten</button>
+              <button onClick={() => loescheStoerung(s.id)} className="rounded font-bold" style={{ fontSize: "0.9rem", padding: "2px 9px", backgroundColor: "rgba(0,0,0,0.06)", color: "#8A9099" }} title="Störung löschen" aria-label="Störung löschen">×</button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Sicherheits-Klammer: solange (noch) Nur-Leser, ist ausschließlich Übersicht,
   // Schichtplan, Planung oder TPM-Plan erlaubt - jede andere Ansicht wird sofort
@@ -871,6 +976,9 @@ function App() {
           if (Array.isArray(parsed.extraSchichten)) {
             setExtraSchichten(normalisiereExtraSchichten(parsed.extraSchichten));
           }
+          if (Array.isArray(parsed.anlagenteile)) {
+            setAnlagenteile(normalisiereAnlagenteile(parsed.anlagenteile));
+          }
         }
       } catch (e) {
         if (retriesLeft > 0) {
@@ -884,17 +992,18 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
     setTeam(nextTeam);
     setExtraSchichten(nextExtraSchichten);
+    setAnlagenteile(nextAnlagenteile);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -931,7 +1040,10 @@ function App() {
     // nach Umsortieren (↑/↓) der richtigen Person zugeordnet
     setSettingsTeam(team.map((t) => ({ ...t, _orig: t.name })));
     setSettingsSchichten(extraSchichten.map((s) => ({ ...s })));
+    setSettingsAnlagenteile(anlagenteile.map((t) => ({ ...t })));
     setNeueSchichtName("");
+    setNeuesTeilAnlage("");
+    setNeuesTeilName("");
     setSettingsOpen(true);
     sharedFile.listBackups().then(setBackups).catch(() => setBackups([]));
   };
@@ -941,8 +1053,8 @@ function App() {
   const restoreBackup = async (backup) => {
     await persist(backup.entries || []);
     if (backup.config) {
-      const { tpmAnlagen: bTpm, riItems: bRi, team: bTeam, extraSchichten: bExtra } = backup.config;
-      await persistConfig(bTpm || [], bRi || [], bTeam || [], normalisiereExtraSchichten(bExtra));
+      const { tpmAnlagen: bTpm, riItems: bRi, team: bTeam, extraSchichten: bExtra, anlagenteile: bTeile } = backup.config;
+      await persistConfig(bTpm || [], bRi || [], bTeam || [], normalisiereExtraSchichten(bExtra), normalisiereAnlagenteile(bTeile));
     }
     setRestoreConfirm(null);
     setSettingsOpen(false);
@@ -984,7 +1096,9 @@ function App() {
       });
     }
 
-    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten));
+    // Anlagenteile umbenannter Anlagen mitziehen
+    const teileMitRename = settingsAnlagenteile.map((t) => (tpmRenames.has(t.anlage) ? { ...t, anlage: tpmRenames.get(t.anlage) } : t));
+    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten), normalisiereAnlagenteile(teileMitRename));
     if (nextEntries !== entries) await persist(nextEntries);
     setSettingsOpen(false);
   };
@@ -2717,7 +2831,7 @@ function App() {
             <span className="ml-auto" />
             {stoerDarfSchreiben && (
               <button
-                onClick={() => { setSDraft({ anlage: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", dringlichkeit: "steht", status: "offen", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
+                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", dringlichkeit: "steht", status: "offen", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
                 className="flex items-center gap-2 rounded-lg text-white font-bold"
                 style={{ backgroundColor: "#C0392B", padding: "8px 14px", fontSize: "0.85rem" }}
               >
@@ -2751,73 +2865,61 @@ function App() {
             </div>
           )}
 
-          {/* Liste der Störungen */}
+          {/* Liste im Schichtbuch-Stil: nach Datum gruppiert, aufklappbar -> Schichten */}
           {(() => {
-            const sichtbar = stoerungenSortiert.filter((s) => s.offen || stoerErledigteZeigen);
             if (stoerungen.length === 0) {
               return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störungen erfasst. {stoerDarfSchreiben ? "Über den roten Knopf legst du die erste an." : ""}</div>;
             }
+            if (stoerGruppen.length === 0) {
+              return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine offenen Störungen. Behobene über den Schalter unten einblenden.</div>;
+            }
             return (
               <>
-                <div className="grid gap-3">
-                  {sichtbar.map((s) => {
-                    const dr = STOER_DRINGLICHKEIT[s.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
+                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #D6DBE0" }}>
+                  {stoerGruppen.map((g, idx) => {
+                    const auf = istTagOffen(g.datum, idx);
+                    const d = g.datum !== "—" ? new Date(g.datum + "T00:00:00") : null;
+                    const istHeute = g.datum === todayKey;
                     return (
-                      <div key={s.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderLeft: `5px solid ${s.offen ? "#C0392B" : "#1F7A3D"}`, boxShadow: "0 2px 10px rgba(20,22,25,0.06)", opacity: s.offen ? 1 : 0.82 }}>
-                        {/* Kopf: Anlage + Dringlichkeit + Status-Umschalter */}
-                        <div className="flex items-center gap-2 px-4 py-3 flex-wrap">
-                          <span className="font-extrabold" style={{ fontSize: "1.02rem", color: "#22262B" }}>{s.anlage || "—"}</span>
-                          {s.offen
-                            ? <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: dr.bg, color: dr.color }}>{dr.kurz}</span>
-                            : <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#EAF3EC", color: "#1F7A3D" }}>✓ behoben</span>}
-                          <span className="ml-auto" />
-                          {stoerDarfSchreiben ? (
-                            <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #E2E4E7" }}>
-                              <button onClick={() => { if (!s.offen) stoerStatusUmschalten(s.id); }} className="font-bold" style={{ fontSize: "0.78rem", padding: "5px 12px", backgroundColor: s.offen ? "#C0392B" : "transparent", color: s.offen ? "#fff" : "#5B6572" }}>{s.offen ? "● Offen" : "Offen"}</button>
-                              <button onClick={() => { if (s.offen) stoerStatusUmschalten(s.id); }} className="font-bold" style={{ fontSize: "0.78rem", padding: "5px 12px", backgroundColor: !s.offen ? "#1F7A3D" : "transparent", color: !s.offen ? "#fff" : "#5B6572" }}>{!s.offen ? "● Erledigt" : "Erledigt"}</button>
-                            </div>
-                          ) : (
-                            <span className="text-xs font-bold" style={{ color: s.offen ? "#C0392B" : "#1F7A3D" }}>{s.offen ? "Offen" : "Erledigt"}</span>
-                          )}
-                        </div>
-                        {/* Felder */}
-                        <div className="px-4 pb-3">
-                          {[["⚠ Was ist die Störung?", s.stoerung], ["🔍 Ursache", s.ursache], [s.offen ? "🔧 Was wurde bisher getan?" : "🔧 Was wurde getan?", s.getan]].map(([lab, val], i) => (
-                            (val && String(val).trim()) ? (
-                              <div key={i} className="py-2" style={{ borderTop: i === 0 ? "none" : "1px solid #EFF1F3" }}>
-                                <div className="font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.5px", color: "#8A9099", marginBottom: "2px" }}>{lab}</div>
-                                <div style={{ fontSize: "0.92rem", color: "#39414B", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{val}</div>
-                              </div>
-                            ) : null
-                          ))}
-                          {/* Nur bei Offen: Was ist noch zu tun */}
-                          {s.offen && s.nochZuTun && String(s.nochZuTun).trim() && (
-                            <div className="mt-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#FBEAE8" }}>
-                              <div className="font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.5px", color: "#C0392B", marginBottom: "2px" }}>📌 Was ist noch zu tun?</div>
-                              <div style={{ fontSize: "0.92rem", color: "#39414B", fontWeight: 600, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{s.nochZuTun}</div>
-                            </div>
-                          )}
-                        </div>
-                        {/* Fuß: Meta + Aktionen */}
-                        <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", fontSize: "0.75rem", color: "#8A9099" }}>
-                          <span>{s.melder ? `${s.melder} · ` : ""}gemeldet {s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : formatDateDE(s.date)}</span>
-                          {!s.offen && s.behobenAt && <span>· behoben {new Date(s.behobenAt).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
-                          <span className="ml-auto" />
-                          {stoerDarfSchreiben && (
-                            <>
-                              <button
-                                disabled
-                                title="Weiterleiten kommt in einer späteren Version"
-                                className="rounded font-bold inline-flex items-center gap-1"
-                                style={{ fontSize: "0.72rem", padding: "4px 9px", border: "1.5px dashed #C4CBD2", color: "#A6AEB6", cursor: "not-allowed" }}
-                              >
-                                📤 Weiterleiten <span style={{ fontSize: "0.56rem", backgroundColor: "#FBF3DA", color: "#9A6B00", padding: "1px 5px", borderRadius: "10px" }}>bald</span>
-                              </button>
-                              <button onClick={() => { setSDraft({ id: s.id, anlage: s.anlage || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", dringlichkeit: s.dringlichkeit || "steht", status: s.offen ? "offen" : "erledigt", melder: s.melder || "" }); setStoerModal({ mode: "edit", id: s.id }); }} className="rounded font-bold text-white" style={{ fontSize: "0.72rem", padding: "4px 11px", backgroundColor: "#22262B" }}>Bearbeiten</button>
-                              <button onClick={() => loescheStoerung(s.id)} className="rounded font-bold" style={{ fontSize: "0.9rem", padding: "2px 9px", backgroundColor: "rgba(0,0,0,0.06)", color: "#8A9099" }} title="Störung löschen" aria-label="Störung löschen">×</button>
-                            </>
-                          )}
-                        </div>
+                      <div key={g.datum} style={{ borderTop: idx === 0 ? "none" : "1px solid #E2E4E7" }}>
+                        {/* Datums-Kopfzeile (klickbar) */}
+                        <button
+                          onClick={() => toggleStoerTag(g.datum)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
+                          style={{ backgroundColor: istHeute ? "#FBF4E7" : "#F4F6F8" }}
+                        >
+                          <span style={{ color: "#5B6572", fontSize: "0.8rem", width: "12px" }}>{auf ? "▾" : "▸"}</span>
+                          <span className="font-extrabold" style={{ color: "#22262B", fontSize: "0.95rem" }}>
+                            {d ? d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "ohne Datum"}
+                          </span>
+                          {istHeute && <span className="rounded-full font-bold uppercase" style={{ fontSize: "0.58rem", padding: "2px 7px", backgroundColor: "#C97A2B", color: "#fff" }}>heute</span>}
+                          <span className="ml-auto flex items-center gap-2">
+                            {g.offen > 0 && <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C0392B", fontSize: "0.62rem" }}>{g.offen} offen</span>}
+                            <span style={{ color: "#8A9099", fontSize: "0.72rem" }}>{g.liste.length} Eintrag{g.liste.length === 1 ? "" : "e"}</span>
+                          </span>
+                        </button>
+                        {/* Schicht-Abschnitte */}
+                        {auf && (
+                          <div className="px-3 py-3" style={{ backgroundColor: "#FCFDFE" }}>
+                            {g.proSchicht.map(([sch, liste]) => {
+                              const farbe = SCHICHTEN[sch] || { color: "#8A9099", text: "#fff" };
+                              return (
+                                <div key={sch} className="mb-3 last:mb-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.68rem", letterSpacing: "0.5px", padding: "3px 10px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
+                                      {sch === "—" ? "ohne Schicht" : sch}
+                                    </span>
+                                    <span style={{ flex: 1, height: "1px", backgroundColor: "#E7EAED" }} />
+                                    <span style={{ color: "#A6AEB6", fontSize: "0.68rem" }}>{liste.length}</span>
+                                  </div>
+                                  <div className="grid gap-2.5" style={{ paddingLeft: "4px" }}>
+                                    {liste.map((s) => renderStoerKarte(s))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -2890,6 +2992,36 @@ function App() {
               </div>
             );
           })()}
+
+          {/* Gedankenstütze: offene Störungen */}
+          {stoerOffeneListe.length > 0 && (
+            <div className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7B9B3", borderLeft: "5px solid #C0392B" }}>
+              <div className="flex items-center gap-2 px-4 py-2.5" style={{ backgroundColor: "#FBEAE8" }}>
+                <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#9A2B22" }}>⚠ Offene Störungen</span>
+                <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C0392B", fontSize: "0.62rem" }}>{stoerOffeneListe.length}</span>
+                <button onClick={() => setCockpitTab("STOERUNGEN")} className="ml-auto text-xs font-bold" style={{ color: "#C0392B" }}>➜ Störungen</button>
+              </div>
+              <div className="px-2 py-1.5">
+                {stoerOffeneListe.slice(0, 5).map((s) => {
+                  const dr = STOER_DRINGLICHKEIT[s.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
+                  return (
+                    <button key={s.id} onClick={() => setCockpitTab("STOERUNGEN")} className="w-full flex items-start gap-2.5 px-2 py-1.5 text-left rounded hover:bg-slate-50" style={{ borderLeft: `3px solid ${dr.color}`, marginBottom: "2px" }}>
+                      <span className="font-extrabold flex-shrink-0" style={{ fontSize: "0.82rem", color: "#22262B", minWidth: "0" }}>
+                        {s.anlage || "—"}{s.anlagenteil ? <span style={{ fontWeight: 500, color: "#8A9099" }}> · {s.anlagenteil}</span> : ""}
+                      </span>
+                      <span className="flex-1" style={{ fontSize: "0.8rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {(s.nochZuTun && String(s.nochZuTun).trim()) ? <span style={{ color: "#C0392B", fontWeight: 600 }}>📌 {s.nochZuTun}</span> : s.stoerung}
+                      </span>
+                      <span className="flex-shrink-0 rounded-full font-bold uppercase" style={{ fontSize: "0.56rem", padding: "2px 7px", backgroundColor: dr.bg, color: dr.color }}>{dr.kurz}</span>
+                    </button>
+                  );
+                })}
+                {stoerOffeneListe.length > 5 && (
+                  <button onClick={() => setCockpitTab("STOERUNGEN")} className="w-full text-center py-1.5 text-xs font-bold" style={{ color: "#8A9099" }}>+ {stoerOffeneListe.length - 5} weitere</button>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-4" style={{ gridTemplateColumns: "1.05fr 1fr" }}>
             {/* Tagesliste */}
@@ -4129,11 +4261,13 @@ function App() {
       {/* Störung melden / bearbeiten */}
       {stoerModal && sDraft && (() => {
         const offen = sDraft.status !== "erledigt";
-        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim();
+        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim();
         const anlagenVorschlaege = Array.from(new Set([
           ...tpmAnlagen.map((a) => a.name),
           ...stoerungen.map((s) => s.anlage).filter(Boolean),
         ]));
+        // Anlagenteile zur aktuell gewählten Anlage (von Roberto im ⚙-Dialog gepflegt)
+        const teileZurAnlage = anlagenteile.filter((t) => t.anlage === String(sDraft.anlage || "").trim());
         return (
           <div
             className="no-print"
@@ -4159,21 +4293,60 @@ function App() {
               </div>
 
               <div className="flex flex-col gap-3">
-                {/* Anlage (frei, mit Vorschlägen) */}
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlage / Bereich</label>
-                  <input
-                    list="stoer-anlagen"
-                    value={sDraft.anlage}
-                    onChange={(ev) => setSDraft({ ...sDraft, anlage: ev.target.value })}
-                    placeholder="z. B. Presse 3"
-                    className="w-full text-sm border rounded-lg px-3 py-2"
-                    style={{ borderColor: "#D6D9DC" }}
-                  />
-                  <datalist id="stoer-anlagen">{anlagenVorschlaege.map((n) => <option key={n} value={n} />)}</datalist>
+                {/* Datum + Schicht (Pflicht, wie im Schichtbuch) */}
+                <div className="flex gap-3 flex-wrap">
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Datum</label>
+                    <input type="date" value={sDraft.date || ""} onChange={(ev) => setSDraft({ ...sDraft, date: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                  </div>
+                  <div className="flex-1" style={{ minWidth: "220px" }}>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Schicht</label>
+                    <div className="flex gap-2">
+                      {STOER_SCHICHTEN.map((sch) => {
+                        const aktiv = sDraft.schicht === sch;
+                        const farbe = SCHICHTEN[sch] || {};
+                        return (
+                          <button key={sch} onClick={() => setSDraft({ ...sDraft, schicht: sch })}
+                            className="flex-1 rounded-lg font-bold text-center"
+                            style={{ padding: "8px 6px", fontSize: "0.82rem", border: `2px solid ${aktiv ? (farbe.color || "#22262B") : "#E2E4E7"}`, backgroundColor: aktiv ? (farbe.color || "#22262B") : "transparent", color: aktiv ? (farbe.text || "#fff") : "#5B6572" }}>
+                            {sch}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Dringlichkeit (nur relevant, aber immer wählbar) */}
+                {/* Anlage + Anlagenteil nebeneinander */}
+                <div className="flex gap-3 flex-wrap">
+                  <div className="flex-1" style={{ minWidth: "200px" }}>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlage / Bereich</label>
+                    <input
+                      list="stoer-anlagen"
+                      value={sDraft.anlage}
+                      onChange={(ev) => setSDraft({ ...sDraft, anlage: ev.target.value, anlagenteil: "" })}
+                      placeholder="z. B. Presse 3"
+                      className="w-full text-sm border rounded-lg px-3 py-2"
+                      style={{ borderColor: "#D6D9DC" }}
+                    />
+                    <datalist id="stoer-anlagen">{anlagenVorschlaege.map((n) => <option key={n} value={n} />)}</datalist>
+                  </div>
+                  <div className="flex-1" style={{ minWidth: "200px" }}>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlagenteil</label>
+                    {teileZurAnlage.length > 0 ? (
+                      <select value={sDraft.anlagenteil || ""} onChange={(ev) => setSDraft({ ...sDraft, anlagenteil: ev.target.value })} className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }}>
+                        <option value="">– kein bestimmtes Teil –</option>
+                        {teileZurAnlage.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
+                      </select>
+                    ) : (
+                      <div className="text-xs italic px-1 py-2.5" style={{ color: "#A6AEB6" }}>
+                        {String(sDraft.anlage || "").trim() ? "Für diese Anlage sind noch keine Teile hinterlegt (⚙ oben rechts)." : "Erst eine Anlage wählen."}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dringlichkeit */}
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Dringlichkeit</label>
                   <div className="flex gap-2 flex-wrap">
@@ -4191,23 +4364,23 @@ function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Was ist die Störung?</label>
-                  <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Kurz beschreiben, was nicht funktioniert" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Störungs Beschreibung</label>
+                  <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Was funktioniert nicht?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔍 Ursache</label>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔍 Störungs Ursache</label>
                   <input value={sDraft.ursache} onChange={(ev) => setSDraft({ ...sDraft, ursache: ev.target.value })} placeholder="falls bekannt" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔧 Was wurde getan?</label>
-                  <textarea value={sDraft.getan} onChange={(ev) => setSDraft({ ...sDraft, getan: ev.target.value })} rows={2} placeholder="bisherige Schritte" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔧 Sofort Maßnahme</label>
+                  <textarea value={sDraft.getan} onChange={(ev) => setSDraft({ ...sDraft, getan: ev.target.value })} rows={2} placeholder="Was wurde sofort getan?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
                 </div>
 
-                {/* Nur bei Offen: Was ist noch zu tun */}
+                {/* Nur bei Offen: Zu Planende Maßnahme */}
                 {offen && (
                   <div className="rounded-lg p-3" style={{ backgroundColor: "#FBEAE8", border: "1px solid #E7B9B3" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#C0392B" }}>📌 Was ist noch zu tun?</label>
-                    <textarea value={sDraft.nochZuTun} onChange={(ev) => setSDraft({ ...sDraft, nochZuTun: ev.target.value })} rows={2} placeholder="offene Schritte bis zur Behebung" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D8A9A2" }} />
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#C0392B" }}>📌 Zu Planende Maßnahme</label>
+                    <textarea value={sDraft.nochZuTun} onChange={(ev) => setSDraft({ ...sDraft, nochZuTun: ev.target.value })} rows={2} placeholder="Was muss noch geplant/erledigt werden?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D8A9A2" }} />
                   </div>
                 )}
 
@@ -4868,6 +5041,64 @@ function App() {
                 style={{ color: "#22262B" }}
               >
                 + Schichtart hinzufügen
+              </button>
+            </div>
+
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Anlagenteile (für Störberichte)</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Teile je Anlage – erscheinen beim Melden einer Störung als Auswahl neben der Anlage. Nur du pflegst diese Liste.
+            </div>
+            {(() => {
+              const proAnlage = new Map();
+              settingsAnlagenteile.forEach((t) => {
+                if (!proAnlage.has(t.anlage)) proAnlage.set(t.anlage, []);
+                proAnlage.get(t.anlage).push(t);
+              });
+              return Array.from(proAnlage.keys()).sort().map((anlage) => (
+                <div key={anlage} className="mb-2">
+                  <div className="text-xs font-bold" style={{ color: "#39414B" }}>{anlage}</div>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    {proAnlage.get(anlage).map((t) => (
+                      <span key={t.id} className="inline-flex items-center gap-1 rounded" style={{ fontSize: "0.68rem", padding: "2px 4px 2px 8px", color: "#39414B", backgroundColor: "#EEF1F4" }}>
+                        {t.name}
+                        <button onClick={() => setSettingsAnlagenteile((prev) => prev.filter((x) => x.id !== t.id))} className="hover:opacity-70" aria-label={`Anlagenteil ${t.name} entfernen`} title="Anlagenteil entfernen"><X size={11} /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+            <div className="flex items-center gap-2 mb-5 mt-2 flex-wrap">
+              <select value={neuesTeilAnlage} onChange={(e) => setNeuesTeilAnlage(e.target.value)} className="text-sm border rounded px-2 py-1.5" style={{ borderColor: "#D6D9DC", maxWidth: "200px" }} aria-label="Anlage für neues Teil">
+                <option value="">– Anlage wählen –</option>
+                {settingsTpm.filter((a) => a.name.trim()).map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
+              </select>
+              <input
+                value={neuesTeilName}
+                onChange={(e) => setNeuesTeilName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  const n = neuesTeilName.trim();
+                  if (!n || !neuesTeilAnlage) return;
+                  setSettingsAnlagenteile((prev) => [...prev, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, anlage: neuesTeilAnlage, name: n }]);
+                  setNeuesTeilName("");
+                }}
+                placeholder="Anlagenteil, z. B. Ventilblock"
+                className="text-sm border rounded px-2 py-1.5"
+                style={{ borderColor: "#D6D9DC", width: "220px" }}
+                aria-label="Neues Anlagenteil"
+              />
+              <button
+                onClick={() => {
+                  const n = neuesTeilName.trim();
+                  if (!n || !neuesTeilAnlage) return;
+                  setSettingsAnlagenteile((prev) => [...prev, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, anlage: neuesTeilAnlage, name: n }]);
+                  setNeuesTeilName("");
+                }}
+                className="text-xs font-bold"
+                style={{ color: neuesTeilAnlage && neuesTeilName.trim() ? "#22262B" : "#B7BEC6" }}
+              >
+                + Anlagenteil hinzufügen
               </button>
             </div>
 

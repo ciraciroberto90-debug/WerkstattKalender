@@ -47,8 +47,11 @@ async function verbindeStoer(page, create) {
 async function meldeStoerung(page, anlage, text) {
   await page.getByRole('button', { name: /Störung melden/ }).click();
   await page.waitForTimeout(250);
+  // Modal-Bereich (zIndex 60) zum Eingrenzen der Klicks
+  const dlg = page.locator('div[style*="z-index: 60"]');
+  await dlg.getByRole('button', { name: 'Früh', exact: true }).click(); // Schicht ist Pflicht
   await page.locator('input[list="stoer-anlagen"]').fill(anlage);
-  await page.locator('textarea[placeholder*="Kurz beschreiben"]').fill(text);
+  await page.locator('textarea[placeholder*="funktioniert"]').fill(text);
   await page.getByRole('button', { name: /^Speichern$/ }).click();
   await page.waitForTimeout(400);
 }
@@ -96,6 +99,7 @@ async function meldeStoerung(page, anlage, text) {
   check('(2) Beide Störungen liegen in der Störungen-Datei',
     datei.entries.filter((e) => e.anlage === 'Presse 3' || e.anlage === 'Foerderband 2').length === 2);
   check('(2) Störungen-Datei hat eigenes Format', datei.format === 'werkstatt-stoerungen-v1');
+  check('(2) Gewählte Schicht wird gespeichert', datei.entries.every((e) => e.schicht === 'Früh'));
 
   // (3) Nutzer 1 löscht die Presse-3-Störung; Nutzer 2 (hatte sie noch) darf sie
   // nach dem Abgleich NICHT wiederbeleben.
