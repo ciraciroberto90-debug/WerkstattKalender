@@ -576,6 +576,8 @@ function App() {
   const [stoerErledigteZeigen, setStoerErledigteZeigen] = useState(false); // erledigte Störungen einblenden
   const [stoerOffeneTage, setStoerOffeneTage] = useState(null); // aufgeklappte Datums-Gruppen (null = Vorgabe: neuester Tag offen)
   const [stoerOffeneSchichten, setStoerOffeneSchichten] = useState(() => new Set()); // aufgeklappte Schichten "datum|schicht"
+  const [stoerModus, setStoerModus] = useState("liste"); // "liste" | "auswertung"
+  const [stoerZeitraum, setStoerZeitraum] = useState("jahr"); // "monat" | "jahr" | "alle"
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
@@ -2824,12 +2826,19 @@ function App() {
       {/* Cockpit: Störungen (eigene, für alle beschreibbare Datei) */}
       {view === "COCKPIT" && cockpitTab === "STOERUNGEN" && (
         <div className="no-print max-w-5xl mx-auto px-4 mt-4">
-          {/* Kopf: Titel + Melden-Knopf */}
+          {/* Kopf: Titel + Umschalter + Melden-Knopf */}
           <div className="flex items-center gap-3 mb-3 flex-wrap">
             <span className="text-lg font-black uppercase tracking-tight" style={{ color: "#22262B" }}>⚠ Störungen</span>
-            <span className="text-xs font-mono" style={{ color: "#5B6572" }}>
-              {stoerOffenCount} offen · {stoerungen.length - stoerOffenCount} behoben
-            </span>
+            <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #D6DBE0" }}>
+              {[["liste", "Liste"], ["auswertung", "Auswertung"]].map(([k, lab]) => (
+                <button key={k} onClick={() => setStoerModus(k)} className="font-bold" style={{ fontSize: "0.78rem", padding: "5px 13px", backgroundColor: stoerModus === k ? "#22262B" : "transparent", color: stoerModus === k ? "#fff" : "#5B6572" }}>{lab}</button>
+              ))}
+            </div>
+            {stoerModus === "liste" && (
+              <span className="text-xs font-mono" style={{ color: "#5B6572" }}>
+                {stoerOffenCount} offen · {stoerungen.length - stoerOffenCount} behoben
+              </span>
+            )}
             <span className="ml-auto" />
             {stoerDarfSchreiben && (
               <button
@@ -2867,8 +2876,133 @@ function App() {
             </div>
           )}
 
+          {/* Auswertung */}
+          {stoerModus === "auswertung" && (() => {
+            const ymHeute = todayKey.slice(0, 7);
+            const jahrHeute = todayKey.slice(0, 4);
+            const imZeitraum = stoerungen.filter((s) => {
+              if (stoerZeitraum === "alle") return true;
+              if (!s.date) return false;
+              return stoerZeitraum === "monat" ? s.date.slice(0, 7) === ymHeute : s.date.slice(0, 4) === jahrHeute;
+            });
+            const gesamt = imZeitraum.length;
+            const offen = imZeitraum.filter((s) => s.offen).length;
+            const ausfallGesamt = summeAusfall(imZeitraum);
+            const schnitt = gesamt > 0 ? Math.round(ausfallGesamt / gesamt) : 0;
+            const grp = (keyFn) => {
+              const m = new Map();
+              imZeitraum.forEach((s) => { const k = keyFn(s); const r = m.get(k) || { key: k, anzahl: 0, ausfall: 0 }; r.anzahl++; r.ausfall += Number(s.ausfallzeit) || 0; m.set(k, r); });
+              return [...m.values()];
+            };
+            const proAnlage = grp((s) => s.anlage || "—");
+            const topAusfall = [...proAnlage].sort((a, b) => b.ausfall - a.ausfall || b.anzahl - a.anzahl).slice(0, 8);
+            const topAnzahl = [...proAnlage].sort((a, b) => b.anzahl - a.anzahl || b.ausfall - a.ausfall).slice(0, 8);
+            const proMonat = grp((s) => (s.date || "").slice(0, 7)).filter((r) => r.key).sort((a, b) => a.key.localeCompare(b.key)).slice(-12);
+            const dring = { steht: 0, eingeschraenkt: 0, wartet: 0 };
+            imZeitraum.forEach((s) => { if (dring[s.dringlichkeit] !== undefined) dring[s.dringlichkeit]++; });
+            const maxAusfall = Math.max(1, ...topAusfall.map((r) => r.ausfall));
+            const maxAnzahl = Math.max(1, ...topAnzahl.map((r) => r.anzahl));
+            const maxMonat = Math.max(1, ...proMonat.map((r) => r.ausfall));
+            const monatLabel = (ym) => { const [y, m] = ym.split("-"); return `${MONTHS[Number(m) - 1].slice(0, 3)} ${y.slice(2)}`; };
+            const KPI = ({ zahl, label, farbe }) => (
+              <div className="rounded-xl px-3.5 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                <div className="font-mono font-extrabold" style={{ fontSize: "1.3rem", color: farbe || "#22262B" }}>{zahl}</div>
+                <div className="font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.64rem" }}>{label}</div>
+              </div>
+            );
+            const BalkenListe = ({ daten, max, wertText, farbe }) => (
+              daten.length === 0 ? <div className="text-xs italic" style={{ color: "#C3C7CB" }}>keine Daten</div> : (
+                <div className="flex flex-col gap-1.5">
+                  {daten.map((r) => (
+                    <div key={r.key} className="flex items-center gap-2">
+                      <span className="flex-shrink-0" style={{ width: "130px", fontSize: "0.8rem", fontWeight: 700, color: "#39414B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.key}>{r.key}</span>
+                      <div className="flex-1" style={{ backgroundColor: "#F0F2F5", borderRadius: "4px", height: "18px", position: "relative" }}>
+                        <div style={{ width: `${Math.max(3, Math.round((wertText === "min" ? r.ausfall : r.anzahl) / max * 100))}%`, backgroundColor: farbe, height: "100%", borderRadius: "4px" }} />
+                      </div>
+                      <span className="flex-shrink-0 font-mono" style={{ width: "72px", textAlign: "right", fontSize: "0.74rem", color: "#5B6572" }}>{wertText === "min" ? minutenText(r.ausfall) : r.anzahl}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            );
+            const gesamtDring = Math.max(1, dring.steht + dring.eingeschraenkt + dring.wartet);
+            return (
+              <div>
+                {/* Zeitraum-Wahl */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-bold uppercase" style={{ color: "#8A9099" }}>Zeitraum:</span>
+                  <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #D6DBE0" }}>
+                    {[["monat", MONTHS[today.getMonth()]], ["jahr", String(today.getFullYear())], ["alle", "Alle"]].map(([k, lab]) => (
+                      <button key={k} onClick={() => setStoerZeitraum(k)} className="font-bold" style={{ fontSize: "0.76rem", padding: "5px 12px", backgroundColor: stoerZeitraum === k ? "#4B5259" : "transparent", color: stoerZeitraum === k ? "#fff" : "#5B6572" }}>{lab}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {gesamt === 0 ? (
+                  <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störungen in diesem Zeitraum.</div>
+                ) : (
+                  <>
+                    {/* Kennzahlen */}
+                    <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+                      <KPI zahl={gesamt} label="Störungen" />
+                      <KPI zahl={offen} label="noch offen" farbe={offen > 0 ? "#C0392B" : "#2F7D4F"} />
+                      <KPI zahl={minutenText(ausfallGesamt)} label="Ausfallzeit gesamt" farbe="#2F6690" />
+                      <KPI zahl={minutenText(schnitt)} label="Ø je Störung" farbe="#2F6690" />
+                    </div>
+
+                    <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                      {/* Top Ausfallzeit */}
+                      <div className="rounded-xl p-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                        <div className="text-xs font-extrabold uppercase mb-3" style={{ color: "#22262B" }}>⏱ Ausfallzeit je Anlage</div>
+                        <BalkenListe daten={topAusfall} max={maxAusfall} wertText="min" farbe="#2F6690" />
+                      </div>
+                      {/* Top Anzahl */}
+                      <div className="rounded-xl p-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                        <div className="text-xs font-extrabold uppercase mb-3" style={{ color: "#22262B" }}>🔧 Anzahl Störungen je Anlage</div>
+                        <BalkenListe daten={topAnzahl} max={maxAnzahl} wertText="anzahl" farbe="#C97A2B" />
+                      </div>
+                    </div>
+
+                    {/* Monatsverlauf */}
+                    <div className="rounded-xl p-4 mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                      <div className="text-xs font-extrabold uppercase mb-3" style={{ color: "#22262B" }}>📈 Ausfallzeit je Monat</div>
+                      {proMonat.length === 0 ? <div className="text-xs italic" style={{ color: "#C3C7CB" }}>keine Daten</div> : (
+                        <div className="flex items-end gap-2" style={{ height: "140px" }}>
+                          {proMonat.map((r) => (
+                            <div key={r.key} className="flex-1 flex flex-col items-center justify-end" style={{ height: "100%" }} title={`${minutenText(r.ausfall)} · ${r.anzahl} Störung(en)`}>
+                              <span style={{ fontSize: "0.6rem", color: "#8A9099", marginBottom: "2px" }}>{r.ausfall > 0 ? Math.round(r.ausfall / 60 * 10) / 10 + "h" : ""}</span>
+                              <div style={{ width: "100%", maxWidth: "46px", height: `${Math.max(2, Math.round(r.ausfall / maxMonat * 100))}%`, backgroundColor: "#2F6690", borderRadius: "4px 4px 0 0" }} />
+                              <span style={{ fontSize: "0.6rem", color: "#5B6572", marginTop: "3px", fontWeight: 700 }}>{monatLabel(r.key)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dringlichkeitsverteilung */}
+                    <div className="rounded-xl p-4 mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                      <div className="text-xs font-extrabold uppercase mb-3" style={{ color: "#22262B" }}>Dringlichkeit</div>
+                      <div className="flex rounded-lg overflow-hidden" style={{ height: "26px" }}>
+                        {[["steht", dring.steht], ["eingeschraenkt", dring.eingeschraenkt], ["wartet", dring.wartet]].map(([k, n]) => n > 0 && (
+                          <div key={k} className="flex items-center justify-center text-white font-bold" style={{ width: `${n / gesamtDring * 100}%`, backgroundColor: STOER_DRINGLICHKEIT[k].color, fontSize: "0.7rem" }} title={`${STOER_DRINGLICHKEIT[k].label}: ${n}`}>{n}</div>
+                        ))}
+                      </div>
+                      <div className="flex gap-4 mt-2 flex-wrap">
+                        {Object.entries(STOER_DRINGLICHKEIT).map(([k, d]) => (
+                          <span key={k} className="flex items-center gap-1.5" style={{ fontSize: "0.72rem", color: "#5B6572" }}>
+                            <span style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: d.color }} />{d.label}: <strong>{dring[k]}</strong>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Liste im Schichtbuch-Stil: nach Datum gruppiert, aufklappbar -> Schichten */}
-          {(() => {
+          {stoerModus === "liste" && (() => {
             if (stoerungen.length === 0) {
               return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störungen erfasst. {stoerDarfSchreiben ? "Über den roten Knopf legst du die erste an." : ""}</div>;
             }
