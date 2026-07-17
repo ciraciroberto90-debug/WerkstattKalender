@@ -54,11 +54,12 @@ async function zeigeFrueh(page) {
 }
 
 async function meldeStoerung(page, anlage, text) {
-  await page.getByRole('button', { name: /Störung melden/ }).click();
+  await page.getByRole('button', { name: /Störbericht erfassen/ }).click();
   await page.waitForTimeout(250);
   // Modal-Bereich (zIndex 60) zum Eingrenzen der Klicks
   const dlg = page.locator('div[style*="z-index: 60"]');
   await dlg.getByRole('button', { name: 'Früh', exact: true }).click(); // Schicht ist Pflicht
+  await dlg.getByRole('button', { name: /Offen/ }).first().click(); // Status ist Pflicht (nicht vorausgewählt)
   await page.locator('input[list="stoer-anlagen"]').fill(anlage);
   await page.locator('textarea[placeholder*="funktioniert"]').fill(text);
   await page.getByRole('button', { name: /^Speichern$/ }).click();
@@ -75,7 +76,7 @@ async function meldeStoerung(page, anlage, text) {
     await u1.getByRole('button', { name: /Störungen/ }).count() > 0);
   await verbindeStoer(u1, true);
   check('(1) Nach Verbinden darf der Leser Störungen melden (Knopf da)',
-    await u1.getByRole('button', { name: /Störung melden/ }).count() > 0);
+    await u1.getByRole('button', { name: /Störbericht erfassen/ }).count() > 0);
 
   await meldeStoerung(u1, 'Presse 3', 'Hydraulikdruck faellt ab');
   await zeigeFrueh(u1); // Schicht aufklappen, damit die Zeilen sichtbar werden

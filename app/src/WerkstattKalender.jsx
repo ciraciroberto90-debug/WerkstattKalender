@@ -748,7 +748,7 @@ function App() {
     const jetzt = new Date().toISOString();
     const melder = String(draft.melder || "").trim();
     if (melder) localStorage.setItem("werkstatt-kalender-name", melder);
-    const offen = draft.status !== "erledigt";
+    const offen = draft.status === "offen";
     const datum = draft.date || jetzt.slice(0, 10);
     const ausfallzeit = Math.max(0, Math.round(Number(draft.ausfallzeit) || 0));
     if (draft.id) {
@@ -2833,11 +2833,11 @@ function App() {
             <span className="ml-auto" />
             {stoerDarfSchreiben && (
               <button
-                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", dringlichkeit: "steht", ausfallzeit: "", status: "offen", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
+                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ausfallzeit: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
                 className="flex items-center gap-2 rounded-lg text-white font-bold"
                 style={{ backgroundColor: "#C0392B", padding: "8px 14px", fontSize: "0.85rem" }}
               >
-                ⚠ Störung melden
+                📝 Störbericht erfassen
               </button>
             )}
           </div>
@@ -2976,7 +2976,7 @@ function App() {
           {/* Liste im Schichtbuch-Stil: nach Datum gruppiert, aufklappbar -> Schichten */}
           {stoerModus === "liste" && (() => {
             if (stoerungen.length === 0) {
-              return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störungen erfasst. {stoerDarfSchreiben ? "Über den roten Knopf legst du die erste an." : ""}</div>;
+              return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störberichte erfasst. {stoerDarfSchreiben ? "Über den roten Knopf legst du den ersten an." : ""}</div>;
             }
             if (stoerGruppen.length === 0) {
               return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine offenen Störungen. Behobene über den Schalter unten einblenden.</div>;
@@ -4373,10 +4373,11 @@ function App() {
         );
       })()}
 
-      {/* Störung melden / bearbeiten */}
+      {/* Störbericht erfassen / bearbeiten */}
       {stoerModal && sDraft && (() => {
-        const offen = sDraft.status !== "erledigt";
-        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim();
+        const offen = sDraft.status === "offen";
+        const statusGewaehlt = sDraft.status === "offen" || sDraft.status === "erledigt";
+        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim() && statusGewaehlt;
         const anlagenVorschlaege = Array.from(new Set([
           ...tpmAnlagen.map((a) => a.name),
           ...stoerungen.map((s) => s.anlage).filter(Boolean),
@@ -4427,7 +4428,7 @@ function App() {
                 {/* Fuß: Meta + Bearbeiten entsichert */}
                 <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", backgroundColor: "#FAFBFC" }}>
                   <span style={{ fontSize: "0.75rem", color: "#8A9099" }}>
-                    {live.melder ? `${live.melder} · ` : ""}gemeldet {live.gemeldetAt ? new Date(live.gemeldetAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
+                    {live.melder ? `${live.melder} · ` : ""}erfasst {live.gemeldetAt ? new Date(live.gemeldetAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
                     {!offen && live.behobenAt ? ` · behoben ${new Date(live.behobenAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
                   </span>
                   <span className="ml-auto" />
@@ -4456,16 +4457,16 @@ function App() {
               onClick={(ev) => ev.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-1">
-                <div className="font-black text-base" style={{ color: "#22262B" }}>{stoerModal.mode === "add" ? "⚠ Störung melden" : "Störung bearbeiten"}</div>
+                <div className="font-black text-base" style={{ color: "#22262B" }}>{stoerModal.mode === "add" ? "📝 Störbericht erfassen" : "Störbericht bearbeiten"}</div>
                 <button onClick={() => { setStoerModal(null); setSDraft(null); }} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
               </div>
 
-              {/* Status-Umschalter */}
+              {/* Status-Umschalter (Pflicht, nicht vorausgewählt) */}
               <div className="flex items-center gap-2 my-3">
-                <span className="text-xs font-bold uppercase" style={{ color: "#8A9099" }}>Status:</span>
-                <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #E2E4E7" }}>
-                  <button onClick={() => setSDraft({ ...sDraft, status: "offen" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: offen ? "#C0392B" : "transparent", color: offen ? "#fff" : "#5B6572" }}>● Offen</button>
-                  <button onClick={() => setSDraft({ ...sDraft, status: "erledigt" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: !offen ? "#1F7A3D" : "transparent", color: !offen ? "#fff" : "#5B6572" }}>● Erledigt</button>
+                <span className="text-xs font-bold uppercase" style={{ color: "#8A9099" }}>Status<span style={{ color: "#C0392B" }}> *</span>:</span>
+                <div className="inline-flex rounded-lg overflow-hidden" style={{ border: `1.5px solid ${statusGewaehlt ? "#E2E4E7" : "#E7B9B3"}` }}>
+                  <button onClick={() => setSDraft({ ...sDraft, status: "offen" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: sDraft.status === "offen" ? "#C0392B" : "transparent", color: sDraft.status === "offen" ? "#fff" : "#5B6572" }}>● Offen</button>
+                  <button onClick={() => setSDraft({ ...sDraft, status: "erledigt" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: sDraft.status === "erledigt" ? "#1F7A3D" : "transparent", color: sDraft.status === "erledigt" ? "#fff" : "#5B6572" }}>● Erledigt</button>
                 </div>
               </div>
 
@@ -4551,13 +4552,13 @@ function App() {
                 )}
 
                 <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Dein Kürzel</label>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Bearbeiter (Kürzel)</label>
                   <input value={sDraft.melder} onChange={(ev) => setSDraft({ ...sDraft, melder: ev.target.value })} placeholder="z. B. RC" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", maxWidth: "160px" }} />
                 </div>
 
                 {!kannSpeichern && (
                   <div className="text-xs" style={{ color: "#C0392B" }}>
-                    Bitte die Pflichtfelder <strong>*</strong> ausfüllen: Anlage, Beschreibung und Schicht.
+                    Bitte die Pflichtfelder <strong>*</strong> ausfüllen: Anlage, Beschreibung, Schicht und Status.
                   </div>
                 )}
                 <div className="flex gap-2 items-center mt-1 flex-wrap">
