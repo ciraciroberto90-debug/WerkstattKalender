@@ -4477,7 +4477,7 @@ function App() {
                     <input type="date" value={sDraft.date || ""} onChange={(ev) => setSDraft({ ...sDraft, date: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
                   </div>
                   <div className="flex-1" style={{ minWidth: "220px" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Schicht</label>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Schicht<span style={{ color: "#C0392B" }}> *</span></label>
                     <div className="flex gap-2">
                       {STOER_SCHICHTEN.map((sch) => {
                         const aktiv = sDraft.schicht === sch;
@@ -4497,7 +4497,7 @@ function App() {
                 {/* Anlage + Anlagenteil nebeneinander */}
                 <div className="flex gap-3 flex-wrap">
                   <div className="flex-1" style={{ minWidth: "200px" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlage / Bereich</label>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlage / Bereich<span style={{ color: "#C0392B" }}> *</span></label>
                     <input
                       list="stoer-anlagen"
                       value={sDraft.anlage}
@@ -4530,7 +4530,7 @@ function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Störungs Beschreibung</label>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Störungs Beschreibung<span style={{ color: "#C0392B" }}> *</span></label>
                   <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Was funktioniert nicht?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
                 </div>
                 <div>
@@ -4555,6 +4555,11 @@ function App() {
                   <input value={sDraft.melder} onChange={(ev) => setSDraft({ ...sDraft, melder: ev.target.value })} placeholder="z. B. RC" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", maxWidth: "160px" }} />
                 </div>
 
+                {!kannSpeichern && (
+                  <div className="text-xs" style={{ color: "#C0392B" }}>
+                    Bitte die Pflichtfelder <strong>*</strong> ausfüllen: Anlage, Beschreibung und Schicht.
+                  </div>
+                )}
                 <div className="flex gap-2 items-center mt-1 flex-wrap">
                   <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#22262B" : "#B7BEC6", minWidth: "120px" }}>Speichern</button>
                   <button
