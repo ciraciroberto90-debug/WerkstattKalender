@@ -6,184 +6,27 @@
 // Damit sich zwei Bearbeiter nicht gegenseitig überschreiben, wird vor jedem
 // Speichern der aktuelle Dateiinhalt gelesen und Eintrag für Eintrag
 // zusammengeführt (neuerer Zeitstempel gewinnt, Löschungen über Merkliste).
+//
+// Diese Datei ist als Fabrik (createSharedStore) aufgebaut: Jede Instanz führt
+// GENAU DIESELBE erprobte Sync-Logik, nur für eine andere Datei. So teilen sich
+// die Hauptdaten und die Störungen exakt denselben Code samt aller Sicherheiten
+// (optimistische Sperre, Selbstheilung, Kein-Verlust-Prüfung, Tombstones,
+// lokale Sicherungen, Konflikt-Wächter). Isolation je Instanz über eine eigene
+// IndexedDB-Datenbank, eigene localStorage-Schlüssel, ein eigenes Dateiformat
+// und einen eigenen Ereignis-Präfix.
 
-const IDB_NAME = "werkstatt-kalender-fs";
 const IDB_STORE = "handles";
 const IDB_BACKUP_STORE = "backups";
 const BACKUP_MAX_COUNT = 30; // lokale Sicherungen (pro Gerät) - Sicherheitsnetz gegen Datenverlust
-const FORMAT = "werkstatt-kalender-v1";
 const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 3600 * 1000; // Lösch-Merkliste: 180 Tage aufheben
-
-const ENTRIES_KEY = "werkstatt-kalender-entries";
-const CONFIG_KEY = "werkstatt-kalender-config";
 const POLL_MS = 30000; // alle 30 s nach Änderungen der anderen schauen
-
-let fileHandle = null;
-let accessMode = null; // "readwrite" | "read"
-let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt scheiterte
-export function getLastWriteError() { return lastWriteError; }
-let lastSavedAt = null;
-let pollTimer = null;
-// Konflikt-Wächter: Ordner-Zugriff, um OneDrive-Konfliktkopien automatisch einzusammeln
-let folderHandle = null;
-let folderPerm = "none"; // "ok" | "needs-permission" | "none"
-
-/* ---------- Status ---------- */
-export function isSupported() {
-  return typeof window !== "undefined" && typeof window.showOpenFilePicker === "function";
-}
-export function isConnected() {
-  return !!fileHandle;
-}
-export function canWrite() {
-  return accessMode === "readwrite";
-}
-export function fileName() {
-  return fileHandle ? fileHandle.name : "";
-}
-
-/* ---------- IndexedDB (merkt sich die gewählte Datei) ---------- */
-function idbOpen() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_NAME, 2);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
-      if (!db.objectStoreNames.contains(IDB_BACKUP_STORE)) db.createObjectStore(IDB_BACKUP_STORE);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-async function idbSet(key, value) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, "readwrite");
-    tx.objectStore(IDB_STORE).put(value, key);
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  });
-}
-async function idbGet(key) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, "readonly");
-    const req = tx.objectStore(IDB_STORE).get(key);
-    req.onsuccess = () => { db.close(); resolve(req.result); };
-    req.onerror = () => { db.close(); reject(req.error); };
-  });
-}
-async function idbDel(key) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, "readwrite");
-    tx.objectStore(IDB_STORE).delete(key);
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  });
-}
-
-/* ---------- Lokale Sicherungen (Sicherheitsnetz gegen Datenverlust) ---------- */
-// Bei jedem bestätigten Speichern bzw. jeder abgeholten Änderung wird der
-// komplette Stand zusätzlich lokal (pro Gerät, IndexedDB) abgelegt. Rein
-// software-seitig, keine zusätzliche Technik/Server nötig.
-async function idbAddBackup(snapshot) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_BACKUP_STORE, "readwrite");
-    tx.objectStore(IDB_BACKUP_STORE).put(snapshot, snapshot.ts);
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  });
-}
-async function idbGetAllBackups() {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_BACKUP_STORE, "readonly");
-    const req = tx.objectStore(IDB_BACKUP_STORE).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-    tx.oncomplete = () => db.close();
-  });
-}
-async function idbDelBackup(ts) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_BACKUP_STORE, "readwrite");
-    tx.objectStore(IDB_BACKUP_STORE).delete(ts);
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  });
-}
-async function recordBackup(entries, config) {
-  try {
-    const ts = nowISO();
-    await idbAddBackup({ ts, entries: entries || [], config: config || null });
-    const all = await idbGetAllBackups();
-    if (all.length > BACKUP_MAX_COUNT) {
-      const sorted = all.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
-      const zuViel = sorted.slice(0, sorted.length - BACKUP_MAX_COUNT);
-      for (const b of zuViel) await idbDelBackup(b.ts);
-    }
-  } catch (e) { /* Sicherung ist ein Zusatz - das eigentliche Speichern hat schon geklappt */ }
-}
-// Neueste zuerst - fürs Anzeigen/Wiederherstellen im Verwalten-Dialog.
-export async function listBackups() {
-  try {
-    const all = await idbGetAllBackups();
-    return all.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
-  } catch (e) { return []; }
-}
-
-/* ---------- Ereignisse an die App ---------- */
-function dispatchUpdate(data) {
-  window.dispatchEvent(new CustomEvent("werkstatt-shared-update", {
-    detail: { entries: data.entries, config: data.config, deleted: data.deleted },
-  }));
-}
-export function dispatchError(message) {
-  window.dispatchEvent(new CustomEvent("werkstatt-shared-error", { detail: message }));
-}
-export function dispatchOk() {
-  window.dispatchEvent(new CustomEvent("werkstatt-shared-ok"));
-}
-// Grüne Hinweis-Meldung (kein Fehler), z. B. "Konfliktkopie eingesammelt"
-function dispatchInfo(message) {
-  window.dispatchEvent(new CustomEvent("werkstatt-shared-info", { detail: message }));
-}
+const POLL_FEHLER_SCHWELLE = 3; // ab 3 Fehlversuchen in Folge (~90s) wird gewarnt
 
 function nowISO() {
   return new Date().toISOString();
 }
 
-/* ---------- Dateiformat ---------- */
-function emptyData() {
-  return { format: FORMAT, savedAt: null, entries: [], deleted: {}, config: null };
-}
-function normalizeData(d) {
-  // Auch eine reine Export-Datei (Array von Einträgen) wird als Startbestand akzeptiert.
-  if (Array.isArray(d)) return { ...emptyData(), entries: d };
-  return {
-    format: FORMAT,
-    savedAt: typeof d.savedAt === "string" ? d.savedAt : null,
-    entries: Array.isArray(d.entries) ? d.entries : [],
-    deleted: d.deleted && typeof d.deleted === "object" ? d.deleted : {},
-    config: d.config && typeof d.config === "object" ? d.config : null,
-  };
-}
-async function readFileData() {
-  const file = await fileHandle.getFile();
-  const text = await file.text();
-  if (!text.trim()) return emptyData();
-  return normalizeData(JSON.parse(text));
-}
-async function writeFileData(data) {
-  const writable = await fileHandle.createWritable();
-  await writable.write(JSON.stringify(data, null, 2));
-  await writable.close();
-}
-
-/* ---------- Zusammenführen (exportiert, damit testbar) ---------- */
+/* ---------- Zusammenführen (exportiert, damit testbar; zustandslos) ---------- */
 export function mergeEntries(a, b, deleted) {
   const byId = new Map();
   [...a, ...b].forEach((e) => {
@@ -227,526 +70,696 @@ function pruneTombstones(deleted) {
   });
 }
 
-/* ---------- Lokalen Zwischenspeicher angleichen ---------- */
-function syncLocal(data) {
-  try {
-    localStorage.setItem(ENTRIES_KEY, JSON.stringify(data.entries));
-    if (data.config) {
-      const { updatedAt, ...cfg } = data.config;
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); // alle Felder (tpmAnlagen, riItems, team, ...)
-    }
-  } catch (e) { /* voller Speicher o. ä. – nicht kritisch */ }
-}
-function readLocalJSON(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
+/* ==================================================================== */
+/* Fabrik: eine unabhängige Sync-Instanz je Datei                       */
+/* ==================================================================== */
+function createSharedStore(cfg) {
+  const DB_NAME = cfg.dbName;
+  const FORMAT = cfg.format;
+  const ENTRIES_KEY = cfg.entriesKey;
+  const CONFIG_KEY = cfg.configKey;
+  const SUGGESTED_NAME = cfg.suggestedName;
+  const EV = cfg.evPrefix; // z. B. "werkstatt-shared" -> Ereignis "werkstatt-shared-update"
+
+  let fileHandle = null;
+  let accessMode = null; // "readwrite" | "read"
+  let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt scheiterte
+  let lastSavedAt = null;
+  let pollTimer = null;
+  // Konflikt-Wächter: Ordner-Zugriff, um OneDrive-Konfliktkopien automatisch einzusammeln
+  let folderHandle = null;
+  let folderPerm = "none"; // "ok" | "needs-permission" | "none"
+
+  /* ---------- Status ---------- */
+  function isSupported() {
+    return typeof window !== "undefined" && typeof window.showOpenFilePicker === "function";
   }
-}
+  function isConnected() {
+    return !!fileHandle;
+  }
+  function canWrite() {
+    return accessMode === "readwrite";
+  }
+  function fileName() {
+    return fileHandle ? fileHandle.name : "";
+  }
+  function getLastWriteError() { return lastWriteError; }
 
-/* ---------- Datei übernehmen (nach Auswahl oder beim Start) ---------- */
-// Ob jemand bearbeiten darf, entscheiden die Datei-Rechte auf dem Laufwerk
-// (von der IT vergeben): Schlägt das Schreiben dort fehl, schaltet die App
-// automatisch auf "nur ansehen" um.
-async function adoptCurrentFile(justCreated) {
-  let data = justCreated ? emptyData() : await readFileData();
+  /* ---------- IndexedDB (merkt sich die gewählte Datei) ---------- */
+  function idbOpen() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 2);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+        if (!db.objectStoreNames.contains(IDB_BACKUP_STORE)) db.createObjectStore(IDB_BACKUP_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbSet(key, value) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  }
+  async function idbGet(key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => { db.close(); resolve(req.result); };
+      req.onerror = () => { db.close(); reject(req.error); };
+    });
+  }
+  async function idbDel(key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).delete(key);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  }
 
-  if (accessMode === "readwrite") {
-    // Lokalen Bestand in die Datei einpflegen (erste Übernahme bzw. Wiederverbinden).
-    const localEntries = Array.isArray(readLocalJSON(ENTRIES_KEY)) ? readLocalJSON(ENTRIES_KEY) : [];
-    let merged = mergeEntries(data.entries, localEntries, data.deleted);
-    merged = merged.map((e) => (e.updatedAt ? e : { ...e, updatedAt: nowISO() }));
-    let config = data.config;
-    if (!config) {
-      const localConfig = readLocalJSON(CONFIG_KEY);
-      if (localConfig) config = { ...localConfig, updatedAt: nowISO() };
-    }
-    const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config };
+  /* ---------- Lokale Sicherungen (Sicherheitsnetz gegen Datenverlust) ---------- */
+  // Bei jedem bestätigten Speichern bzw. jeder abgeholten Änderung wird der
+  // komplette Stand zusätzlich lokal (pro Gerät, IndexedDB) abgelegt. Rein
+  // software-seitig, keine zusätzliche Technik/Server nötig.
+  async function idbAddBackup(snapshot) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_BACKUP_STORE, "readwrite");
+      tx.objectStore(IDB_BACKUP_STORE).put(snapshot, snapshot.ts);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  }
+  async function idbGetAllBackups() {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_BACKUP_STORE, "readonly");
+      const req = tx.objectStore(IDB_BACKUP_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => db.close();
+    });
+  }
+  async function idbDelBackup(ts) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_BACKUP_STORE, "readwrite");
+      tx.objectStore(IDB_BACKUP_STORE).delete(ts);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  }
+  async function recordBackup(entries, config) {
     try {
-      await writeFileData(candidate);
-      data = candidate;
-      lastWriteError = null;
+      const ts = nowISO();
+      await idbAddBackup({ ts, entries: entries || [], config: config || null });
+      const all = await idbGetAllBackups();
+      if (all.length > BACKUP_MAX_COUNT) {
+        const sorted = all.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+        const zuViel = sorted.slice(0, sorted.length - BACKUP_MAX_COUNT);
+        for (const b of zuViel) await idbDelBackup(b.ts);
+      }
+    } catch (e) { /* Sicherung ist ein Zusatz - das eigentliche Speichern hat schon geklappt */ }
+  }
+  // Neueste zuerst - fürs Anzeigen/Wiederherstellen im Verwalten-Dialog.
+  async function listBackups() {
+    try {
+      const all = await idbGetAllBackups();
+      return all.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
+    } catch (e) { return []; }
+  }
+
+  /* ---------- Ereignisse an die App ---------- */
+  function dispatchUpdate(data) {
+    window.dispatchEvent(new CustomEvent(EV + "-update", {
+      detail: { entries: data.entries, config: data.config, deleted: data.deleted },
+    }));
+  }
+  function dispatchError(message) {
+    window.dispatchEvent(new CustomEvent(EV + "-error", { detail: message }));
+  }
+  function dispatchOk() {
+    window.dispatchEvent(new CustomEvent(EV + "-ok"));
+  }
+  // Grüne Hinweis-Meldung (kein Fehler), z. B. "Konfliktkopie eingesammelt"
+  function dispatchInfo(message) {
+    window.dispatchEvent(new CustomEvent(EV + "-info", { detail: message }));
+  }
+
+  /* ---------- Dateiformat ---------- */
+  function emptyData() {
+    return { format: FORMAT, savedAt: null, entries: [], deleted: {}, config: null };
+  }
+  function normalizeData(d) {
+    // Auch eine reine Export-Datei (Array von Einträgen) wird als Startbestand akzeptiert.
+    if (Array.isArray(d)) return { ...emptyData(), entries: d };
+    return {
+      format: FORMAT,
+      savedAt: typeof d.savedAt === "string" ? d.savedAt : null,
+      entries: Array.isArray(d.entries) ? d.entries : [],
+      deleted: d.deleted && typeof d.deleted === "object" ? d.deleted : {},
+      config: d.config && typeof d.config === "object" ? d.config : null,
+    };
+  }
+  async function readFileData() {
+    const file = await fileHandle.getFile();
+    const text = await file.text();
+    if (!text.trim()) return emptyData();
+    return normalizeData(JSON.parse(text));
+  }
+  async function writeFileData(data) {
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+  }
+
+  /* ---------- Lokalen Zwischenspeicher angleichen ---------- */
+  function syncLocal(data) {
+    try {
+      localStorage.setItem(ENTRIES_KEY, JSON.stringify(data.entries));
+      if (data.config) {
+        const { updatedAt, ...cfg } = data.config;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); // alle Felder (tpmAnlagen, riItems, team, ...)
+      }
+    } catch (e) { /* voller Speicher o. ä. – nicht kritisch */ }
+  }
+  function readLocalJSON(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
     } catch (e) {
-      lastWriteError = `${e && e.name ? e.name : "Fehler"}: ${e && e.message ? e.message : e}`;
-      if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
-      accessMode = "read"; // keine Schreibrechte (IT-Freigabe) -> nur ansehen
-      // WICHTIG: Zurückstufung auch merken. Sonst stünde nach dem nächsten
-      // Browser-Neustart fälschlich "readwrite" in der Merkliste und ein reiner
-      // Leser würde bis zum Klick auf "Jetzt verbinden" als Bearbeiter gelten.
-      try { await idbSet("mode", "read"); } catch (e2) { /* egal */ }
+      return null;
     }
   }
 
-  lastSavedAt = data.savedAt;
-  syncLocal(data);
-  dispatchUpdate(data);
-  await recordBackup(data.entries, data.config);
-  return data;
-}
+  /* ---------- Datei übernehmen (nach Auswahl oder beim Start) ---------- */
+  // Ob jemand bearbeiten darf, entscheiden die Datei-Rechte auf dem Laufwerk
+  // (von der IT vergeben): Schlägt das Schreiben dort fehl, schaltet die App
+  // automatisch auf "nur ansehen" um.
+  async function adoptCurrentFile(justCreated) {
+    let data = justCreated ? emptyData() : await readFileData();
 
-/* ---------- Verbinden / Trennen ---------- */
-export async function pickShared({ create = false } = {}) {
-  const types = [{ description: "Werkstatt-Kalender Daten", accept: { "application/json": [".json"] } }];
-  let handle;
-  if (create) {
-    handle = await window.showSaveFilePicker({ suggestedName: "werkstatt-kalender-daten.json", types });
-  } else {
-    [handle] = await window.showOpenFilePicker({ types });
-  }
-  if (handle.requestPermission) {
-    const p = await handle.requestPermission({ mode: "readwrite" });
-    if (p !== "granted") throw new Error("Der Zugriff auf die Datei wurde nicht erlaubt.");
-  }
-  fileHandle = handle;
-  accessMode = "readwrite"; // adoptCurrentFile stuft bei fehlenden Laufwerks-Rechten auf "read" zurück
-  try {
-    await idbSet("handle", handle);
-    await idbSet("mode", "readwrite");
-  } catch (e) {
-    // Verweis lässt sich nicht merken (z. B. IndexedDB blockiert) – Verbindung gilt
-    // trotzdem für diese Sitzung, nach dem Neustart muss die Datei neu gewählt werden.
-  }
-  const data = await adoptCurrentFile(create);
-  startPolling();
-  return data;
-}
-
-export async function tryRestore() {
-  if (!isSupported()) return { status: "unsupported" };
-  let handle = null;
-  let mode = "readwrite";
-  try {
-    handle = await idbGet("handle");
-    mode = (await idbGet("mode")) || "readwrite";
-  } catch (e) { /* IndexedDB nicht verfügbar */ }
-  if (!handle) return { status: "none" };
-  // Konflikt-Wächter: gemerkten Ordner mit wiederherstellen (falls eingerichtet)
-  try {
-    const fh = await idbGet("folder");
-    if (fh) {
-      folderHandle = fh;
-      let fp = "prompt";
-      try { fp = await fh.queryPermission({ mode: "readwrite" }); } catch (e) { /* ältere Browser */ }
-      folderPerm = fp === "granted" ? "ok" : "needs-permission";
+    if (accessMode === "readwrite") {
+      // Lokalen Bestand in die Datei einpflegen (erste Übernahme bzw. Wiederverbinden).
+      const localEntries = Array.isArray(readLocalJSON(ENTRIES_KEY)) ? readLocalJSON(ENTRIES_KEY) : [];
+      let merged = mergeEntries(data.entries, localEntries, data.deleted);
+      merged = merged.map((e) => (e.updatedAt ? e : { ...e, updatedAt: nowISO() }));
+      let config = data.config;
+      if (!config) {
+        const localConfig = readLocalJSON(CONFIG_KEY);
+        if (localConfig) config = { ...localConfig, updatedAt: nowISO() };
+      }
+      const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config };
+      try {
+        await writeFileData(candidate);
+        data = candidate;
+        lastWriteError = null;
+      } catch (e) {
+        lastWriteError = `${e && e.name ? e.name : "Fehler"}: ${e && e.message ? e.message : e}`;
+        if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
+        accessMode = "read"; // keine Schreibrechte (IT-Freigabe) -> nur ansehen
+        // WICHTIG: Zurückstufung auch merken. Sonst stünde nach dem nächsten
+        // Browser-Neustart fälschlich "readwrite" in der Merkliste und ein reiner
+        // Leser würde bis zum Klick auf "Jetzt verbinden" als Bearbeiter gelten.
+        try { await idbSet("mode", "read"); } catch (e2) { /* egal */ }
+      }
     }
-  } catch (e) { /* IndexedDB nicht verfügbar */ }
-  let perm = "prompt";
-  try {
-    perm = await handle.queryPermission({ mode });
-  } catch (e) { /* ältere Browser */ }
-  if (perm === "granted") {
+
+    lastSavedAt = data.savedAt;
+    syncLocal(data);
+    dispatchUpdate(data);
+    await recordBackup(data.entries, data.config);
+    return data;
+  }
+
+  /* ---------- Verbinden / Trennen ---------- */
+  async function pickShared({ create = false } = {}) {
+    const types = [{ description: "Werkstatt-Kalender Daten", accept: { "application/json": [".json"] } }];
+    let handle;
+    if (create) {
+      handle = await window.showSaveFilePicker({ suggestedName: SUGGESTED_NAME, types });
+    } else {
+      [handle] = await window.showOpenFilePicker({ types });
+    }
+    if (handle.requestPermission) {
+      const p = await handle.requestPermission({ mode: "readwrite" });
+      if (p !== "granted") throw new Error("Der Zugriff auf die Datei wurde nicht erlaubt.");
+    }
+    fileHandle = handle;
+    accessMode = "readwrite"; // adoptCurrentFile stuft bei fehlenden Laufwerks-Rechten auf "read" zurück
+    try {
+      await idbSet("handle", handle);
+      await idbSet("mode", "readwrite");
+    } catch (e) {
+      // Verweis lässt sich nicht merken (z. B. IndexedDB blockiert) – Verbindung gilt
+      // trotzdem für diese Sitzung, nach dem Neustart muss die Datei neu gewählt werden.
+    }
+    const data = await adoptCurrentFile(create);
+    startPolling();
+    return data;
+  }
+
+  async function tryRestore() {
+    if (!isSupported()) return { status: "unsupported" };
+    let handle = null;
+    let mode = "readwrite";
+    try {
+      handle = await idbGet("handle");
+      mode = (await idbGet("mode")) || "readwrite";
+    } catch (e) { /* IndexedDB nicht verfügbar */ }
+    if (!handle) return { status: "none" };
+    // Konflikt-Wächter: gemerkten Ordner mit wiederherstellen (falls eingerichtet)
+    try {
+      const fh = await idbGet("folder");
+      if (fh) {
+        folderHandle = fh;
+        let fp = "prompt";
+        try { fp = await fh.queryPermission({ mode: "readwrite" }); } catch (e) { /* ältere Browser */ }
+        folderPerm = fp === "granted" ? "ok" : "needs-permission";
+      }
+    } catch (e) { /* IndexedDB nicht verfügbar */ }
+    let perm = "prompt";
+    try {
+      perm = await handle.queryPermission({ mode });
+    } catch (e) { /* ältere Browser */ }
+    if (perm === "granted") {
+      fileHandle = handle;
+      accessMode = mode;
+      try {
+        await adoptCurrentFile(false);
+      } catch (e) {
+        dispatchError("Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
+      }
+      startPolling();
+      return { status: "connected", name: handle.name, mode: accessMode };
+    }
+    return { status: "needs-permission", name: handle.name, mode };
+  }
+
+  // Zugriff nach Browser-Neustart wieder freigeben (braucht einen Klick des Nutzers).
+  async function reconnect() {
+    const handle = await idbGet("handle");
+    const mode = (await idbGet("mode")) || "readwrite";
+    if (!handle) throw new Error("Keine gemerkte Datei gefunden.");
+    const p = await handle.requestPermission({ mode });
+    if (p !== "granted") throw new Error("Zugriff wurde nicht erlaubt.");
     fileHandle = handle;
     accessMode = mode;
-    try {
-      await adoptCurrentFile(false);
-    } catch (e) {
-      dispatchError("Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
-    }
+    await adoptCurrentFile(false);
     startPolling();
     return { status: "connected", name: handle.name, mode: accessMode };
   }
-  return { status: "needs-permission", name: handle.name, mode };
-}
 
-// Zugriff nach Browser-Neustart wieder freigeben (braucht einen Klick des Nutzers).
-export async function reconnect() {
-  const handle = await idbGet("handle");
-  const mode = (await idbGet("mode")) || "readwrite";
-  if (!handle) throw new Error("Keine gemerkte Datei gefunden.");
-  const p = await handle.requestPermission({ mode });
-  if (p !== "granted") throw new Error("Zugriff wurde nicht erlaubt.");
-  fileHandle = handle;
-  accessMode = mode;
-  await adoptCurrentFile(false);
-  startPolling();
-  return { status: "connected", name: handle.name, mode: accessMode };
-}
-
-// Schreibzugriff erneut versuchen (z. B. wenn die Datei beim ersten Verbinden
-// gesperrt/schreibgeschützt war und man eigentlich Bearbeiter ist).
-export async function retryWrite() {
-  if (!fileHandle) throw new Error("Keine Datei verbunden.");
-  if (fileHandle.requestPermission) {
-    const p = await fileHandle.requestPermission({ mode: "readwrite" });
-    if (p !== "granted") throw new Error("Der Browser hat den Schreibzugriff nicht erlaubt.");
+  // Schreibzugriff erneut versuchen (z. B. wenn die Datei beim ersten Verbinden
+  // gesperrt/schreibgeschützt war und man eigentlich Bearbeiter ist).
+  async function retryWrite() {
+    if (!fileHandle) throw new Error("Keine Datei verbunden.");
+    if (fileHandle.requestPermission) {
+      const p = await fileHandle.requestPermission({ mode: "readwrite" });
+      if (p !== "granted") throw new Error("Der Browser hat den Schreibzugriff nicht erlaubt.");
+    }
+    accessMode = "readwrite";
+    try { await idbSet("mode", "readwrite"); } catch (e) { /* egal */ }
+    await adoptCurrentFile(false); // testet das Schreiben - fällt bei Verbot automatisch auf "read" zurück
+    startPolling();
+    return { status: "connected", name: fileHandle.name, mode: accessMode };
   }
-  accessMode = "readwrite";
-  try { await idbSet("mode", "readwrite"); } catch (e) { /* egal */ }
-  await adoptCurrentFile(false); // testet das Schreiben - fällt bei Verbot automatisch auf "read" zurück
-  startPolling();
-  return { status: "connected", name: fileHandle.name, mode: accessMode };
-}
 
-export async function disconnect() {
-  stopPolling();
-  fileHandle = null;
-  accessMode = null;
-  lastSavedAt = null;
-  folderHandle = null;
-  folderPerm = "none";
-  try {
-    await idbDel("handle");
-    await idbDel("mode");
-    await idbDel("folder");
-  } catch (e) { /* egal */ }
-}
-
-/* ---------- Konflikt-Wächter ---------- */
-// OneDrive kann Konflikte bei JSON-Dateien nicht selbst zusammenführen - es
-// legt Kopien wie "werkstatt-kalender-daten-GERAET.json" an. Mit einmaliger
-// Ordner-Freigabe sammelt die App solche Kopien automatisch ein: Inhalt wird
-// Eintrag für Eintrag in die Hauptdatei gemerged (dieselbe Logik wie beim
-// gleichzeitigen Bearbeiten), danach wird die Kopie gelöscht.
-export function folderStatus() {
-  return folderHandle ? folderPerm : "none";
-}
-export function folderName() {
-  return folderHandle ? folderHandle.name : "";
-}
-export async function pickFolder() {
-  const handle = await window.showDirectoryPicker({ mode: "readwrite" });
-  if (handle.requestPermission) {
-    const p = await handle.requestPermission({ mode: "readwrite" });
-    if (p !== "granted") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
-  }
-  folderHandle = handle;
-  folderPerm = "ok";
-  try { await idbSet("folder", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
-  await sammleKonfliktkopien();
-  return { name: handle.name };
-}
-export async function reconnectFolder() {
-  const h = folderHandle || (await idbGet("folder"));
-  if (!h) throw new Error("Kein gemerkter Ordner gefunden.");
-  const p = await h.requestPermission({ mode: "readwrite" });
-  if (p !== "granted") throw new Error("Der Zugriff wurde nicht erlaubt.");
-  folderHandle = h;
-  folderPerm = "ok";
-  await sammleKonfliktkopien();
-  return { name: h.name };
-}
-export async function forgetFolder() {
-  folderHandle = null;
-  folderPerm = "none";
-  try { await idbDel("folder"); } catch (e) { /* egal */ }
-}
-
-// Inhalt einer Konfliktkopie in die Hauptdatei einpflegen (mit Kontroll-Lesung
-// und optimistischer Sperre wie beim normalen Speichern). Gibt zurück, wie
-// viele Einträge aus der Kopie tatsächlich neu übernommen wurden.
-async function mergeKopieInDatei(kopie) {
-  let letzterFehler = null;
-  for (let versuch = 0; versuch < 5; versuch++) {
+  async function disconnect() {
+    stopPolling();
+    fileHandle = null;
+    accessMode = null;
+    lastSavedAt = null;
+    folderHandle = null;
+    folderPerm = "none";
     try {
-      const fileData = await readFileData();
-      const deleted = { ...fileData.deleted };
-      Object.entries(kopie.deleted || {}).forEach(([id, at]) => {
-        if (!deleted[id] || String(deleted[id]) < String(at)) deleted[id] = at;
-      });
-      pruneTombstones(deleted);
-      const merged = mergeEntries(fileData.entries, kopie.entries, deleted);
-      const vorher = new Map(fileData.entries.map((e) => [e.id, String(e.updatedAt || "")]));
-      let uebernommen = 0;
-      kopie.entries.forEach((e) => {
-        const delAt = deleted[e.id];
-        if (delAt && String(delAt) >= String(e.updatedAt || "")) return;
-        const alt = vorher.get(e.id);
-        if (alt === undefined || String(e.updatedAt || "") > alt) uebernommen++;
-      });
-      let config = fileData.config;
-      if (kopie.config && (!config || String(kopie.config.updatedAt || "") > String(config.updatedAt || ""))) {
-        config = kopie.config;
-      }
-      const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config };
-      const nochAktuell = await readFileData();
-      if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
-        throw new Error("Kollision: Datei wurde zwischenzeitlich geändert");
-      }
-      await writeFileData(out);
-      lastSavedAt = out.savedAt;
-      const kontrolle = await readFileData();
-      if (String(kontrolle.savedAt || "") !== String(out.savedAt || "")) {
-        throw new Error("Kontroll-Lesung stimmt nicht überein");
-      }
-      syncLocal(out);
-      dispatchUpdate(out);
-      await recordBackup(merged, config);
-      return uebernommen;
-    } catch (e) {
-      letzterFehler = e;
-    }
-    await new Promise((r) => setTimeout(r, 150 + versuch * 150));
+      await idbDel("handle");
+      await idbDel("mode");
+      await idbDel("folder");
+    } catch (e) { /* egal */ }
   }
-  throw letzterFehler || new Error("Zusammenführen nicht bestätigt");
-}
 
-let konfliktScanLaeuft = false;
-export async function sammleKonfliktkopien() {
-  if (!fileHandle || accessMode !== "readwrite" || !folderHandle || folderPerm !== "ok" || konfliktScanLaeuft) return;
-  konfliktScanLaeuft = true;
-  try {
-    const basis = fileHandle.name.replace(/\.json$/i, "");
-    const kandidaten = [];
-    for await (const [name, handle] of folderHandle.entries()) {
-      if (!handle || handle.kind !== "file") continue;
-      if (!/\.json$/i.test(name)) continue;
-      if (name === fileHandle.name) continue;
-      if (!name.startsWith(basis + "-")) continue;
-      kandidaten.push([name, handle]);
+  /* ---------- Konflikt-Wächter ---------- */
+  // OneDrive kann Konflikte bei JSON-Dateien nicht selbst zusammenführen - es
+  // legt Kopien wie "werkstatt-kalender-daten-GERAET.json" an. Mit einmaliger
+  // Ordner-Freigabe sammelt die App solche Kopien automatisch ein: Inhalt wird
+  // Eintrag für Eintrag in die Hauptdatei gemerged (dieselbe Logik wie beim
+  // gleichzeitigen Bearbeiten), danach wird die Kopie gelöscht.
+  function folderStatus() {
+    return folderHandle ? folderPerm : "none";
+  }
+  function folderName() {
+    return folderHandle ? folderHandle.name : "";
+  }
+  async function pickFolder() {
+    const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+    if (handle.requestPermission) {
+      const p = await handle.requestPermission({ mode: "readwrite" });
+      if (p !== "granted") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
     }
-    for (const [name, handle] of kandidaten) {
+    folderHandle = handle;
+    folderPerm = "ok";
+    try { await idbSet("folder", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
+    await sammleKonfliktkopien();
+    return { name: handle.name };
+  }
+  async function reconnectFolder() {
+    const h = folderHandle || (await idbGet("folder"));
+    if (!h) throw new Error("Kein gemerkter Ordner gefunden.");
+    const p = await h.requestPermission({ mode: "readwrite" });
+    if (p !== "granted") throw new Error("Der Zugriff wurde nicht erlaubt.");
+    folderHandle = h;
+    folderPerm = "ok";
+    await sammleKonfliktkopien();
+    return { name: h.name };
+  }
+  async function forgetFolder() {
+    folderHandle = null;
+    folderPerm = "none";
+    try { await idbDel("folder"); } catch (e) { /* egal */ }
+  }
+
+  // Inhalt einer Konfliktkopie in die Hauptdatei einpflegen (mit Kontroll-Lesung
+  // und optimistischer Sperre wie beim normalen Speichern). Gibt zurück, wie
+  // viele Einträge aus der Kopie tatsächlich neu übernommen wurden.
+  async function mergeKopieInDatei(kopie) {
+    let letzterFehler = null;
+    for (let versuch = 0; versuch < 5; versuch++) {
       try {
-        const file = await handle.getFile();
-        const text = await file.text();
-        if (!text.trim()) {
-          await folderHandle.removeEntry(name);
-          continue;
+        const fileData = await readFileData();
+        const deleted = { ...fileData.deleted };
+        Object.entries(kopie.deleted || {}).forEach(([id, at]) => {
+          if (!deleted[id] || String(deleted[id]) < String(at)) deleted[id] = at;
+        });
+        pruneTombstones(deleted);
+        const merged = mergeEntries(fileData.entries, kopie.entries, deleted);
+        const vorher = new Map(fileData.entries.map((e) => [e.id, String(e.updatedAt || "")]));
+        let uebernommen = 0;
+        kopie.entries.forEach((e) => {
+          const delAt = deleted[e.id];
+          if (delAt && String(delAt) >= String(e.updatedAt || "")) return;
+          const alt = vorher.get(e.id);
+          if (alt === undefined || String(e.updatedAt || "") > alt) uebernommen++;
+        });
+        let config = fileData.config;
+        if (kopie.config && (!config || String(kopie.config.updatedAt || "") > String(config.updatedAt || ""))) {
+          config = kopie.config;
         }
-        const kopie = normalizeData(JSON.parse(text));
-        // Inhalt der Kopie sicherheitshalber lokal aufheben, BEVOR sie gelöscht wird
-        await recordBackup(kopie.entries, kopie.config);
-        const uebernommen = await mergeKopieInDatei(kopie);
-        await folderHandle.removeEntry(name);
-        dispatchInfo(`OneDrive-Konfliktkopie „${name}" automatisch eingesammelt${uebernommen > 0 ? ` – ${uebernommen} Änderung(en) übernommen` : " – sie enthielt nichts Neues"}. Die Kopie wurde gelöscht, eine lokale Sicherung liegt unter ⚙ → Sicherungen.`);
+        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config };
+        const nochAktuell = await readFileData();
+        if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
+          throw new Error("Kollision: Datei wurde zwischenzeitlich geändert");
+        }
+        await writeFileData(out);
+        lastSavedAt = out.savedAt;
+        const kontrolle = await readFileData();
+        if (String(kontrolle.savedAt || "") !== String(out.savedAt || "")) {
+          throw new Error("Kontroll-Lesung stimmt nicht überein");
+        }
+        syncLocal(out);
+        dispatchUpdate(out);
+        await recordBackup(merged, config);
+        return uebernommen;
       } catch (e) {
-        // Merge nicht bestätigt -> Kopie NICHT löschen; der nächste Abgleich versucht es erneut.
+        letzterFehler = e;
       }
+      await new Promise((r) => setTimeout(r, 150 + versuch * 150));
     }
-  } catch (e) {
-    // Ordner gerade nicht erreichbar - nächster Abgleich versucht es wieder.
-  } finally {
-    konfliktScanLaeuft = false;
+    throw letzterFehler || new Error("Zusammenführen nicht bestätigt");
   }
-}
 
-/* ---------- Speichern (wird von storage.js aufgerufen) ---------- */
-// Mit Kontroll-Lesung: Schreiben zwei Bearbeiter im exakt selben Moment,
-// würde sonst stumm der Letzte gewinnen. Deshalb wird nach dem Schreiben
-// kurz zurückgelesen und geprüft, ob die eigenen Änderungen wirklich in der
-// Datei stehen - falls nicht, wird neu zusammengeführt und nachgespeichert.
-export async function saveEntries(nextEntries, prevEntries) {
-  if (!fileHandle || accessMode !== "readwrite") return null;
-  const { stamped, removed } = stampEntries(nextEntries, prevEntries);
-  const delStamp = nowISO();
-  let merged = null;
-  let letzterFehler = null;
-
-  for (let versuch = 0; versuch < 5; versuch++) {
+  let konfliktScanLaeuft = false;
+  async function sammleKonfliktkopien() {
+    if (!fileHandle || accessMode !== "readwrite" || !folderHandle || folderPerm !== "ok" || konfliktScanLaeuft) return;
+    konfliktScanLaeuft = true;
     try {
-      // WICHTIG: Ein Lesefehler hier darf NIE stillschweigend als "Datei ist
-      // leer" behandelt werden - das würde sonst beim Schreiben den ganzen
-      // Bestand der anderen überschreiben. Schlägt das Lesen fehl, gilt das
-      // wie eine Kollision: kurz warten, neuer Versuch.
-      const fileData = await readFileData();
-      const deleted = { ...fileData.deleted };
-      removed.forEach((id) => {
-        if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
-      });
-      pruneTombstones(deleted);
-      merged = mergeEntries(fileData.entries, stamped, deleted);
-      const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: fileData.config };
-
-      // Optimistische Sperre: unmittelbar vor dem Schreiben nochmal ganz kurz
-      // prüfen, ob die Datei seit unserem Lesen oben noch denselben Stand hat.
-      // Hat inzwischen jemand anderes geschrieben (echte Gleichzeitigkeit),
-      // würden wir sonst dessen bereits bestätigte Änderung unbemerkt
-      // überschreiben - lieber jetzt abbrechen und mit dem NEUEN Stand neu
-      // zusammenführen, statt das erst nach dem Schreiben zu bemerken.
-      const nochAktuell = await readFileData();
-      if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
-        throw new Error("Kollision: Datei wurde zwischenzeitlich von anderer Stelle geändert");
+      const basis = fileHandle.name.replace(/\.json$/i, "");
+      const kandidaten = [];
+      for await (const [name, handle] of folderHandle.entries()) {
+        if (!handle || handle.kind !== "file") continue;
+        if (!/\.json$/i.test(name)) continue;
+        if (name === fileHandle.name) continue;
+        if (!name.startsWith(basis + "-")) continue;
+        kandidaten.push([name, handle]);
       }
-
-      await writeFileData(out);
-      lastSavedAt = out.savedAt;
-
-      const kontrolle = await readFileData();
-      if (changesConfirmed(kontrolle, stamped, removed, delStamp) && keinVerlustGegenueber(fileData, kontrolle, removed)) {
-        // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
-        lastSavedAt = kontrolle.savedAt;
-        const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
-        await recordBackup(bestaetigt, kontrolle.config);
-        nachpruefenUndHeilen(stamped, removed, delStamp);
-        return bestaetigt;
+      for (const [name, handle] of kandidaten) {
+        try {
+          const file = await handle.getFile();
+          const text = await file.text();
+          if (!text.trim()) {
+            await folderHandle.removeEntry(name);
+            continue;
+          }
+          const kopie = normalizeData(JSON.parse(text));
+          // Inhalt der Kopie sicherheitshalber lokal aufheben, BEVOR sie gelöscht wird
+          await recordBackup(kopie.entries, kopie.config);
+          const uebernommen = await mergeKopieInDatei(kopie);
+          await folderHandle.removeEntry(name);
+          dispatchInfo(`OneDrive-Konfliktkopie „${name}" automatisch eingesammelt${uebernommen > 0 ? ` – ${uebernommen} Änderung(en) übernommen` : " – sie enthielt nichts Neues"}. Die Kopie wurde gelöscht, eine lokale Sicherung liegt unter ⚙ → Sicherungen.`);
+        } catch (e) {
+          // Merge nicht bestätigt -> Kopie NICHT löschen; der nächste Abgleich versucht es erneut.
+        }
       }
     } catch (e) {
-      letzterFehler = e;
+      // Ordner gerade nicht erreichbar - nächster Abgleich versucht es wieder.
+    } finally {
+      konfliktScanLaeuft = false;
     }
-    // Kollision oder vorübergehender Fehler: kurz warten (steigend), dann neuer Versuch
-    await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 150)));
   }
-  // Nach mehreren Versuchen weiterhin nicht bestätigt - nicht mehr still weitermachen,
-  // sondern deutlich warnen. Lokal ist nichts verloren (localStorage + Sicherung).
-  const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
-  dispatchError(`Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten, dann erscheint automatisch ein Hinweis zum erneuten Versuch.`);
-  if (merged) await recordBackup(merged, null);
-  return merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
-}
 
-// Letzte Sicherheitsebene gegen ein extrem seltenes, aber reales Zeitfenster:
-// Zwischen unserer eigenen Bestätigung (kontrolle oben) und diesem Moment kann
-// ein anderer Bearbeiter, der VOR unserem Schreiben zu lesen begonnen hatte,
-// seinerseits noch schreiben und dabei unversehens genau unsere gerade erst
-// bestätigte Änderung überschreiben - das eigene Speichern hat zu diesem
-// Zeitpunkt aber schon "erfolgreich" zurückgemeldet. Ohne diese Nachprüfung
-// bliebe das nur lokal sichtbar (siehe Merge in onUpdate), aber in der Datei
-// selbst dauerhaft verschwunden. Läuft im Hintergrund, meldet dem Nutzer
-// nichts (kein Grund zur Sorge) und heilt sich selbst.
-function nachpruefenUndHeilen(stamped, removed, delStamp) {
-  setTimeout(async () => {
-    if (!fileHandle || accessMode !== "readwrite") return;
+  /* ---------- Speichern (wird von storage.js aufgerufen) ---------- */
+  // Mit Kontroll-Lesung: Schreiben zwei Bearbeiter im exakt selben Moment,
+  // würde sonst stumm der Letzte gewinnen. Deshalb wird nach dem Schreiben
+  // kurz zurückgelesen und geprüft, ob die eigenen Änderungen wirklich in der
+  // Datei stehen - falls nicht, wird neu zusammengeführt und nachgespeichert.
+  async function saveEntries(nextEntries, prevEntries) {
+    if (!fileHandle || accessMode !== "readwrite") return null;
+    const { stamped, removed } = stampEntries(nextEntries, prevEntries);
+    const delStamp = nowISO();
+    let merged = null;
+    let letzterFehler = null;
+
+    for (let versuch = 0; versuch < 5; versuch++) {
+      try {
+        // WICHTIG: Ein Lesefehler hier darf NIE stillschweigend als "Datei ist
+        // leer" behandelt werden - das würde sonst beim Schreiben den ganzen
+        // Bestand der anderen überschreiben. Schlägt das Lesen fehl, gilt das
+        // wie eine Kollision: kurz warten, neuer Versuch.
+        const fileData = await readFileData();
+        const deleted = { ...fileData.deleted };
+        removed.forEach((id) => {
+          if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
+        });
+        pruneTombstones(deleted);
+        merged = mergeEntries(fileData.entries, stamped, deleted);
+        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: fileData.config };
+
+        // Optimistische Sperre: unmittelbar vor dem Schreiben nochmal ganz kurz
+        // prüfen, ob die Datei seit unserem Lesen oben noch denselben Stand hat.
+        // Hat inzwischen jemand anderes geschrieben (echte Gleichzeitigkeit),
+        // würden wir sonst dessen bereits bestätigte Änderung unbemerkt
+        // überschreiben - lieber jetzt abbrechen und mit dem NEUEN Stand neu
+        // zusammenführen, statt das erst nach dem Schreiben zu bemerken.
+        const nochAktuell = await readFileData();
+        if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
+          throw new Error("Kollision: Datei wurde zwischenzeitlich von anderer Stelle geändert");
+        }
+
+        await writeFileData(out);
+        lastSavedAt = out.savedAt;
+
+        const kontrolle = await readFileData();
+        if (changesConfirmed(kontrolle, stamped, removed, delStamp) && keinVerlustGegenueber(fileData, kontrolle, removed)) {
+          // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
+          lastSavedAt = kontrolle.savedAt;
+          const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
+          await recordBackup(bestaetigt, kontrolle.config);
+          nachpruefenUndHeilen(stamped, removed, delStamp);
+          return bestaetigt;
+        }
+      } catch (e) {
+        letzterFehler = e;
+      }
+      // Kollision oder vorübergehender Fehler: kurz warten (steigend), dann neuer Versuch
+      await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 150)));
+    }
+    // Nach mehreren Versuchen weiterhin nicht bestätigt - nicht mehr still weitermachen,
+    // sondern deutlich warnen. Lokal ist nichts verloren (localStorage + Sicherung).
+    const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
+    dispatchError(`Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten, dann erscheint automatisch ein Hinweis zum erneuten Versuch.`);
+    if (merged) await recordBackup(merged, null);
+    return merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
+  }
+
+  // Letzte Sicherheitsebene gegen ein extrem seltenes, aber reales Zeitfenster:
+  // Zwischen unserer eigenen Bestätigung (kontrolle oben) und diesem Moment kann
+  // ein anderer Bearbeiter, der VOR unserem Schreiben zu lesen begonnen hatte,
+  // seinerseits noch schreiben und dabei unversehens genau unsere gerade erst
+  // bestätigte Änderung überschreiben - das eigene Speichern hat zu diesem
+  // Zeitpunkt aber schon "erfolgreich" zurückgemeldet. Ohne diese Nachprüfung
+  // bliebe das nur lokal sichtbar (siehe Merge in onUpdate), aber in der Datei
+  // selbst dauerhaft verschwunden. Läuft im Hintergrund, meldet dem Nutzer
+  // nichts (kein Grund zur Sorge) und heilt sich selbst.
+  function nachpruefenUndHeilen(stamped, removed, delStamp) {
+    setTimeout(async () => {
+      if (!fileHandle || accessMode !== "readwrite") return;
+      try {
+        const data = await readFileData();
+        if (changesConfirmed(data, stamped, removed, delStamp)) return; // alles noch da - nichts zu tun
+        const deleted = { ...data.deleted };
+        removed.forEach((id) => {
+          if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
+        });
+        pruneTombstones(deleted);
+        const merged = mergeEntries(data.entries, stamped, deleted);
+        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: data.config };
+        await writeFileData(out);
+        lastSavedAt = out.savedAt;
+        const kontrolle = await readFileData();
+        if (changesConfirmed(kontrolle, stamped, removed, delStamp)) {
+          lastSavedAt = kontrolle.savedAt;
+          syncLocal(kontrolle);
+          dispatchUpdate(kontrolle);
+          await recordBackup(mergeEntries(kontrolle.entries, [], kontrolle.deleted), kontrolle.config);
+        }
+      } catch (e) {
+        // Nächster planmäßiger Poll bzw. die nächste eigene Bearbeitung gleicht ohnehin ab.
+      }
+    }, 1200);
+  }
+
+  // Zusätzlich zu changesConfirmed: ist gegenüber dem gelesenen Ausgangsstand
+  // (fileData) unerwartet etwas verschwunden? Das schließt das letzte, sehr
+  // kleine Zeitfenster zwischen der optimistischen Prüfung und dem
+  // tatsächlichen Schreiben - falls dort doch zwei Schreibvorgänge ineinander
+  // gerieten, würde die einfache "ist meine Änderung drin"-Prüfung das nicht
+  // bemerken, wenn ausgerechnet unser eigener Schreibvorgang zuletzt gewonnen,
+  // dabei aber die Änderung der anderen Seite verdrängt hat.
+  function keinVerlustGegenueber(fileData, kontrolle, removed) {
+    const removedSet = new Set(removed);
+    const kontrolleIds = new Set(kontrolle.entries.map((e) => e.id));
+    for (const e of fileData.entries) {
+      if (removedSet.has(e.id) || kontrolleIds.has(e.id)) continue;
+      const delAt = kontrolle.deleted && kontrolle.deleted[e.id];
+      if (delAt && String(delAt) >= String(e.updatedAt || "")) continue; // zwischenzeitlich legitim gelöscht
+      return false; // unerwartet verschwunden
+    }
+    return true;
+  }
+
+  // Stehen alle eigenen Änderungen (und Löschungen) im zurückgelesenen Stand?
+  function changesConfirmed(data, stamped, removed, delStamp) {
+    const byId = new Map(data.entries.map((e) => [e.id, e]));
+    for (const e of stamped) {
+      const v = byId.get(e.id);
+      if (v && String(v.updatedAt || "") >= String(e.updatedAt || "")) continue;
+      const delAt = data.deleted && data.deleted[e.id];
+      if (delAt && String(delAt) >= String(e.updatedAt || "")) continue; // inzwischen bewusst gelöscht
+      return false;
+    }
+    for (const id of removed) {
+      const v = byId.get(id);
+      if (!v) continue; // Eintrag ist weg - gut
+      if (String(v.updatedAt || "") > delStamp) continue; // nach der Löschung neu bearbeitet - Bearbeitung gewinnt
+      const delAt = data.deleted && data.deleted[id];
+      if (!delAt || String(delAt) < delStamp) return false;
+    }
+    return true;
+  }
+
+  async function saveConfig(configObj) {
+    if (!fileHandle || accessMode !== "readwrite") return null;
+    let saved = null;
+    let letzterFehler = null;
+    for (let versuch = 0; versuch < 5; versuch++) {
+      try {
+        const fileData = await readFileData();
+        const t = nowISO();
+        const out = { ...fileData, format: FORMAT, savedAt: t, config: { ...configObj, updatedAt: t } };
+
+        // Optimistische Sperre wie bei saveEntries: nicht auf Basis eines
+        // veralteten Stands schreiben, sonst könnte eine zeitgleiche
+        // Einträge-Änderung von jemand anderem überschrieben werden.
+        const nochAktuell = await readFileData();
+        if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
+          throw new Error("Kollision: Datei wurde zwischenzeitlich von anderer Stelle geändert");
+        }
+
+        await writeFileData(out);
+        lastSavedAt = t;
+        saved = out.config;
+        const kontrolle = await readFileData();
+        if (kontrolle.config && String(kontrolle.config.updatedAt || "") >= t) {
+          await recordBackup(kontrolle.entries, kontrolle.config);
+          return saved;
+        }
+      } catch (e) {
+        letzterFehler = e;
+      }
+      await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 150)));
+    }
+    const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
+    dispatchError(`Die Anlagen-/Team-Liste konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten und erneut versuchen.`);
+    return saved;
+  }
+
+  /* ---------- Änderungen der anderen abholen ---------- */
+  let pollFehlerFolge = 0; // aufeinanderfolgende gescheiterte Poll-Versuche
+  let pollWarnungAktiv = false;
+  let lastSuccessfulSyncAt = null; // für die "zuletzt aktualisiert"-Anzeige
+  function getLastSuccessfulSyncAt() { return lastSuccessfulSyncAt; }
+
+  async function pollNow() {
+    if (!fileHandle) return;
     try {
       const data = await readFileData();
-      if (changesConfirmed(data, stamped, removed, delStamp)) return; // alles noch da - nichts zu tun
-      const deleted = { ...data.deleted };
-      removed.forEach((id) => {
-        if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
-      });
-      pruneTombstones(deleted);
-      const merged = mergeEntries(data.entries, stamped, deleted);
-      const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: data.config };
-      await writeFileData(out);
-      lastSavedAt = out.savedAt;
-      const kontrolle = await readFileData();
-      if (changesConfirmed(kontrolle, stamped, removed, delStamp)) {
-        lastSavedAt = kontrolle.savedAt;
-        syncLocal(kontrolle);
-        dispatchUpdate(kontrolle);
-        await recordBackup(mergeEntries(kontrolle.entries, [], kontrolle.deleted), kontrolle.config);
+      lastSuccessfulSyncAt = nowISO();
+      if (pollFehlerFolge >= POLL_FEHLER_SCHWELLE || pollWarnungAktiv) {
+        // War zwischenzeitlich nicht erreichbar, jetzt wieder da - Entwarnung geben.
+        dispatchOk();
+        pollWarnungAktiv = false;
       }
+      pollFehlerFolge = 0;
+      if (data.savedAt && data.savedAt !== lastSavedAt) {
+        lastSavedAt = data.savedAt;
+        syncLocal(data);
+        dispatchUpdate(data);
+        await recordBackup(data.entries, data.config);
+      }
+      // Konflikt-Wächter: bei jedem Abgleich nach OneDrive-Konfliktkopien schauen
+      sammleKonfliktkopien();
     } catch (e) {
-      // Nächster planmäßiger Poll bzw. die nächste eigene Bearbeitung gleicht ohnehin ab.
-    }
-  }, 1200);
-}
-
-// Zusätzlich zu changesConfirmed: ist gegenüber dem gelesenen Ausgangsstand
-// (fileData) unerwartet etwas verschwunden? Das schließt das letzte, sehr
-// kleine Zeitfenster zwischen der optimistischen Prüfung und dem
-// tatsächlichen Schreiben - falls dort doch zwei Schreibvorgänge ineinander
-// gerieten, würde die einfache "ist meine Änderung drin"-Prüfung das nicht
-// bemerken, wenn ausgerechnet unser eigener Schreibvorgang zuletzt gewonnen,
-// dabei aber die Änderung der anderen Seite verdrängt hat.
-function keinVerlustGegenueber(fileData, kontrolle, removed) {
-  const removedSet = new Set(removed);
-  const kontrolleIds = new Set(kontrolle.entries.map((e) => e.id));
-  for (const e of fileData.entries) {
-    if (removedSet.has(e.id) || kontrolleIds.has(e.id)) continue;
-    const delAt = kontrolle.deleted && kontrolle.deleted[e.id];
-    if (delAt && String(delAt) >= String(e.updatedAt || "")) continue; // zwischenzeitlich legitim gelöscht
-    return false; // unerwartet verschwunden
-  }
-  return true;
-}
-
-// Stehen alle eigenen Änderungen (und Löschungen) im zurückgelesenen Stand?
-function changesConfirmed(data, stamped, removed, delStamp) {
-  const byId = new Map(data.entries.map((e) => [e.id, e]));
-  for (const e of stamped) {
-    const v = byId.get(e.id);
-    if (v && String(v.updatedAt || "") >= String(e.updatedAt || "")) continue;
-    const delAt = data.deleted && data.deleted[e.id];
-    if (delAt && String(delAt) >= String(e.updatedAt || "")) continue; // inzwischen bewusst gelöscht
-    return false;
-  }
-  for (const id of removed) {
-    const v = byId.get(id);
-    if (!v) continue; // Eintrag ist weg - gut
-    if (String(v.updatedAt || "") > delStamp) continue; // nach der Löschung neu bearbeitet - Bearbeitung gewinnt
-    const delAt = data.deleted && data.deleted[id];
-    if (!delAt || String(delAt) < delStamp) return false;
-  }
-  return true;
-}
-
-export async function saveConfig(configObj) {
-  if (!fileHandle || accessMode !== "readwrite") return null;
-  let saved = null;
-  let letzterFehler = null;
-  for (let versuch = 0; versuch < 5; versuch++) {
-    try {
-      const fileData = await readFileData();
-      const t = nowISO();
-      const out = { ...fileData, format: FORMAT, savedAt: t, config: { ...configObj, updatedAt: t } };
-
-      // Optimistische Sperre wie bei saveEntries: nicht auf Basis eines
-      // veralteten Stands schreiben, sonst könnte eine zeitgleiche
-      // Einträge-Änderung von jemand anderem überschrieben werden.
-      const nochAktuell = await readFileData();
-      if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
-        throw new Error("Kollision: Datei wurde zwischenzeitlich von anderer Stelle geändert");
+      pollFehlerFolge++;
+      if (pollFehlerFolge === POLL_FEHLER_SCHWELLE) {
+        pollWarnungAktiv = true;
+        dispatchError(`Gemeinsame Datei ist seit ca. ${Math.round((POLL_FEHLER_SCHWELLE * POLL_MS) / 1000)} Sekunden nicht erreichbar (${e && e.name ? e.name : "Fehler"}). Deine Eingaben bleiben lokal gesichert - die App versucht automatisch weiter, es wieder zu verbinden.`);
       }
-
-      await writeFileData(out);
-      lastSavedAt = t;
-      saved = out.config;
-      const kontrolle = await readFileData();
-      if (kontrolle.config && String(kontrolle.config.updatedAt || "") >= t) {
-        await recordBackup(kontrolle.entries, kontrolle.config);
-        return saved;
-      }
-    } catch (e) {
-      letzterFehler = e;
     }
-    await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 150)));
   }
-  const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
-  dispatchError(`Die Anlagen-/Team-Liste konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten und erneut versuchen.`);
-  return saved;
-}
-
-/* ---------- Änderungen der anderen abholen ---------- */
-let pollFehlerFolge = 0; // aufeinanderfolgende gescheiterte Poll-Versuche
-let pollWarnungAktiv = false;
-let lastSuccessfulSyncAt = null; // für die "zuletzt aktualisiert"-Anzeige
-export function getLastSuccessfulSyncAt() { return lastSuccessfulSyncAt; }
-const POLL_FEHLER_SCHWELLE = 3; // ab 3 Fehlversuchen in Folge (~90s) wird gewarnt
-
-export async function pollNow() {
-  if (!fileHandle) return;
-  try {
-    const data = await readFileData();
-    lastSuccessfulSyncAt = nowISO();
-    if (pollFehlerFolge >= POLL_FEHLER_SCHWELLE || pollWarnungAktiv) {
-      // War zwischenzeitlich nicht erreichbar, jetzt wieder da - Entwarnung geben.
-      dispatchOk();
-      pollWarnungAktiv = false;
-    }
+  function startPolling() {
+    stopPolling();
     pollFehlerFolge = 0;
-    if (data.savedAt && data.savedAt !== lastSavedAt) {
-      lastSavedAt = data.savedAt;
-      syncLocal(data);
-      dispatchUpdate(data);
-      await recordBackup(data.entries, data.config);
-    }
-    // Konflikt-Wächter: bei jedem Abgleich nach OneDrive-Konfliktkopien schauen
+    pollWarnungAktiv = false;
+    lastSuccessfulSyncAt = nowISO();
+    pollTimer = setInterval(pollNow, POLL_MS);
+    // Direkt beim Verbinden einmal nach liegengebliebenen Konfliktkopien schauen
     sammleKonfliktkopien();
-  } catch (e) {
-    pollFehlerFolge++;
-    if (pollFehlerFolge === POLL_FEHLER_SCHWELLE) {
-      pollWarnungAktiv = true;
-      dispatchError(`Gemeinsame Datei ist seit ca. ${Math.round((POLL_FEHLER_SCHWELLE * POLL_MS) / 1000)} Sekunden nicht erreichbar (${e && e.name ? e.name : "Fehler"}). Deine Eingaben bleiben lokal gesichert - die App versucht automatisch weiter, es wieder zu verbinden.`);
-    }
   }
-}
-function startPolling() {
-  stopPolling();
-  pollFehlerFolge = 0;
-  pollWarnungAktiv = false;
-  lastSuccessfulSyncAt = nowISO();
-  pollTimer = setInterval(pollNow, POLL_MS);
-  // Direkt beim Verbinden einmal nach liegengebliebenen Konfliktkopien schauen
-  sammleKonfliktkopien();
-}
-function stopPolling() {
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-}
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
 
-/* ---------- Test-Zugang (für automatisierte Tests, ohne Datei-Dialog) ---------- */
-if (typeof window !== "undefined") {
-  window.__wkSharedTest = {
+  // Test-Zugang (für automatisierte Tests, ohne Datei-Dialog)
+  const _test = {
     async adopt(handle, mode) {
       fileHandle = handle;
       accessMode = mode || "readwrite";
@@ -762,4 +775,69 @@ if (typeof window !== "undefined") {
     },
     sammle: sammleKonfliktkopien,
   };
+
+  return {
+    isSupported, isConnected, canWrite, fileName, getLastWriteError, getLastSuccessfulSyncAt,
+    listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
+    folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
+    saveEntries, saveConfig, dispatchError, dispatchOk, pollNow, _test,
+  };
+}
+
+/* ==================================================================== */
+/* Instanz 1: Hauptdaten (Kalender, Team, Backlog, Planung ...)          */
+/* ==================================================================== */
+const main = createSharedStore({
+  dbName: "werkstatt-kalender-fs",
+  format: "werkstatt-kalender-v1",
+  entriesKey: "werkstatt-kalender-entries",
+  configKey: "werkstatt-kalender-config",
+  suggestedName: "werkstatt-kalender-daten.json",
+  evPrefix: "werkstatt-shared",
+});
+
+// Bestehende, unveränderte öffentliche Schnittstelle (storage.js + App bleiben gleich).
+export const isSupported = main.isSupported;
+export const isConnected = main.isConnected;
+export const canWrite = main.canWrite;
+export const fileName = main.fileName;
+export const getLastWriteError = main.getLastWriteError;
+export const getLastSuccessfulSyncAt = main.getLastSuccessfulSyncAt;
+export const listBackups = main.listBackups;
+export const pickShared = main.pickShared;
+export const tryRestore = main.tryRestore;
+export const reconnect = main.reconnect;
+export const retryWrite = main.retryWrite;
+export const disconnect = main.disconnect;
+export const folderStatus = main.folderStatus;
+export const folderName = main.folderName;
+export const pickFolder = main.pickFolder;
+export const reconnectFolder = main.reconnectFolder;
+export const forgetFolder = main.forgetFolder;
+export const sammleKonfliktkopien = main.sammleKonfliktkopien;
+export const saveEntries = main.saveEntries;
+export const saveConfig = main.saveConfig;
+export const dispatchError = main.dispatchError;
+export const dispatchOk = main.dispatchOk;
+export const pollNow = main.pollNow;
+
+/* ==================================================================== */
+/* Instanz 2: Störungen (eigene, für alle beschreibbare Datei)           */
+/* ==================================================================== */
+// Getrennte Datei mit denselben Sicherheiten. Sie wird in OneDrive für ALLE
+// (auch Nur-Leser der Hauptdatei) mit Bearbeiten-Recht freigegeben, damit jeder
+// Störungen melden/ändern/löschen kann, ohne die geschützten Hauptdaten anzurühren.
+export const stoer = createSharedStore({
+  dbName: "werkstatt-stoerungen-fs",
+  format: "werkstatt-stoerungen-v1",
+  entriesKey: "werkstatt-stoerungen-entries",
+  configKey: "werkstatt-stoerungen-config",
+  suggestedName: "werkstatt-stoerungen.json",
+  evPrefix: "werkstatt-stoer",
+});
+
+/* ---------- Test-Zugang ---------- */
+if (typeof window !== "undefined") {
+  window.__wkSharedTest = main._test;
+  window.__wkStoerTest = stoer._test;
 }

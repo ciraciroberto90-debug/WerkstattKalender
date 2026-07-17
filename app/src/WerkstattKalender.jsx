@@ -197,6 +197,14 @@ const STATUS_COLORS = {
 
 const STORAGE_KEY = "werkstatt-kalender-entries";
 const CONFIG_STORAGE_KEY = "werkstatt-kalender-config";
+const STOER_STORAGE_KEY = "werkstatt-stoerungen-entries"; // eigene Datei für Störungen (für alle beschreibbar)
+
+// Dringlichkeitsstufen einer Störung (Reihenfolge = Sortierung, oben = dringlicher)
+const STOER_DRINGLICHKEIT = {
+  steht: { label: "Produktion steht", kurz: "🔴 steht", color: "#C0392B", bg: "#FBEAE8", rang: 0 },
+  eingeschraenkt: { label: "läuft eingeschränkt", kurz: "🟡 eingeschränkt", color: "#9A6B00", bg: "#FBF3DA", rang: 1 },
+  wartet: { label: "kann warten", kurz: "⚪ kann warten", color: "#5B6572", bg: "rgba(0,0,0,0.06)", rang: 2 },
+};
 
 function pad(n) {
   return n.toString().padStart(2, "0");
@@ -540,6 +548,16 @@ function App() {
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
   const [shareInfo, setShareInfo] = useState(null); // grüne Hinweis-Meldung (z. B. Konfliktkopie eingesammelt), verschwindet von selbst
   const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
+  // Störungen: eigene, für alle beschreibbare Datei (getrennt von den Hauptdaten)
+  const [stoerungen, setStoerungen] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(STOER_STORAGE_KEY) || "[]"); } catch (e) { return []; }
+  });
+  const [stoerState, setStoerState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
+  const [stoerChecked, setStoerChecked] = useState(false);
+  const [stoerErr, setStoerErr] = useState(null); // Fehler der Störungen-Datei (eigener Banner)
+  const [stoerModal, setStoerModal] = useState(null); // null | {mode:'add'} | {mode:'edit', id}
+  const [sDraft, setSDraft] = useState(null); // Entwurf im Melden/Bearbeiten-Dialog
+  const [stoerErledigteZeigen, setStoerErledigteZeigen] = useState(false); // erledigte Störungen einblenden
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
@@ -575,6 +593,22 @@ function App() {
     window.addEventListener("werkstatt-shared-error", onShareError);
     window.addEventListener("werkstatt-shared-ok", onShareOk);
     window.addEventListener("werkstatt-shared-info", onShareInfo);
+
+    // ---- Störungen-Datei (eigene Instanz, gleiche Sync-Sicherheiten) ----
+    sharedFile.stoer.tryRestore().then((st) => { if (!cancelled) { setStoerState(st); setStoerChecked(true); } });
+    const onStoerUpdate = (ev) => {
+      const d = ev.detail || {};
+      if (Array.isArray(d.entries)) {
+        setStoerungen((prev) => sharedFile.mergeEntries(d.entries, prev || [], d.deleted || {}));
+      }
+    };
+    const onStoerError = (ev) => setStoerErr(ev.detail || "Störungen-Datei: unbekannter Fehler.");
+    const onStoerOk = () => setStoerErr(null);
+    window.addEventListener("werkstatt-stoer-update", onStoerUpdate);
+    window.addEventListener("werkstatt-stoer-error", onStoerError);
+    window.addEventListener("werkstatt-stoer-ok", onStoerOk);
+    window.addEventListener("werkstatt-stoer-info", onShareInfo); // grüne Info teilt sich denselben Kanal
+
     return () => {
       cancelled = true;
       if (infoTimer) clearTimeout(infoTimer);
@@ -582,6 +616,10 @@ function App() {
       window.removeEventListener("werkstatt-shared-error", onShareError);
       window.removeEventListener("werkstatt-shared-ok", onShareOk);
       window.removeEventListener("werkstatt-shared-info", onShareInfo);
+      window.removeEventListener("werkstatt-stoer-update", onStoerUpdate);
+      window.removeEventListener("werkstatt-stoer-error", onStoerError);
+      window.removeEventListener("werkstatt-stoer-ok", onStoerOk);
+      window.removeEventListener("werkstatt-stoer-info", onShareInfo);
     };
   }, []);
 
@@ -615,6 +653,34 @@ function App() {
     setShareOpen(false);
   };
 
+  // ---- Störungen-Datei verbinden/trennen (eigene, für alle beschreibbare Datei) ----
+  const connectStoer = async (opts) => {
+    try {
+      await sharedFile.stoer.pickShared(opts);
+      setStoerState({ status: "connected", name: sharedFile.stoer.fileName(), mode: sharedFile.stoer.canWrite() ? "readwrite" : "read" });
+      setStoerChecked(true);
+      setStoerErr(null);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      setStoerErr("Störungen-Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
+    }
+  };
+  const reconnectStoer = async () => {
+    try {
+      const st = await sharedFile.stoer.reconnect();
+      setStoerState(st);
+      setStoerChecked(true);
+      setStoerErr(null);
+    } catch (e) {
+      setStoerErr("Störungen-Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
+    }
+  };
+  const disconnectStoer = async () => {
+    await sharedFile.stoer.disconnect();
+    setStoerState({ status: sharedFile.stoer.isSupported() ? "none" : "unsupported" });
+    setStoerChecked(true);
+  };
+
   // Nur wer NACHWEISLICH Schreibrechte auf die gemeinsame Datei hat (oder die
   // Funktion technisch gar nicht existiert, z. B. Firefox/Safari -> reiner
   // Solo-Betrieb) bekommt die volle App. ALLE anderen Fälle - insbesondere
@@ -632,6 +698,80 @@ function App() {
   // der muss sichtbar bleiben, bevor überhaupt verbunden wurde (sonst könnte
   // sich niemand jemals verbinden).
   const confirmedReadOnly = shareChecked && shareState.status === "connected" && shareState.mode === "read";
+
+  // ---- Störungen: Zugriff & Speichern (unabhängig von readerMode!) ----
+  // Störungen dürfen ALLE bearbeiten - auch reine Leser der Hauptdaten. Maßgeblich
+  // ist allein die Störungen-Datei: verbunden mit Schreibrecht ODER technisch ohne
+  // Datei-Funktion (Solo/Firefox -> lokal). Sonst nur ansehen.
+  const stoerConnected = stoerState.status === "connected";
+  const stoerDarfSchreiben = stoerChecked && (stoerState.status === "unsupported" || (stoerConnected && stoerState.mode === "readwrite"));
+  const stoerNurLesen = stoerConnected && stoerState.mode === "read";
+  const persistStoer = async (next) => {
+    const prev = stoerungen;
+    setStoerungen(next);
+    try { localStorage.setItem(STOER_STORAGE_KEY, JSON.stringify(next)); } catch (e) { /* voll o.ä. */ }
+    if (sharedFile.stoer.isConnected() && sharedFile.stoer.canWrite()) {
+      try {
+        const merged = await sharedFile.stoer.saveEntries(next, prev);
+        if (merged) {
+          try { localStorage.setItem(STOER_STORAGE_KEY, JSON.stringify(merged)); } catch (e) { /* egal */ }
+          setStoerungen(merged);
+        }
+      } catch (e) {
+        setStoerErr("Störung konnte nicht in der gemeinsamen Datei gespeichert werden (Datei erreichbar?). Lokal ist alles gesichert.");
+      }
+    }
+  };
+  // Eine Störung anlegen/ändern/löschen (Kürzel wird wie bei der Pinnwand gemerkt)
+  const speichereStoerung = async (draft) => {
+    const jetzt = new Date().toISOString();
+    const melder = String(draft.melder || "").trim();
+    if (melder) localStorage.setItem("werkstatt-kalender-name", melder);
+    const offen = draft.status !== "erledigt";
+    if (draft.id) {
+      const vorher = stoerungen.find((s) => s.id === draft.id);
+      const behobenAt = offen ? null : (vorher && vorher.behobenAt) || jetzt;
+      const next = stoerungen.map((s) => (s.id === draft.id ? {
+        ...s,
+        anlage: draft.anlage, stoerung: draft.stoerung, ursache: draft.ursache,
+        getan: draft.getan, nochZuTun: offen ? draft.nochZuTun : "",
+        dringlichkeit: draft.dringlichkeit, melder, offen, behobenAt,
+      } : s));
+      await persistStoer(next);
+    } else {
+      const s = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        date: jetzt.slice(0, 10),
+        anlage: draft.anlage, stoerung: draft.stoerung, ursache: draft.ursache || "",
+        getan: draft.getan || "", nochZuTun: offen ? (draft.nochZuTun || "") : "",
+        dringlichkeit: draft.dringlichkeit || "steht",
+        melder, offen, gemeldetAt: jetzt, behobenAt: offen ? null : jetzt,
+      };
+      await persistStoer([...stoerungen, s]);
+    }
+    setStoerModal(null);
+    setSDraft(null);
+  };
+  const stoerStatusUmschalten = async (id) => {
+    const jetzt = new Date().toISOString();
+    await persistStoer(stoerungen.map((s) => (s.id === id
+      ? { ...s, offen: !s.offen, behobenAt: !s.offen ? null : (s.behobenAt || jetzt), nochZuTun: !s.offen ? s.nochZuTun : "" }
+      : s)));
+  };
+  const loescheStoerung = async (id) => {
+    if (!window.confirm("Diese Störung wirklich löschen?")) return;
+    await persistStoer(stoerungen.filter((s) => s.id !== id));
+  };
+  // Sortierung: offene zuerst, darin nach Dringlichkeit, dann neueste zuerst
+  const stoerungenSortiert = [...stoerungen].sort((a, b) => {
+    if (!!a.offen !== !!b.offen) return a.offen ? -1 : 1;
+    const ra = STOER_DRINGLICHKEIT[a.dringlichkeit]?.rang ?? 9;
+    const rb = STOER_DRINGLICHKEIT[b.dringlichkeit]?.rang ?? 9;
+    if (ra !== rb) return ra - rb;
+    return String(b.gemeldetAt || b.date).localeCompare(String(a.gemeldetAt || a.date));
+  });
+  const stoerOffenCount = stoerungen.filter((s) => s.offen).length;
+
   // Sicherheits-Klammer: solange (noch) Nur-Leser, ist ausschließlich Übersicht,
   // Schichtplan, Planung oder TPM-Plan erlaubt - jede andere Ansicht wird sofort
   // auf Übersicht zurückgesetzt (z. B. falls Schreibrechte während der Sitzung
@@ -639,7 +779,9 @@ function App() {
   useEffect(() => {
     if (!readerMode) return;
     if (view !== "COCKPIT" && view !== "PLAN") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
-    if (view === "COCKPIT" && !["UEBERSICHT", "SCHICHTPLAN", "PLANUNG"].includes(cockpitTab)) setCockpitTab("UEBERSICHT");
+    // Störungen sind bewusst auch für Nur-Leser erlaubt (eigene, für alle
+    // beschreibbare Datei) - daher hier mit aufgeführt.
+    if (view === "COCKPIT" && !["UEBERSICHT", "SCHICHTPLAN", "PLANUNG", "STOERUNGEN"].includes(cockpitTab)) setCockpitTab("UEBERSICHT");
   }, [readerMode, view, cockpitTab]);
 
   // ...html?monitor=1 kennzeichnet ein dediziertes Kiosk-Gerät (Bildschirm in der
@@ -2280,6 +2422,7 @@ function App() {
                 ["COCKPIT_UEBERSICHT", "Übersicht"],
                 ["COCKPIT_SCHICHTPLAN", "Schichtplan"],
                 ["COCKPIT_PLANUNG", "Planung"],
+                ["COCKPIT_STOERUNGEN", <>Störungen{stoerOffenCount > 0 && <span className="ml-1 inline-flex items-center justify-center rounded-full" style={{ minWidth: "16px", height: "16px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.6rem" }}>{stoerOffenCount}</span>}</>],
                 ["PLAN", "TPM-Plan"],
               ].map(([key, label]) => {
                 const active = key === "PLAN" ? view === "PLAN" : (view === "COCKPIT" && cockpitTab === key.replace("COCKPIT_", ""));
@@ -2322,14 +2465,17 @@ function App() {
               {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
               {view === "COCKPIT" ? (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"]].map(([v, label]) => (
+                  {[["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"], ["STOERUNGEN", "Störungen"]].map(([v, label]) => (
                     <button
                       key={v}
                       onClick={() => setCockpitTab(v)}
-                      className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
+                      className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center"
                       style={{ backgroundColor: cockpitTab === v ? "#4B5259" : "transparent", color: cockpitTab === v ? "#fff" : "#B7BEC6" }}
                     >
                       {label}
+                      {v === "STOERUNGEN" && stoerOffenCount > 0 && (
+                        <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{stoerOffenCount}</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -2558,6 +2704,135 @@ function App() {
         <div className="font-mono text-sm">{printSuffix}</div>
         {view !== "PLAN" && <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen{donePercent !== null ? ` · ${donePercent} %` : ""}</div>}
       </div>
+
+      {/* Cockpit: Störungen (eigene, für alle beschreibbare Datei) */}
+      {view === "COCKPIT" && cockpitTab === "STOERUNGEN" && (
+        <div className="no-print max-w-5xl mx-auto px-4 mt-4">
+          {/* Kopf: Titel + Melden-Knopf */}
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            <span className="text-lg font-black uppercase tracking-tight" style={{ color: "#22262B" }}>⚠ Störungen</span>
+            <span className="text-xs font-mono" style={{ color: "#5B6572" }}>
+              {stoerOffenCount} offen · {stoerungen.length - stoerOffenCount} behoben
+            </span>
+            <span className="ml-auto" />
+            {stoerDarfSchreiben && (
+              <button
+                onClick={() => { setSDraft({ anlage: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", dringlichkeit: "steht", status: "offen", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
+                className="flex items-center gap-2 rounded-lg text-white font-bold"
+                style={{ backgroundColor: "#C0392B", padding: "8px 14px", fontSize: "0.85rem" }}
+              >
+                ⚠ Störung melden
+              </button>
+            )}
+          </div>
+
+          {/* Fehler-Banner der Störungen-Datei */}
+          {stoerErr && (
+            <div className="rounded-lg px-3 py-2 mb-3 text-sm" style={{ backgroundColor: "#FBEAE8", border: "1px solid #C0392B", color: "#9A2B22" }}>{stoerErr}</div>
+          )}
+
+          {/* Verbindungs-Hinweise für die Störungen-Datei */}
+          {stoerChecked && stoerState.status === "needs-permission" && (
+            <div className="rounded-lg px-3 py-2 mb-3 text-sm flex items-center gap-3 flex-wrap" style={{ backgroundColor: "#FDF3E7", border: "1px solid #C97A2B", color: "#8A5320" }}>
+              <span>Störungen-Datei „{stoerState.name}" ist nach dem Browser-Neustart getrennt.</span>
+              <button onClick={reconnectStoer} className="rounded px-3 py-1 text-white font-bold" style={{ backgroundColor: "#C97A2B" }}>Jetzt verbinden</button>
+            </div>
+          )}
+          {stoerChecked && (stoerState.status === "none") && sharedFile.stoer.isSupported() && (
+            <div className="rounded-lg px-3 py-2 mb-3 text-sm flex items-center gap-3 flex-wrap" style={{ backgroundColor: "#EEF1F4", border: "1px solid #C4CBD2", color: "#3A424B" }}>
+              <span>Die Störungen liegen in einer eigenen Datei, die <strong>alle</strong> bearbeiten dürfen. Einmal pro Gerät verbinden:</span>
+              <button onClick={() => connectStoer()} className="rounded px-3 py-1 text-white font-bold" style={{ backgroundColor: "#2F6690" }}>Störungen-Datei öffnen …</button>
+              <button onClick={() => connectStoer({ create: true })} className="rounded px-3 py-1 font-bold" style={{ backgroundColor: "#E2E6EA", color: "#3A424B" }}>neu anlegen …</button>
+            </div>
+          )}
+          {stoerNurLesen && (
+            <div className="rounded-lg px-3 py-2 mb-3 text-sm" style={{ backgroundColor: "#EEF1F4", border: "1px solid #C4CBD2", color: "#5B6572" }}>
+              🔒 Die Störungen-Datei ist auf diesem Gerät nur zum Ansehen freigegeben.
+            </div>
+          )}
+
+          {/* Liste der Störungen */}
+          {(() => {
+            const sichtbar = stoerungenSortiert.filter((s) => s.offen || stoerErledigteZeigen);
+            if (stoerungen.length === 0) {
+              return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störungen erfasst. {stoerDarfSchreiben ? "Über den roten Knopf legst du die erste an." : ""}</div>;
+            }
+            return (
+              <>
+                <div className="grid gap-3">
+                  {sichtbar.map((s) => {
+                    const dr = STOER_DRINGLICHKEIT[s.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
+                    return (
+                      <div key={s.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderLeft: `5px solid ${s.offen ? "#C0392B" : "#1F7A3D"}`, boxShadow: "0 2px 10px rgba(20,22,25,0.06)", opacity: s.offen ? 1 : 0.82 }}>
+                        {/* Kopf: Anlage + Dringlichkeit + Status-Umschalter */}
+                        <div className="flex items-center gap-2 px-4 py-3 flex-wrap">
+                          <span className="font-extrabold" style={{ fontSize: "1.02rem", color: "#22262B" }}>{s.anlage || "—"}</span>
+                          {s.offen
+                            ? <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: dr.bg, color: dr.color }}>{dr.kurz}</span>
+                            : <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#EAF3EC", color: "#1F7A3D" }}>✓ behoben</span>}
+                          <span className="ml-auto" />
+                          {stoerDarfSchreiben ? (
+                            <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #E2E4E7" }}>
+                              <button onClick={() => { if (!s.offen) stoerStatusUmschalten(s.id); }} className="font-bold" style={{ fontSize: "0.78rem", padding: "5px 12px", backgroundColor: s.offen ? "#C0392B" : "transparent", color: s.offen ? "#fff" : "#5B6572" }}>{s.offen ? "● Offen" : "Offen"}</button>
+                              <button onClick={() => { if (s.offen) stoerStatusUmschalten(s.id); }} className="font-bold" style={{ fontSize: "0.78rem", padding: "5px 12px", backgroundColor: !s.offen ? "#1F7A3D" : "transparent", color: !s.offen ? "#fff" : "#5B6572" }}>{!s.offen ? "● Erledigt" : "Erledigt"}</button>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-bold" style={{ color: s.offen ? "#C0392B" : "#1F7A3D" }}>{s.offen ? "Offen" : "Erledigt"}</span>
+                          )}
+                        </div>
+                        {/* Felder */}
+                        <div className="px-4 pb-3">
+                          {[["⚠ Was ist die Störung?", s.stoerung], ["🔍 Ursache", s.ursache], [s.offen ? "🔧 Was wurde bisher getan?" : "🔧 Was wurde getan?", s.getan]].map(([lab, val], i) => (
+                            (val && String(val).trim()) ? (
+                              <div key={i} className="py-2" style={{ borderTop: i === 0 ? "none" : "1px solid #EFF1F3" }}>
+                                <div className="font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.5px", color: "#8A9099", marginBottom: "2px" }}>{lab}</div>
+                                <div style={{ fontSize: "0.92rem", color: "#39414B", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{val}</div>
+                              </div>
+                            ) : null
+                          ))}
+                          {/* Nur bei Offen: Was ist noch zu tun */}
+                          {s.offen && s.nochZuTun && String(s.nochZuTun).trim() && (
+                            <div className="mt-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#FBEAE8" }}>
+                              <div className="font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.5px", color: "#C0392B", marginBottom: "2px" }}>📌 Was ist noch zu tun?</div>
+                              <div style={{ fontSize: "0.92rem", color: "#39414B", fontWeight: 600, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{s.nochZuTun}</div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Fuß: Meta + Aktionen */}
+                        <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", fontSize: "0.75rem", color: "#8A9099" }}>
+                          <span>{s.melder ? `${s.melder} · ` : ""}gemeldet {s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : formatDateDE(s.date)}</span>
+                          {!s.offen && s.behobenAt && <span>· behoben {new Date(s.behobenAt).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+                          <span className="ml-auto" />
+                          {stoerDarfSchreiben && (
+                            <>
+                              <button
+                                disabled
+                                title="Weiterleiten kommt in einer späteren Version"
+                                className="rounded font-bold inline-flex items-center gap-1"
+                                style={{ fontSize: "0.72rem", padding: "4px 9px", border: "1.5px dashed #C4CBD2", color: "#A6AEB6", cursor: "not-allowed" }}
+                              >
+                                📤 Weiterleiten <span style={{ fontSize: "0.56rem", backgroundColor: "#FBF3DA", color: "#9A6B00", padding: "1px 5px", borderRadius: "10px" }}>bald</span>
+                              </button>
+                              <button onClick={() => { setSDraft({ id: s.id, anlage: s.anlage || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", dringlichkeit: s.dringlichkeit || "steht", status: s.offen ? "offen" : "erledigt", melder: s.melder || "" }); setStoerModal({ mode: "edit", id: s.id }); }} className="rounded font-bold text-white" style={{ fontSize: "0.72rem", padding: "4px 11px", backgroundColor: "#22262B" }}>Bearbeiten</button>
+                              <button onClick={() => loescheStoerung(s.id)} className="rounded font-bold" style={{ fontSize: "0.9rem", padding: "2px 9px", backgroundColor: "rgba(0,0,0,0.06)", color: "#8A9099" }} title="Störung löschen" aria-label="Störung löschen">×</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Erledigte ein-/ausblenden */}
+                {stoerungen.length - stoerOffenCount > 0 && (
+                  <button onClick={() => setStoerErledigteZeigen((v) => !v)} className="mt-4 text-xs font-bold" style={{ color: "#5B6572" }}>
+                    {stoerErledigteZeigen ? "▾ behobene Störungen ausblenden" : `▸ ${stoerungen.length - stoerOffenCount} behobene Störung(en) anzeigen`}
+                  </button>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Cockpit: Übersicht (Kennzahlen + Tagesliste + Pinnwand) */}
       {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
@@ -3844,6 +4119,114 @@ function App() {
                     {arbeitModal.ausZettel ? "Speichern & Zettel entfernen" : "Speichern"}
                   </button>
                   <button onClick={() => setArbeitModal(null)} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Störung melden / bearbeiten */}
+      {stoerModal && sDraft && (() => {
+        const offen = sDraft.status !== "erledigt";
+        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim();
+        const anlagenVorschlaege = Array.from(new Set([
+          ...tpmAnlagen.map((a) => a.name),
+          ...stoerungen.map((s) => s.anlage).filter(Boolean),
+        ]));
+        return (
+          <div
+            className="no-print"
+            style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+            onClick={() => { setStoerModal(null); setSDraft(null); }}
+          >
+            <div
+              style={{ backgroundColor: "white", borderRadius: "12px", padding: "20px", width: "540px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+              onClick={(ev) => ev.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="font-black text-base" style={{ color: "#22262B" }}>{stoerModal.mode === "add" ? "⚠ Störung melden" : "Störung bearbeiten"}</div>
+                <button onClick={() => { setStoerModal(null); setSDraft(null); }} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+              </div>
+
+              {/* Status-Umschalter */}
+              <div className="flex items-center gap-2 my-3">
+                <span className="text-xs font-bold uppercase" style={{ color: "#8A9099" }}>Status:</span>
+                <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #E2E4E7" }}>
+                  <button onClick={() => setSDraft({ ...sDraft, status: "offen" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: offen ? "#C0392B" : "transparent", color: offen ? "#fff" : "#5B6572" }}>● Offen</button>
+                  <button onClick={() => setSDraft({ ...sDraft, status: "erledigt" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: !offen ? "#1F7A3D" : "transparent", color: !offen ? "#fff" : "#5B6572" }}>● Erledigt</button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {/* Anlage (frei, mit Vorschlägen) */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlage / Bereich</label>
+                  <input
+                    list="stoer-anlagen"
+                    value={sDraft.anlage}
+                    onChange={(ev) => setSDraft({ ...sDraft, anlage: ev.target.value })}
+                    placeholder="z. B. Presse 3"
+                    className="w-full text-sm border rounded-lg px-3 py-2"
+                    style={{ borderColor: "#D6D9DC" }}
+                  />
+                  <datalist id="stoer-anlagen">{anlagenVorschlaege.map((n) => <option key={n} value={n} />)}</datalist>
+                </div>
+
+                {/* Dringlichkeit (nur relevant, aber immer wählbar) */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Dringlichkeit</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {Object.entries(STOER_DRINGLICHKEIT).map(([key, d]) => {
+                      const aktiv = sDraft.dringlichkeit === key;
+                      return (
+                        <button key={key} onClick={() => setSDraft({ ...sDraft, dringlichkeit: key })}
+                          className="flex-1 rounded-lg font-bold text-center"
+                          style={{ minWidth: "110px", padding: "9px 8px", fontSize: "0.8rem", border: `2px solid ${aktiv ? d.color : "#E2E4E7"}`, backgroundColor: aktiv ? d.bg : "transparent", color: aktiv ? d.color : "#5B6572" }}>
+                          {d.kurz}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Was ist die Störung?</label>
+                  <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Kurz beschreiben, was nicht funktioniert" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔍 Ursache</label>
+                  <input value={sDraft.ursache} onChange={(ev) => setSDraft({ ...sDraft, ursache: ev.target.value })} placeholder="falls bekannt" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔧 Was wurde getan?</label>
+                  <textarea value={sDraft.getan} onChange={(ev) => setSDraft({ ...sDraft, getan: ev.target.value })} rows={2} placeholder="bisherige Schritte" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                </div>
+
+                {/* Nur bei Offen: Was ist noch zu tun */}
+                {offen && (
+                  <div className="rounded-lg p-3" style={{ backgroundColor: "#FBEAE8", border: "1px solid #E7B9B3" }}>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#C0392B" }}>📌 Was ist noch zu tun?</label>
+                    <textarea value={sDraft.nochZuTun} onChange={(ev) => setSDraft({ ...sDraft, nochZuTun: ev.target.value })} rows={2} placeholder="offene Schritte bis zur Behebung" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D8A9A2" }} />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Dein Kürzel</label>
+                  <input value={sDraft.melder} onChange={(ev) => setSDraft({ ...sDraft, melder: ev.target.value })} placeholder="z. B. RC" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", maxWidth: "160px" }} />
+                </div>
+
+                <div className="flex gap-2 items-center mt-1">
+                  <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#22262B" : "#B7BEC6" }}>Speichern</button>
+                  <button
+                    disabled
+                    title="Weiterleiten kommt in einer späteren Version"
+                    className="rounded-lg font-bold inline-flex items-center gap-1"
+                    style={{ fontSize: "0.78rem", padding: "9px 12px", border: "1.5px dashed #C4CBD2", color: "#A6AEB6", cursor: "not-allowed" }}
+                  >
+                    📤 Weiterleiten <span style={{ fontSize: "0.56rem", backgroundColor: "#FBF3DA", color: "#9A6B00", padding: "1px 5px", borderRadius: "10px" }}>bald</span>
+                  </button>
+                  <button onClick={() => { setStoerModal(null); setSDraft(null); }} className="text-sm font-bold py-2.5 px-4 rounded-lg bg-slate-100 text-slate-500">Abbrechen</button>
                 </div>
               </div>
             </div>
