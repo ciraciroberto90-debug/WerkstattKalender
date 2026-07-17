@@ -575,6 +575,7 @@ function App() {
   const [sDraft, setSDraft] = useState(null); // Entwurf im Melden/Bearbeiten-Dialog
   const [stoerErledigteZeigen, setStoerErledigteZeigen] = useState(false); // erledigte Störungen einblenden
   const [stoerOffeneTage, setStoerOffeneTage] = useState(null); // aufgeklappte Datums-Gruppen (null = Vorgabe: neuester Tag offen)
+  const [stoerOffeneSchichten, setStoerOffeneSchichten] = useState(() => new Set()); // aufgeklappte Schichten "datum|schicht"
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
@@ -747,6 +748,7 @@ function App() {
     if (melder) localStorage.setItem("werkstatt-kalender-name", melder);
     const offen = draft.status !== "erledigt";
     const datum = draft.date || jetzt.slice(0, 10);
+    const ausfallzeit = Math.max(0, Math.round(Number(draft.ausfallzeit) || 0));
     if (draft.id) {
       const vorher = stoerungen.find((s) => s.id === draft.id);
       const behobenAt = offen ? null : (vorher && vorher.behobenAt) || jetzt;
@@ -756,7 +758,7 @@ function App() {
         anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
         stoerung: draft.stoerung, ursache: draft.ursache,
         getan: draft.getan, nochZuTun: offen ? draft.nochZuTun : "",
-        dringlichkeit: draft.dringlichkeit, melder, offen, behobenAt,
+        dringlichkeit: draft.dringlichkeit, ausfallzeit, melder, offen, behobenAt,
       } : s));
       await persistStoer(next);
     } else {
@@ -767,7 +769,7 @@ function App() {
         anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
         stoerung: draft.stoerung, ursache: draft.ursache || "",
         getan: draft.getan || "", nochZuTun: offen ? (draft.nochZuTun || "") : "",
-        dringlichkeit: draft.dringlichkeit || "steht",
+        dringlichkeit: draft.dringlichkeit || "steht", ausfallzeit,
         melder, offen, gemeldetAt: jetzt, behobenAt: offen ? null : jetzt,
       };
       await persistStoer([...stoerungen, s]);
@@ -784,6 +786,8 @@ function App() {
   const loescheStoerung = async (id) => {
     if (!window.confirm("Diese Störung wirklich löschen?")) return;
     await persistStoer(stoerungen.filter((s) => s.id !== id));
+    setStoerModal(null);
+    setSDraft(null);
   };
   // Sortierung: offene zuerst, darin nach Dringlichkeit, dann neueste zuerst
   const stoerungenSortiert = [...stoerungen].sort((a, b) => {
@@ -796,6 +800,15 @@ function App() {
   const stoerOffenCount = stoerungen.filter((s) => s.offen).length;
   const stoerOffeneListe = stoerungenSortiert.filter((s) => s.offen); // für die Übersicht-Gedankenstütze
 
+  // Ausfallzeit hübsch: Minuten -> "2 h 15 min" / "45 min"
+  const minutenText = (min) => {
+    const m = Math.max(0, Math.round(Number(min) || 0));
+    if (m === 0) return "0 min";
+    const h = Math.floor(m / 60), r = m % 60;
+    return h > 0 ? (r > 0 ? `${h} h ${r} min` : `${h} h`) : `${m} min`;
+  };
+  const summeAusfall = (liste) => liste.reduce((sum, s) => sum + (Number(s.ausfallzeit) || 0), 0);
+
   // ---- Schichtbuch-Gruppierung: nach Datum, darin nach Schicht (Früh/Spät/Nacht) ----
   const stoerSichtbar = stoerungenSortiert.filter((s) => s.offen || stoerErledigteZeigen);
   const stoerGruppen = (() => {
@@ -805,14 +818,21 @@ function App() {
       if (!proTag.has(d)) proTag.set(d, []);
       proTag.get(d).push(s);
     });
+    // innerhalb einer Schicht nach Uhrzeit sortieren (frühestes zuerst)
+    const nachZeit = (arr) => [...arr].sort((a, b) => String(a.gemeldetAt || "").localeCompare(String(b.gemeldetAt || "")));
     return Array.from(proTag.keys())
       .sort((a, b) => String(b).localeCompare(String(a)))
       .map((d) => {
         const liste = proTag.get(d);
-        const proSchicht = STOER_SCHICHTEN.map((sch) => [sch, liste.filter((s) => s.schicht === sch)]);
-        const ohne = liste.filter((s) => !STOER_SCHICHTEN.includes(s.schicht));
-        if (ohne.length) proSchicht.push(["—", ohne]);
-        return { datum: d, liste, proSchicht: proSchicht.filter(([, arr]) => arr.length > 0), offen: liste.filter((s) => s.offen).length };
+        const proSchicht = STOER_SCHICHTEN.map((sch) => ({ sch, liste: nachZeit(liste.filter((s) => s.schicht === sch)) }));
+        const ohne = nachZeit(liste.filter((s) => !STOER_SCHICHTEN.includes(s.schicht)));
+        if (ohne.length) proSchicht.push({ sch: "—", liste: ohne });
+        return {
+          datum: d, liste,
+          proSchicht: proSchicht.filter((x) => x.liste.length > 0).map((x) => ({ ...x, ausfall: summeAusfall(x.liste), offen: x.liste.filter((s) => s.offen).length })),
+          offen: liste.filter((s) => s.offen).length,
+          ausfall: summeAusfall(liste),
+        };
       });
   })();
   const istTagOffen = (d, idx) => (stoerOffeneTage === null ? idx === 0 : stoerOffeneTage.has(d));
@@ -821,59 +841,41 @@ function App() {
     if (basis.has(d)) basis.delete(d); else basis.add(d);
     return basis;
   });
+  const schichtSchluessel = (d, sch) => `${d}|${sch}`;
+  const istSchichtOffen = (d, sch) => stoerOffeneSchichten.has(schichtSchluessel(d, sch));
+  const toggleStoerSchicht = (d, sch) => setStoerOffeneSchichten((prev) => {
+    const next = new Set(prev);
+    const k = schichtSchluessel(d, sch);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    return next;
+  });
+  // Detailansicht (Popout) einer Störung öffnen - zunächst nur lesend
+  const oeffneStoerDetail = (s) => {
+    setSDraft({ id: s.id, date: s.date || todayKey, schicht: s.schicht || "", anlage: s.anlage || "", anlagenteil: s.anlagenteil || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", dringlichkeit: s.dringlichkeit || "steht", ausfallzeit: s.ausfallzeit ?? "", status: s.offen ? "offen" : "erledigt", melder: s.melder || "" });
+    setStoerModal({ mode: "view", id: s.id });
+  };
 
-  // Eine einzelne Störungs-Karte (im Schichtbuch unter der jeweiligen Schicht)
-  const renderStoerKarte = (s) => {
+  // Kompakte Zeile im Schichtbuch: Zeit + Anlage links, Beschreibung rechts,
+  // Ausfallzeit + Status. Klick öffnet den kompletten Bericht als Popout.
+  const renderStoerZeile = (s) => {
     const dr = STOER_DRINGLICHKEIT[s.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
+    const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
-      <div key={s.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderLeft: `5px solid ${s.offen ? "#C0392B" : "#1F7A3D"}`, boxShadow: "0 1px 5px rgba(20,22,25,0.05)", opacity: s.offen ? 1 : 0.85 }}>
-        <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap">
-          <span className="font-extrabold" style={{ fontSize: "0.98rem", color: "#22262B" }}>{s.anlage || "—"}</span>
-          {s.anlagenteil && <span className="rounded" style={{ fontSize: "0.7rem", padding: "2px 7px", backgroundColor: "#EEF1F4", color: "#5B6572", fontWeight: 700 }}>{s.anlagenteil}</span>}
-          {s.offen
-            ? <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: dr.bg, color: dr.color }}>{dr.kurz}</span>
-            : <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#EAF3EC", color: "#1F7A3D" }}>✓ behoben</span>}
-          <span className="ml-auto" />
-          {stoerDarfSchreiben ? (
-            <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #E2E4E7" }}>
-              <button onClick={() => { if (!s.offen) stoerStatusUmschalten(s.id); }} className="font-bold" style={{ fontSize: "0.76rem", padding: "4px 11px", backgroundColor: s.offen ? "#C0392B" : "transparent", color: s.offen ? "#fff" : "#5B6572" }}>{s.offen ? "● Offen" : "Offen"}</button>
-              <button onClick={() => { if (s.offen) stoerStatusUmschalten(s.id); }} className="font-bold" style={{ fontSize: "0.76rem", padding: "4px 11px", backgroundColor: !s.offen ? "#1F7A3D" : "transparent", color: !s.offen ? "#fff" : "#5B6572" }}>{!s.offen ? "● Erledigt" : "Erledigt"}</button>
-            </div>
-          ) : (
-            <span className="text-xs font-bold" style={{ color: s.offen ? "#C0392B" : "#1F7A3D" }}>{s.offen ? "Offen" : "Erledigt"}</span>
-          )}
-        </div>
-        <div className="px-4 pb-2.5">
-          {[["⚠ Störungs Beschreibung", s.stoerung], ["🔍 Störungs Ursache", s.ursache], ["🔧 Sofort Maßnahme", s.getan]].map(([lab, val], i) => (
-            (val && String(val).trim()) ? (
-              <div key={i} className="py-1.5" style={{ borderTop: i === 0 ? "none" : "1px solid #EFF1F3" }}>
-                <div className="font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.5px", color: "#8A9099", marginBottom: "2px" }}>{lab}</div>
-                <div style={{ fontSize: "0.9rem", color: "#39414B", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{val}</div>
-              </div>
-            ) : null
-          ))}
-          {s.offen && s.nochZuTun && String(s.nochZuTun).trim() && (
-            <div className="mt-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#FBEAE8" }}>
-              <div className="font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.5px", color: "#C0392B", marginBottom: "2px" }}>📌 Zu Planende Maßnahme</div>
-              <div style={{ fontSize: "0.9rem", color: "#39414B", fontWeight: 600, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{s.nochZuTun}</div>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 px-4 py-2 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", fontSize: "0.73rem", color: "#8A9099" }}>
-          <span>{s.melder ? `${s.melder} · ` : ""}gemeldet {s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : ""} Uhr</span>
-          {!s.offen && s.behobenAt && <span>· behoben {new Date(s.behobenAt).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
-          <span className="ml-auto" />
-          {stoerDarfSchreiben && (
-            <>
-              <button disabled title="Weiterleiten kommt in einer späteren Version" className="rounded font-bold inline-flex items-center gap-1" style={{ fontSize: "0.7rem", padding: "3px 8px", border: "1.5px dashed #C4CBD2", color: "#A6AEB6", cursor: "not-allowed" }}>
-                📤 Weiterleiten <span style={{ fontSize: "0.54rem", backgroundColor: "#FBF3DA", color: "#9A6B00", padding: "1px 5px", borderRadius: "10px" }}>bald</span>
-              </button>
-              <button onClick={() => { setSDraft({ id: s.id, date: s.date || todayKey, schicht: s.schicht || "", anlage: s.anlage || "", anlagenteil: s.anlagenteil || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", dringlichkeit: s.dringlichkeit || "steht", status: s.offen ? "offen" : "erledigt", melder: s.melder || "" }); setStoerModal({ mode: "edit", id: s.id }); }} className="rounded font-bold text-white" style={{ fontSize: "0.7rem", padding: "4px 11px", backgroundColor: "#22262B" }}>Bearbeiten</button>
-              <button onClick={() => loescheStoerung(s.id)} className="rounded font-bold" style={{ fontSize: "0.9rem", padding: "2px 9px", backgroundColor: "rgba(0,0,0,0.06)", color: "#8A9099" }} title="Störung löschen" aria-label="Störung löschen">×</button>
-            </>
-          )}
-        </div>
-      </div>
+      <button key={s.id} onClick={() => oeffneStoerDetail(s)}
+        className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-white"
+        style={{ borderTop: "1px solid #EDEFF2", backgroundColor: "transparent" }}>
+        <span className="font-mono flex-shrink-0" style={{ fontSize: "0.72rem", color: "#8A9099", width: "42px" }}>{zeit}</span>
+        <span className="flex-shrink-0" style={{ minWidth: "150px", maxWidth: "220px" }}>
+          <span className="font-extrabold" style={{ fontSize: "0.86rem", color: "#22262B" }}>{s.anlage || "—"}</span>
+          {s.anlagenteil && <span style={{ fontSize: "0.72rem", color: "#8A9099" }}> · {s.anlagenteil}</span>}
+        </span>
+        <span className="flex-1" style={{ fontSize: "0.82rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.stoerung || <span className="italic">—</span>}</span>
+        {(Number(s.ausfallzeit) || 0) > 0 && <span className="flex-shrink-0 font-mono" style={{ fontSize: "0.72rem", color: "#8A9099" }}>{minutenText(s.ausfallzeit)}</span>}
+        <span className="flex-shrink-0 inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.3px", padding: "2px 8px", backgroundColor: s.offen ? dr.bg : "#EAF3EC", color: s.offen ? dr.color : "#1F7A3D" }}>
+          {s.offen ? dr.kurz : "✓ behoben"}
+        </span>
+        <span className="flex-shrink-0" style={{ color: "#C4CBD2", fontSize: "0.8rem" }}>›</span>
+      </button>
     );
   };
 
@@ -2831,7 +2833,7 @@ function App() {
             <span className="ml-auto" />
             {stoerDarfSchreiben && (
               <button
-                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", dringlichkeit: "steht", status: "offen", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
+                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", dringlichkeit: "steht", ausfallzeit: "", status: "offen", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
                 className="flex items-center gap-2 rounded-lg text-white font-bold"
                 style={{ backgroundColor: "#C0392B", padding: "8px 14px", fontSize: "0.85rem" }}
               >
@@ -2893,28 +2895,38 @@ function App() {
                             {d ? d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "ohne Datum"}
                           </span>
                           {istHeute && <span className="rounded-full font-bold uppercase" style={{ fontSize: "0.58rem", padding: "2px 7px", backgroundColor: "#C97A2B", color: "#fff" }}>heute</span>}
-                          <span className="ml-auto flex items-center gap-2">
+                          <span className="ml-auto flex items-center gap-2.5">
+                            {g.ausfall > 0 && <span className="font-mono" style={{ color: "#8A9099", fontSize: "0.72rem" }} title="Ausfallzeit gesamt">⏱ {minutenText(g.ausfall)}</span>}
                             {g.offen > 0 && <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C0392B", fontSize: "0.62rem" }}>{g.offen} offen</span>}
                             <span style={{ color: "#8A9099", fontSize: "0.72rem" }}>{g.liste.length} Eintrag{g.liste.length === 1 ? "" : "e"}</span>
                           </span>
                         </button>
-                        {/* Schicht-Abschnitte */}
+                        {/* Schichten: als aufklappbare Zeilen (Dropdown) */}
                         {auf && (
-                          <div className="px-3 py-3" style={{ backgroundColor: "#FCFDFE" }}>
-                            {g.proSchicht.map(([sch, liste]) => {
+                          <div style={{ backgroundColor: "#FCFDFE" }}>
+                            {g.proSchicht.map(({ sch, liste, ausfall, offen: schOffen }) => {
                               const farbe = SCHICHTEN[sch] || { color: "#8A9099", text: "#fff" };
+                              const schichtAuf = istSchichtOffen(g.datum, sch);
                               return (
-                                <div key={sch} className="mb-3 last:mb-0">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.68rem", letterSpacing: "0.5px", padding: "3px 10px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
+                                <div key={sch} style={{ borderTop: "1px solid #EDEFF2" }}>
+                                  {/* Schicht-Kopf (klickbar) */}
+                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="w-full flex items-center gap-3 px-4 py-2 text-left">
+                                    <span style={{ color: "#8A9099", fontSize: "0.75rem", width: "12px" }}>{schichtAuf ? "▾" : "▸"}</span>
+                                    <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.66rem", letterSpacing: "0.5px", padding: "2px 10px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
                                       {sch === "—" ? "ohne Schicht" : sch}
                                     </span>
-                                    <span style={{ flex: 1, height: "1px", backgroundColor: "#E7EAED" }} />
-                                    <span style={{ color: "#A6AEB6", fontSize: "0.68rem" }}>{liste.length}</span>
-                                  </div>
-                                  <div className="grid gap-2.5" style={{ paddingLeft: "4px" }}>
-                                    {liste.map((s) => renderStoerKarte(s))}
-                                  </div>
+                                    <span className="ml-auto flex items-center gap-2.5">
+                                      {ausfall > 0 && <span className="font-mono" style={{ color: "#A6AEB6", fontSize: "0.7rem" }}>⏱ {minutenText(ausfall)}</span>}
+                                      {schOffen > 0 && <span className="rounded-full text-white font-bold" style={{ padding: "1px 7px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{schOffen} offen</span>}
+                                      <span style={{ color: "#A6AEB6", fontSize: "0.7rem" }}>{liste.length}</span>
+                                    </span>
+                                  </button>
+                                  {/* Zeilen (Zeit + Anlage + Beschreibung) */}
+                                  {schichtAuf && (
+                                    <div style={{ backgroundColor: "#F7F9FB" }}>
+                                      {liste.map((s) => renderStoerZeile(s))}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -4268,11 +4280,74 @@ function App() {
         ]));
         // Anlagenteile zur aktuell gewählten Anlage (von Roberto im ⚙-Dialog gepflegt)
         const teileZurAnlage = anlagenteile.filter((t) => t.anlage === String(sDraft.anlage || "").trim());
+        const schliessen = () => { setStoerModal(null); setSDraft(null); };
+
+        // ---- View-Modus: kompletter Bericht, zunächst NUR LESEND ----
+        if (stoerModal.mode === "view") {
+          const live = stoerungen.find((x) => x.id === stoerModal.id) || {};
+          const dr = STOER_DRINGLICHKEIT[sDraft.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
+          const dObj = sDraft.date ? new Date(sDraft.date + "T00:00:00") : null;
+          const farbe = SCHICHTEN[sDraft.schicht] || { color: "#8A9099", text: "#fff" };
+          const feld = (lab, val, akzent) => (val && String(val).trim()) ? (
+            <div className="py-2.5" style={{ borderTop: "1px solid #EFF1F3" }}>
+              <div className="font-extrabold uppercase" style={{ fontSize: "0.62rem", letterSpacing: "0.5px", color: akzent || "#8A9099", marginBottom: "3px" }}>{lab}</div>
+              <div style={{ fontSize: "0.94rem", color: "#39414B", whiteSpace: "pre-wrap", wordBreak: "break-word", fontWeight: akzent ? 600 : 400 }}>{val}</div>
+            </div>
+          ) : null;
+          return (
+            <div className="no-print" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }} onClick={schliessen}>
+              <div style={{ backgroundColor: "white", borderRadius: "12px", width: "560px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", overflow: "hidden" }} onClick={(ev) => ev.stopPropagation()}>
+                {/* Kopfband */}
+                <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ backgroundColor: offen ? "#FBEAE8" : "#EAF3EC", borderBottom: `1px solid ${offen ? "#E7B9B3" : "#BFE0C6"}` }}>
+                  <span className="font-black" style={{ fontSize: "1.05rem", color: "#22262B" }}>Störbericht</span>
+                  {offen
+                    ? <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#fff", color: dr.color }}>{dr.kurz}</span>
+                    : <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#fff", color: "#1F7A3D" }}>✓ behoben</span>}
+                  <span className="ml-auto" />
+                  <button onClick={schliessen} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+                </div>
+                <div className="px-5 py-3">
+                  {/* Kenndaten */}
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-extrabold" style={{ fontSize: "1.05rem", color: "#22262B" }}>{sDraft.anlage || "—"}</span>
+                    {sDraft.anlagenteil && <span className="rounded" style={{ fontSize: "0.72rem", padding: "2px 8px", backgroundColor: "#EEF1F4", color: "#5B6572", fontWeight: 700 }}>{sDraft.anlagenteil}</span>}
+                    {sDraft.schicht && <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.62rem", padding: "2px 9px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>{sDraft.schicht}</span>}
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap mb-1" style={{ fontSize: "0.78rem", color: "#8A9099" }}>
+                    <span>{dObj ? dObj.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "ohne Datum"}</span>
+                    {(Number(sDraft.ausfallzeit) || 0) > 0 && <span>⏱ Ausfallzeit {minutenText(sDraft.ausfallzeit)}</span>}
+                  </div>
+                  {feld("⚠ Störungs Beschreibung", sDraft.stoerung)}
+                  {feld("🔍 Störungs Ursache", sDraft.ursache)}
+                  {feld("🔧 Sofort Maßnahme", sDraft.getan)}
+                  {offen && feld("📌 Zu Planende Maßnahme", sDraft.nochZuTun, "#C0392B")}
+                </div>
+                {/* Fuß: Meta + Bearbeiten entsichert */}
+                <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", backgroundColor: "#FAFBFC" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#8A9099" }}>
+                    {live.melder ? `${live.melder} · ` : ""}gemeldet {live.gemeldetAt ? new Date(live.gemeldetAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
+                    {!offen && live.behobenAt ? ` · behoben ${new Date(live.behobenAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
+                  </span>
+                  <span className="ml-auto" />
+                  {stoerDarfSchreiben ? (
+                    <button onClick={() => setStoerModal({ mode: "edit", id: stoerModal.id })} className="rounded-lg font-bold text-white inline-flex items-center gap-1.5" style={{ fontSize: "0.85rem", padding: "8px 16px", backgroundColor: "#22262B" }}>
+                      🔓 Bearbeiten
+                    </button>
+                  ) : (
+                    <span className="text-xs italic" style={{ color: "#A6AEB6" }}>nur Ansicht</span>
+                  )}
+                  <button onClick={schliessen} className="rounded-lg font-bold" style={{ fontSize: "0.85rem", padding: "8px 14px", backgroundColor: "#EEF1F4", color: "#5B6572" }}>Schließen</button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div
             className="no-print"
             style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
-            onClick={() => { setStoerModal(null); setSDraft(null); }}
+            onClick={schliessen}
           >
             <div
               style={{ backgroundColor: "white", borderRadius: "12px", padding: "20px", width: "540px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
@@ -4346,20 +4421,26 @@ function App() {
                   </div>
                 </div>
 
-                {/* Dringlichkeit */}
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Dringlichkeit</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {Object.entries(STOER_DRINGLICHKEIT).map(([key, d]) => {
-                      const aktiv = sDraft.dringlichkeit === key;
-                      return (
-                        <button key={key} onClick={() => setSDraft({ ...sDraft, dringlichkeit: key })}
-                          className="flex-1 rounded-lg font-bold text-center"
-                          style={{ minWidth: "110px", padding: "9px 8px", fontSize: "0.8rem", border: `2px solid ${aktiv ? d.color : "#E2E4E7"}`, backgroundColor: aktiv ? d.bg : "transparent", color: aktiv ? d.color : "#5B6572" }}>
-                          {d.kurz}
-                        </button>
-                      );
-                    })}
+                {/* Dringlichkeit + Ausfallzeit */}
+                <div className="flex gap-3 flex-wrap items-end">
+                  <div className="flex-1" style={{ minWidth: "220px" }}>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Dringlichkeit</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {Object.entries(STOER_DRINGLICHKEIT).map(([key, d]) => {
+                        const aktiv = sDraft.dringlichkeit === key;
+                        return (
+                          <button key={key} onClick={() => setSDraft({ ...sDraft, dringlichkeit: key })}
+                            className="flex-1 rounded-lg font-bold text-center"
+                            style={{ minWidth: "100px", padding: "9px 8px", fontSize: "0.8rem", border: `2px solid ${aktiv ? d.color : "#E2E4E7"}`, backgroundColor: aktiv ? d.bg : "transparent", color: aktiv ? d.color : "#5B6572" }}>
+                            {d.kurz}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Ausfallzeit (Min.)</label>
+                    <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", width: "120px" }} />
                   </div>
                 </div>
 
@@ -4389,8 +4470,8 @@ function App() {
                   <input value={sDraft.melder} onChange={(ev) => setSDraft({ ...sDraft, melder: ev.target.value })} placeholder="z. B. RC" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", maxWidth: "160px" }} />
                 </div>
 
-                <div className="flex gap-2 items-center mt-1">
-                  <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#22262B" : "#B7BEC6" }}>Speichern</button>
+                <div className="flex gap-2 items-center mt-1 flex-wrap">
+                  <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#22262B" : "#B7BEC6", minWidth: "120px" }}>Speichern</button>
                   <button
                     disabled
                     title="Weiterleiten kommt in einer späteren Version"
@@ -4399,7 +4480,10 @@ function App() {
                   >
                     📤 Weiterleiten <span style={{ fontSize: "0.56rem", backgroundColor: "#FBF3DA", color: "#9A6B00", padding: "1px 5px", borderRadius: "10px" }}>bald</span>
                   </button>
-                  <button onClick={() => { setStoerModal(null); setSDraft(null); }} className="text-sm font-bold py-2.5 px-4 rounded-lg bg-slate-100 text-slate-500">Abbrechen</button>
+                  {stoerModal.mode === "edit" && (
+                    <button onClick={() => loescheStoerung(stoerModal.id)} className="text-sm font-bold py-2.5 px-4 rounded-lg" style={{ backgroundColor: "#FBEAE8", color: "#C0392B" }}>Löschen</button>
+                  )}
+                  <button onClick={() => { if (stoerModal.mode === "edit" && stoerModal.id) { setStoerModal({ mode: "view", id: stoerModal.id }); } else { setStoerModal(null); setSDraft(null); } }} className="text-sm font-bold py-2.5 px-4 rounded-lg bg-slate-100 text-slate-500">Abbrechen</button>
                 </div>
               </div>
             </div>
