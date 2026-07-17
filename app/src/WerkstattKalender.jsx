@@ -1220,7 +1220,7 @@ function App() {
   const kalenderEntries = entries.filter((e) => e.category === "TPM" || e.category === "RI");
   const zettelListe = entries
     .filter((e) => e.category === "NOTIZ")
-    .sort((a, b) => String(b.zeit || b.date).localeCompare(String(a.zeit || a.date)));
+    .sort((a, b) => (b.angeheftet ? 1 : 0) - (a.angeheftet ? 1 : 0) || String(b.zeit || b.date).localeCompare(String(a.zeit || a.date)));
   const heutePlan = todayPlanResult.assignments.filter((p) => p.date === todayKey);
   const statusFuerPlanPunkt = (p) => {
     const e = kalenderEntries.find((x) => x.date === p.date && x.name === p.anlage);
@@ -1277,6 +1277,9 @@ function App() {
   // sind intern - nur für Personen mit Bearbeiter-Rechten gedacht.
   const toggleZettelVeroeffentlicht = async (id) => {
     await persist(entries.map((e) => (e.id === id ? { ...e, veroeffentlicht: !e.veroeffentlicht } : e)));
+  };
+  const toggleZettelAngeheftet = async (id) => {
+    await persist(entries.map((e) => (e.id === id ? { ...e, angeheftet: !e.angeheftet } : e)));
   };
 
   // ---- Personen-Helfer (Zuweisung & Planung) ----
@@ -2754,6 +2757,15 @@ function App() {
                         style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "#22262B" }}
                       >
                         ➜ Zur Arbeit machen
+                      </button>
+                      <button
+                        onClick={() => toggleZettelAngeheftet(z.id)}
+                        className="inline-flex items-center justify-center rounded"
+                        style={iconStil(z.angeheftet)}
+                        title={z.angeheftet ? "Angeheftet: Zettel bleibt oben – Klick löst ihn" : "Anheften: Zettel bleibt immer oben in der Pinnwand"}
+                        aria-label={z.angeheftet ? "Nicht mehr anheften" : "Anheften"}
+                      >
+                        📌
                       </button>
                       <button
                         onClick={() => toggleZettelMonitor(z.id)}
