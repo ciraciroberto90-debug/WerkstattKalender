@@ -760,7 +760,7 @@ function App() {
         anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
         stoerung: draft.stoerung, ursache: draft.ursache,
         getan: draft.getan, nochZuTun: offen ? draft.nochZuTun : "",
-        dringlichkeit: draft.dringlichkeit, ausfallzeit, melder, offen, behobenAt,
+        ausfallzeit, melder, offen, behobenAt,
       } : s));
       await persistStoer(next);
     } else {
@@ -771,7 +771,7 @@ function App() {
         anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
         stoerung: draft.stoerung, ursache: draft.ursache || "",
         getan: draft.getan || "", nochZuTun: offen ? (draft.nochZuTun || "") : "",
-        dringlichkeit: draft.dringlichkeit || "steht", ausfallzeit,
+        ausfallzeit,
         melder, offen, gemeldetAt: jetzt, behobenAt: offen ? null : jetzt,
       };
       await persistStoer([...stoerungen, s]);
@@ -791,24 +791,16 @@ function App() {
     setStoerModal(null);
     setSDraft(null);
   };
-  // Sortierung: offene zuerst, darin nach Dringlichkeit, dann neueste zuerst
+  // Sortierung: offene zuerst, darin neueste zuerst
   const stoerungenSortiert = [...stoerungen].sort((a, b) => {
     if (!!a.offen !== !!b.offen) return a.offen ? -1 : 1;
-    const ra = STOER_DRINGLICHKEIT[a.dringlichkeit]?.rang ?? 9;
-    const rb = STOER_DRINGLICHKEIT[b.dringlichkeit]?.rang ?? 9;
-    if (ra !== rb) return ra - rb;
     return String(b.gemeldetAt || b.date).localeCompare(String(a.gemeldetAt || a.date));
   });
   const stoerOffenCount = stoerungen.filter((s) => s.offen).length;
   const stoerOffeneListe = stoerungenSortiert.filter((s) => s.offen); // für die Übersicht-Gedankenstütze
 
-  // Ausfallzeit hübsch: Minuten -> "2 h 15 min" / "45 min"
-  const minutenText = (min) => {
-    const m = Math.max(0, Math.round(Number(min) || 0));
-    if (m === 0) return "0 min";
-    const h = Math.floor(m / 60), r = m % 60;
-    return h > 0 ? (r > 0 ? `${h} h ${r} min` : `${h} h`) : `${m} min`;
-  };
+  // Ausfallzeit immer in Minuten anzeigen (Wunsch: durchgängig Minuten)
+  const minutenText = (min) => `${Math.max(0, Math.round(Number(min) || 0))} min`;
   const summeAusfall = (liste) => liste.reduce((sum, s) => sum + (Number(s.ausfallzeit) || 0), 0);
 
   // ---- Schichtbuch-Gruppierung: nach Datum, darin nach Schicht (Früh/Spät/Nacht) ----
@@ -860,7 +852,6 @@ function App() {
   // Kompakte Zeile im Schichtbuch: Zeit + Anlage links, Beschreibung rechts,
   // Ausfallzeit + Status. Klick öffnet den kompletten Bericht als Popout.
   const renderStoerZeile = (s) => {
-    const dr = STOER_DRINGLICHKEIT[s.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
     const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
       <button key={s.id} onClick={() => oeffneStoerDetail(s)}
@@ -872,9 +863,9 @@ function App() {
           {s.anlagenteil && <span style={{ fontSize: "0.72rem", color: "#8A9099" }}> · {s.anlagenteil}</span>}
         </span>
         <span className="flex-1" style={{ fontSize: "0.82rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.stoerung || <span className="italic">—</span>}</span>
-        {(Number(s.ausfallzeit) || 0) > 0 && <span className="flex-shrink-0 font-mono" style={{ fontSize: "0.72rem", color: "#8A9099" }}>{minutenText(s.ausfallzeit)}</span>}
-        <span className="flex-shrink-0 inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.3px", padding: "2px 8px", backgroundColor: s.offen ? dr.bg : "#EAF3EC", color: s.offen ? dr.color : "#1F7A3D" }}>
-          {s.offen ? dr.kurz : "✓ behoben"}
+        {(Number(s.ausfallzeit) || 0) > 0 && <span className="flex-shrink-0 font-mono rounded" style={{ fontSize: "0.72rem", padding: "1px 6px", color: "#9A6B00", backgroundColor: "#FBF3DA" }}>{minutenText(s.ausfallzeit)}</span>}
+        <span className="flex-shrink-0 inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.3px", padding: "2px 8px", backgroundColor: s.offen ? "#FBEAE8" : "#EAF3EC", color: s.offen ? "#C0392B" : "#1F7A3D" }}>
+          {s.offen ? "offen" : "✓ behoben"}
         </span>
         <span className="flex-shrink-0" style={{ color: "#C4CBD2", fontSize: "0.8rem" }}>›</span>
       </button>
@@ -2898,8 +2889,6 @@ function App() {
             const topAusfall = [...proAnlage].sort((a, b) => b.ausfall - a.ausfall || b.anzahl - a.anzahl).slice(0, 8);
             const topAnzahl = [...proAnlage].sort((a, b) => b.anzahl - a.anzahl || b.ausfall - a.ausfall).slice(0, 8);
             const proMonat = grp((s) => (s.date || "").slice(0, 7)).filter((r) => r.key).sort((a, b) => a.key.localeCompare(b.key)).slice(-12);
-            const dring = { steht: 0, eingeschraenkt: 0, wartet: 0 };
-            imZeitraum.forEach((s) => { if (dring[s.dringlichkeit] !== undefined) dring[s.dringlichkeit]++; });
             const maxAusfall = Math.max(1, ...topAusfall.map((r) => r.ausfall));
             const maxAnzahl = Math.max(1, ...topAnzahl.map((r) => r.anzahl));
             const maxMonat = Math.max(1, ...proMonat.map((r) => r.ausfall));
@@ -2925,7 +2914,6 @@ function App() {
                 </div>
               )
             );
-            const gesamtDring = Math.max(1, dring.steht + dring.eingeschraenkt + dring.wartet);
             return (
               <div>
                 {/* Zeitraum-Wahl */}
@@ -2970,30 +2958,14 @@ function App() {
                         <div className="flex items-end gap-2" style={{ height: "140px" }}>
                           {proMonat.map((r) => (
                             <div key={r.key} className="flex-1 flex flex-col items-center justify-end" style={{ height: "100%" }} title={`${minutenText(r.ausfall)} · ${r.anzahl} Störung(en)`}>
-                              <span style={{ fontSize: "0.6rem", color: "#8A9099", marginBottom: "2px" }}>{r.ausfall > 0 ? Math.round(r.ausfall / 60 * 10) / 10 + "h" : ""}</span>
+                              <span style={{ fontSize: "0.58rem", color: "#8A9099", marginBottom: "2px" }}>{r.ausfall > 0 ? r.ausfall : ""}</span>
                               <div style={{ width: "100%", maxWidth: "46px", height: `${Math.max(2, Math.round(r.ausfall / maxMonat * 100))}%`, backgroundColor: "#2F6690", borderRadius: "4px 4px 0 0" }} />
                               <span style={{ fontSize: "0.6rem", color: "#5B6572", marginTop: "3px", fontWeight: 700 }}>{monatLabel(r.key)}</span>
                             </div>
                           ))}
                         </div>
                       )}
-                    </div>
-
-                    {/* Dringlichkeitsverteilung */}
-                    <div className="rounded-xl p-4 mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
-                      <div className="text-xs font-extrabold uppercase mb-3" style={{ color: "#22262B" }}>Dringlichkeit</div>
-                      <div className="flex rounded-lg overflow-hidden" style={{ height: "26px" }}>
-                        {[["steht", dring.steht], ["eingeschraenkt", dring.eingeschraenkt], ["wartet", dring.wartet]].map(([k, n]) => n > 0 && (
-                          <div key={k} className="flex items-center justify-center text-white font-bold" style={{ width: `${n / gesamtDring * 100}%`, backgroundColor: STOER_DRINGLICHKEIT[k].color, fontSize: "0.7rem" }} title={`${STOER_DRINGLICHKEIT[k].label}: ${n}`}>{n}</div>
-                        ))}
-                      </div>
-                      <div className="flex gap-4 mt-2 flex-wrap">
-                        {Object.entries(STOER_DRINGLICHKEIT).map(([k, d]) => (
-                          <span key={k} className="flex items-center gap-1.5" style={{ fontSize: "0.72rem", color: "#5B6572" }}>
-                            <span style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: d.color }} />{d.label}: <strong>{dring[k]}</strong>
-                          </span>
-                        ))}
-                      </div>
+                      <div className="text-right mt-1" style={{ fontSize: "0.62rem", color: "#A6AEB6" }}>Werte in Minuten</div>
                     </div>
                   </>
                 )}
@@ -3148,20 +3120,17 @@ function App() {
                 <button onClick={() => setCockpitTab("STOERUNGEN")} className="ml-auto text-xs font-bold" style={{ color: "#C0392B" }}>➜ Störungen</button>
               </div>
               <div className="px-2 py-1.5">
-                {stoerOffeneListe.slice(0, 5).map((s) => {
-                  const dr = STOER_DRINGLICHKEIT[s.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
-                  return (
-                    <button key={s.id} onClick={() => setCockpitTab("STOERUNGEN")} className="w-full flex items-start gap-2.5 px-2 py-1.5 text-left rounded hover:bg-slate-50" style={{ borderLeft: `3px solid ${dr.color}`, marginBottom: "2px" }}>
-                      <span className="font-extrabold flex-shrink-0" style={{ fontSize: "0.82rem", color: "#22262B", minWidth: "0" }}>
-                        {s.anlage || "—"}{s.anlagenteil ? <span style={{ fontWeight: 500, color: "#8A9099" }}> · {s.anlagenteil}</span> : ""}
-                      </span>
-                      <span className="flex-1" style={{ fontSize: "0.8rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {(s.nochZuTun && String(s.nochZuTun).trim()) ? <span style={{ color: "#C0392B", fontWeight: 600 }}>📌 {s.nochZuTun}</span> : s.stoerung}
-                      </span>
-                      <span className="flex-shrink-0 rounded-full font-bold uppercase" style={{ fontSize: "0.56rem", padding: "2px 7px", backgroundColor: dr.bg, color: dr.color }}>{dr.kurz}</span>
-                    </button>
-                  );
-                })}
+                {stoerOffeneListe.slice(0, 5).map((s) => (
+                  <button key={s.id} onClick={() => setCockpitTab("STOERUNGEN")} className="w-full flex items-start gap-2.5 px-2 py-1.5 text-left rounded hover:bg-slate-50" style={{ borderLeft: "3px solid #C0392B", marginBottom: "2px" }}>
+                    <span className="font-extrabold flex-shrink-0" style={{ fontSize: "0.82rem", color: "#22262B", minWidth: "0" }}>
+                      {s.anlage || "—"}{s.anlagenteil ? <span style={{ fontWeight: 500, color: "#8A9099" }}> · {s.anlagenteil}</span> : ""}
+                    </span>
+                    <span className="flex-1" style={{ fontSize: "0.8rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {(s.nochZuTun && String(s.nochZuTun).trim()) ? <span style={{ color: "#C0392B", fontWeight: 600 }}>📌 {s.nochZuTun}</span> : s.stoerung}
+                    </span>
+                    {(Number(s.ausfallzeit) || 0) > 0 && <span className="flex-shrink-0 font-mono rounded" style={{ fontSize: "0.68rem", padding: "1px 6px", color: "#9A6B00", backgroundColor: "#FBF3DA" }}>{minutenText(s.ausfallzeit)}</span>}
+                  </button>
+                ))}
                 {stoerOffeneListe.length > 5 && (
                   <button onClick={() => setCockpitTab("STOERUNGEN")} className="w-full text-center py-1.5 text-xs font-bold" style={{ color: "#8A9099" }}>+ {stoerOffeneListe.length - 5} weitere</button>
                 )}
@@ -4419,7 +4388,6 @@ function App() {
         // ---- View-Modus: kompletter Bericht, zunächst NUR LESEND ----
         if (stoerModal.mode === "view") {
           const live = stoerungen.find((x) => x.id === stoerModal.id) || {};
-          const dr = STOER_DRINGLICHKEIT[sDraft.dringlichkeit] || STOER_DRINGLICHKEIT.steht;
           const dObj = sDraft.date ? new Date(sDraft.date + "T00:00:00") : null;
           const farbe = SCHICHTEN[sDraft.schicht] || { color: "#8A9099", text: "#fff" };
           const feld = (lab, val, akzent) => (val && String(val).trim()) ? (
@@ -4434,9 +4402,7 @@ function App() {
                 {/* Kopfband */}
                 <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ backgroundColor: offen ? "#FBEAE8" : "#EAF3EC", borderBottom: `1px solid ${offen ? "#E7B9B3" : "#BFE0C6"}` }}>
                   <span className="font-black" style={{ fontSize: "1.05rem", color: "#22262B" }}>Störbericht</span>
-                  {offen
-                    ? <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#fff", color: dr.color }}>{dr.kurz}</span>
-                    : <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#fff", color: "#1F7A3D" }}>✓ behoben</span>}
+                  <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#fff", color: offen ? "#C0392B" : "#1F7A3D" }}>{offen ? "offen" : "✓ behoben"}</span>
                   <span className="ml-auto" />
                   <button onClick={schliessen} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
                 </div>
@@ -4449,7 +4415,9 @@ function App() {
                   </div>
                   <div className="flex items-center gap-3 flex-wrap mb-1" style={{ fontSize: "0.78rem", color: "#8A9099" }}>
                     <span>{dObj ? dObj.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "ohne Datum"}</span>
-                    {(Number(sDraft.ausfallzeit) || 0) > 0 && <span>⏱ Ausfallzeit {minutenText(sDraft.ausfallzeit)}</span>}
+                    {(Number(sDraft.ausfallzeit) || 0) > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded font-bold" style={{ fontSize: "0.74rem", padding: "2px 9px", backgroundColor: "#FBF3DA", color: "#9A6B00" }}>⏱ Ausfallzeit {minutenText(sDraft.ausfallzeit)}</span>
+                    )}
                   </div>
                   {feld("⚠ Störungs Beschreibung", sDraft.stoerung)}
                   {feld("🔍 Störungs Ursache", sDraft.ursache)}
@@ -4555,27 +4523,10 @@ function App() {
                   </div>
                 </div>
 
-                {/* Dringlichkeit + Ausfallzeit */}
-                <div className="flex gap-3 flex-wrap items-end">
-                  <div className="flex-1" style={{ minWidth: "220px" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Dringlichkeit</label>
-                    <div className="flex gap-2 flex-wrap">
-                      {Object.entries(STOER_DRINGLICHKEIT).map(([key, d]) => {
-                        const aktiv = sDraft.dringlichkeit === key;
-                        return (
-                          <button key={key} onClick={() => setSDraft({ ...sDraft, dringlichkeit: key })}
-                            className="flex-1 rounded-lg font-bold text-center"
-                            style={{ minWidth: "100px", padding: "9px 8px", fontSize: "0.8rem", border: `2px solid ${aktiv ? d.color : "#E2E4E7"}`, backgroundColor: aktiv ? d.bg : "transparent", color: aktiv ? d.color : "#5B6572" }}>
-                            {d.kurz}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Ausfallzeit (Min.)</label>
-                    <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", width: "120px" }} />
-                  </div>
+                {/* Ausfallzeit (orange hervorgehoben) */}
+                <div className="rounded-lg p-3" style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7CF8F" }}>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#9A6B00" }}>⏱ Ausfallzeit (Minuten)</label>
+                  <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#E7CF8F", width: "140px", backgroundColor: "#fff" }} />
                 </div>
 
                 <div>
