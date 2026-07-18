@@ -36,9 +36,9 @@ Es bündelt die tägliche Werkstattorganisation an einem Ort:
 - **Backlog** – Sammlung offener Arbeiten mit Prioritäten
 - **TPM-Plan & R+I** – wiederkehrende Wartungen und Inspektionen
 - **Pinnwand** – Notizen für alle (z. B. Übergabe an den Vertreter)
-- **Störungen** – digitales Schichtbuch Instandhaltung (siehe Kapitel 6)
+- **Störberichte** – digitales Schichtbuch Instandhaltung / Nachdokumentation (siehe Kapitel 6)
 - **Werkstatt-Monitor** – Vollbild-Anzeige für einen Hallenbildschirm
-- **Auswertung** – Ausfallzeiten und Störungshäufigkeit je Anlage
+- **Auswertung** – Ausfallzeiten, Störungshäufigkeit, Mechanik/Elektrik, Fehlerart
 
 ---
 
@@ -135,38 +135,62 @@ Störungen, nicht den Rest.
 
 ---
 
-## 6. Störungen (Schichtbuch)
+## 6. Störberichte (Schichtbuch)
 
-Der Reiter **Störungen** bildet euer Schichtbuch Instandhaltung digital ab.
+Der Reiter **Störungen** ist euer digitales Schichtbuch Instandhaltung.
+
+> **Wichtig – es ist eine Nachdokumentation, kein Melde-Tool:** Mechaniker und
+> Elektriker halten hier **nach der Behebung** fest, was war und was getan wurde.
+> Das eigentliche *Melden* einer Störung läuft bei euch über einen anderen Weg.
+> Deshalb heißt die Aktion **„Störbericht erfassen"**, nicht „melden".
 
 ### Aufbau der Liste
-- **Nach Datum gruppiert**, aufklappbar. Jeder Tag zeigt die **Ausfallzeit-Summe** und
-  die Zahl der offenen Störungen.
+- **Nach Datum gruppiert**, aufklappbar. Jeder Tag zeigt die **Ausfallzeit-Summe** (in
+  Minuten) und die Zahl der offenen Berichte.
 - Tag aufklappen → **Schichten Früh/Spät/Nacht** als eigene aufklappbare Zeilen (je mit
   ihrer Ausfallzeit-Summe).
 - Schicht aufklappen → **kompakte Zeilen**: Uhrzeit + Anlage (· Anlagenteil) links,
-  Störungsbeschreibung rechts, Ausfallzeit (in **Minuten**) und Status.
+  Beschreibung rechts, Ausfallzeit (**Minuten**) und Status (offen / behoben).
 
-### Störbericht öffnen und bearbeiten
-- **Klick auf eine Zeile** öffnet den **kompletten Störbericht als Popout – zunächst nur lesend.**
+### Suche
+Ein **🔍 Suchfeld** über der Liste durchsucht **alle** Berichte quer durch die Historie
+(Anlage, Anlagenteil, Beschreibung, Ursache, Maßnahme, Bearbeiter, Fehlerart) und zeigt
+die Treffer als flache Liste.
+
+### Störbericht öffnen, ansehen, bearbeiten
+- **Klick auf eine Zeile** öffnet den kompletten Bericht als **Popout – zunächst nur lesend.**
+- Im Popout siehst du zusätzlich **♻️ frühere Berichte derselben Anlage** (Wiederholungsfehler
+  auf einen Blick).
 - Erst der Knopf **🔓 Bearbeiten** „entsichert" den Bericht und zeigt alle Möglichkeiten
-  (Felder ändern, Status, Löschen).
+  (Felder ändern, Status, **Löschen**).
+- **🖨 Drucken** erzeugt ein sauberes **A4-Blatt** (eigenes Druckfenster, mit
+  Unterschriftszeilen). Hinweis: im Browser ggf. einmal Popups für die Seite erlauben.
+- **→ Backlog** übernimmt eine offene *Zu Planende Maßnahme* als Backlog-Aufgabe
+  (nur mit Schreibrecht auf die Hauptdaten).
 
-### Eine Störung melden
-Über **„⚠ Störung melden"**. Felder:
-- **Status** Offen / Erledigt
-- **Datum** (Vorgabe: heute) und **Schicht** Früh/Spät/Nacht (Pflicht, wird nicht automatisch gesetzt)
-- **Anlage** und **Anlagenteil** (Teile werden im ⚙-Dialog gepflegt)
-- **⏱ Ausfallzeit** in Minuten (orange hervorgehoben)
-- **Störungs Beschreibung**, **Störungs Ursache**, **Sofort Maßnahme**
-- bei Status *Offen* zusätzlich **Zu Planende Maßnahme**
-- **Dein Kürzel** (Melder)
+### Einen Störbericht erfassen
+Über **„📝 Störbericht erfassen"**. Felder (**\*** = Pflicht):
+- **Status \*** Offen / Erledigt – **nicht vorausgewählt**, muss aktiv gewählt werden.
+- **Datum** (Vorgabe heute) und **Schicht \*** Früh/Spät/Nacht.
+- **Anlage \*** und **Anlagenteil** (Teile werden im ⚙-Dialog gepflegt).
+- **Gewerk** 🔧 Mechanik / ⚡ Elektrik / 🔧⚡ Beide und **Fehlerart**
+  (Hydraulisch, Elektrisch, Pneumatisch, Verschleiß, Steuerung/Software …).
+- **⏱ Ausfallzeit** in Minuten (orange) – bei *Erledigt* zusätzlich **✓ Behoben am** (frei setzbar).
+- **Störungs Beschreibung \***, **Störungs Ursache**, **Sofort Maßnahme**.
+- **🧩 Ersatzteile / Material** (+ Haken „nachbestellt").
+- bei Status *Offen* zusätzlich **Zu Planende Maßnahme**.
+- **Bearbeiter (Kürzel)** – wird für das nächste Mal gemerkt.
+
+Bei Status **Erledigt** sind **Ursache** und **Sofort Maßnahme** Pflicht, damit die
+Dokumentation vollständig ist.
 
 ### Auswertung
 Umschalter **Liste | Auswertung**, Zeitraum wählbar (Monat / Jahr / Alle):
-- Kennzahlen: Anzahl, offen, **Ausfallzeit gesamt**, Ø je Störung (alles in Minuten)
-- **Ausfallzeit je Anlage** und **Anzahl Störungen je Anlage** (Balken)
-- **Ausfallzeit je Monat** (Säulenverlauf)
+- Kennzahlen: Anzahl, offen, **Ausfallzeit gesamt**, Ø je Störung (alles in Minuten).
+- **Ausfallzeit je Anlage** und **Anzahl Störungen je Anlage** (Balken).
+- **Ausfallzeit je Monat** (Säulenverlauf).
+- **Mechanik / Elektrik** (Verteilung nach Gewerk).
+- **Fehlerart** (Verteilung nach Fehlerbild).
 
 ---
 
