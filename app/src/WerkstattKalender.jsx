@@ -211,12 +211,14 @@ const STORAGE_KEY = "werkstatt-kalender-entries";
 const CONFIG_STORAGE_KEY = "werkstatt-kalender-config";
 const STOER_STORAGE_KEY = "werkstatt-stoerungen-entries"; // eigene Datei für Störungen (für alle beschreibbar)
 
-// Dringlichkeitsstufen einer Störung (Reihenfolge = Sortierung, oben = dringlicher)
-const STOER_DRINGLICHKEIT = {
-  steht: { label: "Produktion steht", kurz: "🔴 steht", color: "#C0392B", bg: "#FBEAE8", rang: 0 },
-  eingeschraenkt: { label: "läuft eingeschränkt", kurz: "🟡 eingeschränkt", color: "#9A6B00", bg: "#FBF3DA", rang: 1 },
-  wartet: { label: "kann warten", kurz: "⚪ kann warten", color: "#5B6572", bg: "rgba(0,0,0,0.06)", rang: 2 },
+// Gewerk eines Störberichts (Zuständigkeit)
+const STOER_GEWERK = {
+  mech: { label: "Mechanik", kurz: "🔧 Mechanik", color: "#2F6690", bg: "#E6EEF4" },
+  elek: { label: "Elektrik", kurz: "⚡ Elektrik", color: "#C97A2B", bg: "#FBF3DA" },
+  beide: { label: "Mechanik + Elektrik", kurz: "🔧⚡ Beide", color: "#6B4E9E", bg: "#EEE9F5" },
 };
+// Fehlerart-Kategorien (für Auswertung nach Fehlerbild)
+const STOER_FEHLERARTEN = ["Mechanisch", "Elektrisch", "Hydraulisch", "Pneumatisch", "Steuerung/Software", "Verschleiß", "Bedienung", "Sonstiges"];
 
 function pad(n) {
   return n.toString().padStart(2, "0");
@@ -578,6 +580,7 @@ function App() {
   const [stoerOffeneSchichten, setStoerOffeneSchichten] = useState(() => new Set()); // aufgeklappte Schichten "datum|schicht"
   const [stoerModus, setStoerModus] = useState("liste"); // "liste" | "auswertung"
   const [stoerZeitraum, setStoerZeitraum] = useState("jahr"); // "monat" | "jahr" | "alle"
+  const [stoerSuche, setStoerSuche] = useState(""); // Freitextsuche über alle Störberichte
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
@@ -751,28 +754,31 @@ function App() {
     const offen = draft.status === "offen";
     const datum = draft.date || jetzt.slice(0, 10);
     const ausfallzeit = Math.max(0, Math.round(Number(draft.ausfallzeit) || 0));
+    // Behoben-am: bei Erledigt aus dem Feld (falls gesetzt), sonst vorheriger Wert / jetzt
+    const behobenAusFeld = () => {
+      if (offen) return null;
+      if (draft.behobenAt) { const d = new Date(draft.behobenAt); if (!isNaN(d)) return d.toISOString(); }
+      return null;
+    };
+    const gemeinsam = {
+      date: datum, schicht: draft.schicht || "Früh",
+      anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
+      gewerk: draft.gewerk || "", fehlerart: draft.fehlerart || "",
+      stoerung: draft.stoerung, ursache: draft.ursache || "",
+      getan: draft.getan || "", nochZuTun: offen ? (draft.nochZuTun || "") : "",
+      ersatzteile: draft.ersatzteile || "", nachbestellt: !!draft.nachbestellt,
+      ausfallzeit, melder,
+    };
     if (draft.id) {
       const vorher = stoerungen.find((s) => s.id === draft.id);
-      const behobenAt = offen ? null : (vorher && vorher.behobenAt) || jetzt;
-      const next = stoerungen.map((s) => (s.id === draft.id ? {
-        ...s,
-        date: datum, schicht: draft.schicht || s.schicht || "Früh",
-        anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
-        stoerung: draft.stoerung, ursache: draft.ursache,
-        getan: draft.getan, nochZuTun: offen ? draft.nochZuTun : "",
-        ausfallzeit, melder, offen, behobenAt,
-      } : s));
+      const behobenAt = offen ? null : (behobenAusFeld() || (vorher && vorher.behobenAt) || jetzt);
+      const next = stoerungen.map((s) => (s.id === draft.id ? { ...s, ...gemeinsam, offen, behobenAt } : s));
       await persistStoer(next);
     } else {
       const s = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        date: datum,
-        schicht: draft.schicht || "Früh",
-        anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
-        stoerung: draft.stoerung, ursache: draft.ursache || "",
-        getan: draft.getan || "", nochZuTun: offen ? (draft.nochZuTun || "") : "",
-        ausfallzeit,
-        melder, offen, gemeldetAt: jetzt, behobenAt: offen ? null : jetzt,
+        ...gemeinsam,
+        offen, gemeldetAt: jetzt, behobenAt: offen ? null : (behobenAusFeld() || jetzt),
       };
       await persistStoer([...stoerungen, s]);
     }
@@ -791,6 +797,69 @@ function App() {
     setStoerModal(null);
     setSDraft(null);
   };
+  // Offene "Zu Planende Maßnahme" als Backlog-Aufgabe übernehmen (nur mit Schreibrecht auf die Hauptdaten)
+  const stoerungZuBacklog = (s) => {
+    if (readerMode) return;
+    openArbeitNeu({
+      anlage: s.anlage || "",
+      note: s.nochZuTun || s.stoerung || "",
+      melder: s.melder || "",
+      art: s.gewerk === "elek" ? "elek" : "mech",
+    });
+    setStoerModal(null);
+    setSDraft(null);
+  };
+  // Störbericht als sauberes A4-Blatt in einem eigenen Fenster drucken
+  const druckeStoerbericht = (s) => {
+    const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const dt = (iso) => iso ? new Date(iso).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    const g = STOER_GEWERK[s.gewerk];
+    const zeile = (lab, val) => val && String(val).trim() ? `<tr><th>${esc(lab)}</th><td>${esc(val).replace(/\n/g, "<br>")}</td></tr>` : "";
+    const html = `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Störbericht – ${esc(s.anlage)}</title>
+      <style>
+        @page { size: A4 portrait; margin: 18mm; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; font-size: 12pt; }
+        h1 { font-size: 18pt; margin: 0 0 2mm; }
+        .kopf { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #22262B; padding-bottom: 3mm; margin-bottom: 5mm; }
+        .status { font-weight: 700; padding: 1mm 4mm; border-radius: 4mm; border: 1.5pt solid; font-size: 10pt; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; vertical-align: top; padding: 2.5mm 3mm; border-bottom: 0.5pt solid #C4CBD2; }
+        th { width: 45mm; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.4pt; color: #5B6572; }
+        td { font-weight: 500; }
+        .fuss { margin-top: 10mm; display: flex; justify-content: space-between; color: #5B6572; font-size: 10pt; }
+        .sign { margin-top: 16mm; display: flex; gap: 12mm; }
+        .sign div { flex: 1; border-top: 0.75pt solid #22262B; padding-top: 1.5mm; font-size: 9pt; color: #5B6572; }
+      </style></head><body>
+      <div class="kopf">
+        <div><h1>Störbericht</h1><div>${esc(s.anlage) || "—"}${s.anlagenteil ? " · " + esc(s.anlagenteil) : ""}</div></div>
+        <div class="status" style="color:${s.offen ? "#C0392B" : "#1F7A3D"};border-color:${s.offen ? "#C0392B" : "#1F7A3D"}">${s.offen ? "OFFEN" : "BEHOBEN"}</div>
+      </div>
+      <table>
+        ${zeile("Datum", s.date ? formatDateDE(s.date) : "")}
+        ${zeile("Schicht", s.schicht)}
+        ${zeile("Gewerk", g ? g.label : "")}
+        ${zeile("Fehlerart", s.fehlerart)}
+        ${zeile("Ausfallzeit", (Number(s.ausfallzeit) || 0) > 0 ? minutenText(s.ausfallzeit) : "")}
+        ${zeile("Störungs Beschreibung", s.stoerung)}
+        ${zeile("Störungs Ursache", s.ursache)}
+        ${zeile("Sofort Maßnahme", s.getan)}
+        ${zeile("Ersatzteile / Material", s.ersatzteile ? s.ersatzteile + (s.nachbestellt ? " (nachbestellt)" : "") : "")}
+        ${s.offen ? zeile("Zu Planende Maßnahme", s.nochZuTun) : ""}
+      </table>
+      <div class="fuss">
+        <span>Bearbeiter: <strong>${esc(s.melder) || "—"}</strong></span>
+        <span>Erfasst: ${dt(s.gemeldetAt)}${!s.offen && s.behobenAt ? " · Behoben: " + dt(s.behobenAt) : ""}</span>
+      </div>
+      <div class="sign"><div>Datum / Unterschrift Bearbeiter</div><div>Datum / Unterschrift Werkstattleitung</div></div>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { setStoerErr("Zum Drucken bitte Popups für diese Seite erlauben."); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch (e) { /* Nutzer kann manuell drucken */ } }, 300);
+  };
   // Sortierung: offene zuerst, darin neueste zuerst
   const stoerungenSortiert = [...stoerungen].sort((a, b) => {
     if (!!a.offen !== !!b.offen) return a.offen ? -1 : 1;
@@ -798,9 +867,24 @@ function App() {
   });
   const stoerOffenCount = stoerungen.filter((s) => s.offen).length;
   const stoerOffeneListe = stoerungenSortiert.filter((s) => s.offen); // für die Übersicht-Gedankenstütze
+  // Freitextsuche über alle Berichte (Anlage/Teil/Beschreibung/Ursache/Maßnahme/Teile/Bearbeiter/Fehlerart)
+  const stoerSucheAktiv = stoerSuche.trim().length > 0;
+  const stoerTreffer = (() => {
+    if (!stoerSucheAktiv) return null;
+    const q = stoerSuche.trim().toLowerCase();
+    return stoerungenSortiert.filter((s) => [s.anlage, s.anlagenteil, s.stoerung, s.ursache, s.getan, s.nochZuTun, s.ersatzteile, s.melder, s.fehlerart, STOER_GEWERK[s.gewerk]?.label]
+      .some((v) => String(v || "").toLowerCase().includes(q)));
+  })();
 
   // Ausfallzeit immer in Minuten anzeigen (Wunsch: durchgängig Minuten)
   const minutenText = (min) => `${Math.max(0, Math.round(Number(min) || 0))} min`;
+  // ISO -> Wert für <input type="datetime-local"> (lokale Zeit)
+  const isoZuLocalInput = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso); if (isNaN(d)) return "";
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
   const summeAusfall = (liste) => liste.reduce((sum, s) => sum + (Number(s.ausfallzeit) || 0), 0);
 
   // ---- Schichtbuch-Gruppierung: nach Datum, darin nach Schicht (Früh/Spät/Nacht) ----
@@ -845,7 +929,7 @@ function App() {
   });
   // Detailansicht (Popout) einer Störung öffnen - zunächst nur lesend
   const oeffneStoerDetail = (s) => {
-    setSDraft({ id: s.id, date: s.date || todayKey, schicht: s.schicht || "", anlage: s.anlage || "", anlagenteil: s.anlagenteil || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", dringlichkeit: s.dringlichkeit || "steht", ausfallzeit: s.ausfallzeit ?? "", status: s.offen ? "offen" : "erledigt", melder: s.melder || "" });
+    setSDraft({ id: s.id, date: s.date || todayKey, schicht: s.schicht || "", anlage: s.anlage || "", anlagenteil: s.anlagenteil || "", gewerk: s.gewerk || "", fehlerart: s.fehlerart || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", ersatzteile: s.ersatzteile || "", nachbestellt: !!s.nachbestellt, ausfallzeit: s.ausfallzeit ?? "", behobenAt: isoZuLocalInput(s.behobenAt), status: s.offen ? "offen" : "erledigt", melder: s.melder || "" });
     setStoerModal({ mode: "view", id: s.id });
   };
 
@@ -2833,7 +2917,7 @@ function App() {
             <span className="ml-auto" />
             {stoerDarfSchreiben && (
               <button
-                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ausfallzeit: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
+                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
                 className="flex items-center gap-2 rounded-lg text-white font-bold"
                 style={{ backgroundColor: "#C0392B", padding: "8px 14px", fontSize: "0.85rem" }}
               >
@@ -2841,6 +2925,24 @@ function App() {
               </button>
             )}
           </div>
+
+          {/* Suche (nur in der Listen-Ansicht) */}
+          {stoerModus === "liste" && stoerungen.length > 0 && (
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="search"
+                value={stoerSuche}
+                onChange={(ev) => setStoerSuche(ev.target.value)}
+                placeholder="🔍 Störberichte durchsuchen (Anlage, Teil, Beschreibung, Bearbeiter …)"
+                className="text-sm border rounded-lg px-3 py-2"
+                style={{ borderColor: "#D6D9DC", width: "min(460px, 100%)" }}
+                aria-label="Störberichte durchsuchen"
+              />
+              {stoerSucheAktiv && (
+                <span className="text-xs" style={{ color: "#5B6572" }}>{stoerTreffer.length} Treffer</span>
+              )}
+            </div>
+          )}
 
           {/* Fehler-Banner der Störungen-Datei */}
           {stoerErr && (
@@ -2967,6 +3069,45 @@ function App() {
                       )}
                       <div className="text-right mt-1" style={{ fontSize: "0.62rem", color: "#A6AEB6" }}>Werte in Minuten</div>
                     </div>
+
+                    {/* Gewerk + Fehlerart */}
+                    <div className="grid gap-4 mt-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                      {/* Gewerk */}
+                      <div className="rounded-xl p-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                        <div className="text-xs font-extrabold uppercase mb-3" style={{ color: "#22262B" }}>🔧⚡ Mechanik / Elektrik</div>
+                        {(() => {
+                          const st = { mech: 0, elek: 0, beide: 0, ohne: 0 };
+                          imZeitraum.forEach((s) => { st[s.gewerk] !== undefined ? st[s.gewerk]++ : st.ohne++; });
+                          const summe = Math.max(1, st.mech + st.elek + st.beide + st.ohne);
+                          const teile = [["mech", st.mech], ["elek", st.elek], ["beide", st.beide], ["ohne", st.ohne]];
+                          return (
+                            <>
+                              <div className="flex rounded-lg overflow-hidden" style={{ height: "26px" }}>
+                                {teile.map(([k, n]) => n > 0 && (
+                                  <div key={k} className="flex items-center justify-center font-bold" style={{ width: `${n / summe * 100}%`, backgroundColor: k === "ohne" ? "#C4CBD2" : STOER_GEWERK[k].color, color: "#fff", fontSize: "0.7rem" }} title={`${k === "ohne" ? "ohne Angabe" : STOER_GEWERK[k].label}: ${n}`}>{n}</div>
+                                ))}
+                              </div>
+                              <div className="flex gap-3 mt-2 flex-wrap">
+                                {[["mech", "Mechanik"], ["elek", "Elektrik"], ["beide", "Beide"], ["ohne", "ohne Angabe"]].map(([k, lab]) => (
+                                  <span key={k} className="flex items-center gap-1.5" style={{ fontSize: "0.72rem", color: "#5B6572" }}>
+                                    <span style={{ width: "10px", height: "10px", borderRadius: "2px", backgroundColor: k === "ohne" ? "#C4CBD2" : STOER_GEWERK[k].color }} />{lab}: <strong>{st[k]}</strong>
+                                  </span>
+                                ))}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                      {/* Fehlerart */}
+                      <div className="rounded-xl p-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+                        <div className="text-xs font-extrabold uppercase mb-3" style={{ color: "#22262B" }}>📊 Fehlerart</div>
+                        {(() => {
+                          const fa = grp((s) => s.fehlerart || "ohne Angabe").sort((a, b) => b.anzahl - a.anzahl);
+                          const maxFa = Math.max(1, ...fa.map((r) => r.anzahl));
+                          return <BalkenListe daten={fa} max={maxFa} wertText="anzahl" farbe="#6B4E9E" />;
+                        })()}
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -2977,6 +3118,22 @@ function App() {
           {stoerModus === "liste" && (() => {
             if (stoerungen.length === 0) {
               return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störberichte erfasst. {stoerDarfSchreiben ? "Über den roten Knopf legst du den ersten an." : ""}</div>;
+            }
+            // Bei aktiver Suche: flache Trefferliste quer durch die ganze Historie
+            if (stoerSucheAktiv) {
+              if (stoerTreffer.length === 0) {
+                return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Kein Störbericht passt zur Suche.</div>;
+              }
+              return (
+                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #D6DBE0", backgroundColor: "#F7F9FB" }}>
+                  {stoerTreffer.map((s) => (
+                    <div key={s.id} className="flex items-center gap-2 px-1" style={{ borderTop: "1px solid #EDEFF2" }}>
+                      <span className="font-mono flex-shrink-0 pl-2" style={{ fontSize: "0.68rem", color: "#A6AEB6", width: "78px" }}>{s.date ? formatDateDE(s.date) : "—"}</span>
+                      <div className="flex-1" style={{ minWidth: 0 }}>{renderStoerZeile(s)}</div>
+                    </div>
+                  ))}
+                </div>
+              );
             }
             if (stoerGruppen.length === 0) {
               return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine offenen Störungen. Behobene über den Schalter unten einblenden.</div>;
@@ -4377,7 +4534,9 @@ function App() {
       {stoerModal && sDraft && (() => {
         const offen = sDraft.status === "offen";
         const statusGewaehlt = sDraft.status === "offen" || sDraft.status === "erledigt";
-        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim() && statusGewaehlt;
+        // Bei "Erledigt" gehört zur vollständigen Doku auch Ursache + Sofort Maßnahme.
+        const erledigtVollstaendig = sDraft.status !== "erledigt" || (String(sDraft.ursache || "").trim() && String(sDraft.getan || "").trim());
+        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim() && statusGewaehlt && erledigtVollstaendig;
         const anlagenVorschlaege = Array.from(new Set([
           ...tpmAnlagen.map((a) => a.name),
           ...stoerungen.map((s) => s.anlage).filter(Boolean),
@@ -4413,6 +4572,8 @@ function App() {
                     <span className="font-extrabold" style={{ fontSize: "1.05rem", color: "#22262B" }}>{sDraft.anlage || "—"}</span>
                     {sDraft.anlagenteil && <span className="rounded" style={{ fontSize: "0.72rem", padding: "2px 8px", backgroundColor: "#EEF1F4", color: "#5B6572", fontWeight: 700 }}>{sDraft.anlagenteil}</span>}
                     {sDraft.schicht && <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.62rem", padding: "2px 9px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>{sDraft.schicht}</span>}
+                    {STOER_GEWERK[sDraft.gewerk] && <span className="inline-flex items-center rounded font-bold" style={{ fontSize: "0.66rem", padding: "2px 8px", backgroundColor: STOER_GEWERK[sDraft.gewerk].bg, color: STOER_GEWERK[sDraft.gewerk].color }}>{STOER_GEWERK[sDraft.gewerk].kurz}</span>}
+                    {sDraft.fehlerart && <span className="inline-flex items-center rounded font-bold" style={{ fontSize: "0.66rem", padding: "2px 8px", backgroundColor: "#F0F2F5", color: "#5B6572" }}>{sDraft.fehlerart}</span>}
                   </div>
                   <div className="flex items-center gap-3 flex-wrap mb-1" style={{ fontSize: "0.78rem", color: "#8A9099" }}>
                     <span>{dObj ? dObj.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "ohne Datum"}</span>
@@ -4423,7 +4584,30 @@ function App() {
                   {feld("⚠ Störungs Beschreibung", sDraft.stoerung)}
                   {feld("🔍 Störungs Ursache", sDraft.ursache)}
                   {feld("🔧 Sofort Maßnahme", sDraft.getan)}
+                  {feld("🧩 Ersatzteile / Material", sDraft.ersatzteile ? sDraft.ersatzteile + (sDraft.nachbestellt ? "  ·  🛒 nachbestellt" : "") : "")}
                   {offen && feld("📌 Zu Planende Maßnahme", sDraft.nochZuTun, "#C0392B")}
+                  {/* Historie: frühere Berichte derselben Anlage */}
+                  {(() => {
+                    const anl = String(sDraft.anlage || "").trim().toLowerCase();
+                    if (!anl) return null;
+                    const frueher = stoerungen
+                      .filter((x) => x.id !== stoerModal.id && String(x.anlage || "").trim().toLowerCase() === anl)
+                      .sort((a, b) => String(b.gemeldetAt || b.date).localeCompare(String(a.gemeldetAt || a.date)));
+                    if (frueher.length === 0) return null;
+                    return (
+                      <div className="mt-3 rounded-lg p-3" style={{ backgroundColor: "#F7F9FB", border: "1px solid #E7EAED" }}>
+                        <div className="font-extrabold uppercase mb-1.5" style={{ fontSize: "0.62rem", letterSpacing: "0.5px", color: "#5B6572" }}>♻️ {frueher.length} frühere(r) Bericht(e) zu dieser Anlage</div>
+                        {frueher.slice(0, 4).map((x) => (
+                          <div key={x.id} className="flex items-center gap-2" style={{ fontSize: "0.78rem", color: "#5B6572", padding: "1px 0" }}>
+                            <span className="font-mono flex-shrink-0" style={{ color: "#8A9099" }}>{x.date ? formatDateDE(x.date) : "—"}</span>
+                            {x.anlagenteil && <span className="flex-shrink-0" style={{ color: "#8A9099" }}>{x.anlagenteil}</span>}
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.stoerung || "—"}</span>
+                          </div>
+                        ))}
+                        {frueher.length > 4 && <div style={{ fontSize: "0.72rem", color: "#A6AEB6", marginTop: "2px" }}>… und {frueher.length - 4} weitere (siehe Suche)</div>}
+                      </div>
+                    );
+                  })()}
                 </div>
                 {/* Fuß: Meta + Bearbeiten entsichert */}
                 <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", backgroundColor: "#FAFBFC" }}>
@@ -4432,6 +4616,10 @@ function App() {
                     {!offen && live.behobenAt ? ` · behoben ${new Date(live.behobenAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
                   </span>
                   <span className="ml-auto" />
+                  {offen && !readerMode && sDraft.nochZuTun && String(sDraft.nochZuTun).trim() && (
+                    <button onClick={() => stoerungZuBacklog(live)} className="rounded-lg font-bold inline-flex items-center gap-1" style={{ fontSize: "0.8rem", padding: "8px 12px", backgroundColor: "#EEF1F4", color: "#2F6690" }} title="Offene Maßnahme als Backlog-Aufgabe übernehmen">→ Backlog</button>
+                  )}
+                  <button onClick={() => druckeStoerbericht(live)} className="rounded-lg font-bold inline-flex items-center gap-1" style={{ fontSize: "0.8rem", padding: "8px 12px", backgroundColor: "#EEF1F4", color: "#5B6572" }} title="Störbericht als A4-Blatt drucken">🖨 Drucken</button>
                   {stoerDarfSchreiben ? (
                     <button onClick={() => setStoerModal({ mode: "edit", id: stoerModal.id })} className="rounded-lg font-bold text-white inline-flex items-center gap-1.5" style={{ fontSize: "0.85rem", padding: "8px 16px", backgroundColor: "#22262B" }}>
                       🔓 Bearbeiten
@@ -4524,10 +4712,45 @@ function App() {
                   </div>
                 </div>
 
-                {/* Ausfallzeit (orange hervorgehoben) */}
-                <div className="rounded-lg p-3" style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7CF8F" }}>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#9A6B00" }}>⏱ Ausfallzeit (Minuten)</label>
-                  <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#E7CF8F", width: "140px", backgroundColor: "#fff" }} />
+                {/* Gewerk + Fehlerart */}
+                <div className="flex gap-3 flex-wrap">
+                  <div className="flex-1" style={{ minWidth: "220px" }}>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Gewerk</label>
+                    <div className="flex gap-2">
+                      {Object.entries(STOER_GEWERK).map(([key, g]) => {
+                        const aktiv = sDraft.gewerk === key;
+                        return (
+                          <button key={key} onClick={() => setSDraft({ ...sDraft, gewerk: aktiv ? "" : key })}
+                            className="flex-1 rounded-lg font-bold text-center"
+                            style={{ minWidth: "90px", padding: "8px 6px", fontSize: "0.78rem", border: `2px solid ${aktiv ? g.color : "#E2E4E7"}`, backgroundColor: aktiv ? g.bg : "transparent", color: aktiv ? g.color : "#5B6572" }}>
+                            {g.kurz}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Fehlerart</label>
+                    <select value={sDraft.fehlerart || ""} onChange={(ev) => setSDraft({ ...sDraft, fehlerart: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", minWidth: "180px" }}>
+                      <option value="">– keine Angabe –</option>
+                      {STOER_FEHLERARTEN.map((f) => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Ausfallzeit (orange hervorgehoben) + Behoben-am bei Erledigt */}
+                <div className="flex gap-3 flex-wrap items-start">
+                  <div className="rounded-lg p-3" style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7CF8F" }}>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#9A6B00" }}>⏱ Ausfallzeit (Minuten)</label>
+                    <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#E7CF8F", width: "130px", backgroundColor: "#fff" }} />
+                  </div>
+                  {sDraft.status === "erledigt" && (
+                    <div className="rounded-lg p-3" style={{ backgroundColor: "#EAF3EC", border: "1px solid #BFE0C6" }}>
+                      <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#1F7A3D" }}>✓ Behoben am</label>
+                      <input type="datetime-local" value={sDraft.behobenAt || ""} onChange={(ev) => setSDraft({ ...sDraft, behobenAt: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#BFE0C6", backgroundColor: "#fff" }} />
+                      <div className="text-xs mt-1" style={{ color: "#6B9576" }}>leer = jetzt</div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -4541,6 +4764,14 @@ function App() {
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔧 Sofort Maßnahme</label>
                   <textarea value={sDraft.getan} onChange={(ev) => setSDraft({ ...sDraft, getan: ev.target.value })} rows={2} placeholder="Was wurde sofort getan?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🧩 Ersatzteile / Material</label>
+                  <input value={sDraft.ersatzteile} onChange={(ev) => setSDraft({ ...sDraft, ersatzteile: ev.target.value })} placeholder="verbaute / benötigte Teile" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                  <label className="flex items-center gap-2 mt-1.5 text-xs" style={{ color: "#5B6572" }}>
+                    <input type="checkbox" checked={!!sDraft.nachbestellt} onChange={(ev) => setSDraft({ ...sDraft, nachbestellt: ev.target.checked })} />
+                    Ersatzteil nachbestellt
+                  </label>
                 </div>
 
                 {/* Nur bei Offen: Zu Planende Maßnahme */}
@@ -4559,6 +4790,7 @@ function App() {
                 {!kannSpeichern && (
                   <div className="text-xs" style={{ color: "#C0392B" }}>
                     Bitte die Pflichtfelder <strong>*</strong> ausfüllen: Anlage, Beschreibung, Schicht und Status.
+                    {sDraft.status === "erledigt" && !erledigtVollstaendig && " Bei Erledigt zusätzlich Ursache und Sofort Maßnahme."}
                   </div>
                 )}
                 <div className="flex gap-2 items-center mt-1 flex-wrap">

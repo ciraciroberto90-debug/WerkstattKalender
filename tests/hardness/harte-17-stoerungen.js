@@ -14,7 +14,7 @@ function check(n, c) { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok++ 
 async function makeUser(browser, t) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await page.setViewportSize({ width: 1500, height: 1000 });
+  await page.setViewportSize({ width: 1500, height: 1800 });
   page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
   await page.clock.setFixedTime(new Date(t));
   await page.exposeFunction('__fsRead', (n) => drive[n] ?? '');
