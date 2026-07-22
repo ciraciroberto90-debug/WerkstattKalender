@@ -3154,7 +3154,7 @@ function App() {
                         {/* Datums-Kopfzeile (klickbar) */}
                         <button
                           onClick={() => toggleStoerTag(g.datum)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
+                          className="wk-hover w-full flex items-center gap-3 px-4 py-2.5 text-left"
                           style={{ backgroundColor: istHeute ? "#FBF4E7" : "#F4F6F8" }}
                         >
                           <span style={{ color: "#5B6572", fontSize: "0.8rem", width: "12px" }}>{auf ? "▾" : "▸"}</span>
@@ -3177,7 +3177,7 @@ function App() {
                               return (
                                 <div key={sch} style={{ borderTop: "1px solid #EDEFF2" }}>
                                   {/* Schicht-Kopf (klickbar) */}
-                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="w-full flex items-center gap-3 px-4 py-2 text-left">
+                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover w-full flex items-center gap-3 px-4 py-2 text-left">
                                     <span style={{ color: "#8A9099", fontSize: "0.75rem", width: "12px" }}>{schichtAuf ? "▾" : "▸"}</span>
                                     <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.66rem", letterSpacing: "0.5px", padding: "2px 10px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
                                       {sch === "—" ? "ohne Schicht" : sch}
