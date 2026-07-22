@@ -3144,18 +3144,18 @@ function App() {
             }
             return (
               <>
-                <div className="rounded-xl overflow-hidden" style={{ border: "1.5px solid #22262B" }}>
+                <div>
                   {stoerGruppen.map((g, idx) => {
                     const auf = istTagOffen(g.datum, idx);
                     const d = g.datum !== "—" ? new Date(g.datum + "T00:00:00") : null;
                     const istHeute = g.datum === todayKey;
                     return (
-                      <div key={g.datum} style={{ borderTop: idx === 0 ? "none" : "1.5px solid #22262B" }}>
-                        {/* Datums-Kopfzeile (klickbar) */}
+                      <div key={g.datum} style={{ marginBottom: "7px" }}>
+                        {/* Datums-Kopfzeile: eigene schwarze Kachel (Variante 1) */}
                         <button
                           onClick={() => toggleStoerTag(g.datum)}
                           className="wk-hover w-full flex items-center gap-3 px-4 py-1 text-left"
-                          style={{ backgroundColor: istHeute ? "#FBF4E7" : "#F4F6F8" }}
+                          style={{ backgroundColor: istHeute ? "#FBF4E7" : "#F4F6F8", border: "1.5px solid #22262B", borderRadius: "9px" }}
                         >
                           <span style={{ color: "#5B6572", fontSize: "0.8rem", width: "12px" }}>{auf ? "▾" : "▸"}</span>
                           <span className="font-extrabold" style={{ color: "#22262B", fontSize: "0.95rem" }}>
@@ -3171,7 +3171,7 @@ function App() {
                         {/* Aufgeklappter Inhalt: eingerückter Einschub-Block (Vorlage A) -
                             hängt sichtbar "unter" dem Tag, mit grauer Leiste links */}
                         {auf && (
-                          <div style={{ margin: "0 10px 8px 26px", borderLeft: "3px solid #9AA3AD", borderRight: "1px solid #D6DBE0", borderBottom: "1px solid #D6DBE0", borderRadius: "0 0 8px 8px", backgroundColor: "#FAFBFC", overflow: "hidden" }}>
+                          <div style={{ margin: "2px 10px 0 26px", borderLeft: "3px solid #9AA3AD", borderRight: "1px solid #D6DBE0", borderBottom: "1px solid #D6DBE0", borderRadius: "0 0 8px 8px", backgroundColor: "#FAFBFC", overflow: "hidden" }}>
                             {g.proSchicht.map(({ sch, liste, ausfall, offen: schOffen }, si) => {
                               const farbe = SCHICHTEN[sch] || { color: "#8A9099", text: "#fff" };
                               const schichtAuf = istSchichtOffen(g.datum, sch);
