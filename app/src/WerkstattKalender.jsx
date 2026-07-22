@@ -940,8 +940,8 @@ function App() {
     const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
       <button key={s.id} onClick={() => oeffneStoerDetail(s)}
-        className="wk-hover w-full flex items-center gap-3 px-3 py-1.5 text-left"
-        style={{ borderTop: "1px solid #22262B", backgroundColor: "transparent" }}>
+        className="wk-hover w-full flex items-center gap-3 py-1 text-left"
+        style={{ borderTop: "1px solid #22262B", backgroundColor: "transparent", paddingLeft: "52px", paddingRight: "12px", borderLeft: "4px solid #C9CFD6" }}>
         <span className="font-mono flex-shrink-0" style={{ fontSize: "0.72rem", color: "#8A9099", width: "42px" }}>{zeit}</span>
         <span className="flex-shrink-0" style={{ minWidth: "150px", maxWidth: "220px" }}>
           <span className="font-extrabold" style={{ fontSize: "0.86rem", color: "#22262B" }}>{s.anlage || "—"}</span>
@@ -3154,7 +3154,7 @@ function App() {
                         {/* Datums-Kopfzeile (klickbar) */}
                         <button
                           onClick={() => toggleStoerTag(g.datum)}
-                          className="wk-hover w-full flex items-center gap-3 px-4 py-1.5 text-left"
+                          className="wk-hover w-full flex items-center gap-3 px-4 py-1 text-left"
                           style={{ backgroundColor: istHeute ? "#FBF4E7" : "#F4F6F8" }}
                         >
                           <span style={{ color: "#5B6572", fontSize: "0.8rem", width: "12px" }}>{auf ? "▾" : "▸"}</span>
@@ -3176,8 +3176,8 @@ function App() {
                               const schichtAuf = istSchichtOffen(g.datum, sch);
                               return (
                                 <div key={sch} style={{ borderTop: "1px solid #22262B" }}>
-                                  {/* Schicht-Kopf (klickbar) */}
-                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover w-full flex items-center gap-3 px-4 py-1.5 text-left">
+                                  {/* Schicht-Kopf (klickbar, eingerückt = geöffnetes Dropdown erkennbar) */}
+                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover w-full flex items-center gap-3 py-1 text-left" style={{ paddingLeft: "34px", paddingRight: "16px", borderLeft: "4px solid #C9CFD6" }}>
                                     <span style={{ color: "#8A9099", fontSize: "0.75rem", width: "12px" }}>{schichtAuf ? "▾" : "▸"}</span>
                                     <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.66rem", letterSpacing: "0.5px", padding: "2px 10px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
                                       {sch === "—" ? "ohne Schicht" : sch}
