@@ -3228,8 +3228,8 @@ function App() {
                 <div className="text-xs font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.68rem" }}>{label}</div>
               </div>
             ))}
-            <HalbkreisQuote prozent={quoteMonatHeute} label="Erledigt-Quote" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter TPM- und R+I-Punkte im Monat" />
-            <HalbkreisQuote prozent={quoteJahrHeute} label="Erledigt-Quote" sub={String(today.getFullYear())} titel="Anteil erledigter TPM- und R+I-Punkte im Jahr" />
+            <HalbkreisQuote prozent={quoteMonatHeute} label="TPM & R+I Quote" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter TPM- und R+I-Punkte im Monat" />
+            <HalbkreisQuote prozent={quoteJahrHeute} label="TPM & R+I Quote" sub={String(today.getFullYear())} titel="Anteil erledigter TPM- und R+I-Punkte im Jahr" />
           </div>
 
           {/* Heute da: zeigt nur die gerade LAUFENDE Schicht (Früh 06-14, Spät 14-22, Nacht 22-06) */}
