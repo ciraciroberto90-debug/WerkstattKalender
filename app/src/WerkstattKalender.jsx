@@ -940,8 +940,10 @@ function App() {
     const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
       <button key={s.id} onClick={() => oeffneStoerDetail(s)}
-        className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-white"
-        style={{ borderTop: "1px solid #EDEFF2", backgroundColor: "transparent" }}>
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#E9ECEF"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+        className="w-full flex items-center gap-3 px-3 py-2 text-left"
+        style={{ borderTop: "1px solid #EDEFF2", backgroundColor: "transparent", cursor: "pointer", transition: "background-color 0.12s" }}>
         <span className="font-mono flex-shrink-0" style={{ fontSize: "0.72rem", color: "#8A9099", width: "42px" }}>{zeit}</span>
         <span className="flex-shrink-0" style={{ minWidth: "150px", maxWidth: "220px" }}>
           <span className="font-extrabold" style={{ fontSize: "0.86rem", color: "#22262B" }}>{s.anlage || "—"}</span>
