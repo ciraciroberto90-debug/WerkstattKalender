@@ -188,6 +188,55 @@ const DEFAULT_RI_ITEMS = [
   { id: "sprinklerwartung", name: "Sprinklerwartung", type: "biweekly", weekday: 3, anchor: "2026-07-15" },
   { id: "stroemungswaechter", name: "Strömungswächter", type: "monthly-day", day: 15 },
 ];
+
+// Vorbefüllte Wissens-Angaben (Info / Rechtsgrundlage / Link) für die TPM-Übersicht.
+// Bewusst NUR die klar gesetzlich/normativ geregelten Punkte - Umwelt/Abwasser (Landesrecht,
+// Bescheide) und interne/Hersteller-Punkte bleiben leer und werden bei Bedarf im ⚙ ergänzt.
+// Hinweis: Orientierungswerte, keine Rechtsberatung - im Betrieb gegenprüfen.
+const RI_WISSEN_DEFAULTS = {
+  regalkontrolle: {
+    info: "Sichtprüfung aller Regalanlagen auf Verformungen, Anfahrschäden und Überlast durch eine befähigte Person. Beschädigte Regale können einstürzen – Schutz von Mitarbeitern und Ware.",
+    rechtsgrundlage: "DGUV Regel 108-007, DIN EN 15635 (jährliche Prüfung durch befähigte Person)",
+    link: "https://publikationen.dguv.de",
+  },
+  leiterkontrolle: {
+    info: "Prüfung aller Leitern und Tritte auf sicheren Zustand (Sprossen, Beschläge, Spreizsicherung) vor der Weiterbenutzung.",
+    rechtsgrundlage: "DGUV Information 208-016, BetrSichV §14 (Prüfung durch befähigte Person)",
+    link: "https://publikationen.dguv.de",
+  },
+  filterwartung: {
+    info: "Wartung der Filter und Kontrolle der Schaltschränke. Prüfung ortsfester elektrischer Anlagen und Betriebsmittel auf ordnungsgemäßen Zustand.",
+    rechtsgrundlage: "DGUV Vorschrift 3, DIN VDE 0105-100",
+    link: "https://publikationen.dguv.de",
+  },
+  trinkwasserfilter: {
+    info: "Prüfung und Rückspülung des Trinkwasserfilters zur Erhaltung der Trinkwasserqualität und zum Schutz der Hausinstallation.",
+    rechtsgrundlage: "TrinkwV, DIN EN 806-5, DIN 1988-200",
+    link: "https://www.gesetze-im-internet.de/trinkwv_2023/",
+  },
+  sicherheitsrundgang: {
+    info: "Begehung zum vorbeugenden Brandschutz: Flucht- und Rettungswege frei, Feuerlöscher und Brandschutztüren in Ordnung, keine Brandlasten an kritischen Stellen.",
+    rechtsgrundlage: "ASR A2.2, DGUV Vorschrift 1, DGUV Information 205-001",
+    link: "https://www.baua.de",
+  },
+  sprinklerwartung: {
+    info: "Funktionskontrolle der Sprinkleranlage (Alarmventil, Wasserdruck, Strömungswächter) als Teil des anlagentechnischen Brandschutzes.",
+    rechtsgrundlage: "VdS CEA 4001, DIN EN 12845",
+    link: "https://www.vds.de",
+  },
+};
+// Fehlende Wissens-Felder aus den Vorschlägen auffüllen (nur, wenn noch nie gesetzt).
+// So erscheinen die Angaben auch in bestehenden Konfigurationen, ohne eigene Eingaben zu überschreiben.
+const riMitWissen = (items) => (Array.isArray(items) ? items : []).map((r) => {
+  const w = r && RI_WISSEN_DEFAULTS[r.id];
+  if (!w) return r;
+  const out = { ...r };
+  if (out.info === undefined) out.info = w.info;
+  if (out.rechtsgrundlage === undefined) out.rechtsgrundlage = w.rechtsgrundlage;
+  if (out.link === undefined) out.link = w.link;
+  return out;
+});
+
 const RI_TYPE_LABELS = {
   weekly: "Wöchentlich", biweekly: "Alle 2 Wochen", "monthly-day": "Monatlich",
   "every-n-months": "Alle X Monate", yearly: "Jährlich", manual: "Kein fester Rhythmus",
@@ -498,7 +547,7 @@ function App() {
   const [tpmInfoOffen, setTpmInfoOffen] = useState(null); // welcher R+I-Punkt in der TPM-Übersicht aufgeklappt ist (id oder null)
   const [entries, setEntries] = useState([]);
   const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
-  const [riItems, setRiItems] = useState(DEFAULT_RI_ITEMS);
+  const [riItems, setRiItems] = useState(riMitWissen(DEFAULT_RI_ITEMS));
   const [team, setTeam] = useState([]); // Werkstatt-Team (für Zuweisung & Arbeitsplanung)
   const [extraSchichten, setExtraSchichten] = useState([]); // eigene Schichtarten aus dem ⚙-Dialog (immer grau)
   const [anlagenteile, setAnlagenteile] = useState([]); // Anlagenteile pro Anlage (⚙-Dialog), für Störungs-Maske
@@ -601,7 +650,7 @@ function App() {
       }
       if (d.config) {
         if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(d.config.tpmAnlagen);
-        if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(d.config.riItems);
+        if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(riMitWissen(d.config.riItems));
         if (Array.isArray(d.config.team)) setTeam(normalisiereTeam(d.config.team));
         if (Array.isArray(d.config.extraSchichten)) setExtraSchichten(normalisiereExtraSchichten(d.config.extraSchichten));
         if (Array.isArray(d.config.anlagenteile)) setAnlagenteile(normalisiereAnlagenteile(d.config.anlagenteile));
@@ -1049,7 +1098,7 @@ function App() {
             const validRi = parsed.riItems.filter(
               (r) => r && typeof r.id === "string" && typeof r.name === "string" && typeof r.type === "string"
             );
-            if (validRi.length > 0) setRiItems(validRi);
+            if (validRi.length > 0) setRiItems(riMitWissen(validRi));
           }
           if (Array.isArray(parsed.team)) {
             setTeam(normalisiereTeam(parsed.team));
