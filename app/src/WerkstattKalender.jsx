@@ -494,7 +494,8 @@ function App() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   // Start immer im Cockpit auf der Übersicht; Hauptreiter springen stets auf ihren ersten Unterpunkt
-  const [view, setView] = useState("COCKPIT"); // 'COCKPIT' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
+  const [view, setView] = useState("COCKPIT"); // 'COCKPIT' | 'TPMINFO' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (TPMINFO = Übersicht, MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
+  const [tpmInfoOffen, setTpmInfoOffen] = useState(null); // welcher R+I-Punkt in der TPM-Übersicht aufgeklappt ist (id oder null)
   const [entries, setEntries] = useState([]);
   const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
   const [riItems, setRiItems] = useState(DEFAULT_RI_ITEMS);
@@ -963,7 +964,7 @@ function App() {
   // wegfallen, oder direkt beim allerersten Laden, bevor überhaupt geprüft ist).
   useEffect(() => {
     if (!readerMode) return;
-    if (view !== "COCKPIT" && view !== "PLAN") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
+    if (view !== "COCKPIT" && view !== "PLAN" && view !== "TPMINFO") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
     // Störungen sind bewusst auch für Nur-Leser erlaubt (eigene, für alle
     // beschreibbare Datei) - daher hier mit aufgeführt.
     if (view === "COCKPIT" && !["UEBERSICHT", "SCHICHTPLAN", "PLANUNG", "STOERUNGEN"].includes(cockpitTab)) setCockpitTab("UEBERSICHT");
@@ -2626,15 +2627,17 @@ function App() {
                 ["COCKPIT_SCHICHTPLAN", "Schichtplan"],
                 ["COCKPIT_PLANUNG", "Planung"],
                 ["COCKPIT_STOERUNGEN", <>Störungen{stoerOffenCount > 0 && <span className="ml-1 inline-flex items-center justify-center rounded-full" style={{ minWidth: "16px", height: "16px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.6rem" }}>{stoerOffenCount}</span>}</>],
+                ["TPMINFO", "TPM-Info"],
                 ["PLAN", "TPM-Plan"],
               ].map(([key, label]) => {
-                const active = key === "PLAN" ? view === "PLAN" : (view === "COCKPIT" && cockpitTab === key.replace("COCKPIT_", ""));
+                const istCockpit = typeof key === "string" && key.startsWith("COCKPIT_");
+                const active = istCockpit ? (view === "COCKPIT" && cockpitTab === key.replace("COCKPIT_", "")) : view === key;
                 return (
                   <button
                     key={key}
                     onClick={() => {
-                      if (key === "PLAN") setView("PLAN");
-                      else { setView("COCKPIT"); setCockpitTab(key.replace("COCKPIT_", "")); }
+                      if (istCockpit) { setView("COCKPIT"); setCockpitTab(key.replace("COCKPIT_", "")); }
+                      else setView(key);
                     }}
                     className="px-3 py-1.5 text-xs font-black uppercase tracking-wide"
                     style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
@@ -2655,7 +2658,7 @@ function App() {
                       key={v}
                       onClick={() => {
                         if (v === "COCKPIT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
-                        else setView("PLAN");
+                        else setView("TPMINFO");
                       }}
                       className="px-3 py-1.5 text-xs font-black uppercase tracking-wide"
                       style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
@@ -2684,7 +2687,7 @@ function App() {
                 </div>
               ) : (
                 <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
+                  {[["TPMINFO", "Übersicht"], ["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
                     const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
                     return (
                       <button
@@ -2729,7 +2732,7 @@ function App() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
-          {view !== "COCKPIT" && (
+          {view !== "COCKPIT" && view !== "TPMINFO" && (
             <button
               onClick={handlePrint}
               className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
@@ -2867,7 +2870,7 @@ function App() {
       )}
 
       {/* Filter + Legende + Stats */}
-      {view !== "PLAN" && view !== "COCKPIT" && (
+      {view !== "PLAN" && view !== "COCKPIT" && view !== "TPMINFO" && (
         <div className="no-print px-4 py-3 flex flex-wrap items-center gap-4 border-b bg-white" style={{ borderColor: "#D6D9DC" }}>
           {(view === "MONAT" || view === "JAHR") && (
             <div className="flex rounded overflow-hidden border" style={{ borderColor: "#D6D9DC" }}>
@@ -5349,6 +5352,43 @@ function App() {
                       />
                     </div>
                   )}
+
+                  {/* Wissens-Felder für die TPM-Übersicht: Info, Rechtsgrundlage, Link */}
+                  <div className="flex flex-col gap-1.5 mt-1 pt-2" style={{ borderTop: "1px dashed #D6D9DC" }}>
+                    <textarea
+                      value={r.info || ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setSettingsRi((prev) => prev.map((x, i) => (i === idx ? { ...x, info: v } : x)));
+                      }}
+                      placeholder="Info / Zweck (Was wird geprüft? Warum ist es wichtig?)"
+                      rows={2}
+                      className="text-xs border rounded px-2 py-1.5"
+                      style={{ borderColor: "#D6D9DC", resize: "vertical" }}
+                    />
+                    <div className="flex gap-1.5 items-center flex-wrap">
+                      <input
+                        value={r.rechtsgrundlage || ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSettingsRi((prev) => prev.map((x, i) => (i === idx ? { ...x, rechtsgrundlage: v } : x)));
+                        }}
+                        placeholder="Rechtsgrundlage (z. B. DGUV Regel 108-007, DIN EN 15635)"
+                        className="flex-1 text-xs border rounded px-2 py-1.5"
+                        style={{ borderColor: "#D6D9DC", minWidth: "160px" }}
+                      />
+                      <input
+                        value={r.link || ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSettingsRi((prev) => prev.map((x, i) => (i === idx ? { ...x, link: v } : x)));
+                        }}
+                        placeholder="Link (https://…)"
+                        className="flex-1 text-xs border rounded px-2 py-1.5"
+                        style={{ borderColor: "#D6D9DC", minWidth: "160px" }}
+                      />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -5615,6 +5655,112 @@ function App() {
       </div>
       )}
 
+      {/* TPM-Übersicht: Wissens- & Sensibilisierungs-Ort (öffnet zuerst beim Klick auf TPM) */}
+      {view === "TPMINFO" && (
+        <div className="no-print max-w-5xl mx-auto px-4 mt-4 mb-10">
+          <div style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderRadius: "14px", overflow: "hidden", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
+
+            {/* Willkommens-Banner */}
+            <div style={{ background: "linear-gradient(135deg,#22262B,#343B44)", color: "#fff", padding: "22px 24px" }}>
+              <div style={{ fontSize: "1.15rem", fontWeight: 800, marginBottom: "4px" }}>Willkommen im Wartungs-Board 👋</div>
+              <p style={{ margin: 0, fontSize: "0.88rem", color: "#C7CDD4", maxWidth: "660px", lineHeight: 1.5 }}>
+                Hier siehst du, was für unsere Werkstatt ansteht – und verstehst, warum. <strong style={{ color: "#fff" }}>TPM</strong> hält
+                unsere Anlagen fit, <strong style={{ color: "#fff" }}>R+I</strong> erfüllt Kontroll- und Prüfpflichten. Beides sorgt dafür,
+                dass wir sicher, sauber und rechtssicher arbeiten.
+              </p>
+            </div>
+
+            {/* Zwei Bereiche: TPM + R+I */}
+            <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid #E2E4E7" }}>
+              <div style={{ padding: "15px 20px", backgroundColor: "#FBF2E7", display: "flex", gap: "11px", alignItems: "flex-start" }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "9px", display: "grid", placeItems: "center", color: "#fff", fontSize: "1.1rem", flexShrink: 0, backgroundColor: "#C97A2B" }}>🔧</div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>TPM – Wartung <span style={{ fontWeight: 700, fontSize: "0.7rem", color: "#C97A2B", backgroundColor: "#fff", border: "1px solid #EAD3B4", borderRadius: "20px", padding: "1px 8px", marginLeft: "4px" }}>{tpmAnlagen.length} Anlagen</span></div>
+                  <div style={{ color: "#5B6572", fontSize: "0.72rem" }}>Total Productive Maintenance</div>
+                  <p style={{ margin: "5px 0 0", fontSize: "0.78rem", color: "#444" }}>Anlagen werden per Rotation gewartet (Taktstraße, Montags-Rotation, flexible Gruppen). Ziel: keine ungeplanten Stillstände.</p>
+                </div>
+              </div>
+              <div style={{ padding: "15px 20px", backgroundColor: "#E9F0F6", borderLeft: "1px solid #E2E4E7", display: "flex", gap: "11px", alignItems: "flex-start" }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "9px", display: "grid", placeItems: "center", color: "#fff", fontSize: "1.1rem", flexShrink: 0, backgroundColor: "#2F6690" }}>🔍</div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>R+I – Rundgang &amp; Inspektion <span style={{ fontWeight: 700, fontSize: "0.7rem", color: "#2F6690", backgroundColor: "#fff", border: "1px solid #BFD2E2", borderRadius: "20px", padding: "1px 8px", marginLeft: "4px" }}>{riItems.length} Punkte</span></div>
+                  <div style={{ color: "#5B6572", fontSize: "0.72rem" }}>gesetzlich getaktete Kontrollen</div>
+                  <p style={{ margin: "5px 0 0", fontSize: "0.78rem", color: "#444" }}>Wiederkehrende Prüfungen mit festem Rhythmus – viele davon rechtlich vorgeschrieben und nachweispflichtig.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* R+I-Punkte als aufklappbare Wissensliste */}
+            <div style={{ padding: "18px 20px 22px" }}>
+              <div className="flex items-center gap-2" style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", color: "#5B6572", marginBottom: "12px" }}>
+                <span style={{ width: "9px", height: "9px", borderRadius: "50%", backgroundColor: "#2F6690" }} />
+                R+I-Punkte mit Rechtsgrundlage &amp; Link
+                <span style={{ flex: 1, height: "1px", backgroundColor: "#E2E4E7" }} />
+              </div>
+
+              <div style={{ border: "1px solid #E2E4E7", borderRadius: "10px", overflow: "hidden" }}>
+                {riItems.map((r, idx) => {
+                  const offen = tpmInfoOffen === r.id;
+                  const rhythmus = RI_TYPE_LABELS[r.type] || "";
+                  const hatInfos = (r.info && r.info.trim()) || (r.rechtsgrundlage && r.rechtsgrundlage.trim()) || (r.link && r.link.trim());
+                  return (
+                    <div key={r.id} style={{ borderTop: idx === 0 ? "none" : "1px solid #E2E4E7" }}>
+                      <div
+                        className="wk-hover flex items-center gap-2.5"
+                        onClick={() => setTpmInfoOffen(offen ? null : r.id)}
+                        style={{ padding: "10px 13px", backgroundColor: offen ? "#F6F7F9" : "#fff" }}
+                      >
+                        <span style={{ color: "#8A9099", width: "12px", fontSize: "0.7rem", flexShrink: 0 }}>{offen ? "▾" : "▸"}</span>
+                        <span style={{ fontWeight: 700, fontSize: "0.84rem", flex: 1 }}>{r.name}</span>
+                        {r.rechtsgrundlage && r.rechtsgrundlage.trim() && (
+                          <span style={{ fontSize: "0.62rem", fontWeight: 700, backgroundColor: "#F1EFFA", color: "#7C5CBF", border: "1px solid #DDD5F2", borderRadius: "6px", padding: "2px 7px" }}>§</span>
+                        )}
+                        {r.link && r.link.trim() && <span style={{ fontSize: "0.72rem" }}>🔗</span>}
+                        <span style={{ fontSize: "0.66rem", color: "#8A9099", whiteSpace: "nowrap" }}>{rhythmus}</span>
+                      </div>
+                      {offen && (
+                        <div style={{ padding: "2px 13px 13px 35px", backgroundColor: "#FAFBFC", fontSize: "0.8rem", color: "#3a3a3a" }}>
+                          {r.info && r.info.trim() && (
+                            <div style={{ margin: "9px 0 0", whiteSpace: "pre-wrap" }}>{r.info}</div>
+                          )}
+                          {r.rechtsgrundlage && r.rechtsgrundlage.trim() && (
+                            <div style={{ margin: "9px 0 0" }}><strong style={{ color: "#22262B" }}>Rechtsgrundlage:</strong> {r.rechtsgrundlage}</div>
+                          )}
+                          {(r.link && r.link.trim()) && (
+                            <div style={{ marginTop: "10px" }}>
+                              <a
+                                href={r.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "0.72rem", fontWeight: 800, color: "#fff", backgroundColor: "#2F6690", borderRadius: "7px", padding: "5px 10px", textDecoration: "none" }}
+                              >
+                                🔗 Mehr erfahren
+                              </a>
+                            </div>
+                          )}
+                          {!hatInfos && (
+                            <div style={{ margin: "9px 0 0", color: "#8A9099", fontStyle: "italic" }}>
+                              Noch keine Infos hinterlegt.{!readerMode && " Über das ⚙-Rädchen (oben rechts) kannst du Info, Rechtsgrundlage und Link zu diesem Punkt ergänzen."}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {!readerMode && (
+                <div style={{ fontSize: "0.72rem", color: "#8A9099", backgroundColor: "#F6F7F9", border: "1px dashed #CBD1D8", borderRadius: "9px", padding: "9px 12px", marginTop: "14px" }}>
+                  ℹ️ Info-Text, Rechtsgrundlage und Link pflegst du je R+I-Punkt im ⚙-Dialog (oben rechts). Die Rechtsangaben sind kein Ersatz für eine rechtsverbindliche Prüfung – bitte selbst gegenprüfen.
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Wartungsplan: fortlaufende Rotation für den gewählten Monat */}
       {view === "PLAN" && (
         <div className="print-bg cal-card p-5 max-w-7xl mx-auto rounded-xl mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
@@ -5834,7 +5980,7 @@ function App() {
       })()}
 
       {/* Notizen: eigene Seite, Hochformat, chronologisch */}
-      {view !== "PLAN" && notesList.length > 0 && (
+      {view !== "PLAN" && view !== "TPMINFO" && notesList.length > 0 && (
         <div className="notes-page print-bg p-4 max-w-4xl mx-auto" style={{ marginTop: "8px" }}>
           <div className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: "#22262B" }}>
             Notizen – {view === "JAHR" ? `Jahr ${year}` : `${MONTHS[month]} ${year}`}
@@ -5866,7 +6012,7 @@ function App() {
         </div>
       )}
 
-      {view !== "COCKPIT" && (
+      {view !== "COCKPIT" && view !== "TPMINFO" && (
       <div className="no-print max-w-5xl mx-auto px-4 pb-6 pt-3 text-xs text-slate-400">
         Tipp: "Drucken" öffnet die Druckvorlage in einem neuen Tab (Pop-ups für diese Seite bitte erlauben) – bei der Monatsansicht zuerst als übersichtliche Kalenderseite, danach die Anlagen-Matrix. Falls der Browser Pop-ups blockiert, wird stattdessen automatisch eine Datei heruntergeladen. Filter oben auf "TPM" oder "R+I" stellen für den separaten Ausdruck je Kategorie. Am Jahresende einfach auf "Jahr" umschalten und drucken.
       </div>

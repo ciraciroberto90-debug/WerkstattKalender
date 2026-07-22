@@ -128,9 +128,14 @@ Störungen, nicht den Rest.
 - **Planung:** Tage untereinander, je Person die eingeplanten Arbeiten/Notizen; springt beim
   Öffnen direkt zum heutigen Tag.
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.
-- **TPM-Plan / R+I:** wiederkehrende Wartungen und Inspektionen mit Terminlogik.
-- **Einstellungen (⚙ oben rechts):** Anlagen, R+I-Punkte, **Team**, **Schichtarten**,
-  **Anlagenteile** (für Störberichte) und die **lokalen Sicherungen** dieses Geräts.
+- **TPM → Übersicht:** ein digitales **TPM-Board**, das beim Klick auf **TPM** zuerst öffnet.
+  Holt das Team ab und erklärt kurz, **was** TPM und R+I sind und **warum** sie wichtig sind
+  (Sicherheit, Verfügbarkeit, Nachweis). Darunter jeder **R+I-Punkt aufklappbar** mit
+  **Info-Text, Rechtsgrundlage und Link** – ein Nachschlagewerk für die Werkstatt.
+- **TPM → Plan / R+I:** wiederkehrende Wartungen und Inspektionen mit Terminlogik.
+- **Einstellungen (⚙ oben rechts):** Anlagen, R+I-Punkte (inkl. **Info / Rechtsgrundlage / Link**
+  je Punkt für die TPM-Übersicht), **Team**, **Schichtarten**, **Anlagenteile** (für Störberichte)
+  und die **lokalen Sicherungen** dieses Geräts.
   → **Grundeinstellungen immer aus der aktuellen App-Version pflegen** (siehe Kapitel 9).
 
 ---

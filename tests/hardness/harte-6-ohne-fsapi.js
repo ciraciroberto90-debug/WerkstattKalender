@@ -23,8 +23,10 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   ok('Kein JS-Fehler ohne File System Access API', errors.length === 0);
   ok('Ordner-Symbol zeigt "nicht eingerichtet" (grau), kein Absturz', await page.locator('button[aria-label="Gemeinsame Datei"]').count() === 1);
 
-  // TPM-Punkt abhaken
+  // TPM-Punkt abhaken (TPM öffnet zuerst die Übersicht -> zum Plan wechseln)
   await page.getByRole('button', { name: 'TPM', exact: true }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
   await page.waitForTimeout(400);
   const punkt = page.locator('button[title="Klicken zum Abhaken / Notiz"]').first();
   if (await punkt.count() > 0) {

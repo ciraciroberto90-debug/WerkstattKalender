@@ -80,6 +80,8 @@ function grosserBestand() {
   // Druckausgabe: Sonderzeichen aus dem Backlog dürfen im HTML nicht als echtes Tag landen
   await page.getByRole('button', { name: 'TPM', exact: true }).click();
   await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Plan', exact: true }).click(); // TPM öffnet zuerst die Übersicht -> zum Plan wechseln
+  await page.waitForTimeout(300);
   const [popup] = await Promise.all([
     page.waitForEvent('popup').catch(() => null),
     page.getByRole('button', { name: /Drucken/ }).click(),
