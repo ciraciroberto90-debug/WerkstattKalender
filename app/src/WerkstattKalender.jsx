@@ -940,10 +940,8 @@ function App() {
     const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
       <button key={s.id} onClick={() => oeffneStoerDetail(s)}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#E9ECEF"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-        className="w-full flex items-center gap-3 px-3 py-2 text-left"
-        style={{ borderTop: "1px solid #EDEFF2", backgroundColor: "transparent", cursor: "pointer", transition: "background-color 0.12s" }}>
+        className="wk-hover w-full flex items-center gap-3 px-3 py-2 text-left"
+        style={{ borderTop: "1px solid #EDEFF2", backgroundColor: "transparent" }}>
         <span className="font-mono flex-shrink-0" style={{ fontSize: "0.72rem", color: "#8A9099", width: "42px" }}>{zeit}</span>
         <span className="flex-shrink-0" style={{ minWidth: "150px", maxWidth: "220px" }}>
           <span className="font-extrabold" style={{ fontSize: "0.86rem", color: "#22262B" }}>{s.anlage || "—"}</span>
@@ -2591,6 +2589,9 @@ function App() {
       <style>{`
         .no-print { }
         .print-only { display: none; }
+        /* Dezenter Hover für klickbare Listenzeilen (sticht Inline-Hintergründe) */
+        .wk-hover { transition: background-color .12s; }
+        .wk-hover:hover { background-color: #E9ECEF !important; cursor: pointer; }
         @media print {
           @page { size: A4 landscape; margin: 10mm; }
           @page notes { size: A4 portrait; margin: 15mm; }
@@ -3314,7 +3315,7 @@ function App() {
                   <button
                     key={p.anlage}
                     onClick={() => openPlanEntry(p)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1.5 text-left"
+                    className="wk-hover w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1.5 text-left"
                     style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}
                   >
                     <span
@@ -3336,7 +3337,7 @@ function App() {
                     <button
                       key={e.id}
                       onClick={() => openEditModal(e)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1.5 text-left"
+                      className="wk-hover w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1.5 text-left"
                       style={{ backgroundColor: "#FDF6F5", border: "1px solid #E8B4AE" }}
                     >
                       <span className="rounded" style={{ width: "20px", height: "20px", border: "2px solid #C3C7CB", backgroundColor: "white" }} />
@@ -3662,6 +3663,7 @@ function App() {
                       <tr
                         key={a.id}
                         onClick={() => openArbeitEdit(a)}
+                        className="wk-hover"
                         style={{ borderBottom: "1.5px solid #6B7280", cursor: "pointer", opacity: a.status === "done" ? 0.6 : 1 }}
                         title="Klicken zum Bearbeiten"
                       >
@@ -5746,7 +5748,7 @@ function App() {
                     <button
                       key={a.id}
                       onClick={() => setRegisterItem({ category: "TPM", name: a.name })}
-                      className="flex items-center justify-between text-left px-3 py-2 rounded border hover:opacity-80 transition-opacity"
+                      className="wk-hover flex items-center justify-between text-left px-3 py-2 rounded border"
                       style={{ borderColor: "#E2E4E7" }}
                     >
                       <span className="text-sm font-bold">{a.name}</span>
@@ -5765,7 +5767,7 @@ function App() {
                     <button
                       key={r.id}
                       onClick={() => setRegisterItem({ category: "RI", name: r.name })}
-                      className="flex items-center justify-between text-left px-3 py-2 rounded border hover:opacity-80 transition-opacity"
+                      className="wk-hover flex items-center justify-between text-left px-3 py-2 rounded border"
                       style={{ borderColor: "#E2E4E7" }}
                     >
                       <span className="text-sm font-bold">{r.name}</span>
