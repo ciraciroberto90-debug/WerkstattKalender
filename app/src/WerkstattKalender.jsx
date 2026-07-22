@@ -940,19 +940,19 @@ function App() {
     const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
       <button key={s.id} onClick={() => oeffneStoerDetail(s)}
-        className="wk-hover w-full flex items-center gap-3 py-1 text-left"
-        style={{ borderTop: "1px solid #22262B", backgroundColor: "transparent", paddingLeft: "52px", paddingRight: "12px", borderLeft: "4px solid #C9CFD6" }}>
-        <span className="font-mono flex-shrink-0" style={{ fontSize: "0.72rem", color: "#8A9099", width: "42px" }}>{zeit}</span>
-        <span className="flex-shrink-0" style={{ minWidth: "150px", maxWidth: "220px" }}>
-          <span className="font-extrabold" style={{ fontSize: "0.86rem", color: "#22262B" }}>{s.anlage || "—"}</span>
-          {s.anlagenteil && <span style={{ fontSize: "0.72rem", color: "#8A9099" }}> · {s.anlagenteil}</span>}
+        className="wk-hover w-full flex items-center gap-2 text-left"
+        style={{ borderTop: "1px solid #E2E4E7", backgroundColor: "transparent", padding: "2px 10px 2px 30px" }}>
+        <span className="font-mono flex-shrink-0" style={{ fontSize: "0.62rem", color: "#8A9099", width: "36px" }}>{zeit}</span>
+        <span className="flex-shrink-0" style={{ minWidth: "130px", maxWidth: "210px" }}>
+          <span className="font-extrabold" style={{ fontSize: "0.76rem", color: "#22262B" }}>{s.anlage || "—"}</span>
+          {s.anlagenteil && <span style={{ fontSize: "0.62rem", color: "#8A9099" }}> · {s.anlagenteil}</span>}
         </span>
-        <span className="flex-1" style={{ fontSize: "0.82rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.stoerung || <span className="italic">—</span>}</span>
-        {(Number(s.ausfallzeit) || 0) > 0 && <span className="flex-shrink-0 font-mono rounded" style={{ fontSize: "0.72rem", padding: "1px 6px", color: "#9A6B00", backgroundColor: "#FBF3DA" }}>{minutenText(s.ausfallzeit)}</span>}
-        <span className="flex-shrink-0 inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.3px", padding: "2px 8px", backgroundColor: s.offen ? "#FBEAE8" : "#EAF3EC", color: s.offen ? "#C0392B" : "#1F7A3D" }}>
+        <span className="flex-1" style={{ fontSize: "0.72rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.stoerung || <span className="italic">—</span>}</span>
+        {(Number(s.ausfallzeit) || 0) > 0 && <span className="flex-shrink-0 font-mono rounded" style={{ fontSize: "0.62rem", padding: "1px 5px", color: "#9A6B00", backgroundColor: "#FBF3DA" }}>{minutenText(s.ausfallzeit)}</span>}
+        <span className="flex-shrink-0 inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.52rem", letterSpacing: "0.3px", padding: "2px 7px", backgroundColor: s.offen ? "#FBEAE8" : "#EAF3EC", color: s.offen ? "#C0392B" : "#1F7A3D" }}>
           {s.offen ? "offen" : "✓ behoben"}
         </span>
-        <span className="flex-shrink-0" style={{ color: "#C4CBD2", fontSize: "0.8rem" }}>›</span>
+        <span className="flex-shrink-0" style={{ color: "#C4CBD2", fontSize: "0.7rem" }}>›</span>
       </button>
     );
   };
@@ -3168,29 +3168,30 @@ function App() {
                             <span style={{ color: "#8A9099", fontSize: "0.72rem" }}>{g.liste.length} Eintrag{g.liste.length === 1 ? "" : "e"}</span>
                           </span>
                         </button>
-                        {/* Schichten: als aufklappbare Zeilen (Dropdown) */}
+                        {/* Aufgeklappter Inhalt: eingerückter Einschub-Block (Vorlage A) -
+                            hängt sichtbar "unter" dem Tag, mit grauer Leiste links */}
                         {auf && (
-                          <div style={{ backgroundColor: "#FCFDFE" }}>
-                            {g.proSchicht.map(({ sch, liste, ausfall, offen: schOffen }) => {
+                          <div style={{ margin: "0 10px 8px 26px", borderLeft: "3px solid #9AA3AD", borderRight: "1px solid #D6DBE0", borderBottom: "1px solid #D6DBE0", borderRadius: "0 0 8px 8px", backgroundColor: "#FAFBFC", overflow: "hidden" }}>
+                            {g.proSchicht.map(({ sch, liste, ausfall, offen: schOffen }, si) => {
                               const farbe = SCHICHTEN[sch] || { color: "#8A9099", text: "#fff" };
                               const schichtAuf = istSchichtOffen(g.datum, sch);
                               return (
-                                <div key={sch} style={{ borderTop: "1px solid #22262B" }}>
-                                  {/* Schicht-Kopf (klickbar, eingerückt = geöffnetes Dropdown erkennbar) */}
-                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover w-full flex items-center gap-3 py-1 text-left" style={{ paddingLeft: "34px", paddingRight: "16px", borderLeft: "4px solid #C9CFD6" }}>
-                                    <span style={{ color: "#8A9099", fontSize: "0.75rem", width: "12px" }}>{schichtAuf ? "▾" : "▸"}</span>
-                                    <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.66rem", letterSpacing: "0.5px", padding: "2px 10px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
+                                <div key={sch} style={{ borderTop: si === 0 ? "none" : "1px solid #D6DBE0" }}>
+                                  {/* Schicht-Kopf (klein, klickbar) */}
+                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover w-full flex items-center gap-2 text-left" style={{ padding: "3px 10px", backgroundColor: "#F1F3F5" }}>
+                                    <span style={{ color: "#8A9099", fontSize: "0.68rem", width: "11px" }}>{schichtAuf ? "▾" : "▸"}</span>
+                                    <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.58rem", letterSpacing: "0.4px", padding: "2px 8px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
                                       {sch === "—" ? "ohne Schicht" : sch}
                                     </span>
-                                    <span className="ml-auto flex items-center gap-2.5">
-                                      {ausfall > 0 && <span className="font-mono" style={{ color: "#A6AEB6", fontSize: "0.7rem" }}>⏱ {minutenText(ausfall)}</span>}
-                                      {schOffen > 0 && <span className="rounded-full text-white font-bold" style={{ padding: "1px 7px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{schOffen} offen</span>}
-                                      <span style={{ color: "#A6AEB6", fontSize: "0.7rem" }}>{liste.length}</span>
+                                    <span className="ml-auto flex items-center gap-2">
+                                      {ausfall > 0 && <span className="font-mono" style={{ color: "#A6AEB6", fontSize: "0.66rem" }}>⏱ {minutenText(ausfall)}</span>}
+                                      {schOffen > 0 && <span className="rounded-full text-white font-bold" style={{ padding: "1px 7px", backgroundColor: "#C0392B", fontSize: "0.56rem" }}>{schOffen} offen</span>}
+                                      <span style={{ color: "#A6AEB6", fontSize: "0.66rem" }}>{liste.length}</span>
                                     </span>
                                   </button>
                                   {/* Zeilen (Zeit + Anlage + Beschreibung) */}
                                   {schichtAuf && (
-                                    <div style={{ backgroundColor: "#F7F9FB" }}>
+                                    <div style={{ backgroundColor: "#fff" }}>
                                       {liste.map((s) => renderStoerZeile(s))}
                                     </div>
                                   )}
