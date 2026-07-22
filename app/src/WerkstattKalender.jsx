@@ -23,7 +23,7 @@ function SyncAnzeige({ style }) {
 
 // Halbkreis-Anzeige für die Erledigungs-Quoten in der Übersicht: füllt sich
 // beim Anzeigen langsam bis zum Zielwert, die Prozentzahl steht in der Mitte.
-function HalbkreisQuote({ prozent, label }) {
+function HalbkreisQuote({ prozent, label, sub, titel }) {
   const [anim, setAnim] = useState(0);
   useEffect(() => {
     if (prozent === null || prozent === undefined) { setAnim(0); return; }
@@ -34,8 +34,8 @@ function HalbkreisQuote({ prozent, label }) {
   const umfang = Math.PI * 34; // Länge des Halbkreis-Bogens (Radius 34)
   const gefuellt = umfang * (Math.min(100, Math.max(0, anim)) / 100);
   return (
-    <div className="rounded-xl px-3.5 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", textAlign: "center" }}>
-      <svg viewBox="0 0 84 48" style={{ width: "84px", height: "48px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}: ${prozent !== null && prozent !== undefined ? prozent + " %" : "keine Daten"}`}>
+    <div className="rounded-xl px-3.5 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", textAlign: "center" }} title={titel || "Anteil erledigter TPM- und R+I-Punkte"}>
+      <svg viewBox="0 0 84 48" style={{ width: "84px", height: "48px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${prozent !== null && prozent !== undefined ? prozent + " %" : "keine Daten"}`}>
         <path d="M 8 44 A 34 34 0 0 1 76 44" fill="none" stroke="#EDEEF0" strokeWidth="8" strokeLinecap="round" />
         <path
           d="M 8 44 A 34 34 0 0 1 76 44"
@@ -51,7 +51,8 @@ function HalbkreisQuote({ prozent, label }) {
           {prozent !== null && prozent !== undefined ? `${prozent}%` : "–"}
         </text>
       </svg>
-      <div className="text-xs font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.68rem" }}>{label}</div>
+      <div className="font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.64rem", lineHeight: 1.15 }}>{label}</div>
+      {sub && <div style={{ color: "#B0B6BD", fontSize: "0.58rem", fontWeight: 700 }}>{sub}</div>}
     </div>
   );
 }
@@ -575,7 +576,7 @@ function App() {
   const [stoerErr, setStoerErr] = useState(null); // Fehler der Störungen-Datei (eigener Banner)
   const [stoerModal, setStoerModal] = useState(null); // null | {mode:'add'} | {mode:'edit', id}
   const [sDraft, setSDraft] = useState(null); // Entwurf im Melden/Bearbeiten-Dialog
-  const [stoerErledigteZeigen, setStoerErledigteZeigen] = useState(false); // erledigte Störungen einblenden
+  const [stoerErledigteZeigen, setStoerErledigteZeigen] = useState(true); // Schichtbuch: behobene Berichte standardmäßig mit anzeigen
   const [stoerOffeneTage, setStoerOffeneTage] = useState(null); // aufgeklappte Datums-Gruppen (null = Vorgabe: neuester Tag offen)
   const [stoerOffeneSchichten, setStoerOffeneSchichten] = useState(() => new Set()); // aufgeklappte Schichten "datum|schicht"
   const [stoerModus, setStoerModus] = useState("liste"); // "liste" | "auswertung"
@@ -3227,8 +3228,8 @@ function App() {
                 <div className="text-xs font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.68rem" }}>{label}</div>
               </div>
             ))}
-            <HalbkreisQuote prozent={quoteMonatHeute} label={"Quote " + MONTHS[today.getMonth()]} />
-            <HalbkreisQuote prozent={quoteJahrHeute} label={"Quote " + today.getFullYear()} />
+            <HalbkreisQuote prozent={quoteMonatHeute} label="Erledigt-Quote" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter TPM- und R+I-Punkte im Monat" />
+            <HalbkreisQuote prozent={quoteJahrHeute} label="Erledigt-Quote" sub={String(today.getFullYear())} titel="Anteil erledigter TPM- und R+I-Punkte im Jahr" />
           </div>
 
           {/* Heute da: zeigt nur die gerade LAUFENDE Schicht (Früh 06-14, Spät 14-22, Nacht 22-06) */}
