@@ -3998,7 +3998,7 @@ function App() {
                       ))}
                     </tr>
                     <tr>
-                      <th style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>Mitarbeiter</th>
+                      <th style={{ border: "1.5px solid #6B7280", boxShadow: "inset 0 0 0 2px #22262B", background: "#E9ECEF", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#5B6572", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>Mitarbeiter</th>
                       {tage.map((t) => {
                         const we = t.dow === 0 || t.dow === 6;
                         const ft = feiertage.get(t.key);
@@ -4033,7 +4033,7 @@ function App() {
                         const rolle = TEAM_ROLLEN[mitglied.rolle || ""];
                         return (
                           <tr key={person}>
-                            <td style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", padding: "4px 8px", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>
+                            <td style={{ border: "1.5px solid #6B7280", boxShadow: "inset 0 0 0 2px #22262B", background: "#E9ECEF", padding: "4px 8px", whiteSpace: "nowrap", position: "sticky", left: 0, zIndex: 1 }}>
                               <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold mr-1.5" style={{ width: "18px", height: "18px", fontSize: "0.52rem", backgroundColor: rolle.color, verticalAlign: "middle" }} title={rolle.label}>{personKuerzel(person)}</span>
                               <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>{person}</span>
                             </td>
