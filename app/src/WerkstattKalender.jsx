@@ -1210,7 +1210,13 @@ function App() {
     const montag = montagVon(todayKey);
     const zielKey = dateKey(montag.getFullYear(), montag.getMonth(), montag.getDate());
     const zielEl = container.querySelector(`[data-daykey="${zielKey}"]`);
-    if (zielEl) container.scrollLeft = Math.max(0, zielEl.offsetLeft - 110);
+    if (zielEl) {
+      // Exakt bündig statt Schätzwert: Die echte Breite der (sticky) Namensspalte
+      // messen, damit die Montags-Spalte direkt an der Namensspalte anliegt.
+      const nameZelle = container.querySelector("thead th");
+      const nameBreite = nameZelle ? nameZelle.getBoundingClientRect().width : 110;
+      container.scrollLeft = Math.max(0, zielEl.offsetLeft - nameBreite);
+    }
   }, [matrixCursor, cockpitTab, view, team.length]);
 
   // Planung (Tage untereinander): beim Öffnen der aktuellen Woche direkt zum
