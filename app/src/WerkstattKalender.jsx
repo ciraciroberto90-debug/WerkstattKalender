@@ -940,8 +940,8 @@ function App() {
     const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
       <button key={s.id} onClick={() => oeffneStoerDetail(s)}
-        className="wk-hover w-full flex items-center gap-3 px-3 py-2 text-left"
-        style={{ borderTop: "1px solid #EDEFF2", backgroundColor: "transparent" }}>
+        className="wk-hover w-full flex items-center gap-3 px-3 py-1.5 text-left"
+        style={{ borderTop: "1px solid #22262B", backgroundColor: "transparent" }}>
         <span className="font-mono flex-shrink-0" style={{ fontSize: "0.72rem", color: "#8A9099", width: "42px" }}>{zeit}</span>
         <span className="flex-shrink-0" style={{ minWidth: "150px", maxWidth: "220px" }}>
           <span className="font-extrabold" style={{ fontSize: "0.86rem", color: "#22262B" }}>{s.anlage || "—"}</span>
@@ -3144,17 +3144,17 @@ function App() {
             }
             return (
               <>
-                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #D6DBE0" }}>
+                <div className="rounded-xl overflow-hidden" style={{ border: "1.5px solid #22262B" }}>
                   {stoerGruppen.map((g, idx) => {
                     const auf = istTagOffen(g.datum, idx);
                     const d = g.datum !== "—" ? new Date(g.datum + "T00:00:00") : null;
                     const istHeute = g.datum === todayKey;
                     return (
-                      <div key={g.datum} style={{ borderTop: idx === 0 ? "none" : "1px solid #E2E4E7" }}>
+                      <div key={g.datum} style={{ borderTop: idx === 0 ? "none" : "1.5px solid #22262B" }}>
                         {/* Datums-Kopfzeile (klickbar) */}
                         <button
                           onClick={() => toggleStoerTag(g.datum)}
-                          className="wk-hover w-full flex items-center gap-3 px-4 py-2.5 text-left"
+                          className="wk-hover w-full flex items-center gap-3 px-4 py-1.5 text-left"
                           style={{ backgroundColor: istHeute ? "#FBF4E7" : "#F4F6F8" }}
                         >
                           <span style={{ color: "#5B6572", fontSize: "0.8rem", width: "12px" }}>{auf ? "▾" : "▸"}</span>
@@ -3175,9 +3175,9 @@ function App() {
                               const farbe = SCHICHTEN[sch] || { color: "#8A9099", text: "#fff" };
                               const schichtAuf = istSchichtOffen(g.datum, sch);
                               return (
-                                <div key={sch} style={{ borderTop: "1px solid #EDEFF2" }}>
+                                <div key={sch} style={{ borderTop: "1px solid #22262B" }}>
                                   {/* Schicht-Kopf (klickbar) */}
-                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover w-full flex items-center gap-3 px-4 py-2 text-left">
+                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover w-full flex items-center gap-3 px-4 py-1.5 text-left">
                                     <span style={{ color: "#8A9099", fontSize: "0.75rem", width: "12px" }}>{schichtAuf ? "▾" : "▸"}</span>
                                     <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.66rem", letterSpacing: "0.5px", padding: "2px 10px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
                                       {sch === "—" ? "ohne Schicht" : sch}
