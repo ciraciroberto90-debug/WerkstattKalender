@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Werkstatt-Cockpit – Regelwerk</title>
+<style>
+  @page { size: A4 portrait; margin: 16mm 15mm 16mm 15mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #22262B; font-size: 10.5pt; line-height: 1.5; }
+  .titel { background: linear-gradient(135deg,#22262B,#3A424B); color: #fff; padding: 22px 22px; border-radius: 12px; margin-bottom: 18px; }
+  .titel .k { font-size: 8pt; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #E0A45B; }
+  .titel h1 { margin: 4px 0 4px; font-size: 20pt; }
+  .titel p { margin: 0; font-size: 9pt; color: #C7CDD4; }
+  h2 { font-size: 12.5pt; margin: 16px 0 6px; padding: 6px 11px; border-radius: 7px; color: #fff; break-after: avoid; }
+  h2 .n { opacity: .7; font-weight: 800; margin-right: 6px; }
+  .tpm   { background: #C97A2B; }
+  .ri    { background: #2F6690; }
+  .rechte{ background: #4B5259; }
+  .stoer { background: #B23A34; }
+  .sync  { background: #1F7A3D; }
+  .schicht{ background: #5B6572; }
+  ol { margin: 4px 0 8px; padding-left: 20px; }
+  li { margin: 3px 0; break-inside: avoid; }
+  li b, li strong { color: #22262B; }
+  .hint { font-size: 8.5pt; color: #6B7480; font-style: italic; margin: 2px 0 10px; }
+  .section { break-inside: avoid; }
+  .fuss { margin-top: 16px; padding-top: 8px; border-top: 1px solid #E2E4E7; font-size: 8pt; color: #8A9099; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 9pt; background: #F1F3F5; padding: 0 3px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="titel">
+  <div class="k">Werkstatt-Cockpit</div>
+  <h1>Regelwerk – die eingebaute Logik</h1>
+  <p>Alle festen Spielregeln der App: Wartungsrotation (TPM), R+I-Termine, Rollen &amp; Rechte, Störungen, Synchronisation und Schichtplan. Direkt aus dem Programm-Code abgeleitet.</p>
+</div>
+
+<div class="section">
+<h2 class="tpm"><span class="n">A</span>TPM – Wartungsrotation</h2>
+<ol>
+  <li><b>Rollen steuern alles:</b> jede Anlage hat eine Rolle – <i>Montags-Rotation</i>, <i>Taktstraße</i>, <i>Beschichtung flexibel</i> (B1), <i>Flexible Gruppe A/B</i>.</li>
+  <li><b>Montags-Rotation:</b> jeden Montag genau <b>eine</b> Anlage, Reihenfolge monday1→2→3→4 → dann ein Taktstraßen-Slot → wieder von vorn. Fester Ankerpunkt: <b>Montag, 05.01.2026</b>.</li>
+  <li><b>Feiertags-Montag:</b> der Slot verschiebt sich um eine Woche (Rolle wird <b>nicht übersprungen</b>) – so bleibt die interne „<b>max. 5 Wochen</b>"-Regel gewahrt.</li>
+  <li><b>Taktstraße:</b> alle Taktstraßen-Anlagen sollen im Monat drankommen; wer nicht über den Montag kam, wird auf <b>Di–Fr</b> verteilt – priorisiert nach „<b>am längsten nicht gemacht</b>".</li>
+  <li><b>B+T</b> gilt als unkritisch → darf bei Platzmangel als <b>Erstes einen Monat aussetzen</b>.</li>
+  <li><b>Flexible Gruppen A/B:</b> laufen <b>alle 2 Monate abwechselnd</b> (gerader Monat → A, ungerader → B).</li>
+  <li><b>B1 (Beschichtung):</b> unter der Woche, aber <b>nicht</b> in einer Woche, in der B2 oder B3 dran ist – sonst setzt B1 den Monat aus.</li>
+  <li><b>Wochentags-Regeln:</b> Wartung nur Mo–Fr, nie Wochenende/Feiertag. Der <b>Dienstag nach einem genutzten Montag bleibt frei</b>.</li>
+  <li><b>Ein-Tag-Abstand:</b> zwischen zwei Wochentags-Wartungen mind. 1 Tag Lücke; reicht der Platz nicht, fällt eine Anlage aus (<b>Abstand hat Vorrang</b>).</li>
+  <li><b>Plan-Stabilität:</b> Abhaken im laufenden Monat mischt den Plan <b>nicht</b> neu (Erledigungen zählen für die Priorität nur bis Monatsanfang).</li>
+</ol>
+</div>
+
+<div class="section">
+<h2 class="ri"><span class="n">B</span>R+I – Rundgänge &amp; Inspektionen</h2>
+<ol>
+  <li><b>Rhythmus-Typen:</b> wöchentlich · alle 2 Wochen · monatlich (Tag) · alle X Monate · jährlich · <b>manuell</b> (kein fester Rhythmus → erscheint nicht automatisch).</li>
+  <li><b>Nur Werktage:</b> Wochenende und Feiertag sind ausgeschlossen.</li>
+  <li><b>Ausweichen:</b> fällt ein Termin auf Wochenende/Feiertag → nächstgelegener gültiger Tag (bis 7 Tage, vor/zurück, näher gewinnt).</li>
+  <li><b>Energieaufschreibung</b> darf nie vor den 1. → wird <b>nur vorwärts</b> verschoben.</li>
+  <li><b>Überlast-Regel:</b> ab <b>3 R+I-Punkten</b> gilt ein Tag als „voll" → weitere weichen auf leerere Tage aus.</li>
+</ol>
+</div>
+
+<div class="section">
+<h2 class="rechte"><span class="n">C</span>Rollen &amp; Rechte (Leser vs. Bearbeiter)</h2>
+<ol>
+  <li><b>Volle App</b> nur bei nachweislichem <b>Schreibrecht</b> auf die gemeinsame Datei – oder im <b>Solo-Betrieb</b> (Browser ohne Datei-Funktion).</li>
+  <li><b>Im Zweifel Nur-Leser:</b> nicht verbunden / nur Leserecht / unbestätigt = Leser, bis das Gegenteil bewiesen ist.</li>
+  <li><b>Leser sehen:</b> Übersicht, Schichtplan, Planung, Störungen, TPM-Übersicht, TPM-Plan – <b>kein</b> Backlog/Auswertung/Register/⚙.</li>
+  <li><b>Sicherheits-Klammer:</b> unerlaubte Ansicht wird sofort zurückgesetzt (auch wenn Schreibrecht mitten in der Sitzung wegfällt).</li>
+  <li>Nur-Leser schreiben <b>niemals</b> Hauptdaten (letzte Ebene direkt im Speicher-Code).</li>
+</ol>
+</div>
+
+<div class="section">
+<h2 class="stoer"><span class="n">D</span>Störungen</h2>
+<ol>
+  <li>Liegen in <b>eigener Datei</b> (<code>werkstatt-stoerungen.json</code>) → <b>alle</b> dürfen bearbeiten, auch Nur-Leser der Hauptdaten.</li>
+  <li><b>Kein Standard-Status</b> – Offen/Erledigt muss aktiv gewählt werden (Pflicht).</li>
+  <li>Bei <b>Erledigt</b>: Ursache + Sofort-Maßnahme Pflicht; bei <b>Offen</b>: „Zu planende Maßnahme".</li>
+  <li>Detail-Ansicht ist erst <b>read-only</b>, Bearbeiten muss entsichert werden.</li>
+  <li>Ausfallzeit immer in <b>Minuten</b>; Anlagenteile/Fehlerarten pflegst nur du im ⚙.</li>
+</ol>
+</div>
+
+<div class="section">
+<h2 class="sync"><span class="n">E</span>Synchronisation &amp; Datensicherheit</h2>
+<ol>
+  <li><b>Zusammenführen statt Überschreiben:</b> jeder Eintrag hat id + „zuletzt geändert" → der Neuere gewinnt, zwei Bearbeiter überschreiben sich nicht.</li>
+  <li><b>Gelöschtes bleibt gelöscht</b> (Grabstein/Tombstone – kein „Wiederauferstehen").</li>
+  <li><b>Optimistische Sperre:</b> vor dem Schreiben Prüfung, ob die Datei sich zwischenzeitlich geändert hat.</li>
+  <li><b>Alle 30 s</b> Hintergrund-Abgleich + sofort bei jeder Änderung.</li>
+  <li><b>Rollende lokale Sicherungen</b> (pro Gerät).</li>
+  <li><b>Konflikt-Wächter:</b> sammelt OneDrive-Konfliktkopien automatisch wieder ein.</li>
+  <li><b>Selbstheilung:</b> nach dem Schreiben wird geprüft, dass nichts gegenüber vorher verloren ging.</li>
+  <li><b>⚙-Grundeinstellungen</b> (Anlagen, R+I, Team, Schichtarten, Anlagenteile) werden als <b>ganzer Block</b> gespeichert → immer nur aus der <b>neuesten</b> Version pflegen.</li>
+</ol>
+</div>
+
+<div class="section">
+<h2 class="schicht"><span class="n">F</span>Schichtplan &amp; Anwesenheit</h2>
+<ol>
+  <li>Feste Schichtarten <b>Früh/Spät/Nacht</b> (farbig) + „Spät mit B"; eigene weitere Schichtarten sind <b>immer grau</b>.</li>
+  <li>Wer ganztags fehlt (Krank/Urlaub/Schule) bekommt <b>kein „+"</b>.</li>
+  <li><b>„Jetzt in der Werkstatt":</b> eine Nachtschicht vor 6 Uhr zählt noch zum <b>Vortag</b>.</li>
+  <li><b>Feiertage</b> werden überall berücksichtigt (regionaler Kalender).</li>
+</ol>
+</div>
+
+<div class="fuss">
+  Werkstatt-Cockpit · Regelwerk · automatisch aus dem Programm-Code abgeleitet. Bei Änderungen an der Logik dieses Dokument neu erzeugen.
+</div>
+
+</body>
+</html>
