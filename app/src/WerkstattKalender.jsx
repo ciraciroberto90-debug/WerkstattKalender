@@ -3332,11 +3332,13 @@ function App() {
                         ) : (
                           liste.map((x) => {
                             const sc = x.schicht && SCHICHTEN[x.schicht];
+                            // Ohne eingetragene Schichtart ist die Person trotzdem DA (Tag-/Frühdienst) -
+                            // daher normal anzeigen, nur mit neutralem Avatar (kein Durchstreichen!).
                             return (
-                              <div key={x.name} className="flex items-center gap-2" style={{ padding: "3px 0" }}>
-                                <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "24px", height: "24px", fontSize: "0.6rem", backgroundColor: sc ? sc.color : "#CBD1D8", color: sc ? (sc.text || "#fff") : "#fff" }}>{sc ? initialen(x.name) : "–"}</span>
-                                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: sc ? "#22262B" : "#9AA0A6", textDecoration: sc ? "none" : "line-through" }}>{x.name}</span>
-                                {aktiv && sc && <span className="ml-auto inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.5rem", letterSpacing: "0.3px", backgroundColor: "#EAF3EC", color: "#1F7A3D", padding: "1px 6px" }}>jetzt</span>}
+                              <div key={x.name} className="flex items-center gap-2" style={{ padding: "3px 0" }} title={sc ? x.schicht : "Anwesend (keine Schichtart eingetragen)"}>
+                                <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "24px", height: "24px", fontSize: "0.6rem", backgroundColor: sc ? sc.color : "#8A9099", color: sc ? (sc.text || "#fff") : "#fff" }}>{initialen(x.name)}</span>
+                                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#22262B" }}>{x.name}</span>
+                                {aktiv && <span className="ml-auto inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.5rem", letterSpacing: "0.3px", backgroundColor: "#EAF3EC", color: "#1F7A3D", padding: "1px 6px" }}>jetzt</span>}
                               </div>
                             );
                           })
