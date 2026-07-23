@@ -3213,7 +3213,7 @@ function App() {
                         <button
                           onClick={() => toggleStoerTag(g.datum)}
                           className="wk-hover w-full flex items-center gap-3 px-4 py-1 text-left"
-                          style={{ backgroundColor: istHeute ? "#FBF4E7" : "#F4F6F8", border: "1.5px solid #22262B", borderRadius: "9px" }}
+                          style={{ backgroundColor: auf ? "#E4EDF6" : (istHeute ? "#FBF4E7" : "#F4F6F8"), border: `1.5px solid ${auf ? "#2F6690" : "#22262B"}`, borderRadius: "9px", boxShadow: auf ? "inset 4px 0 0 0 #2F6690" : "none" }}
                         >
                           <span style={{ color: "#5B6572", fontSize: "0.8rem", width: "12px" }}>{auf ? "▾" : "▸"}</span>
                           <span className="font-extrabold" style={{ color: "#22262B", fontSize: "0.95rem" }}>
