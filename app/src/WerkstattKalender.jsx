@@ -21,38 +21,71 @@ function SyncAnzeige({ style }) {
   );
 }
 
-// Halbkreis-Anzeige für die Erledigungs-Quoten in der Übersicht: füllt sich
-// beim Anzeigen langsam bis zum Zielwert, die Prozentzahl steht in der Mitte.
+// Halbkreis-Anzeige für die Erledigungs-Quoten in der Übersicht: der Bogen füllt
+// sich beim Anzeigen weich bis zum Zielwert, die Prozentzahl zählt synchron mit
+// hoch, ein kleiner Punkt reitet auf der Bogenspitze und die Farbe richtet sich
+// nach dem Wert (grün / gelb / rot).
 function HalbkreisQuote({ prozent, label, sub, titel }) {
+  const hatWert = prozent !== null && prozent !== undefined;
+  const ziel = hatWert ? Math.min(100, Math.max(0, prozent)) : 0;
   const [anim, setAnim] = useState(0);
+  const [gid] = useState(() => "hkq-" + Math.random().toString(36).slice(2, 8));
   useEffect(() => {
-    if (prozent === null || prozent === undefined) { setAnim(0); return; }
-    // erst mit 0 rendern, dann Zielwert setzen - so ist die Füll-Animation sichtbar
-    const t = setTimeout(() => setAnim(prozent), 100);
-    return () => clearTimeout(t);
-  }, [prozent]);
+    if (!hatWert) { setAnim(0); return; }
+    let raf, start;
+    const dauer = 1400;
+    const tick = (ts) => {
+      if (start === undefined) start = ts;
+      const t = Math.min(1, (ts - start) / dauer);
+      const e = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setAnim(ziel * e);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    const timer = setTimeout(() => { raf = requestAnimationFrame(tick); }, 120);
+    return () => { clearTimeout(timer); if (raf) cancelAnimationFrame(raf); };
+  }, [ziel, hatWert]);
+
   const umfang = Math.PI * 34; // Länge des Halbkreis-Bogens (Radius 34)
-  const gefuellt = umfang * (Math.min(100, Math.max(0, anim)) / 100);
+  const frac = Math.min(1, Math.max(0, anim / 100));
+  const gefuellt = umfang * frac;
+  const theta = Math.PI * (1 - frac); // Winkel der Bogenspitze (links = π, rechts = 0)
+  const tipX = 42 + 34 * Math.cos(theta);
+  const tipY = 44 - 34 * Math.sin(theta);
+  const [hell, dunkel] = ["#43B26F", "#2F7D4F"]; // immer grün
   return (
-    <div className="rounded-xl px-3.5 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", textAlign: "center" }} title={titel || "Anteil erledigter TPM- und R+I-Punkte"}>
-      <svg viewBox="0 0 84 48" style={{ width: "84px", height: "48px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${prozent !== null && prozent !== undefined ? prozent + " %" : "keine Daten"}`}>
+    <div className="rounded-xl px-3.5 py-3" style={{ background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", border: "1px solid #E2E4E7", textAlign: "center", boxShadow: "0 1px 3px rgba(20,22,25,0.05)" }} title={titel || "Anteil erledigter Wartungs- und R+I-Punkte"}>
+      <svg viewBox="0 0 84 50" style={{ width: "88px", height: "52px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={hell} />
+            <stop offset="100%" stopColor={dunkel} />
+          </linearGradient>
+        </defs>
+        {/* Hintergrund-Bogen */}
         <path d="M 8 44 A 34 34 0 0 1 76 44" fill="none" stroke="#EDEEF0" strokeWidth="8" strokeLinecap="round" />
-        <path
-          d="M 8 44 A 34 34 0 0 1 76 44"
-          fill="none"
-          stroke="#2F7D4F"
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={umfang}
-          strokeDashoffset={umfang - gefuellt}
-          style={{ transition: "stroke-dashoffset 1.4s ease-out" }}
-        />
-        <text x="42" y="43" textAnchor="middle" fontFamily="ui-monospace,Consolas,monospace" fontWeight="800" fontSize="15" fill="#22262B">
-          {prozent !== null && prozent !== undefined ? `${prozent}%` : "–"}
+        {/* gefüllter Bogen mit weichem Farbverlauf + leichtem Schein */}
+        {hatWert && frac > 0 && (
+          <path
+            d="M 8 44 A 34 34 0 0 1 76 44"
+            fill="none"
+            stroke={`url(#${gid})`}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={umfang}
+            strokeDashoffset={umfang - gefuellt}
+            style={{ filter: `drop-shadow(0 1px 2px ${dunkel}55)` }}
+          />
+        )}
+        {/* mitlaufender Punkt an der Bogenspitze */}
+        {hatWert && frac > 0.01 && (
+          <circle cx={tipX} cy={tipY} r="4.6" fill="#fff" stroke={dunkel} strokeWidth="2.4" />
+        )}
+        <text x="42" y="42" textAnchor="middle" fontFamily="ui-monospace,Consolas,monospace" fontWeight="800" fontSize="15" fill="#22262B">
+          {hatWert ? `${Math.round(anim)}%` : "–"}
         </text>
       </svg>
-      <div className="font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.64rem", lineHeight: 1.15 }}>{label}</div>
-      {sub && <div style={{ color: "#B0B6BD", fontSize: "0.58rem", fontWeight: 700 }}>{sub}</div>}
+      <div className="font-bold uppercase mt-0.5" style={{ color: "#6B7480", fontSize: "0.64rem", lineHeight: 1.15, letterSpacing: "0.02em" }}>{label}</div>
+      {sub && <div style={{ color: "#AAB0B7", fontSize: "0.58rem", fontWeight: 700 }}>{sub}</div>}
     </div>
   );
 }
@@ -2672,7 +2705,7 @@ function App() {
               Klammer (useEffect oben) setzt unerlaubte Ansichten ohnehin zurück. */}
           <>
             <div className="flex rounded overflow-hidden border border-white/20">
-              {[["COCKPIT", "Cockpit"], ["TPM", "TPM"]].map(([v, label]) => {
+              {[["COCKPIT", "Werkstatt"], ["TPM", "TPM"]].map(([v, label]) => {
                 const active = v === "COCKPIT" ? view === "COCKPIT" : view !== "COCKPIT";
                 return (
                   <button
@@ -3267,8 +3300,8 @@ function App() {
                 <div className="text-xs font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.68rem" }}>{label}</div>
               </div>
             ))}
-            <HalbkreisQuote prozent={quoteMonatHeute} label="TPM & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter TPM- und R+I-Punkte im Monat" />
-            <HalbkreisQuote prozent={quoteJahrHeute} label="TPM & R+I" sub={String(today.getFullYear())} titel="Anteil erledigter TPM- und R+I-Punkte im Jahr" />
+            <HalbkreisQuote prozent={quoteMonatHeute} label="Wartung & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter Wartungs- und R+I-Punkte im Monat" />
+            <HalbkreisQuote prozent={quoteJahrHeute} label="Wartung & R+I" sub={String(today.getFullYear())} titel="Anteil erledigter Wartungs- und R+I-Punkte im Jahr" />
           </div>
 
           {/* Heute da: zeigt nur die gerade LAUFENDE Schicht (Früh 06-14, Spät 14-22, Nacht 22-06) */}

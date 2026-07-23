@@ -34,7 +34,7 @@ const mockHandle = (mode) => ({
     ok('S1: "Planung"-Tab sichtbar (erlaubt, nur ansehen)', await page.getByRole('button', { name: 'Planung', exact: true }).count() === 1);
     ok('S1: "TPM"-Hauptreiter sichtbar (führt zur TPM-Übersicht/Plan)', await page.getByRole('button', { name: 'TPM', exact: true }).count() === 1);
     ok('S1: "Backlog"-Tab NICHT sichtbar (noch nicht verbunden = sicherer Standard)', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
-    ok('S1: "Cockpit"-Hauptreiter sichtbar (gleiche Hauptreiter wie Bearbeiter)', await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 1);
+    ok('S1: "Cockpit"-Hauptreiter sichtbar (gleiche Hauptreiter wie Bearbeiter)', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1);
     ok('S1: "Gemeinsame Datei"-Knopf IST sichtbar (sonst könnte sich niemand verbinden!)', await page.locator('button[aria-label="Gemeinsame Datei"]').count() === 1);
     await page.close();
   }
@@ -85,7 +85,7 @@ const mockHandle = (mode) => ({
     await page.getByText('Vorhandene Datei öffnen …').click();
     await page.waitForTimeout(800);
 
-    ok('S3: Nach Verbinden als Bearbeiter - "Cockpit"-Hauptreiter sichtbar', await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 1);
+    ok('S3: Nach Verbinden als Bearbeiter - "Cockpit"-Hauptreiter sichtbar', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1);
     ok('S3: "Backlog" (im Cockpit-Untermenü) erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
     ok('S3: "Gemeinsame Datei"-Knopf sichtbar (Bearbeiter darf verwalten)', await page.locator('button[aria-label="Gemeinsame Datei"]').count() === 1);
     await page.close();
@@ -99,7 +99,7 @@ const mockHandle = (mode) => ({
     await page.goto(APP);
     await page.waitForTimeout(700);
 
-    ok('S4: Solo-Browser (kein FS-Access) - volle App nutzbar ("Cockpit" sichtbar)', await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 1);
+    ok('S4: Solo-Browser (kein FS-Access) - volle App nutzbar ("Cockpit" sichtbar)', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1);
     ok('S4: "Backlog" erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
     await page.close();
   }

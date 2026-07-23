@@ -31,14 +31,25 @@ const CONFIG = {
 };
 const STOER = require("./demo-stoerungen.js");
 
+// Ein paar Wartungs-/R+I-Einträge (Juli 2026), damit die Halbkreis-Quoten in der
+// Vorschau echte Werte anzeigen und sich animiert füllen. 9 erledigt / 4 offen.
+const ENTRIES = [];
+["BTS", "VSM1", "HRO", "OF320", "TS200", "B+T", "RRO", "B1", "LTA1"].forEach((name, i) => {
+  ENTRIES.push({ id: "tpm-" + i, date: "2026-07-" + String((i * 2) + 3).padStart(2, "0"), category: "TPM", name, status: "done" });
+});
+["Wasserrundgang", "Energieaufschreibung", "Kompressor Rundgang", "Werkstattreinigung"].forEach((name, i) => {
+  ENTRIES.push({ id: "ri-" + i, date: "2026-07-" + String((i * 3) + 20).padStart(2, "0"), category: "RI", name, status: "open" });
+});
+
 // Demo-Version: wird sie erhöht, werden die Demo-Daten beim nächsten Laden EINMAL
 // neu gesetzt (überschreibt die alten Demo-Daten). Sonst bleibt alles wie es ist,
 // damit Herumklicken zwischen zwei F5 nicht verloren geht.
-const DEMO_VER = "demo-3";
+const DEMO_VER = "demo-4";
 const seed = `
   try {
     if (localStorage.getItem('wk-demo-ver') !== ${JSON.stringify(DEMO_VER)}) {
       localStorage.setItem('werkstatt-kalender-config', ${JSON.stringify(JSON.stringify(CONFIG))});
+      localStorage.setItem('werkstatt-kalender-entries', ${JSON.stringify(JSON.stringify(ENTRIES))});
       localStorage.setItem('werkstatt-stoerungen-entries', ${JSON.stringify(JSON.stringify(STOER))});
       localStorage.setItem('wk-demo-ver', ${JSON.stringify(DEMO_VER)});
     }

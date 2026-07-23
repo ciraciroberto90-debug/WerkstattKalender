@@ -43,10 +43,10 @@ const check = (n, c) => { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok
   // (gleiche zwei Hauptreiter Cockpit/TPM wie beim Bearbeiter). Die Sperre liegt
   // im Untermenü: Backlog/Auswertung/Register erscheinen für Leser gar nicht,
   // und die Sicherheits-Klammer setzt unerlaubte Ansichten zurück.
-  const cockpitReiterDa = await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 1;
+  const cockpitReiterDa = await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1;
   check('"Cockpit"-Hauptreiter ist für den Leser sichtbar (gleiche Hauptreiter wie Bearbeiter)', cockpitReiterDa);
   if (cockpitReiterDa) {
-    await page.getByRole('button', { name: 'Cockpit', exact: true }).click();
+    await page.getByRole('button', { name: 'Werkstatt', exact: true }).click();
     await page.waitForTimeout(400);
     check('Auch nach Klick auf Cockpit: KEIN Backlog-Reiter im Leser-Untermenü', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
     const text = await page.locator('body').innerText();

@@ -39,7 +39,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   }
 
   // Backlog-Arbeit anlegen
-  await page.getByRole('button', { name: 'Cockpit', exact: true }).click();
+  await page.getByRole('button', { name: 'Werkstatt', exact: true }).click();
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Backlog', exact: true }).click();
   await page.waitForTimeout(300);

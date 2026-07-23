@@ -51,7 +51,7 @@ for (const [name, content] of faelle) fs.writeFileSync(path.join(TMP, name), con
     ok(`"${name}": kein JS-Fehler`, !crashed);
     if (crashed) console.log('   ->', errors[0]);
     // App muss weiterhin bedienbar sein (Cockpit-Reiter noch da)
-    const stabil = await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 1;
+    const stabil = await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1;
     ok(`"${name}": Oberfläche bleibt bedienbar`, stabil);
   }
 
