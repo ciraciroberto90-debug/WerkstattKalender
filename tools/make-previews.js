@@ -44,12 +44,27 @@ const ENTRIES = [];
 // Demo-Version: wird sie erhöht, werden die Demo-Daten beim nächsten Laden EINMAL
 // neu gesetzt (überschreibt die alten Demo-Daten). Sonst bleibt alles wie es ist,
 // damit Herumklicken zwischen zwei F5 nicht verloren geht.
-const DEMO_VER = "demo-5";
+// Schicht-Zuordnung fürs Team (für "Heute da" + Schichtplan der Vorschau)
+const SCHICHT_PLAN = [
+  ["R. Ciraci", "Früh"], ["S. Bauer", "Früh"],
+  ["T. Klein", "Spät"], ["J. Wolf", "Spät mit B"],
+  ["M. Weber", "Nacht"], ["A. Fischer", "Nacht"],
+];
+const DEMO_VER = "demo-6";
 const seed = `
   try {
     if (localStorage.getItem('wk-demo-ver') !== ${JSON.stringify(DEMO_VER)}) {
+      var ents = ${JSON.stringify(ENTRIES)};
+      // Schichten für heute ± ein paar Tage anlegen, damit "Heute da" und der
+      // Schichtplan in der Vorschau immer gefüllt sind - egal an welchem Tag geöffnet.
+      var plan = ${JSON.stringify(SCHICHT_PLAN)};
+      for (var off = -2; off <= 5; off++) {
+        var d = new Date(); d.setDate(d.getDate() + off);
+        var ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        plan.forEach(function(pw){ ents.push({ id: 'schicht-t|' + pw[0] + '|' + ds, category: 'SCHICHT', scope: 'tag', name: pw[0], date: ds, wert: pw[1] }); });
+      }
       localStorage.setItem('werkstatt-kalender-config', ${JSON.stringify(JSON.stringify(CONFIG))});
-      localStorage.setItem('werkstatt-kalender-entries', ${JSON.stringify(JSON.stringify(ENTRIES))});
+      localStorage.setItem('werkstatt-kalender-entries', JSON.stringify(ents));
       localStorage.setItem('werkstatt-stoerungen-entries', ${JSON.stringify(JSON.stringify(STOER))});
       localStorage.setItem('wk-demo-ver', ${JSON.stringify(DEMO_VER)});
     }

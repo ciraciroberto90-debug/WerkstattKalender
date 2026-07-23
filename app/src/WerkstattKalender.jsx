@@ -3287,55 +3287,63 @@ function App() {
       {/* Cockpit: Übersicht (Kennzahlen + Tagesliste + Pinnwand) */}
       {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
-          {/* Kennzahlen-Kacheln */}
+          {/* Kennzahlen-Kacheln (Farbakzent links, ohne Icon) */}
           <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
             {[
-              [heutePlan.length, "Heute fällig", "#22262B"],
-              [heuteErledigtCount, "Heute erledigt", "#2F7D4F"],
-              [ueberfaellige.length, "Überfällig", ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F"],
-              [todayPlanResult.assignments.length, "Diesen Monat geplant", "#22262B"],
-            ].map(([num, label, color]) => (
-              <div key={label} className="rounded-xl px-3.5 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
-                <div className="font-mono font-extrabold" style={{ fontSize: "1.4rem", color }}>{num}</div>
-                <div className="text-xs font-bold uppercase mt-0.5" style={{ color: "#8A9099", fontSize: "0.68rem" }}>{label}</div>
+              [heutePlan.length, "Heute fällig", "#22262B", "#C97A2B"],
+              [heuteErledigtCount, "Heute erledigt", "#2F7D4F", "#2F7D4F"],
+              [ueberfaellige.length, "Überfällig", ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F", ueberfaellige.length > 0 ? "#B23A34" : "#CBD1D8"],
+              [todayPlanResult.assignments.length, "Diesen Monat geplant", "#22262B", "#8A9099"],
+            ].map(([num, label, color, akzent]) => (
+              <div key={label} className="rounded-xl px-4 py-3" style={{ backgroundColor: "white", border: "1px solid #E7EAEE", boxShadow: `inset 4px 0 0 0 ${akzent}` }}>
+                <div className="font-mono font-extrabold" style={{ fontSize: "1.7rem", lineHeight: 1, color }}>{num}</div>
+                <div className="font-bold uppercase mt-1.5" style={{ color: "#6B7480", fontSize: "0.64rem", letterSpacing: "0.02em" }}>{label}</div>
               </div>
             ))}
             <HalbkreisQuote prozent={quoteMonatHeute} label="Wartung & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter Wartungs- und R+I-Punkte im Monat" />
             <HalbkreisQuote prozent={quoteJahrHeute} label="Wartung & R+I" sub={String(today.getFullYear())} titel="Anteil erledigter Wartungs- und R+I-Punkte im Jahr" />
           </div>
 
-          {/* Heute da: zeigt nur die gerade LAUFENDE Schicht (Früh 06-14, Spät 14-22, Nacht 22-06) */}
+          {/* Heute da: Schicht-Spalten mit farbigem Kopf + Avatar-Chips (aktuelle Schicht hervorgehoben) */}
           {team.length > 0 && (() => {
             const { aktuell, SCHICHT_INFO, jetztCrew, spalten } = jetztInDerWerkstatt;
-            const chip = (s) => s ? (
-              <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", color: SCHICHTEN[s].text || "white", backgroundColor: SCHICHTEN[s].color, flexShrink: 0 }} title={s}>{SCHICHTEN[s].kurz}</span>
-            ) : (
-              <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "22px", height: "18px", padding: "0 5px", fontSize: "0.6rem", backgroundColor: "#E2E4E7", color: "#8A9099", flexShrink: 0 }} title="Keine Schicht eingetragen">–</span>
-            );
+            const typFarbe = { FRUEH: { bg: "#F0C230", text: "#3A2E00" }, SPAET: { bg: "#1F7A3D", text: "#fff" }, NACHT: { bg: "#2F6690", text: "#fff" } };
+            const initialen = (n) => n.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
             return (
-              <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
-                <div className="flex items-center gap-2 mb-2">
+              <div className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>
+                <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: "1px solid #EEF0F2" }}>
                   <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Heute da</span>
-                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>({SCHICHT_INFO[aktuell].zeit}) <strong style={{ color: "#22262B" }}>{jetztCrew.length} in der Werkstatt</strong></span>
+                  <span className="font-mono text-xs" style={{ color: "#8A9099" }}>({SCHICHT_INFO[aktuell].zeit})</span>
+                  <span className="inline-flex items-center rounded-full font-bold text-white" style={{ backgroundColor: "#1F7A3D", fontSize: "0.68rem", padding: "3px 10px" }}>{jetztCrew.length} in der Werkstatt</span>
                   <button onClick={() => setCockpitTab("SCHICHTPLAN")} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Schichtplan</button>
                 </div>
-                <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-                  {spalten.map(([typ, titel, liste]) => (
-                    <div key={typ}>
-                      <div className="text-xs font-bold uppercase mb-1.5" style={{ color: typ === aktuell ? "#C97A2B" : "#8A9099", fontSize: "0.62rem" }}>
-                        {titel}
+                <div className="grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                  {spalten.map(([typ, titel, liste], i) => {
+                    const aktiv = typ === aktuell;
+                    const tf = typFarbe[typ] || { bg: "#8A9099", text: "#fff" };
+                    return (
+                      <div key={typ} style={{ padding: "11px 14px", borderRight: i < 2 ? "1px solid #EEF0F2" : "none", backgroundColor: aktiv ? "#F6FBF7" : "transparent" }}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.4px", padding: "2px 8px", backgroundColor: tf.bg, color: tf.text }}>{titel}</span>
+                          <span className="ml-auto" style={{ fontSize: "0.64rem", color: "#8A9099", fontWeight: 700 }}>{liste.length}</span>
+                        </div>
+                        {liste.length === 0 ? (
+                          <div className="text-xs" style={{ color: "#C3C7CB" }}>–</div>
+                        ) : (
+                          liste.map((x) => {
+                            const sc = x.schicht && SCHICHTEN[x.schicht];
+                            return (
+                              <div key={x.name} className="flex items-center gap-2" style={{ padding: "3px 0" }}>
+                                <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "24px", height: "24px", fontSize: "0.6rem", backgroundColor: sc ? sc.color : "#CBD1D8", color: sc ? (sc.text || "#fff") : "#fff" }}>{sc ? initialen(x.name) : "–"}</span>
+                                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: sc ? "#22262B" : "#9AA0A6", textDecoration: sc ? "none" : "line-through" }}>{x.name}</span>
+                                {aktiv && sc && <span className="ml-auto inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.5rem", letterSpacing: "0.3px", backgroundColor: "#EAF3EC", color: "#1F7A3D", padding: "1px 6px" }}>jetzt</span>}
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
-                      {liste.length === 0 ? (
-                        <div className="text-xs" style={{ color: "#C3C7CB" }}>–</div>
-                      ) : (
-                        liste.map((x) => (
-                          <div key={x.name} className="flex items-center gap-1.5 mb-1" style={{ fontSize: "0.76rem", fontWeight: 700, color: typ === aktuell ? "#22262B" : "#8A9099" }}>
-                            {chip(x.schicht)}{x.name}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
