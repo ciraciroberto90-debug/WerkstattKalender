@@ -1,4 +1,4 @@
-# Werkstatt-Kalender – Zusammenfassung & Anleitung
+# Werkstatt-Cockpit – Zusammenfassung & Anleitung
 
 Stand: Juli 2026
 
@@ -26,7 +26,7 @@ Vertreter und alle, die mitlesen oder mitarbeiten.
 
 ## 1. Was ist die App?
 
-Der **Werkstatt-Kalender** (`Werkstatt_Kalender_TPM.html`) ist ein einziges HTML-Programm,
+Das **Werkstatt-Cockpit** (`Werkstatt_Kalender_TPM.html`) ist ein einziges HTML-Programm,
 das komplett **im Browser** läuft – ohne Installation, ohne Anmeldung, ohne eigenen Server.
 Es bündelt die tägliche Werkstattorganisation an einem Ort:
 

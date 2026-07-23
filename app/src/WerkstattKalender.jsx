@@ -2629,13 +2629,13 @@ function App() {
     openPrintWindow(html, `werkstatt-planung-kw${getISOWeek(planungMontag)}-${planungMontag.getFullYear()}.html`);
   };
 
-  const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Kalender" : CATS[filter].full;
+  const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
   const printSuffix = view === "JAHR" ? `Jahresübersicht ${year}` : view === "PLAN" ? `${MONTHS[month]} ${year}` : `Monatsübersicht ${MONTHS[month]} ${year}`;
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#EBEDEF" }}>
-        <div className="text-sm text-slate-500 font-mono">Kalender wird geladen…</div>
+        <div className="text-sm text-slate-500 font-mono">Werkstatt-Cockpit wird geladen…</div>
       </div>
     );
   }
@@ -2665,7 +2665,7 @@ function App() {
         style={{ backgroundColor: "#22262B" }}
       >
         <div className="flex items-center gap-3">
-          <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Kalender</div>
+          <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Cockpit</div>
           {/* Hauptbereiche Cockpit / TPM - für Bearbeiter UND Leser gleich.
               Leser sehen im Untermenü nur die freigegebene, kleinere Auswahl
               (kein Backlog / keine Auswertung / kein Register). Die Sicherheits-

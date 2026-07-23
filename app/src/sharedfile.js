@@ -303,7 +303,7 @@ function createSharedStore(cfg) {
 
   /* ---------- Verbinden / Trennen ---------- */
   async function pickShared({ create = false } = {}) {
-    const types = [{ description: "Werkstatt-Kalender Daten", accept: { "application/json": [".json"] } }];
+    const types = [{ description: "Werkstatt-Cockpit Daten", accept: { "application/json": [".json"] } }];
     let handle;
     if (create) {
       handle = await window.showSaveFilePicker({ suggestedName: SUGGESTED_NAME, types });
