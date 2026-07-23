@@ -32,9 +32,9 @@ const mockHandle = (mode) => ({
     ok('S1: "Übersicht"-Tab sichtbar (Nur-Lesen-Standard)', await page.getByRole('button', { name: 'Übersicht', exact: true }).count() === 1);
     ok('S1: "Schichtplan"-Tab sichtbar', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 1);
     ok('S1: "Planung"-Tab sichtbar (erlaubt, nur ansehen)', await page.getByRole('button', { name: 'Planung', exact: true }).count() === 1);
-    ok('S1: "TPM-Plan"-Tab sichtbar', await page.getByRole('button', { name: 'TPM-Plan', exact: true }).count() === 1);
+    ok('S1: "TPM"-Hauptreiter sichtbar (führt zur TPM-Übersicht/Plan)', await page.getByRole('button', { name: 'TPM', exact: true }).count() === 1);
     ok('S1: "Backlog"-Tab NICHT sichtbar (noch nicht verbunden = sicherer Standard)', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
-    ok('S1: "Cockpit"-Hauptreiter NICHT sichtbar', await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 0);
+    ok('S1: "Cockpit"-Hauptreiter sichtbar (gleiche Hauptreiter wie Bearbeiter)', await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 1);
     ok('S1: "Gemeinsame Datei"-Knopf IST sichtbar (sonst könnte sich niemand verbinden!)', await page.locator('button[aria-label="Gemeinsame Datei"]').count() === 1);
     await page.close();
   }

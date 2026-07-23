@@ -1,7 +1,7 @@
-// KRITISCH: Kann ein reiner Leser einfach auf "Cockpit" klicken und damit
-// die "nur Plan"-Sperre umgehen? Der useEffect, der readerMode -> Plan
-// erzwingt, feuert nur beim WECHSEL von readerMode (Dependency [readerMode]),
-// nicht bei jedem Klick - der Cockpit-Tab-Button selbst ist nicht gesperrt.
+// KRITISCH: Der "Cockpit"-Hauptreiter ist jetzt auch für Leser sichtbar.
+// Kann ein reiner Leser darüber die Sperre umgehen und den Backlog sehen?
+// Erwartung: nein - das Leser-Untermenü enthält kein Backlog, und die
+// Sicherheits-Klammer (useEffect) setzt unerlaubte Ansichten zurück.
 const { chromium } = require('playwright-core');
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok++ : fail++; };
@@ -39,17 +39,18 @@ const check = (n, c) => { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok
   check('Direkt nach Verbinden: Leser im Plan, Backlog-Reiter nicht sichtbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
   check('Leser-Hinweis "nur ansehen" o.ä. ist erkennbar', (await page.locator('body').innerText()).length > 0);
 
-  // Versuch: existiert der "Cockpit"-Hauptreiter für den Leser überhaupt noch?
-  // (er ist eigentlich hinter {!readerMode && (...)} versteckt - hier wird das bestätigt)
+  // Neu: Der "Cockpit"-Hauptreiter ist jetzt bewusst auch für Leser sichtbar
+  // (gleiche zwei Hauptreiter Cockpit/TPM wie beim Bearbeiter). Die Sperre liegt
+  // im Untermenü: Backlog/Auswertung/Register erscheinen für Leser gar nicht,
+  // und die Sicherheits-Klammer setzt unerlaubte Ansichten zurück.
   const cockpitReiterDa = await page.getByRole('button', { name: 'Cockpit', exact: true }).count() === 1;
-  check('"Cockpit"-Hauptreiter für den Leser NICHT vorhanden (kein Weg zurück ins Cockpit)', !cockpitReiterDa);
+  check('"Cockpit"-Hauptreiter ist für den Leser sichtbar (gleiche Hauptreiter wie Bearbeiter)', cockpitReiterDa);
   if (cockpitReiterDa) {
     await page.getByRole('button', { name: 'Cockpit', exact: true }).click();
     await page.waitForTimeout(400);
-    await page.getByRole('button', { name: 'Backlog', exact: true }).click();
-    await page.waitForTimeout(400);
+    check('Auch nach Klick auf Cockpit: KEIN Backlog-Reiter im Leser-Untermenü', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
     const text = await page.locator('body').innerText();
-    check('(Befund) Leser sieht jetzt den vollen Backlog-Eintrag (sollte nicht sein)', text.includes('GEHEIME-ANLAGE'));
+    check('Auch nach Klick auf Cockpit: geheimer Backlog-Eintrag bleibt verborgen', !text.includes('GEHEIME-ANLAGE'));
   }
   // Zur Sicherheit: der geheime Backlog-Eintrag darf nirgendwo im sichtbaren Text auftauchen
   const gesamtText = await page.locator('body').innerText();

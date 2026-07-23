@@ -2666,27 +2666,20 @@ function App() {
       >
         <div className="flex items-center gap-3">
           <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Kalender</div>
-          {readerMode ? (
-            // Nur-Lesen (auch bevor die Verbindung zur gemeinsamen Datei überhaupt
-            // steht - siehe readerMode-Definition oben): ausschließlich diese 4
-            // Ansichten, nie die vollen Cockpit-Tabs (Backlog/Auswertung/Register).
+          {/* Hauptbereiche Cockpit / TPM - für Bearbeiter UND Leser gleich.
+              Leser sehen im Untermenü nur die freigegebene, kleinere Auswahl
+              (kein Backlog / keine Auswertung / kein Register). Die Sicherheits-
+              Klammer (useEffect oben) setzt unerlaubte Ansichten ohnehin zurück. */}
+          <>
             <div className="flex rounded overflow-hidden border border-white/20">
-              {[
-                ["COCKPIT_UEBERSICHT", "Übersicht"],
-                ["COCKPIT_SCHICHTPLAN", "Schichtplan"],
-                ["COCKPIT_PLANUNG", "Planung"],
-                ["COCKPIT_STOERUNGEN", <>Störungen{stoerOffenCount > 0 && <span className="ml-1 inline-flex items-center justify-center rounded-full" style={{ minWidth: "16px", height: "16px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.6rem" }}>{stoerOffenCount}</span>}</>],
-                ["TPMINFO", "TPM-Info"],
-                ["PLAN", "TPM-Plan"],
-              ].map(([key, label]) => {
-                const istCockpit = typeof key === "string" && key.startsWith("COCKPIT_");
-                const active = istCockpit ? (view === "COCKPIT" && cockpitTab === key.replace("COCKPIT_", "")) : view === key;
+              {[["COCKPIT", "Cockpit"], ["TPM", "TPM"]].map(([v, label]) => {
+                const active = v === "COCKPIT" ? view === "COCKPIT" : view !== "COCKPIT";
                 return (
                   <button
-                    key={key}
+                    key={v}
                     onClick={() => {
-                      if (istCockpit) { setView("COCKPIT"); setCockpitTab(key.replace("COCKPIT_", "")); }
-                      else setView(key);
+                      if (v === "COCKPIT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
+                      else setView("TPMINFO");
                     }}
                     className="px-3 py-1.5 text-xs font-black uppercase tracking-wide"
                     style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
@@ -2696,63 +2689,47 @@ function App() {
                 );
               })}
             </div>
-          ) : (
-            <>
-              {/* Hauptbereiche */}
-              <div className="flex rounded overflow-hidden border border-white/20">
-                {[["COCKPIT", "Cockpit"], ["TPM", "TPM"]].map(([v, label]) => {
-                  const active = v === "COCKPIT" ? view === "COCKPIT" : view !== "COCKPIT";
+            {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
+            {view === "COCKPIT" ? (
+              <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                {(readerMode
+                  ? [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["STOERUNGEN", "Störungen"]]
+                  : [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"], ["STOERUNGEN", "Störungen"]]
+                ).map(([v, label]) => (
+                  <button
+                    key={v}
+                    onClick={() => setCockpitTab(v)}
+                    className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center"
+                    style={{ backgroundColor: cockpitTab === v ? "#4B5259" : "transparent", color: cockpitTab === v ? "#fff" : "#B7BEC6" }}
+                  >
+                    {label}
+                    {v === "STOERUNGEN" && stoerOffenCount > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{stoerOffenCount}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                {(readerMode
+                  ? [["TPMINFO", "Übersicht"], ["PLAN", "Plan"]]
+                  : [["TPMINFO", "Übersicht"], ["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]]
+                ).map(([v, label]) => {
+                  const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
                   return (
                     <button
                       key={v}
-                      onClick={() => {
-                        if (v === "COCKPIT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
-                        else setView("TPMINFO");
-                      }}
-                      className="px-3 py-1.5 text-xs font-black uppercase tracking-wide"
-                      style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
+                      onClick={() => setView(v === "AUSWERTUNG" ? "MONAT" : v)}
+                      className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
+                      style={{ backgroundColor: active ? "#4B5259" : "transparent", color: active ? "#fff" : "#B7BEC6" }}
                     >
                       {label}
                     </button>
                   );
                 })}
               </div>
-              {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
-              {view === "COCKPIT" ? (
-                <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"], ["STOERUNGEN", "Störungen"]].map(([v, label]) => (
-                    <button
-                      key={v}
-                      onClick={() => setCockpitTab(v)}
-                      className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center"
-                      style={{ backgroundColor: cockpitTab === v ? "#4B5259" : "transparent", color: cockpitTab === v ? "#fff" : "#B7BEC6" }}
-                    >
-                      {label}
-                      {v === "STOERUNGEN" && stoerOffenCount > 0 && (
-                        <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{stoerOffenCount}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  {[["TPMINFO", "Übersicht"], ["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]].map(([v, label]) => {
-                    const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
-                    return (
-                      <button
-                        key={v}
-                        onClick={() => setView(v === "AUSWERTUNG" ? "MONAT" : v)}
-                        className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
-                        style={{ backgroundColor: active ? "#4B5259" : "transparent", color: active ? "#fff" : "#B7BEC6" }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
+            )}
+          </>
         </div>
         <div className="flex items-center gap-1 text-white">
           {view === "MONAT" || view === "PLAN" ? (
