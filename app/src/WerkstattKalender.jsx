@@ -5726,7 +5726,7 @@ function App() {
               <div style={{ fontSize: "1.3rem", fontWeight: 800, marginBottom: "6px" }}>Willkommen 👋</div>
               <p style={{ margin: 0, fontSize: "0.87rem", color: "#D2D8DE", maxWidth: "640px", lineHeight: 1.58, position: "relative", zIndex: 1 }}>
                 <strong style={{ color: "#fff" }}>TPM (Total Productive Maintenance)</strong> ist der übergreifende Ansatz, unsere Anlagenverfügbarkeit
-                langfristig zu sichern. Dieses Board deckt die folgende Bausteine ab: die <strong style={{ color: "#fff" }}>geplante Wartung</strong> zur
+                langfristig zu sichern. Dieses Board deckt folgende Bausteine ab: die <strong style={{ color: "#fff" }}>geplante Wartung</strong> zur
                 Instandhaltung der Anlagen sowie <strong style={{ color: "#fff" }}>R+I</strong> für die gesetzlichen Kontroll- und Prüfpflichten.
               </p>
               <div style={{ display: "flex", gap: "10px", marginTop: "16px", position: "relative", zIndex: 1, flexWrap: "wrap" }}>
