@@ -5707,97 +5707,110 @@ function App() {
       {/* TPM-Übersicht: Wissens- & Sensibilisierungs-Ort (öffnet zuerst beim Klick auf TPM) */}
       {view === "TPMINFO" && (
         <div className="no-print max-w-5xl mx-auto px-4 mt-4 mb-10">
-          <div style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderRadius: "14px", overflow: "hidden", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
+          <div style={{ backgroundColor: "white", border: "1px solid #E7EAEE", borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 18px rgba(20,22,25,0.07)" }}>
 
-            {/* Willkommens-Banner */}
-            <div style={{ background: "linear-gradient(135deg,#22262B,#343B44)", color: "#fff", padding: "22px 24px" }}>
-              <div style={{ fontSize: "1.15rem", fontWeight: 800, marginBottom: "4px" }}>Willkommen im Wartungs-Board 👋</div>
-              <p style={{ margin: 0, fontSize: "0.88rem", color: "#C7CDD4", maxWidth: "660px", lineHeight: 1.5 }}>
-                Hier siehst du, was für unsere Werkstatt ansteht – und verstehst, warum. <strong style={{ color: "#fff" }}>TPM</strong> hält
-                unsere Anlagen fit, <strong style={{ color: "#fff" }}>R+I</strong> erfüllt Kontroll- und Prüfpflichten. Beides sorgt dafür,
-                dass wir sicher, sauber und rechtssicher arbeiten.
+            {/* Willkommens-Hero mit Kennzahlen */}
+            <div style={{ position: "relative", background: "radial-gradient(120% 140% at 100% 0%, #33556e 0%, #22262B 55%)", color: "#fff", padding: "26px 26px 24px", overflow: "hidden" }}>
+              <span aria-hidden="true" style={{ position: "absolute", right: "-6px", bottom: "-22px", fontSize: "6rem", opacity: 0.08, transform: "rotate(-12deg)", pointerEvents: "none" }}>🔧</span>
+              <div style={{ fontSize: "0.66rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1.5px", color: "#E0A45B", marginBottom: "7px" }}>Wartungs-Board</div>
+              <div style={{ fontSize: "1.3rem", fontWeight: 800, marginBottom: "6px" }}>Willkommen 👋</div>
+              <p style={{ margin: 0, fontSize: "0.87rem", color: "#D2D8DE", maxWidth: "640px", lineHeight: 1.58, position: "relative", zIndex: 1 }}>
+                <strong style={{ color: "#fff" }}>TPM (Total Productive Maintenance)</strong> ist der übergreifende Ansatz, unsere Anlagenverfügbarkeit
+                langfristig zu sichern. Dieses Board deckt die folgende Bausteine ab: die <strong style={{ color: "#fff" }}>geplante Wartung</strong> zur
+                Instandhaltung der Anlagen sowie <strong style={{ color: "#fff" }}>R+I</strong> für die gesetzlichen Kontroll- und Prüfpflichten.
               </p>
-            </div>
-
-            {/* Zwei Bereiche: TPM + R+I */}
-            <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid #E2E4E7" }}>
-              <div style={{ padding: "15px 20px", backgroundColor: "#FBF2E7", display: "flex", gap: "11px", alignItems: "flex-start" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "9px", display: "grid", placeItems: "center", color: "#fff", fontSize: "1.1rem", flexShrink: 0, backgroundColor: "#C97A2B" }}>🔧</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>TPM – Wartung <span style={{ fontWeight: 700, fontSize: "0.7rem", color: "#C97A2B", backgroundColor: "#fff", border: "1px solid #EAD3B4", borderRadius: "20px", padding: "1px 8px", marginLeft: "4px" }}>{tpmAnlagen.length} Anlagen</span></div>
-                  <div style={{ color: "#5B6572", fontSize: "0.72rem" }}>Total Productive Maintenance</div>
-                  <p style={{ margin: "5px 0 0", fontSize: "0.78rem", color: "#444" }}>Anlagen werden per Rotation gewartet (Taktstraße, Montags-Rotation, flexible Gruppen). Ziel: keine ungeplanten Stillstände.</p>
+              <div style={{ display: "flex", gap: "10px", marginTop: "16px", position: "relative", zIndex: 1, flexWrap: "wrap" }}>
+                <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "11px", padding: "9px 15px" }}>
+                  <div style={{ fontSize: "1.25rem", fontWeight: 800, lineHeight: 1 }}>{tpmAnlagen.length}</div>
+                  <div style={{ fontSize: "0.66rem", color: "#B7BEC6", textTransform: "uppercase", letterSpacing: "0.4px", marginTop: "3px" }}>Anlagen</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "11px", padding: "9px 15px" }}>
+                  <div style={{ fontSize: "1.25rem", fontWeight: 800, lineHeight: 1 }}>{riItems.length}</div>
+                  <div style={{ fontSize: "0.66rem", color: "#B7BEC6", textTransform: "uppercase", letterSpacing: "0.4px", marginTop: "3px" }}>R+I-Punkte</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "11px", padding: "9px 15px" }}>
+                  <div style={{ fontSize: "1.25rem", fontWeight: 800, lineHeight: 1 }}>{quoteMonatHeute !== null ? `${quoteMonatHeute} %` : "–"}</div>
+                  <div style={{ fontSize: "0.66rem", color: "#B7BEC6", textTransform: "uppercase", letterSpacing: "0.4px", marginTop: "3px" }}>Quote {MONTHS_SHORT[today.getMonth()]}</div>
                 </div>
               </div>
-              <div style={{ padding: "15px 20px", backgroundColor: "#E9F0F6", borderLeft: "1px solid #E2E4E7", display: "flex", gap: "11px", alignItems: "flex-start" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "9px", display: "grid", placeItems: "center", color: "#fff", fontSize: "1.1rem", flexShrink: 0, backgroundColor: "#2F6690" }}>🔍</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>R+I – Rundgang &amp; Inspektion <span style={{ fontWeight: 700, fontSize: "0.7rem", color: "#2F6690", backgroundColor: "#fff", border: "1px solid #BFD2E2", borderRadius: "20px", padding: "1px 8px", marginLeft: "4px" }}>{riItems.length} Punkte</span></div>
-                  <div style={{ color: "#5B6572", fontSize: "0.72rem" }}>gesetzlich getaktete Kontrollen</div>
-                  <p style={{ margin: "5px 0 0", fontSize: "0.78rem", color: "#444" }}>Wiederkehrende Prüfungen mit festem Rhythmus – viele davon rechtlich vorgeschrieben und nachweispflichtig.</p>
+            </div>
+
+            {/* Zwei Bereiche als erhabene Karten */}
+            <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "14px", padding: "18px" }}>
+              <div style={{ position: "relative", borderRadius: "13px", padding: "16px", border: "1px solid #E7EAEE", overflow: "hidden", background: "linear-gradient(180deg,#FDF7EF,#fff)" }}>
+                <span style={{ position: "absolute", top: "14px", right: "14px", fontSize: "0.68rem", fontWeight: 800, padding: "3px 10px", borderRadius: "20px", backgroundColor: "#fff", color: "#C97A2B", border: "1px solid #EAD3B4" }}>{tpmAnlagen.length} Anlagen</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "11px", marginBottom: "9px" }}>
+                  <div style={{ width: "42px", height: "42px", borderRadius: "12px", display: "grid", placeItems: "center", color: "#fff", fontSize: "1.25rem", background: "linear-gradient(135deg,#E0A45B,#C97A2B)", boxShadow: "0 4px 10px rgba(0,0,0,0.13)" }}>🔧</div>
+                  <div style={{ fontWeight: 800, fontSize: "1rem" }}>TPM – Wartung<small style={{ display: "block", fontWeight: 600, fontSize: "0.7rem", color: "#5B6572" }}>Total Productive Maintenance</small></div>
                 </div>
+                <p style={{ margin: 0, fontSize: "0.79rem", color: "#3d4650" }}>Anlagen werden per Rotation gewartet (Taktstraße, Montags-Rotation, flexible Gruppen). Ziel: keine ungeplanten Stillstände.</p>
+              </div>
+              <div style={{ position: "relative", borderRadius: "13px", padding: "16px", border: "1px solid #E7EAEE", overflow: "hidden", background: "linear-gradient(180deg,#EFF4F9,#fff)" }}>
+                <span style={{ position: "absolute", top: "14px", right: "14px", fontSize: "0.68rem", fontWeight: 800, padding: "3px 10px", borderRadius: "20px", backgroundColor: "#fff", color: "#2F6690", border: "1px solid #BFD2E2" }}>{riItems.length} Punkte</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "11px", marginBottom: "9px" }}>
+                  <div style={{ width: "42px", height: "42px", borderRadius: "12px", display: "grid", placeItems: "center", color: "#fff", fontSize: "1.25rem", background: "linear-gradient(135deg,#5C93BE,#2F6690)", boxShadow: "0 4px 10px rgba(0,0,0,0.13)" }}>🔍</div>
+                  <div style={{ fontWeight: 800, fontSize: "1rem" }}>R+I – Rundgang &amp; Inspektion<small style={{ display: "block", fontWeight: 600, fontSize: "0.7rem", color: "#5B6572" }}>gesetzlich getaktete Kontrollen</small></div>
+                </div>
+                <p style={{ margin: 0, fontSize: "0.79rem", color: "#3d4650" }}>Wiederkehrende Prüfungen mit festem Rhythmus – viele davon rechtlich vorgeschrieben und nachweispflichtig.</p>
               </div>
             </div>
 
             {/* R+I-Punkte als aufklappbare Wissensliste */}
-            <div style={{ padding: "18px 20px 22px" }}>
-              <div className="flex items-center gap-2" style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", color: "#5B6572", marginBottom: "12px" }}>
-                <span style={{ width: "9px", height: "9px", borderRadius: "50%", backgroundColor: "#2F6690" }} />
+            <div style={{ padding: "4px 18px 20px" }}>
+              <div className="flex items-center gap-2" style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", color: "#5B6572", margin: "6px 0 12px" }}>
                 R+I-Punkte mit Rechtsgrundlage &amp; Link
-                <span style={{ flex: 1, height: "1px", backgroundColor: "#E2E4E7" }} />
+                <span style={{ flex: 1, height: "1px", background: "linear-gradient(90deg,#E7EAEE,transparent)" }} />
               </div>
 
-              <div style={{ border: "1px solid #E2E4E7", borderRadius: "10px", overflow: "hidden" }}>
-                {riItems.map((r, idx) => {
-                  const offen = tpmInfoOffen === r.id;
-                  const rhythmus = RI_TYPE_LABELS[r.type] || "";
-                  const hatInfos = (r.info && r.info.trim()) || (r.rechtsgrundlage && r.rechtsgrundlage.trim()) || (r.link && r.link.trim());
-                  return (
-                    <div key={r.id} style={{ borderTop: idx === 0 ? "none" : "1px solid #E2E4E7" }}>
-                      <div
-                        className="wk-hover flex items-center gap-2.5"
-                        onClick={() => setTpmInfoOffen(offen ? null : r.id)}
-                        style={{ padding: "10px 13px", backgroundColor: offen ? "#F6F7F9" : "#fff" }}
-                      >
-                        <span style={{ color: "#8A9099", width: "12px", fontSize: "0.7rem", flexShrink: 0 }}>{offen ? "▾" : "▸"}</span>
-                        <span style={{ fontWeight: 700, fontSize: "0.84rem", flex: 1 }}>{r.name}</span>
-                        {r.rechtsgrundlage && r.rechtsgrundlage.trim() && (
-                          <span style={{ fontSize: "0.62rem", fontWeight: 700, backgroundColor: "#F1EFFA", color: "#7C5CBF", border: "1px solid #DDD5F2", borderRadius: "6px", padding: "2px 7px" }}>§</span>
-                        )}
-                        {r.link && r.link.trim() && <span style={{ fontSize: "0.72rem" }}>🔗</span>}
-                        <span style={{ fontSize: "0.66rem", color: "#8A9099", whiteSpace: "nowrap" }}>{rhythmus}</span>
-                      </div>
-                      {offen && (
-                        <div style={{ padding: "2px 13px 13px 35px", backgroundColor: "#FAFBFC", fontSize: "0.8rem", color: "#3a3a3a" }}>
-                          {r.info && r.info.trim() && (
-                            <div style={{ margin: "9px 0 0", whiteSpace: "pre-wrap" }}>{r.info}</div>
-                          )}
-                          {r.rechtsgrundlage && r.rechtsgrundlage.trim() && (
-                            <div style={{ margin: "9px 0 0" }}><strong style={{ color: "#22262B" }}>Rechtsgrundlage:</strong> {r.rechtsgrundlage}</div>
-                          )}
-                          {(r.link && r.link.trim()) && (
-                            <div style={{ marginTop: "10px" }}>
-                              <a
-                                href={r.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "0.72rem", fontWeight: 800, color: "#fff", backgroundColor: "#2F6690", borderRadius: "7px", padding: "5px 10px", textDecoration: "none" }}
-                              >
-                                🔗 Mehr erfahren
-                              </a>
-                            </div>
-                          )}
-                          {!hatInfos && (
-                            <div style={{ margin: "9px 0 0", color: "#8A9099", fontStyle: "italic" }}>
-                              Noch keine Infos hinterlegt.{!readerMode && " Über das ⚙-Rädchen (oben rechts) kannst du Info, Rechtsgrundlage und Link zu diesem Punkt ergänzen."}
-                            </div>
-                          )}
-                        </div>
+              {riItems.map((r) => {
+                const offen = tpmInfoOffen === r.id;
+                const rhythmus = RI_TYPE_LABELS[r.type] || "";
+                const hatInfos = (r.info && r.info.trim()) || (r.rechtsgrundlage && r.rechtsgrundlage.trim()) || (r.link && r.link.trim());
+                return (
+                  <div key={r.id} style={{ border: `1px solid ${offen ? "#BFD2E2" : "#E7EAEE"}`, borderRadius: "11px", marginBottom: "8px", overflow: "hidden", boxShadow: offen ? "0 3px 12px rgba(20,22,25,0.06)" : "none" }}>
+                    <div
+                      className="wk-hover flex items-center"
+                      onClick={() => setTpmInfoOffen(offen ? null : r.id)}
+                      style={{ gap: "12px", padding: "12px 14px", backgroundColor: offen ? "#FAFBFC" : "#fff" }}
+                    >
+                      <span style={{ width: "9px", height: "9px", borderRadius: "50%", flexShrink: 0, backgroundColor: hatInfos ? "#2F6690" : "#8A9099", boxShadow: `0 0 0 4px ${hatInfos ? "#E9F0F6" : "#EDEFF2"}` }} />
+                      <span style={{ fontWeight: 700, fontSize: "0.86rem", flex: 1 }}>{r.name}</span>
+                      {r.rechtsgrundlage && r.rechtsgrundlage.trim() && (
+                        <span style={{ fontSize: "0.6rem", fontWeight: 800, backgroundColor: "#F1EFFA", color: "#7C5CBF", borderRadius: "6px", padding: "2px 7px" }}>§</span>
                       )}
+                      {r.link && r.link.trim() && <span style={{ fontSize: "0.72rem" }}>🔗</span>}
+                      <span style={{ fontSize: "0.66rem", color: "#8A9099", fontWeight: 600, backgroundColor: "#F4F6F8", borderRadius: "20px", padding: "3px 9px", whiteSpace: "nowrap" }}>{rhythmus}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    {offen && (
+                      <div style={{ padding: "0 14px 15px 35px", backgroundColor: "#FBFCFD", fontSize: "0.81rem", color: "#3a4650" }}>
+                        {r.info && r.info.trim() && (
+                          <div style={{ marginTop: "10px", whiteSpace: "pre-wrap" }}>{r.info}</div>
+                        )}
+                        {r.rechtsgrundlage && r.rechtsgrundlage.trim() && (
+                          <div style={{ marginTop: "10px" }}><strong style={{ color: "#22262B" }}>Rechtsgrundlage:</strong> {r.rechtsgrundlage}</div>
+                        )}
+                        {(r.link && r.link.trim()) && (
+                          <div style={{ marginTop: "12px" }}>
+                            <a
+                              href={r.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.72rem", fontWeight: 800, color: "#fff", background: "linear-gradient(135deg,#5C93BE,#2F6690)", borderRadius: "8px", padding: "7px 12px", textDecoration: "none", boxShadow: "0 3px 8px rgba(47,102,144,0.25)" }}
+                            >
+                              🔗 Mehr erfahren
+                            </a>
+                          </div>
+                        )}
+                        {!hatInfos && (
+                          <div style={{ marginTop: "10px", color: "#8A9099", fontStyle: "italic" }}>
+                            Noch keine Infos hinterlegt.{!readerMode && " Über das ⚙-Rädchen (oben rechts) kannst du Info, Rechtsgrundlage und Link zu diesem Punkt ergänzen."}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
               {!readerMode && (
                 <div style={{ fontSize: "0.72rem", color: "#8A9099", backgroundColor: "#F6F7F9", border: "1px dashed #CBD1D8", borderRadius: "9px", padding: "9px 12px", marginTop: "14px" }}>
