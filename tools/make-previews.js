@@ -44,7 +44,7 @@ const ENTRIES = [];
 // Demo-Version: wird sie erhöht, werden die Demo-Daten beim nächsten Laden EINMAL
 // neu gesetzt (überschreibt die alten Demo-Daten). Sonst bleibt alles wie es ist,
 // damit Herumklicken zwischen zwei F5 nicht verloren geht.
-const DEMO_VER = "demo-4";
+const DEMO_VER = "demo-5";
 const seed = `
   try {
     if (localStorage.getItem('wk-demo-ver') !== ${JSON.stringify(DEMO_VER)}) {
