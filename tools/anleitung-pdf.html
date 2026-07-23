@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Werkstatt-Cockpit – Vorstellung</title>
+<style>
+  @page { size: A4 portrait; margin: 14mm 14mm 12mm 14mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #22262B; font-size: 10.5pt; line-height: 1.5; }
+  .page { break-after: page; }
+  .page:last-child { break-after: auto; }
+
+  .hero { background: radial-gradient(120% 140% at 100% 0%, #33556e 0%, #22262B 55%); color: #fff; border-radius: 14px; padding: 26px 26px 22px; margin-bottom: 16px; }
+  .hero .k { font-size: 8pt; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: #E0A45B; }
+  .hero h1 { margin: 6px 0 2px; font-size: 26pt; letter-spacing: -.5px; }
+  .hero .sub { font-size: 12pt; color: #C7CDD4; margin: 0; }
+
+  h2 { font-size: 15pt; margin: 4px 0 8px; color: #22262B; }
+  h2 .bar { display:inline-block; width: 5px; height: 18px; background: #C97A2B; border-radius: 3px; vertical-align: -2px; margin-right: 8px; }
+  h3 { font-size: 11pt; margin: 0 0 3px; }
+  p { margin: 0 0 9px; }
+  .lead { font-size: 11pt; color: #3d4650; }
+
+  .shot { width: 100%; border: 1px solid #D6DBE0; border-radius: 9px; box-shadow: 0 3px 10px rgba(20,22,25,.12); display: block; margin: 6px 0 4px; }
+  .cap { font-size: 8.5pt; color: #8A9099; margin: 0 0 4px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; margin: 6px 0 12px; }
+  .feat { break-inside: avoid; }
+  .feat .t { font-weight: 800; font-size: 10.5pt; }
+  .feat .t .ic { margin-right: 5px; }
+  .feat .d { font-size: 9.5pt; color: #4b535c; }
+
+  .nutzen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 6px; }
+  .nz { background: #F4F8F5; border: 1px solid #CDE3D4; border-left: 4px solid #1F7A3D; border-radius: 9px; padding: 11px 13px; break-inside: avoid; }
+  .nz .t { font-weight: 800; color: #1F7A3D; font-size: 10.5pt; }
+  .nz .d { font-size: 9.5pt; color: #3d4650; }
+
+  .fuss { margin-top: 12px; padding-top: 7px; border-top: 1px solid #E2E4E7; font-size: 8pt; color: #8A9099; }
+  .refkopf { display:flex; align-items:baseline; gap:8px; margin-bottom:2px; }
+  .refkopf .num { font-size: 8pt; font-weight: 800; color:#fff; background:#C97A2B; border-radius: 20px; padding: 2px 9px; }
+</style>
+</head>
+<body>
+
+<!-- ===== Seite 1: Titel + Was ist es ===== -->
+<div class="page">
+  <div class="hero">
+    <div class="k">Vorstellung Führungskreis</div>
+    <h1>Werkstatt-Cockpit</h1>
+    <p class="sub">Die digitale Steuerzentrale unserer Werkstatt</p>
+  </div>
+  <h2><span class="bar"></span>Was ist das Werkstatt-Cockpit?</h2>
+  <p class="lead">Ein einziges Programm, das alles rund um die Werkstatt an einem Ort bündelt: <b>Schichtplan</b>,
+  <b>geplante Wartung (TPM)</b>, <b>gesetzliche Rundgänge &amp; Inspektionen (R+I)</b>, den <b>Arbeits-Backlog</b>,
+  <b>Störberichte</b> und eine <b>Übersicht auf einen Blick</b>. Alle im Team sehen denselben, stets
+  synchronen Stand – ohne Serverkosten, ohne Installation: es läuft aus <b>einer Datei</b> im Browser.</p>
+  <img class="shot" src="file:///home/user/WerkstattKalender/scratchpad/shots/cockpit.png" alt="Cockpit-Übersicht">
+  <p class="cap">Die Start-Übersicht: heute fällig · erledigt · überfällig, die Erledigungs-Quoten, wer gerade in der Werkstatt ist und die offenen Störungen.</p>
+  <div class="fuss">Werkstatt-Cockpit · Vorstellung · Demo-Daten zur Veranschaulichung</div>
+</div>
+
+<!-- ===== Seite 2: Was kann es ===== -->
+<div class="page">
+  <h2><span class="bar"></span>Was kann es?</h2>
+  <div class="grid">
+    <div class="feat"><div class="t"><span class="ic">📊</span>Übersicht (Cockpit)</div><div class="d">Kennzahlen des Tages, Monats-/Jahres-Quote, Anwesenheit und offene Störungen als Gedankenstütze.</div></div>
+    <div class="feat"><div class="t"><span class="ic">🔧</span>Wartung (TPM)</div><div class="d">Anlagen kommen per automatischer Rotation dran – nichts wird vergessen, der Plan rechnet sich selbst.</div></div>
+    <div class="feat"><div class="t"><span class="ic">🔍</span>R+I – Prüfpflichten</div><div class="d">Wiederkehrende Kontrollen mit festem Rhythmus, inkl. Rechtsgrundlage und Link je Punkt.</div></div>
+    <div class="feat"><div class="t"><span class="ic">🗓️</span>Schichtplan &amp; Planung</div><div class="d">Monatsmatrix je Person und tägliche Arbeitsverteilung – übersichtlich und schnell gepflegt.</div></div>
+    <div class="feat"><div class="t"><span class="ic">⚠️</span>Störberichte</div><div class="d">Digitales Schichtbuch: Störung dokumentieren, Ursache/Maßnahme, Ausfallzeit – mit Auswertung.</div></div>
+    <div class="feat"><div class="t"><span class="ic">🔒</span>Sicher &amp; synchron</div><div class="d">Alle sehen dasselbe, zwei Bearbeiter überschreiben sich nicht, nichts geht verloren.</div></div>
+  </div>
+  <div class="refkopf"><h3 style="margin:0">TPM-Übersicht – das digitale Wartungs-Board</h3></div>
+  <img class="shot" src="file:///home/user/WerkstattKalender/scratchpad/shots/tpminfo.png" alt="TPM-Übersicht">
+  <p class="cap">Holt das Team ab, erklärt TPM &amp; R+I und liefert je Prüfpunkt Info, Rechtsgrundlage und Link.</p>
+  <div class="fuss">Werkstatt-Cockpit · Vorstellung</div>
+</div>
+
+<!-- ===== Seite 3: Nutzen ===== -->
+<div class="page">
+  <h2><span class="bar"></span>Was bringt es? – der Nutzen</h2>
+  <div class="nutzen">
+    <div class="nz"><div class="t">⏱ Zeitersparnis</div><div class="d">Ein Ort statt Excel-Listen, Zettel und Whiteboards. Der Wartungsplan erstellt sich automatisch.</div></div>
+    <div class="nz"><div class="t">📑 Rechtssicherheit</div><div class="d">Gesetzliche Prüfungen (R+I) sind terminiert, dokumentiert und mit Rechtsgrundlage hinterlegt.</div></div>
+    <div class="nz"><div class="t">📉 Ausfälle sichtbar</div><div class="d">Störungen und Ausfallzeiten werden erfasst und ausgewertet – Schwachstellen werden greifbar.</div></div>
+    <div class="nz"><div class="t">✅ Nichts vergessen</div><div class="d">Rotation und Intervalle sorgen dafür, dass jede Anlage und jeder Rundgang zuverlässig drankommt.</div></div>
+    <div class="nz"><div class="t">👥 Alle im Bild</div><div class="d">Team, Schichtführung und Leitung sehen denselben Stand – auch der Vertreter bei Ausfall.</div></div>
+    <div class="nz"><div class="t">💶 Ohne Zusatzkosten</div><div class="d">Keine Server, keine Lizenz, keine Installation – läuft aus einer Datei über das vorhandene Laufwerk.</div></div>
+  </div>
+  <div class="fuss">Werkstatt-Cockpit · Vorstellung</div>
+</div>
+
+<!-- ===== Referenz-Seiten je Bereich ===== -->
+<div class="page">
+  <div class="refkopf"><span class="num">Bereich</span><h2 style="margin:0"><span class="bar"></span>Wartungsplan (TPM &amp; R+I)</h2></div>
+  <p>Der fortlaufende Monatsplan: jede Anlage nach ihrer Rotation, dazu die R+I-Termine – Wochenenden und Feiertage werden automatisch berücksichtigt.</p>
+  <img class="shot" src="file:///home/user/WerkstattKalender/scratchpad/shots/plan.png" alt="Wartungsplan">
+  <div class="fuss">Werkstatt-Cockpit · Vorstellung</div>
+</div>
+
+<div class="page">
+  <div class="refkopf"><span class="num">Bereich</span><h2 style="margin:0"><span class="bar"></span>Schichtplan</h2></div>
+  <p>Monatsmatrix je Mitarbeiter und Tag (Früh/Spät/Nacht u. a.). Wer ganztags fehlt, ist klar markiert.</p>
+  <img class="shot" src="file:///home/user/WerkstattKalender/scratchpad/shots/schichtplan.png" alt="Schichtplan">
+  <div class="fuss">Werkstatt-Cockpit · Vorstellung</div>
+</div>
+
+<div class="page">
+  <div class="refkopf"><span class="num">Bereich</span><h2 style="margin:0"><span class="bar"></span>Planung</h2></div>
+  <p>Tägliche Arbeitsverteilung: welche Arbeit / Notiz für wen – springt beim Öffnen direkt zum heutigen Tag.</p>
+  <img class="shot" src="file:///home/user/WerkstattKalender/scratchpad/shots/planung.png" alt="Planung">
+  <div class="fuss">Werkstatt-Cockpit · Vorstellung</div>
+</div>
+
+<div class="page">
+  <div class="refkopf"><span class="num">Bereich</span><h2 style="margin:0"><span class="bar"></span>Störberichte (Schichtbuch)</h2></div>
+  <p>Nach Datum → Schicht gegliedert. Jede Störung mit Anlage, Ursache, Maßnahme, Ausfallzeit – durchsuchbar und auswertbar. Diese Berichte darf das ganze Team pflegen.</p>
+  <img class="shot" src="file:///home/user/WerkstattKalender/scratchpad/shots/stoerungen.png" alt="Störberichte">
+  <div class="fuss">Werkstatt-Cockpit · Vorstellung</div>
+</div>
+
+</body>
+</html>
