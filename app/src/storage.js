@@ -58,7 +58,12 @@ window.storage = {
           // Änderung eines anderen Bearbeiters überschreiben.
           await shared.saveConfig(JSON.parse(value), prevRaw ? JSON.parse(prevRaw) : null);
         }
-        shared.dispatchOk();
+        // KEIN dispatchOk() an dieser Stelle: Das Speichern meldet ein
+        // endgültiges Scheitern nicht als Ausnahme, sondern über eine
+        // Fehlermeldung. Ein pauschales "alles gut" würde diese Warnung
+        // sofort wieder löschen - der Bearbeiter hielte seine Arbeit dann
+        // für gesichert, obwohl sie die gemeinsame Datei nie erreicht hat.
+        // Die Entwarnung gibt daher nur, wer die Bestätigung wirklich hat.
       } catch (e) {
         shared.dispatchError("In der gemeinsamen Datei konnte nicht gespeichert werden (Laufwerk erreichbar? Datei gesperrt?). Lokal ist alles gesichert – beim nächsten erfolgreichen Speichern wird automatisch abgeglichen.");
       }

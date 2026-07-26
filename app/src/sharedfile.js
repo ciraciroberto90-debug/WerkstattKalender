@@ -703,6 +703,7 @@ function createSharedStore(cfg) {
           const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
           await recordBackup(bestaetigt, null);
           nachpruefenUndHeilen(stamped, removed, delStamp);
+          dispatchOk(); // Entwarnung erst hier: Die Änderung steht nachweislich in der Datei.
           return ohneSystemEntries(bestaetigt);
         }
       } catch (e) {
@@ -872,7 +873,8 @@ function createSharedStore(cfg) {
         if (allesDa) {
           await recordBackup(kontrolle.entries, null);
           const zurueck = {};
-          bestaetigt.forEach((e) => { zurueck[e.id.slice(7)] = e.value; });
+          bestaetigt.forEach((e) => { zurueck[e.id.slice(CONFIG_PREFIX.length)] = e.value; });
+          dispatchOk(); // Entwarnung erst hier: Die Einstellungen stehen nachweislich in der Datei.
           return zurueck;
         }
       } catch (e) {
@@ -952,6 +954,8 @@ function createSharedStore(cfg) {
       return data;
     },
     poll: pollNow,
+    canWrite, // nur lesende Statusabfrage - verleiht kein Recht
+    save: saveEntries, // greift dieselbe Prüfung ab wie jeder andere Weg
     getLastSuccessfulSyncAt: () => lastSuccessfulSyncAt,
     adoptFolder(handle) {
       folderHandle = handle;
