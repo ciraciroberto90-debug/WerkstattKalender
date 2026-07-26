@@ -20,6 +20,7 @@
   .stoer { background: #B23A34; }
   .sync  { background: #1F7A3D; }
   .schicht{ background: #5B6572; }
+  .grenzen{ background: #7A5C8A; }
   ol { margin: 4px 0 8px; padding-left: 20px; }
   li { margin: 3px 0; break-inside: avoid; }
   li b, li strong { color: #22262B; }
@@ -34,7 +35,7 @@
 <div class="titel">
   <div class="k">Werkstatt-Cockpit</div>
   <h1>Regelwerk – die eingebaute Logik</h1>
-  <p>Alle festen Spielregeln der App: Wartungsrotation (TPM), R+I-Termine, Rollen &amp; Rechte, Störungen, Synchronisation und Schichtplan. Direkt aus dem Programm-Code abgeleitet.</p>
+  <p>Alle festen Spielregeln der App: Wartungsrotation (TPM), R+I-Termine samt Prüfnachweis, Rollen &amp; Rechte, Störungen, Synchronisation mit Verlauf, Schichtplan sowie Grenzen und Aufräumen. Direkt aus dem Programm-Code abgeleitet.</p>
 </div>
 
 <div class="section">
@@ -61,6 +62,9 @@
   <li><b>Ausweichen:</b> fällt ein Termin auf Wochenende/Feiertag → nächstgelegener gültiger Tag (bis 7 Tage, vor/zurück, näher gewinnt).</li>
   <li><b>Energieaufschreibung</b> darf nie vor den 1. → wird <b>nur vorwärts</b> verschoben.</li>
   <li><b>Überlast-Regel:</b> ab <b>3 R+I-Punkten</b> gilt ein Tag als „voll" → weitere weichen auf leerere Tage aus.</li>
+  <li><b>Soll-Termine werden gerechnet, nicht gespeichert:</b> Ein Termin entsteht aus dem Rhythmus. Gespeichert wird erst, was <b>abgehakt</b> wird. Wer nur die vorhandenen Einträge zählt, zählt also nur das Erledigte – nie das Versäumte.</li>
+  <li><b>Nachweis für Prüfungen</b> (TPM → Übersicht → „Nachweis drucken"): je Punkt Rechtsgrundlage, alle erledigten Termine mit Datum, die versäumten und Unterschriftfelder. Die Soll-Termine darin werden nach Regel 6 gerechnet.</li>
+  <li><b>Künftige Termine sind keine Versäumnisse:</b> Bewertet wird nur, was bis heute fällig war. Ein Termin im Dezember ist im September eine offene Aufgabe, keine Lücke.</li>
 </ol>
 </div>
 
@@ -71,7 +75,9 @@
   <li><b>Im Zweifel Nur-Leser:</b> nicht verbunden / nur Leserecht / unbestätigt = Leser, bis das Gegenteil bewiesen ist.</li>
   <li><b>Leser sehen:</b> Übersicht, Schichtplan, Planung, Störungen, TPM-Übersicht, TPM-Plan – <b>kein</b> Backlog/Auswertung/Register/⚙.</li>
   <li><b>Sicherheits-Klammer:</b> unerlaubte Ansicht wird sofort zurückgesetzt (auch wenn Schreibrecht mitten in der Sitzung wegfällt).</li>
-  <li>Nur-Leser schreiben <b>niemals</b> Hauptdaten (letzte Ebene direkt im Speicher-Code).</li>
+  <li><b>Vier Ebenen, nicht eine:</b> (1) Knöpfe fehlen, (2) die App bricht das Speichern ab, (3) die Sync-Schicht verweigert das Schreiben, (4) die Zugriffsart wird aus einem <b>echten Schreibversuch</b> auf die Datei abgeleitet. Ebene 4 lässt sich mit keinem Kniff im Programm vortäuschen – geprüft mit 14 gezielten Angriffen über die Entwicklerkonsole.</li>
+  <li><b>Maßgeblich sind die Datei-Rechte auf dem Laufwerk</b>, die eure IT vergibt. Wer dort schreiben darf, kann die Datei immer auch außerhalb der App ändern. Der Schutz in der App ist damit eine <b>Leitplanke, keine Sicherheitsgrenze</b> – er sorgt dafür, dass die App die Grenze der IT respektiert und nie versucht, sie zu unterlaufen.</li>
+  <li><b>Fällt das Schreibrecht während der Arbeit weg</b>, wird nichts mehr in die gemeinsame Datei geschrieben <i>und</i> deutlich gewarnt. Die eigene Arbeit bleibt lokal erhalten und wird nachgeholt, sobald das Recht zurück ist. Stilles Weiterarbeiten im Glauben, alles sei gesichert, darf es nicht geben.</li>
 </ol>
 </div>
 
@@ -96,7 +102,9 @@
   <li><b>Rollende lokale Sicherungen</b> (pro Gerät).</li>
   <li><b>Konflikt-Wächter:</b> sammelt OneDrive-Konfliktkopien automatisch wieder ein.</li>
   <li><b>Selbstheilung:</b> nach dem Schreiben wird geprüft, dass nichts gegenüber vorher verloren ging.</li>
-  <li><b>⚙-Grundeinstellungen</b> (Anlagen, R+I, Team, Schichtarten, Anlagenteile) werden als <b>ganzer Block</b> gespeichert → immer nur aus der <b>neuesten</b> Version pflegen.</li>
+  <li><b>⚙-Grundeinstellungen werden feldweise zusammengeführt.</b> Anlagen, R+I, Team, Schichtarten und Anlagenteile liegen als je eigener Eintrag in derselben Datei und tragen einen eigenen Zeitstempel. Ändert einer das Team, während ein anderer die R+I-Punkte pflegt, bleiben <b>beide</b> Änderungen erhalten. Neu bewertet wird nur, was der Bearbeiter <b>selbst</b> angefasst hat – ein unverändertes Feld aus seiner Maske überschreibt nie die frischere Änderung eines anderen.</li>
+  <li><b>Verlauf:</b> Anlegen, Ändern, Löschen und Änderungen an den Grundeinstellungen werden mit <b>Name und Zeit</b> festgehalten (⚙ → Verlauf). Jede Zeile hat eine eindeutige, nie wieder veränderte Kennung – deshalb können zwei Bearbeiter sich hier nicht überschreiben. Aufbewahrung <b>90 Tage</b>, ausschließlich nach Alter, damit alle Geräte auf dasselbe Ergebnis kommen. Ohne verbundene gemeinsame Datei wird kein Verlauf geführt.</li>
+  <li><b>Der Name im Verlauf</b> kommt aus ⚙ → „Dein Name" und bleibt auf dem jeweiligen Gerät. Wer keinen hinterlegt, erscheint als „Unbekannt".</li>
 </ol>
 </div>
 
@@ -110,8 +118,20 @@
 </ol>
 </div>
 
+<div class="section">
+<h2 class="grenzen"><span class="n">G</span>Grenzen, Aufräumen &amp; Geräte</h2>
+<ol>
+  <li><b>Der Zwischenspeicher des Browsers fasst rund 5 MB.</b> Bei etwa 15 Personen und 20 Anlagen wachsen die Daten um ca. <b>670 KB pro Jahr</b> – das reicht für rund <b>sieben Jahre</b>. Größter Posten ist der Schichtplan.</li>
+  <li><b>Ist er voll, geht nichts verloren:</b> Die Änderung wird weiterhin in die gemeinsame Datei geschrieben – sie ist der maßgebliche Bestand und kennt diese Grenze nicht. Gemeldet wird der wahre Grund. <b>Ohne</b> verbundene Datei (Alleinbetrieb) schlägt der Fehler durch, statt still zu scheitern.</li>
+  <li><b>Ab drei Jahren Bestand</b> erscheint einmalig der Hinweis, alte Jahrgänge auszulagern – früh genug, um es in Ruhe zu tun. „Später erinnern" verschiebt ihn um 3 Monate bzw. ein Jahr.</li>
+  <li><b>Auslagern ist zweistufig:</b> erst Archivdatei herunterladen, dann entfernen. Das Entfernen bleibt <b>gesperrt</b>, bis die Datei gesichert wurde, und verlangt zusätzlich eine Bestätigung – denn es wirkt über die gemeinsame Datei auf <b>alle</b> Arbeitsplätze. Danach ist die Archivdatei der einzige Nachweis dieser Jahrgänge; sie lässt sich über „Daten einlesen" jederzeit wieder öffnen.</li>
+  <li><b>Bildschirmbreite:</b> ab etwa <b>540 px</b> ist alles vollständig bedienbar. Wird es schmaler, brechen die Leisten um und lassen sich seitwärts schieben – auf dem Telefon sind alle Bereiche erreichbar, nur enger.</li>
+  <li><b>Geprüft wurde mit Chromium.</b> Die App setzt die File-System-Access-Schnittstelle voraus (Edge/Chrome). Browser ohne diese Schnittstelle laufen im <b>Alleinbetrieb</b> – volle App, aber ohne gemeinsame Datei.</li>
+</ol>
+</div>
+
 <div class="fuss">
-  Werkstatt-Cockpit · Regelwerk · automatisch aus dem Programm-Code abgeleitet. Bei Änderungen an der Logik dieses Dokument neu erzeugen.
+  Werkstatt-Cockpit · Regelwerk · aus dem Programm-Code abgeleitet, Stand der geprüften Fassung. Bei Änderungen an der Logik dieses Dokument neu erzeugen (<code>node tools/render-regelwerk.js</code>).
 </div>
 
 </body>
