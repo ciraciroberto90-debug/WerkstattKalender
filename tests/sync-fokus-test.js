@@ -254,10 +254,15 @@ const A = (id, name, date="2026-07-10") => ({ id, date, category: "ARBEIT", name
 
     const file = getFileState();
     const local = await getLocalEntries(u);
-    ok("S7.1: Alle Einträge in Datei", file.entries.length === 5);
+    // Die Grundeinstellungen liegen als eigene "config|"-Einträge in derselben
+    // Datei - für den Vergleich mit der Terminliste der App gehören sie nicht dazu.
+    const fachlich = file.entries.filter((e) => !String(e.id).startsWith("config|"));
+    ok("S7.1: Alle Einträge in Datei", fachlich.length === 5);
     ok("S7.2: Alle Einträge lokal", local.length === 5);
     ok("S7.3: IDs identisch",
-      file.entries.map(e => e.id).sort().join() === local.map(e => e.id).sort().join());
+      fachlich.map(e => e.id).sort().join() === local.map(e => e.id).sort().join());
+    ok("S7.4: Konfiguration nicht in die Terminliste durchgesickert",
+      local.every((e) => !String(e.id).startsWith("config|")));
 
     await u.close();
   }

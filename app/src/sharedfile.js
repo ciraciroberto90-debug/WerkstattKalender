@@ -70,6 +70,32 @@ function pruneTombstones(deleted) {
   });
 }
 
+// Die Grundeinstellungen liegen als eigene Einträge in derselben Liste
+// (id "config|team", "config|riItems", ...). Diese beiden Helfer trennen sie
+// von den fachlichen Einträgen - die App bekommt nie Config-Einträge in ihre
+// Terminliste, sonst würde das nächste Speichern sie als gelöscht melden.
+const CONFIG_PREFIX = "config|";
+function istConfigEintrag(e) {
+  return !!e && String(e.id || "").startsWith(CONFIG_PREFIX);
+}
+function extractConfigEntries(entries) {
+  return (entries || []).filter(istConfigEintrag);
+}
+function ohneConfigEntries(entries) {
+  return (entries || []).filter((e) => !istConfigEintrag(e));
+}
+// Baut aus den Config-Einträgen wieder das Objekt {tpmAnlagen, riItems, team, ...},
+// mit dem die App arbeitet. Null, wenn (noch) keine Config-Einträge vorliegen.
+function configAusEintraegen(entries) {
+  const teile = extractConfigEntries(entries);
+  if (teile.length === 0) return null;
+  const cfg = {};
+  teile.forEach((e) => {
+    if (e.value !== undefined) cfg[String(e.id).slice(CONFIG_PREFIX.length)] = e.value;
+  });
+  return cfg;
+}
+
 /* ==================================================================== */
 /* Fabrik: eine unabhängige Sync-Instanz je Datei                       */
 /* ==================================================================== */
@@ -201,7 +227,7 @@ function createSharedStore(cfg) {
   /* ---------- Ereignisse an die App ---------- */
   function dispatchUpdate(data) {
     window.dispatchEvent(new CustomEvent(EV + "-update", {
-      detail: { entries: data.entries, config: data.config, deleted: data.deleted },
+      detail: { entries: ohneConfigEntries(data.entries), config: configAusEintraegen(data.entries) || data.config, deleted: data.deleted },
     }));
   }
   function dispatchError(message) {
@@ -245,10 +271,14 @@ function createSharedStore(cfg) {
   /* ---------- Lokalen Zwischenspeicher angleichen ---------- */
   function syncLocal(data) {
     try {
-      localStorage.setItem(ENTRIES_KEY, JSON.stringify(data.entries));
-      if (data.config) {
-        const { updatedAt, ...cfg } = data.config;
-        localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); // alle Felder (tpmAnlagen, riItems, team, ...)
+      localStorage.setItem(ENTRIES_KEY, JSON.stringify(ohneConfigEntries(data.entries)));
+      const cfg = configAusEintraegen(data.entries);
+      if (cfg) {
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+      } else if (data.config) {
+        // Datei im alten Format (Config als Block) - bis zur Übernahme weiter lesen
+        const { updatedAt, ...alt } = data.config;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(alt));
       }
     } catch (e) { /* voller Speicher o. ä. – nicht kritisch */ }
   }
@@ -273,12 +303,18 @@ function createSharedStore(cfg) {
       const localEntries = Array.isArray(readLocalJSON(ENTRIES_KEY)) ? readLocalJSON(ENTRIES_KEY) : [];
       let merged = mergeEntries(data.entries, localEntries, data.deleted);
       merged = merged.map((e) => (e.updatedAt ? e : { ...e, updatedAt: nowISO() }));
-      let config = data.config;
-      if (!config) {
-        const localConfig = readLocalJSON(CONFIG_KEY);
-        if (localConfig) config = { ...localConfig, updatedAt: nowISO() };
+      // Alt-Format (config als Block) einmalig in Config-Einträge überführen; sonst lokalen Stand einpflegen.
+      const vorhandeneConfigIds = new Set(extractConfigEntries(merged).map((e) => e.id));
+      const quelle = data.config || readLocalJSON(CONFIG_KEY);
+      if (quelle && typeof quelle === "object") {
+        Object.keys(quelle).forEach((key) => {
+          if (key === "updatedAt") return;
+          const id = "config|" + key;
+          if (vorhandeneConfigIds.has(id)) return; // Datei-Stand hat Vorrang
+          merged.push({ id, date: "", value: quelle[key], updatedAt: nowISO() });
+        });
       }
-      const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config };
+      const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: null };
       try {
         await writeFileData(candidate);
         data = candidate;
@@ -560,6 +596,7 @@ function createSharedStore(cfg) {
           if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
         });
         pruneTombstones(deleted);
+
         merged = mergeEntries(fileData.entries, stamped, deleted);
         const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: fileData.config };
 
@@ -582,9 +619,9 @@ function createSharedStore(cfg) {
           // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
           lastSavedAt = kontrolle.savedAt;
           const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
-          await recordBackup(bestaetigt, kontrolle.config);
+          await recordBackup(bestaetigt, null);
           nachpruefenUndHeilen(stamped, removed, delStamp);
-          return bestaetigt;
+          return ohneConfigEntries(bestaetigt);
         }
       } catch (e) {
         letzterFehler = e;
@@ -597,7 +634,7 @@ function createSharedStore(cfg) {
     const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
     dispatchError(`Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten, dann erscheint automatisch ein Hinweis zum erneuten Versuch.`);
     if (merged) await recordBackup(merged, null);
-    return merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
+    return merged ? ohneConfigEntries(merged) : merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
   }
 
   // Letzte Sicherheitsebene gegen ein extrem seltenes, aber reales Zeitfenster:
@@ -676,15 +713,50 @@ function createSharedStore(cfg) {
     return true;
   }
 
-  async function saveConfig(configObj) {
+  // Die Grundeinstellungen werden NICHT als ein Block geschrieben, sondern je
+  // Feld als eigener Eintrag (id "config|team", "config|riItems", ...). Damit
+  // gilt für sie dieselbe Eintrag-für-Eintrag-Zusammenführung wie für alle
+  // anderen Daten: Ändert einer das Team und ein anderer gleichzeitig die
+  // R+I-Punkte, überleben beide Änderungen statt sich gegenseitig zu löschen.
+  async function saveConfig(configObj, prevConfigObj) {
     if (!fileHandle || accessMode !== "readwrite") return null;
-    let saved = null;
     let letzterFehler = null;
     for (let versuch = 0; versuch < 5; versuch++) {
       try {
         const fileData = await readFileData();
+        const inDatei = extractConfigEntries(fileData.entries);
+        // Vergleichsgrundlage ist der Stand, den DIESER Bearbeiter zuletzt
+        // kannte - mit dem Zeitstempel aus der Datei. Felder, die er nicht
+        // angefasst hat, behalten dadurch ihren alten Zeitstempel und
+        // verlieren beim Zusammenführen gegen eine fremde, neuere Änderung.
+        const zeitstempel = new Map(inDatei.map((e) => [e.id, e.updatedAt]));
+        const vorher = prevConfigObj && typeof prevConfigObj === "object"
+          ? Object.keys(prevConfigObj)
+              .filter((k) => k !== "updatedAt")
+              .map((k) => ({ id: CONFIG_PREFIX + k, date: "", value: prevConfigObj[k], updatedAt: zeitstempel.get(CONFIG_PREFIX + k) }))
+              .filter((e) => e.updatedAt)
+          : inDatei;
+        const nachher = Object.keys(configObj || {})
+          .filter((k) => k !== "updatedAt")
+          .map((k) => ({ id: CONFIG_PREFIX + k, date: "", value: configObj[k] }));
+        // stampEntries stempelt nur die wirklich geänderten Felder neu -
+        // unveränderte behalten ihren alten Zeitstempel und verlieren daher
+        // niemals gegen eine fremde, neuere Änderung desselben Feldes.
+        const { stamped } = stampEntries(nachher, vorher);
+        // Fällt eine Änderung in dieselbe Millisekunde wie der Stand in der
+        // Datei, wäre der Zeitstempel nur gleich und nicht neuer - das
+        // Zusammenführen würde sie dann stillschweigend verwerfen.
+        const vorherById = new Map(vorher.map((e) => [e.id, e]));
+        stamped.forEach((e) => {
+          const alt = vorherById.get(e.id);
+          if (alt && String(e.updatedAt || "") <= String(alt.updatedAt || "") &&
+              JSON.stringify(alt.value) !== JSON.stringify(e.value)) {
+            e.updatedAt = new Date(Date.parse(alt.updatedAt) + 1).toISOString();
+          }
+        });
         const t = nowISO();
-        const out = { ...fileData, format: FORMAT, savedAt: t, config: { ...configObj, updatedAt: t } };
+        const merged = mergeEntries(fileData.entries, stamped, fileData.deleted);
+        const out = { format: FORMAT, savedAt: t, entries: merged, deleted: fileData.deleted, config: null };
 
         // Optimistische Sperre wie bei saveEntries: nicht auf Basis eines
         // veralteten Stands schreiben, sonst könnte eine zeitgleiche
@@ -696,11 +768,17 @@ function createSharedStore(cfg) {
 
         await writeFileData(out);
         lastSavedAt = t;
-        saved = out.config;
         const kontrolle = await readFileData();
-        if (kontrolle.config && String(kontrolle.config.updatedAt || "") >= t) {
-          await recordBackup(kontrolle.entries, kontrolle.config);
-          return saved;
+        const bestaetigt = extractConfigEntries(kontrolle.entries);
+        const allesDa = stamped.every((s) => {
+          const k = bestaetigt.find((e) => e.id === s.id);
+          return k && String(k.updatedAt || "") >= String(s.updatedAt || "");
+        });
+        if (allesDa) {
+          await recordBackup(kontrolle.entries, null);
+          const zurueck = {};
+          bestaetigt.forEach((e) => { zurueck[e.id.slice(7)] = e.value; });
+          return zurueck;
         }
       } catch (e) {
         letzterFehler = e;
@@ -709,7 +787,7 @@ function createSharedStore(cfg) {
     }
     const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
     dispatchError(`Die Anlagen-/Team-Liste konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten und erneut versuchen.`);
-    return saved;
+    return null;
   }
 
   /* ---------- Änderungen der anderen abholen ---------- */

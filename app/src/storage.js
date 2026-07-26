@@ -52,7 +52,11 @@ window.storage = {
             }
           }
         } else if (key === CONFIG_KEY) {
-          await shared.saveConfig(JSON.parse(value));
+          // Auch den vorherigen Stand mitgeben: Nur was dieser Bearbeiter
+          // wirklich geändert hat, darf einen neuen Zeitstempel bekommen -
+          // sonst würde ein veraltetes Feld aus seiner Maske die frischere
+          // Änderung eines anderen Bearbeiters überschreiben.
+          await shared.saveConfig(JSON.parse(value), prevRaw ? JSON.parse(prevRaw) : null);
         }
         shared.dispatchOk();
       } catch (e) {
