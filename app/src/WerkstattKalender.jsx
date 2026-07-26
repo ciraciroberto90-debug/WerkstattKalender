@@ -25,6 +25,153 @@ function SyncAnzeige({ style }) {
 // sich beim Anzeigen weich bis zum Zielwert, die Prozentzahl zählt synchron mit
 // hoch, ein kleiner Punkt reitet auf der Bogenspitze und die Farbe richtet sich
 // nach dem Wert (grün / gelb / rot).
+// Trend der Termintreue über 12 Monate.
+// Bewusst eine Linie statt Balken: Gefragt ist die Richtung, nicht der Vergleich
+// einzelner Monate. Und bewusst eine feste 0-100-Skala - eine Quote auf ihr
+// eigenes Maximum zu strecken lässt kleine Schwankungen dramatisch aussehen.
+function TermintreueTrend({ reihe, filter }) {
+  const [aktiv, setAktiv] = React.useState(null);
+  const mitWert = reihe.filter((r) => r.quote !== null);
+  if (mitWert.length < 2) return null;
+
+  const B = 720, H = 168, L = 34, R = 12, O = 14, U = 26; // Zeichenfläche
+  const innenB = B - L - R, innenH = H - O - U;
+  const x = (i) => L + (reihe.length === 1 ? innenB / 2 : (i * innenB) / (reihe.length - 1));
+  const y = (q) => O + innenH - (q / 100) * innenH;
+
+  // Lücken (Monate ohne Termine) trennen die Linie, statt sie zu überbrücken -
+  // eine durchgezogene Linie über einen Monat ohne Daten wäre eine Behauptung.
+  const abschnitte = [];
+  let lauf = [];
+  reihe.forEach((r, i) => {
+    if (r.quote === null) { if (lauf.length) abschnitte.push(lauf); lauf = []; }
+    else lauf.push({ i, r });
+  });
+  if (lauf.length) abschnitte.push(lauf);
+
+  const schnitt = Math.round(mitWert.reduce((s, r) => s + r.quote, 0) / mitWert.length);
+  // Richtung: letztes Drittel gegen das davorliegende Drittel. Einzelne Monate
+  // schwanken zu stark, um daraus eine Aussage abzuleiten.
+  const teil = Math.max(1, Math.floor(mitWert.length / 3));
+  const mittel = (arr) => Math.round(arr.reduce((s, r) => s + r.quote, 0) / arr.length);
+  const vorher = mitWert.slice(-2 * teil, -teil);
+  const zuletzt = mittel(mitWert.slice(-teil));
+  const davor = mittel(vorher.length ? vorher : mitWert.slice(0, teil));
+  const delta = zuletzt - davor;
+  const steigt = delta >= 3, faellt = delta <= -3;
+  const richtungFarbe = steigt ? "#1F7A3D" : faellt ? "#B23A34" : "#5B6572";
+  // Pfeil und Wort tragen die Aussage - die Farbe ist nur Verstärkung, damit
+  // sie auch bei Farbsehschwäche und im Ausdruck lesbar bleibt.
+  const richtungText = steigt ? `▲ ${delta} Punkte besser` : faellt ? `▼ ${Math.abs(delta)} Punkte schlechter` : "▬ unverändert";
+
+  // Nur wenige Punkte beschriften: erster, letzter, höchster, niedrigster.
+  const hoechster = mitWert.reduce((a, b) => (b.quote > a.quote ? b : a));
+  const tiefster = mitWert.reduce((a, b) => (b.quote < a.quote ? b : a));
+  const beschriftet = new Set([mitWert[0].key, mitWert[mitWert.length - 1].key, hoechster.key, tiefster.key]);
+  const bereich = filter === "ALL" ? "Wartung & R+I" : filter === "TPM" ? "nur Wartung (TPM)" : "nur R+I";
+
+  return (
+    <div className="print-bg p-4 max-w-5xl mx-auto">
+      <div className="flex items-baseline gap-2 flex-wrap mb-1">
+        <div className="text-sm font-bold uppercase tracking-wide" style={{ color: "#22262B" }}>Termintreue – letzte 12 Monate</div>
+        <span style={{ fontSize: "0.72rem", color: "#8A9099" }}>{bereich}</span>
+        <span className="ml-auto inline-flex items-center gap-1.5" style={{ fontSize: "0.75rem", fontWeight: 800, color: richtungFarbe }}>
+          {richtungText}
+        </span>
+      </div>
+      <div style={{ fontSize: "0.7rem", color: "#8A9099", marginBottom: "8px" }}>
+        Anteil der erledigten an den geplanten Terminen je Monat. Monate ohne Termine bleiben leer.
+      </div>
+
+      <div className="rounded-xl" style={{ backgroundColor: "#fff", border: "1px solid #E2E4E7", padding: "10px 8px 4px" }}>
+        <div style={{ overflowX: "auto" }}>
+          <svg viewBox={`0 0 ${B} ${H}`} style={{ width: "100%", minWidth: "460px", height: "auto", display: "block" }}
+               role="img" aria-label={`Termintreue der letzten zwölf Monate, Durchschnitt ${schnitt} Prozent, zuletzt ${richtungText}`}>
+            {/* Hilfslinien zurückhaltend, feste Skala 0-100 % */}
+            {[0, 25, 50, 75, 100].map((q) => (
+              <g key={q}>
+                <line x1={L} y1={y(q)} x2={B - R} y2={y(q)} stroke={q === 0 ? "#C3C7CB" : "#EDEFF2"} strokeWidth="1" />
+                <text x={L - 6} y={y(q) + 3.5} textAnchor="end" style={{ fontSize: "9px", fill: "#A6AEB6" }}>{q}</text>
+              </g>
+            ))}
+            {/* Durchschnitt als neutrale Bezugslinie */}
+            <line x1={L} y1={y(schnitt)} x2={B - R} y2={y(schnitt)} stroke="#8A9099" strokeWidth="1.5" strokeDasharray="5 4" />
+            <text x={B - R} y={y(schnitt) - 5} textAnchor="end" style={{ fontSize: "9px", fill: "#8A9099", fontWeight: 700 }}>⌀ {schnitt}%</text>
+
+            {abschnitte.map((abschnitt, ai) => {
+              const pfad = abschnitt.map((p, k) => `${k === 0 ? "M" : "L"} ${x(p.i)} ${y(p.r.quote)}`).join(" ");
+              const flaeche = `${pfad} L ${x(abschnitt[abschnitt.length - 1].i)} ${y(0)} L ${x(abschnitt[0].i)} ${y(0)} Z`;
+              return (
+                <g key={ai}>
+                  {abschnitt.length > 1 && <path d={flaeche} fill="#2F6690" opacity="0.10" />}
+                  <path d={pfad} fill="none" stroke="#2F6690" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                </g>
+              );
+            })}
+
+            {reihe.map((r, i) => r.quote !== null && (
+              <g key={r.key}
+                 onMouseEnter={() => setAktiv(r.key)} onMouseLeave={() => setAktiv(null)}
+                 style={{ cursor: "default" }}>
+                {/* großzügige Trefferfläche, damit der Punkt leicht zu erwischen ist */}
+                <rect x={x(i) - 16} y={O} width="32" height={innenH} fill="transparent" />
+                <circle cx={x(i)} cy={y(r.quote)} r={aktiv === r.key ? 5.5 : 4} fill="#2F6690" stroke="#fff" strokeWidth="2" />
+                {(beschriftet.has(r.key) || aktiv === r.key) && (
+                  <text x={x(i)} y={y(r.quote) - 10} textAnchor="middle" style={{ fontSize: "10px", fill: "#22262B", fontWeight: 700 }}>{r.quote}%</text>
+                )}
+              </g>
+            ))}
+
+            {reihe.map((r, i) => (
+              <text key={r.key} x={x(i)} y={H - 8} textAnchor="middle"
+                    style={{ fontSize: "9px", fill: r.quote === null ? "#C3C7CB" : "#5B6572", fontWeight: 700 }}>{r.label}</text>
+            ))}
+          </svg>
+        </div>
+
+        {aktiv && (() => {
+          const r = reihe.find((z) => z.key === aktiv);
+          return (
+            <div className="no-print" style={{ fontSize: "0.72rem", color: "#22262B", padding: "4px 8px 6px", fontWeight: 600 }}>
+              {r.monatVoll} {r.jahr}: <strong>{r.quote}%</strong> · {r.erledigt} von {r.basis} Terminen erledigt
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Zahlen zusätzlich als Tabelle - für den Ausdruck und für alle, die
+          die Linie nicht ablesen können oder wollen. */}
+      <details className="mt-2">
+        <summary style={{ fontSize: "0.72rem", color: "#5B6572", cursor: "pointer", fontWeight: 700 }}>Zahlen anzeigen</summary>
+        <div style={{ overflowX: "auto" }}>
+          <table className="mt-2" style={{ borderCollapse: "collapse", fontSize: "0.72rem" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "3px 10px 3px 0", color: "#8A9099", fontWeight: 700 }}>Monat</th>
+                <th style={{ textAlign: "right", padding: "3px 10px", color: "#8A9099", fontWeight: 700 }}>Erledigt</th>
+                <th style={{ textAlign: "right", padding: "3px 10px", color: "#8A9099", fontWeight: 700 }}>Geplant</th>
+                <th style={{ textAlign: "right", padding: "3px 0 3px 10px", color: "#8A9099", fontWeight: 700 }}>Quote</th>
+              </tr>
+            </thead>
+            <tbody style={{ fontVariantNumeric: "tabular-nums" }}>
+              {reihe.map((r) => (
+                <tr key={r.key} style={{ borderTop: "1px solid #EDEFF2" }}>
+                  <td style={{ padding: "3px 10px 3px 0", fontWeight: 700, color: "#22262B" }}>{r.monatVoll} {r.jahr}</td>
+                  <td style={{ textAlign: "right", padding: "3px 10px", color: "#5B6572" }}>{r.basis > 0 ? r.erledigt : "–"}</td>
+                  <td style={{ textAlign: "right", padding: "3px 10px", color: "#5B6572" }}>{r.basis > 0 ? r.basis : "–"}</td>
+                  <td style={{ textAlign: "right", padding: "3px 0 3px 10px", fontWeight: 700, color: r.quote === null ? "#C3C7CB" : "#22262B" }}>
+                    {r.quote === null ? "keine Termine" : r.quote + "%"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  );
+}
+
 function HalbkreisQuote({ prozent, label, sub, titel }) {
   const hatWert = prozent !== null && prozent !== undefined;
   const ziel = hatWert ? Math.min(100, Math.max(0, prozent)) : 0;
@@ -1614,6 +1761,30 @@ function App() {
 
   const monthPrefix = `${year}-${pad(month + 1)}`;
   const yearPrefix = `${year}-`;
+  // Termintreue der letzten 12 Monate bis zum betrachteten Monat.
+  // Monate ganz ohne Termine bekommen bewusst KEINE 0 %, sondern gar keinen
+  // Wert - null Termine sind keine schlechte Quote, sondern keine Aussage.
+  const termintreueVerlauf = useMemo(() => {
+    const reihe = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(year, month - i, 1);
+      const prefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const imMonat = visibleEntries.filter((e) => String(e.date || "").startsWith(prefix));
+      const erledigt = imMonat.filter((e) => e.status === "done").length;
+      const basis = imMonat.filter((e) => e.status === "done" || e.status === "open").length;
+      reihe.push({
+        key: prefix,
+        label: MONTHS[d.getMonth()].slice(0, 3),
+        jahr: d.getFullYear(),
+        monatVoll: MONTHS[d.getMonth()],
+        erledigt,
+        basis,
+        quote: basis > 0 ? Math.round((erledigt / basis) * 100) : null,
+      });
+    }
+    return reihe;
+  }, [visibleEntries, year, month]);
+
   const monthEntries = visibleEntries.filter((e) => e.date.startsWith(monthPrefix));
   const yearEntries = visibleEntries.filter((e) => e.date.startsWith(yearPrefix));
   const scopeEntries = view === "JAHR" ? yearEntries : monthEntries;
@@ -6040,6 +6211,10 @@ function App() {
         {view === "JAHR" && legendeKlein}
       </div>
       )}
+
+      {/* Trend der Termintreue - beantwortet die Frage, die eine Momentaufnahme
+          nicht beantworten kann: Wird es besser oder schlechter? */}
+      {(view === "MONAT" || view === "JAHR") && heavyReady && <TermintreueTrend reihe={termintreueVerlauf} filter={filter} />}
 
       {/* TPM-Übersicht: Wissens- & Sensibilisierungs-Ort (öffnet zuerst beim Klick auf TPM) */}
       {view === "TPMINFO" && (
