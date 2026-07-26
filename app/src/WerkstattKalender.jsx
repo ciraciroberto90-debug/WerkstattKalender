@@ -172,7 +172,7 @@ function TermintreueTrend({ reihe, filter }) {
   );
 }
 
-function HalbkreisQuote({ prozent, label, sub, titel }) {
+function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false }) {
   const hatWert = prozent !== null && prozent !== undefined;
   const ziel = hatWert ? Math.min(100, Math.max(0, prozent)) : 0;
   const [anim, setAnim] = useState(0);
@@ -198,18 +198,24 @@ function HalbkreisQuote({ prozent, label, sub, titel }) {
   const theta = Math.PI * (1 - frac); // Winkel der Bogenspitze (links = π, rechts = 0)
   const tipX = 42 + 34 * Math.cos(theta);
   const tipY = 44 - 34 * Math.sin(theta);
-  const [hell, dunkel] = ["#43B26F", "#2F7D4F"]; // immer grün
+  const [gruenHell, gruenDunkel] = ["#43B26F", "#2F7D4F"]; // immer grün
   return (
-    <div className="rounded-xl px-3.5 py-3" style={{ background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", border: "1px solid #E2E4E7", textAlign: "center", boxShadow: "0 1px 3px rgba(20,22,25,0.05)" }} title={titel || "Anteil erledigter Wartungs- und R+I-Punkte"}>
+    <div
+      className="px-3.5 py-3"
+      style={dunkel
+        ? { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--wk-eck)", textAlign: "center" }
+        : { background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", borderRadius: "var(--wk-eck)", textAlign: "center", boxShadow: "var(--wk-schatten)" }}
+      title={titel || "Anteil erledigter Wartungs- und R+I-Punkte"}
+    >
       <svg viewBox="0 0 84 50" style={{ width: "88px", height: "52px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor={hell} />
-            <stop offset="100%" stopColor={dunkel} />
+            <stop offset="0%" stopColor={gruenHell} />
+            <stop offset="100%" stopColor={gruenDunkel} />
           </linearGradient>
         </defs>
         {/* Hintergrund-Bogen */}
-        <path d="M 8 44 A 34 34 0 0 1 76 44" fill="none" stroke="#EDEEF0" strokeWidth="8" strokeLinecap="round" />
+        <path d="M 8 44 A 34 34 0 0 1 76 44" fill="none" stroke={dunkel ? "rgba(255,255,255,0.16)" : "#EDEEF0"} strokeWidth="8" strokeLinecap="round" />
         {/* gefüllter Bogen mit weichem Farbverlauf + leichtem Schein */}
         {hatWert && frac > 0 && (
           <path
@@ -220,22 +226,77 @@ function HalbkreisQuote({ prozent, label, sub, titel }) {
             strokeLinecap="round"
             strokeDasharray={umfang}
             strokeDashoffset={umfang - gefuellt}
-            style={{ filter: `drop-shadow(0 1px 2px ${dunkel}55)` }}
+            style={{ filter: `drop-shadow(0 1px 2px ${gruenDunkel}55)` }}
           />
         )}
         {/* mitlaufender Punkt an der Bogenspitze */}
         {hatWert && frac > 0.01 && (
-          <circle cx={tipX} cy={tipY} r="4.6" fill="#fff" stroke={dunkel} strokeWidth="2.4" />
+          <circle cx={tipX} cy={tipY} r="4.6" fill="#fff" stroke={gruenDunkel} strokeWidth="2.4" />
         )}
-        <text x="42" y="42" textAnchor="middle" fontFamily="ui-monospace,Consolas,monospace" fontWeight="800" fontSize="15" fill="#22262B">
+        <text x="42" y="42" textAnchor="middle" fontFamily="ui-monospace,Consolas,monospace" fontWeight="800" fontSize="15" fill={dunkel ? "#fff" : "#22262B"}>
           {hatWert ? `${Math.round(anim)}%` : "–"}
         </text>
       </svg>
-      <div className="font-bold uppercase mt-0.5" style={{ color: "#6B7480", fontSize: "0.64rem", lineHeight: 1.15, letterSpacing: "0.02em" }}>{label}</div>
-      {sub && <div style={{ color: "#AAB0B7", fontSize: "0.58rem", fontWeight: 700 }}>{sub}</div>}
+      <div className="font-semibold mt-1" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: "var(--wk-txt-etikett)", lineHeight: 1.2 }}>{label}</div>
+      {/* Der Zeitraum stand bisher in 0,58 rem Hellgrau und war praktisch unsichtbar -
+          man sah zwei gleich beschriftete Halbkreise und wusste nicht, welcher welcher ist. */}
+      {sub && <div style={{ color: dunkel ? "#fff" : "#22262B", fontSize: "0.76rem", fontWeight: 800, marginTop: "1px" }}>{sub}</div>}
     </div>
   );
 }
+// Uhr mit Schichtbezug. Die Uhrzeit allein sagt nichts, was die Wanduhr nicht
+// auch sagt - der Nutzen entsteht erst dadurch, dass sie die laufende Schicht
+// und die Übergabe mit nennt. Das steht sonst nirgends in der Übersicht.
+// Die Schichtgrenzen sind dieselben wie in "Heute da" (6 / 14 / 22 Uhr).
+function WerkstattUhr() {
+  const [jetzt, setJetzt] = React.useState(() => new Date());
+  React.useEffect(() => {
+    // Auf die volle Sekunde einschwenken, damit der Zeiger nicht schleift
+    let timer = null;
+    const tick = () => { setJetzt(new Date()); timer = setTimeout(tick, 1000 - (Date.now() % 1000)); };
+    timer = setTimeout(tick, 1000 - (Date.now() % 1000));
+    return () => clearTimeout(timer);
+  }, []);
+
+  const std = jetzt.getHours(), min = jetzt.getMinutes(), sek = jetzt.getSeconds();
+  const schicht =
+    std >= 6 && std < 14 ? { name: "Frühschicht", naechste: "Spät", ab: "14:00", bg: "#FBE9AE", fg: "#6B5200" }
+    : std >= 14 && std < 22 ? { name: "Spätschicht", naechste: "Nacht", ab: "22:00", bg: "#CDEBD8", fg: "#14512A" }
+    : { name: "Nachtschicht", naechste: "Früh", ab: "06:00", bg: "#D3E2EE", fg: "#1E4763" };
+  const zeit = `${String(std).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+  // Kurzer Wochentag: der lange bricht die Zeile neben der Schichtangabe um
+  const datum = jetzt.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+  const dreh = (grad) => ({ transform: `rotate(${grad}deg)`, transformOrigin: "50px 50px" });
+
+  return (
+    <div className="wk-karte px-4 py-3 flex items-center gap-3" title={`${zeit} Uhr · ${schicht.name}`}>
+      <svg viewBox="0 0 100 100" style={{ width: "58px", height: "58px", flexShrink: 0 }}
+           role="img" aria-label={`${zeit} Uhr, ${schicht.name}, ${schicht.naechste} ab ${schicht.ab}`}>
+        <circle cx="50" cy="50" r="46" fill="#fff" stroke="#22262B" strokeWidth="3" />
+        <g stroke="#8A9099" strokeWidth="2" strokeLinecap="round">
+          <line x1="50" y1="9" x2="50" y2="15" /><line x1="91" y1="50" x2="85" y2="50" />
+          <line x1="50" y1="91" x2="50" y2="85" /><line x1="9" y1="50" x2="15" y2="50" />
+        </g>
+        <line x1="50" y1="50" x2="50" y2="28" stroke="#22262B" strokeWidth="4.5" strokeLinecap="round" style={dreh((std % 12) * 30 + min * 0.5)} />
+        <line x1="50" y1="50" x2="50" y2="18" stroke="#22262B" strokeWidth="3" strokeLinecap="round" style={dreh(min * 6 + sek * 0.1)} />
+        <line x1="50" y1="56" x2="50" y2="16" stroke="#C97A2B" strokeWidth="1.4" strokeLinecap="round" style={dreh(sek * 6)} />
+        <circle cx="50" cy="50" r="3" fill="#22262B" />
+      </svg>
+      <div style={{ minWidth: 0 }}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-mono font-extrabold" style={{ fontSize: "1.25rem", letterSpacing: "-1px", fontVariantNumeric: "tabular-nums", color: "#22262B", lineHeight: 1 }}>{zeit}</span>
+          <span style={{ fontSize: "0.6rem", fontWeight: 800, padding: "2px 8px", borderRadius: "var(--wk-eck-rund)", backgroundColor: schicht.bg, color: schicht.fg, whiteSpace: "nowrap" }}>
+            {schicht.name.toUpperCase()}
+          </span>
+        </div>
+        <div style={{ fontSize: "var(--wk-txt-etikett)", fontWeight: 600, color: "#6B7480", marginTop: "4px" }}>
+          {datum} · {schicht.naechste} ab {schicht.ab}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const MONTHS = [
   "Januar", "Februar", "März", "April", "Mai", "Juni",
   "Juli", "August", "September", "Oktober", "November", "Dezember",
@@ -3668,7 +3729,10 @@ function App() {
       {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
           {/* Kennzahlen-Kacheln (Farbakzent links, ohne Icon) */}
-          <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
+          {/* Sechs Felder nebeneinander gehen erst ab sehr breiten Bildschirmen auf.
+              Darunter brechen sie um, statt sich gegenseitig zusammenzuquetschen -
+              sonst bricht die Datumszeile der Uhr auf zwei Zeilen. */}
+          <div className="grid gap-2.5 mb-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-7">
             {[
               [heutePlan.length, "Heute fällig", "#22262B", "#C97A2B"],
               [heuteErledigtCount, "Heute erledigt", "#2F7D4F", "#2F7D4F"],
@@ -3683,7 +3747,11 @@ function App() {
               </div>
             ))}
             <HalbkreisQuote prozent={quoteMonatHeute} label="Wartung & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter Wartungs- und R+I-Punkte im Monat" />
-            <HalbkreisQuote prozent={quoteJahrHeute} label="Wartung & R+I" sub={String(today.getFullYear())} titel="Anteil erledigter Wartungs- und R+I-Punkte im Jahr" />
+            {/* Hier stand bis zuletzt ein zweiter, gleich beschrifteter Halbkreis für
+                das Jahr - die beiden waren kaum auseinanderzuhalten. Die Jahresquote
+                steht jetzt in der TPM-Übersicht neben der Monatsquote, wo der
+                Vergleich hingehört. An dieser Stelle sagt die Uhr mehr. */}
+            <div className="xl:col-span-2"><WerkstattUhr /></div>
           </div>
 
           {/* Heute da: Schicht-Spalten mit farbigem Kopf + Avatar-Chips (aktuelle Schicht hervorgehoben) */}
@@ -6243,10 +6311,11 @@ function App() {
                   <div style={{ fontSize: "1.25rem", fontWeight: 800, lineHeight: 1 }}>{riItems.length}</div>
                   <div style={{ fontSize: "0.66rem", color: "#B7BEC6", textTransform: "uppercase", letterSpacing: "0.4px", marginTop: "3px" }}>R+I-Punkte</div>
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "11px", padding: "9px 15px" }}>
-                  <div style={{ fontSize: "1.25rem", fontWeight: 800, lineHeight: 1 }}>{quoteMonatHeute !== null ? `${quoteMonatHeute} %` : "–"}</div>
-                  <div style={{ fontSize: "0.66rem", color: "#B7BEC6", textTransform: "uppercase", letterSpacing: "0.4px", marginTop: "3px" }}>Quote {MONTHS_SHORT[today.getMonth()]}</div>
-                </div>
+                {/* Monat und Jahr als Halbkreise nebeneinander - hier gehört der
+                    Vergleich hin. Als bloße Prozentzahl ließ sich nicht erkennen,
+                    ob der Monat über oder unter dem Jahresschnitt liegt. */}
+                <HalbkreisQuote dunkel prozent={quoteMonatHeute} label="Wartung & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter Wartungs- und R+I-Punkte im laufenden Monat" />
+                <HalbkreisQuote dunkel prozent={quoteJahrHeute} label="Wartung & R+I" sub={String(today.getFullYear())} titel="Anteil erledigter Wartungs- und R+I-Punkte im laufenden Jahr" />
               </div>
             </div>
 
