@@ -616,6 +616,7 @@ function App() {
   const [neuesTeilName, setNeuesTeilName] = useState("");
   const [neueSchichtName, setNeueSchichtName] = useState("");
   const [backups, setBackups] = useState([]); // lokale Sicherungen (Sicherheitsnetz), neueste zuerst
+  const [verlauf, setVerlauf] = useState([]); // wer hat wann was geändert (aus der gemeinsamen Datei), neueste zuerst
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
@@ -681,6 +682,7 @@ function App() {
       if (Array.isArray(d.entries)) {
         setEntries((prev) => sharedFile.mergeEntries(d.entries, prev || [], d.deleted || {}));
       }
+      if (Array.isArray(d.verlauf)) setVerlauf(d.verlauf);
       if (d.config) {
         if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(d.config.tpmAnlagen);
         if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(riMitWissen(d.config.riItems));
@@ -1209,6 +1211,7 @@ function App() {
     setNeuesTeilName("");
     setSettingsOpen(true);
     sharedFile.listBackups().then(setBackups).catch(() => setBackups([]));
+    sharedFile.readLog().then(setVerlauf).catch(() => setVerlauf([]));
   };
 
   // Sicherung wiederherstellen (Sicherheitsnetz gegen Datenverlust): ersetzt
@@ -5629,6 +5632,40 @@ function App() {
                 + Anlagenteil hinzufügen
               </button>
             </div>
+
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Dein Name (dieses Gerät)</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Wird im Verlauf und bei Störmeldungen als Urheber eingetragen. Bleibt auf diesem Gerät.
+            </div>
+            <input
+              value={zettelName}
+              onChange={(e) => { setZettelName(e.target.value); try { localStorage.setItem("werkstatt-kalender-name", e.target.value.trim()); } catch (err) { /* Speicher voll o. ä. */ } }}
+              placeholder="z. B. R. Ciraci"
+              className="w-full text-sm px-2 py-1.5 rounded border mb-5"
+              style={{ borderColor: "#D7DCE1" }}
+            />
+
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Verlauf (wer hat was geändert)</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Änderungen der letzten 90 Tage aus der gemeinsamen Datei. Wer keinen Namen hinterlegt hat, erscheint als „Unbekannt".
+            </div>
+            {verlauf.length === 0 ? (
+              <div className="text-xs italic mb-5" style={{ color: "#C3C7CB" }}>
+                {sharedFile.isConnected() ? "Noch keine Änderungen aufgezeichnet." : "Ohne verbundene gemeinsame Datei wird kein Verlauf geführt."}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1 mb-5" style={{ maxHeight: "200px", overflowY: "auto" }}>
+                {verlauf.slice(0, 60).map((v) => (
+                  <div key={v.id} className="flex items-baseline gap-2 px-2 py-1.5 rounded" style={{ backgroundColor: "#F7F8F9" }}>
+                    <span className="text-xs font-mono flex-shrink-0" style={{ color: "#8A9099" }}>
+                      {new Date(v.ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="text-xs font-bold flex-shrink-0" style={{ color: "#2F6690" }}>{v.wer}</span>
+                    <span className="text-xs" style={{ color: "#22262B" }}>{v.was}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Sicherungen (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>

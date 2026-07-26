@@ -106,12 +106,15 @@ async function meldeStoerung(page, anlage, text) {
   const b2 = await u2.locator('body').innerText();
   check('(2) Nutzer 2 sieht BEIDE Störungen', b2.includes('Presse 3') && b2.includes('Foerderband 2'));
 
-  // In der Datei liegen beide
+  // In der Datei liegen beide. Neben den Störungen selbst enthält die Datei
+  // auch Verwaltungs-Einträge (Verlauf "log|", Einstellungen "config|") - für
+  // fachliche Prüfungen gehören die nicht dazu.
   const datei = JSON.parse(drive['werkstatt-stoerungen.json']);
+  const nurStoerungen = (d) => d.entries.filter((e) => !/^(log|config)\|/.test(String(e.id)));
   check('(2) Beide Störungen liegen in der Störungen-Datei',
     datei.entries.filter((e) => e.anlage === 'Presse 3' || e.anlage === 'Foerderband 2').length === 2);
   check('(2) Störungen-Datei hat eigenes Format', datei.format === 'werkstatt-stoerungen-v1');
-  check('(2) Gewählte Schicht wird gespeichert', datei.entries.every((e) => e.schicht === 'Früh'));
+  check('(2) Gewählte Schicht wird gespeichert', nurStoerungen(datei).every((e) => e.schicht === 'Früh'));
 
   // Detail-Popout: Klick auf die Zeile öffnet den kompletten Bericht (nur lesend)
   await u1.getByRole('button', { name: /Presse 3/ }).first().click();

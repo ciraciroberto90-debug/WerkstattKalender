@@ -75,15 +75,65 @@ function pruneTombstones(deleted) {
 // von den fachlichen Einträgen - die App bekommt nie Config-Einträge in ihre
 // Terminliste, sonst würde das nächste Speichern sie als gelöscht melden.
 const CONFIG_PREFIX = "config|";
+const LOG_PREFIX = "log|";
+const LOG_MAX_AGE_MS = 90 * 24 * 3600 * 1000; // Verlauf: 90 Tage aufheben
 function istConfigEintrag(e) {
   return !!e && String(e.id || "").startsWith(CONFIG_PREFIX);
+}
+function istLogEintrag(e) {
+  return !!e && String(e.id || "").startsWith(LOG_PREFIX);
+}
+// Einträge, die zur Verwaltung gehören und nicht in die Terminliste der App dürfen.
+function istSystemEintrag(e) {
+  return istConfigEintrag(e) || istLogEintrag(e);
 }
 function extractConfigEntries(entries) {
   return (entries || []).filter(istConfigEintrag);
 }
-function ohneConfigEntries(entries) {
-  return (entries || []).filter((e) => !istConfigEintrag(e));
+function ohneSystemEntries(entries) {
+  return (entries || []).filter((e) => !istSystemEintrag(e));
 }
+/* ---------- Verlauf: wer hat wann was geändert ---------- */
+// Verlaufszeilen sind gewöhnliche Einträge mit eindeutiger, nie wieder
+// veränderter id. Dadurch können sie beim Zusammenführen nicht kollidieren -
+// zwei Bearbeiter schreiben schlicht zwei verschiedene Zeilen.
+export function extractLogEntries(entries) {
+  return (entries || []).filter(istLogEintrag)
+    .sort((a, b) => String(b.ts || "").localeCompare(String(a.ts || ""))); // neueste zuerst
+}
+function werBinIch() {
+  try {
+    const n = (localStorage.getItem("werkstatt-kalender-name") || "").trim();
+    return n || "Unbekannt";
+  } catch (e) { return "Unbekannt"; }
+}
+function macheLogEintrag(text, ts) {
+  const t = ts || nowISO();
+  return {
+    id: LOG_PREFIX + t + "-" + Math.random().toString(36).slice(2, 8),
+    date: t.slice(0, 10),
+    ts: t,
+    wer: werBinIch(),
+    was: text,
+    updatedAt: t,
+  };
+}
+// Verlaufszeilen altern heraus. Bewusst NUR nach Alter (nicht nach Anzahl):
+// So kommen alle Geräte auf dasselbe Ergebnis und löschen sich nicht
+// gegenseitig Zeilen weg, die der andere gerade noch für gültig hält.
+function pruneLogs(entries) {
+  const cutoff = new Date(Date.now() - LOG_MAX_AGE_MS).toISOString();
+  return (entries || []).filter((e) => !istLogEintrag(e) || String(e.ts || e.updatedAt || "") >= cutoff);
+}
+// Kurzbeschreibung eines Eintrags für den Verlauf ("Wartung BTS am 13.07.2026").
+function benenneEintrag(e) {
+  if (!e) return "Eintrag";
+  const art = { TPM: "Wartung", RI: "R+I", ARBEIT: "Arbeit", SCHICHT: "Schicht", NOTIZ: "Notiz", ZETTEL: "Zettel" }[e.category] || e.category || "Eintrag";
+  const name = e.name || e.anlage || e.stoerung || "";
+  const datum = e.date ? " am " + String(e.date).split("-").reverse().join(".") : "";
+  return (name ? `${art} ${name}` : art) + datum;
+}
+
 // Baut aus den Config-Einträgen wieder das Objekt {tpmAnlagen, riItems, team, ...},
 // mit dem die App arbeitet. Null, wenn (noch) keine Config-Einträge vorliegen.
 function configAusEintraegen(entries) {
@@ -227,7 +277,7 @@ function createSharedStore(cfg) {
   /* ---------- Ereignisse an die App ---------- */
   function dispatchUpdate(data) {
     window.dispatchEvent(new CustomEvent(EV + "-update", {
-      detail: { entries: ohneConfigEntries(data.entries), config: configAusEintraegen(data.entries) || data.config, deleted: data.deleted },
+      detail: { entries: ohneSystemEntries(data.entries), config: configAusEintraegen(data.entries) || data.config, deleted: data.deleted, verlauf: extractLogEntries(data.entries) },
     }));
   }
   function dispatchError(message) {
@@ -271,7 +321,7 @@ function createSharedStore(cfg) {
   /* ---------- Lokalen Zwischenspeicher angleichen ---------- */
   function syncLocal(data) {
     try {
-      localStorage.setItem(ENTRIES_KEY, JSON.stringify(ohneConfigEntries(data.entries)));
+      localStorage.setItem(ENTRIES_KEY, JSON.stringify(ohneSystemEntries(data.entries)));
       const cfg = configAusEintraegen(data.entries);
       if (cfg) {
         localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
@@ -572,6 +622,35 @@ function createSharedStore(cfg) {
     }
   }
 
+  // Vergleicht vorher/nachher und macht daraus lesbare Verlaufszeilen.
+  // Bewusst grob: eine Zeile je Vorgang, nicht je Feld - der Verlauf soll die
+  // Frage "wer hat das geändert" beantworten, nicht die Daten verdoppeln.
+  function baueVerlauf(nextEntries, prevEntries, removed, ts) {
+    const zeilen = [];
+    const prevById = new Map((prevEntries || []).map((e) => [e.id, e]));
+    const strip = ({ updatedAt, ...rest }) => rest;
+    const neu = [];
+    const geaendert = [];
+    (nextEntries || []).forEach((e) => {
+      if (istSystemEintrag(e)) return;
+      const alt = prevById.get(e.id);
+      if (!alt) neu.push(e);
+      else if (JSON.stringify(strip(alt)) !== JSON.stringify(strip(e))) geaendert.push(e);
+    });
+    const geloescht = (removed || []).map((id) => prevById.get(id)).filter((e) => e && !istSystemEintrag(e));
+
+    // Löschungen einzeln - das ist der Fall, den man später nachvollziehen muss.
+    geloescht.forEach((e) => zeilen.push(macheLogEintrag("gelöscht: " + benenneEintrag(e), ts)));
+    const fasse = (liste, wort) => {
+      if (liste.length === 0) return;
+      if (liste.length <= 3) liste.forEach((e) => zeilen.push(macheLogEintrag(wort + ": " + benenneEintrag(e), ts)));
+      else zeilen.push(macheLogEintrag(`${wort}: ${liste.length} Einträge`, ts));
+    };
+    fasse(neu, "angelegt");
+    fasse(geaendert, "geändert");
+    return zeilen;
+  }
+
   /* ---------- Speichern (wird von storage.js aufgerufen) ---------- */
   // Mit Kontroll-Lesung: Schreiben zwei Bearbeiter im exakt selben Moment,
   // würde sonst stumm der Letzte gewinnen. Deshalb wird nach dem Schreiben
@@ -583,6 +662,9 @@ function createSharedStore(cfg) {
     const delStamp = nowISO();
     let merged = null;
     let letzterFehler = null;
+    // Verlaufszeilen NUR EINMAL vorab bilden - bei einem Wiederholversuch
+    // dürfen nicht dieselben Änderungen ein zweites Mal protokolliert werden.
+    const logZeilen = baueVerlauf(nextEntries, prevEntries, removed, delStamp);
 
     for (let versuch = 0; versuch < 5; versuch++) {
       try {
@@ -597,7 +679,7 @@ function createSharedStore(cfg) {
         });
         pruneTombstones(deleted);
 
-        merged = mergeEntries(fileData.entries, stamped, deleted);
+        merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), deleted));
         const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: fileData.config };
 
         // Optimistische Sperre: unmittelbar vor dem Schreiben nochmal ganz kurz
@@ -621,7 +703,7 @@ function createSharedStore(cfg) {
           const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
           await recordBackup(bestaetigt, null);
           nachpruefenUndHeilen(stamped, removed, delStamp);
-          return ohneConfigEntries(bestaetigt);
+          return ohneSystemEntries(bestaetigt);
         }
       } catch (e) {
         letzterFehler = e;
@@ -634,7 +716,7 @@ function createSharedStore(cfg) {
     const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
     dispatchError(`Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten, dann erscheint automatisch ein Hinweis zum erneuten Versuch.`);
     if (merged) await recordBackup(merged, null);
-    return merged ? ohneConfigEntries(merged) : merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
+    return merged ? ohneSystemEntries(merged) : merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
   }
 
   // Letzte Sicherheitsebene gegen ein extrem seltenes, aber reales Zeitfenster:
@@ -721,6 +803,19 @@ function createSharedStore(cfg) {
   async function saveConfig(configObj, prevConfigObj) {
     if (!fileHandle || accessMode !== "readwrite") return null;
     let letzterFehler = null;
+    // Verlaufszeile einmal vorab bilden (nicht in der Wiederholschleife, sonst
+    // stünde derselbe Vorgang bei einem zweiten Versuch doppelt im Verlauf).
+    // Was geändert wurde, ergibt sich allein aus vorher/nachher dieses
+    // Bearbeiters - dafür muss die Datei nicht gelesen werden.
+    const benennung = { tpmAnlagen: "Anlagen", riItems: "R+I-Punkte", team: "Team", extraSchichten: "Schichtarten", anlagenteile: "Anlagenteile" };
+    const geaenderteFelder = prevConfigObj && typeof prevConfigObj === "object"
+      ? Object.keys(configObj || {})
+          .filter((k) => k !== "updatedAt" && JSON.stringify(prevConfigObj[k]) !== JSON.stringify(configObj[k]))
+          .map((k) => benennung[k] || k)
+      : [];
+    const logZeilen = geaenderteFelder.length
+      ? [macheLogEintrag("Einstellungen geändert: " + geaenderteFelder.join(", "), nowISO())]
+      : [];
     for (let versuch = 0; versuch < 5; versuch++) {
       try {
         const fileData = await readFileData();
@@ -755,7 +850,7 @@ function createSharedStore(cfg) {
           }
         });
         const t = nowISO();
-        const merged = mergeEntries(fileData.entries, stamped, fileData.deleted);
+        const merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), fileData.deleted));
         const out = { format: FORMAT, savedAt: t, entries: merged, deleted: fileData.deleted, config: null };
 
         // Optimistische Sperre wie bei saveEntries: nicht auf Basis eines
@@ -788,6 +883,17 @@ function createSharedStore(cfg) {
     const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
     dispatchError(`Die Anlagen-/Team-Liste konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten und erneut versuchen.`);
     return null;
+  }
+
+  // Verlauf aus der Datei lesen (neueste zuerst). Ohne verbundene Datei gibt es
+  // keinen gemeinsamen Verlauf - im Alleinbetrieb ist die Frage "wer war das"
+  // ohnehin schon beantwortet.
+  async function readLog() {
+    if (!fileHandle) return [];
+    try {
+      const data = await readFileData();
+      return extractLogEntries(data.entries);
+    } catch (e) { return []; }
   }
 
   /* ---------- Änderungen der anderen abholen ---------- */
@@ -858,7 +964,7 @@ function createSharedStore(cfg) {
     isSupported, isConnected, canWrite, fileName, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
-    saveEntries, saveConfig, dispatchError, dispatchOk, pollNow, _test,
+    saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
   };
 }
 
@@ -895,6 +1001,7 @@ export const forgetFolder = main.forgetFolder;
 export const sammleKonfliktkopien = main.sammleKonfliktkopien;
 export const saveEntries = main.saveEntries;
 export const saveConfig = main.saveConfig;
+export const readLog = main.readLog;
 export const dispatchError = main.dispatchError;
 export const dispatchOk = main.dispatchOk;
 export const pollNow = main.pollNow;

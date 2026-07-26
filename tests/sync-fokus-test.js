@@ -254,15 +254,17 @@ const A = (id, name, date="2026-07-10") => ({ id, date, category: "ARBEIT", name
 
     const file = getFileState();
     const local = await getLocalEntries(u);
-    // Die Grundeinstellungen liegen als eigene "config|"-Einträge in derselben
-    // Datei - für den Vergleich mit der Terminliste der App gehören sie nicht dazu.
-    const fachlich = file.entries.filter((e) => !String(e.id).startsWith("config|"));
+    // Neben den Terminen enthält die Datei auch Verwaltungs-Einträge:
+    // Grundeinstellungen ("config|") und Verlauf ("log|"). Für den Vergleich
+    // mit der Terminliste der App gehören die nicht dazu.
+    const istSystem = (e) => /^(config|log)\|/.test(String(e.id));
+    const fachlich = file.entries.filter((e) => !istSystem(e));
     ok("S7.1: Alle Einträge in Datei", fachlich.length === 5);
     ok("S7.2: Alle Einträge lokal", local.length === 5);
     ok("S7.3: IDs identisch",
       fachlich.map(e => e.id).sort().join() === local.map(e => e.id).sort().join());
-    ok("S7.4: Konfiguration nicht in die Terminliste durchgesickert",
-      local.every((e) => !String(e.id).startsWith("config|")));
+    ok("S7.4: Verwaltungs-Einträge nicht in die Terminliste durchgesickert",
+      local.every((e) => !istSystem(e)));
 
     await u.close();
   }
