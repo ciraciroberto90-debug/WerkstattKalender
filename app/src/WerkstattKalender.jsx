@@ -3675,9 +3675,11 @@ function App() {
               [ueberfaellige.length, "Überfällig", ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F", ueberfaellige.length > 0 ? "#B23A34" : "#CBD1D8"],
               [todayPlanResult.assignments.length, "Diesen Monat geplant", "#22262B", "#8A9099"],
             ].map(([num, label, color, akzent]) => (
-              <div key={label} className="rounded-xl px-4 py-3" style={{ backgroundColor: "white", border: "1px solid #E7EAEE", boxShadow: `inset 4px 0 0 0 ${akzent}` }}>
-                <div className="font-mono font-extrabold" style={{ fontSize: "1.7rem", lineHeight: 1, color }}>{num}</div>
-                <div className="font-bold uppercase mt-1.5" style={{ color: "#6B7480", fontSize: "0.64rem", letterSpacing: "0.02em" }}>{label}</div>
+              <div key={label} className="wk-karte px-4 py-3.5" style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)` }}>
+                {/* Ziffern gleicher Breite: sonst springt die Zahl beim Hochzählen */}
+                <div className="font-extrabold" style={{ fontSize: "var(--wk-txt-zahl)", lineHeight: 1, letterSpacing: "-1.2px", fontVariantNumeric: "tabular-nums", color }}>{num}</div>
+                {/* Kleinbuchstaben statt Versalien - deutlich schneller zu lesen */}
+                <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{label}</div>
               </div>
             ))}
             <HalbkreisQuote prozent={quoteMonatHeute} label="Wartung & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter Wartungs- und R+I-Punkte im Monat" />
@@ -3774,17 +3776,16 @@ function App() {
                   <button
                     key={p.anlage}
                     onClick={() => openPlanEntry(p)}
-                    className="wk-hover w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1.5 text-left"
-                    style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}
+                    className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
                   >
                     <span
-                      className="flex items-center justify-center rounded font-black text-white"
-                      style={{ width: "20px", height: "20px", fontSize: "0.7rem", backgroundColor: st === "done" ? "#2F7D4F" : "transparent", border: st === "done" ? "none" : "2px solid #C3C7CB" }}
+                      className="flex items-center justify-center font-black text-white"
+                      style={{ width: "20px", height: "20px", borderRadius: "7px", fontSize: "0.72rem", flexShrink: 0, backgroundColor: st === "done" ? "#1F7A3D" : "transparent", border: st === "done" ? "none" : "2px solid #C3C7CB" }}
                     >
                       {st === "done" ? "✓" : ""}
                     </span>
-                    <span className="text-xs font-bold uppercase" style={{ color: CATS[kat].color }}>{CATS[kat].label}</span>
-                    <strong className="text-sm flex-1" style={{ textDecoration: st === "done" ? "line-through" : "none", color: st === "done" ? "#8A9099" : "#22262B" }}>{p.anlage}</strong>
+                    <span className={`wk-chip wk-chip-${kat.toLowerCase()}`}>{CATS[kat].label}</span>
+                    <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", textDecoration: st === "done" ? "line-through" : "none", color: st === "done" ? "#8A9099" : "#22262B" }}>{p.anlage}</strong>
                   </button>
                 );
               })}
@@ -3796,13 +3797,13 @@ function App() {
                     <button
                       key={e.id}
                       onClick={() => openEditModal(e)}
-                      className="wk-hover w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1.5 text-left"
-                      style={{ backgroundColor: "#FDF6F5", border: "1px solid #E8B4AE" }}
+                      className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
+                      style={{ backgroundColor: "#FDF6F5", boxShadow: "inset 3px 0 0 0 #B23A34, var(--wk-schatten)" }}
                     >
-                      <span className="rounded" style={{ width: "20px", height: "20px", border: "2px solid #C3C7CB", backgroundColor: "white" }} />
-                      <span className="text-xs font-bold uppercase" style={{ color: CATS[e.category].color }}>{CATS[e.category].label}</span>
-                      <strong className="text-sm flex-1">{e.name}</strong>
-                      <span className="font-mono text-xs" style={{ color: "#B23A34" }}>{formatDateDE(e.date)}</span>
+                      <span style={{ width: "20px", height: "20px", borderRadius: "7px", border: "2px solid #C3C7CB", backgroundColor: "white", flexShrink: 0 }} />
+                      <span className={`wk-chip wk-chip-${String(e.category).toLowerCase()}`}>{CATS[e.category].label}</span>
+                      <strong className="flex-1" style={{ fontSize: "var(--wk-txt)" }}>{e.name}</strong>
+                      <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#B23A34" }}>{formatDateDE(e.date)}</span>
                     </button>
                   ))}
                   {ueberfaellige.length > 8 && <div className="text-xs text-slate-400">… und {ueberfaellige.length - 8} weitere (siehe TPM → Auswertung)</div>}
@@ -5178,9 +5179,11 @@ function App() {
 
                 {/* Gewerk + Fehlerart */}
                 <div className="flex gap-3 flex-wrap">
-                  <div className="flex-1" style={{ minWidth: "220px" }}>
+                  {/* Mindestmaß muss zu den drei Knöpfen darin passen (3 x 90 px + Abstände),
+                      sonst quellen sie über, statt dass die Zeile umbricht. */}
+                  <div className="flex-1" style={{ minWidth: "290px" }}>
                     <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Gewerk</label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       {Object.entries(STOER_GEWERK).map(([key, g]) => {
                         const aktiv = sDraft.gewerk === key;
                         return (

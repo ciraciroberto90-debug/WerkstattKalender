@@ -1,1 +1,134 @@
 @import "tailwindcss";
+
+/* ==========================================================================
+   Gestaltungs-System
+   Vorher gab es neun verschiedene Eckenradien, 39 Schriftgrößen und keine
+   einheitlichen Schatten - gewachsen, nicht entschieden. Hier stehen die
+   Werte einmal benannt. Neue Stellen greifen darauf zu, statt eigene Zahlen
+   zu erfinden.
+   ========================================================================== */
+:root {
+  /* Ecken: drei Stufen genügen für alles */
+  --wk-eck-klein: 8px;
+  --wk-eck: 12px;
+  --wk-eck-rund: 999px;
+
+  /* Tiefe statt Rahmen: die Fläche liegt auf dem Papier, statt aufgemalt zu sein */
+  --wk-schatten: 0 1px 2px rgba(20, 22, 25, 0.05), 0 4px 12px -4px rgba(20, 22, 25, 0.10);
+  --wk-schatten-hoch: 0 2px 4px rgba(20, 22, 25, 0.07), 0 8px 20px -6px rgba(20, 22, 25, 0.16);
+
+  /* Schriftstufen - fünf statt neununddreißig */
+  --wk-txt-etikett: 0.68rem;
+  --wk-txt-neben: 0.8rem;
+  --wk-txt: 0.88rem;
+  --wk-txt-titel: 1.05rem;
+  --wk-txt-zahl: 1.75rem;
+
+  --wk-fokus: 3px solid rgba(47, 102, 144, 0.45);
+}
+
+/* ---- Sichtbarer Tastatur-Fokus, überall gleich -------------------------
+   Am Werkstattrechner ist die Tastatur oft schneller als die Maus. Bisher
+   gab es genau einen Fokus-Stil in der gesamten Anwendung.
+   :focus-visible trifft nur die Tastatur - Mausklicks lösen keinen Ring aus. */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--wk-fokus);
+  outline-offset: 2px;
+  border-radius: var(--wk-eck-klein);
+}
+
+/* ---- Auswahllisten ------------------------------------------------------
+   20 Stück in der App, bisher keine einzige gestaltet: Sie erbten die Optik
+   des Betriebssystems und standen als Fremdkörper in der Oberfläche.
+   Der Pfeil steckt als Grafik im Hintergrund, damit kein Zusatz-Element nötig ist. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%235B6572' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 11px;
+  border: 1.5px solid #D7DCE1;
+  border-radius: var(--wk-eck-klein);
+  padding: 6px 30px 6px 10px;
+  font: inherit;
+  font-weight: 600;
+  color: #22262B;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+select:hover { border-color: #B7BEC6; }
+select:focus-visible { border-color: #2F6690; outline-offset: 1px; }
+select:disabled { background-color: #F4F6F8; color: #B7BEC6; cursor: not-allowed; }
+/* Im Ausdruck stört der Pfeil - dort zählt nur der Wert */
+@media print { select { background-image: none; border-color: #C3C7CB; } }
+
+/* ---- Ankreuzfelder ------------------------------------------------------
+   Das Häkchen ist die häufigste Handlung der App und sah bisher auf jedem
+   Rechner anders aus. Die Aufblend-Bewegung bestätigt den Klick. */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 2px solid #C3C7CB;
+  border-radius: 7px;
+  background: #fff;
+  display: inline-grid;
+  place-items: center;
+  vertical-align: middle;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+input[type="checkbox"]:hover { border-color: #8A9099; }
+input[type="checkbox"]::after {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2.5px solid #fff;
+  border-bottom: 2.5px solid #fff;
+  transform: rotate(-45deg) scale(0.4);
+  opacity: 0;
+  transition: transform 0.16s cubic-bezier(0.3, 1.4, 0.5, 1), opacity 0.12s ease;
+}
+input[type="checkbox"]:checked { background-color: #1F7A3D; border-color: #1F7A3D; }
+input[type="checkbox"]:checked::after { opacity: 1; transform: rotate(-45deg) scale(1); }
+input[type="checkbox"]:disabled { background-color: #F4F6F8; border-color: #DDE1E6; cursor: not-allowed; }
+
+/* Wer "Bewegung reduzieren" eingestellt hat, bekommt das Ergebnis ohne Weg dorthin */
+@media (prefers-reduced-motion: reduce) {
+  input[type="checkbox"], input[type="checkbox"]::after, .wk-karte { transition: none; }
+}
+
+/* ---- Flächen ------------------------------------------------------------
+   Ein 1-Pixel-Rahmen um jede Fläche lässt alles gleich wichtig wirken.
+   Ein weicher Schatten trennt Vorder- und Hintergrund, ohne zu schreien. */
+.wk-karte {
+  background: #fff;
+  border-radius: var(--wk-eck);
+  box-shadow: var(--wk-schatten);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.wk-karte-hebt:hover { box-shadow: var(--wk-schatten-hoch); transform: translateY(-1px); }
+/* Im Ausdruck trägt kein Schatten - dort braucht es die Linie */
+@media print {
+  .wk-karte { box-shadow: none; border: 1px solid #C3C7CB; }
+}
+
+/* ---- Kategorie-Plaketten ------------------------------------------------
+   Bisher stand die Kategorie als nacktes farbiges Wort da. Als Plakette
+   sieht man sie, ohne sie zu lesen. */
+.wk-chip {
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: var(--wk-eck-rund);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.wk-chip-tpm { background: #FBF0E2; color: #8A5B1E; }
+.wk-chip-ri { background: #E9F0F6; color: #28587C; }
