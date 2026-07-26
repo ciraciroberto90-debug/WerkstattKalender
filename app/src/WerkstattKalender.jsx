@@ -201,13 +201,13 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false }) {
   const [gruenHell, gruenDunkel] = ["#43B26F", "#2F7D4F"]; // immer grün
   return (
     <div
-      className="px-3.5 py-3"
+      className="px-3.5 py-3 flex flex-col justify-center"
       style={dunkel
         ? { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--wk-eck)", textAlign: "center" }
         : { background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", borderRadius: "var(--wk-eck)", textAlign: "center", boxShadow: "var(--wk-schatten)" }}
       title={titel || "Anteil erledigter Wartungs- und R+I-Punkte"}
     >
-      <svg viewBox="0 0 84 50" style={{ width: "88px", height: "52px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
+      <svg viewBox="0 0 84 50" style={{ width: "80px", height: "47px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor={gruenHell} />
@@ -237,10 +237,10 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false }) {
           {hatWert ? `${Math.round(anim)}%` : "–"}
         </text>
       </svg>
-      <div className="font-semibold mt-1" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: "var(--wk-txt-etikett)", lineHeight: 1.2 }}>{label}</div>
+      <div className="font-semibold" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: "var(--wk-txt-etikett)", lineHeight: 1.15 }}>{label}</div>
       {/* Der Zeitraum stand bisher in 0,58 rem Hellgrau und war praktisch unsichtbar -
           man sah zwei gleich beschriftete Halbkreise und wusste nicht, welcher welcher ist. */}
-      {sub && <div style={{ color: dunkel ? "#fff" : "#22262B", fontSize: "0.76rem", fontWeight: 800, marginTop: "1px" }}>{sub}</div>}
+      {sub && <div style={{ color: dunkel ? "#fff" : "#22262B", fontSize: "0.76rem", fontWeight: 800, lineHeight: 1.25 }}>{sub}</div>}
     </div>
   );
 }
@@ -269,8 +269,8 @@ function WerkstattUhr() {
   const dreh = (grad) => ({ transform: `rotate(${grad}deg)`, transformOrigin: "50px 50px" });
 
   return (
-    <div className="wk-karte px-4 py-3 flex items-center gap-3" title={`${zeit} Uhr · ${schicht.name}`}>
-      <svg viewBox="0 0 100 100" style={{ width: "58px", height: "58px", flexShrink: 0 }}
+    <div className="wk-karte px-4 py-3 flex items-center gap-3 justify-center" title={`${zeit} Uhr · ${schicht.name}`}>
+      <svg viewBox="0 0 100 100" style={{ width: "46px", height: "46px", flexShrink: 0 }}
            role="img" aria-label={`${zeit} Uhr, ${schicht.name}, ${schicht.naechste} ab ${schicht.ab}`}>
         <circle cx="50" cy="50" r="46" fill="#fff" stroke="#22262B" strokeWidth="3" />
         <g stroke="#8A9099" strokeWidth="2" strokeLinecap="round">
@@ -284,12 +284,12 @@ function WerkstattUhr() {
       </svg>
       <div style={{ minWidth: 0 }}>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono font-extrabold" style={{ fontSize: "1.25rem", letterSpacing: "-1px", fontVariantNumeric: "tabular-nums", color: "#22262B", lineHeight: 1 }}>{zeit}</span>
+          <span className="font-mono font-extrabold" style={{ fontSize: "1.15rem", letterSpacing: "-0.8px", fontVariantNumeric: "tabular-nums", color: "#22262B", lineHeight: 1 }}>{zeit}</span>
           <span style={{ fontSize: "0.6rem", fontWeight: 800, padding: "2px 8px", borderRadius: "var(--wk-eck-rund)", backgroundColor: schicht.bg, color: schicht.fg, whiteSpace: "nowrap" }}>
             {schicht.name.toUpperCase()}
           </span>
         </div>
-        <div style={{ fontSize: "var(--wk-txt-etikett)", fontWeight: 600, color: "#6B7480", marginTop: "4px" }}>
+        <div style={{ fontSize: "0.66rem", fontWeight: 600, color: "#6B7480", marginTop: "3px", lineHeight: 1.25 }}>
           {datum} · {schicht.naechste} ab {schicht.ab}
         </div>
       </div>
@@ -3737,11 +3737,11 @@ function App() {
               [heutePlan.length, "Heute fällig", "#22262B", "#C97A2B"],
               [heuteErledigtCount, "Heute erledigt", "#2F7D4F", "#2F7D4F"],
               [ueberfaellige.length, "Überfällig", ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F", ueberfaellige.length > 0 ? "#B23A34" : "#CBD1D8"],
-              [todayPlanResult.assignments.length, "Diesen Monat geplant", "#22262B", "#8A9099"],
+              [todayPlanResult.assignments.length, "Diesen Monat", "#22262B", "#8A9099"],
             ].map(([num, label, color, akzent]) => (
-              <div key={label} className="wk-karte px-4 py-3.5" style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)` }}>
+              <div key={label} className="wk-karte px-4 py-3.5 flex flex-col justify-center" style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)` }}>
                 {/* Ziffern gleicher Breite: sonst springt die Zahl beim Hochzählen */}
-                <div className="font-extrabold" style={{ fontSize: "var(--wk-txt-zahl)", lineHeight: 1, letterSpacing: "-1.2px", fontVariantNumeric: "tabular-nums", color }}>{num}</div>
+                <div className="font-extrabold" style={{ fontSize: "2.1rem", lineHeight: 1, letterSpacing: "-1.6px", fontVariantNumeric: "tabular-nums", color }}>{num}</div>
                 {/* Kleinbuchstaben statt Versalien - deutlich schneller zu lesen */}
                 <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{label}</div>
               </div>
