@@ -50,23 +50,20 @@ const REITER = ["Übersicht", "Schichtplan", "Planung", "Backlog", "Störungen"]
   console.log("\n--- A: Auf welchen Geräten ist die App bedienbar? ---");
   for (const [etikett, w, mobil] of [["Handy", 390, true], ["Tablet hoch", 768, true], ["Tablet quer", 1024, false], ["Laptop", 1366, false]]) {
     const p = await mach(browser, { breite: w, hoehe: 900, mobil });
+    // Entscheidend ist nicht, ob ein Reiter sofort im Bild liegt, sondern ob
+    // ein Finger ihn erreicht. Eine Leiste, die man seitwärts schieben kann,
+    // ist bedienbar - eine, deren Inhalt einfach abgeschnitten ist, nicht.
     const unerreichbar = [];
     for (const t of REITER) {
       const b = p.getByRole("button", { name: t, exact: t !== "Störungen" }).first();
-      if (!(await b.count())) { unerreichbar.push(t); continue; }
-      const box = await b.boundingBox();
-      if (!box || box.x + box.width > w + 2) unerreichbar.push(t);
+      if (!(await b.count())) { unerreichbar.push(t + " (fehlt)"); continue; }
+      try { await b.click({ timeout: 4000 }); await p.waitForTimeout(200); }
+      catch (e) { unerreichbar.push(t); }
     }
-    // Lässt sich das Fehlende überhaupt heranscrollen?
-    const scrollbar = await p.evaluate(() => {
-      window.scrollTo(9999, 0);
-      const erreicht = window.scrollX || document.documentElement.scrollLeft || 0;
-      window.scrollTo(0, 0);
-      return erreicht > 4;
-    });
-    check(`A: ${etikett} (${w} px) - alle Hauptbereiche antippbar`,
-      unerreichbar.length === 0);
-    if (unerreichbar.length) console.log(`      unerreichbar: ${unerreichbar.join(", ")}${scrollbar ? " (aber scrollbar)" : " - NICHT heranscrollbar"}`);
+    const seitenUeberlauf = await p.evaluate(() => document.body.scrollWidth - window.innerWidth);
+    check(`A: ${etikett} (${w} px) - alle Hauptbereiche antippbar`, unerreichbar.length === 0);
+    if (unerreichbar.length) console.log(`      unerreichbar: ${unerreichbar.join(", ")}`);
+    check(`A: ${etikett} (${w} px) - Seite läuft nicht seitwärts über`, seitenUeberlauf <= 2);
     await p.close();
   }
 
@@ -203,8 +200,13 @@ const REITER = ["Übersicht", "Schichtplan", "Planung", "Backlog", "Störungen"]
       const t = await p.locator("body").innerText();
       check("F: Die Auswertung zeigt zurückliegende Zeiträume", /2026|2025|Jahr/.test(t));
     }
-    // Kann man den Nachweis aus dem Haus geben?
-    merke("F: Ein fertiger Nachweis 'Regalkontrolle 2026, erledigt am ...' zum Ausdrucken für den Prüfer fehlt");
+    // Der Prüfer will ein Blatt in die Hand, keinen Bildschirm.
+    await p.getByRole("button", { name: "Übersicht", exact: true }).first().click();
+    await p.waitForTimeout(400);
+    check("F: Ein Nachweis zum Vorlegen lässt sich drucken",
+      (await p.locator('button[aria-label="Prüfnachweis drucken"]').count()) === 1);
+    check("F: Der Zeitraum dafür ist wählbar",
+      (await p.locator('select[aria-label="Jahr für den Nachweis"] option').count()) >= 1);
     await p.close();
   }
 

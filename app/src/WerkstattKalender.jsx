@@ -578,6 +578,10 @@ function App() {
   // Start immer im Cockpit auf der Übersicht; Hauptreiter springen stets auf ihren ersten Unterpunkt
   const [view, setView] = useState("COCKPIT"); // 'COCKPIT' | 'TPMINFO' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (TPMINFO = Übersicht, MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
   const [tpmInfoOffen, setTpmInfoOffen] = useState(null); // welcher R+I-Punkt in der TPM-Übersicht aufgeklappt ist (id oder null)
+  const [nachweisJahr, setNachweisJahr] = useState(() => new Date().getFullYear()); // Zeitraum für den Prüfnachweis
+  const [archivHinweis, setArchivHinweis] = useState(null); // { jahre, groesseKB, aeltestesJahr } sobald der Bestand alt genug ist
+  const [archivGrenze, setArchivGrenze] = useState(null); // bis einschließlich welchem Jahr ausgelagert wird
+  const [archivGesichert, setArchivGesichert] = useState(false); // Archivdatei wurde heruntergeladen
   const [entries, setEntries] = useState([]);
   const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
   const [riItems, setRiItems] = useState(riMitWissen(DEFAULT_RI_ITEMS));
@@ -946,6 +950,129 @@ function App() {
     w.focus();
     setTimeout(() => { try { w.print(); } catch (e) { /* Nutzer kann manuell drucken */ } }, 300);
   };
+  // Auswählbare Zeiträume für den Nachweis: alle Jahre, für die überhaupt
+  // R+I-Termine vorliegen, dazu immer das laufende Jahr.
+  const nachweisJahre = React.useMemo(() => {
+    const js = new Set([new Date().getFullYear()]);
+    entries.forEach((e) => {
+      if (e.category === "RI" && typeof e.date === "string" && e.date.length >= 4) js.add(Number(e.date.slice(0, 4)));
+    });
+    return [...js].filter((j) => j > 2000 && j < 2200).sort((a, b) => b - a);
+  }, [entries]);
+
+  // Nachweis der wiederkehrenden Prüfungen (R+I) für ein Jahr - zum Vorlegen
+  // bei einer Prüfung. Bewusst nüchtern: je Punkt die Rechtsgrundlage, alle
+  // erledigten Termine mit Datum und was offen blieb. Nichts beschönigen -
+  // ein Nachweis, der Lücken verschweigt, ist wertlos.
+  const druckeNachweis = (jahr) => {
+    const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    // WICHTIG: Die Soll-Termine stehen nicht als Einträge im Bestand - sie
+    // ergeben sich aus dem Rhythmus und werden hier genauso berechnet wie im
+    // Kalender. Würde man nur die vorhandenen Einträge zählen, meldete der
+    // Nachweis "vollständig", obwohl in Wahrheit nichts erledigt wurde.
+    const feiertage = getHolidays(jahr);
+    const sollJeName = new Map(); // Name -> [Datum, ...]
+    for (let m = 0; m < 12; m++) {
+      riOccurrencesInMonth(riItems, jahr, m, feiertage).forEach(({ day, name }) => {
+        const k = dateKey(jahr, m, day);
+        if (!sollJeName.has(name)) sollJeName.set(name, []);
+        sollJeName.get(name).push(k);
+      });
+    }
+    const riEintraege = entries.filter((e) => e.category === "RI" && String(e.date || "").slice(0, 4) === String(jahr));
+    const erledigtAn = new Set(riEintraege.filter((e) => e.status === "done").map((e) => e.name + "|" + e.date));
+
+    const bloecke = riItems.map((r) => {
+      const soll = (sollJeName.get(r.name) || []).sort();
+      // Nur was bereits fällig war, darf bewertet werden. Ein Termin im
+      // Dezember ist im September kein Versäumnis - ihn als "offen" zu
+      // führen, würde jeden laufenden Jahrgang künstlich schlechtreden.
+      const faellig = soll.filter((d) => d <= todayKey);
+      const kuenftig = soll.length - faellig.length;
+      // Zusätzlich abgehakte Termine, die außerhalb des Rhythmus liegen
+      // (nachträglich erfasst) - die gehören in den Nachweis, nicht unter den Tisch.
+      const zusaetzlich = riEintraege
+        .filter((e) => e.name === r.name && e.status === "done" && !soll.includes(e.date))
+        .map((e) => e.date);
+      const erledigt = [...faellig.filter((d) => erledigtAn.has(r.name + "|" + d)), ...zusaetzlich].sort();
+      const offen = faellig.filter((d) => !erledigtAn.has(r.name + "|" + d));
+      return { r, erledigt, offen, kuenftig, geplant: faellig.length };
+    }).filter((b) => b.geplant > 0 || b.erledigt.length > 0 || b.kuenftig > 0);
+    // Lange Datumsketten machen den Nachweis unlesbar. Erledigtes wird
+    // vollständig belegt (das ist der Nachweis), Versäumtes gekürzt
+    // aufgeführt - die Anzahl daneben bleibt immer vollständig.
+    const kette = (liste, max) => {
+      if (liste.length === 0) return "";
+      const gezeigt = liste.slice(0, max).map((d) => formatDateDE(d)).join(" · ");
+      return liste.length > max ? `${gezeigt} <span class="mehr">… und ${liste.length - max} weitere</span>` : gezeigt;
+    };
+
+    const zeilen = bloecke.map(({ r, erledigt, offen, kuenftig, geplant }) => {
+      const vollstaendig = geplant > 0 && offen.length === 0;
+      const farbe = vollstaendig ? "#1F7A3D" : offen.length > 0 ? "#B23A34" : "#8A9099";
+      const urteil = geplant === 0 ? "noch nicht fällig" : vollstaendig ? "vollständig" : `${offen.length} versäumt`;
+      return `<tr>
+        <td class="pkt">
+          <div class="name">${esc(r.name)}</div>
+          <div class="rhy">${esc(RI_TYPE_LABELS[r.type] || r.type || "")}${kuenftig > 0 ? ` · ${kuenftig} noch nicht fällig` : ""}</div>
+          ${r.rechtsgrundlage ? `<div class="rg">${esc(r.rechtsgrundlage)}</div>` : ""}
+        </td>
+        <td class="dat">${erledigt.length ? kette(erledigt, 40) : "<i>keine</i>"}</td>
+        <td class="dat off">${offen.length ? kette(offen, 12) : "—"}</td>
+        <td class="urteil" style="color:${farbe}">${esc(urteil)}<div class="quote">${geplant > 0 ? erledigt.length + " / " + geplant : ""}</div></td>
+      </tr>`;
+    }).join("");
+
+    const gesamtGeplant = bloecke.reduce((s, b) => s + b.geplant, 0);
+    const gesamtErledigt = bloecke.reduce((s, b) => s + b.erledigt.length, 0);
+    const gesamtKuenftig = bloecke.reduce((s, b) => s + b.kuenftig, 0);
+    const html = `<!doctype html><html lang="de"><head><meta charset="utf-8">
+      <title>Nachweis wiederkehrender Prüfungen ${esc(jahr)}</title><style>
+      @page { size: A4 portrait; margin: 15mm 14mm; }
+      body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #22262B; font-size: 10pt; margin: 0; }
+      .kopf { border-bottom: 2.5px solid #22262B; padding-bottom: 9px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-end; }
+      h1 { font-size: 15pt; margin: 0 0 2px; }
+      .unter { font-size: 8.5pt; color: #6B7480; }
+      .jahr { font-size: 22pt; font-weight: 800; letter-spacing: -1px; }
+      .summe { margin: 10px 0 12px; padding: 7px 10px; background: #F1F3F5; border-radius: 6px; font-size: 9pt; }
+      table { width: 100%; border-collapse: collapse; }
+      th { text-align: left; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .7px; color: #6B7480; border-bottom: 1px solid #C3C7CB; padding: 0 6px 4px 0; }
+      td { vertical-align: top; padding: 7px 6px 7px 0; border-bottom: 1px solid #E8EAED; }
+      tr { break-inside: avoid; }
+      .pkt { width: 32%; }
+      .name { font-weight: 700; }
+      .rhy { font-size: 8pt; color: #6B7480; }
+      .rg { font-size: 7.5pt; color: #2F6690; margin-top: 2px; }
+      .dat { font-size: 8.5pt; line-height: 1.55; width: 26%; }
+      .off { color: #B23A34; }
+      .urteil { width: 16%; font-size: 8.5pt; font-weight: 700; text-align: right; }
+      .quote { font-weight: 400; color: #8A9099; font-size: 8pt; }
+      .mehr { color: #8A9099; font-style: italic; }
+      .fuss { margin-top: 14px; padding-top: 8px; border-top: 1px solid #C3C7CB; font-size: 7.5pt; color: #6B7480; }
+      .sign { margin-top: 26px; display: flex; gap: 26px; }
+      .sign div { flex: 1; border-top: 1px solid #22262B; padding-top: 4px; font-size: 8pt; color: #6B7480; }
+      </style></head><body>
+      <div class="kopf">
+        <div><h1>Nachweis wiederkehrender Prüfungen</h1>
+        <div class="unter">Rundgänge und Inspektionen (R+I) · Werkstatt-Cockpit</div></div>
+        <div class="jahr">${esc(jahr)}</div>
+      </div>
+      <div class="summe"><strong>${gesamtErledigt} von ${gesamtGeplant}</strong> bis heute fälligen Terminen erledigt${gesamtGeplant - gesamtErledigt > 0 ? ` · <strong style="color:#B23A34">${gesamtGeplant - gesamtErledigt} versäumt</strong>` : " · vollständig"}${gesamtKuenftig > 0 ? ` · ${gesamtKuenftig} im Zeitraum noch nicht fällig` : ""}</div>
+      <table>
+        <thead><tr><th>Prüfpunkt / Rechtsgrundlage</th><th>Erledigt am</th><th>Versäumt (fällig, nicht erledigt)</th><th style="text-align:right">Stand</th></tr></thead>
+        <tbody>${zeilen || '<tr><td colspan="4"><i>Für diesen Zeitraum liegen keine Einträge vor.</i></td></tr>'}</tbody>
+      </table>
+      <div class="fuss">Erstellt am ${formatDateDE(todayKey)} aus dem Werkstatt-Cockpit. Grundlage sind die im System erfassten Termine; dieser Ausdruck gibt den Stand zum Erstellungszeitpunkt wieder.</div>
+      <div class="sign"><div>Datum / Unterschrift Werkstattleitung</div><div>Datum / Unterschrift Prüfer</div></div>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { setErr("Zum Drucken bitte Popups für diese Seite erlauben."); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch (e) { /* Nutzer kann manuell drucken */ } }, 300);
+  };
+
   // Sortierung: offene zuerst, darin neueste zuerst
   const stoerungenSortiert = [...stoerungen].sort((a, b) => {
     if (!!a.offen !== !!b.offen) return a.offen ? -1 : 1;
@@ -1523,6 +1650,76 @@ function App() {
   const changeYear = (delta) => setYear((y) => y + delta);
 
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // Der Zwischenspeicher des Browsers fasst nur etwa 5 MB. Bei einer Werkstatt
+  // mit rund 15 Leuten sind das etwa sieben Jahre. Statt zu warten, bis nichts
+  // mehr geht, wird ab drei Jahren Bestand einmal darauf hingewiesen - früh
+  // genug, um es in Ruhe zu erledigen.
+  useEffect(() => {
+    if (readerMode || entries.length === 0 || archivHinweis) return;
+    let verschobenBis = "";
+    try { verschobenBis = localStorage.getItem("wk-archiv-erinnerung") || ""; } catch (e) { /* egal */ }
+    if (verschobenBis && verschobenBis > todayKey) return; // "Später erinnern" läuft noch
+
+    const daten = entries.map((e) => String(e.date || "")).filter((d) => d.length >= 10).sort();
+    if (daten.length === 0) return;
+    const aeltestes = Number(daten[0].slice(0, 4));
+    const jahre = today.getFullYear() - aeltestes;
+    if (jahre < 3) return;
+
+    let groesseKB = 0;
+    try {
+      const a = localStorage.getItem(STORAGE_KEY) || "";
+      const b = localStorage.getItem("werkstatt-stoerungen-entries") || "";
+      groesseKB = Math.round((a.length + b.length) / 1024);
+    } catch (e) { /* egal */ }
+    setArchivGrenze(today.getFullYear() - 2); // Vorschlag: die letzten zwei vollen Jahre behalten
+    setArchivGesichert(false);
+    setArchivHinweis({ jahre, groesseKB, aeltestesJahr: aeltestes });
+  }, [entries, readerMode, todayKey, archivHinweis]);
+
+  const archivErinnerungVerschieben = (tage) => {
+    const d = new Date(today.getTime() + tage * 86400000);
+    try { localStorage.setItem("wk-archiv-erinnerung", dateKey(d.getFullYear(), d.getMonth(), d.getDate())); } catch (e) { /* egal */ }
+    setArchivHinweis(null);
+  };
+
+  // Schritt 1: Die auszulagernden Jahrgänge als Datei herunterladen. Erst wenn
+  // das nachweislich geschehen ist, darf Schritt 2 sie aus dem Bestand nehmen.
+  const archivHerunterladen = () => {
+    const alt = entries.filter((e) => String(e.date || "").slice(0, 4) <= String(archivGrenze));
+    try {
+      const inhalt = { format: "werkstatt-kalender-archiv-v1", erstelltAm: new Date().toISOString(), bisJahr: archivGrenze, entries: alt };
+      const blob = new Blob([JSON.stringify(inhalt, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `werkstatt-archiv-bis-${archivGrenze}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setArchivGesichert(true);
+    } catch (e) {
+      setErr("Die Archivdatei konnte nicht erstellt werden - es wurde nichts entfernt.");
+    }
+  };
+
+  // Schritt 2: Erst jetzt aus dem laufenden Bestand nehmen. Das wirkt über die
+  // gemeinsame Datei auf alle Arbeitsplätze - deshalb ausdrücklich bestätigen.
+  const archivAuslagern = async () => {
+    const alt = entries.filter((e) => String(e.date || "").slice(0, 4) <= String(archivGrenze));
+    if (alt.length === 0) { setArchivHinweis(null); return; }
+    if (!window.confirm(
+      `${alt.length} Einträge bis einschließlich ${archivGrenze} werden jetzt aus dem laufenden Bestand entfernt.\n\n` +
+      `Das gilt für ALLE Arbeitsplätze. Die heruntergeladene Archivdatei ist dann der einzige Nachweis dieser Jahrgänge - ` +
+      `lege sie an einen sicheren Ort, bevor du fortfährst.\n\nJetzt entfernen?`
+    )) return;
+    await persist(entries.filter((e) => String(e.date || "").slice(0, 4) > String(archivGrenze)));
+    try { localStorage.removeItem("wk-archiv-erinnerung"); } catch (e) { /* egal */ }
+    setArchivHinweis(null);
+  };
+
   const holidays = useMemo(() => getHolidays(year), [year]);
 
 
@@ -2705,14 +2902,18 @@ function App() {
         className="no-print sticky top-0 z-10 px-4 py-3 flex flex-wrap items-center gap-3 justify-between"
         style={{ backgroundColor: "#22262B" }}
       >
-        <div className="flex items-center gap-3">
+        {/* Auf schmalen Geräten (Tablet hochkant, Telefon) ist nebeneinander kein
+            Platz. Die Gruppen brechen deshalb um, statt aus dem Bild zu ragen -
+            herausragende Knöpfe wären unerreichbar, weil die Seite waagerecht
+            nicht scrollt. min-w-0 ist nötig, damit der Umbruch überhaupt greift. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
           <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Cockpit</div>
           {/* Hauptbereiche Cockpit / TPM - für Bearbeiter UND Leser gleich.
               Leser sehen im Untermenü nur die freigegebene, kleinere Auswahl
               (kein Backlog / keine Auswertung / kein Register). Die Sicherheits-
               Klammer (useEffect oben) setzt unerlaubte Ansichten ohnehin zurück. */}
           <>
-            <div className="flex rounded overflow-hidden border border-white/20">
+            <div className="flex rounded overflow-hidden border border-white/20 shrink-0">
               {[["COCKPIT", "Werkstatt"], ["TPM", "TPM"]].map(([v, label]) => {
                 const active = v === "COCKPIT" ? view === "COCKPIT" : view !== "COCKPIT";
                 return (
@@ -2732,7 +2933,7 @@ function App() {
             </div>
             {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
             {view === "COCKPIT" ? (
-              <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+              <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
                 {(readerMode
                   ? [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["STOERUNGEN", "Störungen"]]
                   : [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"], ["STOERUNGEN", "Störungen"]]
@@ -2740,7 +2941,7 @@ function App() {
                   <button
                     key={v}
                     onClick={() => setCockpitTab(v)}
-                    className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center"
+                    className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center shrink-0 whitespace-nowrap"
                     style={{ backgroundColor: cockpitTab === v ? "#4B5259" : "transparent", color: cockpitTab === v ? "#fff" : "#B7BEC6" }}
                   >
                     {label}
@@ -2751,7 +2952,7 @@ function App() {
                 ))}
               </div>
             ) : (
-              <div className="flex rounded overflow-hidden border border-white/10" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+              <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
                 {(readerMode
                   ? [["TPMINFO", "Übersicht"], ["PLAN", "Plan"]]
                   : [["TPMINFO", "Übersicht"], ["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]]
@@ -5714,6 +5915,80 @@ function App() {
       )}
 
       {/* Sicherung wiederherstellen: bestätigen, da das den aktuellen Stand ersetzt */}
+      {/* Erinnerung, alte Jahrgänge auszulagern, bevor der Zwischenspeicher eng wird */}
+      {archivHinweis && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 75, padding: "16px" }}
+          onClick={() => archivErinnerungVerschieben(30)}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#fff", borderRadius: "14px", maxWidth: "540px", width: "100%", padding: "22px", boxShadow: "0 18px 50px rgba(20,22,25,0.3)" }}>
+            <div style={{ fontSize: "0.68rem", fontWeight: 800, letterSpacing: "1.4px", textTransform: "uppercase", color: "#C97A2B" }}>Aufräumen empfohlen</div>
+            <div style={{ fontSize: "1.15rem", fontWeight: 800, margin: "5px 0 10px", color: "#22262B" }}>
+              Dein Bestand reicht {archivHinweis.jahre} Jahre zurück
+            </div>
+            <div style={{ fontSize: "0.85rem", lineHeight: 1.55, color: "#4B5259" }}>
+              Seit {archivHinweis.aeltestesJahr} sind rund <strong>{archivHinweis.groesseKB} KB</strong> zusammengekommen.
+              Der Zwischenspeicher eines Browsers fasst etwa 5 MB – das reicht noch eine Weile, aber es ist der
+              richtige Moment, alte Jahrgänge in Ruhe auszulagern statt später unter Druck.
+            </div>
+            <div style={{ marginTop: "14px", padding: "12px 14px", backgroundColor: "#F7F8F9", borderRadius: "10px" }}>
+              <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#22262B", display: "block", marginBottom: "7px" }}>
+                Auslagern bis einschließlich Jahr
+              </label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={archivGrenze ?? ""}
+                  onChange={(e) => { setArchivGrenze(Number(e.target.value)); setArchivGesichert(false); }}
+                  aria-label="Archiv-Grenzjahr"
+                  className="text-sm rounded border px-2 py-1.5"
+                  style={{ borderColor: "#D7DCE1", fontWeight: 700 }}
+                >
+                  {Array.from({ length: Math.max(1, today.getFullYear() - archivHinweis.aeltestesJahr) }, (_, i) => archivHinweis.aeltestesJahr + i)
+                    .map((j) => <option key={j} value={j}>{j}</option>)}
+                </select>
+                <span style={{ fontSize: "0.78rem", color: "#6B7480" }}>
+                  betrifft {entries.filter((e) => String(e.date || "").slice(0, 4) <= String(archivGrenze)).length} Einträge
+                </span>
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "#6B7480", marginTop: "9px", lineHeight: 1.5 }}>
+                Erst herunterladen, dann entfernen. Die Archivdatei kannst du jederzeit über „Daten einlesen" wieder öffnen.
+              </div>
+              <div className="flex gap-2 mt-3 flex-wrap">
+                <button
+                  onClick={archivHerunterladen}
+                  className="text-xs font-bold py-2 px-3 rounded text-white"
+                  style={{ backgroundColor: "#2F6690" }}
+                >
+                  1. Archivdatei herunterladen
+                </button>
+                <button
+                  onClick={archivAuslagern}
+                  disabled={!archivGesichert}
+                  className="text-xs font-bold py-2 px-3 rounded"
+                  style={{
+                    backgroundColor: archivGesichert ? "#B23A34" : "#EDEFF2",
+                    color: archivGesichert ? "#fff" : "#B7BEC6",
+                    cursor: archivGesichert ? "pointer" : "not-allowed",
+                  }}
+                  title={archivGesichert ? "" : "Erst die Archivdatei herunterladen"}
+                >
+                  2. Aus dem Bestand entfernen
+                </button>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => archivErinnerungVerschieben(90)} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-600">
+                Später erinnern (3 Monate)
+              </button>
+              <button onClick={() => archivErinnerungVerschieben(365)} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">
+                Erst nächstes Jahr
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {restoreConfirm && (
         <div
           className="no-print"
@@ -5819,9 +6094,29 @@ function App() {
 
             {/* R+I-Punkte als aufklappbare Wissensliste */}
             <div style={{ padding: "4px 18px 20px" }}>
-              <div className="flex items-center gap-2" style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", color: "#5B6572", margin: "6px 0 12px" }}>
+              <div className="flex items-center gap-2 flex-wrap" style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", color: "#5B6572", margin: "6px 0 12px" }}>
                 R+I-Punkte mit Rechtsgrundlage &amp; Link
-                <span style={{ flex: 1, height: "1px", background: "linear-gradient(90deg,#E7EAEE,transparent)" }} />
+                <span style={{ flex: 1, minWidth: "12px", height: "1px", background: "linear-gradient(90deg,#E7EAEE,transparent)" }} />
+                {/* Nachweis zum Vorlegen bei einer Prüfung - listet je Punkt die
+                    Rechtsgrundlage und alle erledigten Termine des Jahres auf. */}
+                <select
+                  value={nachweisJahr}
+                  onChange={(e) => setNachweisJahr(Number(e.target.value))}
+                  aria-label="Jahr für den Nachweis"
+                  className="text-xs rounded border px-1.5 py-1"
+                  style={{ borderColor: "#D7DCE1", color: "#22262B", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}
+                >
+                  {nachweisJahre.map((j) => <option key={j} value={j}>{j}</option>)}
+                </select>
+                <button
+                  onClick={() => druckeNachweis(nachweisJahr)}
+                  className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-white"
+                  style={{ backgroundColor: "#2F6690", fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.3px", textTransform: "none" }}
+                  aria-label="Prüfnachweis drucken"
+                  title="Nachweis der wiederkehrenden Prüfungen für den gewählten Zeitraum drucken"
+                >
+                  <Printer size={13} /> Nachweis drucken
+                </button>
               </div>
 
               {riItems.map((r) => {
