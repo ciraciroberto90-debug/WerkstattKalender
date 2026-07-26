@@ -269,7 +269,7 @@ function WerkstattUhr() {
   const dreh = (grad) => ({ transform: `rotate(${grad}deg)`, transformOrigin: "50px 50px" });
 
   return (
-    <div className="wk-karte px-4 py-3 flex items-center gap-3 justify-center" title={`${zeit} Uhr · ${schicht.name}`}>
+    <div className="wk-karte px-4 py-3 flex items-center gap-3 justify-center flex-1" title={`${zeit} Uhr · ${schicht.name}`}>
       <svg viewBox="0 0 100 100" style={{ width: "46px", height: "46px", flexShrink: 0 }}
            role="img" aria-label={`${zeit} Uhr, ${schicht.name}, ${schicht.naechste} ab ${schicht.ab}`}>
         <circle cx="50" cy="50" r="46" fill="#fff" stroke="#22262B" strokeWidth="3" />
@@ -3751,7 +3751,7 @@ function App() {
                 das Jahr - die beiden waren kaum auseinanderzuhalten. Die Jahresquote
                 steht jetzt in der TPM-Übersicht neben der Monatsquote, wo der
                 Vergleich hingehört. An dieser Stelle sagt die Uhr mehr. */}
-            <div className="xl:col-span-2"><WerkstattUhr /></div>
+            <div className="xl:col-span-2 flex"><WerkstattUhr /></div>
           </div>
 
           {/* Heute da: Schicht-Spalten mit farbigem Kopf + Avatar-Chips (aktuelle Schicht hervorgehoben) */}
