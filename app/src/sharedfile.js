@@ -364,7 +364,7 @@ function createSharedStore(cfg) {
           merged.push({ id, date: "", value: quelle[key], updatedAt: nowISO() });
         });
       }
-      const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: null };
+      const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config };
       try {
         await writeFileData(candidate);
         data = candidate;
@@ -651,6 +651,11 @@ function createSharedStore(cfg) {
     return zeilen;
   }
 
+  // Verträglichkeit mit noch laufenden älteren Fassungen: Die Einstellungen
+// liegen zwar als eigene Einträge vor, werden aber ZUSÄTZLICH weiterhin als
+// Block mitgeschrieben. Ältere Fassungen lesen nur diesen Block - ohne ihn
+// stünden sie ohne Anlagen, R+I-Punkte und Team da. Neuere Fassungen bevorzugen
+// die Einträge, der Block ist für sie nur Beiwerk.
   /* ---------- Speichern (wird von storage.js aufgerufen) ---------- */
   // Mit Kontroll-Lesung: Schreiben zwei Bearbeiter im exakt selben Moment,
   // würde sonst stumm der Letzte gewinnen. Deshalb wird nach dem Schreiben
@@ -680,7 +685,7 @@ function createSharedStore(cfg) {
         pruneTombstones(deleted);
 
         merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), deleted));
-        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: fileData.config };
+        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: configAusEintraegen(merged) || fileData.config };
 
         // Optimistische Sperre: unmittelbar vor dem Schreiben nochmal ganz kurz
         // prüfen, ob die Datei seit unserem Lesen oben noch denselben Stand hat.
@@ -852,7 +857,7 @@ function createSharedStore(cfg) {
         });
         const t = nowISO();
         const merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), fileData.deleted));
-        const out = { format: FORMAT, savedAt: t, entries: merged, deleted: fileData.deleted, config: null };
+        const out = { format: FORMAT, savedAt: t, entries: merged, deleted: fileData.deleted, config: configAusEintraegen(merged) || fileData.config };
 
         // Optimistische Sperre wie bei saveEntries: nicht auf Basis eines
         // veralteten Stands schreiben, sonst könnte eine zeitgleiche
