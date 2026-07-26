@@ -30,7 +30,16 @@ window.storage = {
   },
   async set(key, value) {
     const prevRaw = localStorage.getItem(key);
-    localStorage.setItem(key, value);
+    // Der Zwischenspeicher des Browsers ist begrenzt (meist ~5 MB). Läuft er
+    // voll, darf das NICHT den Weg in die gemeinsame Datei abschneiden - die
+    // Datei ist der maßgebliche Bestand und kennt diese Grenze nicht. Früher
+    // brach hier alles ab und die Änderung war weder lokal noch in der Datei.
+    let lokalGespeichert = true;
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      lokalGespeichert = false;
+    }
 
     if (shared.isConnected() && shared.canWrite()) {
       try {
@@ -40,7 +49,12 @@ window.storage = {
           const merged = await shared.saveEntries(next, prev);
           if (merged) {
             const mergedRaw = JSON.stringify(merged);
-            localStorage.setItem(key, mergedRaw);
+            try {
+              localStorage.setItem(key, mergedRaw);
+              lokalGespeichert = true;
+            } catch (e) {
+              lokalGespeichert = false;
+            }
             // Kam beim Zusammenführen irgendetwas anderes heraus als das, was
             // gerade gespeichert werden sollte (neue Einträge, gelöschte,
             // oder inhaltlich geänderte) - App sofort informieren, nicht erst
@@ -66,6 +80,21 @@ window.storage = {
         // Die Entwarnung gibt daher nur, wer die Bestätigung wirklich hat.
       } catch (e) {
         shared.dispatchError("In der gemeinsamen Datei konnte nicht gespeichert werden (Laufwerk erreichbar? Datei gesperrt?). Lokal ist alles gesichert – beim nächsten erfolgreichen Speichern wird automatisch abgeglichen.");
+      }
+    }
+
+    if (!lokalGespeichert) {
+      if (shared.isConnected() && shared.canWrite()) {
+        // Die Änderung ist in der gemeinsamen Datei angekommen - nur die
+        // örtliche Zweitschrift fehlt. Kein Datenverlust, aber ein Zustand,
+        // den man kennen muss (nach dem Neuladen fehlen Daten, bis die Datei
+        // wieder gelesen wurde).
+        shared.dispatchError("Der Zwischenspeicher dieses Browsers ist voll. Deine Änderung steht in der gemeinsamen Datei und ist NICHT verloren – auf diesem Gerät kann sie aber nicht zwischengespeichert werden. Bitte alte Jahrgänge auslagern oder den Browser-Speicher der Seite leeren.");
+      } else {
+        // Ohne gemeinsame Datei gibt es keine zweite Ablage: Jetzt ist die
+        // Änderung wirklich nirgends. Das muss als Fehler durchschlagen,
+        // damit die App es meldet statt still weiterzumachen.
+        throw new Error("Der Zwischenspeicher dieses Browsers ist voll – die Änderung konnte nirgends gesichert werden. Bitte alte Jahrgänge auslagern oder eine gemeinsame Datei verbinden.");
       }
     }
     return { key, value };

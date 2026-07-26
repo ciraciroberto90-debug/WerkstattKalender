@@ -1326,11 +1326,16 @@ function App() {
         setErr(null);
         return true;
       } catch (e) {
-        if (retriesLeft > 0) {
+        // Ein voller Zwischenspeicher geht durch Warten nicht weg - dann sofort
+        // die echte Ursache melden statt zwei Mal vergeblich zu wiederholen.
+        const voll = /Zwischenspeicher|quota|QuotaExceeded/i.test(String(e && e.message));
+        if (retriesLeft > 0 && !voll) {
           await new Promise((r) => setTimeout(r, 900));
           return attempt(retriesLeft - 1);
         }
-        setErr("Speichern klappt gerade nicht (evtl. kurzzeitig überlastet). Bitte kurz warten und nochmal versuchen.");
+        setErr(voll
+          ? String(e.message)
+          : "Speichern klappt gerade nicht (evtl. kurzzeitig überlastet). Bitte kurz warten und nochmal versuchen.");
         return false;
       }
     };
