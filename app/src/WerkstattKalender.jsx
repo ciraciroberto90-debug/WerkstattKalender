@@ -3139,7 +3139,20 @@ function App() {
             herausragende Knöpfe wären unerreichbar, weil die Seite waagerecht
             nicht scrollt. min-w-0 ist nötig, damit der Umbruch überhaupt greift. */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
-          <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Cockpit</div>
+          {/* Zeichen und Wortmarke gehören zusammen und dürfen beim Umbruch
+              nicht auseinandergerissen werden - deshalb in einer eigenen Gruppe.
+              Das Zeichen läuft genau einmal beim Laden der Seite ab (siehe
+              index.css); es steht danach still, ein Dauerläufer würde bei acht
+              Stunden Bildschirmzeit zermürben. */}
+          <div className="flex items-center gap-2 shrink-0">
+            <svg className="wk-zeichen" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+              <g><rect x="7" y="16" width="18" height="3.4" rx="1.3" fill="#E0A45B" /><path d="M8.6 19.8 L23.4 19.8 L21 28.6 Q20.8 29.4 20 29.4 L12 29.4 Q11.2 29.4 11 28.6 Z" fill="#C88B5E" /></g>
+              <path className="wk-z-stiel" d="M16 17.4 L16 6.6" stroke="#3E8B4E" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+              <path className="wk-z-blatt-l" d="M16 11.6 Q10.2 7.6 8.2 12.8 Q12.6 15.6 16 11.6 Z" fill="#4CA05E" />
+              <path className="wk-z-blatt-r" d="M16 9 Q21.8 4.8 23.8 10 Q19.4 12.8 16 9 Z" fill="#58B36A" />
+            </svg>
+            <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Cockpit</div>
+          </div>
           {/* Hauptbereiche Cockpit / TPM - für Bearbeiter UND Leser gleich.
               Leser sehen im Untermenü nur die freigegebene, kleinere Auswahl
               (kein Backlog / keine Auswertung / kein Register). Die Sicherheits-

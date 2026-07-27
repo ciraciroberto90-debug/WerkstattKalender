@@ -118,6 +118,46 @@ input[type="checkbox"]:disabled { background-color: #F4F6F8; border-color: #DDE1
   .wk-karte { box-shadow: none; border: 1px solid #C3C7CB; }
 }
 
+/* ---- Zeichen in der Kopfzeile -------------------------------------------
+   Ein Blumentopf, aus dem ein Trieb wächst: das Erzeugnis der Werkstatt.
+   Es läuft GENAU EINMAL beim Laden der Seite ab und steht dann still - ein
+   Dauerläufer würde bei acht Stunden Bildschirmzeit zermürben. Dass es beim
+   Aktualisieren neu startet, ergibt sich von selbst: React baut das Element
+   dann neu auf, und eine CSS-Animation läuft beim Anlegen des Elements an.
+   Kein Javascript nötig. */
+.wk-zeichen { display: block; flex-shrink: 0; }
+/* Ohne fill-box rechnet der Browser den Drehpunkt gegen die ganze Zeichen-
+   fläche statt gegen das Blatt - dann klappt es quer durchs Bild auf.
+   Das -webkit- davor ist für ältere iPhone-Browser. */
+.wk-zeichen * { -webkit-transform-box: fill-box; transform-box: fill-box; transform-origin: center; }
+/* Die drei Regeln unten müssen die Regel darüber schlagen. Sie tun es, weil
+   ".wk-zeichen .wk-z-blatt-l" (zwei Klassen) schwerer wiegt als
+   ".wk-zeichen *" (eine Klasse) - andersherum säße der Drehpunkt falsch. */
+.wk-zeichen .wk-z-stiel {
+  stroke-dasharray: 11;
+  animation: wkZeichenStiel 0.6s cubic-bezier(0.3, 0.9, 0.4, 1) both;
+}
+.wk-zeichen .wk-z-blatt-l {
+  transform-origin: 100% 50%;
+  animation: wkZeichenBlatt 0.5s 0.42s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.wk-zeichen .wk-z-blatt-r {
+  transform-origin: 0% 50%;
+  animation: wkZeichenBlatt 0.5s 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+@keyframes wkZeichenStiel { from { stroke-dashoffset: 11; } to { stroke-dashoffset: 0; } }
+@keyframes wkZeichenBlatt {
+  0% { transform: scale(0.05); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+/* Wer "Bewegung reduzieren" eingestellt hat, bekommt das fertige Bild ohne
+   Weg dorthin. Ohne Animation gilt der Ruhezustand des Elements, und der ist
+   der Endzustand: Strich voll gezeichnet, Blätter in voller Größe. */
+@media (prefers-reduced-motion: reduce) {
+  .wk-zeichen * { animation: none !important; }
+}
+
 /* ---- Kategorie-Plaketten ------------------------------------------------
    Bisher stand die Kategorie als nacktes farbiges Wort da. Als Plakette
    sieht man sie, ohne sie zu lesen. */
