@@ -1,6 +1,6 @@
 # Werkstatt-Cockpit – Zusammenfassung & Anleitung
 
-Stand: Juli 2026
+Stand: 27. Juli 2026
 
 Dieses Dokument fasst zusammen, **was die App kann**, **wie sie technisch aufgebaut ist**
 und **wie man sie einrichtet und benutzt** – für Roberto (Werkstattleiter), den
@@ -15,12 +15,13 @@ Vertreter und alle, die mitlesen oder mitarbeiten.
 3. [Einrichtung](#3-einrichtung)
 4. [Rollen & Rechte](#4-rollen--rechte)
 5. [Die Bereiche im Detail](#5-die-bereiche-im-detail)
-6. [Störungen (Schichtbuch)](#6-störungen-schichtbuch)
-7. [Datensicherheit – warum nichts verloren geht](#7-datensicherheit--warum-nichts-verloren-geht)
-8. [Updates einspielen](#8-updates-einspielen)
-9. [Alte und neue Version gleichzeitig](#9-alte-und-neue-version-gleichzeitig)
-10. [Grenzen](#10-grenzen)
-11. [Häufige Fragen](#11-häufige-fragen)
+6. [Störberichte (Schichtbuch)](#6-störberichte-schichtbuch)
+7. [Nachweise, Verlauf und Archiv](#7-nachweise-verlauf-und-archiv)
+8. [Datensicherheit – warum nichts verloren geht](#8-datensicherheit--warum-nichts-verloren-geht)
+9. [Updates einspielen](#9-updates-einspielen)
+10. [Alte und neue Version gleichzeitig](#10-alte-und-neue-version-gleichzeitig)
+11. [Grenzen](#11-grenzen)
+12. [Häufige Fragen](#12-häufige-fragen)
 
 ---
 
@@ -30,15 +31,19 @@ Das **Werkstatt-Cockpit** (`Werkstatt_Kalender_TPM.html`) ist ein einziges HTML-
 das komplett **im Browser** läuft – ohne Installation, ohne Anmeldung, ohne eigenen Server.
 Es bündelt die tägliche Werkstattorganisation an einem Ort:
 
-- **Übersicht (Cockpit)** – Kennzahlen, was heute ansteht, offene Störungen, Pinnwand
+- **Übersicht (Cockpit)** – Kennzahlen, Uhr mit Schichtanzeige, was heute ansteht,
+  offene Störungen, Pinnwand
 - **Schichtplan** – Früh/Spät/Nacht je Person, Monatsmatrix
 - **Planung** – Arbeitsverteilung je Tag/Person (Excel-KW-Stil)
 - **Backlog** – Sammlung offener Arbeiten mit Prioritäten
 - **TPM-Plan & R+I** – wiederkehrende Wartungen und Inspektionen
+- **Prüfnachweis** – druckfertiger Jahresnachweis der R+I-Punkte zum Vorlegen
 - **Pinnwand** – Notizen für alle (z. B. Übergabe an den Vertreter)
-- **Störberichte** – digitales Schichtbuch Instandhaltung / Nachdokumentation (siehe Kapitel 6)
+- **Störberichte** – digitales Schichtbuch Instandhaltung / Nachdokumentation (Kapitel 6)
 - **Werkstatt-Monitor** – Vollbild-Anzeige für einen Hallenbildschirm
-- **Auswertung** – Ausfallzeiten, Störungshäufigkeit, Mechanik/Elektrik, Fehlerart
+- **Auswertung** – Ausfallzeiten, Störungshäufigkeit, Mechanik/Elektrik, Fehlerart,
+  **Trend der Termintreue über zwölf Monate**
+- **Verlauf** – wer hat wann was geändert (letzte 90 Tage)
 
 ---
 
@@ -95,7 +100,16 @@ auch reine Leser der Hauptdaten.
 
 > Diese Datei nur **ein einziges Mal** anlegen. Bei App-Updates nichts neu machen.
 
-### 3.4 Konflikt-Wächter (optional, empfohlen)
+### 3.4 Namen eintragen (einmalig pro Gerät, wichtig)
+
+**⚙ → „Dein Name (dieses Gerät)"**, z. B. `R. Ciraci`.
+
+Der Name wird als Urheber in den **Verlauf** geschrieben und bei Störberichten als
+Bearbeiter vorgeschlagen. Er bleibt auf dem jeweiligen Gerät und wandert nicht in die
+gemeinsame Datei. **Wer keinen Namen einträgt, erscheint im Verlauf als „Unbekannt"** –
+damit ist der Verlauf für diesen Arbeitsplatz wertlos. Zwei Minuten Aufwand pro PC.
+
+### 3.5 Konflikt-Wächter (optional, empfohlen)
 
 OneDrive legt bei zeitgleichen Änderungen manchmal „Konfliktkopien" an
 (`…-PCNAME.json`). Der **Konflikt-Wächter** sammelt solche Kopien automatisch ein und
@@ -116,27 +130,37 @@ Die App unterscheidet automatisch anhand der **OneDrive-/Laufwerks-Rechte**:
 Deshalb dürfen **auch Leser** Störungen anlegen, bearbeiten und löschen – aber nur die
 Störungen, nicht den Rest.
 
+> **Die Rechte kommen aus OneDrive, nicht aus der App.** Es gibt kein Passwort und keine
+> Benutzerverwaltung im Programm. Wer in OneDrive Schreibrecht auf die Daten-Datei hat,
+> ist Bearbeiter – wer es nicht hat, kann auch mit Tricks nichts speichern.
+
 ---
 
 ## 5. Die Bereiche im Detail
 
-- **Übersicht / Cockpit:** Kennzahlen (heute fällig, erledigt, überfällig, Monats-/Jahresquote),
-  „Heute da" (aktuelle Schicht), **offene Störungen als Gedankenstütze**, Tagesliste und
-  **Pinnwand**. Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌),
+- **Übersicht / Cockpit:** Kennzahlen (heute fällig, erledigt, überfällig, Monats- und
+  Jahresquote als Halbkreis **mit ausgeschriebenem Monatsnamen**), eine **analoge Uhr**
+  mit der laufenden Schicht (z. B. *Do., 23.07. · Spät ab 14:00*), „Heute da",
+  **offene Störungen als Gedankenstütze**, Tagesliste und **Pinnwand**.
+  Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌),
   auf den **Monitor** legen (📺) und **veröffentlichen** (🌐, dann auch für Nur-Leser sichtbar).
 - **Schichtplan:** Monatsmatrix, je Person und Tag eine Schicht (Früh/Spät/Nacht u. a.).
 - **Planung:** Tage untereinander, je Person die eingeplanten Arbeiten/Notizen; springt beim
   Öffnen direkt zum heutigen Tag.
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.
 - **TPM → Übersicht:** ein digitales **TPM-Board**, das beim Klick auf **TPM** zuerst öffnet.
-  Holt das Team ab und erklärt kurz, **was** TPM und R+I sind und **warum** sie wichtig sind
-  (Sicherheit, Verfügbarkeit, Nachweis). Darunter jeder **R+I-Punkt aufklappbar** mit
-  **Info-Text, Rechtsgrundlage und Link** – ein Nachschlagewerk für die Werkstatt.
+  Oben die **Monats- und Jahresquote als Halbkreise**. Es holt das Team ab und erklärt kurz,
+  **was** TPM und R+I sind und **warum** sie wichtig sind (Sicherheit, Verfügbarkeit, Nachweis).
+  Darunter jeder **R+I-Punkt aufklappbar** mit **Info-Text, Rechtsgrundlage und Link** –
+  ein Nachschlagewerk für die Werkstatt. Rechts daneben Jahresauswahl und
+  **🖨 Prüfnachweis** (siehe Kapitel 7).
 - **TPM → Plan / R+I:** wiederkehrende Wartungen und Inspektionen mit Terminlogik.
+- **Auswertung (Monat/Jahr):** unter den Zahlen der **Trend der Termintreue** – zwölf Monate
+  als Kurve. Monate ohne fällige Termine bleiben bewusst leer, statt als 0 % zu erscheinen.
 - **Einstellungen (⚙ oben rechts):** Anlagen, R+I-Punkte (inkl. **Info / Rechtsgrundlage / Link**
-  je Punkt für die TPM-Übersicht), **Team**, **Schichtarten**, **Anlagenteile** (für Störberichte)
-  und die **lokalen Sicherungen** dieses Geräts.
-  → **Grundeinstellungen immer aus der aktuellen App-Version pflegen** (siehe Kapitel 9).
+  je Punkt für die TPM-Übersicht), **Team**, **Schichtarten**, **Anlagenteile** (für Störberichte),
+  **dein Name**, der **Verlauf** und die **lokalen Sicherungen** dieses Geräts.
+  → **Grundeinstellungen immer aus der aktuellen App-Version pflegen** (siehe Kapitel 10).
 
 ---
 
@@ -199,12 +223,67 @@ Umschalter **Liste | Auswertung**, Zeitraum wählbar (Monat / Jahr / Alle):
 
 ---
 
-## 7. Datensicherheit – warum nichts verloren geht
+## 7. Nachweise, Verlauf und Archiv
+
+### 7.1 Prüfnachweis (R+I) ausdrucken
+
+**TPM → Übersicht → Jahr wählen → 🖨 Prüfnachweis.**
+
+Es entsteht ein A4-Blatt „**Nachweis wiederkehrender Prüfungen**" mit je Prüfpunkt:
+**Rechtsgrundlage**, alle **erledigten Termine mit Datum**, die **versäumten** Termine
+und dem Stand als Quote. Unten stehen Unterschriftszeilen für Werkstattleitung und Prüfer.
+
+Drei Dinge, die man beim Vorlegen wissen sollte:
+
+- **Die Soll-Termine werden aus dem Rhythmus gerechnet, nicht aus dem Bestand gezählt.**
+  Ein Nachweis, der nur zählt, was jemand eingetragen hat, meldete sonst „vollständig",
+  obwohl gar nichts gemacht wurde.
+- **Künftige Termine zählen nicht als versäumt**, sondern werden getrennt ausgewiesen
+  („im Zeitraum noch nicht fällig").
+- **Lücken werden gezeigt, nicht verschwiegen.** Ein Nachweis, der beschönigt, ist wertlos.
+  Wenn etwas fehlt, steht es rot im Blatt.
+
+> Wenn nichts passiert: im Browser einmal **Popups für diese Seite erlauben** – der Nachweis
+> öffnet sich in einem eigenen Fenster.
+
+### 7.2 Verlauf – wer hat wann was geändert
+
+**⚙ → „Verlauf (wer hat was geändert)"** listet die Änderungen der **letzten 90 Tage**
+aus der gemeinsamen Datei: Zeitpunkt, Name, was geschah.
+
+- Es wird nur mitgeschrieben, solange eine **gemeinsame Datei verbunden** ist.
+- Als Name erscheint, was unter **⚙ → Dein Name** eingetragen ist – sonst „Unbekannt"
+  (siehe 3.4).
+- Einträge älter als 90 Tage verschwinden von selbst. Es wird **nach Alter** aufgeräumt,
+  nicht nach Anzahl – damit alle Arbeitsplätze denselben Verlauf sehen.
+
+### 7.3 Archiv-Erinnerung nach drei Jahren
+
+Der Zwischenspeicher des Browsers fasst rund **5 MB** – bei eurer Größenordnung etwa
+**sieben Jahre**. Damit es nie eng wird, meldet sich die App **ab drei Jahren Bestand**
+einmal von selbst und schlägt vor, die ältesten Jahrgänge auszulagern.
+
+Der Ablauf ist bewusst zweistufig:
+
+1. **Herunterladen** – die alten Jahrgänge werden als `werkstatt-archiv-bis-JAHR.json`
+   gespeichert. Diese Datei an einen sicheren Ort legen.
+2. **Erst dann auslagern** – die Einträge werden aus dem laufenden Bestand entfernt.
+   Das wirkt **auf allen Arbeitsplätzen**, deshalb kommt vorher eine ausdrückliche Abfrage.
+
+**„Später erinnern"** verschiebt die Frage. Es passiert nichts automatisch, und ohne
+Schritt 1 lässt sich Schritt 2 nicht auslösen. Nur-Leser bekommen die Frage nicht.
+
+---
+
+## 8. Datensicherheit – warum nichts verloren geht
 
 Die App ersetzt einen Backend-Server durch mehrere Schutzmechanismen:
 
 - **Zusammenführen pro Eintrag** statt „Datei ersetzen": Beim Speichern wird der aktuelle
   Dateistand gelesen und Eintrag für Eintrag gemerged (neuerer Zeitstempel gewinnt).
+- **Grundeinstellungen Feld für Feld:** Anlagen, R+I-Punkte, Team, Schichtarten und
+  Anlagenteile werden **einzeln** abgelegt. Wer das Team pflegt, überschreibt damit nicht
+  mehr die Anlagenteile eines Kollegen.
 - **Optimistische Sperre + Kontroll-Lesung:** Nach dem Schreiben wird zurückgelesen und
   geprüft, ob die eigene Änderung wirklich drinsteht.
 - **Selbstheilung:** Ein Hintergrund-Check gleicht sehr seltene Zeitfenster automatisch aus.
@@ -212,12 +291,16 @@ Die App ersetzt einen Backend-Server durch mehrere Schutzmechanismen:
 - **Konflikt-Wächter:** OneDrive-Konfliktkopien werden automatisch eingesammelt.
 - **Lokale Sicherungen:** je Gerät die letzten 30 Stände (⚙ → Sicherungen).
 - **OneDrive-Versionsverlauf:** zusätzlicher Rettungsanker in OneDrive selbst.
+- **Voller Zwischenspeicher wird ehrlich gemeldet:** Ist der lokale Speicher des Browsers
+  voll, die gemeinsame Datei aber erreichbar, sagt die App ausdrücklich, dass die Änderung
+  **in der gemeinsamen Datei steht und nicht verloren ist**. Ist gar nichts erreichbar,
+  meldet sie einen echten Fehler – statt „gespeichert" anzuzeigen, wenn nichts gespeichert wurde.
 
 Zwei getrennte Dateien (Hauptdaten + Störungen) nutzen **denselben** erprobten Sync-Code.
 
 ---
 
-## 8. Updates einspielen
+## 9. Updates einspielen
 
 Da alle **eine** App-Datei öffnen, ist ein Update denkbar einfach:
 
@@ -230,36 +313,70 @@ Die Verbindungen zu den Daten-Dateien bleiben dabei erhalten – niemand muss et
 
 ---
 
-## 9. Alte und neue Version gleichzeitig
+## 10. Alte und neue Version gleichzeitig
 
 Wenn jemand kurzzeitig mit einer **alten** und ein anderer mit einer **neuen** Version arbeitet:
 
 - **Tägliche Daten (Kalender, Schicht, Backlog, Notizen) und Störungen: kein Verlust.**
   Das Zusammenführen arbeitet pro Eintrag, und unbekannte Felder werden beim Bearbeiten
   mitkopiert. Störungen liegen in einer eigenen Datei, die eine alte Version gar nicht anfasst.
-- **Einzige Ausnahme – die ⚙ Einstellungen:** Anlagen/Team/Schichtarten/Anlagenteile werden
-  als ganzer Block gespeichert. Speichert jemand mit einer **alten** Version im ⚙-Dialog,
-  kann er neuere Felder (z. B. Anlagenteile) überschreiben.
-  → **Regel:** Grundeinstellungen immer aus der **aktuellen** Version pflegen.
+- **Der Rückweg ist offen.** Die neue Fassung schreibt die Grundeinstellungen **zusätzlich**
+  weiterhin im alten Format. Wer auf einem Rechner noch die alte Version hat, sieht
+  Anlagen, Team und R+I-Punkte ganz normal – und wer zurückmuss, verliert nichts.
+- **Verwaltungs-Einträge stören die alte Fassung nicht.** Sie kennt Verlauf und die neue
+  Einstellungsform zwar nicht, trägt sie aber unverändert mit und zeigt sie **nicht** als
+  Termine an.
 
-Deshalb kann Roberto gefahrlos ständig weiterentwickeln und live testen.
+**Die eine Regel, die bleibt:**
+
+> **Grundeinstellungen immer aus der aktuellen Version pflegen.**
+
+Der Grund hat sich geändert: Früher konnte eine alte Version neuere Felder *überschreiben*.
+Das kann sie heute nicht mehr. Stattdessen wird eine Einstellungs-Änderung, die jemand aus
+der **alten** Version speichert, von den neuen Versionen **ignoriert** – sie lesen die
+Feld-für-Feld-Form, die die alte Version nicht mitschreibt. Es geht also nichts kaputt,
+aber die Änderung kommt bei niemandem an. Nachgemessen am 27.07.2026.
+
+Solange alle dieselbe Version haben, spielt das keine Rolle.
 
 ---
 
-## 10. Grenzen
+## 11. Grenzen
 
-- **Handy/Tablet:** Die gemeinsame-Datei-Technik gibt es nur in **Desktop-Edge/Chrome**.
-  Auf iPhone/den meisten Handy-Browsern funktioniert sie **nicht** – echte mobile Nutzung
-  mit Sync bräuchte einen echten Server.
+**Technisch:**
+
+- **Handy/Tablet:** Die Oberfläche ist inzwischen bis hinunter zu **540 Pixel** Breite
+  bedienbar – auf einem Telefon lässt sich also alles erreichen und antippen. Die
+  **gemeinsame-Datei-Technik** gibt es aber weiterhin nur in **Desktop-Edge/Chrome**.
+  Auf dem iPhone und den meisten Handy-Browsern kann man die App öffnen, aber **nicht mit
+  der gemeinsamen Datei verbinden**. Echte mobile Nutzung mit Sync bräuchte einen Server.
 - **Sehr viele gleichzeitige Bearbeiter:** ausgelegt auf eine Handvoll; bei dutzenden
   Gleichzeitig-Schreibern gäbe es mehr Konfliktkopien.
 - **Kein Echtzeit-Sekundentakt:** Änderungen erscheinen in Sekunden bis ~½ Minute.
 
-Für Werkstatt-PCs mit ein paar Bearbeitern und Lesern sind das keine spürbaren Nachteile.
+**Fachlich – was die App (noch) nicht kann.** Ehrlich benannt, damit bei einer Prüfung
+niemand überrascht wird:
+
+- **Kein „wer hat es erledigt" am Wartungshaken.** Ein erledigter TPM- oder R+I-Punkt
+  speichert Datum, Anlage, Status und Bemerkung – **keinen Namen**. Belegen lässt sich
+  damit *dass* etwas gemacht wurde, nicht *von wem*. (Bei Backlog-Arbeiten und
+  Störberichten steht der Name sehr wohl drin, und der **Verlauf** zeigt, wer wann
+  gespeichert hat – aber das ist kein Ersatz für ein Feld am Eintrag selbst.)
+- **Abgeschlossene Zeiträume lassen sich nachträglich ändern.** Nichts hindert daran, im
+  Oktober noch einen Haken für den Juli zu setzen.
+- **Kein geführtes Befund-Feld.** Es gibt die freie Bemerkung, aber keine Auswahl
+  „in Ordnung / Auffälligkeit / Mangel" – freier Text lässt sich nicht auswerten.
+- **Keine Wiedervorlage für Maßnahmen.** Eine Maßnahme aus einem Störbericht landet im
+  Backlog; ob sie gewirkt hat, fragt niemand nach.
+- **Kein CSV-Export.** Wer die Zahlen in Excel weiterrechnen will, muss abtippen.
+
+Für Werkstatt-PCs mit ein paar Bearbeitern und Lesern sind die technischen Punkte keine
+spürbaren Nachteile. Die fachlichen Punkte sind bewusste Auslassungen, keine Fehler –
+sie sind nachrüstbar.
 
 ---
 
-## 11. Häufige Fragen
+## 12. Häufige Fragen
 
 **Brauche ich noch das Firmenlaufwerk?**
 Für den Kalender nicht – OneDrive übernimmt Teilen, Sync und Rechte. Das Laufwerk kann für
@@ -277,7 +394,25 @@ Richtig so – das ist der Schreibschutz. Störungen darf er trotzdem pflegen.
 **Es erscheinen `…-PCNAME.json`-Dateien in OneDrive.**
 Das sind Konfliktkopien. Mit eingerichtetem Konflikt-Wächter verschwinden sie automatisch.
 
+**Im Verlauf steht überall „Unbekannt".**
+Auf den betreffenden Geräten wurde kein Name hinterlegt: **⚙ → Dein Name** (siehe 3.4).
+
+**Der Prüfnachweis / das Drucken tut nichts.**
+Beides öffnet ein eigenes Fenster. Im Browser einmal **Popups für diese Seite erlauben**.
+
+**Die App fragt nach dem Auslagern alter Jahre – muss ich das sofort machen?**
+Nein. „Später erinnern" verschiebt die Frage, es passiert nichts automatisch. Siehe 7.3.
+
+**Im Trend fehlen einzelne Monate.**
+Absicht: Monate ohne fällige Termine erscheinen leer statt als 0 % – sonst sähe ein
+ruhiger Monat aus wie ein versäumter.
+
+**Beim Aktualisieren bewegt sich das Zeichen neben „Werkstatt-Cockpit" nicht.**
+Dann ist auf dem Gerät „Bewegung reduzieren" eingeschaltet (Bedienungshilfen bzw.
+Energiesparmodus). Das Bild wird dann sofort fertig angezeigt – gewollt, kein Fehler.
+
 ---
 
 *Technische Details zur Sync-Logik stehen im Quellcode unter `app/src/sharedfile.js`.
-Automatisierte Härtetests liegen unter `tests/hardness/`.*
+Automatisierte Härtetests liegen unter `tests/hardness/`. Die verbindlichen Regeln,
+nach denen die App gebaut ist, stehen im `Werkstatt-Cockpit-Regelwerk.pdf`.*
