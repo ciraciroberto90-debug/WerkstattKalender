@@ -158,6 +158,18 @@ function createSharedStore(cfg) {
   const EV = cfg.evPrefix; // z. B. "werkstatt-shared" -> Ereignis "werkstatt-shared-update"
 
   let fileHandle = null;
+  // Beim Start gemerkter Verweis auf die zuletzt benutzte Datei.
+  // WARUM das hier liegt und nicht erst beim Klick geholt wird:
+  // requestPermission darf der Browser nur beantworten, solange die
+  // Nutzeraktivierung des Klicks gilt - gemessen rund fuenf Sekunden. Sie
+  // ueberlebt ein await, aber nicht beliebig lange. Wuerde reconnect() den
+  // Verweis erst aus der IndexedDB holen, laege dazwischen zweimal ein
+  // vollstaendiges Oeffnen der Datenbank. Auf einem frisch hochgefahrenen
+  // Rechner (kalte Platte, Virenscanner, OneDrive) dauert das laenger als
+  // die Aktivierung haelt, und der Browser antwortet mit
+  // "Not allowed to request permissions in this context".
+  let gemerkterHandle = null;
+  let gemerkterModus = "readwrite";
   let accessMode = null; // "readwrite" | "read"
   let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt scheiterte
   let lastSavedAt = null;
@@ -423,6 +435,8 @@ function createSharedStore(cfg) {
       mode = (await idbGet("mode")) || "readwrite";
     } catch (e) { /* IndexedDB nicht verfügbar */ }
     if (!handle) return { status: "none" };
+    gemerkterHandle = handle;   // fuer den spaeteren Klick auf "Jetzt verbinden"
+    gemerkterModus = mode;
     // Konflikt-Wächter: gemerkten Ordner mit wiederherstellen (falls eingerichtet)
     try {
       const fh = await idbGet("folder");
@@ -452,9 +466,17 @@ function createSharedStore(cfg) {
   }
 
   // Zugriff nach Browser-Neustart wieder freigeben (braucht einen Klick des Nutzers).
+  //
+  // ACHTUNG - die Reihenfolge ist hier keine Geschmacksfrage:
+  // requestPermission MUSS als Erstes kommen, ohne ein einziges await davor.
+  // Der Browser beantwortet die Frage nur, solange die Nutzeraktivierung des
+  // Klicks gilt. Frueher stand hier zweimal ein Lesen aus der IndexedDB - auf
+  // einem gerade hochgefahrenen Rechner dauerte das laenger als die
+  // Aktivierung haelt, und das Verbinden schlug mit
+  // "Not allowed to request permissions in this context" fehl.
   async function reconnect() {
-    const handle = await idbGet("handle");
-    const mode = (await idbGet("mode")) || "readwrite";
+    const handle = gemerkterHandle || (await idbGet("handle"));
+    const mode = gemerkterHandle ? gemerkterModus : ((await idbGet("mode")) || "readwrite");
     if (!handle) throw new Error("Keine gemerkte Datei gefunden.");
     const p = await handle.requestPermission({ mode });
     if (p !== "granted") throw new Error("Zugriff wurde nicht erlaubt.");
@@ -519,6 +541,8 @@ function createSharedStore(cfg) {
     return { name: handle.name };
   }
   async function reconnectFolder() {
+    // Auch hier gilt: kein await vor requestPermission, solange der Verweis
+    // schon im Speicher liegt (tryRestore hat ihn beim Start geholt).
     const h = folderHandle || (await idbGet("folder"));
     if (!h) throw new Error("Kein gemerkter Ordner gefunden.");
     const p = await h.requestPermission({ mode: "readwrite" });
