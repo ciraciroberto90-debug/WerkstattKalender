@@ -842,6 +842,7 @@ function App() {
   const [blStillstand, setBlStillstand] = useState(false);
   const [blErledigte, setBlErledigte] = useState(false);
   const [blSuche, setBlSuche] = useState("");
+  const [blFilterOffen, setBlFilterOffen] = useState(false); // Filter-Menü der Backlog-Leiste
   const [arbeitModal, setArbeitModal] = useState(null); // null | {mode:'add', ausZettel?} | {mode:'edit', id}
   const [aDraft, setADraft] = useState(null);
   const [akteAnlage, setAkteAnlage] = useState(null); // Anlagen-Akte (Name) | null
@@ -2171,6 +2172,18 @@ function App() {
       ? String(b.erledigtAm || b.date).localeCompare(String(a.erledigtAm || a.date))
       : (PRIO_REIHENFOLGE[a.prio ?? "ohne"] - PRIO_REIHENFOLGE[b.prio ?? "ohne"]) || a.name.localeCompare(b.name, "de"));
   const blZaehl = (art) => arbeitenOffen.filter((e) => e.art === art || e.art === "beide").length;
+  // Gesetzte Filter als Marken über der Liste. Sie sind der Ersatz dafür, dass
+  // die Filter selbst nicht mehr dauerhaft sichtbar sind: Was eingestellt ist,
+  // steht da - was auf "alle" steht, verschwindet. Vorher standen alle neun
+  // Bedienelemente ständig im Bild, auch wenn keines davon eingestellt war.
+  const blMarken = [];
+  if (blPrio !== "ALLE") blMarken.push({ id: "prio", text: `Prio: ${{ hoch: "1", mittel: "2", niedrig: "3", ohne: "ohne" }[blPrio] || blPrio}`, weg: () => setBlPrio("ALLE") });
+  if (blWer !== "ALLE") blMarken.push({ id: "wer", text: blWer === "NIEMAND" ? "nicht zugewiesen" : blWer, weg: () => setBlWer("ALLE") });
+  if (blAnlage !== "ALLE") blMarken.push({ id: "anlage", text: blAnlage, weg: () => setBlAnlage("ALLE") });
+  if (blAzubi) blMarken.push({ id: "azubi", text: "🎓 Azubi-geeignet", weg: () => setBlAzubi(false) });
+  if (blStillstand) blMarken.push({ id: "still", text: "⛔ nur bei Stillstand", weg: () => setBlStillstand(false) });
+  if (blErledigte) blMarken.push({ id: "erl", text: "erledigte Arbeiten", weg: () => setBlErledigte(false) });
+  const blFilterAlleWeg = () => { setBlPrio("ALLE"); setBlWer("ALLE"); setBlAnlage("ALLE"); setBlAzubi(false); setBlStillstand(false); setBlErledigte(false); };
   const blAnlagenOptionen = useMemo(
     () => Array.from(new Set(arbeiten.map((a) => a.name))).filter(Boolean).sort((a, b) => a.localeCompare(b, "de")),
     [entries]
@@ -4106,91 +4119,140 @@ function App() {
       {/* Cockpit: Backlog (Arbeiten aus dem Arbeitsbuch) */}
       {view === "COCKPIT" && cockpitTab === "BACKLOG" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            {[["ALLE", `Alle (${arbeitenOffen.length})`], ["mech", `Mechanisch (${blZaehl("mech")})`], ["elek", `Elektrisch (${blZaehl("elek")})`]].map(([v, label]) => (
-              <button
-                key={v}
-                onClick={() => setBlArt(v)}
-                className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wide border ${blArt === v ? "text-white" : "bg-white text-slate-600"}`}
-                style={blArt === v ? { backgroundColor: v === "mech" ? "#3D8B8B" : v === "elek" ? "#7C5CBF" : "#22262B", borderColor: "transparent" } : { borderColor: "#D6D9DC" }}
-              >
-                {label}
-              </button>
-            ))}
-            <span style={{ width: "6px" }} />
-            <select
-              value={blPrio}
-              onChange={(e) => setBlPrio(e.target.value)}
-              className="text-xs font-bold uppercase border rounded px-2 py-1.5 bg-white"
-              style={{ borderColor: blPrio === "ALLE" ? "#D6D9DC" : "#22262B", color: blPrio === "ALLE" ? "#5B6572" : "#22262B" }}
-              title="Nach Priorität filtern"
-            >
-              <option value="ALLE">Prio: alle</option>
-              <option value="hoch">Prio 1</option>
-              <option value="mittel">Prio 2</option>
-              <option value="niedrig">Prio 3</option>
-              <option value="ohne">ohne Prio</option>
-            </select>
-            <select
-              value={blWer}
-              onChange={(e) => setBlWer(e.target.value)}
-              className="text-xs font-bold uppercase border rounded px-2 py-1.5 bg-white"
-              style={{ borderColor: blWer === "ALLE" ? "#D6D9DC" : "#22262B", color: blWer === "ALLE" ? "#5B6572" : "#22262B" }}
-              title="Nach Person filtern"
-            >
-              <option value="ALLE">Person: alle</option>
-              <option value="NIEMAND">– nicht zugewiesen –</option>
-              {team.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
-            </select>
-            <select
-              value={blAnlage}
-              onChange={(e) => setBlAnlage(e.target.value)}
-              className="text-xs font-bold uppercase border rounded px-2 py-1.5 bg-white"
-              style={{ borderColor: blAnlage === "ALLE" ? "#D6D9DC" : "#22262B", color: blAnlage === "ALLE" ? "#5B6572" : "#22262B", maxWidth: "190px" }}
-              title="Nach Anlage/Bereich filtern"
-            >
-              <option value="ALLE">Anlage: alle</option>
-              {blAnlagenOptionen.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-            {[[blAzubi, setBlAzubi, "🎓 Azubi"], [blStillstand, setBlStillstand, "⛔ Stillstand"], [blErledigte, setBlErledigte, "Erledigte"]].map(([wert, setter, label]) => (
-              <button
-                key={label}
-                onClick={() => setter(!wert)}
-                className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wide border ${wert ? "text-white" : "bg-white text-slate-600"}`}
-                style={wert ? { backgroundColor: "#22262B", borderColor: "transparent" } : { borderColor: "#D6D9DC" }}
-              >
-                {label}
-              </button>
-            ))}
+          {/* ---- Werkzeugzeile ----------------------------------------------
+              Vorher standen hier elf Bedienelemente in zwei Reihen (109 Pixel),
+              alle gleich laut: Großbuchstaben, fett, jedes im eigenen Kasten.
+              Im Alltag benutzt man zwei davon. Deshalb steht draußen nur noch,
+              was oft gebraucht wird - Suche und die Umschaltung Mechanik /
+              Elektrik; der Rest liegt im Filter-Menü. Was dort eingestellt ist,
+              erscheint darunter als abwerfbare Marke, damit kein Filter
+              unbemerkt greift. */}
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <input
               type="search"
               value={blSuche}
               onChange={(e) => setBlSuche(e.target.value)}
-              placeholder="🔍 Suche: Anlage, Arbeit …"
-              className="text-sm border rounded px-3 py-1.5"
-              style={{ borderColor: "#D6D9DC", minWidth: "220px" }}
+              placeholder="🔍 Suchen in Anlage und Arbeit …"
+              className="text-sm border rounded-lg px-3 py-1.5"
+              style={{ borderColor: "#D7DCE1", flex: "1 1 220px", minWidth: "170px" }}
             />
+            <div className="flex rounded-lg overflow-hidden border shrink-0" style={{ borderColor: "#D7DCE1" }}>
+              {[["ALLE", `Alle ${arbeitenOffen.length}`], ["mech", `Mech ${blZaehl("mech")}`], ["elek", `Elek ${blZaehl("elek")}`]].map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setBlArt(v)}
+                  className="text-xs font-bold px-3 py-1.5"
+                  style={blArt === v
+                    ? { backgroundColor: v === "mech" ? "#3D8B8B" : v === "elek" ? "#7C5CBF" : "#22262B", color: "#fff" }
+                    : { backgroundColor: "#fff", color: "#5B6572" }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setBlFilterOffen((o) => !o)}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border bg-white flex items-center gap-1.5"
+                style={{ borderColor: blMarken.length ? "#22262B" : "#D7DCE1", color: "#22262B" }}
+                aria-expanded={blFilterOffen}
+              >
+                Filter
+                {blMarken.length > 0 && (
+                  <span className="text-white rounded-full px-1.5" style={{ backgroundColor: "#C97A2B", fontSize: "0.6rem" }}>{blMarken.length}</span>
+                )}
+                <span style={{ color: "#8A9099", fontSize: "0.6rem" }}>▾</span>
+              </button>
+              {blFilterOffen && (
+                <>
+                  {/* Fläche dahinter: ein Klick daneben schließt das Menü. Ohne
+                      sie bliebe es offen stehen, bis man den Knopf wiederfindet. */}
+                  <div className="fixed inset-0" style={{ zIndex: 30 }} onClick={() => setBlFilterOffen(false)} />
+                  <div
+                    className="absolute right-0 mt-1 wk-karte p-3 flex flex-col gap-2.5"
+                    style={{ zIndex: 31, width: "250px", border: "1px solid #E2E4E7" }}
+                  >
+                    <label className="flex flex-col gap-1">
+                      <span style={{ fontSize: "var(--wk-txt-etikett)", fontWeight: 800, color: "#8A9099", textTransform: "uppercase", letterSpacing: "0.6px" }}>Priorität</span>
+                      <select value={blPrio} onChange={(e) => setBlPrio(e.target.value)} className="text-sm">
+                        <option value="ALLE">alle</option>
+                        <option value="hoch">Prio 1</option>
+                        <option value="mittel">Prio 2</option>
+                        <option value="niedrig">Prio 3</option>
+                        <option value="ohne">ohne Prio</option>
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span style={{ fontSize: "var(--wk-txt-etikett)", fontWeight: 800, color: "#8A9099", textTransform: "uppercase", letterSpacing: "0.6px" }}>Person</span>
+                      <select value={blWer} onChange={(e) => setBlWer(e.target.value)} className="text-sm">
+                        <option value="ALLE">alle</option>
+                        <option value="NIEMAND">– nicht zugewiesen –</option>
+                        {team.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span style={{ fontSize: "var(--wk-txt-etikett)", fontWeight: 800, color: "#8A9099", textTransform: "uppercase", letterSpacing: "0.6px" }}>Anlage / Bereich</span>
+                      <select value={blAnlage} onChange={(e) => setBlAnlage(e.target.value)} className="text-sm">
+                        <option value="ALLE">alle</option>
+                        {blAnlagenOptionen.map((a) => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm" style={{ cursor: "pointer" }}>
+                      <input type="checkbox" checked={blAzubi} onChange={(e) => setBlAzubi(e.target.checked)} />
+                      🎓 nur Azubi-geeignete
+                    </label>
+                    <label className="flex items-center gap-2 text-sm" style={{ cursor: "pointer" }}>
+                      <input type="checkbox" checked={blStillstand} onChange={(e) => setBlStillstand(e.target.checked)} />
+                      ⛔ nur bei Stillstand
+                    </label>
+                    <label className="flex items-center gap-2 text-sm pt-2 border-t" style={{ cursor: "pointer", borderColor: "#E2E4E7" }}>
+                      <input type="checkbox" checked={blErledigte} onChange={(e) => setBlErledigte(e.target.checked)} />
+                      erledigte Arbeiten zeigen
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
             <button
               onClick={openArbeitNeu}
-              className="ml-auto text-xs font-bold uppercase tracking-wide text-white px-3.5 py-2 rounded"
+              className="text-xs font-bold text-white px-3.5 py-2 rounded-lg shrink-0"
               style={{ backgroundColor: "#22262B" }}
             >
               + Neue Arbeit
             </button>
           </div>
 
+          {blMarken.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              {blMarken.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={m.weg}
+                  className="wk-chip flex items-center gap-1.5"
+                  style={{ backgroundColor: "#EDF0F3", color: "#3d4650", fontSize: "0.66rem", padding: "3px 7px 3px 9px" }}
+                  title="Diesen Filter entfernen"
+                >
+                  {m.text} <span style={{ color: "#8A9099", fontWeight: 800 }}>✕</span>
+                </button>
+              ))}
+              {blMarken.length > 1 && (
+                <button onClick={blFilterAlleWeg} className="text-xs font-bold" style={{ color: "#8A9099" }}>alle entfernen</button>
+              )}
+            </div>
+          )}
+
           <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "0.85rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid #22262B" }}>
-                    <th style={{ width: "40px", padding: "8px 10px" }} title="Priorität">Prio</th>
-                    <th style={{ textAlign: "left", padding: "8px 10px", width: "160px" }}>Anlage / Bereich</th>
-                    <th style={{ textAlign: "left", padding: "8px 10px" }}>Arbeit</th>
-                    <th style={{ textAlign: "left", padding: "8px 10px", width: "90px" }}>Art</th>
+                    <th style={{ width: "40px", padding: "6px 10px" }} title="Priorität">Prio</th>
+                    <th style={{ textAlign: "left", padding: "6px 10px", width: "160px" }}>Anlage / Bereich</th>
+                    <th style={{ textAlign: "left", padding: "6px 10px" }}>Arbeit</th>
+                    <th style={{ textAlign: "left", padding: "6px 10px", width: "90px" }}>Art</th>
                     <th style={{ padding: "8px 6px", width: "72px" }} title="Azubi-geeignet / nur bei Stillstand">🎓⛔</th>
-                    <th style={{ textAlign: "left", padding: "8px 10px", width: "110px" }}>Wer</th>
-                    <th style={{ textAlign: "left", padding: "8px 10px", width: "100px" }}>{blErledigte ? "Erledigt am" : "Gemeldet"}</th>
+                    <th style={{ textAlign: "left", padding: "6px 10px", width: "110px" }}>Wer</th>
+                    <th style={{ textAlign: "left", padding: "6px 10px", width: "100px" }}>{blErledigte ? "Erledigt am" : "Gemeldet"}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -4205,13 +4267,13 @@ function App() {
                         key={a.id}
                         onClick={() => openArbeitEdit(a)}
                         className="wk-hover"
-                        style={{ borderBottom: "1.5px solid #6B7280", cursor: "pointer", opacity: a.status === "done" ? 0.6 : 1 }}
+                        style={{ borderBottom: "1px solid #EEF0F2", cursor: "pointer", opacity: a.status === "done" ? 0.6 : 1 }}
                         title="Klicken zum Bearbeiten"
                       >
                         <td style={{ textAlign: "center" }}>
                           <span style={{ display: "inline-block", width: "11px", height: "11px", borderRadius: "50%", backgroundColor: prio.color }} title={prio.label} />
                         </td>
-                        <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+                        <td style={{ padding: "3px 10px", whiteSpace: "nowrap" }}>
                           <button
                             onClick={(ev) => { ev.stopPropagation(); setAkteAnlage(a.name); }}
                             className="font-bold hover:underline"
@@ -4221,8 +4283,8 @@ function App() {
                             {a.name}
                           </button>
                         </td>
-                        <td style={{ padding: "7px 10px" }}>{a.note}</td>
-                        <td style={{ padding: "7px 10px" }}>
+                        <td style={{ padding: "3px 10px" }}>{a.note}</td>
+                        <td style={{ padding: "3px 10px" }}>
                           {a.art === "beide" ? (
                             <><span className="text-xs font-bold" style={{ color: ARBEIT_ART.mech.color }}>Mech</span> <span className="text-xs font-bold" style={{ color: ARBEIT_ART.elek.color }}>+ Elek</span></>
                           ) : (
@@ -4230,7 +4292,7 @@ function App() {
                           )}
                         </td>
                         <td style={{ textAlign: "center", fontSize: "0.85rem" }}>{a.azubi ? "🎓" : ""}{a.stillstand ? "⛔" : ""}</td>
-                        <td style={{ padding: "7px 10px", whiteSpace: "nowrap" }}>
+                        <td style={{ padding: "3px 10px", whiteSpace: "nowrap" }}>
                           {a.wer ? (
                             <span className="flex items-center gap-1.5">
                               <span className="inline-flex items-center justify-center rounded-full text-white font-extrabold" style={{ width: "20px", height: "20px", fontSize: "0.58rem", backgroundColor: personFarbe(a.wer) }}>{personKuerzel(a.wer)}</span>
@@ -4240,7 +4302,7 @@ function App() {
                             <span style={{ fontSize: "0.72rem", color: "#C3C7CB" }}>–</span>
                           )}
                         </td>
-                        <td className="font-mono" style={{ padding: "7px 10px", fontSize: "0.72rem", color: "#8A9099" }}>
+                        <td className="font-mono" style={{ padding: "3px 10px", fontSize: "0.72rem", color: "#8A9099" }}>
                           {formatDateDE(blErledigte ? (a.erledigtAm || a.date) : a.date)}
                         </td>
                       </tr>
