@@ -75,12 +75,14 @@ async function starte(b, { dialogDauer, ersteFrage, schreibenGeht }) {
   // (2) Dialog zu lange offen -> Frage kam nicht durch
   { const {p,fehler} = await starte(b,{dialogDauer:7000,ersteFrage:"wirft",schreibenGeht:true});
     let t = await p.locator("body").innerText();
-    pruef("(2) Kein stiller Schreibschutz, sondern klarer Hinweis", /nicht nach dem Schreibzugriff gefragt/.test(t));
+    // Der Text behauptet bewusst KEINE Ursache mehr. Die erste Fassung sagte
+    // "das Auswahlfenster stand zu lange offen" - das war geraten und falsch.
+    pruef("(2) Kein stiller Schreibschutz, sondern klarer Hinweis", /Schreibzugriff auf die Datei nicht erteilt/.test(t));
     pruef("(2) Knopf 'Schreibzugriff erlauben' ist da", (await p.getByRole("button",{name:/Schreibzugriff erlauben/}).count())>0);
     await p.getByRole("button",{name:/Schreibzugriff erlauben/}).first().click();
     await p.waitForTimeout(2500);
     t = await p.locator("body").innerText();
-    pruef("(2) Ein Klick genuegt - Hinweis weg", !/nicht nach dem Schreibzugriff gefragt/.test(t));
+    pruef("(2) Ein Klick genuegt - Hinweis weg", !/Schreibzugriff auf die Datei nicht erteilt/.test(t));
     pruef("(2) Danach kein Schreibschutz mehr", !/Schreibschutz/.test(t));
     pruef("(2) Backlog jetzt sichtbar", /BACKLOG/.test(t));
     pruef("(2) Keine Skriptfehler", fehler.length===0);

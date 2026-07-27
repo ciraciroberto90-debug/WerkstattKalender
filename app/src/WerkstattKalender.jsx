@@ -3379,7 +3379,13 @@ function App() {
                   sondern eine nicht gestellte Frage - und ein Klick holt sie nach. */}
           {sharedFile.schreibfrageOffen() ? (
             <>
-              <span>⚠ Der Browser wurde nicht nach dem Schreibzugriff gefragt – das Auswahlfenster stand zu lange offen.</span>
+              <span>⚠ Dieser Browser hat den Schreibzugriff auf die Datei nicht erteilt.</span>
+              {/* Zwei Wege, in dieser Reihenfolge:
+                  1. Nachfragen. Das ist der normale Weg und kostet einen Klick.
+                  2. Über den Speichern-Dialog verbinden. Manche Browser lehnen
+                     das Nachfragen grundsätzlich ab (z. B. wenn die App über
+                     file:// geöffnet wird) - dann hilft nur Weg 2, denn der
+                     Speichern-Dialog vergibt Schreibrecht ohne Nachfrage. */}
               <button
                 onClick={async () => {
                   try {
@@ -3389,13 +3395,34 @@ function App() {
                       ? `Schreibzugriff weiterhin nicht möglich (${sharedFile.getLastWriteError() || "unbekannter Grund"}). Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte?`
                       : null);
                   } catch (e2) {
-                    setErr("Gemeinsame Datei: " + (e2 && e2.message ? e2.message : "Erneuter Versuch fehlgeschlagen."));
+                    const u = sharedFile.umgebung();
+                    const roh = e2 && e2.message ? e2.message : "Erneuter Versuch fehlgeschlagen.";
+                    setErr(/Not allowed to request permissions/.test(roh)
+                      ? `Dieser Browser erlaubt das Nachfragen nach Schreibrecht grundsätzlich nicht (Adresse: ${u.protokoll}, sicherer Kontext: ${u.sichererKontext ? "ja" : "nein"}). Nimm den Knopf „Mit Schreibrecht verbinden …“ – der Speichern-Dialog vergibt das Recht ohne Nachfrage.`
+                      : "Gemeinsame Datei: " + roh);
                   }
                 }}
                 className="px-3 py-1 rounded text-white"
                 style={{ backgroundColor: "#B8791F" }}
               >
                 Schreibzugriff erlauben
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await sharedFile.pickWritable();
+                    setShareState({ status: "connected", name: sharedFile.fileName(), mode: sharedFile.canWrite() ? "readwrite" : "read" });
+                    setErr(null);
+                  } catch (e2) {
+                    if (e2 && e2.name === "AbortError") return;
+                    setErr("Gemeinsame Datei: " + (e2 && e2.message ? e2.message : "Verbinden hat nicht geklappt."));
+                  }
+                }}
+                className="px-3 py-1 rounded border"
+                style={{ borderColor: "#B8791F", color: "#8A5320", backgroundColor: "#fff" }}
+                title="Öffnet den Speichern-Dialog. Dieselbe Datei auswählen und „Ersetzen“ bestätigen – der Inhalt bleibt erhalten, er wird vorher gelesen und zusammengeführt."
+              >
+                Mit Schreibrecht verbinden …
               </button>
             </>
           ) : (

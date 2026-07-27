@@ -524,6 +524,41 @@ function createSharedStore(cfg) {
     return { status: "connected", name: fileHandle.name, mode: accessMode };
   }
 
+  // Ausweg, wenn der Browser das Nachfragen nach Schreibrecht ueberhaupt
+  // verweigert ("Not allowed to request permissions in this context").
+  //
+  // Der Speichern-Dialog vergibt Schreibrecht unmittelbar - ohne
+  // requestPermission. Die Datei wird dabei NICHT geleert: geleert wird erst
+  // beim Schreiben, und vorher liest adoptCurrentFile(false) den vorhandenen
+  // Inhalt und fuehrt ihn wie bei jedem normalen Verbinden zusammen.
+  async function pickWritable() {
+    const types = [{ description: "Werkstatt-Cockpit Daten", accept: { "application/json": [".json"] } }];
+    const vorschlag = fileHandle ? fileHandle.name : SUGGESTED_NAME;
+    const handle = await window.showSaveFilePicker({ suggestedName: vorschlag, types });
+    fileHandle = handle;
+    accessMode = "readwrite";
+    schreibfrageOffen = false;
+    gemerkterHandle = handle;
+    gemerkterModus = "readwrite";
+    try {
+      await idbSet("handle", handle);
+      await idbSet("mode", "readwrite");
+    } catch (e) { /* gilt dann nur fuer diese Sitzung */ }
+    const data = await adoptCurrentFile(false); // vorhandenen Inhalt uebernehmen, NICHT neu anlegen
+    startPolling();
+    return data;
+  }
+
+  // Warum das Nachfragen scheitern kann - fuer eine ehrliche Fehlermeldung.
+  function umgebung() {
+    if (typeof window === "undefined") return {};
+    return {
+      protokoll: window.location ? window.location.protocol : "?",
+      sichererKontext: !!window.isSecureContext,
+      herkunft: window.location ? String(window.location.origin) : "?",
+    };
+  }
+
   async function disconnect() {
     stopPolling();
     fileHandle = null;
@@ -1024,6 +1059,7 @@ function createSharedStore(cfg) {
     isSupported, isConnected, canWrite, fileName, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     schreibfrageOffen: () => schreibfrageOffen,
+    pickWritable, umgebung,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
     saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
   };
@@ -1054,6 +1090,8 @@ export const tryRestore = main.tryRestore;
 export const reconnect = main.reconnect;
 export const retryWrite = main.retryWrite;
 export const schreibfrageOffen = main.schreibfrageOffen;
+export const pickWritable = main.pickWritable;
+export const umgebung = main.umgebung;
 export const disconnect = main.disconnect;
 export const folderStatus = main.folderStatus;
 export const folderName = main.folderName;
