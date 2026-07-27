@@ -47,9 +47,9 @@ async function verbindeStoer(page, create) {
 // Schicht "Früh" in der Liste aufklappen, damit die Zeilen sichtbar werden.
 // Idempotent: nur klicken, wenn noch keine Zeile sichtbar ist.
 async function zeigeFrueh(page) {
-  const zeileDa = await page.getByRole('button', { name: /Hydraulikdruck|halbe Geschwindigkeit/ }).count();
+  const zeileDa = await page.locator('tbody tr').filter({ hasText: /Hydraulikdruck|halbe Geschwindigkeit/ }).count();
   if (zeileDa > 0) return;
-  const kopf = page.getByRole('button', { name: /Früh/i }).first();
+  const kopf = page.locator('tbody tr').filter({ hasText: /^\s*▸?\s*FRÜH/i }).first();
   if (await kopf.count()) { await kopf.click(); await page.waitForTimeout(250); }
 }
 
@@ -117,7 +117,7 @@ async function meldeStoerung(page, anlage, text) {
   check('(2) Gewählte Schicht wird gespeichert', nurStoerungen(datei).every((e) => e.schicht === 'Früh'));
 
   // Detail-Popout: Klick auf die Zeile öffnet den kompletten Bericht (nur lesend)
-  await u1.getByRole('button', { name: /Presse 3/ }).first().click();
+  await u1.locator('tbody tr').filter({ hasText: 'Presse 3' }).first().click();
   await u1.waitForTimeout(300);
   check('(P) Zeilen-Klick öffnet den Störbericht als Popout',
     (await u1.getByRole('button', { name: /Bearbeiten/ }).count()) > 0 &&

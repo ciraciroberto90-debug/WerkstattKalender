@@ -1355,26 +1355,53 @@ function App() {
     setStoerModal({ mode: "view", id: s.id });
   };
 
-  // Kompakte Zeile im Schichtbuch: Zeit + Anlage links, Beschreibung rechts,
-  // Ausfallzeit + Status. Klick öffnet den kompletten Bericht als Popout.
-  const renderStoerZeile = (s) => {
+  // ---- Zeilen des Schichtbuchs -------------------------------------------
+  // Alles steht in EINER Tabelle mit festen Spalten - Tag, Schicht und Bericht
+  // sind nur unterschiedlich gestaltete Zeilen darin. Vorher war jeder Tag eine
+  // eigene Kachel mit eigenem Rahmen, und die Angaben hingen rechts aneinander:
+  // mal mit Minuten, mal ohne, mal mit "1 offen" dazwischen. Dass die
+  // Tagessumme jetzt in derselben Spalte steht wie die Einzelwerte, ist der
+  // ganze Unterschied - das Auge kann senkrecht durchlaufen.
+  const stoerTdBasis = { padding: "0 8px", height: "26px", borderBottom: "1px solid #EEF0F2", verticalAlign: "middle", whiteSpace: "nowrap" };
+  const stoerKopfzeile = (ersteSpalte) => {
+    const th = { fontSize: "0.57rem", textTransform: "uppercase", letterSpacing: "0.9px", color: "#8A9099", fontWeight: 800, textAlign: "left", padding: "6px 8px", borderBottom: "1.5px solid #D7DCE1", background: "#FAFBFC", whiteSpace: "nowrap" };
+    return (
+      <tr>
+        <th style={{ ...th, width: "116px" }}>{ersteSpalte}</th>
+        <th style={{ ...th, width: "168px" }}>Anlage · Teil</th>
+        <th style={th}>Störbeschreibung</th>
+        <th style={{ ...th, width: "82px", textAlign: "right" }}>Ausfallzeit</th>
+        <th style={{ ...th, width: "96px" }}>Bearbeiter</th>
+        <th style={{ ...th, width: "76px" }}>Status</th>
+      </tr>
+    );
+  };
+  const stoerZeileTabelle = (s, mitDatum = false) => {
     const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
-      <button key={s.id} onClick={() => oeffneStoerDetail(s)}
-        className="wk-hover w-full flex items-center gap-2 text-left"
-        style={{ borderTop: "1px solid #E2E4E7", backgroundColor: "transparent", padding: "2px 10px 2px 30px" }}>
-        <span className="font-mono flex-shrink-0" style={{ fontSize: "0.62rem", color: "#8A9099", width: "36px" }}>{zeit}</span>
-        <span className="flex-shrink-0" style={{ minWidth: "130px", maxWidth: "210px" }}>
-          <span className="font-extrabold" style={{ fontSize: "0.76rem", color: "#22262B" }}>{s.anlage || "—"}</span>
-          {s.anlagenteil && <span style={{ fontSize: "0.62rem", color: "#8A9099" }}> · {s.anlagenteil}</span>}
-        </span>
-        <span className="flex-1" style={{ fontSize: "0.72rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.stoerung || <span className="italic">—</span>}</span>
-        {(Number(s.ausfallzeit) || 0) > 0 && <span className="flex-shrink-0 font-mono rounded" style={{ fontSize: "0.62rem", padding: "1px 5px", color: "#9A6B00", backgroundColor: "#FBF3DA" }}>{minutenText(s.ausfallzeit)}</span>}
-        <span className="flex-shrink-0 inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.52rem", letterSpacing: "0.3px", padding: "2px 7px", backgroundColor: s.offen ? "#FBEAE8" : "#EAF3EC", color: s.offen ? "#C0392B" : "#1F7A3D" }}>
-          {s.offen ? "offen" : "✓ behoben"}
-        </span>
-        <span className="flex-shrink-0" style={{ color: "#C4CBD2", fontSize: "0.7rem" }}>›</span>
-      </button>
+      <tr key={s.id} onClick={() => oeffneStoerDetail(s)} className="wk-hover" style={{ cursor: "pointer" }} title="Bericht öffnen">
+        <td style={{ ...stoerTdBasis, paddingLeft: mitDatum ? "10px" : "38px" }}>
+          <span className="font-mono" style={{ fontSize: "0.68rem", color: "#8A9099" }}>{mitDatum ? (s.date ? formatDateDE(s.date) : "—") : zeit}</span>
+        </td>
+        <td style={stoerTdBasis}>
+          <span className="font-extrabold" style={{ fontSize: "0.75rem", color: "#22262B" }}>{s.anlage || "—"}</span>
+          {s.anlagenteil && <span style={{ fontSize: "0.68rem", color: "#8A9099" }}> · {s.anlagenteil}</span>}
+        </td>
+        <td style={{ ...stoerTdBasis, whiteSpace: "normal", fontSize: "0.75rem", color: "#3d4650" }}>
+          {s.stoerung || <span className="italic" style={{ color: "#B7BEC6" }}>—</span>}
+        </td>
+        <td style={{ ...stoerTdBasis, textAlign: "right" }}>
+          <span className="font-mono font-bold" style={{ fontSize: "0.72rem", color: (Number(s.ausfallzeit) || 0) > 0 ? "#22262B" : "#C4CBD2" }}>
+            {(Number(s.ausfallzeit) || 0) > 0 ? Math.round(Number(s.ausfallzeit)) : "–"}
+          </span>
+        </td>
+        <td style={{ ...stoerTdBasis, fontSize: "0.72rem", color: "#3d4650" }}>{s.melder || <span style={{ color: "#C4CBD2" }}>–</span>}</td>
+        <td style={stoerTdBasis}>
+          <span className="inline-flex items-center rounded-full font-extrabold" style={{ fontSize: "0.58rem", padding: "1px 7px", backgroundColor: s.offen ? "#FBEAE8" : "#EDF0F3", color: s.offen ? "#B23A34" : "#6B7480" }}>
+            {s.offen ? "offen" : "behoben"}
+          </span>
+        </td>
+      </tr>
     );
   };
 
@@ -3440,48 +3467,45 @@ function App() {
       {/* Cockpit: Störungen (eigene, für alle beschreibbare Datei) */}
       {view === "COCKPIT" && cockpitTab === "STOERUNGEN" && (
         <div className="no-print max-w-5xl mx-auto px-4 mt-4">
-          {/* Kopf: Titel + Umschalter + Melden-Knopf */}
-          <div className="flex items-center gap-3 mb-3 flex-wrap">
-            <span className="text-lg font-black uppercase tracking-tight" style={{ color: "#22262B" }}>⚠ Störungen</span>
-            <div className="inline-flex rounded-lg overflow-hidden" style={{ border: "1.5px solid #D6DBE0" }}>
+          {/* ---- Werkzeugzeile ----------------------------------------------
+              Dieselbe Anordnung wie im Backlog: Suche links, Umschalter und
+              Hauptknopf rechts. Vorher standen Titel, Umschalter und Zähler in
+              einer Reihe und die Suche in einer zweiten darunter - zwei Reihen
+              für vier Bedienelemente. Der Titel entfällt: der Reiter oben sagt
+              bereits, wo man ist. */}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            {stoerModus === "liste" && stoerungen.length > 0 && (
+              <input
+                type="search"
+                value={stoerSuche}
+                onChange={(ev) => setStoerSuche(ev.target.value)}
+                placeholder="🔍 Suchen in Anlage, Teil, Beschreibung, Bearbeiter …"
+                className="text-sm border rounded-lg px-3 py-1.5"
+                style={{ borderColor: "#D7DCE1", flex: "1 1 220px", minWidth: "170px" }}
+                aria-label="Störberichte durchsuchen"
+              />
+            )}
+            <div className="inline-flex rounded-lg overflow-hidden shrink-0" style={{ border: "1.5px solid #D7DCE1" }}>
               {[["liste", "Liste"], ["auswertung", "Auswertung"]].map(([k, lab]) => (
-                <button key={k} onClick={() => setStoerModus(k)} className="font-bold" style={{ fontSize: "0.78rem", padding: "5px 13px", backgroundColor: stoerModus === k ? "#22262B" : "transparent", color: stoerModus === k ? "#fff" : "#5B6572" }}>{lab}</button>
+                <button key={k} onClick={() => setStoerModus(k)} className="font-bold" style={{ fontSize: "0.75rem", padding: "5px 12px", backgroundColor: stoerModus === k ? "#22262B" : "#fff", color: stoerModus === k ? "#fff" : "#5B6572" }}>{lab}</button>
               ))}
             </div>
             {stoerModus === "liste" && (
-              <span className="text-xs font-mono" style={{ color: "#5B6572" }}>
-                {stoerOffenCount} offen · {stoerungen.length - stoerOffenCount} behoben
+              <span className="text-xs font-mono shrink-0" style={{ color: "#5B6572" }}>
+                {stoerSucheAktiv ? `${stoerTreffer.length} Treffer` : `${stoerOffenCount} offen · ${stoerungen.length - stoerOffenCount} behoben`}
               </span>
             )}
-            <span className="ml-auto" />
+            {stoerModus === "liste" && stoerungen.length === 0 && <span className="ml-auto" />}
             {stoerDarfSchreiben && (
               <button
                 onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
-                className="flex items-center gap-2 rounded-lg text-white font-bold"
-                style={{ backgroundColor: "#C0392B", padding: "8px 14px", fontSize: "0.85rem" }}
+                className="flex items-center gap-1.5 rounded-lg text-white font-bold shrink-0 ml-auto"
+                style={{ backgroundColor: "#C0392B", padding: "6px 12px", fontSize: "0.78rem" }}
               >
                 📝 Störbericht erfassen
               </button>
             )}
           </div>
-
-          {/* Suche (nur in der Listen-Ansicht) */}
-          {stoerModus === "liste" && stoerungen.length > 0 && (
-            <div className="flex items-center gap-2 mb-3">
-              <input
-                type="search"
-                value={stoerSuche}
-                onChange={(ev) => setStoerSuche(ev.target.value)}
-                placeholder="🔍 Störberichte durchsuchen (Anlage, Teil, Beschreibung, Bearbeiter …)"
-                className="text-sm border rounded-lg px-3 py-2"
-                style={{ borderColor: "#D6D9DC", width: "min(460px, 100%)" }}
-                aria-label="Störberichte durchsuchen"
-              />
-              {stoerSucheAktiv && (
-                <span className="text-xs" style={{ color: "#5B6572" }}>{stoerTreffer.length} Treffer</span>
-              )}
-            </div>
-          )}
 
           {/* Fehler-Banner der Störungen-Datei */}
           {stoerErr && (
@@ -3664,13 +3688,13 @@ function App() {
                 return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Kein Störbericht passt zur Suche.</div>;
               }
               return (
-                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #D6DBE0", backgroundColor: "#F7F9FB" }}>
-                  {stoerTreffer.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2 px-1" style={{ borderTop: "1px solid #EDEFF2" }}>
-                      <span className="font-mono flex-shrink-0 pl-2" style={{ fontSize: "0.68rem", color: "#A6AEB6", width: "78px" }}>{s.date ? formatDateDE(s.date) : "—"}</span>
-                      <div className="flex-1" style={{ minWidth: 0 }}>{renderStoerZeile(s)}</div>
-                    </div>
-                  ))}
+                <div className="wk-karte overflow-hidden" style={{ border: "1px solid #E2E4E7" }}>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "640px" }}>
+                      <thead>{stoerKopfzeile("Datum")}</thead>
+                      <tbody>{stoerTreffer.map((s) => stoerZeileTabelle(s, true))}</tbody>
+                    </table>
+                  </div>
                 </div>
               );
             }
@@ -3679,65 +3703,67 @@ function App() {
             }
             return (
               <>
-                <div>
-                  {stoerGruppen.map((g, idx) => {
-                    const auf = istTagOffen(g.datum, idx);
-                    const d = g.datum !== "—" ? new Date(g.datum + "T00:00:00") : null;
-                    const istHeute = g.datum === todayKey;
-                    return (
-                      <div key={g.datum} style={{ marginBottom: "7px" }}>
-                        {/* Datums-Kopfzeile: eigene schwarze Kachel (Variante 1) */}
-                        <button
-                          onClick={() => toggleStoerTag(g.datum)}
-                          className="wk-hover w-full flex items-center gap-3 px-4 py-1 text-left"
-                          style={{ backgroundColor: auf ? "#E4EDF6" : (istHeute ? "#FBF4E7" : "#F4F6F8"), border: `1.5px solid ${auf ? "#2F6690" : "#22262B"}`, borderRadius: "9px", boxShadow: auf ? "inset 4px 0 0 0 #2F6690" : "none" }}
-                        >
-                          <span style={{ color: "#5B6572", fontSize: "0.8rem", width: "12px" }}>{auf ? "▾" : "▸"}</span>
-                          <span className="font-extrabold" style={{ color: "#22262B", fontSize: "0.95rem" }}>
-                            {d ? d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "ohne Datum"}
-                          </span>
-                          {istHeute && <span className="rounded-full font-bold uppercase" style={{ fontSize: "0.58rem", padding: "2px 7px", backgroundColor: "#C97A2B", color: "#fff" }}>heute</span>}
-                          <span className="ml-auto flex items-center gap-2.5">
-                            {g.ausfall > 0 && <span className="font-mono" style={{ color: "#8A9099", fontSize: "0.72rem" }} title="Ausfallzeit gesamt">⏱ {minutenText(g.ausfall)}</span>}
-                            {g.offen > 0 && <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C0392B", fontSize: "0.62rem" }}>{g.offen} offen</span>}
-                            <span style={{ color: "#8A9099", fontSize: "0.72rem" }}>{g.liste.length} Eintrag{g.liste.length === 1 ? "" : "e"}</span>
-                          </span>
-                        </button>
-                        {/* Aufgeklappter Inhalt: eingerückter Einschub-Block (Vorlage A) -
-                            hängt sichtbar "unter" dem Tag, mit grauer Leiste links */}
-                        {auf && (
-                          <div style={{ margin: "2px 10px 0 26px", borderLeft: "3px solid #9AA3AD", borderRight: "1px solid #D6DBE0", borderBottom: "1px solid #D6DBE0", borderRadius: "0 0 8px 8px", backgroundColor: "#FAFBFC", overflow: "hidden" }}>
-                            {g.proSchicht.map(({ sch, liste, ausfall, offen: schOffen }, si) => {
-                              const farbe = SCHICHTEN[sch] || { color: "#8A9099", text: "#fff" };
-                              const schichtAuf = istSchichtOffen(g.datum, sch);
-                              return (
-                                <div key={sch} style={{ borderTop: si === 0 ? "none" : "1px solid #D6DBE0" }}>
-                                  {/* Schicht-Kopf (klein, klickbar) */}
-                                  <button onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover w-full flex items-center gap-2 text-left" style={{ padding: "3px 10px", backgroundColor: "#F1F3F5" }}>
-                                    <span style={{ color: "#8A9099", fontSize: "0.68rem", width: "11px" }}>{schichtAuf ? "▾" : "▸"}</span>
-                                    <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.58rem", letterSpacing: "0.4px", padding: "2px 8px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
-                                      {sch === "—" ? "ohne Schicht" : sch}
-                                    </span>
-                                    <span className="ml-auto flex items-center gap-2">
-                                      {ausfall > 0 && <span className="font-mono" style={{ color: "#A6AEB6", fontSize: "0.66rem" }}>⏱ {minutenText(ausfall)}</span>}
-                                      {schOffen > 0 && <span className="rounded-full text-white font-bold" style={{ padding: "1px 7px", backgroundColor: "#C0392B", fontSize: "0.56rem" }}>{schOffen} offen</span>}
-                                      <span style={{ color: "#A6AEB6", fontSize: "0.66rem" }}>{liste.length}</span>
-                                    </span>
-                                  </button>
-                                  {/* Zeilen (Zeit + Anlage + Beschreibung) */}
-                                  {schichtAuf && (
-                                    <div style={{ backgroundColor: "#fff" }}>
-                                      {liste.map((s) => renderStoerZeile(s))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="wk-karte overflow-hidden" style={{ border: "1px solid #E2E4E7" }}>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "640px" }}>
+                      <thead>{stoerKopfzeile("Datum / Zeit")}</thead>
+                      <tbody>
+                        {stoerGruppen.map((g, idx) => {
+                          const auf = istTagOffen(g.datum, idx);
+                          const d = g.datum !== "—" ? new Date(g.datum + "T00:00:00") : null;
+                          const istHeute = g.datum === todayKey;
+                          const grpTd = { padding: "0 8px", height: "26px", verticalAlign: "middle", whiteSpace: "nowrap", backgroundColor: istHeute ? "#FBF4E7" : "#EDF0F3", borderBottom: "1px solid #DDE1E6" };
+                          const schTd = { padding: "0 8px", height: "23px", verticalAlign: "middle", whiteSpace: "nowrap", backgroundColor: "#F7F8FA", borderBottom: "1px solid #EEF0F2" };
+                          return (
+                            <React.Fragment key={g.datum}>
+                              {/* Tages-Zeile */}
+                              <tr onClick={() => toggleStoerTag(g.datum)} className="wk-hover" style={{ cursor: "pointer" }}>
+                                <td colSpan={3} style={{ ...grpTd, fontWeight: 800, fontSize: "0.75rem", color: "#22262B" }}>
+                                  <span style={{ color: "#5B6572", fontSize: "0.6rem", marginRight: "6px", display: "inline-block", width: "8px" }}>{auf ? "▾" : "▸"}</span>
+                                  {d ? d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "ohne Datum"}
+                                  {istHeute && <span className="rounded font-bold uppercase" style={{ fontSize: "0.56rem", padding: "1px 6px", backgroundColor: "#C97A2B", color: "#fff", marginLeft: "8px" }}>heute</span>}
+                                  <span style={{ color: "#8A9099", fontWeight: 700, fontSize: "0.68rem", marginLeft: "9px" }}>{g.liste.length} {g.liste.length === 1 ? "Eintrag" : "Einträge"}</span>
+                                </td>
+                                <td style={{ ...grpTd, textAlign: "right" }}>
+                                  {g.ausfall > 0 && <span className="font-mono" style={{ fontSize: "0.72rem", color: "#5B6572", fontWeight: 700 }}>{minutenText(g.ausfall)}</span>}
+                                </td>
+                                <td style={grpTd} />
+                                <td style={grpTd}>
+                                  {g.offen > 0 && <span className="inline-flex items-center rounded-full font-extrabold" style={{ fontSize: "0.58rem", padding: "1px 7px", backgroundColor: "#FBEAE8", color: "#B23A34" }}>{g.offen} offen</span>}
+                                </td>
+                              </tr>
+                              {/* Schicht-Zeilen + Berichte */}
+                              {auf && g.proSchicht.map(({ sch, liste, ausfall, offen: schOffen }) => {
+                                const farbe = SCHICHTEN[sch] || { color: "#8A9099", text: "#fff" };
+                                const schichtAuf = istSchichtOffen(g.datum, sch);
+                                return (
+                                  <React.Fragment key={sch}>
+                                    <tr onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover" style={{ cursor: "pointer" }}>
+                                      <td colSpan={3} style={{ ...schTd, paddingLeft: "24px" }}>
+                                        <span style={{ color: "#8A9099", fontSize: "0.6rem", marginRight: "6px", display: "inline-block", width: "8px" }}>{schichtAuf ? "▾" : "▸"}</span>
+                                        <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.4px", padding: "1px 7px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
+                                          {sch === "—" ? "ohne Schicht" : sch}
+                                        </span>
+                                        <span style={{ color: "#A6AEB6", fontSize: "0.66rem", marginLeft: "8px" }}>{liste.length}</span>
+                                      </td>
+                                      <td style={{ ...schTd, textAlign: "right" }}>
+                                        {ausfall > 0 && <span className="font-mono" style={{ fontSize: "0.68rem", color: "#8A9099", fontWeight: 700 }}>{minutenText(ausfall)}</span>}
+                                      </td>
+                                      <td style={schTd} />
+                                      <td style={schTd}>
+                                        {schOffen > 0 && <span className="inline-flex items-center rounded-full font-extrabold" style={{ fontSize: "0.55rem", padding: "1px 6px", backgroundColor: "#FBEAE8", color: "#B23A34" }}>{schOffen} offen</span>}
+                                      </td>
+                                    </tr>
+                                    {schichtAuf && liste.map((s) => stoerZeileTabelle(s))}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
                 {/* Erledigte ein-/ausblenden */}
                 {stoerungen.length - stoerOffenCount > 0 && (

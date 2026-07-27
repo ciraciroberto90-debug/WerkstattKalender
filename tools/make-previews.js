@@ -53,7 +53,7 @@ const SCHICHT_PLAN = [
   ["T. Klein", "Spät"], ["J. Wolf", "Spät mit B"],
   ["M. Weber", "Nacht"], ["A. Fischer", "Nacht"],
 ];
-const DEMO_VER = "demo-7";
+const DEMO_VER = "demo-8";
 // Die Vorschau schreibt NUR beim allerersten Besuch Demo-Daten hin.
 // Grund: Sie benutzt dieselben Speicher-Schlüssel wie die echte App. Früher
 // wurde bei jeder neuen Demo-Version alles überschrieben - hatte jemand in der
