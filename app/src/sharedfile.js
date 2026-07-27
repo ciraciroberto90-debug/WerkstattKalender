@@ -408,9 +408,32 @@ function createSharedStore(cfg) {
     } else {
       [handle] = await window.showOpenFilePicker({ types });
     }
-    if (handle.requestPermission) {
-      const p = await handle.requestPermission({ mode: "readwrite" });
-      if (p !== "granted") throw new Error("Der Zugriff auf die Datei wurde nicht erlaubt.");
+    // WICHTIG - hier NICHT blind nachfragen:
+    // Wer eine Datei im Dialog auswaehlt, hat dem Browser die Erlaubnis damit
+    // bereits gegeben. Ein zusaetzliches requestPermission ist nicht nur
+    // ueberfluessig, es scheitert sogar: die Nutzeraktivierung des Klicks gilt
+    // nur rund fuenf Sekunden, und solange der Dateidialog offen steht, laeuft
+    // sie ab. Der Browser antwortet dann mit "Not allowed to request
+    // permissions in this context" - und das Verbinden brach ab, obwohl alles
+    // in Ordnung war. Deshalb erst fragen, ob ueberhaupt etwas fehlt.
+    if (handle.queryPermission || handle.requestPermission) {
+      let erlaubnis = "granted";
+      try { erlaubnis = await handle.queryPermission({ mode: "readwrite" }); } catch (e) { /* aeltere Browser */ }
+      if (erlaubnis !== "granted" && handle.requestPermission) {
+        try {
+          const p = await handle.requestPermission({ mode: "readwrite" });
+          if (p !== "granted") throw new Error("Der Zugriff auf die Datei wurde nicht erlaubt.");
+        } catch (e) {
+          // Abgelaufene Aktivierung ist kein Grund abzubrechen: ob wirklich
+          // gelesen und geschrieben werden darf, entscheidet gleich der echte
+          // Zugriff in adoptCurrentFile - und der stuft notfalls auf "nur
+          // ansehen" zurueck. Eine ausdrueckliche Ablehnung des Nutzers
+          // (Rueckgabe "denied") wird oben dagegen weitergereicht.
+          if (e && /Not allowed to request permissions/.test(String(e.message || ""))) {
+            // weiter - der Schreibversuch entscheidet
+          } else { throw e; }
+        }
+      }
     }
     fileHandle = handle;
     accessMode = "readwrite"; // adoptCurrentFile stuft bei fehlenden Laufwerks-Rechten auf "read" zurück
@@ -530,9 +553,20 @@ function createSharedStore(cfg) {
   }
   async function pickFolder() {
     const handle = await window.showDirectoryPicker({ mode: "readwrite" });
-    if (handle.requestPermission) {
-      const p = await handle.requestPermission({ mode: "readwrite" });
-      if (p !== "granted") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
+    // Gleiche Regel wie bei der Datei: das Auswaehlen IST die Erlaubnis.
+    // Nachfragen scheitert, wenn der Dialog laenger offen stand als die
+    // Nutzeraktivierung gilt.
+    if (handle.queryPermission || handle.requestPermission) {
+      let erlaubnis = "granted";
+      try { erlaubnis = await handle.queryPermission({ mode: "readwrite" }); } catch (e) { /* aeltere Browser */ }
+      if (erlaubnis !== "granted" && handle.requestPermission) {
+        try {
+          const p = await handle.requestPermission({ mode: "readwrite" });
+          if (p !== "granted") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
+        } catch (e) {
+          if (!/Not allowed to request permissions/.test(String(e && e.message || ""))) throw e;
+        }
+      }
     }
     folderHandle = handle;
     folderPerm = "ok";
