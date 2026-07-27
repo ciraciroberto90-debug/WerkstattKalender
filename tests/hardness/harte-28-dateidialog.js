@@ -8,7 +8,7 @@
 // der Erlaubnis, obwohl das Auswählen im Dialog die Erlaubnis bereits IST.
 //
 // Hier wird belegt:
-//   (A) Langer Dialog + Erlaubnis schon erteilt -> verbindet ohne Nachfrage
+//   (A) Langer Dialog + Erlaubnis schon erteilt -> verbindet, Frage geht durch
 //   (B) Langer Dialog + Erlaubnis fehlt + Nachfrage scheitert -> bricht NICHT
 //       ab; ob geschrieben werden darf, entscheidet der echte Zugriff
 //   (C) Nutzer lehnt ausdrücklich ab -> klare Meldung, kein Verbinden
@@ -64,7 +64,7 @@ async function verbinde(p, wartezeit) {
     const { p, fehler } = await starte(b, { dialogDauer: 7000, erlaubnis: "granted", antwort: "echt" });
     const text = await verbinde(p, 10000);
     pruef("(A) Keine Meldung 'Not allowed to request permissions'", !/Not allowed to request permissions/.test(text));
-    pruef("(A) Es wird gar nicht erst nachgefragt", (await p.evaluate(() => window.__frageKam)) === false);
+    pruef("(A) Nach dem Schreibzugriff wird gefragt (sonst gaebe es keinen)", (await p.evaluate(() => window.__frageKam)) === true);
     pruef("(A) Datei gilt als verbunden", !/ist nach dem Browser-Neustart getrennt/.test(text) && !/Verbinden hat nicht geklappt/.test(text));
     pruef("(A) Keine Skriptfehler", fehler.length === 0);
     await p.context().close();

@@ -170,6 +170,11 @@ function createSharedStore(cfg) {
   // "Not allowed to request permissions in this context".
   let gemerkterHandle = null;
   let gemerkterModus = "readwrite";
+  // true, wenn die Frage nach dem Schreibzugriff gar nicht erst beim Browser
+  // ankam (abgelaufene Nutzeraktivierung). Dann ist der Schreibschutz KEIN
+  // Urteil ueber die Rechte, sondern nur eine nicht gestellte Frage - und die
+  // Oberflaeche bietet einen Knopf an, sie nachzuholen.
+  let schreibfrageOffen = false;
   let accessMode = null; // "readwrite" | "read"
   let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt scheiterte
   let lastSavedAt = null;
@@ -408,31 +413,24 @@ function createSharedStore(cfg) {
     } else {
       [handle] = await window.showOpenFilePicker({ types });
     }
-    // WICHTIG - hier NICHT blind nachfragen:
-    // Wer eine Datei im Dialog auswaehlt, hat dem Browser die Erlaubnis damit
-    // bereits gegeben. Ein zusaetzliches requestPermission ist nicht nur
-    // ueberfluessig, es scheitert sogar: die Nutzeraktivierung des Klicks gilt
-    // nur rund fuenf Sekunden, und solange der Dateidialog offen steht, laeuft
-    // sie ab. Der Browser antwortet dann mit "Not allowed to request
-    // permissions in this context" - und das Verbinden brach ab, obwohl alles
-    // in Ordnung war. Deshalb erst fragen, ob ueberhaupt etwas fehlt.
-    if (handle.queryPermission || handle.requestPermission) {
-      let erlaubnis = "granted";
-      try { erlaubnis = await handle.queryPermission({ mode: "readwrite" }); } catch (e) { /* aeltere Browser */ }
-      if (erlaubnis !== "granted" && handle.requestPermission) {
-        try {
-          const p = await handle.requestPermission({ mode: "readwrite" });
-          if (p !== "granted") throw new Error("Der Zugriff auf die Datei wurde nicht erlaubt.");
-        } catch (e) {
-          // Abgelaufene Aktivierung ist kein Grund abzubrechen: ob wirklich
-          // gelesen und geschrieben werden darf, entscheidet gleich der echte
-          // Zugriff in adoptCurrentFile - und der stuft notfalls auf "nur
-          // ansehen" zurueck. Eine ausdrueckliche Ablehnung des Nutzers
-          // (Rueckgabe "denied") wird oben dagegen weitergereicht.
-          if (e && /Not allowed to request permissions/.test(String(e.message || ""))) {
-            // weiter - der Schreibversuch entscheidet
-          } else { throw e; }
-        }
+    // Der Dateidialog gibt nur LESE-Zugriff. Schreiben muss ausdruecklich
+    // erlaubt werden - und diese Frage muss als ALLERERSTES kommen, ohne ein
+    // einziges await davor. Die Nutzeraktivierung gilt nur rund fuenf
+    // Sekunden, und der Dateidialog hat davon schon einen Teil verbraucht.
+    // (Ein queryPermission vorweg waere genau so ein await zu viel.)
+    schreibfrageOffen = false;
+    if (handle.requestPermission) {
+      try {
+        const p = await handle.requestPermission({ mode: "readwrite" });
+        if (p === "denied") throw new Error("Der Zugriff auf die Datei wurde nicht erlaubt.");
+      } catch (e) {
+        if (/Not allowed to request permissions/.test(String(e && e.message || ""))) {
+          // Die Frage kam nicht mehr durch, weil der Dialog zu lange offen
+          // stand. Das ist KEINE Ablehnung - deshalb hier nicht abbrechen,
+          // sondern merken. Die Oberflaeche bietet dann einen Knopf an, die
+          // Frage aus einem frischen Klick heraus nachzuholen.
+          schreibfrageOffen = true;
+        } else { throw e; }
       }
     }
     fileHandle = handle;
@@ -519,6 +517,7 @@ function createSharedStore(cfg) {
       if (p !== "granted") throw new Error("Der Browser hat den Schreibzugriff nicht erlaubt.");
     }
     accessMode = "readwrite";
+    schreibfrageOffen = false; // die Frage ist gestellt und beantwortet
     try { await idbSet("mode", "readwrite"); } catch (e) { /* egal */ }
     await adoptCurrentFile(false); // testet das Schreiben - fällt bei Verbot automatisch auf "read" zurück
     startPolling();
@@ -553,19 +552,13 @@ function createSharedStore(cfg) {
   }
   async function pickFolder() {
     const handle = await window.showDirectoryPicker({ mode: "readwrite" });
-    // Gleiche Regel wie bei der Datei: das Auswaehlen IST die Erlaubnis.
-    // Nachfragen scheitert, wenn der Dialog laenger offen stand als die
-    // Nutzeraktivierung gilt.
-    if (handle.queryPermission || handle.requestPermission) {
-      let erlaubnis = "granted";
-      try { erlaubnis = await handle.queryPermission({ mode: "readwrite" }); } catch (e) { /* aeltere Browser */ }
-      if (erlaubnis !== "granted" && handle.requestPermission) {
-        try {
-          const p = await handle.requestPermission({ mode: "readwrite" });
-          if (p !== "granted") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
-        } catch (e) {
-          if (!/Not allowed to request permissions/.test(String(e && e.message || ""))) throw e;
-        }
+    // Gleiche Regel wie bei der Datei: zuerst fragen, ohne await davor.
+    if (handle.requestPermission) {
+      try {
+        const p = await handle.requestPermission({ mode: "readwrite" });
+        if (p === "denied") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
+      } catch (e) {
+        if (!/Not allowed to request permissions/.test(String(e && e.message || ""))) throw e;
       }
     }
     folderHandle = handle;
@@ -1030,6 +1023,7 @@ function createSharedStore(cfg) {
   return {
     isSupported, isConnected, canWrite, fileName, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
+    schreibfrageOffen: () => schreibfrageOffen,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
     saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
   };
@@ -1059,6 +1053,7 @@ export const pickShared = main.pickShared;
 export const tryRestore = main.tryRestore;
 export const reconnect = main.reconnect;
 export const retryWrite = main.retryWrite;
+export const schreibfrageOffen = main.schreibfrageOffen;
 export const disconnect = main.disconnect;
 export const folderStatus = main.folderStatus;
 export const folderName = main.folderName;

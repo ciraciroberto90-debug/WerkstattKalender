@@ -3371,9 +3371,37 @@ function App() {
         </div>
       )}
       {shareState.status === "connected" && shareState.mode === "read" && (
-        <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
-          <span>🔒 Schreibschutz – dieser Rechner zeigt den gemeinsamen Stand nur an.</span>
-          <span className="font-normal" style={{ color: "#5B87AB" }}>Aktualisiert: <SyncAnzeige style={{ color: "#5B87AB" }} /></span>
+        <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: sharedFile.schreibfrageOffen() ? "#FCEFD9" : "#E5F0F8", color: sharedFile.schreibfrageOffen() ? "#B8791F" : "#2F6690" }}>
+          {/* Zwei sehr verschiedene Lagen sehen sonst gleich aus:
+              (1) Dieser Rechner DARF nicht schreiben - dann ist Schreibschutz richtig.
+              (2) Der Browser wurde nie gefragt, weil der Dateidialog länger offen
+                  stand als die Nutzeraktivierung gilt. Das ist keine Ablehnung,
+                  sondern eine nicht gestellte Frage - und ein Klick holt sie nach. */}
+          {sharedFile.schreibfrageOffen() ? (
+            <>
+              <span>⚠ Der Browser wurde nicht nach dem Schreibzugriff gefragt – das Auswahlfenster stand zu lange offen.</span>
+              <button
+                onClick={async () => {
+                  try {
+                    const st = await sharedFile.retryWrite();
+                    setShareState(st);
+                    setErr(st.mode === "read"
+                      ? `Schreibzugriff weiterhin nicht möglich (${sharedFile.getLastWriteError() || "unbekannter Grund"}). Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte?`
+                      : null);
+                  } catch (e2) {
+                    setErr("Gemeinsame Datei: " + (e2 && e2.message ? e2.message : "Erneuter Versuch fehlgeschlagen."));
+                  }
+                }}
+                className="px-3 py-1 rounded text-white"
+                style={{ backgroundColor: "#B8791F" }}
+              >
+                Schreibzugriff erlauben
+              </button>
+            </>
+          ) : (
+            <span>🔒 Schreibschutz – dieser Rechner zeigt den gemeinsamen Stand nur an.</span>
+          )}
+          <span className="font-normal" style={{ color: sharedFile.schreibfrageOffen() ? "#8A5320" : "#5B87AB" }}>Aktualisiert: <SyncAnzeige style={{ color: sharedFile.schreibfrageOffen() ? "#8A5320" : "#5B87AB" }} /></span>
           {/* Rettungs-Werkzeuge bewusst versteckt: Für echte Leser wäre "Andere Datei
               wählen" zu verlockend. Ein Bearbeiter, der hier fälschlich gelandet ist
               (Datei gesperrt o. ä.), öffnet die App einmalig mit ?verwalten=1 in der
