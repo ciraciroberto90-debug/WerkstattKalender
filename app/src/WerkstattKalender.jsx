@@ -843,6 +843,15 @@ function App() {
   const [blErledigte, setBlErledigte] = useState(false);
   const [blSuche, setBlSuche] = useState("");
   const [blFilterOffen, setBlFilterOffen] = useState(false); // Filter-Menü der Backlog-Leiste
+  // Manche Browser lehnen das Nachfragen nach Dateirechten grundsätzlich ab
+  // (z. B. wenn die App über file:// geöffnet wird). Dann ist "Jetzt
+  // verbinden" eine Sackgasse - und der Nutzer müsste die Datei nach JEDEM
+  // Browser-Neustart neu heraussuchen. Sobald das einmal aufgetreten ist,
+  // blenden wir den Weg über den Speichern-Dialog ein, der ohne Nachfrage
+  // auskommt.
+  const [verbindenBlockiert, setVerbindenBlockiert] = useState(false);
+  const [stoerVerbindenBlockiert, setStoerVerbindenBlockiert] = useState(false);
+  const istRechteVerweigerung = (e) => /Not allowed to request permissions/.test(String(e && e.message || ""));
   const [arbeitModal, setArbeitModal] = useState(null); // null | {mode:'add', ausZettel?} | {mode:'edit', id}
   const [aDraft, setADraft] = useState(null);
   const [akteAnlage, setAkteAnlage] = useState(null); // Anlagen-Akte (Name) | null
@@ -964,8 +973,30 @@ function App() {
       const st = await sharedFile.reconnect();
       setShareState(st);
       setShareChecked(true);
+      setVerbindenBlockiert(false);
       setErr(null);
     } catch (e) {
+      if (istRechteVerweigerung(e)) {
+        const u = sharedFile.umgebung();
+        setVerbindenBlockiert(true);
+        setErr(`Dieser Browser erlaubt das Nachfragen nach Dateirechten grundsätzlich nicht (Adresse: ${u.protokoll}, sicherer Kontext: ${u.sichererKontext ? "ja" : "nein"}). Nimm „Mit Schreibrecht verbinden …“ – das kommt ohne Nachfrage aus.`);
+      } else {
+        setErr("Gemeinsame Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
+      }
+    }
+  };
+  // Verbinden ohne jede Rechte-Nachfrage: der Speichern-Dialog vergibt das
+  // Schreibrecht unmittelbar. Der Inhalt der Datei bleibt erhalten - er wird
+  // vorher gelesen und zusammengeführt.
+  const verbindeMitSchreibrecht = async () => {
+    try {
+      await sharedFile.pickWritable();
+      setShareState({ status: "connected", name: sharedFile.fileName(), mode: sharedFile.canWrite() ? "readwrite" : "read" });
+      setShareChecked(true);
+      setVerbindenBlockiert(false);
+      setErr(null);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
       setErr("Gemeinsame Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
     }
   };
@@ -993,8 +1024,28 @@ function App() {
       const st = await sharedFile.stoer.reconnect();
       setStoerState(st);
       setStoerChecked(true);
+      setStoerVerbindenBlockiert(false);
       setStoerErr(null);
     } catch (e) {
+      if (istRechteVerweigerung(e)) {
+        setStoerVerbindenBlockiert(true);
+        setStoerErr("Dieser Browser erlaubt das Nachfragen nach Dateirechten grundsätzlich nicht. Nimm „Mit Schreibrecht verbinden …“ – das kommt ohne Nachfrage aus.");
+      } else {
+        setStoerErr("Störungen-Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
+      }
+    }
+  };
+  // Die Störungen-Datei MUSS für alle beschreibbar sein - auch für Leser der
+  // Hauptdaten. Deshalb braucht gerade sie den Weg ohne Rechte-Nachfrage.
+  const verbindeStoerMitSchreibrecht = async () => {
+    try {
+      await sharedFile.stoer.pickWritable();
+      setStoerState({ status: "connected", name: sharedFile.stoer.fileName(), mode: sharedFile.stoer.canWrite() ? "readwrite" : "read" });
+      setStoerChecked(true);
+      setStoerVerbindenBlockiert(false);
+      setStoerErr(null);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
       setStoerErr("Störungen-Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
     }
   };
@@ -3368,6 +3419,16 @@ function App() {
           <button onClick={reconnectShared} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#B8791F" }}>
             Jetzt verbinden
           </button>
+          {verbindenBlockiert && (
+            <button
+              onClick={verbindeMitSchreibrecht}
+              className="px-2.5 py-1 rounded border"
+              style={{ borderColor: "#B8791F", color: "#8A5320", backgroundColor: "#fff" }}
+              title="Öffnet den Speichern-Dialog. Dieselbe Datei auswählen und „Ersetzen“ bestätigen – der Inhalt bleibt erhalten, er wird vorher gelesen und zusammengeführt."
+            >
+              Mit Schreibrecht verbinden …
+            </button>
+          )}
         </div>
       )}
       {shareState.status === "connected" && shareState.mode === "read" && (
@@ -3572,6 +3633,11 @@ function App() {
             <div className="rounded-lg px-3 py-2 mb-3 text-sm flex items-center gap-3 flex-wrap" style={{ backgroundColor: "#FDF3E7", border: "1px solid #C97A2B", color: "#8A5320" }}>
               <span>Störungen-Datei „{stoerState.name}" ist nach dem Browser-Neustart getrennt.</span>
               <button onClick={reconnectStoer} className="rounded px-3 py-1 text-white font-bold" style={{ backgroundColor: "#C97A2B" }}>Jetzt verbinden</button>
+              {stoerVerbindenBlockiert && (
+                <button onClick={verbindeStoerMitSchreibrecht} className="rounded px-3 py-1 font-bold border" style={{ borderColor: "#C97A2B", color: "#8A5320", backgroundColor: "#fff" }}>
+                  Mit Schreibrecht verbinden …
+                </button>
+              )}
             </div>
           )}
           {stoerChecked && (stoerState.status === "none") && sharedFile.stoer.isSupported() && (
@@ -3582,8 +3648,15 @@ function App() {
             </div>
           )}
           {stoerNurLesen && (
-            <div className="rounded-lg px-3 py-2 mb-3 text-sm" style={{ backgroundColor: "#EEF1F4", border: "1px solid #C4CBD2", color: "#5B6572" }}>
-              🔒 Die Störungen-Datei ist auf diesem Gerät nur zum Ansehen freigegeben.
+            <div className="rounded-lg px-3 py-2 mb-3 text-sm flex items-center gap-3 flex-wrap" style={{ backgroundColor: "#EEF1F4", border: "1px solid #C4CBD2", color: "#5B6572" }}>
+              <span>🔒 Die Störungen-Datei ist auf diesem Gerät nur zum Ansehen freigegeben.</span>
+              {/* Diese Datei soll ausdrücklich JEDER pflegen dürfen. Wenn hier
+                  Schreibschutz steht, ist das fast immer ein Rechte-Problem des
+                  Browsers und kein Wille der IT - deshalb steht der Ausweg hier
+                  immer bereit, nicht erst nach einem Fehlversuch. */}
+              <button onClick={verbindeStoerMitSchreibrecht} className="rounded px-3 py-1 font-bold border" style={{ borderColor: "#5B6572", color: "#3A424B", backgroundColor: "#fff" }}>
+                Mit Schreibrecht verbinden …
+              </button>
             </div>
           )}
 
