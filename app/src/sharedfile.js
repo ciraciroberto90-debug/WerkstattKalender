@@ -534,14 +534,21 @@ function createSharedStore(cfg) {
       }
     } catch (e) { /* IndexedDB nicht verfügbar */ }
 
-    // Ab hier zaehlt nicht mehr, was der Browser ueber die Rechte SAGT, sondern
-    // ob sich die Datei tatsaechlich oeffnen laesst. Die Auskunft ist nur eine
-    // Abkuerzung: Sagt sie "granted", sparen wir uns den Probelauf.
+    // Solange der Browser eine Auskunft GIBT, gilt sie - auch ein "prompt".
+    // Das ist keine Formsache: "prompt" heisst, der Zugriff ist noch nicht
+    // erteilt. Wer sich darueber mit einem Leseversuch hinwegsetzt, landet
+    // schweigend im Schreibschutz, sobald nur das Lesen erlaubt ist. Der
+    // Nutzer soll stattdessen einmal auf "Jetzt verbinden" klicken.
+    //
+    // Der Probelauf greift ausschliesslich dann, wenn GAR KEINE Antwort kommt -
+    // der am Arbeitsplatz gemessene Fall. Vorher war er auch bei "prompt" aktiv
+    // und hat damit das Wiederverbinden nach dem Browser-Neustart uebergangen.
     const perm = await rechteFragen(handle, mode);
-    if (perm === "denied") return { status: "needs-permission", name: handle.name, mode };
+    if (perm !== "granted" && perm !== "unbekannt") {
+      return { status: "needs-permission", name: handle.name, mode };
+    }
 
-    if (perm !== "granted") {
-      // Keine oder keine brauchbare Auskunft -> selbst nachsehen.
+    if (perm === "unbekannt") {
       try {
         // Kuerzere Frist als beim normalen Lesen: Hier geht es nur um die Frage,
         // ob der Verweis ueberhaupt noch lebt. Der Nutzer soll beim Start nicht
