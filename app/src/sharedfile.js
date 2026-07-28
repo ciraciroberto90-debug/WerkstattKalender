@@ -384,7 +384,27 @@ function createSharedStore(cfg) {
     const file = await mitFrist(() => fileHandle.getFile(), FRIST_LESEN, "Das Öffnen der Datei");
     const text = await mitFrist(() => file.text(), FRIST_LESEN, "Das Lesen der Datei");
     if (!text.trim()) return emptyData();
-    return normalizeData(JSON.parse(text));
+    try {
+      return normalizeData(JSON.parse(text));
+    } catch (e) {
+      // Gemessen, wie es ohne diese Stelle aussah: "Expected double-quoted
+      // property name in JSON at position 182 (line 9 column 2)". Das ist der
+      // rohe Text des JavaScript-Lesers - fuer die Werkstatt unbrauchbar.
+      // Es passiert bei einem mitten im Schreiben abgebrochenen Abgleich, und
+      // in dem Moment braucht der Bediener zwei Auskuenfte: Es ist nichts
+      // kaputtgeschrieben, und was er tun soll.
+      const fehler = new Error(
+        `Die gemeinsame Datei „${fileHandle ? fileHandle.name : ""}" ist unvollständig ` +
+        `(${text.length} Zeichen gelesen, Ende fehlt). Das passiert, wenn ein Abgleich ` +
+        `mitten im Schreiben abbricht – etwa weil ein Rechner ausgeschaltet wurde. ` +
+        `Es wurde nichts überschrieben, deine Arbeit ist lokal gesichert. ` +
+        `Meist ist die Datei nach dem nächsten OneDrive-Abgleich wieder vollständig – ` +
+        `kurz warten und erneut speichern. Bleibt es dabei: ⚙ → Sicherungen.`,
+      );
+      fehler.name = "DateiUnvollstaendig";
+      fehler.dateiKaputt = true;
+      throw fehler;
+    }
   }
   async function writeFileData(data) {
     const inhalt = JSON.stringify(data, null, 2);
@@ -911,8 +931,15 @@ function createSharedStore(cfg) {
     }
     // Nach mehreren Versuchen weiterhin nicht bestätigt - nicht mehr still weitermachen,
     // sondern deutlich warnen. Lokal ist nichts verloren (localStorage + Sicherung).
-    const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
-    dispatchError(`Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten, dann erscheint automatisch ein Hinweis zum erneuten Versuch.`);
+    // Steht die Ursache schon als verstaendlicher Satz fest (unvollstaendige
+    // Datei, ausbleibende Antwort), dann diesen Satz zeigen - und nicht in eine
+    // zweite Meldung schachteln, an deren Ende der rohe Text des Browsers steht.
+    if (letzterFehler && (letzterFehler.dateiKaputt || letzterFehler.keineAntwort)) {
+      dispatchError(letzterFehler.message);
+    } else {
+      const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
+      dispatchError(`Deine letzte Änderung konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten, dann erscheint automatisch ein Hinweis zum erneuten Versuch.`);
+    }
     if (merged) await recordBackup(merged, null);
     return merged ? ohneSystemEntries(merged) : merged; // Restfall: lokale Sicht - die Selbstheilung gleicht beim nächsten Speichern ab
   }

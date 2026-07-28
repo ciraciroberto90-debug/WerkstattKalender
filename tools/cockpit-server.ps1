@@ -48,8 +48,17 @@ if (-not (Test-Path -LiteralPath $Ordner)) {
 }
 
 # Startseite bestimmen: die Cockpit-Datei, egal wie die Nummer dahinter lautet.
-$start = Get-ChildItem -LiteralPath $Ordner -Filter "Werkstatt_Kalender_TPM*.html" -File |
-         Sort-Object LastWriteTime -Descending | Select-Object -First 1
+#
+# WICHTIG: bei JEDEM Aufruf neu nachsehen, nicht einmal beim Start. Sonst zeigt
+# die Adresse nach einem Versionswechsel weiter auf die alte Datei - und wenn
+# die geloescht wurde, ins Leere. Genau der Ablauf, den die Werkstatt staendig
+# hat: neue HTML in den Ordner, alte weg, Seite neu laden.
+function Hole-Startseite {
+  Get-ChildItem -LiteralPath $Ordner -Filter "Werkstatt_Kalender_TPM*.html" -File -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+}
+
+$start = Hole-Startseite
 if (-not $start) {
   Schreibe "  FEHLER: Keine Datei 'Werkstatt_Kalender_TPM*.html' im Ordner gefunden." "Red"
   Read-Host "  Mit Eingabetaste schliessen"
@@ -170,7 +179,20 @@ try {
         $kunde.Close(); continue
       }
 
-      if ($pfad -eq "/" -or $pfad -eq "") { $pfad = "/" + $start.Name }
+      if ($pfad -eq "/" -or $pfad -eq "") {
+        $jetzt = Hole-Startseite
+        if (-not $jetzt) {
+          $t = "Im Ordner liegt derzeit keine Datei Werkstatt_Kalender_TPM*.html.`r`nOrdner: $Ordner"
+          Antworte $strom 404 "Not Found" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes($t))
+          Schreibe "  404  /  (keine Cockpit-Datei im Ordner)" "DarkYellow"
+          $kunde.Close(); continue
+        }
+        if ($jetzt.Name -ne $start.Name) {
+          Schreibe ("  Neue Fassung erkannt: " + $jetzt.Name) "Green"
+          $start = $jetzt
+        }
+        $pfad = "/" + $jetzt.Name
+      }
       $relativ = $pfad.TrimStart("/").Replace("/", "\")
 
       # Ausbruch aus dem Ordner unterbinden. Der Dienst laeuft mit den Rechten

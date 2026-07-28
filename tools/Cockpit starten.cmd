@@ -32,7 +32,7 @@ if not defined SKRIPT for %%F in ("%HIER%\*.ps1") do set SKRIPT=%%~fF
 if not defined SKRIPT (
   echo.
   echo   FEHLER: Es liegt keine PowerShell-Datei ^(.ps1^) in diesem Ordner:
-  echo   %HIER%
+  echo   "%HIER%"
   echo.
   echo   Erwartet wird "cockpit-server.ps1" - sie muss neben dieser Datei liegen.
   echo.
@@ -48,10 +48,10 @@ rem genommen - dann laesst sich wenigstens eine lokale Kopie ausliefern.
 if not exist "%ORDNER%" (
   echo.
   echo   Hinweis: Der Netzwerkordner ist nicht erreichbar.
-  echo   %ORDNER%
+  echo   "%ORDNER%"
   echo.
   echo   Es wird stattdessen dieser Ordner ausgeliefert:
-  echo   %HIER%
+  echo   "%HIER%"
   echo.
   set ORDNER=%HIER%
 )
