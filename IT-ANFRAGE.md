@@ -1,0 +1,94 @@
+# Anfrage an die IT: Werkstatt-Cockpit über HTTPS bereitstellen
+
+**Antragsteller:** Werkstattleitung
+**Betrifft:** `Werkstatt_Kalender_TPM.html` auf `\\scheudc1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender\`
+
+---
+
+## Worum es geht
+
+Die Werkstatt nutzt eine selbst erstellte Web-Anwendung (Instandhaltungsplanung,
+Schichtbuch, Störungserfassung). Sie besteht aus **einer einzigen HTML-Datei**
+ohne Server-Anteil: kein Backend, keine Datenbank, keine Installation. Die
+Anwendung wird bisher direkt von der Netzwerkfreigabe geöffnet, also über eine
+Adresse der Form
+
+```
+file://scheudc1/PSG_Gruppe/.../Werkstatt_Kalender_TPM.html
+```
+
+Ihre Daten legt sie in zwei JSON-Dateien ab, die im gewohnten Ordner liegen
+bleiben. Es werden keine Daten nach außen übertragen.
+
+## Das Problem
+
+Seit dem Chrome-Update auf **Version 147** funktioniert der dauerhafte Dateizugriff
+nicht mehr. Gemessen am Arbeitsplatz (Bericht liegt bei):
+
+- Die Anwendung merkt sich die Datei weiterhin korrekt.
+- Holt der Browser diesen gemerkten Verweis nach einem Neuladen wieder hervor,
+  ist er unbrauchbar: `queryPermission`, `getFile` und `createWritable`
+  antworten überhaupt nicht mehr — weder mit einer Freigabe noch mit einer
+  Ablehnung noch mit einem Fehler.
+- Ein **frisch ausgewählter** Verweis funktioniert dagegen einwandfrei.
+
+Folge: Die Datei muss nach jedem Neuladen der Seite von Hand neu ausgewählt
+werden. Ursache ist die Herkunft `file://`, die für den Browser keine feste
+Website-Identität darstellt.
+
+## Was wir brauchen
+
+Die unveränderte HTML-Datei soll statt über den Dateipfad über eine **interne
+Website** ausgeliefert werden, mit einer festen Adresse, zum Beispiel:
+
+```
+https://werkstatt.<interne-domain>/cockpit/
+```
+
+Anforderungen im Einzelnen:
+
+1. **Nur statische Auslieferung.** Ein virtuelles Verzeichnis auf einem
+   vorhandenen IIS genügt; es kann auf den bestehenden Ordner zeigen. Keine
+   Anwendungslogik, keine Datenbank, kein Applikationspool nötig.
+
+2. **HTTPS ist zwingend, `http://` funktioniert nicht.** Die verwendete
+   Browser-Schnittstelle (File System Access API) steht ausschließlich in einem
+   „sicheren Kontext" zur Verfügung. Nachgemessen:
+
+   | Adresse | Sicherer Kontext | Datei-Schnittstelle |
+   |---|---|---|
+   | `http://<host>/…` | nein | **nicht vorhanden** |
+   | `https://<host>/…` | ja | vorhanden |
+   | `file://…` (heute) | ja | vorhanden, aber seit Chrome 147 defekt |
+
+   Ein Zertifikat der internen CA reicht aus, sofern es auf den Clients als
+   vertrauenswürdig eingestuft ist.
+
+3. **Die Adresse muss stabil bleiben.** Der Browser knüpft die gemerkten
+   Dateifreigaben an die Adresse. Ändert sie sich, müssen alle Arbeitsplätze
+   ihre Datei erneut auswählen.
+
+4. **Die Datenablage bleibt, wie sie ist.** Die beiden JSON-Dateien bleiben im
+   bisherigen Ordner. Der Webserver liefert ausschließlich die HTML-Datei aus
+   und hat mit den Daten nichts zu tun.
+
+## Falls HTTPS nicht kurzfristig möglich ist
+
+Alternativ kann die vorhandene Adresse per Gruppenrichtlinie als
+vertrauenswürdig eingestuft werden. Chrome-Richtlinie:
+
+```
+OverrideSecurityRestrictionsOnInsecureOrigin = ["http://<host>"]
+```
+
+Das ist eine Behelfslösung; die saubere Variante ist HTTPS mit internem
+Zertifikat.
+
+## Aufwand und Nutzen
+
+Der Aufwand liegt bei einem virtuellen Verzeichnis und einem Zertifikat. Danach
+verhält sich die Anwendung wieder wie vor dem Chrome-Update: einmal verbinden,
+und die Verbindung überlebt Neuladen und Browser-Neustart.
+
+Ohne diese Umstellung bleibt die Anwendung benutzbar, verlangt aber nach jedem
+Neuladen der Seite ein erneutes Auswählen der Datei.

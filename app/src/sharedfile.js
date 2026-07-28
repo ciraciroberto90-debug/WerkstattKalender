@@ -26,6 +26,63 @@ function nowISO() {
   return new Date().toISOString();
 }
 
+/* ---------- Fristen: kein Warten ohne Ende ---------- */
+// Gemessen am Arbeitsplatz (Chrome 147, Seite ueber file://): Ein Dateiverweis,
+// den der Browser aus der IndexedDB zurueckholt, ist unbrauchbar - und zwar
+// still. queryPermission, getFile, alles antwortet weder mit Ja noch mit Nein
+// noch mit einem Fehler. Der Aufruf kommt einfach nie zurueck.
+//
+// Ein "await" darauf ist dann kein Warten mehr, sondern Stillstand: Der Start
+// der App blieb an dieser Stelle stehen, das Ordnersymbol blieb grau, und der
+// Knopf zum Freigeben erschien gar nicht erst, weil die Antwort nie ankam, die
+// ihn ausloest.
+//
+// Deshalb gilt hier ab sofort: Jeder Aufruf an die Datei-Schnittstelle des
+// Browsers bekommt eine Frist. Eine ausbleibende Antwort ist ein Ausfall wie
+// jeder andere - sie wird gemeldet, nicht abgewartet.
+const FRIST_FRAGE = 2500;    // Rechte abfragen: reine Auskunft, muss sofort kommen
+const FRIST_NACHFRAGE = 60000; // Rechte erfragen: hier darf ein Dialog auf einen Menschen warten
+const FRIST_LESEN = 15000;   // Datei lesen: Netzlaufwerk/OneDrive duerfen langsam sein
+const FRIST_PROBE = 6000;    // nur die Frage "lebt der gemerkte Verweis noch?" beim Start
+const FRIST_SCHREIBEN = 30000; // Datei schreiben: dito, mit Reserve
+
+export function keineAntwort(e) {
+  return !!(e && e.keineAntwort);
+}
+
+function mitFrist(bauer, ms, was) {
+  return new Promise((ok, fehl) => {
+    let erledigt = false;
+    const uhr = setTimeout(() => {
+      if (erledigt) return;
+      erledigt = true;
+      const e = new Error(`${was} antwortet nicht (Frist ${Math.round(ms / 1000)} s überschritten).`);
+      e.name = "KeineAntwort";
+      e.keineAntwort = true;
+      fehl(e);
+    }, ms);
+    let p;
+    try { p = bauer(); }
+    catch (e) { clearTimeout(uhr); erledigt = true; fehl(e); return; }
+    Promise.resolve(p).then(
+      (w) => { if (erledigt) return; erledigt = true; clearTimeout(uhr); ok(w); },
+      (e) => { if (erledigt) return; erledigt = true; clearTimeout(uhr); fehl(e); },
+    );
+  });
+}
+
+// Rechte abfragen ist eine Bequemlichkeit, keine Notwendigkeit: Bleibt die
+// Auskunft aus, wird sie als "weiss nicht" behandelt und die Wahrheit kommt
+// aus dem tatsaechlichen Zugriff auf die Datei.
+async function rechteFragen(handle, mode) {
+  if (!handle || !handle.queryPermission) return "unbekannt";
+  try {
+    return await mitFrist(() => handle.queryPermission({ mode }), FRIST_FRAGE, "Die Rechteauskunft des Browsers");
+  } catch (e) {
+    return "unbekannt";
+  }
+}
+
 /* ---------- Zusammenführen (exportiert, damit testbar; zustandslos) ---------- */
 export function mergeEntries(a, b, deleted) {
   const byId = new Map();
@@ -324,15 +381,23 @@ function createSharedStore(cfg) {
     };
   }
   async function readFileData() {
-    const file = await fileHandle.getFile();
-    const text = await file.text();
+    const file = await mitFrist(() => fileHandle.getFile(), FRIST_LESEN, "Das Öffnen der Datei");
+    const text = await mitFrist(() => file.text(), FRIST_LESEN, "Das Lesen der Datei");
     if (!text.trim()) return emptyData();
     return normalizeData(JSON.parse(text));
   }
   async function writeFileData(data) {
-    const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(data, null, 2));
-    await writable.close();
+    const inhalt = JSON.stringify(data, null, 2);
+    const writable = await mitFrist(() => fileHandle.createWritable(), FRIST_SCHREIBEN, "Das Öffnen zum Schreiben");
+    try {
+      await mitFrist(() => writable.write(inhalt), FRIST_SCHREIBEN, "Das Schreiben");
+      await mitFrist(() => writable.close(), FRIST_SCHREIBEN, "Das Abschliessen des Schreibens");
+    } catch (e) {
+      // Ein halb geschriebener Datenstrom darf nicht offen liegen bleiben - sonst
+      // haelt der Browser die Datei fest und der naechste Versuch scheitert auch.
+      try { await mitFrist(() => writable.abort(), 2000, "Der Abbruch"); } catch (e2) { /* dann eben nicht */ }
+      throw e;
+    }
   }
 
   /* ---------- Lokalen Zwischenspeicher angleichen ---------- */
@@ -421,10 +486,11 @@ function createSharedStore(cfg) {
     schreibfrageOffen = false;
     if (handle.requestPermission) {
       try {
-        const p = await handle.requestPermission({ mode: "readwrite" });
+        const p = await mitFrist(() => handle.requestPermission({ mode: "readwrite" }),
+                                 FRIST_NACHFRAGE, "Die Frage nach dem Schreibzugriff");
         if (p === "denied") throw new Error("Der Zugriff auf die Datei wurde nicht erlaubt.");
       } catch (e) {
-        if (/Not allowed to request permissions/.test(String(e && e.message || ""))) {
+        if (keineAntwort(e) || /Not allowed to request permissions/.test(String(e && e.message || ""))) {
           // Die Frage kam nicht mehr durch, weil der Dialog zu lange offen
           // stand. Das ist KEINE Ablehnung - deshalb hier nicht abbrechen,
           // sondern merken. Die Oberflaeche bietet dann einen Knopf an, die
@@ -463,27 +529,49 @@ function createSharedStore(cfg) {
       const fh = await idbGet("folder");
       if (fh) {
         folderHandle = fh;
-        let fp = "prompt";
-        try { fp = await fh.queryPermission({ mode: "readwrite" }); } catch (e) { /* ältere Browser */ }
+        const fp = await rechteFragen(fh, "readwrite");
         folderPerm = fp === "granted" ? "ok" : "needs-permission";
       }
     } catch (e) { /* IndexedDB nicht verfügbar */ }
-    let perm = "prompt";
-    try {
-      perm = await handle.queryPermission({ mode });
-    } catch (e) { /* ältere Browser */ }
-    if (perm === "granted") {
-      fileHandle = handle;
-      accessMode = mode;
+
+    // Ab hier zaehlt nicht mehr, was der Browser ueber die Rechte SAGT, sondern
+    // ob sich die Datei tatsaechlich oeffnen laesst. Die Auskunft ist nur eine
+    // Abkuerzung: Sagt sie "granted", sparen wir uns den Probelauf.
+    const perm = await rechteFragen(handle, mode);
+    if (perm === "denied") return { status: "needs-permission", name: handle.name, mode };
+
+    if (perm !== "granted") {
+      // Keine oder keine brauchbare Auskunft -> selbst nachsehen.
       try {
-        await adoptCurrentFile(false);
+        // Kuerzere Frist als beim normalen Lesen: Hier geht es nur um die Frage,
+        // ob der Verweis ueberhaupt noch lebt. Der Nutzer soll beim Start nicht
+        // eine Viertelminute vor einem grauen Symbol sitzen.
+        await mitFrist(() => handle.getFile(), FRIST_PROBE, "Das Öffnen der gemerkten Datei");
       } catch (e) {
-        dispatchError("Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
+        if (keineAntwort(e)) {
+          // Der Verweis ist tot: Der Browser gibt ihn weder frei noch lehnt er
+          // ihn ab. Kein Klick der Welt loest das - die Datei muss neu gewaehlt
+          // werden. Frueher blieb die App genau hier haengen.
+          return { status: "verweis-tot", name: handle.name, mode };
+        }
+        // Echte Ablehnung (NotAllowedError) oder Laufwerk weg -> ein Klick hilft.
+        return { status: "needs-permission", name: handle.name, mode };
       }
-      startPolling();
-      return { status: "connected", name: handle.name, mode: accessMode };
     }
-    return { status: "needs-permission", name: handle.name, mode };
+
+    fileHandle = handle;
+    accessMode = mode;
+    try {
+      await adoptCurrentFile(false);
+    } catch (e) {
+      if (keineAntwort(e)) {
+        fileHandle = null;
+        return { status: "verweis-tot", name: handle.name, mode };
+      }
+      dispatchError("Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
+    }
+    startPolling();
+    return { status: "connected", name: handle.name, mode: accessMode };
   }
 
   // Zugriff nach Browser-Neustart wieder freigeben (braucht einen Klick des Nutzers).
@@ -499,7 +587,8 @@ function createSharedStore(cfg) {
     const handle = gemerkterHandle || (await idbGet("handle"));
     const mode = gemerkterHandle ? gemerkterModus : ((await idbGet("mode")) || "readwrite");
     if (!handle) throw new Error("Keine gemerkte Datei gefunden.");
-    const p = await handle.requestPermission({ mode });
+    const p = await mitFrist(() => handle.requestPermission({ mode }),
+                             FRIST_NACHFRAGE, "Die Frage nach dem Zugriff");
     if (p !== "granted") throw new Error("Zugriff wurde nicht erlaubt.");
     fileHandle = handle;
     accessMode = mode;
@@ -513,7 +602,8 @@ function createSharedStore(cfg) {
   async function retryWrite() {
     if (!fileHandle) throw new Error("Keine Datei verbunden.");
     if (fileHandle.requestPermission) {
-      const p = await fileHandle.requestPermission({ mode: "readwrite" });
+      const p = await mitFrist(() => fileHandle.requestPermission({ mode: "readwrite" }),
+                               FRIST_NACHFRAGE, "Die Frage nach dem Schreibzugriff");
       if (p !== "granted") throw new Error("Der Browser hat den Schreibzugriff nicht erlaubt.");
     }
     accessMode = "readwrite";
@@ -590,10 +680,11 @@ function createSharedStore(cfg) {
     // Gleiche Regel wie bei der Datei: zuerst fragen, ohne await davor.
     if (handle.requestPermission) {
       try {
-        const p = await handle.requestPermission({ mode: "readwrite" });
+        const p = await mitFrist(() => handle.requestPermission({ mode: "readwrite" }),
+                                 FRIST_NACHFRAGE, "Die Frage nach dem Ordnerzugriff");
         if (p === "denied") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
       } catch (e) {
-        if (!/Not allowed to request permissions/.test(String(e && e.message || ""))) throw e;
+        if (!keineAntwort(e) && !/Not allowed to request permissions/.test(String(e && e.message || ""))) throw e;
       }
     }
     folderHandle = handle;
@@ -607,7 +698,8 @@ function createSharedStore(cfg) {
     // schon im Speicher liegt (tryRestore hat ihn beim Start geholt).
     const h = folderHandle || (await idbGet("folder"));
     if (!h) throw new Error("Kein gemerkter Ordner gefunden.");
-    const p = await h.requestPermission({ mode: "readwrite" });
+    const p = await mitFrist(() => h.requestPermission({ mode: "readwrite" }),
+                             FRIST_NACHFRAGE, "Die Frage nach dem Ordnerzugriff");
     if (p !== "granted") throw new Error("Der Zugriff wurde nicht erlaubt.");
     folderHandle = h;
     folderPerm = "ok";
@@ -670,9 +762,16 @@ function createSharedStore(cfg) {
   }
 
   let konfliktScanLaeuft = false;
+  let konfliktScanStart = 0;
+  // Falls der Durchlauf selbst haengenbleibt (das Auflisten eines Ordners hat
+  // keine Frist, die man ihm umhaengen koennte), darf die Sperre nicht ewig
+  // stehen bleiben - sonst laeuft der Waechter nie wieder an.
+  const KONFLIKT_SPERRE_MAX_MS = 5 * 60 * 1000;
   async function sammleKonfliktkopien() {
-    if (!fileHandle || accessMode !== "readwrite" || !folderHandle || folderPerm !== "ok" || konfliktScanLaeuft) return;
+    if (!fileHandle || accessMode !== "readwrite" || !folderHandle || folderPerm !== "ok") return;
+    if (konfliktScanLaeuft && Date.now() - konfliktScanStart < KONFLIKT_SPERRE_MAX_MS) return;
     konfliktScanLaeuft = true;
+    konfliktScanStart = Date.now();
     try {
       const basis = fileHandle.name.replace(/\.json$/i, "");
       const kandidaten = [];
@@ -685,8 +784,8 @@ function createSharedStore(cfg) {
       }
       for (const [name, handle] of kandidaten) {
         try {
-          const file = await handle.getFile();
-          const text = await file.text();
+          const file = await mitFrist(() => handle.getFile(), FRIST_LESEN, "Das Öffnen der Konfliktkopie");
+          const text = await mitFrist(() => file.text(), FRIST_LESEN, "Das Lesen der Konfliktkopie");
           if (!text.trim()) {
             await folderHandle.removeEntry(name);
             continue;

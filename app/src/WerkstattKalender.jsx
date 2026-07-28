@@ -3413,6 +3413,28 @@ function App() {
       </div>
 
       {/* Hinweisleisten zur gemeinsamen Datei */}
+      {/* Der gemerkte Verweis ist unbrauchbar: Der Browser gibt ihn weder frei
+          noch lehnt er ihn ab - er antwortet gar nicht. Gemessen mit Chrome 147
+          auf einer über file:// geöffneten Seite. Hier hilft kein Verbinden-Klick,
+          nur ein neues Auswählen der Datei. Früher blieb die App an dieser
+          Stelle stumm stehen: graues Ordnersymbol, keine Meldung, kein Knopf. */}
+      {shareState.status === "verweis-tot" && (
+        <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#FCE4E4", color: "#A33A3A" }}>
+          <span>Dieser Browser gibt die gemerkte Datei „{shareState.name}" nicht mehr frei. Bitte einmal auswählen.</span>
+          <button onClick={() => connectShared()} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#A33A3A" }}>
+            Datei auswählen …
+          </button>
+          <button
+            onClick={verbindeMitSchreibrecht}
+            className="px-2.5 py-1 rounded border"
+            style={{ borderColor: "#A33A3A", color: "#A33A3A", backgroundColor: "#fff" }}
+            title="Öffnet den Speichern-Dialog. Dieselbe Datei auswählen und „Ersetzen“ bestätigen – der Inhalt bleibt erhalten, er wird vorher gelesen und zusammengeführt."
+          >
+            Mit Schreibrecht verbinden …
+          </button>
+          <span className="font-normal">Tipp: Den Tab offen lassen – das Cockpit holt Änderungen von allein alle 30 Sekunden, Neuladen ist nicht nötig.</span>
+        </div>
+      )}
       {shareState.status === "needs-permission" && (
         <div className="no-print px-4 py-2 flex items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#FCEFD9", color: "#B8791F" }}>
           <span>Gemeinsame Datei „{shareState.name}" ist nach dem Browser-Neustart getrennt.</span>
@@ -3629,6 +3651,15 @@ function App() {
           )}
 
           {/* Verbindungs-Hinweise für die Störungen-Datei */}
+          {stoerChecked && stoerState.status === "verweis-tot" && (
+            <div className="rounded-lg px-3 py-2 mb-3 text-sm flex items-center gap-3 flex-wrap" style={{ backgroundColor: "#FBEAE8", border: "1px solid #C0392B", color: "#9A2B22" }}>
+              <span>Dieser Browser gibt die gemerkte Störungen-Datei „{stoerState.name}" nicht mehr frei. Bitte einmal auswählen.</span>
+              <button onClick={() => connectStoer()} className="rounded px-3 py-1 text-white font-bold" style={{ backgroundColor: "#C0392B" }}>Datei auswählen …</button>
+              <button onClick={verbindeStoerMitSchreibrecht} className="rounded px-3 py-1 font-bold border" style={{ borderColor: "#C0392B", color: "#9A2B22", backgroundColor: "#fff" }}>
+                Mit Schreibrecht verbinden …
+              </button>
+            </div>
+          )}
           {stoerChecked && stoerState.status === "needs-permission" && (
             <div className="rounded-lg px-3 py-2 mb-3 text-sm flex items-center gap-3 flex-wrap" style={{ backgroundColor: "#FDF3E7", border: "1px solid #C97A2B", color: "#8A5320" }}>
               <span>Störungen-Datei „{stoerState.name}" ist nach dem Browser-Neustart getrennt.</span>

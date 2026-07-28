@@ -86,6 +86,24 @@ beschrieben – deshalb ist das Laufwerk hier unproblematisch.)
 Gibt es noch keine Daten-Datei, legt der erste Nutzer sie über **„Neue Datei anlegen …"**
 im selben Ordner an.
 
+> **Rote Leiste: „Dieser Browser gibt die gemerkte Datei nicht mehr frei"**
+>
+> Dann ist der gemerkte Zugriff unbrauchbar geworden – bekannt ab **Chrome 147**,
+> solange die App über den Dateipfad (`file://…`) geöffnet wird. Der Browser
+> antwortet auf den gemerkten Verweis überhaupt nicht mehr.
+>
+> - **Was tun:** in der roten Leiste auf **„Datei auswählen …"** klicken und
+>   dieselbe Datei erneut auswählen. Es geht nichts verloren.
+> - Steht danach *Schreibschutz*, den zweiten Knopf **„Mit Schreibrecht verbinden …"**
+>   nehmen: dort dieselbe Datei wählen und **„Ersetzen"** bestätigen. Der Inhalt
+>   wird vorher gelesen und zusammengeführt, nicht überschrieben.
+> - **Neu laden ist nicht nötig.** Die App holt Änderungen von allein alle
+>   30 Sekunden. Wer den Tab morgens öffnet und offen lässt, verbindet einmal
+>   am Tag – und sonst nie.
+>
+> Dauerhaft behoben ist das erst, wenn die App über eine interne **HTTPS**-Adresse
+> ausgeliefert wird statt über den Dateipfad (siehe `IT-ANFRAGE.md`).
+
 ### 3.3 Störungen-Datei verbinden (einmalig, eigene Datei)
 
 Die Störungen liegen **bewusst in einer eigenen Datei**, die **alle** bearbeiten dürfen –
