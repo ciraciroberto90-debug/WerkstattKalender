@@ -3,42 +3,51 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Werkstatt-Cockpit – Umgebungsprüfung</title>
+<title>Werkstatt-Cockpit – Umgebungsprüfung (Fassung 4)</title>
 <style>
-  body { font-family: Segoe UI, system-ui, sans-serif; margin: 0; background:#f1f5f9; color:#0f172a; }
-  .rahmen { max-width: 900px; margin: 0 auto; padding: 24px 18px 60px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  p.unter { margin: 0 0 22px; color:#475569; font-size: 14px; }
+  body { font-family: Segoe UI, system-ui, sans-serif; margin:0; background:#f1f5f9; color:#0f172a; }
+  .rahmen { max-width: 1000px; margin:0 auto; padding:24px 18px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  p.unter { margin:0 0 18px; color:#475569; font-size:14px; }
   .karte { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; margin-bottom:14px; }
-  .karte h2 { font-size:15px; margin:0 0 10px; color:#334155; text-transform:uppercase; letter-spacing:.04em; }
-  .zeile { display:flex; gap:10px; align-items:flex-start; padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:14px; }
+  .karte h2 { font-size:15px; margin:0 0 4px; color:#334155; text-transform:uppercase; letter-spacing:.04em; }
+  .karte p.hilf { font-size:13px; color:#64748b; margin:0 0 12px; }
+  .zeile { display:flex; gap:10px; align-items:flex-start; padding:5px 0; border-bottom:1px solid #f1f5f9; font-size:14px; }
   .zeile:last-child { border-bottom:0; }
-  .zeile .name { flex:0 0 270px; color:#475569; }
-  .zeile .wert { flex:1; font-family: Consolas, monospace; word-break:break-all; }
-  .ok    { color:#15803d; font-weight:600; }
-  .fehl  { color:#b91c1c; font-weight:600; }
-  .warn  { color:#b45309; font-weight:600; }
-  button { font-size:15px; padding:10px 16px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; margin-right:8px; margin-top:6px; }
+  .zeile .name { flex:0 0 300px; color:#475569; }
+  .zeile .wert { flex:1; font-family:Consolas,monospace; word-break:break-all; }
+  .ok { color:#15803d; font-weight:600; } .fehl { color:#b91c1c; font-weight:600; }
+  .warn { color:#b45309; font-weight:600; } .laeuft { color:#1d4ed8; font-weight:600; }
+  button { font-size:14px; padding:8px 14px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; margin:4px 6px 4px 0; }
   button.haupt { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
-  #bericht { width:100%; height:300px; font-family:Consolas,monospace; font-size:12px; border:1px solid #cbd5e1; border-radius:8px; padding:10px; }
+  button:disabled { opacity:.45; cursor:default; }
+  #bericht { width:100%; height:340px; font-family:Consolas,monospace; font-size:12px; border:1px solid #cbd5e1; border-radius:8px; padding:10px; }
   .hinweis { background:#fefce8; border:1px solid #fde68a; border-radius:8px; padding:12px 14px; font-size:14px; margin-bottom:14px; }
-  #fertig { font-size:14px; color:#475569; margin-top:8px; }
+  .schacht { border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:10px; }
+  .schacht h3 { font-size:14px; margin:0 0 2px; }
+  .schacht .wo { font-size:12px; color:#64748b; margin:0 0 8px; }
+  #stand { font-size:15px; font-weight:600; margin-top:10px; }
 </style>
 </head>
 <body>
 <div class="rahmen">
 
-<h1>Werkstatt-Cockpit – Umgebungsprüfung <span style="font-size:14px;color:#64748b">(Fassung 3)</span></h1>
-<p class="unter">Diese Seite verändert nichts an deinen Daten. Sie liest nur und schreibt nie in die Cockpit-Dateien.</p>
+<h1>Werkstatt-Cockpit – Umgebungsprüfung <span style="font-size:14px;color:#64748b">(Fassung 4)</span></h1>
+<p class="unter">Liest nur. Schreibt nie in eine deiner Dateien.</p>
 
 <div class="hinweis">
-  <b>Ablauf:</b> Cockpit zuerst öffnen und verbinden, den Tab offen lassen. Dann diese Seite
-  in einem <b>neuen Tab</b> öffnen. Sie misst von allein und ist nach etwa 15&nbsp;Sekunden fertig.
-  Danach unten auf <b>„Bericht kopieren“</b>.
+  <b>Was diese Fassung anders macht:</b> Sie misst die <b>Dauer</b> jeder Abfrage und wartet
+  bis zu <b>3 Minuten</b>, statt nach ein paar Sekunden „hängt“ zu behaupten. Und sie prüft
+  <b>mehrere Speicherorte getrennt</b> – nur so lässt sich unterscheiden, ob es an der Art
+  liegt, wie die Seite geöffnet wird, oder am Ort der Datei.
+  <br><br>
+  <b>Durchgang 1:</b> unten für <u>jeden</u> Schacht auf „wählen“ klicken und die genannte Datei
+  angeben. <b>Danach F5.</b> <b>Durchgang 2:</b> nichts anklicken, warten bis oben
+  „Alle Messungen beendet“ steht, dann Bericht kopieren.
 </div>
 
 <div class="karte">
-  <h2>1 · Herkunft der Seite</h2>
+  <h2>1 · Herkunft und Umgebung</h2>
   <div id="k1"></div>
 </div>
 
@@ -48,25 +57,37 @@
 </div>
 
 <div class="karte">
-  <h2>3 · Der zurückgeholte Verweis der Prüfseite</h2>
-  <div id="k3"></div>
-  <div>
-    <button class="haupt" id="btnRechte" style="display:none">Schreibrecht anfordern (gemerkter Verweis)</button>
-    <button id="btnWaehlen">Datei neu wählen</button>
-    <button id="btnLeeren">Merker leeren</button>
-  </div>
+  <h2>3 · Gemerkte Verweise – nach Speicherort getrennt</h2>
+  <p class="hilf">
+    Jeder Schacht merkt sich eine eigene Datei. Nach dem Neuladen wird jeder Verweis
+    einzeln geprüft, alle gleichzeitig, mit Stoppuhr. Antwortet einer nach 40 Sekunden,
+    ist er nicht tot, sondern langsam – und das wäre in der App zu beheben.
+  </p>
+  <div id="schaechte"></div>
+  <div id="stand">Messung läuft …</div>
 </div>
 
 <div class="karte">
-  <h2>4 · Was das Cockpit selbst gemerkt hat</h2>
+  <h2>4 · Frisch gewählt – zum Vergleich</h2>
+  <p class="hilf">
+    Ein gerade eben gewählter Verweis, dieselben Abfragen. Wichtig ist der Vergleich der
+    Zeiten mit Abschnitt 3. Der Knopf funktioniert auch, während oben noch etwas läuft –
+    das zeigt zugleich, ob eine hängende Abfrage den ganzen Browser lahmlegt oder nur sich selbst.
+  </p>
   <div id="k4"></div>
+  <button class="haupt" id="btnFrisch">Datei frisch wählen und prüfen</button>
 </div>
 
 <div class="karte">
-  <h2>5 · Bericht</h2>
+  <h2>5 · Was das Cockpit selbst gemerkt hat</h2>
+  <div id="k5"></div>
+</div>
+
+<div class="karte">
+  <h2>6 · Bericht</h2>
   <textarea id="bericht" readonly></textarea>
-  <div id="fertig">Messung läuft …</div>
-  <div><button class="haupt" id="btnKopieren">Bericht kopieren</button></div>
+  <div><button class="haupt" id="btnKopieren">Bericht kopieren</button>
+       <button id="btnLeeren">Alle Merker dieser Seite löschen</button></div>
 </div>
 
 </div>
@@ -74,88 +95,82 @@
 (function () {
   "use strict";
 
-  var DB = "diagnose-cockpit";
-  var STORE = "merker";
+  var DB = "diagnose-cockpit", STORE = "merker";
+  var FRIST = 180000;           // 3 Minuten - grosszuegig mit Absicht
   var zeilen = [];
 
-  function schreibe(ziel, name, wert, art) {
+  /* ---------- Ausgabe ---------- */
+  function zeileAnlegen(ziel, name) {
     var d = document.createElement("div");
     d.className = "zeile";
     d.innerHTML = '<div class="name"></div><div class="wert"></div>';
     d.children[0].textContent = name;
-    d.children[1].textContent = String(wert);
-    if (art) d.children[1].className = "wert " + art;
-    document.getElementById(ziel).appendChild(d);
+    (typeof ziel === "string" ? document.getElementById(ziel) : ziel).appendChild(d);
+    return d.children[1];
+  }
+  function setzen(feld, wert, art) {
+    feld.textContent = String(wert);
+    feld.className = "wert" + (art ? " " + art : "");
+  }
+  function merken(name, wert) {
     zeilen.push(name + ": " + wert);
     document.getElementById("bericht").value = zeilen.join("\n");
   }
-
+  function schreibe(ziel, name, wert, art) {
+    setzen(zeileAnlegen(ziel, name), wert, art);
+    merken(name, wert);
+  }
   function fehlertext(e) {
     if (!e) return "unbekannt";
     return (e.name || "Fehler") + ": " + (e.message || String(e));
   }
 
-  /* Jede Messung bekommt eine Frist.
-     Grund: In der zweiten Fassung hat ein einziger Aufruf, der weder
-     antwortet noch fehlschlaegt, den gesamten Rest der Pruefung blockiert -
-     der Bericht brach mitten im Satz ab. Ein Aufruf, der nie zurueckkommt,
-     ist ein eigenes Messergebnis und muss als solches sichtbar werden. */
-  function mitFrist(bauer, ms) {
+  /* ---------- Eine Messung mit Stoppuhr ----------
+     Der Kern dieser Fassung. Die Vorgaengerin hat nach 2,5 Sekunden "haengt"
+     behauptet. Das war keine Messung, das war Ungeduld: Eine Abfrage, die nach
+     40 Sekunden zurueckkommt, ist nicht tot, sondern langsam - und Langsamkeit
+     laesst sich in der Anwendung auffangen, ein Entzug nicht. Deshalb hier eine
+     grosszuegige Frist UND die tatsaechlich verstrichene Zeit im Bericht. */
+  function messen(ziel, name, bauer) {
+    var feld = zeileAnlegen(ziel, name);
+    var t0 = Date.now(), fertig = false;
+    var uhr = setInterval(function () {
+      if (fertig) return;
+      setzen(feld, "läuft … " + Math.round((Date.now() - t0) / 1000) + " s", "laeuft");
+    }, 500);
+    setzen(feld, "läuft … 0 s", "laeuft");
+
+    function ende(text, art) {
+      if (fertig) return;
+      fertig = true; clearInterval(uhr);
+      var ms = Date.now() - t0;
+      var voll = text + "   [" + ms + " ms]";
+      setzen(feld, voll, art);
+      merken(name, voll);
+    }
+
     return new Promise(function (ok) {
-      var fertig = false;
-      var uhr = setTimeout(function () {
-        if (!fertig) { fertig = true; ok({ art: "haengt" }); }
-      }, ms);
+      var frist = setTimeout(function () {
+        ende("KEINE ANTWORT innerhalb von " + Math.round(FRIST / 1000) + " s", "fehl");
+        ok({ art: "keine-antwort", ms: Date.now() - t0 });
+      }, FRIST);
       var p;
       try { p = bauer(); }
-      catch (e) { clearTimeout(uhr); fertig = true; ok({ art: "fehler", e: e }); return; }
+      catch (e) { clearTimeout(frist); ende("sofortiger Fehler – " + fehlertext(e), "fehl"); ok({ art: "fehler", e: e }); return; }
       Promise.resolve(p).then(function (w) {
-        if (fertig) return;
-        fertig = true; clearTimeout(uhr); ok({ art: "ok", wert: w });
+        clearTimeout(frist);
+        ende(typeof w === "object" && w ? (w.__text || JSON.stringify(w)) : String(w),
+             (w === "granted" || (w && w.__gut)) ? "ok" : "warn");
+        ok({ art: "ok", wert: w, ms: Date.now() - t0 });
       }, function (e) {
-        if (fertig) return;
-        fertig = true; clearTimeout(uhr); ok({ art: "fehler", e: e });
+        clearTimeout(frist);
+        ende("Fehler – " + fehlertext(e), "fehl");
+        ok({ art: "fehler", e: e, ms: Date.now() - t0 });
       });
     });
   }
 
-  function melde(ziel, name, erg, gutwert) {
-    if (erg.art === "haengt") {
-      schreibe(ziel, name, "ANTWORTET NICHT (haengt)", "fehl");
-    } else if (erg.art === "fehler") {
-      schreibe(ziel, name, "Fehler – " + fehlertext(erg.e), "fehl");
-    } else {
-      var w = erg.wert;
-      schreibe(ziel, name, w, (gutwert && w === gutwert) ? "ok" : "warn");
-    }
-    return erg;
-  }
-
-  /* ---------- 1 · Herkunft ---------- */
-  schreibe("k1", "Adresse", location.href);
-  schreibe("k1", "Protokoll", location.protocol, location.protocol === "file:" ? "warn" : "ok");
-  schreibe("k1", "Herkunft (origin)", String(location.origin));
-  schreibe("k1", "Sicherer Kontext", window.isSecureContext ? "ja" : "nein", window.isSecureContext ? "ok" : "fehl");
-  schreibe("k1", "Datei-Schnittstelle vorhanden",
-           (window.showOpenFilePicker && window.showSaveFilePicker) ? "ja" : "nein",
-           (window.showOpenFilePicker && window.showSaveFilePicker) ? "ok" : "fehl");
-  schreibe("k1", "Browser", navigator.userAgent);
-
-  /* ---------- 2 · Lokaler Speicher ---------- */
-  try {
-    localStorage.setItem("diagnose-probe", "1");
-    var gelesen = localStorage.getItem("diagnose-probe");
-    localStorage.removeItem("diagnose-probe");
-    schreibe("k2", "localStorage", gelesen === "1" ? "funktioniert" : "antwortet falsch", gelesen === "1" ? "ok" : "fehl");
-  } catch (e) {
-    schreibe("k2", "localStorage", "GESPERRT – " + fehlertext(e), "fehl");
-  }
-  try {
-    var vorhanden = Object.keys(localStorage).filter(function (k) { return k.indexOf("werkstatt") === 0; });
-    schreibe("k2", "Cockpit-Daten im localStorage", vorhanden.length ? vorhanden.join(", ") : "keine gefunden",
-             vorhanden.length ? "ok" : "warn");
-  } catch (e) { /* schon gemeldet */ }
-
+  /* ---------- IndexedDB (echt, nur fuer diese Seite) ---------- */
   function idbOeffnen(name, version) {
     return new Promise(function (ok, fehl) {
       var r;
@@ -169,7 +184,7 @@
       r.onblocked = function () { fehl(new Error("blockiert")); };
     });
   }
-  function idbSchreiben(schluessel, wert) {
+  function idbPut(schluessel, wert) {
     return idbOeffnen(DB, 1).then(function (db) {
       return new Promise(function (ok, fehl) {
         var tx = db.transaction(STORE, "readwrite");
@@ -181,158 +196,193 @@
       });
     });
   }
-  function idbLesen(name, store, schluessel) {
-    return idbOeffnen(name, name === DB ? 1 : 0).then(function (db) {
+  function idbGet(dbName, storeName, schluessel) {
+    return idbOeffnen(dbName, dbName === DB ? 1 : 0).then(function (db) {
       return new Promise(function (ok, fehl) {
-        if (!db.objectStoreNames.contains(store)) { db.close(); ok(undefined); return; }
-        var tx = db.transaction(store, "readonly");
-        var r = tx.objectStore(store).get(schluessel);
+        if (!db.objectStoreNames.contains(storeName)) { db.close(); ok(undefined); return; }
+        var tx = db.transaction(storeName, "readonly");
+        var r = tx.objectStore(storeName).get(schluessel);
         r.onsuccess = function () { db.close(); ok(r.result); };
         r.onerror = function () { db.close(); fehl(r.error); };
       });
     });
   }
 
-  /* Die drei Fragen, die man an einen Dateiverweis stellen kann - jede
-     einzeln, jede mit Frist. Lesen darf laenger dauern: die Datei liegt
-     auf einer Netzwerkfreigabe. */
-  function verweisPruefen(ziel, vorsatz, h) {
-    return mitFrist(function () { return h.queryPermission({ mode: "readwrite" }); }, 2500)
-      .then(function (e1) {
-        melde(ziel, vorsatz + "Schreibrecht ohne Nachfrage", e1, "granted");
-        return mitFrist(function () { return h.queryPermission({ mode: "read" }); }, 2500);
-      })
-      .then(function (e2) {
-        melde(ziel, vorsatz + "Leserecht ohne Nachfrage", e2, "granted");
-        return mitFrist(function () { return h.getFile(); }, 6000);
-      })
-      .then(function (e3) {
-        if (e3.art === "ok") schreibe(ziel, vorsatz + "Datei wirklich lesbar", "ja, " + e3.wert.size + " Bytes", "ok");
-        else melde(ziel, vorsatz + "Datei wirklich lesbar", e3);
-      });
+  /* ---------- 1 · Umgebung ---------- */
+  schreibe("k1", "Adresse", location.href);
+  schreibe("k1", "Protokoll", location.protocol, location.protocol === "file:" ? "warn" : "ok");
+  schreibe("k1", "Herkunft (origin)", String(location.origin));
+  schreibe("k1", "Sicherer Kontext", window.isSecureContext ? "ja" : "nein", window.isSecureContext ? "ok" : "fehl");
+  schreibe("k1", "Datei-Schnittstelle", (window.showOpenFilePicker && window.showSaveFilePicker) ? "vorhanden" : "FEHLT",
+           (window.showOpenFilePicker && window.showSaveFilePicker) ? "ok" : "fehl");
+  schreibe("k1", "Ordner-Schnittstelle", window.showDirectoryPicker ? "vorhanden" : "fehlt");
+  schreibe("k1", "Browser", navigator.userAgent);
+  if (navigator.userAgentData && navigator.userAgentData.brands) {
+    schreibe("k1", "Marken", navigator.userAgentData.brands.map(function (b) { return b.brand + " " + b.version; }).join(" | "));
+  }
+  schreibe("k1", "Geräteart", (navigator.userAgentData && navigator.userAgentData.platform) || "unbekannt");
+  if (navigator.storage && navigator.storage.estimate) {
+    navigator.storage.estimate().then(function (s) {
+      schreibe("k2", "Speicherplatz für diese Herkunft",
+               Math.round((s.usage || 0) / 1024) + " KB benutzt von " + Math.round((s.quota || 0) / 1024 / 1024) + " MB");
+    }).catch(function () {});
   }
 
-  /* ---------- Ablauf ---------- */
-  var gemerkt = null;
-  var idbLaeuft = false;
+  /* ---------- 2 · Lokaler Speicher ---------- */
+  try {
+    localStorage.setItem("diagnose-probe", "1");
+    var g = localStorage.getItem("diagnose-probe");
+    localStorage.removeItem("diagnose-probe");
+    schreibe("k2", "localStorage", g === "1" ? "funktioniert" : "antwortet falsch", g === "1" ? "ok" : "fehl");
+    var vorh = Object.keys(localStorage).filter(function (k) { return k.indexOf("werkstatt") === 0; });
+    schreibe("k2", "Cockpit-Daten vorhanden", vorh.length ? vorh.join(", ") : "keine", vorh.length ? "ok" : "warn");
+  } catch (e) { schreibe("k2", "localStorage", "GESPERRT – " + fehlertext(e), "fehl"); }
 
-  var lauf = idbSchreiben("probe", { zeit: Date.now() })
-    .then(function () { return idbLesen(DB, STORE, "probe"); })
-    .then(function (w) {
-      idbLaeuft = !!(w && w.zeit);
-      schreibe("k2", "IndexedDB", idbLaeuft ? "funktioniert" : "antwortet falsch", idbLaeuft ? "ok" : "fehl");
-    })
-    .catch(function (e) {
-      schreibe("k2", "IndexedDB", "GESPERRT – " + fehlertext(e), "fehl");
-    })
+  /* ---------- 3 · Schächte ----------
+     Drei Speicherorte, getrennt gemessen. Genau das hat der vorigen Fassung
+     gefehlt: Dort zeigte JEDER geprueufte Verweis auf eine Datei in OneDrive.
+     Damit passte auf alle Messungen sowohl "die Herkunft file:// ist schuld"
+     als auch "OneDrive ist schuld" - unterscheiden liessen sie sich nicht. */
+  var schaechte = [
+    { schluessel: "onedrive", titel: "A · Datei in OneDrive",           wo: "die werkstatt-kalender-daten.json im OneDrive-Ordner", art: "datei" },
+    { schluessel: "firma",    titel: "B · Datei auf dem Firmenlaufwerk", wo: "irgendeine .json oder .txt auf \\\\scheudc1\\… – NICHT in OneDrive", art: "datei" },
+    { schluessel: "lokal",    titel: "C · Datei auf der lokalen Platte", wo: "irgendeine Datei unter C:\\, z. B. auf dem Desktop", art: "datei" },
+    { schluessel: "ordner",   titel: "D · Ein Ordner",                   wo: "der Ordner, in dem die Cockpit-Dateien liegen", art: "ordner" },
+  ];
 
-    /* 3 · eigener gemerkter Verweis */
-    .then(function () { return idbLesen(DB, STORE, "handle").catch(function () { return null; }); })
-    .then(function (h) {
+  var offeneMessungen = 0;
+  function messungAn()  { offeneMessungen++; }
+  function messungAb()  {
+    offeneMessungen--;
+    if (offeneMessungen <= 0) {
+      document.getElementById("stand").textContent = "Alle Messungen beendet – bitte Bericht kopieren.";
+      merken("— alle Messungen beendet —", new Date().toLocaleTimeString("de-DE"));
+    }
+  }
+
+  // Die drei Fragen an einen Verweis. Bewusst PARALLEL: nacheinander wuerde
+  // eine einzige lange Abfrage alle folgenden verdecken.
+  function verweisPruefen(ziel, vorsatz, h) {
+    var teile = [];
+    teile.push(messen(ziel, vorsatz + "Leserecht (queryPermission)", function () { return h.queryPermission({ mode: "read" }); }));
+    teile.push(messen(ziel, vorsatz + "Schreibrecht (queryPermission)", function () { return h.queryPermission({ mode: "readwrite" }); }));
+    if (h.kind === "directory") {
+      teile.push(messen(ziel, vorsatz + "Ordner auflisten (erster Eintrag)", function () {
+        return h.entries().next().then(function (r) {
+          return { __gut: true, __text: r.done ? "Ordner ist leer" : "erster Eintrag: " + r.value[0] };
+        });
+      }));
+    } else {
+      teile.push(messen(ziel, vorsatz + "Datei öffnen (getFile)", function () {
+        return h.getFile().then(function (f) {
+          return { __gut: true, __text: f.size + " Bytes, geändert " + new Date(f.lastModified).toLocaleString("de-DE") };
+        });
+      }));
+      teile.push(messen(ziel, vorsatz + "Inhalt lesen (text)", function () {
+        return h.getFile().then(function (f) { return f.text(); }).then(function (t) {
+          return { __gut: true, __text: t.length + " Zeichen gelesen" };
+        });
+      }));
+    }
+    return Promise.all(teile);
+  }
+
+  schaechte.forEach(function (s) {
+    var kasten = document.createElement("div");
+    kasten.className = "schacht";
+    kasten.innerHTML = '<h3></h3><p class="wo"></p><div class="werte"></div>';
+    kasten.querySelector("h3").textContent = s.titel;
+    kasten.querySelector("p").textContent = "Bitte wählen: " + s.wo;
+    var werte = kasten.querySelector(".werte");
+
+    var knopf = document.createElement("button");
+    knopf.textContent = (s.art === "ordner" ? "Ordner" : "Datei") + " wählen";
+    knopf.addEventListener("click", function () {
+      var wahl = s.art === "ordner"
+        ? (window.showDirectoryPicker ? window.showDirectoryPicker({ mode: "readwrite" }) : Promise.reject(new Error("keine Ordner-Schnittstelle")))
+        : window.showOpenFilePicker({ multiple: false }).then(function (l) { return l[0]; });
+      wahl.then(function (h) {
+        schreibe(werte, s.titel + " – gewählt", h.name, "ok");
+        return idbPut(s.schluessel, h)
+          .then(function () { schreibe(werte, s.titel + " – gemerkt", "ja, jetzt F5 drücken", "ok"); })
+          .catch(function (e) { schreibe(werte, s.titel + " – gemerkt", "NEIN – " + fehlertext(e), "fehl"); });
+      }).catch(function (e) {
+        schreibe(werte, s.titel + " – wählen", "abgebrochen/Fehler – " + fehlertext(e), "warn");
+      });
+    });
+    kasten.appendChild(knopf);
+    document.getElementById("schaechte").appendChild(kasten);
+
+    // Beim Laden: gemerkten Verweis holen und pruefen.
+    messungAn();
+    idbGet(DB, STORE, s.schluessel).then(function (h) {
       if (!h) {
-        schreibe("k3", "Gemerkter Verweis der Prüfseite", "keiner vorhanden – auf „Datei neu wählen“ klicken", "warn");
-        return;
+        schreibe(werte, s.titel, "kein Verweis gemerkt – bitte wählen", "warn");
+        messungAb(); return;
       }
-      gemerkt = h;
-      document.getElementById("btnRechte").style.display = "";
-      schreibe("k3", "Gemerkter Verweis der Prüfseite", h.name + " – überlebt das Neuladen", "ok");
-      return verweisPruefen("k3", "", h);
-    })
-
-    /* 4 · die Datenbanken des Cockpits - nur lesen, nie anlegen */
-    .then(function () {
-      if (!indexedDB.databases) {
-        schreibe("k4", "Vorhandene Datenbanken", "dieser Browser verrät es nicht – übersprungen", "warn");
-        return;
-      }
-      return mitFrist(function () { return indexedDB.databases(); }, 4000).then(function (erg) {
-        if (erg.art !== "ok") { melde("k4", "Datenbanken auflisten", erg); return; }
-        var liste = erg.wert;
-        var da = liste.map(function (d) { return d.name; });
-        schreibe("k4", "Vorhandene Datenbanken",
-                 liste.map(function (d) { return d.name + " (v" + d.version + ")"; }).join(", ") || "keine");
-        var kette = Promise.resolve();
-        ["werkstatt-kalender-fs", "werkstatt-stoerungen-fs"].forEach(function (n) {
-          var kurz = (n.indexOf("kalender") >= 0 ? "Kalender" : "Störungen") + ": ";
-          kette = kette.then(function () {
-            if (da.indexOf(n) < 0) { schreibe("k4", kurz + "Datenbank", "nicht vorhanden", "fehl"); return; }
-            return mitFrist(function () { return idbLesen(n, "handles", "handle"); }, 4000)
-              .then(function (erg) {
-                if (erg.art !== "ok") { melde("k4", kurz + "Datenbank lesen", erg); return; }
-                return erg.wert;
-              }).then(function (h) {
-              if (!h) { schreibe("k4", kurz + "gespeicherter Verweis", "KEINER", "fehl"); return; }
-              schreibe("k4", kurz + "gespeicherter Verweis", h.name, "ok");
-              return idbLesen(n, "handles", "mode").then(function (m) {
-                schreibe("k4", kurz + "gespeicherter Modus", m || "(leer)");
-                return verweisPruefen("k4", kurz, h);
-              });
-            }).catch(function (e) {
-              schreibe("k4", kurz + "Datenbank lesen", "Fehler – " + fehlertext(e), "fehl");
-            });
-          });
-        });
-        return kette;
-      });
-    })
-    .catch(function (e) {
-      schreibe("k4", "Unerwarteter Abbruch", fehlertext(e), "fehl");
-    })
-    .then(function () {
-      document.getElementById("fertig").textContent =
-        "Messung abgeschlossen. Bitte auf „Bericht kopieren“ klicken.";
-      schreibe("k4", "— Messung abgeschlossen —", new Date().toLocaleTimeString("de-DE"));
-    });
-
-  /* ---------- Knöpfe ---------- */
-  document.getElementById("btnRechte").addEventListener("click", function () {
-    if (!gemerkt) return;
-    // 30 Sekunden Frist: hier darf ein echter Abfragedialog des Browsers
-    // erscheinen, und der wartet auf einen Menschen.
-    mitFrist(function () { return gemerkt.requestPermission({ mode: "readwrite" }); }, 30000)
-      .then(function (e) {
-        melde("k3", "Nachfrage auf GEMERKTEN Verweis", e, "granted");
-        return mitFrist(function () { return gemerkt.getFile(); }, 6000);
-      })
-      .then(function (e) {
-        if (e.art === "ok") schreibe("k3", "Danach lesbar", "ja, " + e.wert.size + " Bytes", "ok");
-        else melde("k3", "Danach lesbar", e);
-      });
-  });
-
-  document.getElementById("btnWaehlen").addEventListener("click", function () {
-    if (!window.showOpenFilePicker) { schreibe("k3", "Datei wählen", "Schnittstelle fehlt", "fehl"); return; }
-    window.showOpenFilePicker({ multiple: false }).then(function (liste) {
-      var h = liste[0];
-      schreibe("k3", "Frisch gewählte Datei", h.name, "ok");
-      try { structuredClone(h); schreibe("k3", "Verweis kopierbar", "ja", "ok"); }
-      catch (e) { schreibe("k3", "Verweis kopierbar", "NEIN – " + fehlertext(e), "fehl"); }
-      // Dieselben drei Fragen wie oben - aber an einem frisch gewaehlten
-      // Verweis. Der Vergleich beider Bloecke ist die eigentliche Aussage.
-      return verweisPruefen("k3", "frisch – ", h)
-        .then(function () { return mitFrist(function () { return h.requestPermission({ mode: "readwrite" }); }, 30000); })
-        .then(function (e) { melde("k3", "frisch – Nachfrage", e, "granted"); })
-        .then(function () {
-          return idbSchreiben("handle", h)
-            .then(function () { schreibe("k3", "Verweis abgelegt", "ja – F5 zeigt, ob er überlebt", "ok"); })
-            .catch(function (e) { schreibe("k3", "Verweis abgelegt", "NEIN – " + fehlertext(e), "fehl"); });
-        });
+      schreibe(werte, s.titel + " – gemerkter Verweis", h.name + " (" + (h.kind || "?") + ")", "ok");
+      return verweisPruefen(werte, s.titel + " – ", h).then(messungAb);
     }).catch(function (e) {
-      schreibe("k3", "Datei wählen", "abgebrochen oder Fehler – " + fehlertext(e), "warn");
+      schreibe(werte, s.titel, "Merker lesen fehlgeschlagen – " + fehlertext(e), "fehl");
+      messungAb();
     });
   });
 
-  document.getElementById("btnLeeren").addEventListener("click", function () {
-    idbSchreiben("handle", undefined)
-      .then(function () { schreibe("k3", "Merker geleert", "ok"); })
-      .catch(function (e) { schreibe("k3", "Merker leeren", fehlertext(e), "fehl"); });
+  /* ---------- 4 · Frisch gewählt ---------- */
+  document.getElementById("btnFrisch").addEventListener("click", function () {
+    window.showOpenFilePicker({ multiple: false }).then(function (l) {
+      var h = l[0];
+      schreibe("k4", "Frisch gewählt", h.name, "ok");
+      try { structuredClone(h); schreibe("k4", "Verweis kopierbar", "ja", "ok"); }
+      catch (e) { schreibe("k4", "Verweis kopierbar", "NEIN – " + fehlertext(e), "fehl"); }
+      messungAn();
+      return verweisPruefen("k4", "frisch – ", h)
+        .then(function () { return messen("k4", "frisch – Nachfrage (requestPermission)", function () { return h.requestPermission({ mode: "readwrite" }); }); })
+        .then(messungAb);
+    }).catch(function (e) {
+      schreibe("k4", "Frisch wählen", "abgebrochen/Fehler – " + fehlertext(e), "warn");
+    });
   });
 
+  /* ---------- 5 · Die Datenbanken des Cockpits ---------- */
+  messungAn();
+  (function () {
+    if (!indexedDB.databases) {
+      schreibe("k5", "Datenbanken", "dieser Browser verrät sie nicht", "warn");
+      messungAb(); return;
+    }
+    indexedDB.databases().then(function (liste) {
+      var da = liste.map(function (d) { return d.name; });
+      schreibe("k5", "Vorhandene Datenbanken",
+               liste.map(function (d) { return d.name + " (v" + d.version + ")"; }).join(", ") || "keine");
+      var kette = Promise.resolve();
+      [["werkstatt-kalender-fs", "Kalender"], ["werkstatt-stoerungen-fs", "Störungen"]].forEach(function (paar) {
+        kette = kette.then(function () {
+          if (da.indexOf(paar[0]) < 0) { schreibe("k5", paar[1], "keine Datenbank", "fehl"); return; }
+          return idbGet(paar[0], "handles", "handle").then(function (h) {
+            if (!h) { schreibe("k5", paar[1] + " – gespeicherter Verweis", "KEINER", "fehl"); return; }
+            schreibe("k5", paar[1] + " – gespeicherter Verweis", h.name, "ok");
+            return verweisPruefen("k5", paar[1] + " – ", h);
+          }).catch(function (e) { schreibe("k5", paar[1], "Fehler – " + fehlertext(e), "fehl"); });
+        });
+      });
+      return kette;
+    }).catch(function (e) {
+      schreibe("k5", "Datenbanken", "Fehler – " + fehlertext(e), "fehl");
+    }).then(messungAb);
+  })();
+
+  /* ---------- 6 · Knöpfe ---------- */
   document.getElementById("btnKopieren").addEventListener("click", function () {
     var t = document.getElementById("bericht");
     t.select();
-    try { document.execCommand("copy"); } catch (e) { /* dann von Hand */ }
+    try { document.execCommand("copy"); } catch (e) {}
     if (navigator.clipboard) navigator.clipboard.writeText(t.value).catch(function () {});
+  });
+  document.getElementById("btnLeeren").addEventListener("click", function () {
+    Promise.all(schaechte.map(function (s) { return idbPut(s.schluessel, undefined); }))
+      .then(function () { schreibe("k5", "Merker dieser Seite", "gelöscht", "ok"); })
+      .catch(function (e) { schreibe("k5", "Merker löschen", fehlertext(e), "fehl"); });
   });
 })();
 </script>
