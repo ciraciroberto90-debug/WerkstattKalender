@@ -31,6 +31,15 @@ Damit es beim Anmelden von allein startet:
   Windows-Taste + R -> shell:startup -> Eingabetaste
   Verknuepfung in den geoeffneten Ordner ziehen
 
+Was noch im Ordner liegt
+------------------------
+  Selbsttest.cmd              zeigt in 10 Sekunden, warum etwas nicht geht
+  Sicherung zurueckholen.cmd  spielt einen frueheren Stand zurueck
+
+Die Datendateien werden beim Oeffnen automatisch gesichert (60 Tage,
+Ordner "Sicherungen" neben den Daten). Eine unvollstaendige Datei wird
+dabei ausdruecklich NICHT gesichert.
+
 Ausfuehrliche Fassung: Anleitung.md (liegt daneben)
 
 Wenn etwas klemmt:

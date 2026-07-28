@@ -59,6 +59,13 @@ if not exist "%ORDNER%" (
 echo   Skript:  %SKRIPT%
 echo.
 
+rem Taegliche Sicherung der Datendateien - laeuft beim Oeffnen mit, damit dafuer
+rem kein zweiter Autostart-Eintrag noetig ist. Schlaegt sie fehl, wird trotzdem
+rem gestartet: eine fehlende Sicherung darf niemanden an der Arbeit hindern.
+if exist "%HIER%\cockpit-sicherung.ps1" (
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%HIER%\cockpit-sicherung.ps1" -Ordner "%ORDNER%" -Leise
+)
+
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SKRIPT%" -Ordner "%ORDNER%"
 
 echo.

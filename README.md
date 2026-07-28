@@ -15,6 +15,10 @@ Die Daten liegen in zwei JSON-Dateien im gemeinsamen Ordner.
 Entpacken, Ordner `Cockpit` auf den Rechner legen (Desktop genügt), Doppelklick
 auf `Cockpit starten.cmd`. Der Rest steht in der `LIESMICH.txt` im Paket.
 
+Im Paket steckt außerdem `Selbsttest.cmd` (zeigt in zehn Sekunden, warum etwas
+nicht geht) und `Sicherung zurueckholen.cmd` (spielt einen früheren Stand
+zurück). Die Datendateien werden beim Öffnen automatisch gesichert.
+
 Sonst braucht ein Arbeitsplatz **nichts** – die App selbst liegt im
 Netzwerkordner und wird von dort ausgeliefert.
 
@@ -106,6 +110,7 @@ node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/rollout-test.js                 # Verteilung
 node tests/veroeffentlichungs-test.js      # Veröffentlichung
 node tests/hardness/diagnose-ablauf.js     # die Diagnose-Seite selbst
+bash tests/pruefe-sicherung.sh             # Sicherungsskript (braucht PowerShell)
 ```
 
 Stand der letzten vollständigen Prüfung: **34/34 Härtetests, 425 Einzelprüfungen,

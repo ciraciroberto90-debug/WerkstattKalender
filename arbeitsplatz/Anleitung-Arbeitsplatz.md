@@ -144,6 +144,51 @@ Ordner einmal im Explorer öffnen, dann erneut starten.
 Ist 8765 belegt, sucht der Dienst selbst den nächsten freien und nennt ihn im
 Fenster. Dann gilt die dort genannte Adresse.
 
+## Sicherung der Daten – läuft von allein mit
+
+Beim Öffnen des Cockpits sichert der Starter die Datendateien in einen Ordner
+`Sicherungen\JJJJ-MM-TT\` neben den Daten. Das dauert Sekunden und braucht
+keinen eigenen Autostart.
+
+- **Nur vollständige Dateien werden gesichert.** Eine halb geschriebene Datei
+  wird ausdrücklich abgelehnt – sonst würde ein Torso nach und nach die guten
+  Stände verdrängen, und die Sicherung wäre wertlos, sobald man sie braucht.
+- **Unverändertes wird nicht doppelt abgelegt.** Sonst stünden nach zwei
+  Monaten sechzig gleiche Kopien herum.
+- **Ältere Stände als 60 Tage werden entfernt.**
+- Fehlt das Schreibrecht im Datenordner, wird nach
+  `%USERPROFILE%\Cockpit-Sicherungen` ausgewichen und das im Fenster gesagt.
+
+Diese Sicherung ist unabhängig von der App: Die App legt zusätzlich 30 Stände
+im Browser jedes Geräts ab (⚙ → Sicherungen). Erst beides zusammen deckt auch
+den Fall ab, dass ein Browser-Speicher zurückgesetzt wird.
+
+### Einen früheren Stand zurückholen
+
+Doppelklick auf **`Sicherung zurueckholen.cmd`**. Es erscheint eine Liste aller
+Stände; nach Eingabe der Nummer und einer Bestätigung wird zurückgespielt.
+
+Der aktuelle Stand wird dabei vorher als `*.vor-wiederherstellung` gesichert –
+auch ein Zurückholen kann man also rückgängig machen.
+
+> **Vorher das Cockpit auf allen Rechnern schließen.** Sonst schreibt jemand
+> den alten Stand sofort wieder mit seinem neueren zusammen.
+
+## Wenn ein Rechner zickt: Selbsttest
+
+Doppelklick auf **`Selbsttest.cmd`**. In zehn Sekunden steht da, woran es liegt:
+
+- Netzlaufwerk erreichbar?
+- Programmdatei vorhanden, wie alt, liegen ältere Fassungen daneben?
+- Beide Datendateien vollständig, wie viele Einträge, wann zuletzt geändert?
+- Liegen OneDrive-Konfliktkopien herum?
+- Wie viele Sicherungen gibt es, wie alt ist die neueste?
+- Läuft der Ausliefer-Dienst?
+- Welche Browser-Version ist installiert?
+
+Der Test **verändert nichts**. Am Ende liegt der Bericht in der Zwischenablage
+und als Datei im eigenen Benutzerordner – zum Weiterschicken.
+
 ## Was der Dienst tut – und was nicht
 
 - Er hört **ausschließlich** auf `127.0.0.1`, also den Rechner selbst. Aus dem
