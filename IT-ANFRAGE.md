@@ -36,6 +36,24 @@ Folge: Die Datei muss nach jedem Neuladen der Seite von Hand neu ausgewählt
 werden. Ursache ist die Herkunft `file://`, die für den Browser keine feste
 Website-Identität darstellt.
 
+### Bereits geprüft und ausgeschlossen
+
+Damit diese Punkte nicht doppelt untersucht werden — alles am betroffenen
+Arbeitsplatz nachgemessen:
+
+| Verdacht | Ergebnis |
+|---|---|
+| Gruppenrichtlinie blockiert den Dateizugriff | **Nein.** `chrome://policy`, Suche „File": kein Eintrag |
+| Anderer Browser hilft | **Nein.** Edge 150.0.4078.99 verhält sich wie Chrome 147.0.7727.117 |
+| Vorübergehender Fehler einer Chrome-Version | **Nein.** Edge liegt drei Hauptversionen darüber und zeigt dasselbe |
+| Fehler in der Anwendung | **Nein.** Der Verweis wird korrekt gespeichert und überlebt das Neuladen; ein frisch ausgewählter Verweis funktioniert einwandfrei |
+| Speicherort der Daten (OneDrive) | **Nein.** Eine Testseite auf dem Firmenlaufwerk zeigt dasselbe Verhalten |
+| Lokaler Speicher des Browsers defekt | **Nein.** localStorage und IndexedDB arbeiten normal |
+
+Ausgelöst wurde es durch einen PC-Neustart, bei dem die im Hintergrund
+bereitgelegte Browser-Aktualisierung aktiv wurde. An der Anwendung und an den
+Einstellungen wurde nichts geändert.
+
 ## Was wir brauchen
 
 Die unveränderte HTML-Datei soll statt über den Dateipfad über eine **interne
