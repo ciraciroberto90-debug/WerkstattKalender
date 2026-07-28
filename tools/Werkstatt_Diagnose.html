@@ -68,6 +68,21 @@
 </div>
 
 <div class="karte">
+  <h2>3b · Hin und zurück – ganz ohne Neuladen</h2>
+  <p class="hilf">
+    Die wichtigste Messung. Eine Datei wird gewählt, in die Datenbank gelegt und
+    <b>sofort wieder herausgeholt</b> – alles im selben Durchgang, ohne F5.
+    Danach werden <b>beide</b> geprüft: das Original und die zurückgeholte Fassung.
+    <br><br>
+    Ist nur die zurückgeholte kaputt, liegt es am Ablegen und Zurückholen.
+    Sind beide in Ordnung, liegt es am Neuladen selbst – zwei völlig verschiedene
+    Ursachen, die sich sonst nicht trennen lassen.
+  </p>
+  <div id="k3b"></div>
+  <button class="haupt" id="btnRundreise">Datei wählen, ablegen, sofort zurückholen</button>
+</div>
+
+<div class="karte">
   <h2>4 · Frisch gewählt – zum Vergleich</h2>
   <p class="hilf">
     Ein gerade eben gewählter Verweis, dieselben Abfragen. Wichtig ist der Vergleich der
@@ -260,10 +275,20 @@
     }
   }
 
-  // Die drei Fragen an einen Verweis. Bewusst PARALLEL: nacheinander wuerde
+  // Die Fragen an einen Verweis. Bewusst PARALLEL: nacheinander wuerde
   // eine einzige lange Abfrage alle folgenden verdecken.
   function verweisPruefen(ziel, vorsatz, h) {
     var teile = [];
+    // Laesst sich der Verweis ueberhaupt noch weiterreichen? Das beruehrt
+    // keine Datei und kein Laufwerk. Haengt schon DAS, liegt es nicht am
+    // Speicherort, sondern am Verweis selbst.
+    try { structuredClone(h); schreibe(ziel, vorsatz + "Verweis kopierbar", "ja", "ok"); }
+    catch (e) { schreibe(ziel, vorsatz + "Verweis kopierbar", "NEIN – " + fehlertext(e), "fehl"); }
+    if (h.isSameEntry) {
+      teile.push(messen(ziel, vorsatz + "Selbstvergleich (isSameEntry)", function () {
+        return h.isSameEntry(h).then(function (b) { return { __gut: b, __text: b ? "ja" : "nein" }; });
+      }));
+    }
     teile.push(messen(ziel, vorsatz + "Leserecht (queryPermission)", function () { return h.queryPermission({ mode: "read" }); }));
     teile.push(messen(ziel, vorsatz + "Schreibrecht (queryPermission)", function () { return h.queryPermission({ mode: "readwrite" }); }));
     if (h.kind === "directory") {
@@ -284,7 +309,22 @@
         });
       }));
     }
-    return Promise.all(teile);
+    // Zweiter Versuch, falls der erste nichts geliefert hat. Braucht ein
+    // Laufwerk nur einen Moment (OneDrive holt eine nur online liegende Datei,
+    // eine Freigabe wacht auf), dann klappt der zweite - und die Loesung waere
+    // ein Wiederholversuch in der App, nicht der Umzug der ganzen Anwendung.
+    return Promise.all(teile).then(function (erg) {
+      var schlecht = erg.filter(function (e) { return e && e.art !== "ok"; });
+      if (!schlecht.length || h.kind === "directory") return erg;
+      schreibe(ziel, vorsatz + "→ erster Anlauf ohne Erfolg", "warte 45 s, dann noch einmal", "warn");
+      return new Promise(function (ok) {
+        setTimeout(function () {
+          messen(ziel, vorsatz + "ZWEITER Versuch nach 45 s (getFile)", function () {
+            return h.getFile().then(function (f) { return { __gut: true, __text: f.size + " Bytes" }; });
+          }).then(function () { ok(erg); });
+        }, 45000);
+      });
+    });
   }
 
   schaechte.forEach(function (s) {
@@ -325,6 +365,34 @@
     }).catch(function (e) {
       schreibe(werte, s.titel, "Merker lesen fehlgeschlagen – " + fehlertext(e), "fehl");
       messungAb();
+    });
+  });
+
+  /* ---------- 3b · Hin und zurück, ohne Neuladen ----------
+     Trennt zwei Ursachen, die bisher untrennbar waren:
+       - Das Ablegen/Zurueckholen selbst macht den Verweis unbrauchbar.
+       - Erst das Neuladen der Seite tut es.
+     Bisher wurde immer beides zusammen gemessen (ablegen, F5, zurueckholen),
+     und das Ergebnis passte auf beide Erklaerungen. */
+  document.getElementById("btnRundreise").addEventListener("click", function () {
+    var knopf = this; knopf.disabled = true;
+    window.showOpenFilePicker({ multiple: false }).then(function (l) {
+      var original = l[0];
+      schreibe("k3b", "Gewählte Datei", original.name, "ok");
+      messungAn();
+      var a = verweisPruefen("k3b", "ORIGINAL – ", original);
+      var b = idbPut("rundreise", original)
+        .then(function () { schreibe("k3b", "In die Datenbank gelegt", "ja", "ok"); return idbGet(DB, STORE, "rundreise"); })
+        .then(function (zurueck) {
+          if (!zurueck) { schreibe("k3b", "Zurückgeholt", "NICHTS zurückbekommen", "fehl"); return; }
+          schreibe("k3b", "Zurückgeholt", zurueck.name + " (dasselbe Objekt? " + (zurueck === original ? "ja" : "nein – neu aufgebaut") + ")", "ok");
+          return verweisPruefen("k3b", "ZURÜCKGEHOLT – ", zurueck);
+        })
+        .catch(function (e) { schreibe("k3b", "Hin und zurück", "Fehler – " + fehlertext(e), "fehl"); });
+      return Promise.all([a, b]).then(messungAb);
+    }).catch(function (e) {
+      schreibe("k3b", "Datei wählen", "abgebrochen/Fehler – " + fehlertext(e), "warn");
+      knopf.disabled = false;
     });
   });
 

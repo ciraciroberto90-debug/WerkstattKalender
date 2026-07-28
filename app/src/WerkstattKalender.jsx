@@ -894,7 +894,19 @@ function App() {
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
   useEffect(() => {
     let cancelled = false;
-    sharedFile.tryRestore().then((st) => { if (!cancelled) { setShareState(st); setShareChecked(true); } });
+    // Das .catch ist keine Formsache: Ohne es bliebe die App bei einem Fehler
+    // beim Prüfen der gemerkten Datei still im Zustand "noch nicht geprüft"
+    // stehen - shareChecked würde nie true, also erschiene weder eine
+    // Verbindungsleiste noch eine Meldung. Dieselbe Sorte Stillstand wie ein
+    // Aufruf ohne Frist, nur eine Ebene höher.
+    sharedFile.tryRestore()
+      .catch((e) => ({ status: "none", fehler: e && e.message ? e.message : String(e) }))
+      .then((st) => {
+        if (cancelled) return;
+        setShareState(st);
+        setShareChecked(true);
+        if (st.fehler) setShareErr("Gemeinsame Datei: Die gemerkte Datei ließ sich nicht prüfen – " + st.fehler + " Bitte über das Ordner-Symbol neu verbinden.");
+      });
     const onUpdate = (ev) => {
       const d = ev.detail || {};
       // Zusammenführen statt Ersetzen: Ein sehr kurz zurückliegender eigener
@@ -927,7 +939,14 @@ function App() {
     window.addEventListener("werkstatt-shared-info", onShareInfo);
 
     // ---- Störungen-Datei (eigene Instanz, gleiche Sync-Sicherheiten) ----
-    sharedFile.stoer.tryRestore().then((st) => { if (!cancelled) { setStoerState(st); setStoerChecked(true); } });
+    sharedFile.stoer.tryRestore()
+      .catch((e) => ({ status: "none", fehler: e && e.message ? e.message : String(e) }))
+      .then((st) => {
+        if (cancelled) return;
+        setStoerState(st);
+        setStoerChecked(true);
+        if (st.fehler) setStoerErr("Störungen-Datei: Die gemerkte Datei ließ sich nicht prüfen – " + st.fehler + " Bitte im Schichtbuch neu verbinden.");
+      });
     const onStoerUpdate = (ev) => {
       const d = ev.detail || {};
       if (Array.isArray(d.entries)) {
@@ -1001,7 +1020,9 @@ function App() {
     }
   };
   const disconnectShared = async () => {
-    await sharedFile.disconnect();
+    // Das Aufräumen darf scheitern (z. B. IndexedDB gesperrt) - getrennt wird
+    // trotzdem. Sonst bliebe ein Klick auf "Trennen" ohne jede sichtbare Wirkung.
+    try { await sharedFile.disconnect(); } catch (e) { /* Anzeige zählt */ }
     setShareState({ status: sharedFile.isSupported() ? "none" : "unsupported" });
     setShareChecked(true);
     setShareOpen(false);
@@ -1050,7 +1071,7 @@ function App() {
     }
   };
   const disconnectStoer = async () => {
-    await sharedFile.stoer.disconnect();
+    try { await sharedFile.stoer.disconnect(); } catch (e) { /* Anzeige zählt */ }
     setStoerState({ status: sharedFile.stoer.isSupported() ? "none" : "unsupported" });
     setStoerChecked(true);
   };
@@ -5891,7 +5912,10 @@ function App() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold" style={{ color: "#2F7D4F" }}>✓ Aktiv – überwacht „{sharedFile.folderName()}"</span>
                         <button
-                          onClick={async () => { await sharedFile.forgetFolder(); setShareState({ ...shareState }); }}
+                          onClick={async () => {
+                            try { await sharedFile.forgetFolder(); } catch (e) { /* abgeschaltet wird trotzdem */ }
+                            setShareState({ ...shareState });
+                          }}
                           className="text-xs font-bold underline"
                           style={{ color: "#8A9099" }}
                         >
