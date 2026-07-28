@@ -83,7 +83,7 @@ Daten-Datei müsste dann nach jedem Neuladen neu herausgesucht werden. Über
 
 Einrichtung je Arbeitsplatz, etwa fünf Minuten:
 
-1. `Werkstatt-Cockpit-Start.zip` entpacken, Ordner `Cockpit` auf den Rechner legen
+1. `arbeitsplatz/Werkstatt-Cockpit-Start.zip` entpacken, Ordner `Cockpit` auf den Rechner legen
    (Desktop oder `C:\Werkstatt`) – **nicht** in den Netzwerkordner, dort sind keine
    Rechte nötig.
 2. Doppelklick auf `Cockpit starten.cmd`.
@@ -94,7 +94,7 @@ Einrichtung je Arbeitsplatz, etwa fünf Minuten:
 5. **Alte Verknüpfung auf die HTML-Datei löschen**, sonst öffnet jemand versehentlich
    wieder die Variante, die sich nichts merkt.
 
-Vollständige Beschreibung samt Fehlerbildern: `tools/OHNE-IT-LOKALER-SERVER.md`.
+Vollständige Beschreibung samt Fehlerbildern: `arbeitsplatz/Anleitung-Arbeitsplatz.md`.
 
 > **Beim ersten Start über die neue Adresse ist der lokale Speicher leer.** Das ist
 > harmlos – erst die Dateien verbinden (3.2 und 3.3), dann steht alles wieder da.

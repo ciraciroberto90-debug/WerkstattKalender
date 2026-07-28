@@ -1,7 +1,7 @@
 > **Stand 28.07.2026: derzeit nicht erforderlich.**
 > Das Problem ist ohne die IT gelöst – die App wird über einen kleinen
 > Ausliefer-Dienst auf dem jeweiligen Arbeitsplatz bereitgestellt
-> (`http://localhost:8765/`, siehe `tools/OHNE-IT-LOKALER-SERVER.md`).
+> (`http://localhost:8765/`, siehe `arbeitsplatz/Anleitung-Arbeitsplatz.md`).
 > Dieses Dokument bleibt aufgehoben für den Fall, dass eine zentral verwaltete
 > Lösung gewünscht wird oder auf einzelnen Rechnern keine Skripte laufen dürfen.
 > Alle Messwerte darin sind unverändert gültig.

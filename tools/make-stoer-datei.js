@@ -20,6 +20,6 @@ const datei = {
   config: null,
 };
 
-const out = path.join("/home/user/WerkstattKalender", "werkstatt-stoerungen.json");
+const out = path.join("/home/user/WerkstattKalender/archiv/beispieldaten", "werkstatt-stoerungen.json");
 fs.writeFileSync(out, JSON.stringify(datei, null, 2));
 console.log("geschrieben:", out, "-", entries.length, "Störungen");

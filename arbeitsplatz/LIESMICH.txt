@@ -31,7 +31,7 @@ Damit es beim Anmelden von allein startet:
   Windows-Taste + R -> shell:startup -> Eingabetaste
   Verknuepfung in den geoeffneten Ordner ziehen
 
-Ausfuehrliche Fassung: Anleitung.md
+Ausfuehrliche Fassung: Anleitung.md (liegt daneben)
 
 Wenn etwas klemmt:
   "Ausfuehrung von Skripts ist deaktiviert"  -> bei Roberto melden

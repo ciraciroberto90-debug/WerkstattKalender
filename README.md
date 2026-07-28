@@ -1,147 +1,113 @@
-# 🔧 Werkstatt-Kalender
+# Werkstatt-Cockpit
 
-TPM-Wartungs- und R+I-Kalender für die Werkstatt – als Programm, das komplett
-im Browser läuft: **ohne Installation, ohne Internet, ohne Anmeldung**.
+Instandhaltungsplanung, Schichtbuch und Störungserfassung für die Werkstatt.
+Eine einzige HTML-Datei, kein Server, keine Datenbank, keine Installation.
+Die Daten liegen in zwei JSON-Dateien im gemeinsamen Ordner.
 
-## So startest du das Programm
+---
 
-1. Die Datei **`Werkstatt_Kalender_TPM.html`** herunterladen (Code → Download ZIP, oder nur die Datei).
-2. Doppelklick auf `Werkstatt_Kalender_TPM.html` – der Kalender öffnet sich im Browser. Fertig.
+## Was muss ich herunterladen?
 
-Alle Einträge werden **lokal im Browser gespeichert** und bleiben nach dem
-Schließen erhalten – solange derselbe Browser auf demselben Rechner verwendet
-wird. Für Sicherungen oder den Wechsel auf einen anderen Rechner gibt es die
-**Export/Import**-Knöpfe oben rechts.
+### Neuer Arbeitsplatz einrichten → **eine Datei**
 
-> **Tipp:** Über GitHub Pages (Settings → Pages → Branch auswählen) lässt sich
-> der Kalender auch als Webseite aufrufen, z. B. vom Tablet aus.
+**[`arbeitsplatz/Werkstatt-Cockpit-Start.zip`](arbeitsplatz/Werkstatt-Cockpit-Start.zip)**
 
-## Gemeinsame Nutzung (Firmenlaufwerk / OneDrive)
+Entpacken, Ordner `Cockpit` auf den Rechner legen (Desktop genügt), Doppelklick
+auf `Cockpit starten.cmd`. Der Rest steht in der `LIESMICH.txt` im Paket.
 
-Mehrere Personen können denselben Datenstand nutzen – über eine gemeinsame
-JSON-Datei auf einem Netzlaufwerk oder in einem per Explorer synchronisierten
-OneDrive-Ordner. Benötigt wird **Microsoft Edge oder Google Chrome**.
+Sonst braucht ein Arbeitsplatz **nichts** – die App selbst liegt im
+Netzwerkordner und wird von dort ausgeliefert.
 
-**Wer bearbeiten darf, bestimmen die Datei-Rechte auf dem Laufwerk** (von der
-IT vergeben): Bearbeiter bekommen Schreibrechte auf die Datei, alle anderen
-nur Leserechte. Die App erkennt das automatisch – ohne Schreibrechte schaltet
-sie auf „nur ansehen" um (blaue Hinweisleiste).
+### Neue Programmversion verteilen → **eine Datei**
 
-**Einrichtung (einmalig):**
+**[`Werkstatt_Kalender_TPM.html`](Werkstatt_Kalender_TPM.html)**
 
-1. **IT:** Ordner auf dem Firmenlaufwerk freigeben – Chef + Vertreter mit
-   Schreibrechten, alle anderen nur mit Leserechten.
-2. **Chef:** In der App oben auf **„Teilen"** klicken → „Neue gemeinsame Datei
-   anlegen" → als Speicherort diesen Ordner wählen (z. B.
-   `W:\Werkstatt\werkstatt-kalender-daten.json`). Die vorhandenen Einträge
-   werden automatisch in die Datei übernommen.
-3. **Alle anderen (Vertreter wie Zuschauer):** „Teilen" → „Vorhandene Datei
-   öffnen" → dieselbe Datei auswählen. Wer Schreibrechte hat, kann bearbeiten
-   (Änderungen werden Eintrag für Eintrag zusammengeführt, niemand
-   überschreibt den anderen); alle übrigen sehen den aktuellen Stand
-   (automatische Aktualisierung alle 30 Sekunden).
+In den Netzwerkordner kopieren, alte überschreiben. Fertig – kein Arbeitsplatz
+muss angefasst werden. Der Dateiname ist gleichgültig, der Dienst liefert immer
+die neueste `Werkstatt_Kalender_TPM*.html` aus.
 
-**Gut zu wissen:**
+### Alles von Grund auf neu aufsetzen → **drei Dinge**
 
-- Nach einem Browser-Neustart fragt der Browser aus Sicherheitsgründen einmal
-  nach: Oben erscheint eine gelbe Leiste mit **„Jetzt verbinden"** – ein Klick
-  genügt. (Edge/Chrome bieten nach mehrmaligem Erlauben an, sich die Freigabe
-  dauerhaft zu merken.)
-- Ist das Laufwerk kurz nicht erreichbar, wird lokal weitergespeichert und
-  eine Meldung angezeigt; beim nächsten Speichern/Verbinden wird wieder
-  zusammengeführt.
-- Die Absicherung über Laufwerks-Rechte gilt auf Betriebssystem-Ebene und ist
-  nicht austricksbar – ohne Schreibrecht landet nie eine Änderung in der Datei,
-  egal was in der App angeklickt wird.
-- Löschungen werden über eine interne Merkliste (180 Tage) zwischen den
-  Bearbeitern abgeglichen.
+1. `Werkstatt_Kalender_TPM.html` → in den gemeinsamen Ordner
+2. `arbeitsplatz/Werkstatt-Cockpit-Start.zip` → auf jeden Rechner
+3. Beim ersten Start in der App die beiden Datendateien anlegen bzw. verbinden
+   (`werkstatt-kalender-daten.json`, `werkstatt-stoerungen.json`)
 
-## Funktionen
+Ausführlich: **[doku/ANLEITUNG.md](doku/ANLEITUNG.md)**, Kapitel 3.
 
-- **Monatsansicht** mit Kalenderwochen, bayerischen Feiertagen und
-  Wochenend-Markierung; Einträge direkt per ＋ am Tag anlegen
-  (TPM-Anlage oder R+I-Punkt, Status ✓ Gemacht / ✕ Offen, Notiz)
-- **Monats-Matrix**: pro Anlage/R+I-Punkt auf einen Blick, was an welchem Tag
-  gemacht bzw. offen ist
-- **Jahresübersicht**: pro Anlage und Monat „x gemacht / y offen"
-- **Plan**: automatischer Wartungsplan mit fortlaufender Montags-Rotation
-  (Referenz 05.01.2026), Taktstraße, B1 und flexiblen 2-Monats-Gruppen –
-  Feiertage werden übersprungen, R+I-Punkte nach Rhythmus eingeplant.
-  Per „Plan in Kalender übernehmen" landen alle Termine als offene Einträge
-  im Kalender.
-- **Register**: alle Anlagen und R+I-Punkte mit kompletter Historie
-- **Verwalten**: Anlagen und R+I-Punkte umbenennen, hinzufügen, löschen,
-  Rollen und Rhythmen ändern – Umbenennungen übertragen sich auf bestehende
-  Einträge
-- **Drucken**: fertige Druckvorlagen (A4 quer für Kalender/Matrix, Notizen
-  auf eigener Hochformat-Seite)
-- **Schichtplan-Matrix** (Cockpit → Schichtplan): der ganze Monat wie das
-  Excel-Blatt „Daten" – Zeilen = Team (Reihenfolge per ↑/↓ im
-  ⚙-Verwalten-Dialog), Spalten = Tage mit KW-Zeile, Wochenenden grau,
-  Feiertage rot; Klick auf eine Zelle öffnet die Schicht-Auswahl
-  (volle Wörter, Farben wie überall) – Einträge gelten sofort auch in
-  der Arbeitsplanung
-- **Arbeitsplanung mit Werkstattschichtplan** (Cockpit → Planung):
-  Kalenderwochen direkt anklickbar oder per „📅 KW wählen" weit
-  vorausspringen; pro Person und Tag steht oben in der Zelle die Schicht
-  (Früh/Spät/Spät mit B/Nacht/Bereitschaft/Schule/Krank/Urlaub/Mainsite) –
-  Klick auf die Schicht ändert sie für die ganze Woche oder nur einen Tag;
-  das ＋ in der Zelle trägt eine Arbeit aus dem Backlog **oder eine freie
-  Notiz** (gelb, z. B. „ab 8:30 Zahnarzt") ein; wer Urlaub/Krank/Schule hat,
-  bekommt kein ＋
-- **Export/Import** aller Einträge als JSON-Datei; der Import versteht auch
-  Migrationsdateien mit Team-Liste (`{ "team": [...], "entries": [...] }`)
-- **Werkstatt-Monitor** (📺-Symbol oben): dunkles Vollbild-Dashboard für einen
-  Bildschirm in der Werkstatt – wer gerade da ist (aus dem Schichtplan), was
-  heute an Wartungen fällig/überfällig ist, Backlog-Stand, und ein Laufband
-  mit Pinnwand-Zetteln, die dafür markiert wurden. ESC oder der
-  „Beenden"-Knopf schließt ihn wieder. Für einen eigenen Monitor ohne
-  zusätzlichen Arbeitsplatz: siehe „Werkstatt-Monitor extern betreiben"
-  weiter unten.
+---
 
-## Werkstatt-Monitor extern betreiben (eigener Bildschirm in der Werkstatt)
+## Warum ein Ausliefer-Dienst?
 
-Ein Bildschirm allein kann kein Programm ausführen – es braucht immer einen
-kleinen Rechner dahinter. Damit davon **nichts zu sehen ist**, reicht ein
-unauffälliger Mini-PC oder Raspberry Pi, der direkt hinter dem Monitor
-verschwindet (VESA-Halterung).
+Bis Juli 2026 wurde die HTML-Datei direkt per Doppelklick geöffnet. Seit
+Chrome 147 merkt sich der Browser dabei den Zugriff auf die Datendatei nicht
+mehr – gemessen antwortet ein gemerkter Dateiverweis überhaupt nicht mehr, weder
+mit einer Freigabe noch mit einer Ablehnung. Über `http://localhost:8765/`
+funktioniert alles wieder wie zuvor.
 
-1. **Gerät besorgen** – zwei bewährte Varianten:
-   - *Mini-PC mit Windows* (z. B. Intel NUC, Beelink, HP EliteDesk Mini,
-     ca. 150–300 €): funktioniert genau wie ein normaler Firmenrechner –
-     eure IT kennt sich damit sofort aus, Netzlaufwerk einbinden wie bei
-     jedem anderen PC.
-   - *Raspberry Pi* (ca. 80–120 € komplett): günstiger, braucht aber etwas
-     Linux-Grundwissen zum Einbinden der Netzwerk-Freigabe.
-2. **Ans Netzwerk anschließen** (am besten LAN-Kabel) – Zugriff auf dasselbe
-   Firmenlaufwerk wie du, mit **Nur-Lese-Recht** auf den Ordner (siehe
-   „Gemeinsame Nutzung" oben).
-3. **Chrome/Edge/Chromium installieren**, die Datei einmal mit dem Zusatz
-   `?monitor=1` öffnen, z. B. `Werkstatt_Kalender_TPM.html?monitor=1`, und
-   über das Ordner-Symbol einmalig mit der gemeinsamen Datei verbinden.
-   Der Werkstatt-Monitor öffnet sich danach **von selbst** – auch bei jedem
-   künftigen Neustart, ganz ohne Tastatur oder Maus.
-4. **Browser im Kiosk-/Vollbildmodus automatisch starten lassen** (z. B.
-   über die Windows-Aufgabenplanung oder Autostart-Ordner mit dem Parameter
-   `--kiosk` und dem Datei-Pfad samt `?monitor=1`).
-5. **Energiesparen/Bildschirmschoner am Gerät deaktivieren**, damit der
-   Monitor nicht einschläft (der Werkstatt-Monitor hält den Bildschirm
-   zusätzlich selbst wach, solange er offen ist).
-6. Fertig – der Mini-PC/Pi hängt unsichtbar hinter dem Monitor, zeigt
-   dauerhaft den Werkstatt-Monitor und aktualisiert sich automatisch alle
-   30 Sekunden aus der gemeinsamen Datei.
+Der Dienst ist ein kleines PowerShell-Skript, das nur auf dem eigenen Rechner
+horcht. Keine Installation, keine Adminrechte, aus dem Netz nicht erreichbar.
+Messwerte und Begründung stehen im
+**[Prüfbericht](doku/ROLLOUT-PRUEFBERICHT.md)**.
 
-## Für Entwickler: selbst bauen
+---
 
-Der Quellcode liegt in [`app/`](app/) (React + Vite + Tailwind). Die
-Kalender-Logik steckt unverändert in
-[`app/src/WerkstattKalender.jsx`](app/src/WerkstattKalender.jsx); nur der
-Speicher der Claude-Artifact-Umgebung (`window.storage`) ist in
-[`app/src/storage.js`](app/src/storage.js) durch `localStorage` ersetzt.
+## Was liegt wo
+
+| Ordner | Inhalt | Für wen |
+|---|---|---|
+| **`arbeitsplatz/`** | Startpaket, Starter, Ausliefer-Dienst, Kurzanleitung | Werkstatt |
+| **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
+| `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
+| `app/` | Quellcode (React, Vite) | Entwicklung |
+| `tests/` | 34 Härtetests und fünf weitere Suiten | Entwicklung |
+| `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
+| `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
+
+### Die wichtigsten Einzeldateien
+
+| Datei | Wozu |
+|---|---|
+| [`doku/ANLEITUNG.md`](doku/ANLEITUNG.md) | vollständige Bedienungs- und Einrichtungsanleitung |
+| [`arbeitsplatz/Anleitung-Arbeitsplatz.md`](arbeitsplatz/Anleitung-Arbeitsplatz.md) | nur die Einrichtung eines Rechners, mit Fehlerbildern |
+| [`doku/ROLLOUT-PRUEFBERICHT.md`](doku/ROLLOUT-PRUEFBERICHT.md) | was geprüft wurde, mit Messwerten |
+| [`doku/IT-ANFRAGE.md`](doku/IT-ANFRAGE.md) | fertige Anfrage, falls doch eine zentrale Lösung gewünscht wird |
+| [`tools/Werkstatt_Diagnose.html`](tools/Werkstatt_Diagnose.html) | geführte Umgebungsprüfung, wenn ein Rechner zickt |
+
+---
+
+## Wie die gemeinsame Nutzung funktioniert
+
+Alle arbeiten auf **einer** Datei im OneDrive- oder Netzwerkordner. Wer
+bearbeiten darf, bestimmen die Datei-Rechte des Laufwerks – ohne Schreibrecht
+schaltet die App von selbst auf „nur ansehen" um.
+
+- Änderungen werden **Eintrag für Eintrag zusammengeführt**, niemand
+  überschreibt den anderen. Vor jedem Speichern wird der aktuelle Dateiinhalt
+  gelesen, danach wird zurückgelesen und geprüft, ob nichts verschwunden ist.
+- Fremde Änderungen erscheinen **automatisch alle 30 Sekunden** – Neuladen ist
+  dafür nicht nötig.
+- Löschungen werden über eine Merkliste (180 Tage) zwischen den Bearbeitern
+  abgeglichen.
+- Ist das Laufwerk kurz nicht erreichbar, wird lokal weitergespeichert und eine
+  Meldung angezeigt; beim nächsten Speichern wird wieder abgeglichen.
+- Nach einem Browser-Neustart genügt ein Klick auf **„Jetzt verbinden"**. Die
+  Datei muss dabei nicht neu herausgesucht werden.
+
+---
+
+## Für die Entwicklung
 
 ```bash
-cd app
-npm install
-npm run build   # baut alles in eine Datei und legt sie als ../Werkstatt_Kalender_TPM.html ab
-npm run dev     # Entwicklungs-Server mit Live-Reload
+cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
+bash tests/run-hardness-tests.sh           # 34 Härtetests
+node tests/smoke-test.js                   # Grundfunktionen
+node tests/sync-fokus-test.js              # Zusammenführen und Sperren
+node tests/rollout-test.js                 # Verteilung
+node tests/veroeffentlichungs-test.js      # Veröffentlichung
+node tests/hardness/diagnose-ablauf.js     # die Diagnose-Seite selbst
 ```
+
+Stand der letzten vollständigen Prüfung: **34/34 Härtetests, 425 Einzelprüfungen,
+kein Fehlschlag** – inklusive sieben Jahrgängen Betriebsdaten (16 951 Einträge,
+1 260 Störberichte, 3,4 MB), voller Speichergrenze und beschädigter Datei.
