@@ -282,22 +282,65 @@
     umgebung();
     var k = karte("Nach dem Neuladen", '<p>Der gemerkte Verweis wird jetzt geprüft – ohne dass die Datei erneut ausgewählt wurde.</p>');
     var liste = werteListe(k);
+    var gemerkt = null;
     idbGet("h").then(function (h) {
       if (!h) { zeile(liste, "gemerkter Verweis", "keiner vorhanden", "still"); return; }
+      gemerkt = h;
       zeile(liste, "gemerkter Verweis", h.name, "gut");
       notiere("nach Neuladen – Verweis", h.name);
       return pruefe(liste, "nach dem Neuladen", h);
     }).then(function () {
-      var gut = 0, still = 0;
-      log.forEach(function (z) {
-        if (z.indexOf("nach dem Neuladen") !== 0 && z.indexOf("aus der Datenbank") !== 0) return;
-        if (/keine Antwort|NotAllowed|Fehler/.test(z)) still++; else gut++;
+      // Der letzte Schritt: die ausdrueckliche Nachfrage - das, was der Knopf
+      // "Jetzt verbinden" in der Anwendung tut. Sie braucht einen echten Klick
+      // und kann deshalb nicht von allein laufen. Ohne sie waere nicht belegt,
+      // dass der gemerkte Verweis nach einem Klick auch wirklich wieder traegt.
+      if (!gemerkt) return;
+      var nk = karte("Letzter Schritt: der Klick",
+        '<p>Nach dem Neuladen ist der Zugriff erwartungsgemäß noch nicht erteilt. ' +
+        'Die Anwendung fragt an dieser Stelle ausdrücklich nach – genau das macht der Knopf ' +
+        '„Jetzt verbinden“. Ein Klick, dann ist es vollständig belegt.</p>');
+      var nl = werteListe(nk);
+      var nb = document.createElement("button");
+      nb.textContent = "Zugriff jetzt anfordern";
+      nk.appendChild(nb);
+      return new Promise(function (weiter) {
+        nb.onclick = function () {
+          nb.disabled = true;
+          messen(nl, "Nachfrage (requestPermission)", function () {
+            return gemerkt.requestPermission({ mode: "readwrite" }).then(function (p) { return { __text: p }; });
+          }).then(function () {
+            return messen(nl, "danach · Datei öffnen", function () {
+              return gemerkt.getFile().then(function (f) { return { __text: f.size + " Bytes" }; });
+            });
+          }).then(function () { weiter(); });
+        };
       });
+    }).then(function () {
+      // Wichtig fuer die Deutung: Ein sauberes "nicht erlaubt" in wenigen
+      // Millisekunden ist GESUND - so verhaelt sich der Browser nach einem
+      // Neuladen richtigerweise, und darauf ist die Anwendung gebaut. Krank
+      // ist nur das Ausbleiben jeder Antwort. Beides in einen Topf zu werfen
+      // waere genau die Fehldeutung, die uns heute Zeit gekostet hat.
+      var haenger = log.filter(function (z) { return /keine Antwort/.test(z); }).length;
+      var rundOk = log.some(function (z) { return /^aus der Datenbank · Datei öffnen: \d+ Bytes/.test(z); });
+      var klickOk = log.some(function (z) { return /^danach · Datei öffnen: \d+ Bytes/.test(z); });
+
       var u = document.createElement("div");
-      u.className = "urteil " + (still === 0 && gut > 0 ? "u-gut" : "u-still");
-      u.innerHTML = still === 0 && gut > 0
-        ? '<h3>Über HTTPS überlebt der Verweis</h3><p>Dieselbe Rundreise, die am Arbeitsplatz tot endet, funktioniert hier. Damit ist die Adresse der Seite die Ursache – und der Umzug auf eine interne HTTPS-Adresse löst es wirklich.</p>'
-        : '<h3>Auch über HTTPS stirbt der Verweis</h3><p>Dann liegt es nicht an der Adresse. Der Umzug würde nichts bringen – die IT-Anfrage ist damit vom Tisch, und wir suchen weiter.</p>';
+      if (rundOk && haenger === 0) {
+        u.className = "urteil u-gut";
+        u.innerHTML = '<h3>Über HTTPS überlebt der Verweis' + (klickOk ? ' – und ein Klick stellt ihn wieder her' : '') + '</h3>' +
+          '<p>Dieselbe Rundreise, die am Arbeitsplatz nach 120 Sekunden ohne jede Antwort endet, ist hier in ein paar Millisekunden erledigt. ' +
+          'Nach dem Neuladen meldet der Browser sauber „noch nicht freigegeben“ statt zu schweigen' +
+          (klickOk ? ', und nach der Nachfrage ist die Datei sofort wieder lesbar' : '') + '. ' +
+          'Damit ist die Adresse der Seite die Ursache – der Umzug auf eine interne HTTPS-Adresse löst es wirklich.</p>';
+      } else if (haenger > 0) {
+        u.className = "urteil u-still";
+        u.innerHTML = '<h3>Auch über HTTPS bleiben Antworten aus</h3>' +
+          '<p>Dann liegt es nicht an der Adresse. Der Umzug würde nichts bringen – die IT-Anfrage ist vom Tisch, und wir suchen weiter.</p>';
+      } else {
+        u.className = "urteil u-still";
+        u.innerHTML = '<h3>Unvollständig</h3><p>Es fehlen Messwerte. Bitte den Bericht trotzdem schicken.</p>';
+      }
       bereich.insertBefore(u, bereich.firstChild);
 
       var bk = karte("Bericht", '<p>Kopieren und schicken.</p>');
