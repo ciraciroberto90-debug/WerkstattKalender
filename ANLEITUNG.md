@@ -1,6 +1,6 @@
 # Werkstatt-Cockpit – Zusammenfassung & Anleitung
 
-Stand: 27. Juli 2026
+Stand: 28. Juli 2026
 
 Dieses Dokument fasst zusammen, **was die App kann**, **wie sie technisch aufgebaut ist**
 und **wie man sie einrichtet und benutzt** – für Roberto (Werkstattleiter), den
@@ -72,9 +72,34 @@ synchronisiert. Die gesamte Zusammenführungs- und Sicherheitslogik steckt in de
 ### 3.1 App-Datei bereitstellen (einmalig)
 
 Die `Werkstatt_Kalender_TPM.html` an einen Ort legen, den alle öffnen können – entweder
-im gemeinsamen OneDrive-Ordner oder auf dem Firmenlaufwerk. Auf jedem PC eine
-**Desktop-Verknüpfung** darauf anlegen. (Die HTML wird nur *geöffnet/gelesen*, nie
-beschrieben – deshalb ist das Laufwerk hier unproblematisch.)
+im gemeinsamen OneDrive-Ordner oder auf dem Firmenlaufwerk. (Die HTML wird nur
+*geöffnet/gelesen*, nie beschrieben – deshalb ist das Laufwerk hier unproblematisch.)
+
+**Geöffnet wird sie nicht mehr direkt per Doppelklick, sondern über einen kleinen
+Ausliefer-Dienst auf dem eigenen Rechner.** Grund: Chrome merkt sich seit Version 147
+den Dateizugriff nicht mehr, wenn eine Seite als Datei (`file://…`) geöffnet wird – die
+Daten-Datei müsste dann nach jedem Neuladen neu herausgesucht werden. Über
+`http://localhost:8765/` bleibt die Verbindung erhalten wie früher.
+
+Einrichtung je Arbeitsplatz, etwa fünf Minuten:
+
+1. `Werkstatt-Cockpit-Start.zip` entpacken, Ordner `Cockpit` auf den Rechner legen
+   (Desktop oder `C:\Werkstatt`) – **nicht** in den Netzwerkordner, dort sind keine
+   Rechte nötig.
+2. Doppelklick auf `Cockpit starten.cmd`.
+3. Desktop-Verknüpfung darauf anlegen, umbenennen in „Werkstatt-Cockpit",
+   unter Eigenschaften → *Ausführen* auf **Minimiert** stellen.
+4. Dieselbe Verknüpfung nach `shell:startup` kopieren, dann startet der Dienst
+   beim Anmelden von allein.
+5. **Alte Verknüpfung auf die HTML-Datei löschen**, sonst öffnet jemand versehentlich
+   wieder die Variante, die sich nichts merkt.
+
+Vollständige Beschreibung samt Fehlerbildern: `tools/OHNE-IT-LOKALER-SERVER.md`.
+
+> **Beim ersten Start über die neue Adresse ist der lokale Speicher leer.** Das ist
+> harmlos – erst die Dateien verbinden (3.2 und 3.3), dann steht alles wieder da.
+> Nur der **eigene Name** muss neu eingetragen werden (3.4): Er ist absichtlich
+> geräteweise gespeichert und kommt nicht aus der gemeinsamen Datei.
 
 ### 3.2 Daten-Datei verbinden (einmalig pro Gerät)
 
@@ -88,21 +113,22 @@ im selben Ordner an.
 
 > **Rote Leiste: „Dieser Browser gibt die gemerkte Datei nicht mehr frei"**
 >
-> Dann ist der gemerkte Zugriff unbrauchbar geworden – bekannt ab **Chrome 147**,
-> solange die App über den Dateipfad (`file://…`) geöffnet wird. Der Browser
-> antwortet auf den gemerkten Verweis überhaupt nicht mehr.
+> Diese Leiste erscheint nur, wenn die App noch **direkt als Datei** geöffnet wird
+> (`file://…`) – auf einem Arbeitsplatz, der nach 3.1 eingerichtet ist, kommt sie
+> nicht vor. Ab Chrome 147 ist ein gemerkter Dateiverweis dort unbrauchbar: Der
+> Browser antwortet auf ihn überhaupt nicht mehr, weder mit einer Freigabe noch mit
+> einer Ablehnung.
 >
-> - **Was tun:** in der roten Leiste auf **„Datei auswählen …"** klicken und
->   dieselbe Datei erneut auswählen. Es geht nichts verloren.
+> - **Sofort weiterarbeiten:** in der roten Leiste auf **„Datei auswählen …"** klicken
+>   und dieselbe Datei erneut wählen. Es geht nichts verloren.
 > - Steht danach *Schreibschutz*, den zweiten Knopf **„Mit Schreibrecht verbinden …"**
->   nehmen: dort dieselbe Datei wählen und **„Ersetzen"** bestätigen. Der Inhalt
->   wird vorher gelesen und zusammengeführt, nicht überschrieben.
-> - **Neu laden ist nicht nötig.** Die App holt Änderungen von allein alle
->   30 Sekunden. Wer den Tab morgens öffnet und offen lässt, verbindet einmal
->   am Tag – und sonst nie.
+>   nehmen: dieselbe Datei wählen, **„Ersetzen"** bestätigen. Der Inhalt wird vorher
+>   gelesen und zusammengeführt, nicht überschrieben.
+> - **Dauerhaft behoben** ist es mit dem Ausliefer-Dienst aus 3.1.
 >
-> Dauerhaft behoben ist das erst, wenn die App über eine interne **HTTPS**-Adresse
-> ausgeliefert wird statt über den Dateipfad (siehe `IT-ANFRAGE.md`).
+> Beide Öffnungsarten dürfen nebeneinander laufen – sie lesen und schreiben dieselben
+> Dateien. Wo PowerShell gesperrt ist, bleibt der alte Weg also benutzbar, nur mit dem
+> zusätzlichen Klick nach jedem Neuladen.
 
 ### 3.3 Störungen-Datei verbinden (einmalig, eigene Datei)
 
@@ -322,12 +348,25 @@ Zwei getrennte Dateien (Hauptdaten + Störungen) nutzen **denselben** erprobten 
 
 Da alle **eine** App-Datei öffnen, ist ein Update denkbar einfach:
 
-1. Neue `Werkstatt_Kalender_TPM.html` an den bekannten Ort legen (**gleicher Dateiname**,
-   „Ersetzen" bestätigen).
+1. Neue `Werkstatt_Kalender_TPM.html` an den bekannten Ort legen, „Ersetzen" bestätigen.
 2. Beim Laufwerk/OneDrive den Sync-Haken abwarten.
 3. Alle haben die neue Version beim nächsten Öffnen oder mit **F5**.
 
 Die Verbindungen zu den Daten-Dateien bleiben dabei erhalten – niemand muss etwas neu auswählen.
+
+Zwei frühere Stolpersteine sind mit dem Ausliefer-Dienst (3.1) entfallen:
+
+- **Der Dateiname spielt keine Rolle mehr.** Ausgeliefert wird immer die neueste
+  `Werkstatt_Kalender_TPM*.html` aus dem Ordner. Ob `(28)`, `(29)` oder ganz ohne
+  Nummer – die Adresse bleibt `http://localhost:8765/`. Niemand arbeitet mehr
+  versehentlich weiter mit der alten Version, weil seine Verknüpfung auf den alten
+  Namen zeigte.
+- **Kein Strg+F5 mehr nötig.** Der Dienst untersagt dem Browser das Zwischenspeichern;
+  ein gewöhnliches Neuladen holt immer die aktuelle Fassung.
+
+Wer das Cockpit während des Austauschs offen hat, arbeitet bis zum nächsten Neuladen
+mit der alten Version weiter – das war schon immer so und ist unkritisch, weil beide
+Fassungen dieselben Dateien lesen und schreiben.
 
 ---
 
@@ -405,6 +444,21 @@ Nur **einmalig**, weil sie neu ist. Danach nie wieder – auch nicht bei App-Upd
 
 **Nach dem Browser-Neustart steht „getrennt".**
 Einmal auf **„Jetzt verbinden"** klicken. Aus Sicherheitsgründen fragt der Browser einmal nach.
+Die Datei muss dabei **nicht** neu herausgesucht werden – ein Klick genügt.
+
+**Muss ich das schwarze Fenster offen lassen?**
+Ja, das ist der Ausliefer-Dienst (3.1). Minimieren reicht. Wird es geschlossen, ist das
+Cockpit nicht mehr erreichbar – den Daten passiert nichts, sie liegen in der Datei.
+
+**Ich habe versehentlich zweimal auf „Cockpit starten" geklickt.**
+Unkritisch. Der Dienst erkennt, dass er schon läuft, öffnet nur den Browser und beendet
+sich wieder. Er weicht bewusst **nicht** auf einen anderen Port aus – das wäre für den
+Browser eine andere Adresse, und die verbundene Datei wäre wieder vergessen.
+
+**Nach der Umstellung auf den Ausliefer-Dienst ist alles leer.**
+Für den Browser ist `http://localhost:8765` eine andere Seite mit eigenem lokalem
+Speicher. Erst die beiden Dateien verbinden (3.2 und 3.3) – dann steht alles wieder da.
+Nur der eigene Name muss neu eingetragen werden (3.4).
 
 **Ein Leser sieht die vollen Bearbeiter-Tabs nicht.**
 Richtig so – das ist der Schreibschutz. Störungen darf er trotzdem pflegen.
