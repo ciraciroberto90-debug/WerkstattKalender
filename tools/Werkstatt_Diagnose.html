@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Werkstatt-Cockpit – Umgebungsprüfung</title>
+<style>
+  body { font-family: Segoe UI, system-ui, sans-serif; margin: 0; background:#f1f5f9; color:#0f172a; }
+  .rahmen { max-width: 860px; margin: 0 auto; padding: 24px 18px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.unter { margin: 0 0 22px; color:#475569; font-size: 14px; }
+  .karte { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; margin-bottom:14px; }
+  .karte h2 { font-size:15px; margin:0 0 10px; color:#334155; text-transform:uppercase; letter-spacing:.04em; }
+  .zeile { display:flex; gap:10px; align-items:flex-start; padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:14px; }
+  .zeile:last-child { border-bottom:0; }
+  .zeile .name { flex:0 0 240px; color:#475569; }
+  .zeile .wert { flex:1; font-family: Consolas, monospace; word-break:break-all; }
+  .ok    { color:#15803d; font-weight:600; }
+  .fehl  { color:#b91c1c; font-weight:600; }
+  .warn  { color:#b45309; font-weight:600; }
+  button { font-size:15px; padding:10px 16px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; margin-right:8px; }
+  button.haupt { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+  #bericht { width:100%; height:230px; font-family:Consolas,monospace; font-size:12px; border:1px solid #cbd5e1; border-radius:8px; padding:10px; }
+  .hinweis { background:#fefce8; border:1px solid #fde68a; border-radius:8px; padding:12px 14px; font-size:14px; margin-bottom:14px; }
+</style>
+</head>
+<body>
+<div class="rahmen">
+
+<h1>Werkstatt-Cockpit – Umgebungsprüfung</h1>
+<p class="unter">Diese Seite verändert nichts. Sie prüft nur, was dieser Browser an diesem Ort darf.</p>
+
+<div class="hinweis">
+  <b>Ablauf:</b> 1. Diese Seite in <u>denselben Ordner</u> legen wie das Cockpit und von dort öffnen.
+  2. Unten auf <b>„Datei wählen“</b> klicken und <b>kalender-daten.json</b> auswählen.
+  3. Danach <b>F5</b> drücken – die Seite prüft dann von allein, ob sie sich die Datei gemerkt hat.
+  4. Auf <b>„Bericht kopieren“</b> klicken und den Text schicken.
+</div>
+
+<div class="karte">
+  <h2>1 · Herkunft der Seite</h2>
+  <div id="k1"></div>
+</div>
+
+<div class="karte">
+  <h2>2 · Lokaler Speicher</h2>
+  <div id="k2"></div>
+</div>
+
+<div class="karte">
+  <h2>3 · Datei merken (der entscheidende Punkt)</h2>
+  <div id="k3"></div>
+  <div style="margin-top:14px">
+    <button class="haupt" id="btnWaehlen">Datei wählen</button>
+    <button id="btnLeeren">Merker leeren</button>
+  </div>
+</div>
+
+<div class="karte">
+  <h2>4 · Bericht</h2>
+  <textarea id="bericht" readonly></textarea>
+  <div style="margin-top:10px"><button class="haupt" id="btnKopieren">Bericht kopieren</button></div>
+</div>
+
+</div>
+<script>
+(function () {
+  "use strict";
+
+  var DB = "diagnose-cockpit";
+  var STORE = "merker";
+  var zeilen = [];
+
+  function schreibe(ziel, name, wert, art) {
+    var d = document.createElement("div");
+    d.className = "zeile";
+    d.innerHTML = '<div class="name"></div><div class="wert"></div>';
+    d.children[0].textContent = name;
+    d.children[1].textContent = String(wert);
+    if (art) d.children[1].className = "wert " + art;
+    document.getElementById(ziel).appendChild(d);
+    zeilen.push(name + ": " + wert);
+    bericht();
+  }
+
+  function bericht() {
+    document.getElementById("bericht").value = zeilen.join("\n");
+  }
+
+  function fehlertext(e) {
+    if (!e) return "unbekannt";
+    return (e.name || "Fehler") + ": " + (e.message || String(e));
+  }
+
+  /* ---------- 1 · Herkunft ---------- */
+  schreibe("k1", "Adresse", location.href);
+  schreibe("k1", "Protokoll", location.protocol,
+           location.protocol === "file:" ? "warn" : "ok");
+  schreibe("k1", "Herkunft (origin)", String(location.origin),
+           (location.origin === "null" || location.origin === "file://") ? "warn" : "ok");
+  schreibe("k1", "Sicherer Kontext", window.isSecureContext ? "ja" : "nein",
+           window.isSecureContext ? "ok" : "fehl");
+  schreibe("k1", "Datei-Schnittstelle vorhanden",
+           (window.showOpenFilePicker && window.showSaveFilePicker) ? "ja" : "nein",
+           (window.showOpenFilePicker && window.showSaveFilePicker) ? "ok" : "fehl");
+  schreibe("k1", "Browser", navigator.userAgent);
+
+  /* ---------- 2 · Lokaler Speicher ---------- */
+  try {
+    localStorage.setItem("diagnose-probe", "1");
+    var gelesen = localStorage.getItem("diagnose-probe");
+    localStorage.removeItem("diagnose-probe");
+    schreibe("k2", "localStorage", gelesen === "1" ? "funktioniert" : "antwortet falsch",
+             gelesen === "1" ? "ok" : "fehl");
+  } catch (e) {
+    schreibe("k2", "localStorage", "GESPERRT – " + fehlertext(e), "fehl");
+  }
+
+  try {
+    var vorhanden = Object.keys(localStorage).filter(function (k) {
+      return k.indexOf("werkstatt") === 0;
+    });
+    schreibe("k2", "Cockpit-Daten im localStorage",
+             vorhanden.length ? vorhanden.join(", ") : "keine gefunden",
+             vorhanden.length ? "ok" : "warn");
+  } catch (e) { /* schon oben gemeldet */ }
+
+  function idbOeffnen() {
+    return new Promise(function (ok, fehl) {
+      var r;
+      try { r = indexedDB.open(DB, 1); }
+      catch (e) { fehl(e); return; }
+      r.onupgradeneeded = function () {
+        if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE);
+      };
+      r.onsuccess = function () { ok(r.result); };
+      r.onerror = function () { fehl(r.error); };
+      r.onblocked = function () { fehl(new Error("blockiert")); };
+    });
+  }
+  function idbSchreiben(schluessel, wert) {
+    return idbOeffnen().then(function (db) {
+      return new Promise(function (ok, fehl) {
+        var tx = db.transaction(STORE, "readwrite");
+        try { tx.objectStore(STORE).put(wert, schluessel); }
+        catch (e) { db.close(); fehl(e); return; }
+        tx.oncomplete = function () { db.close(); ok(); };
+        tx.onerror = function () { db.close(); fehl(tx.error); };
+        tx.onabort = function () { db.close(); fehl(tx.error || new Error("abgebrochen")); };
+      });
+    });
+  }
+  function idbLesen(schluessel) {
+    return idbOeffnen().then(function (db) {
+      return new Promise(function (ok, fehl) {
+        var tx = db.transaction(STORE, "readonly");
+        var r = tx.objectStore(STORE).get(schluessel);
+        r.onsuccess = function () { db.close(); ok(r.result); };
+        r.onerror = function () { db.close(); fehl(r.error); };
+      });
+    });
+  }
+
+  /* ---------- 3 · Datei merken ---------- */
+  var idbLaeuft = false;
+
+  idbSchreiben("probe", { zeit: Date.now() })
+    .then(function () { return idbLesen("probe"); })
+    .then(function (w) {
+      idbLaeuft = !!(w && w.zeit);
+      schreibe("k2", "IndexedDB", idbLaeuft ? "funktioniert" : "antwortet falsch",
+               idbLaeuft ? "ok" : "fehl");
+      return idbLesen("handle");
+    })
+    .catch(function (e) {
+      schreibe("k2", "IndexedDB", "GESPERRT – " + fehlertext(e), "fehl");
+      return null;
+    })
+    .then(function (h) {
+      if (!h) {
+        schreibe("k3", "Gemerkte Datei aus vorherigem Aufruf", "keine vorhanden", "warn");
+        schreibe("k3", "Nächster Schritt", "unten auf „Datei wählen“ klicken");
+        return;
+      }
+      schreibe("k3", "Gemerkte Datei aus vorherigem Aufruf", h.name + " – ÜBERLEBT DAS NEULADEN", "ok");
+      return h.queryPermission({ mode: "readwrite" })
+        .then(function (p) {
+          schreibe("k3", "Schreibrecht laut Browser (ohne Nachfrage)", p,
+                   p === "granted" ? "ok" : "warn");
+        })
+        .catch(function (e) {
+          schreibe("k3", "Schreibrecht abfragen", "FEHLER – " + fehlertext(e), "fehl");
+        })
+        .then(function () {
+          return h.getFile()
+            .then(function (f) {
+              schreibe("k3", "Datei wirklich lesbar", "ja, " + f.size + " Bytes", "ok");
+            })
+            .catch(function (e) {
+              schreibe("k3", "Datei wirklich lesbar", "nein – " + fehlertext(e), "warn");
+            });
+        });
+    })
+    .catch(function (e) {
+      schreibe("k3", "Merker prüfen", "FEHLER – " + fehlertext(e), "fehl");
+    });
+
+  document.getElementById("btnWaehlen").addEventListener("click", function () {
+    if (!window.showOpenFilePicker) {
+      schreibe("k3", "Datei wählen", "Diese Schnittstelle fehlt im Browser", "fehl");
+      return;
+    }
+    window.showOpenFilePicker({ multiple: false })
+      .then(function (liste) {
+        var h = liste[0];
+        schreibe("k3", "Ausgewählte Datei", h.name, "ok");
+
+        // a) Lässt sich der Verweis überhaupt weiterreichen? Das ist die Technik,
+        //    mit der die IndexedDB ihn ablegt. Scheitert das hier, kann sich
+        //    keine Anwendung der Welt die Datei merken.
+        try {
+          structuredClone(h);
+          schreibe("k3", "Verweis kopierbar (structuredClone)", "ja", "ok");
+        } catch (e) {
+          schreibe("k3", "Verweis kopierbar (structuredClone)", "NEIN – " + fehlertext(e), "fehl");
+        }
+
+        // b) Schreibrecht ohne Umweg erfragen – genau der Aufruf, der im
+        //    Cockpit die rote Meldung erzeugt.
+        return h.requestPermission({ mode: "readwrite" })
+          .then(function (p) {
+            schreibe("k3", "Schreibrecht auf Nachfrage", p, p === "granted" ? "ok" : "warn");
+          })
+          .catch(function (e) {
+            schreibe("k3", "Schreibrecht auf Nachfrage", "FEHLER – " + fehlertext(e), "fehl");
+          })
+          .then(function () {
+            // c) In die IndexedDB legen – überlebt es das Neuladen?
+            return idbSchreiben("handle", h)
+              .then(function () {
+                schreibe("k3", "Verweis in IndexedDB abgelegt", "ja – jetzt bitte F5 drücken", "ok");
+              })
+              .catch(function (e) {
+                schreibe("k3", "Verweis in IndexedDB abgelegt", "NEIN – " + fehlertext(e), "fehl");
+              });
+          });
+      })
+      .catch(function (e) {
+        schreibe("k3", "Datei wählen", "abgebrochen oder Fehler – " + fehlertext(e), "warn");
+      });
+  });
+
+  document.getElementById("btnLeeren").addEventListener("click", function () {
+    idbSchreiben("handle", undefined)
+      .then(function () { schreibe("k3", "Merker geleert", "ok"); })
+      .catch(function (e) { schreibe("k3", "Merker leeren", fehlertext(e), "fehl"); });
+  });
+
+  document.getElementById("btnKopieren").addEventListener("click", function () {
+    var t = document.getElementById("bericht");
+    t.select();
+    try { document.execCommand("copy"); } catch (e) { /* dann eben von Hand */ }
+    if (navigator.clipboard) navigator.clipboard.writeText(t.value).catch(function () {});
+  });
+})();
+</script>
+</body>
+</html>
