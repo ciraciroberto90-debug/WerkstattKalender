@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rundreise-Test über HTTPS</title>
+<style>
+  :root {
+    --grund:#f2f5f8; --karte:#ffffff; --linie:#d9e0e8;
+    --text:#0e1419; --leise:#5a6772;
+    --akzent:#2f5d8a; --akzent-schwach:#e6eef6;
+    --gut:#1a7346; --still:#a02a2c; --warte:#8a6410;
+    --schrift:"Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:Consolas,"SF Mono",ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --grund:#12171c; --karte:#1a2128; --linie:#2b343d;
+      --text:#e4eaf0; --leise:#94a1ad;
+      --akzent:#7fb0e0; --akzent-schwach:#1e2c3a;
+      --gut:#4fbc85; --still:#ea7d78; --warte:#d3a441;
+    }
+  }
+  :root[data-theme="dark"] {
+    --grund:#12171c; --karte:#1a2128; --linie:#2b343d;
+    --text:#e4eaf0; --leise:#94a1ad;
+    --akzent:#7fb0e0; --akzent-schwach:#1e2c3a;
+    --gut:#4fbc85; --still:#ea7d78; --warte:#d3a441;
+  }
+  :root[data-theme="light"] {
+    --grund:#f2f5f8; --karte:#ffffff; --linie:#d9e0e8;
+    --text:#0e1419; --leise:#5a6772;
+    --akzent:#2f5d8a; --akzent-schwach:#e6eef6;
+    --gut:#1a7346; --still:#a02a2c; --warte:#8a6410;
+  }
+
+  body { background:var(--grund); color:var(--text); font-family:var(--schrift);
+         margin:0; padding:36px 20px 80px; line-height:1.55; }
+  .blatt { max-width:700px; margin:0 auto; display:flex; flex-direction:column; gap:20px; }
+
+  header h1 { font-size:26px; margin:0 0 6px; letter-spacing:-0.01em; text-wrap:balance; }
+  header p { margin:0; color:var(--leise); font-size:15px; }
+
+  .karte { background:var(--karte); border:1px solid var(--linie); border-radius:10px; padding:22px 24px; }
+  .karte h2 { font-size:13px; text-transform:uppercase; letter-spacing:0.07em;
+              color:var(--leise); margin:0 0 14px; font-weight:700; }
+  .karte p { margin:0 0 12px; font-size:15px; }
+  .karte p:last-child { margin-bottom:0; }
+
+  .werte { display:flex; flex-direction:column; }
+  .w { display:flex; gap:16px; padding:7px 0; border-bottom:1px solid var(--linie); font-size:14px; align-items:baseline; }
+  .w:last-child { border-bottom:0; }
+  .w .bez { flex:1 1 auto; color:var(--leise); }
+  .w .val { flex:0 0 auto; font-family:var(--mono); font-variant-numeric:tabular-nums;
+            text-align:right; max-width:60%; overflow-wrap:anywhere; }
+  .val.gut { color:var(--gut); font-weight:600; }
+  .val.still { color:var(--still); font-weight:600; }
+  .val.warte { color:var(--warte); font-weight:600; }
+
+  button { font-family:inherit; font-size:16px; font-weight:600; padding:13px 24px;
+           border-radius:8px; border:1px solid var(--akzent); background:var(--akzent);
+           color:var(--karte); cursor:pointer; }
+  :root[data-theme="dark"] button, :root:not([data-theme]) button { color:var(--grund); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme]) button { color:#fff; } }
+  :root[data-theme="light"] button { color:#fff; }
+  button.zweit { background:transparent; color:var(--akzent); }
+  button:disabled { opacity:.45; cursor:default; }
+  button:focus-visible { outline:3px solid var(--akzent); outline-offset:2px; }
+
+  .urteil { border-radius:10px; padding:20px 22px; border:1px solid; }
+  .urteil h3 { margin:0 0 8px; font-size:18px; }
+  .urteil p { margin:0; font-size:15px; }
+  .u-gut { border-color:var(--gut); background:color-mix(in srgb, var(--gut) 10%, transparent); }
+  .u-still { border-color:var(--still); background:color-mix(in srgb, var(--still) 10%, transparent); }
+
+  .warnung { border:1px solid var(--warte); border-radius:10px; padding:18px 20px;
+             background:color-mix(in srgb, var(--warte) 12%, transparent); }
+  textarea { width:100%; box-sizing:border-box; height:220px; font-family:var(--mono); font-size:12px;
+             border:1px solid var(--linie); border-radius:8px; padding:10px;
+             background:var(--grund); color:var(--text); margin-top:10px; }
+  .fuss { color:var(--leise); font-size:13px; }
+  code { font-family:var(--mono); font-size:0.92em; background:var(--akzent-schwach);
+         padding:1px 5px; border-radius:4px; }
+</style>
+
+</head>
+<body>
+<div class="blatt">
+  <header>
+    <h1>Rundreise-Test über HTTPS</h1>
+    <p>Prüft die eine Frage, die noch offen ist: Überlebt ein Dateiverweis den Weg durch die Datenbank, wenn die Seite über eine echte Adresse geöffnet wird?</p>
+  </header>
+
+  <div id="bereich"></div>
+
+  <p class="fuss">Diese Seite lädt nichts hoch. Sie öffnet eine Datei auf deinem Rechner, liest sie und misst, wie lange der Browser dafür braucht. Nimm die <code>cockpit-schreibtest.json</code> – keine echten Daten nötig.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var FRIST = 60000;
+  var DB = "rundreise-https", STORE = "merker";
+  var log = [];
+  try { log = JSON.parse(sessionStorage.getItem("rr-log") || "[]"); } catch (e) { log = []; }
+  var phase = sessionStorage.getItem("rr-phase") || "start";
+  var bereich = document.getElementById("bereich");
+
+  function sichere() {
+    try {
+      sessionStorage.setItem("rr-log", JSON.stringify(log));
+      sessionStorage.setItem("rr-phase", phase);
+    } catch (e) {}
+  }
+  function fehlertext(e) { return e ? ((e.name || "Fehler") + ": " + (e.message || String(e))) : "unbekannt"; }
+
+  function karte(titel, innen) {
+    var d = document.createElement("div");
+    d.className = "karte";
+    d.innerHTML = (titel ? '<h2>' + titel + '</h2>' : "") + innen;
+    bereich.appendChild(d);
+    return d;
+  }
+  function werteListe(ziel) {
+    var l = document.createElement("div");
+    l.className = "werte";
+    ziel.appendChild(l);
+    return l;
+  }
+  function zeile(liste, bez, val, art) {
+    var d = document.createElement("div");
+    d.className = "w";
+    d.innerHTML = '<span class="bez"></span><span class="val"></span>';
+    d.children[0].textContent = bez;
+    d.children[1].textContent = val;
+    if (art) d.children[1].className = "val " + art;
+    liste.appendChild(d);
+    return d.children[1];
+  }
+  function notiere(bez, val) { log.push(bez + ": " + val); sichere(); }
+
+  function messen(liste, bez, bauer) {
+    var feld = zeile(liste, bez, "läuft … 0 s", "warte");
+    var t0 = Date.now(), fertig = false;
+    var uhr = setInterval(function () {
+      if (!fertig) feld.textContent = "läuft … " + Math.round((Date.now() - t0) / 1000) + " s";
+    }, 500);
+    return new Promise(function (ok) {
+      function ende(text, art, ergebnis) {
+        if (fertig) return;
+        fertig = true; clearInterval(uhr);
+        var ms = Date.now() - t0;
+        feld.textContent = text + "  [" + ms + " ms]";
+        feld.className = "val " + art;
+        notiere(bez, text + " [" + ms + " ms]");
+        ok({ art: ergebnis, ms: ms });
+      }
+      var t = setTimeout(function () { ende("keine Antwort (" + (FRIST / 1000) + " s)", "still", "still"); }, FRIST);
+      var p;
+      try { p = bauer(); } catch (e) { clearTimeout(t); ende(fehlertext(e), "still", "fehler"); return; }
+      Promise.resolve(p).then(function (w) {
+        clearTimeout(t);
+        var text = (w && typeof w === "object") ? w.__text : String(w);
+        ende(text, "gut", "ok");
+      }, function (e) { clearTimeout(t); ende(fehlertext(e), "still", "fehler"); });
+    });
+  }
+
+  function idbOeffnen() {
+    return new Promise(function (ok, fehl) {
+      var r = indexedDB.open(DB, 1);
+      r.onupgradeneeded = function () {
+        if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE);
+      };
+      r.onsuccess = function () { ok(r.result); };
+      r.onerror = function () { fehl(r.error); };
+    });
+  }
+  function idbPut(k, w) {
+    return idbOeffnen().then(function (db) {
+      return new Promise(function (ok, fehl) {
+        var tx = db.transaction(STORE, "readwrite");
+        try { tx.objectStore(STORE).put(w, k); } catch (e) { db.close(); fehl(e); return; }
+        tx.oncomplete = function () { db.close(); ok(); };
+        tx.onerror = function () { db.close(); fehl(tx.error); };
+      });
+    });
+  }
+  function idbGet(k) {
+    return idbOeffnen().then(function (db) {
+      return new Promise(function (ok, fehl) {
+        var tx = db.transaction(STORE, "readonly");
+        var r = tx.objectStore(STORE).get(k);
+        r.onsuccess = function () { db.close(); ok(r.result); };
+        r.onerror = function () { db.close(); fehl(r.error); };
+      });
+    });
+  }
+
+  function pruefe(liste, bez, h) {
+    return Promise.all([
+      messen(liste, bez + " · Leserecht", function () {
+        return h.queryPermission({ mode: "read" }).then(function (p) { return { __text: p }; });
+      }),
+      messen(liste, bez + " · Datei öffnen", function () {
+        return h.getFile().then(function (f) { return { __text: f.size + " Bytes" }; });
+      }),
+      messen(liste, bez + " · Inhalt lesen", function () {
+        return h.getFile().then(function (f) { return f.text(); })
+          .then(function (t) { return { __text: t.length + " Zeichen" }; });
+      }),
+    ]);
+  }
+
+  function umgebung() {
+    var k = karte("Diese Seite", "");
+    var l = werteListe(k);
+    zeile(l, "Adresse", location.origin, location.protocol === "https:" ? "gut" : "still");
+    zeile(l, "Sicherer Kontext", window.isSecureContext ? "ja" : "nein", window.isSecureContext ? "gut" : "still");
+    zeile(l, "Datei-Schnittstelle", window.showOpenFilePicker ? "vorhanden" : "fehlt",
+          window.showOpenFilePicker ? "gut" : "still");
+    zeile(l, "In einem Rahmen", (window.top !== window.self) ? "ja" : "nein",
+          (window.top !== window.self) ? "still" : "gut");
+    notiere("Adresse", location.origin);
+    notiere("Sicherer Kontext", window.isSecureContext ? "ja" : "nein");
+    notiere("Im Rahmen", (window.top !== window.self) ? "ja" : "nein");
+  }
+
+  function zeigeStart() {
+    bereich.innerHTML = "";
+    umgebung();
+    if (!window.showOpenFilePicker) {
+      karte("", '<div class="warnung"><b>Die Datei-Auswahl steht hier nicht zur Verfügung.</b><br>' +
+        'Der Browser stellt <code>showOpenFilePicker</code> auf dieser Seite gar nicht bereit. ' +
+        'Damit lässt sich der Test hier nicht durchführen – bitte melden, dann nehme ich einen anderen Weg.</div>');
+      return;
+    }
+    if (window.top !== window.self) {
+      karte("", '<div class="warnung"><b>Diese Seite läuft in einem Rahmen.</b><br>' +
+        'Das kann die Datei-Auswahl blockieren – muss es aber nicht. ' +
+        'Probier den Knopf einfach: Entweder der Dialog geht auf, oder es erscheint eine Fehlermeldung. ' +
+        'Beides ist ein verwertbares Ergebnis.</div>');
+    }
+    var k = karte("Messung", '<p>Es wird eine Datei geöffnet, in die Datenbank gelegt und <b>sofort wieder herausgeholt</b>. ' +
+      'Beide Fassungen werden geprüft. Danach lädt die Seite neu und prüft die gemerkte Fassung noch einmal.</p>' +
+      '<p>Am Arbeitsplatz stirbt der Verweis genau bei dieser Rundreise. Hier zeigt sich, ob die Adresse der Seite daran schuld ist.</p>');
+    var b = document.createElement("button");
+    b.textContent = "Datei wählen und messen";
+    k.appendChild(b);
+    b.onclick = function () {
+      b.disabled = true;
+      window.showOpenFilePicker({ multiple: false }).then(function (l) {
+        var h = l[0];
+        var mk = karte("Ergebnis", "");
+        var liste = werteListe(mk);
+        zeile(liste, "Gewählte Datei", h.name);
+        notiere("Datei", h.name);
+        return pruefe(liste, "frisch gewählt", h)
+          .then(function () { return idbPut("h", h); })
+          .then(function () { return idbGet("h"); })
+          .then(function (zurueck) {
+            if (!zurueck) { zeile(liste, "zurückgeholt", "nichts erhalten", "still"); return; }
+            return pruefe(liste, "aus der Datenbank", zurueck);
+          })
+          .then(function () {
+            phase = "nachher"; sichere();
+            var w = document.createElement("button");
+            w.textContent = "Jetzt neu laden und noch einmal prüfen";
+            mk.appendChild(w);
+            w.onclick = function () { location.reload(); };
+          });
+      }).catch(function (e) {
+        karte("", '<p>Auswahl abgebrochen oder fehlgeschlagen: ' + fehlertext(e) + '</p>');
+        b.disabled = false;
+      });
+    };
+  }
+
+  function zeigeNachher() {
+    bereich.innerHTML = "";
+    umgebung();
+    var k = karte("Nach dem Neuladen", '<p>Der gemerkte Verweis wird jetzt geprüft – ohne dass die Datei erneut ausgewählt wurde.</p>');
+    var liste = werteListe(k);
+    idbGet("h").then(function (h) {
+      if (!h) { zeile(liste, "gemerkter Verweis", "keiner vorhanden", "still"); return; }
+      zeile(liste, "gemerkter Verweis", h.name, "gut");
+      notiere("nach Neuladen – Verweis", h.name);
+      return pruefe(liste, "nach dem Neuladen", h);
+    }).then(function () {
+      var gut = 0, still = 0;
+      log.forEach(function (z) {
+        if (z.indexOf("nach dem Neuladen") !== 0 && z.indexOf("aus der Datenbank") !== 0) return;
+        if (/keine Antwort|NotAllowed|Fehler/.test(z)) still++; else gut++;
+      });
+      var u = document.createElement("div");
+      u.className = "urteil " + (still === 0 && gut > 0 ? "u-gut" : "u-still");
+      u.innerHTML = still === 0 && gut > 0
+        ? '<h3>Über HTTPS überlebt der Verweis</h3><p>Dieselbe Rundreise, die am Arbeitsplatz tot endet, funktioniert hier. Damit ist die Adresse der Seite die Ursache – und der Umzug auf eine interne HTTPS-Adresse löst es wirklich.</p>'
+        : '<h3>Auch über HTTPS stirbt der Verweis</h3><p>Dann liegt es nicht an der Adresse. Der Umzug würde nichts bringen – die IT-Anfrage ist damit vom Tisch, und wir suchen weiter.</p>';
+      bereich.insertBefore(u, bereich.firstChild);
+
+      var bk = karte("Bericht", '<p>Kopieren und schicken.</p>');
+      var ta = document.createElement("textarea");
+      ta.readOnly = true;
+      ta.value = "RUNDREISE ÜBER HTTPS\n" + new Date().toISOString() + "\n------------------------------\n" + log.join("\n");
+      bk.appendChild(ta);
+      var kb = document.createElement("button");
+      kb.textContent = "Bericht kopieren";
+      kb.onclick = function () {
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        if (navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(function () {});
+        kb.textContent = "Kopiert ✓";
+      };
+      bk.appendChild(kb);
+      var nb = document.createElement("button");
+      nb.className = "zweit";
+      nb.textContent = "Neu beginnen";
+      nb.onclick = function () {
+        try { sessionStorage.removeItem("rr-log"); sessionStorage.removeItem("rr-phase"); } catch (e) {}
+        log = []; phase = "start"; zeigeStart();
+      };
+      bk.appendChild(nb);
+    });
+  }
+
+  if (phase === "nachher") zeigeNachher(); else zeigeStart();
+})();
+</script>
+
+</body>
+</html>
