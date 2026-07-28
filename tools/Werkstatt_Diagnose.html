@@ -52,12 +52,18 @@
   <div id="k3"></div>
   <div style="margin-top:14px">
     <button class="haupt" id="btnWaehlen">Datei wählen</button>
+    <button class="haupt" id="btnRechte" style="display:none">Schreibrecht für die gemerkte Datei anfordern</button>
     <button id="btnLeeren">Merker leeren</button>
   </div>
 </div>
 
 <div class="karte">
-  <h2>4 · Bericht</h2>
+  <h2>4 · Was das Cockpit selbst gemerkt hat</h2>
+  <div id="k4"></div>
+</div>
+
+<div class="karte">
+  <h2>5 · Bericht</h2>
   <textarea id="bericht" readonly></textarea>
   <div style="margin-top:10px"><button class="haupt" id="btnKopieren">Bericht kopieren</button></div>
 </div>
@@ -163,6 +169,7 @@
 
   /* ---------- 3 · Datei merken ---------- */
   var idbLaeuft = false;
+  var gemerkt = null;   // der aus der IndexedDB zurueckgeholte Verweis
 
   idbSchreiben("probe", { zeit: Date.now() })
     .then(function () { return idbLesen("probe"); })
@@ -183,6 +190,8 @@
         return;
       }
       schreibe("k3", "Gemerkte Datei aus vorherigem Aufruf", h.name + " – ÜBERLEBT DAS NEULADEN", "ok");
+      gemerkt = h;
+      document.getElementById("btnRechte").style.display = "";
       return h.queryPermission({ mode: "readwrite" })
         .then(function (p) {
           schreibe("k3", "Schreibrecht laut Browser (ohne Nachfrage)", p,
@@ -249,6 +258,87 @@
         schreibe("k3", "Datei wählen", "abgebrochen oder Fehler – " + fehlertext(e), "warn");
       });
   });
+
+  // Der Knopf, den es im Cockpit als "Jetzt verbinden" gibt. Wichtig: hier
+  // haengt die Frage an einem Verweis, der aus der Datenbank kam - nicht an
+  // einem, der gerade frisch aus dem Dateidialog fiel. Genau darin koennen
+  // sich die beiden Faelle unterscheiden.
+  document.getElementById("btnRechte").addEventListener("click", function () {
+    if (!gemerkt) return;
+    gemerkt.requestPermission({ mode: "readwrite" })
+      .then(function (p) {
+        schreibe("k3", "Nachfrage auf GEMERKTEN Verweis", p, p === "granted" ? "ok" : "warn");
+        return gemerkt.getFile().then(function (f) {
+          schreibe("k3", "Danach lesbar", "ja, " + f.size + " Bytes", "ok");
+        });
+      })
+      .catch(function (e) {
+        schreibe("k3", "Nachfrage auf GEMERKTEN Verweis", "FEHLER – " + fehlertext(e), "fehl");
+      });
+  });
+
+  /* ---------- 4 · Die Datenbanken des Cockpits ---------- */
+  // Nur lesen: open() ohne Versionsnummer nimmt die vorhandene Version und
+  // loest keine Umstellung aus.
+  function cockpitPruefen(name) {
+    return new Promise(function (ok) {
+      var r;
+      try { r = indexedDB.open(name); }
+      catch (e) { schreibe("k4", name, "GESPERRT – " + fehlertext(e), "fehl"); ok(); return; }
+      r.onerror = function () { schreibe("k4", name, "Fehler – " + fehlertext(r.error), "fehl"); ok(); };
+      r.onsuccess = function () {
+        var db = r.result;
+        if (!db.objectStoreNames.contains("handles")) {
+          schreibe("k4", name, "vorhanden, aber ohne Ablage „handles“", "warn");
+          db.close(); ok(); return;
+        }
+        var tx = db.transaction("handles", "readonly");
+        var q = tx.objectStore("handles").get("handle");
+        q.onsuccess = function () {
+          var h = q.result;
+          if (!h) {
+            schreibe("k4", name, "KEIN Verweis gespeichert", "fehl");
+            db.close(); ok(); return;
+          }
+          schreibe("k4", name, "Verweis gespeichert: " + h.name, "ok");
+          var pruefung = h.queryPermission
+            ? h.queryPermission({ mode: "readwrite" })
+            : Promise.resolve("kein queryPermission");
+          pruefung
+            .then(function (p) { schreibe("k4", name + " – Recht ohne Nachfrage", p, p === "granted" ? "ok" : "warn"); })
+            .catch(function (e) { schreibe("k4", name + " – Recht ohne Nachfrage", "FEHLER – " + fehlertext(e), "fehl"); })
+            .then(function () { db.close(); ok(); });
+        };
+        q.onerror = function () { schreibe("k4", name, "Lesefehler – " + fehlertext(q.error), "fehl"); db.close(); ok(); };
+      };
+    });
+  }
+
+  // Erst nachsehen, WELCHE Datenbanken es gibt. Ein open() auf einen
+  // unbekannten Namen wuerde die Datenbank anlegen - eine Pruefung, die
+  // etwas erschafft, misst nicht mehr den Zustand von vorher.
+  (function () {
+    var namen = ["werkstatt-kalender-fs", "werkstatt-stoerungen-fs"];
+    if (!indexedDB.databases) {
+      schreibe("k4", "Vorhandene Datenbanken", "dieser Browser verrät es nicht – wird übersprungen", "warn");
+      return;
+    }
+    indexedDB.databases().then(function (liste) {
+      var da = liste.map(function (d) { return d.name; });
+      schreibe("k4", "Vorhandene Datenbanken",
+               liste.map(function (d) { return d.name + " (v" + d.version + ")"; }).join(", ") || "keine");
+      var kette = Promise.resolve();
+      namen.forEach(function (n) {
+        kette = kette.then(function () {
+          if (da.indexOf(n) < 0) { schreibe("k4", n, "nicht vorhanden", "fehl"); return; }
+          return cockpitPruefen(n);
+        });
+      });
+      return kette;
+    }).catch(function (e) {
+      schreibe("k4", "Datenbanken auflisten", fehlertext(e), "fehl");
+    });
+  })();
 
   document.getElementById("btnLeeren").addEventListener("click", function () {
     idbSchreiben("handle", undefined)
