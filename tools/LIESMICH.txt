@@ -1,0 +1,39 @@
+WERKSTATT-COCKPIT - Einrichtung auf einem Arbeitsplatz
+======================================================
+
+Diesen Ordner "Cockpit" irgendwohin auf den Rechner legen -
+Desktop oder C:\Werkstatt, beides recht. NICHT in den
+Netzwerkordner; dort werden keine Rechte gebraucht.
+
+  1. Doppelklick auf  "Cockpit starten.cmd"
+     Ein schwarzes Fenster oeffnet sich, der Browser startet das
+     Cockpit ueber http://localhost:8765/
+
+  2. Im Cockpit oben rechts das Ordnersymbol anklicken und die
+     Datei  werkstatt-kalender-daten.json  verbinden.
+
+  3. Im Reiter Stoerungen ebenso die Datei
+     werkstatt-stoerungen.json  verbinden.
+
+  4. Unter dem Zahnrad den eigenen NAMEN eintragen.
+     Der ist absichtlich geraeteweise gespeichert und kommt
+     nicht aus der gemeinsamen Datei.
+
+  5. Probe: F5 druecken. Bleibt die Verbindung stehen, passt es.
+
+Das schwarze Fenster offen lassen, solange gearbeitet wird.
+Es darf minimiert werden.
+
+Damit es beim Anmelden von allein startet:
+  Rechtsklick auf "Cockpit starten.cmd" -> Verknuepfung erstellen
+  Rechtsklick auf die Verknuepfung -> Eigenschaften -> Ausfuehren:
+    Minimiert -> OK
+  Windows-Taste + R -> shell:startup -> Eingabetaste
+  Verknuepfung in den geoeffneten Ordner ziehen
+
+Ausfuehrliche Fassung: Anleitung.md
+
+Wenn etwas klemmt:
+  "Ausfuehrung von Skripts ist deaktiviert"  -> bei Roberto melden
+  "Ordner nicht erreichbar"                  -> Netzlaufwerk verbinden,
+                                                dann erneut starten
