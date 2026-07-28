@@ -3,193 +3,172 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Werkstatt-Cockpit – Umgebungsprüfung (Fassung 4)</title>
+<title>Werkstatt-Cockpit – Diagnose</title>
 <style>
-  body { font-family: Segoe UI, system-ui, sans-serif; margin:0; background:#f1f5f9; color:#0f172a; }
-  .rahmen { max-width: 1000px; margin:0 auto; padding:24px 18px 80px; }
-  h1 { font-size:22px; margin:0 0 4px; }
-  p.unter { margin:0 0 18px; color:#475569; font-size:14px; }
-  .karte { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; margin-bottom:14px; }
-  .karte h2 { font-size:15px; margin:0 0 4px; color:#334155; text-transform:uppercase; letter-spacing:.04em; }
-  .karte p.hilf { font-size:13px; color:#64748b; margin:0 0 12px; }
-  .zeile { display:flex; gap:10px; align-items:flex-start; padding:5px 0; border-bottom:1px solid #f1f5f9; font-size:14px; }
+  body { font-family: Segoe UI, system-ui, sans-serif; margin:0; background:#eef2f6; color:#0f172a; }
+  .rahmen { max-width:820px; margin:0 auto; padding:28px 18px 70px; }
+  .kopf { display:flex; align-items:baseline; gap:12px; margin-bottom:18px; }
+  .kopf h1 { font-size:20px; margin:0; }
+  .kopf .schritt { font-size:13px; color:#64748b; font-weight:600; }
+  .balken { height:6px; background:#dbe3ec; border-radius:3px; overflow:hidden; margin-bottom:22px; }
+  .balken i { display:block; height:100%; background:#1d4ed8; width:0; transition:width .3s; }
+  .karte { background:#fff; border:1px solid #dbe3ec; border-radius:12px; padding:26px 26px 22px; }
+  .karte h2 { font-size:22px; margin:0 0 10px; }
+  .karte p { font-size:15px; line-height:1.55; margin:0 0 14px; color:#334155; }
+  .karte p.klein { font-size:13px; color:#64748b; }
+  .waehl { background:#f1f5f9; border:1px solid #dbe3ec; border-radius:8px; padding:14px 16px; margin:16px 0; font-size:15px; }
+  .waehl b { display:block; font-size:16px; margin-bottom:4px; }
+  button { font-size:16px; padding:12px 22px; border-radius:9px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; margin:6px 8px 0 0; }
+  button.haupt { background:#1d4ed8; color:#fff; border-color:#1d4ed8; font-weight:600; }
+  button.leise { font-size:14px; padding:9px 14px; color:#64748b; }
+  button:disabled { opacity:.5; cursor:default; }
+  .lauf { margin-top:18px; border-top:1px solid #eef2f6; padding-top:12px; }
+  .zeile { display:flex; gap:10px; padding:4px 0; font-size:13px; border-bottom:1px solid #f5f8fa; }
   .zeile:last-child { border-bottom:0; }
-  .zeile .name { flex:0 0 300px; color:#475569; }
-  .zeile .wert { flex:1; font-family:Consolas,monospace; word-break:break-all; }
-  .ok { color:#15803d; font-weight:600; } .fehl { color:#b91c1c; font-weight:600; }
-  .warn { color:#b45309; font-weight:600; } .laeuft { color:#1d4ed8; font-weight:600; }
-  button { font-size:14px; padding:8px 14px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; margin:4px 6px 4px 0; }
-  button.haupt { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
-  button:disabled { opacity:.45; cursor:default; }
-  #bericht { width:100%; height:340px; font-family:Consolas,monospace; font-size:12px; border:1px solid #cbd5e1; border-radius:8px; padding:10px; }
-  .hinweis { background:#fefce8; border:1px solid #fde68a; border-radius:8px; padding:12px 14px; font-size:14px; margin-bottom:14px; }
-  .schacht { border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:10px; }
-  .schacht h3 { font-size:14px; margin:0 0 2px; }
-  .schacht .wo { font-size:12px; color:#64748b; margin:0 0 8px; }
-  #stand { font-size:15px; font-weight:600; margin-top:10px; }
+  .zeile .n { flex:0 0 300px; color:#64748b; }
+  .zeile .w { flex:1; font-family:Consolas,monospace; word-break:break-all; }
+  .ok{color:#15803d;font-weight:600} .fehl{color:#b91c1c;font-weight:600}
+  .warn{color:#b45309;font-weight:600} .laeuft{color:#1d4ed8;font-weight:600}
+  .urteil { border-radius:10px; padding:18px 20px; margin-bottom:18px; font-size:16px; line-height:1.5; }
+  .urteil h3 { margin:0 0 8px; font-size:17px; }
+  .u-gut { background:#eaf7ef; border:1px solid #7cc79a; }
+  .u-schlecht { background:#fdecec; border:1px solid #e6a2a2; }
+  .u-neutral { background:#eef4fb; border:1px solid #a8c4e6; }
+  textarea { width:100%; height:300px; font-family:Consolas,monospace; font-size:12px;
+             border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-top:6px; }
+  .hint { font-size:13px; color:#64748b; margin-top:14px; }
 </style>
 </head>
 <body>
 <div class="rahmen">
-
-<h1>Werkstatt-Cockpit – Umgebungsprüfung <span style="font-size:14px;color:#64748b">(Fassung 4)</span></h1>
-<p class="unter">Liest nur. Schreibt nie in eine deiner Dateien.</p>
-
-<div class="hinweis">
-  <b>Was diese Fassung anders macht:</b> Sie misst die <b>Dauer</b> jeder Abfrage und wartet
-  bis zu <b>3 Minuten</b>, statt nach ein paar Sekunden „hängt“ zu behaupten. Und sie prüft
-  <b>mehrere Speicherorte getrennt</b> – nur so lässt sich unterscheiden, ob es an der Art
-  liegt, wie die Seite geöffnet wird, oder am Ort der Datei.
-  <br><br>
-  <b>Durchgang 1:</b> unten für <u>jeden</u> Schacht auf „wählen“ klicken und die genannte Datei
-  angeben. <b>Danach F5.</b> <b>Durchgang 2:</b> nichts anklicken, warten bis oben
-  „Alle Messungen beendet“ steht, dann Bericht kopieren.
+  <div class="kopf"><h1>Werkstatt-Cockpit – Diagnose</h1><span class="schritt" id="schrittText"></span></div>
+  <div class="balken"><i id="balken"></i></div>
+  <div class="karte" id="karte"></div>
 </div>
 
-<div class="karte">
-  <h2>1 · Herkunft und Umgebung</h2>
-  <div id="k1"></div>
-</div>
-
-<div class="karte">
-  <h2>2 · Lokaler Speicher</h2>
-  <div id="k2"></div>
-</div>
-
-<div class="karte">
-  <h2>3 · Gemerkte Verweise – nach Speicherort getrennt</h2>
-  <p class="hilf">
-    Jeder Schacht merkt sich eine eigene Datei. Nach dem Neuladen wird jeder Verweis
-    einzeln geprüft, alle gleichzeitig, mit Stoppuhr. Antwortet einer nach 40 Sekunden,
-    ist er nicht tot, sondern langsam – und das wäre in der App zu beheben.
-  </p>
-  <div id="schaechte"></div>
-  <div id="stand">Messung läuft …</div>
-</div>
-
-<div class="karte">
-  <h2>3b · Hin und zurück – ganz ohne Neuladen</h2>
-  <p class="hilf">
-    Die wichtigste Messung. Eine Datei wird gewählt, in die Datenbank gelegt und
-    <b>sofort wieder herausgeholt</b> – alles im selben Durchgang, ohne F5.
-    Danach werden <b>beide</b> geprüft: das Original und die zurückgeholte Fassung.
-    <br><br>
-    Ist nur die zurückgeholte kaputt, liegt es am Ablegen und Zurückholen.
-    Sind beide in Ordnung, liegt es am Neuladen selbst – zwei völlig verschiedene
-    Ursachen, die sich sonst nicht trennen lassen.
-  </p>
-  <div id="k3b"></div>
-  <button class="haupt" id="btnRundreise">Datei wählen, ablegen, sofort zurückholen</button>
-</div>
-
-<div class="karte">
-  <h2>4 · Frisch gewählt – zum Vergleich</h2>
-  <p class="hilf">
-    Ein gerade eben gewählter Verweis, dieselben Abfragen. Wichtig ist der Vergleich der
-    Zeiten mit Abschnitt 3. Der Knopf funktioniert auch, während oben noch etwas läuft –
-    das zeigt zugleich, ob eine hängende Abfrage den ganzen Browser lahmlegt oder nur sich selbst.
-  </p>
-  <div id="k4"></div>
-  <button class="haupt" id="btnFrisch">Datei frisch wählen und prüfen</button>
-</div>
-
-<div class="karte">
-  <h2>5 · Was das Cockpit selbst gemerkt hat</h2>
-  <div id="k5"></div>
-</div>
-
-<div class="karte">
-  <h2>6 · Bericht</h2>
-  <textarea id="bericht" readonly></textarea>
-  <div><button class="haupt" id="btnKopieren">Bericht kopieren</button>
-       <button id="btnLeeren">Alle Merker dieser Seite löschen</button></div>
-</div>
-
-</div>
 <script>
 (function () {
   "use strict";
 
-  var DB = "diagnose-cockpit", STORE = "merker";
-  var FRIST = 180000;           // 3 Minuten - grosszuegig mit Absicht
-  var zeilen = [];
+  /* ====================================================================
+     Gefuehrter Ablauf. Vorgaenger-Fassungen verlangten vom Bediener, an zu
+     vieles gleichzeitig zu denken: selbst neu laden, vorher kopieren, nichts
+     anklicken, mehrere Knoepfe in der richtigen Reihenfolge. Jeder dieser
+     Punkte war eine Gelegenheit, die Messung zu verlieren.
 
-  /* ---------- Ausgabe ---------- */
-  function zeileAnlegen(ziel, name) {
+     Hier gilt: ein Schritt je Bildschirm, das Neuladen macht die Seite selbst,
+     der Bericht ueberlebt es, und am Ende steht eine Auswertung statt einer
+     Zahlenwueste.
+  ==================================================================== */
+
+  var DB = "diagnose-cockpit", STORE = "merker";
+  var FRIST = 120000;        // je Abfrage
+  var FRIST_ZWEIT = 30000;   // Pause vor dem zweiten Versuch
+  var P = {
+    START:0, ONEDRIVE:1, FIRMA:2, LOKAL:3, ORDNER:4, RUNDREISE:5, NEULADEN:6, NACHHER:7, FERTIG:8
+  };
+  var SCHACHT = { 1:"a-onedrive", 2:"b-firma", 3:"c-lokal", 4:"d-ordner" };
+  var NAMEN = { "a-onedrive":"A OneDrive-Datei", "b-firma":"B Firmenlaufwerk", "c-lokal":"C Lokale Platte (C:)", "d-ordner":"D Ordner" };
+
+  /* ---------- Gedaechtnis ueber das Neuladen hinweg ---------- */
+  function lade(k, ersatz) {
+    try { var r = localStorage.getItem("wkdiag-" + k); return r === null ? ersatz : JSON.parse(r); }
+    catch (e) { return ersatz; }
+  }
+  function sichere(k, w) { try { localStorage.setItem("wkdiag-" + k, JSON.stringify(w)); } catch (e) {} }
+  function loesche() {
+    ["phase","log","erg","start"].forEach(function (k) { try { localStorage.removeItem("wkdiag-" + k); } catch (e) {} });
+  }
+
+  var phase = lade("phase", P.START);
+  var log = lade("log", []);
+  var erg = lade("erg", {});
+  var frischGewaehlt = null;   // nur innerhalb eines Durchgangs
+
+  function notiere(name, wert, art) {
+    log.push({ n: name, w: String(wert), a: art || "" });
+    sichere("log", log);
+    zeichneZeile(name, wert, art);
+  }
+  function ergebnis(schacht, frage, e) {
+    erg[schacht] = erg[schacht] || {};
+    erg[schacht][frage] = { art: e.art, ms: e.ms || 0 };
+    sichere("erg", erg);
+  }
+
+  /* ---------- Anzeige ---------- */
+  var karte = document.getElementById("karte");
+  function zeichne(html) { karte.innerHTML = html; }
+  function laufBereich() {
+    var d = karte.querySelector(".lauf");
+    if (!d) { d = document.createElement("div"); d.className = "lauf"; karte.appendChild(d); }
+    return d;
+  }
+  function zeichneZeile(name, wert, art) {
+    var b = karte.querySelector(".lauf"); if (!b) return;
     var d = document.createElement("div");
     d.className = "zeile";
-    d.innerHTML = '<div class="name"></div><div class="wert"></div>';
+    d.innerHTML = '<div class="n"></div><div class="w"></div>';
     d.children[0].textContent = name;
-    (typeof ziel === "string" ? document.getElementById(ziel) : ziel).appendChild(d);
-    return d.children[1];
+    d.children[1].textContent = String(wert);
+    if (art) d.children[1].className = "w " + art;
+    b.appendChild(d);
+    b.scrollTop = b.scrollHeight;
   }
-  function setzen(feld, wert, art) {
-    feld.textContent = String(wert);
-    feld.className = "wert" + (art ? " " + art : "");
+  function fortschritt(p) {
+    document.getElementById("balken").style.width = Math.round(p * 100) + "%";
   }
-  function merken(name, wert) {
-    zeilen.push(name + ": " + wert);
-    document.getElementById("bericht").value = zeilen.join("\n");
-  }
-  function schreibe(ziel, name, wert, art) {
-    setzen(zeileAnlegen(ziel, name), wert, art);
-    merken(name, wert);
-  }
-  function fehlertext(e) {
-    if (!e) return "unbekannt";
-    return (e.name || "Fehler") + ": " + (e.message || String(e));
-  }
+  function schrittText(t) { document.getElementById("schrittText").textContent = t || ""; }
 
-  /* ---------- Eine Messung mit Stoppuhr ----------
-     Der Kern dieser Fassung. Die Vorgaengerin hat nach 2,5 Sekunden "haengt"
-     behauptet. Das war keine Messung, das war Ungeduld: Eine Abfrage, die nach
-     40 Sekunden zurueckkommt, ist nicht tot, sondern langsam - und Langsamkeit
-     laesst sich in der Anwendung auffangen, ein Entzug nicht. Deshalb hier eine
-     grosszuegige Frist UND die tatsaechlich verstrichene Zeit im Bericht. */
-  function messen(ziel, name, bauer) {
-    var feld = zeileAnlegen(ziel, name);
-    var t0 = Date.now(), fertig = false;
+  function setzePhase(p) { phase = p; sichere("phase", p); zeige(); }
+
+  /* ---------- Messung mit Stoppuhr ---------- */
+  function fehlertext(e) { return e ? ((e.name || "Fehler") + ": " + (e.message || String(e))) : "unbekannt"; }
+
+  function messen(name, bauer, frist) {
+    var b = laufBereich();
+    var d = document.createElement("div");
+    d.className = "zeile";
+    d.innerHTML = '<div class="n"></div><div class="w laeuft">läuft … 0 s</div>';
+    d.children[0].textContent = name;
+    b.appendChild(d);
+    var feld = d.children[1], t0 = Date.now(), fertig = false;
     var uhr = setInterval(function () {
-      if (fertig) return;
-      setzen(feld, "läuft … " + Math.round((Date.now() - t0) / 1000) + " s", "laeuft");
+      if (!fertig) feld.textContent = "läuft … " + Math.round((Date.now() - t0) / 1000) + " s";
     }, 500);
-    setzen(feld, "läuft … 0 s", "laeuft");
-
-    function ende(text, art) {
-      if (fertig) return;
-      fertig = true; clearInterval(uhr);
-      var ms = Date.now() - t0;
-      var voll = text + "   [" + ms + " ms]";
-      setzen(feld, voll, art);
-      merken(name, voll);
-    }
 
     return new Promise(function (ok) {
-      var frist = setTimeout(function () {
-        ende("KEINE ANTWORT innerhalb von " + Math.round(FRIST / 1000) + " s", "fehl");
-        ok({ art: "keine-antwort", ms: Date.now() - t0 });
-      }, FRIST);
+      function ende(text, art, art2) {
+        if (fertig) return;
+        fertig = true; clearInterval(uhr);
+        var ms = Date.now() - t0;
+        var voll = text + "   [" + ms + " ms]";
+        feld.textContent = voll; feld.className = "w " + art;
+        log.push({ n: name, w: voll, a: art }); sichere("log", log);
+        ok({ art: art2, ms: ms });
+      }
+      var frI = setTimeout(function () {
+        ende("KEINE ANTWORT (Frist " + Math.round((frist || FRIST) / 1000) + " s)", "fehl", "keine-antwort");
+      }, frist || FRIST);
       var p;
       try { p = bauer(); }
-      catch (e) { clearTimeout(frist); ende("sofortiger Fehler – " + fehlertext(e), "fehl"); ok({ art: "fehler", e: e }); return; }
+      catch (e) { clearTimeout(frI); ende("Fehler sofort – " + fehlertext(e), "fehl", "fehler"); return; }
       Promise.resolve(p).then(function (w) {
-        clearTimeout(frist);
-        ende(typeof w === "object" && w ? (w.__text || JSON.stringify(w)) : String(w),
-             (w === "granted" || (w && w.__gut)) ? "ok" : "warn");
-        ok({ art: "ok", wert: w, ms: Date.now() - t0 });
+        clearTimeout(frI);
+        var text = (w && typeof w === "object") ? (w.__text || JSON.stringify(w)) : String(w);
+        var gut = (w === "granted") || (w && w.__gut);
+        ende(text, gut ? "ok" : "warn", "ok");
       }, function (e) {
-        clearTimeout(frist);
-        ende("Fehler – " + fehlertext(e), "fehl");
-        ok({ art: "fehler", e: e, ms: Date.now() - t0 });
+        clearTimeout(frI); ende("Fehler – " + fehlertext(e), "fehl", "fehler");
       });
     });
   }
 
-  /* ---------- IndexedDB (echt, nur fuer diese Seite) ---------- */
-  function idbOeffnen(name, version) {
+  /* ---------- IndexedDB ---------- */
+  function idbOeffnen(name, mitVersion) {
     return new Promise(function (ok, fehl) {
       var r;
-      try { r = version ? indexedDB.open(name, version) : indexedDB.open(name); }
+      try { r = mitVersion ? indexedDB.open(name, 1) : indexedDB.open(name); }
       catch (e) { fehl(e); return; }
       r.onupgradeneeded = function () {
         if (name === DB && !r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE);
@@ -200,7 +179,7 @@
     });
   }
   function idbPut(schluessel, wert) {
-    return idbOeffnen(DB, 1).then(function (db) {
+    return idbOeffnen(DB, true).then(function (db) {
       return new Promise(function (ok, fehl) {
         var tx = db.transaction(STORE, "readwrite");
         try { tx.objectStore(STORE).put(wert, schluessel); }
@@ -212,7 +191,7 @@
     });
   }
   function idbGet(dbName, storeName, schluessel) {
-    return idbOeffnen(dbName, dbName === DB ? 1 : 0).then(function (db) {
+    return idbOeffnen(dbName, dbName === DB).then(function (db) {
       return new Promise(function (ok, fehl) {
         if (!db.objectStoreNames.contains(storeName)) { db.close(); ok(undefined); return; }
         var tx = db.transaction(storeName, "readonly");
@@ -223,235 +202,334 @@
     });
   }
 
-  /* ---------- 1 · Umgebung ---------- */
-  schreibe("k1", "Adresse", location.href);
-  schreibe("k1", "Protokoll", location.protocol, location.protocol === "file:" ? "warn" : "ok");
-  schreibe("k1", "Herkunft (origin)", String(location.origin));
-  schreibe("k1", "Sicherer Kontext", window.isSecureContext ? "ja" : "nein", window.isSecureContext ? "ok" : "fehl");
-  schreibe("k1", "Datei-Schnittstelle", (window.showOpenFilePicker && window.showSaveFilePicker) ? "vorhanden" : "FEHLT",
-           (window.showOpenFilePicker && window.showSaveFilePicker) ? "ok" : "fehl");
-  schreibe("k1", "Ordner-Schnittstelle", window.showDirectoryPicker ? "vorhanden" : "fehlt");
-  schreibe("k1", "Browser", navigator.userAgent);
-  if (navigator.userAgentData && navigator.userAgentData.brands) {
-    schreibe("k1", "Marken", navigator.userAgentData.brands.map(function (b) { return b.brand + " " + b.version; }).join(" | "));
-  }
-  schreibe("k1", "Geräteart", (navigator.userAgentData && navigator.userAgentData.platform) || "unbekannt");
-  if (navigator.storage && navigator.storage.estimate) {
-    navigator.storage.estimate().then(function (s) {
-      schreibe("k2", "Speicherplatz für diese Herkunft",
-               Math.round((s.usage || 0) / 1024) + " KB benutzt von " + Math.round((s.quota || 0) / 1024 / 1024) + " MB");
-    }).catch(function () {});
-  }
+  /* ---------- Ein Verweis, alle Fragen ---------- */
+  function verweisPruefen(bez, h, schacht) {
+    try { structuredClone(h); notiere(bez + " – Verweis kopierbar", "ja", "ok"); }
+    catch (e) { notiere(bez + " – Verweis kopierbar", "NEIN – " + fehlertext(e), "fehl"); }
 
-  /* ---------- 2 · Lokaler Speicher ---------- */
-  try {
-    localStorage.setItem("diagnose-probe", "1");
-    var g = localStorage.getItem("diagnose-probe");
-    localStorage.removeItem("diagnose-probe");
-    schreibe("k2", "localStorage", g === "1" ? "funktioniert" : "antwortet falsch", g === "1" ? "ok" : "fehl");
-    var vorh = Object.keys(localStorage).filter(function (k) { return k.indexOf("werkstatt") === 0; });
-    schreibe("k2", "Cockpit-Daten vorhanden", vorh.length ? vorh.join(", ") : "keine", vorh.length ? "ok" : "warn");
-  } catch (e) { schreibe("k2", "localStorage", "GESPERRT – " + fehlertext(e), "fehl"); }
-
-  /* ---------- 3 · Schächte ----------
-     Drei Speicherorte, getrennt gemessen. Genau das hat der vorigen Fassung
-     gefehlt: Dort zeigte JEDER geprueufte Verweis auf eine Datei in OneDrive.
-     Damit passte auf alle Messungen sowohl "die Herkunft file:// ist schuld"
-     als auch "OneDrive ist schuld" - unterscheiden liessen sie sich nicht. */
-  var schaechte = [
-    { schluessel: "onedrive", titel: "A · Datei in OneDrive",           wo: "die werkstatt-kalender-daten.json im OneDrive-Ordner", art: "datei" },
-    { schluessel: "firma",    titel: "B · Datei auf dem Firmenlaufwerk", wo: "irgendeine .json oder .txt auf \\\\scheudc1\\… – NICHT in OneDrive", art: "datei" },
-    { schluessel: "lokal",    titel: "C · Datei auf der lokalen Platte", wo: "irgendeine Datei unter C:\\, z. B. auf dem Desktop", art: "datei" },
-    { schluessel: "ordner",   titel: "D · Ein Ordner",                   wo: "der Ordner, in dem die Cockpit-Dateien liegen", art: "ordner" },
-  ];
-
-  var offeneMessungen = 0;
-  function messungAn()  { offeneMessungen++; }
-  function messungAb()  {
-    offeneMessungen--;
-    if (offeneMessungen <= 0) {
-      document.getElementById("stand").textContent = "Alle Messungen beendet – bitte Bericht kopieren.";
-      merken("— alle Messungen beendet —", new Date().toLocaleTimeString("de-DE"));
-    }
-  }
-
-  // Die Fragen an einen Verweis. Bewusst PARALLEL: nacheinander wuerde
-  // eine einzige lange Abfrage alle folgenden verdecken.
-  function verweisPruefen(ziel, vorsatz, h) {
     var teile = [];
-    // Laesst sich der Verweis ueberhaupt noch weiterreichen? Das beruehrt
-    // keine Datei und kein Laufwerk. Haengt schon DAS, liegt es nicht am
-    // Speicherort, sondern am Verweis selbst.
-    try { structuredClone(h); schreibe(ziel, vorsatz + "Verweis kopierbar", "ja", "ok"); }
-    catch (e) { schreibe(ziel, vorsatz + "Verweis kopierbar", "NEIN – " + fehlertext(e), "fehl"); }
     if (h.isSameEntry) {
-      teile.push(messen(ziel, vorsatz + "Selbstvergleich (isSameEntry)", function () {
+      teile.push(messen(bez + " – Selbstvergleich", function () {
         return h.isSameEntry(h).then(function (b) { return { __gut: b, __text: b ? "ja" : "nein" }; });
-      }));
+      }).then(function (e) { if (schacht) ergebnis(schacht, "selbst", e); return e; }));
     }
-    teile.push(messen(ziel, vorsatz + "Leserecht (queryPermission)", function () { return h.queryPermission({ mode: "read" }); }));
-    teile.push(messen(ziel, vorsatz + "Schreibrecht (queryPermission)", function () { return h.queryPermission({ mode: "readwrite" }); }));
+    teile.push(messen(bez + " – Leserecht", function () { return h.queryPermission({ mode: "read" }); })
+      .then(function (e) { if (schacht) ergebnis(schacht, "leserecht", e); return e; }));
+    teile.push(messen(bez + " – Schreibrecht", function () { return h.queryPermission({ mode: "readwrite" }); })
+      .then(function (e) { if (schacht) ergebnis(schacht, "schreibrecht", e); return e; }));
+
     if (h.kind === "directory") {
-      teile.push(messen(ziel, vorsatz + "Ordner auflisten (erster Eintrag)", function () {
+      teile.push(messen(bez + " – Ordner auflisten", function () {
         return h.entries().next().then(function (r) {
-          return { __gut: true, __text: r.done ? "Ordner ist leer" : "erster Eintrag: " + r.value[0] };
+          return { __gut: true, __text: r.done ? "leer" : "erster Eintrag: " + r.value[0] };
         });
-      }));
+      }).then(function (e) { if (schacht) ergebnis(schacht, "oeffnen", e); return e; }));
     } else {
-      teile.push(messen(ziel, vorsatz + "Datei öffnen (getFile)", function () {
+      teile.push(messen(bez + " – Datei öffnen", function () {
         return h.getFile().then(function (f) {
           return { __gut: true, __text: f.size + " Bytes, geändert " + new Date(f.lastModified).toLocaleString("de-DE") };
         });
-      }));
-      teile.push(messen(ziel, vorsatz + "Inhalt lesen (text)", function () {
+      }).then(function (e) { if (schacht) ergebnis(schacht, "oeffnen", e); return e; }));
+      teile.push(messen(bez + " – Inhalt lesen", function () {
         return h.getFile().then(function (f) { return f.text(); }).then(function (t) {
-          return { __gut: true, __text: t.length + " Zeichen gelesen" };
+          return { __gut: true, __text: t.length + " Zeichen" };
         });
-      }));
+      }).then(function (e) { if (schacht) ergebnis(schacht, "lesen", e); return e; }));
     }
-    // Zweiter Versuch, falls der erste nichts geliefert hat. Braucht ein
-    // Laufwerk nur einen Moment (OneDrive holt eine nur online liegende Datei,
-    // eine Freigabe wacht auf), dann klappt der zweite - und die Loesung waere
-    // ein Wiederholversuch in der App, nicht der Umzug der ganzen Anwendung.
-    return Promise.all(teile).then(function (erg) {
-      var schlecht = erg.filter(function (e) { return e && e.art !== "ok"; });
-      if (!schlecht.length || h.kind === "directory") return erg;
-      schreibe(ziel, vorsatz + "→ erster Anlauf ohne Erfolg", "warte 45 s, dann noch einmal", "warn");
+
+    return Promise.all(teile).then(function (alle) {
+      var schlecht = alle.filter(function (e) { return e.art !== "ok"; });
+      if (!schlecht.length || h.kind === "directory") return alle;
+      notiere(bez + " – erster Anlauf erfolglos", "warte " + (FRIST_ZWEIT / 1000) + " s, dann noch einmal", "warn");
       return new Promise(function (ok) {
         setTimeout(function () {
-          messen(ziel, vorsatz + "ZWEITER Versuch nach 45 s (getFile)", function () {
+          messen(bez + " – ZWEITER Versuch", function () {
             return h.getFile().then(function (f) { return { __gut: true, __text: f.size + " Bytes" }; });
-          }).then(function () { ok(erg); });
-        }, 45000);
+          }).then(function (e) { if (schacht) ergebnis(schacht, "zweiter", e); ok(alle); });
+        }, FRIST_ZWEIT);
       });
     });
   }
 
-  schaechte.forEach(function (s) {
-    var kasten = document.createElement("div");
-    kasten.className = "schacht";
-    kasten.innerHTML = '<h3></h3><p class="wo"></p><div class="werte"></div>';
-    kasten.querySelector("h3").textContent = s.titel;
-    kasten.querySelector("p").textContent = "Bitte wählen: " + s.wo;
-    var werte = kasten.querySelector(".werte");
+  /* ---------- Umgebung einmalig festhalten ---------- */
+  function umgebungNotieren() {
+    notiere("Adresse", location.href);
+    notiere("Protokoll", location.protocol, location.protocol === "file:" ? "warn" : "ok");
+    notiere("Herkunft", String(location.origin));
+    notiere("Sicherer Kontext", window.isSecureContext ? "ja" : "nein", window.isSecureContext ? "ok" : "fehl");
+    notiere("Datei-Schnittstelle", window.showOpenFilePicker ? "vorhanden" : "FEHLT", window.showOpenFilePicker ? "ok" : "fehl");
+    notiere("Browser", navigator.userAgent);
+    if (navigator.userAgentData && navigator.userAgentData.brands) {
+      notiere("Marken", navigator.userAgentData.brands.map(function (b) { return b.brand + " " + b.version; }).join(" | "));
+    }
+    try {
+      localStorage.setItem("wkdiag-probe", "1");
+      notiere("localStorage", localStorage.getItem("wkdiag-probe") === "1" ? "funktioniert" : "falsch", "ok");
+      localStorage.removeItem("wkdiag-probe");
+    } catch (e) { notiere("localStorage", "GESPERRT – " + fehlertext(e), "fehl"); }
+  }
 
-    var knopf = document.createElement("button");
-    knopf.textContent = (s.art === "ordner" ? "Ordner" : "Datei") + " wählen";
-    knopf.addEventListener("click", function () {
-      var wahl = s.art === "ordner"
-        ? (window.showDirectoryPicker ? window.showDirectoryPicker({ mode: "readwrite" }) : Promise.reject(new Error("keine Ordner-Schnittstelle")))
+  /* ==================== Bildschirme ==================== */
+
+  function zeigeStart() {
+    schrittText(""); fortschritt(0);
+    zeichne(
+      '<h2>Diagnose starten</h2>' +
+      '<p>Diese Seite misst, warum sich das Cockpit die Datei nicht mehr merkt. ' +
+      'Sie <b>verändert nichts</b> und schreibt in keine deiner Dateien.</p>' +
+      '<p>Sie führt dich durch <b>vier Auswahl-Schritte</b>, lädt sich danach <b>von allein</b> neu ' +
+      'und misst dann selbstständig weiter. Am Ende steht ein fertiger Bericht.</p>' +
+      '<p class="klein">Dauer etwa 6 bis 10 Minuten, davon die meiste Zeit Warten. ' +
+      'Du kannst währenddessen etwas anderes tun – lass diesen Tab nur offen.</p>' +
+      '<div class="waehl"><b>Vorher bitte:</b>Alle Cockpit-Tabs schließen. ' +
+      'Ein geöffnetes Cockpit hält den Zugriff auf die Kalenderdatei aktiv und verfälscht die Messung.</div>' +
+      '<button class="haupt" id="los">Diagnose starten</button>' +
+      (log.length ? '<button class="leise" id="verwerfen">Alte Messung verwerfen</button>' : "")
+    );
+    document.getElementById("los").onclick = function () {
+      loesche(); log = []; erg = {};
+      sichere("start", new Date().toISOString());
+      laufBereich();
+      umgebungNotieren();
+      setzePhase(P.ONEDRIVE);
+    };
+    var v = document.getElementById("verwerfen");
+    if (v) v.onclick = function () { loesche(); log = []; erg = {}; zeigeStart(); };
+  }
+
+  // Ein Auswahl-Schritt. Genau ein Knopf, genau eine Datei.
+  function zeigeAuswahl(nr, titel, was, hinweis, ordner, weiter, ueberspringbar) {
+    schrittText("Schritt " + nr + " von 5"); fortschritt(nr / 8);
+    zeichne(
+      '<h2>' + titel + '</h2>' +
+      '<div class="waehl"><b>Bitte auswählen:</b>' + was + '</div>' +
+      (hinweis ? '<p class="klein">' + hinweis + '</p>' : "") +
+      '<button class="haupt" id="waehlen">' + (ordner ? "Ordner" : "Datei") + ' auswählen …</button>' +
+      (ueberspringbar ? '<button class="leise" id="skip">Diesen Schritt überspringen</button>' : "") +
+      '<div class="lauf"></div>'
+    );
+    document.getElementById("waehlen").onclick = function () {
+      var b = this; b.disabled = true;
+      var wahl = ordner
+        ? window.showDirectoryPicker({ mode: "readwrite" })
         : window.showOpenFilePicker({ multiple: false }).then(function (l) { return l[0]; });
       wahl.then(function (h) {
-        schreibe(werte, s.titel + " – gewählt", h.name, "ok");
-        return idbPut(s.schluessel, h)
-          .then(function () { schreibe(werte, s.titel + " – gemerkt", "ja, jetzt F5 drücken", "ok"); })
-          .catch(function (e) { schreibe(werte, s.titel + " – gemerkt", "NEIN – " + fehlertext(e), "fehl"); });
-      }).catch(function (e) {
-        schreibe(werte, s.titel + " – wählen", "abgebrochen/Fehler – " + fehlertext(e), "warn");
-      });
-    });
-    kasten.appendChild(knopf);
-    document.getElementById("schaechte").appendChild(kasten);
-
-    // Beim Laden: gemerkten Verweis holen und pruefen.
-    messungAn();
-    idbGet(DB, STORE, s.schluessel).then(function (h) {
-      if (!h) {
-        schreibe(werte, s.titel, "kein Verweis gemerkt – bitte wählen", "warn");
-        messungAb(); return;
-      }
-      schreibe(werte, s.titel + " – gemerkter Verweis", h.name + " (" + (h.kind || "?") + ")", "ok");
-      return verweisPruefen(werte, s.titel + " – ", h).then(messungAb);
-    }).catch(function (e) {
-      schreibe(werte, s.titel, "Merker lesen fehlgeschlagen – " + fehlertext(e), "fehl");
-      messungAb();
-    });
-  });
-
-  /* ---------- 3b · Hin und zurück, ohne Neuladen ----------
-     Trennt zwei Ursachen, die bisher untrennbar waren:
-       - Das Ablegen/Zurueckholen selbst macht den Verweis unbrauchbar.
-       - Erst das Neuladen der Seite tut es.
-     Bisher wurde immer beides zusammen gemessen (ablegen, F5, zurueckholen),
-     und das Ergebnis passte auf beide Erklaerungen. */
-  document.getElementById("btnRundreise").addEventListener("click", function () {
-    var knopf = this; knopf.disabled = true;
-    window.showOpenFilePicker({ multiple: false }).then(function (l) {
-      var original = l[0];
-      schreibe("k3b", "Gewählte Datei", original.name, "ok");
-      messungAn();
-      var a = verweisPruefen("k3b", "ORIGINAL – ", original);
-      var b = idbPut("rundreise", original)
-        .then(function () { schreibe("k3b", "In die Datenbank gelegt", "ja", "ok"); return idbGet(DB, STORE, "rundreise"); })
-        .then(function (zurueck) {
-          if (!zurueck) { schreibe("k3b", "Zurückgeholt", "NICHTS zurückbekommen", "fehl"); return; }
-          schreibe("k3b", "Zurückgeholt", zurueck.name + " (dasselbe Objekt? " + (zurueck === original ? "ja" : "nein – neu aufgebaut") + ")", "ok");
-          return verweisPruefen("k3b", "ZURÜCKGEHOLT – ", zurueck);
-        })
-        .catch(function (e) { schreibe("k3b", "Hin und zurück", "Fehler – " + fehlertext(e), "fehl"); });
-      return Promise.all([a, b]).then(messungAb);
-    }).catch(function (e) {
-      schreibe("k3b", "Datei wählen", "abgebrochen/Fehler – " + fehlertext(e), "warn");
-      knopf.disabled = false;
-    });
-  });
-
-  /* ---------- 4 · Frisch gewählt ---------- */
-  document.getElementById("btnFrisch").addEventListener("click", function () {
-    window.showOpenFilePicker({ multiple: false }).then(function (l) {
-      var h = l[0];
-      schreibe("k4", "Frisch gewählt", h.name, "ok");
-      try { structuredClone(h); schreibe("k4", "Verweis kopierbar", "ja", "ok"); }
-      catch (e) { schreibe("k4", "Verweis kopierbar", "NEIN – " + fehlertext(e), "fehl"); }
-      messungAn();
-      return verweisPruefen("k4", "frisch – ", h)
-        .then(function () { return messen("k4", "frisch – Nachfrage (requestPermission)", function () { return h.requestPermission({ mode: "readwrite" }); }); })
-        .then(messungAb);
-    }).catch(function (e) {
-      schreibe("k4", "Frisch wählen", "abgebrochen/Fehler – " + fehlertext(e), "warn");
-    });
-  });
-
-  /* ---------- 5 · Die Datenbanken des Cockpits ---------- */
-  messungAn();
-  (function () {
-    if (!indexedDB.databases) {
-      schreibe("k5", "Datenbanken", "dieser Browser verrät sie nicht", "warn");
-      messungAb(); return;
-    }
-    indexedDB.databases().then(function (liste) {
-      var da = liste.map(function (d) { return d.name; });
-      schreibe("k5", "Vorhandene Datenbanken",
-               liste.map(function (d) { return d.name + " (v" + d.version + ")"; }).join(", ") || "keine");
-      var kette = Promise.resolve();
-      [["werkstatt-kalender-fs", "Kalender"], ["werkstatt-stoerungen-fs", "Störungen"]].forEach(function (paar) {
-        kette = kette.then(function () {
-          if (da.indexOf(paar[0]) < 0) { schreibe("k5", paar[1], "keine Datenbank", "fehl"); return; }
-          return idbGet(paar[0], "handles", "handle").then(function (h) {
-            if (!h) { schreibe("k5", paar[1] + " – gespeicherter Verweis", "KEINER", "fehl"); return; }
-            schreibe("k5", paar[1] + " – gespeicherter Verweis", h.name, "ok");
-            return verweisPruefen("k5", paar[1] + " – ", h);
-          }).catch(function (e) { schreibe("k5", paar[1], "Fehler – " + fehlertext(e), "fehl"); });
+        notiere(NAMEN[SCHACHT[nr]] + " – gewählt", h.name, "ok");
+        if (nr === 1) frischGewaehlt = h;
+        return idbPut(SCHACHT[nr], h).then(function () {
+          notiere(NAMEN[SCHACHT[nr]] + " – gemerkt", "ja", "ok");
+          setzePhase(weiter);
         });
+      }).catch(function (e) {
+        notiere(NAMEN[SCHACHT[nr]] + " – Auswahl", "abgebrochen/Fehler – " + fehlertext(e), "warn");
+        b.disabled = false;
       });
-      return kette;
-    }).catch(function (e) {
-      schreibe("k5", "Datenbanken", "Fehler – " + fehlertext(e), "fehl");
-    }).then(messungAb);
-  })();
+    };
+    var s = document.getElementById("skip");
+    if (s) s.onclick = function () {
+      notiere(NAMEN[SCHACHT[nr]] + " – übersprungen", "vom Bediener übersprungen", "warn");
+      setzePhase(weiter);
+    };
+  }
 
-  /* ---------- 6 · Knöpfe ---------- */
-  document.getElementById("btnKopieren").addEventListener("click", function () {
-    var t = document.getElementById("bericht");
-    t.select();
-    try { document.execCommand("copy"); } catch (e) {}
-    if (navigator.clipboard) navigator.clipboard.writeText(t.value).catch(function () {});
-  });
-  document.getElementById("btnLeeren").addEventListener("click", function () {
-    Promise.all(schaechte.map(function (s) { return idbPut(s.schluessel, undefined); }))
-      .then(function () { schreibe("k5", "Merker dieser Seite", "gelöscht", "ok"); })
-      .catch(function (e) { schreibe("k5", "Merker löschen", fehlertext(e), "fehl"); });
-  });
+  // Rundreise: ablegen und ohne Neuladen sofort zurueckholen.
+  function zeigeRundreise() {
+    schrittText("Schritt 5 von 5"); fortschritt(5 / 8);
+    zeichne(
+      '<h2>Messung läuft – bitte nichts anklicken</h2>' +
+      '<p>Der eben gewählte Verweis wird abgelegt und <b>sofort wieder herausgeholt</b> – ohne Neuladen. ' +
+      'Danach werden beide geprüft. Das trennt zwei Ursachen, die sonst nicht auseinanderzuhalten sind.</p>' +
+      '<p class="klein">Kann einige Minuten dauern. Die Uhren laufen mit. Danach lädt die Seite von allein neu.</p>' +
+      '<div class="lauf"></div>'
+    );
+    var starten = frischGewaehlt
+      ? Promise.resolve(frischGewaehlt)
+      : idbGet(DB, STORE, SCHACHT[1]);
+    starten.then(function (h) {
+      if (!h) { notiere("Rundreise", "keine Datei vorhanden – übersprungen", "warn"); return; }
+      return verweisPruefen("Rundreise ORIGINAL", h, "rund-original")
+        .then(function () { return idbPut("rundreise", h); })
+        .then(function () { return idbGet(DB, STORE, "rundreise"); })
+        .then(function (zurueck) {
+          if (!zurueck) { notiere("Rundreise", "nichts zurückbekommen", "fehl"); return; }
+          notiere("Rundreise – zurückgeholt", zurueck.name + (zurueck === h ? " (dasselbe Objekt)" : " (neu aufgebaut)"), "ok");
+          return verweisPruefen("Rundreise ZURÜCK", zurueck, "rund-zurueck");
+        });
+    }).catch(function (e) {
+      notiere("Rundreise", "Fehler – " + fehlertext(e), "fehl");
+    }).then(function () { setzePhase(P.NEULADEN); });
+  }
+
+  // Das Neuladen macht die Seite selbst - so kann es niemand vergessen und
+  // niemand zu frueh ausloesen.
+  function zeigeNeuladen() {
+    schrittText(""); fortschritt(6 / 8);
+    var n = 5;
+    zeichne(
+      '<h2>Die Seite lädt sich jetzt selbst neu</h2>' +
+      '<p>Genau das ist der Vorgang, bei dem das Cockpit die Datei verliert. ' +
+      'Der Bericht bleibt dabei erhalten – du musst nichts sichern.</p>' +
+      '<p style="font-size:34px;font-weight:700;color:#1d4ed8" id="zaehler">' + n + '</p>'
+    );
+    var t = setInterval(function () {
+      n--;
+      var z = document.getElementById("zaehler");
+      if (z) z.textContent = n;
+      if (n <= 0) { clearInterval(t); sichere("phase", P.NACHHER); location.reload(); }
+    }, 1000);
+  }
+
+  // Nach dem Neuladen: alles gemerkte pruefen, alles parallel.
+  function zeigeNachher() {
+    schrittText("Auswertung"); fortschritt(7 / 8);
+    zeichne(
+      '<h2>Messung nach dem Neuladen – bitte warten</h2>' +
+      '<p>Alle gemerkten Verweise werden jetzt gleichzeitig geprüft, dazu die beiden Datenbanken ' +
+      'des Cockpits. Das dauert bis zu <b>drei Minuten</b>.</p>' +
+      '<p class="klein" id="offen">Läuft …</p>' +
+      '<div class="lauf"></div>'
+    );
+    notiere("— nach dem Neuladen —", new Date().toLocaleTimeString("de-DE"));
+
+    var auftraege = [];
+    [1, 2, 3, 4].forEach(function (nr) {
+      var s = SCHACHT[nr];
+      auftraege.push(idbGet(DB, STORE, s).then(function (h) {
+        if (!h) { notiere(NAMEN[s], "kein Verweis gemerkt", "warn"); return; }
+        notiere(NAMEN[s] + " – gemerkter Verweis", h.name + " (" + (h.kind || "?") + ")", "ok");
+        return verweisPruefen(NAMEN[s], h, s);
+      }).catch(function (e) { notiere(NAMEN[s], "Fehler – " + fehlertext(e), "fehl"); }));
+    });
+
+    auftraege.push(
+      (indexedDB.databases ? indexedDB.databases() : Promise.resolve([])).then(function (liste) {
+        var da = liste.map(function (d) { return d.name; });
+        notiere("Datenbanken", liste.map(function (d) { return d.name + " (v" + d.version + ")"; }).join(", ") || "keine");
+        var kette = Promise.resolve();
+        [["werkstatt-kalender-fs", "Cockpit Kalender"], ["werkstatt-stoerungen-fs", "Cockpit Störungen"]].forEach(function (paar) {
+          kette = kette.then(function () {
+            if (da.indexOf(paar[0]) < 0) { notiere(paar[1], "keine Datenbank", "warn"); return; }
+            return idbGet(paar[0], "handles", "handle").then(function (h) {
+              if (!h) { notiere(paar[1] + " – Verweis", "KEINER gespeichert", "fehl"); return; }
+              notiere(paar[1] + " – Verweis", h.name, "ok");
+              return verweisPruefen(paar[1], h, paar[0]);
+            });
+          });
+        });
+        return kette;
+      }).catch(function (e) { notiere("Datenbanken", "Fehler – " + fehlertext(e), "fehl"); })
+    );
+
+    var offen = auftraege.length;
+    auftraege.forEach(function (p) {
+      p.then(function () {
+        offen--;
+        var o = document.getElementById("offen");
+        if (o) o.textContent = offen > 0 ? ("Noch " + offen + " Messung(en) offen …") : "Fertig.";
+      });
+    });
+    Promise.all(auftraege).then(function () { setzePhase(P.FERTIG); });
+  }
+
+  /* ---------- Auswertung ---------- */
+  // Die Seite zieht den Schluss selbst. Eine Zahlenwueste laedt zu genau der
+  // Sorte Fehldeutung ein, die uns heute schon zweimal Zeit gekostet hat.
+  function urteil() {
+    function zustand(s) {
+      var e = erg[s];
+      if (!e) return "unbekannt";
+      var o = e.oeffnen;
+      if (!o) return "unbekannt";
+      if (o.art === "ok") return o.ms > 5000 ? "langsam" : "gut";
+      if (e.zweiter && e.zweiter.art === "ok") return "erst-beim-zweiten";
+      return "still";
+    }
+    var a = zustand("a-onedrive"), b = zustand("b-firma"), c = zustand("c-lokal");
+    var ro = zustand("rund-original"), rz = zustand("rund-zurueck");
+    var orte = [a, b, c].filter(function (x) { return x !== "unbekannt"; });
+    var stille = orte.filter(function (x) { return x === "still"; }).length;
+    var gute  = orte.filter(function (x) { return x === "gut"; }).length;
+
+    if (ro === "gut" && rz === "still")
+      return { art:"u-schlecht", titel:"Das Ablegen und Zurückholen selbst macht den Verweis unbrauchbar",
+        text:"Der frisch gewählte Verweis arbeitet einwandfrei; dieselbe Datei, einmal durch die Datenbank geschickt, antwortet nicht mehr – und das ganz ohne Neuladen. Damit liegt es weder am Speicherort noch am Neuladen." };
+    if (orte.length && stille === 0 && orte.some(function (x) { return x === "langsam" || x === "erst-beim-zweiten"; }))
+      return { art:"u-neutral", titel:"Es ist Langsamkeit, kein Entzug",
+        text:"Die Antworten kommen – nur spät. Das lässt sich in der Anwendung mit längeren Fristen und einem Wiederholversuch auffangen. Kein Umzug nötig." };
+    if (a === "still" && (b === "gut" || c === "gut"))
+      return { art:"u-neutral", titel:"Es hängt am Speicherort, nicht am Browser",
+        text:"Die OneDrive-Datei schweigt, eine Datei anderswo antwortet. Die Lösung liegt bei OneDrive – etwa „Immer auf diesem Gerät behalten“ oder die Daten aufs Firmenlaufwerk." };
+    if (orte.length >= 2 && stille === orte.length)
+      return { art:"u-schlecht", titel:"Alle Speicherorte betroffen",
+        text:"Auch eine Datei auf der lokalen Platte wird nicht mehr freigegeben. Damit liegt es weder an OneDrive noch am Netzlaufwerk, sondern daran, wie diese Seite geöffnet wird." };
+    if (gute === orte.length && orte.length)
+      return { art:"u-gut", titel:"Alle gemerkten Verweise arbeiten",
+        text:"In diesem Durchgang ist nichts ausgefallen. Bitte den Bericht trotzdem schicken – dann sehe ich, ob es an einer Kleinigkeit im Ablauf lag." };
+    return { art:"u-neutral", titel:"Gemischtes Bild",
+      text:"Die Ergebnisse sind nicht eindeutig. Bitte den Bericht schicken, ich lese ihn im Einzelnen." };
+  }
+
+  function zeigeFertig() {
+    schrittText("Fertig"); fortschritt(1);
+    var u = urteil();
+    var text = log.map(function (z) { return z.n + ": " + z.w; }).join("\n");
+    var kopf = "WERKSTATT-COCKPIT DIAGNOSE\nBegonnen: " + (lade("start", "?")) +
+               "\nBeendet: " + new Date().toISOString() + "\nBefund: " + u.titel + "\n" +
+               "----------------------------------------\n";
+    zeichne(
+      '<div class="urteil ' + u.art + '"><h3>' + u.titel + '</h3>' + u.text + '</div>' +
+      '<h2>Bericht</h2>' +
+      '<p>Auf den Knopf klicken und den Text schicken. Das ist alles, was gebraucht wird.</p>' +
+      '<button class="haupt" id="kopieren">Bericht kopieren</button>' +
+      '<button class="leise" id="neu">Diagnose neu starten</button>' +
+      '<textarea id="bericht" readonly></textarea>' +
+      '<p class="hint">Falls das Kopieren nicht geht: in das Feld klicken, Strg+A, Strg+C.</p>'
+    );
+    document.getElementById("bericht").value = kopf + text;
+    document.getElementById("kopieren").onclick = function () {
+      var t = document.getElementById("bericht");
+      t.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      if (navigator.clipboard) navigator.clipboard.writeText(t.value).catch(function () {});
+      this.textContent = "Bericht kopiert ✓";
+    };
+    document.getElementById("neu").onclick = function () { loesche(); log = []; erg = {}; setzePhase(P.START); };
+  }
+
+  /* ---------- Weiche ---------- */
+  function zeige() {
+    if (!window.showOpenFilePicker && phase !== P.FERTIG) {
+      zeichne('<h2>Dieser Browser kann keine Dateien öffnen</h2><p>Die Datei-Schnittstelle fehlt vollständig ' +
+              '(<code>showOpenFilePicker</code>). In diesem Browser kann das Cockpit grundsätzlich nicht mit einer ' +
+              'gemeinsamen Datei arbeiten. Bitte Chrome oder Edge verwenden.</p>');
+      return;
+    }
+    switch (phase) {
+      case P.START:    return zeigeStart();
+      case P.ONEDRIVE: return zeigeAuswahl(1, "Schritt 1: Die Kalenderdatei",
+          "<code>werkstatt-kalender-daten.json</code> – die Datei, mit der das Cockpit arbeitet (im OneDrive-Ordner).",
+          "", false, P.FIRMA, false);
+      case P.FIRMA:    return zeigeAuswahl(2, "Schritt 2: Eine Datei auf dem Firmenlaufwerk",
+          "Die Cockpit-Datei selbst: <code>Werkstatt_Kalender_TPM … .html</code>",
+          "Sie liegt auf <code>\\\\scheudc1\\…</code> und damit nicht in OneDrive. Genau darum geht es: derselbe Rechner, anderer Speicherort.",
+          false, P.LOKAL, true);
+      case P.LOKAL:    return zeigeAuswahl(3, "Schritt 3: Eine Datei auf der lokalen Platte",
+          "Irgendeine Datei unter <code>C:\\</code> – zum Beispiel auf deinem Desktop.",
+          "Inhalt und Art sind völlig egal, sie wird nur geöffnet, nie verändert.",
+          false, P.ORDNER, true);
+      case P.ORDNER:   return zeigeAuswahl(4, "Schritt 4: Der Ordner",
+          "Der Ordner, in dem die Cockpit-Dateien liegen.",
+          "Manche Browser behandeln Ordner anders als Dateien – deshalb wird er getrennt geprüft.",
+          true, P.RUNDREISE, true);
+      case P.RUNDREISE:return zeigeRundreise();
+      case P.NEULADEN: return zeigeNeuladen();
+      case P.NACHHER:  return zeigeNachher();
+      case P.FERTIG:   return zeigeFertig();
+      default:         return zeigeStart();
+    }
+  }
+
+  zeige();
 })();
 </script>
 </body>
