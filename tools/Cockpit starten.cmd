@@ -20,12 +20,24 @@ if "%HIER:~-1%"=="\" set HIER=%HIER:~0,-1%
 
 title Werkstatt-Cockpit - dieses Fenster offen lassen
 
-if not exist "%HIER%\cockpit-server.ps1" (
+rem Das Skript suchen. Beim Herunterladen gehen Bindestriche schon mal
+rem verloren - deshalb wird nicht auf einen einzigen Namen bestanden,
+rem sondern der Ordner abgesucht.
+set SKRIPT=
+if exist "%HIER%\cockpit-server.ps1" set SKRIPT=%HIER%\cockpit-server.ps1
+if not defined SKRIPT if exist "%HIER%\cockpitserver.ps1" set SKRIPT=%HIER%\cockpitserver.ps1
+if not defined SKRIPT for %%F in ("%HIER%\*cockpit*server*.ps1") do set SKRIPT=%%~fF
+if not defined SKRIPT for %%F in ("%HIER%\*.ps1") do set SKRIPT=%%~fF
+
+if not defined SKRIPT (
   echo.
-  echo   FEHLER: "cockpit-server.ps1" fehlt.
-  echo.
-  echo   Sie muss im selben Ordner liegen wie diese Datei:
+  echo   FEHLER: Es liegt keine PowerShell-Datei ^(.ps1^) in diesem Ordner:
   echo   %HIER%
+  echo.
+  echo   Erwartet wird "cockpit-server.ps1" - sie muss neben dieser Datei liegen.
+  echo.
+  echo   Tipp: Wenn die Datei anders heisst ^(z. B. "cockpitserver"^), reicht
+  echo         Rechtsklick - Umbenennen in "cockpit-server".
   echo.
   pause
   exit /b 1
@@ -44,7 +56,10 @@ if not exist "%ORDNER%" (
   set ORDNER=%HIER%
 )
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%HIER%\cockpit-server.ps1" -Ordner "%ORDNER%"
+echo   Skript:  %SKRIPT%
+echo.
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SKRIPT%" -Ordner "%ORDNER%"
 
 echo.
 echo   Der Dienst wurde beendet.
