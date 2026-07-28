@@ -53,13 +53,67 @@ Hindernis.
 5. Das schwarze Fenster offen lassen, solange das Cockpit benutzt wird. Es darf
    klein gezogen werden.
 
+## Wichtig bei der Umstellung: der Name muss einmal neu eingetragen werden
+
+Für den Browser ist `http://localhost:8765` eine **andere Seite** als der alte
+Dateipfad – mit eigenem lokalem Speicher. Beim ersten Start über die neue
+Adresse ist dieser Speicher leer.
+
+Das ist harmlos, weil alle Daten in der gemeinsamen Datei liegen. Aber:
+
+1. **Zuerst die Datei verbinden** (Ordnersymbol rechts oben). Danach sind
+   Einträge, Team, Anlagen und alle Einstellungen wieder da.
+2. **Dann den eigenen Namen neu eintragen** – ⚙ → Name. Der ist bewusst
+   geräteweise gespeichert und kommt nicht aus der Datei.
+
+Dasselbe gilt für jeden Kollegen bei seiner Umstellung.
+
+## Der Dateiname spielt keine Rolle mehr
+
+Angenehmer Nebeneffekt: Der Dienst liefert immer die **neueste**
+`Werkstatt_Kalender_TPM*.html` aus dem Ordner aus. Ob sie `(28)`, `(29)` oder
+gar keine Nummer trägt, ist gleichgültig – die Adresse bleibt in jedem Fall
+`http://localhost:8765/`.
+
+Damit entfällt der bisherige Stolperstein, dass eine neue Version unter neuem
+Namen von den Kollegen gar nicht geöffnet wurde. Auch ein Neuladen mit Strg+F5
+ist nicht mehr nötig: Der Dienst untersagt dem Browser das Zwischenspeichern.
+
+## Zweimal starten schadet nichts
+
+Wird `Cockpit starten.cmd` ein zweites Mal angeklickt, erkennt der Dienst, dass
+er schon läuft, öffnet nur den Browser und beendet sich wieder. Er weicht
+**nicht** auf einen anderen Port aus – das wäre für den Browser eine andere
+Adresse, und die verbundene Datei wäre wieder vergessen.
+
 ## Damit es beim Anmelden von allein startet (optional)
 
 1. Rechtsklick auf `Cockpit starten.cmd` → **Verknüpfung erstellen**.
-2. `Windows-Taste + R`, dann `shell:startup` eingeben, Eingabetaste.
-3. Die Verknüpfung in den geöffneten Ordner ziehen.
+2. Rechtsklick auf die Verknüpfung → **Eigenschaften** → bei *Ausführen*
+   **„Minimiert"** wählen → OK. Dann liegt das Fenster nur in der Taskleiste.
+3. `Windows-Taste + R`, dann `shell:startup` eingeben, Eingabetaste.
+4. Die Verknüpfung in den geöffneten Ordner ziehen.
 
 Dieser Ordner gehört deinem Benutzerkonto – besondere Rechte sind nicht nötig.
+
+Danach startet der Dienst bei jeder Anmeldung von allein, und das Cockpit
+lässt sich wie früher über eine gewöhnliche Verknüpfung öffnen.
+
+## Eine Desktop-Verknüpfung wie früher
+
+Zwei Möglichkeiten, beide gleich gut:
+
+**a) Verknüpfung auf `Cockpit starten.cmd`** – startet den Dienst, falls er noch
+nicht läuft, und öffnet danach das Cockpit. Umbenennen in „Werkstatt-Cockpit",
+fertig. Das ist die robustere Variante, weil sie in jedem Fall funktioniert.
+
+**b) Verknüpfung auf die Adresse** – Rechtsklick auf den Desktop → Neu →
+Verknüpfung → `http://localhost:8765/` eintragen. Öffnet direkt im Browser,
+**setzt aber voraus, dass der Dienst schon läuft** (also Autostart eingerichtet
+ist). Sonst erscheint „Diese Website ist nicht erreichbar".
+
+Für die Kollegen ist **a)** die bessere Wahl: ein Symbol, ein Doppelklick, alles
+weitere passiert von selbst.
 
 ## Wenn etwas nicht klappt
 

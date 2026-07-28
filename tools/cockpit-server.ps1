@@ -56,8 +56,25 @@ if (-not $start) {
   exit 1
 }
 
-# Einen freien Port suchen. Ist einer belegt (Dienst laeuft schon), einfach den
-# naechsten nehmen, statt mit einer Fehlermeldung abzubrechen.
+# Laeuft an diesem Port schon unser eigener Dienst? Das ist keine Feinheit:
+# Wuerde bei belegtem Port einfach der naechste genommen, waere das fuer den
+# Browser eine ANDERE Adresse - und damit waere die gemerkte Datei wieder weg.
+# Genau der Fehler, dessentwegen es dieses Skript ueberhaupt gibt.
+function Ist-Unserer($p) {
+  try {
+    $k = [System.Net.Sockets.TcpClient]::new()
+    $verbunden = $k.ConnectAsync("127.0.0.1", $p).Wait(700)
+    if (-not $verbunden) { $k.Close(); return $false }
+    $s = $k.GetStream(); $s.ReadTimeout = 1500
+    $anfrage = [System.Text.Encoding]::ASCII.GetBytes("GET /__cockpit HTTP/1.1`r`nHost: localhost`r`nConnection: close`r`n`r`n")
+    $s.Write($anfrage, 0, $anfrage.Length); $s.Flush()
+    $leser = [System.IO.StreamReader]::new($s)
+    $antwort = $leser.ReadToEnd()
+    $k.Close()
+    return ($antwort -match "werkstatt-cockpit-dienst")
+  } catch { return $false }
+}
+
 $zuhoerer = $null
 for ($p = $Port; $p -lt ($Port + 20); $p++) {
   try {
@@ -65,7 +82,19 @@ for ($p = $Port; $p -lt ($Port + 20); $p++) {
     $z.Start()
     $zuhoerer = $z; $Port = $p
     break
-  } catch { }
+  } catch {
+    if (Ist-Unserer $p) {
+      $laufend = "http://localhost:$p/"
+      Schreibe ""
+      Schreibe "  Der Dienst laeuft bereits auf $laufend" "Green"
+      Schreibe "  Es wird kein zweiter gestartet - die Adresse muss dieselbe bleiben," "Gray"
+      Schreibe "  sonst vergisst der Browser die verbundene Datei." "Gray"
+      Schreibe ""
+      if (-not $KeinBrowser) { Start-Process $laufend | Out-Null }
+      Start-Sleep -Seconds 3
+      exit 0
+    }
+  }
 }
 if (-not $zuhoerer) {
   Schreibe "  FEHLER: Kein freier Port zwischen $Port und $($Port + 19)." "Red"
@@ -131,6 +160,13 @@ try {
 
       if ($methode -ne "GET" -and $methode -ne "HEAD") {
         Antworte $strom 405 "Method Not Allowed" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes("Nur GET."))
+        $kunde.Close(); continue
+      }
+
+      # Erkennungszeichen: Daran erkennt ein zweiter Start, dass hier schon
+      # unser Dienst laeuft - und startet dann keinen zweiten auf anderem Port.
+      if ($pfad -eq "/__cockpit") {
+        Antworte $strom 200 "OK" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes("werkstatt-cockpit-dienst"))
         $kunde.Close(); continue
       }
 
