@@ -43,7 +43,7 @@ Arbeitsplatz nachgemessen:
 
 | Verdacht | Ergebnis |
 |---|---|
-| Gruppenrichtlinie blockiert den Dateizugriff | **Nein.** `chrome://policy`, Suche „File": kein Eintrag |
+| Gruppenrichtlinie blockiert den Dateizugriff | **Nein.** `chrome://policy` meldet durchgehend „Keine Richtlinien festgelegt". Der Rechner ist in `scheurich.local` verwaltet, die Richtlinien wurden wenige Minuten zuvor aktualisiert – es ist also keine fehlende Verbindung zur Verwaltung, sondern es ist schlicht nichts gesetzt |
 | Anderer Browser hilft | **Nein.** Edge 150.0.4078.99 verhält sich wie Chrome 147.0.7727.117 |
 | Vorübergehender Fehler einer Chrome-Version | **Nein.** Edge liegt drei Hauptversionen darüber und zeigt dasselbe |
 | Fehler in der Anwendung | **Nein.** Der Verweis wird korrekt gespeichert und überlebt das Neuladen; ein frisch ausgewählter Verweis funktioniert einwandfrei |
@@ -60,7 +60,7 @@ Die unveränderte HTML-Datei soll statt über den Dateipfad über eine **interne
 Website** ausgeliefert werden, mit einer festen Adresse, zum Beispiel:
 
 ```
-https://werkstatt.<interne-domain>/cockpit/
+https://werkstatt.scheurich.local/cockpit/
 ```
 
 Anforderungen im Einzelnen:
@@ -89,6 +89,25 @@ Anforderungen im Einzelnen:
 4. **Die Datenablage bleibt, wie sie ist.** Die beiden JSON-Dateien bleiben im
    bisherigen Ordner. Der Webserver liefert ausschließlich die HTML-Datei aus
    und hat mit den Daten nichts zu tun.
+
+## Optional vorab: ein billiger Versuch (ungeprüft)
+
+Da die Rechner ohnehin zentral verwaltet werden, wäre vor der Umstellung ein
+kurzer Versuch möglich – Aufwand wenige Minuten:
+
+```
+FileSystemReadAskForUrls  = ["file://*"]
+FileSystemWriteAskForUrls = ["file://*"]
+```
+
+**Ehrliche Einordnung:** Diese Richtlinien steuern, ob eine Seite den Zugriff
+erfragen *darf*. Ob sie auch das dauerhafte Merken eines Zugriffs über einen
+`file://`-Ursprung wiederherstellen, ist **nicht belegt** – wir halten es für
+eher unwahrscheinlich. Wenn es klappt, ist das Thema erledigt; wenn nicht, ist
+nichts verloren. Prüfen lässt es sich in einer Minute: Seite öffnen, Datei
+verbinden, F5 drücken – bleibt die Verbindung, hat es gewirkt.
+
+Die verlässliche Lösung bleibt die HTTPS-Bereitstellung.
 
 ## Falls HTTPS nicht kurzfristig möglich ist
 
