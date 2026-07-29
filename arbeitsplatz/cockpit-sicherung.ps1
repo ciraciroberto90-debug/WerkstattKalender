@@ -80,8 +80,14 @@ try {
   $probe = Join-Path $Ziel ".schreibprobe"
   [System.IO.File]::WriteAllText($probe, "x"); Remove-Item -LiteralPath $probe -Force
 } catch {
-  $Ziel = Join-Path $env:USERPROFILE "Cockpit-Sicherungen"
-  Sag "  Kein Schreibrecht im Datenordner - es wird lokal gesichert:" "Yellow"
+  # Dieser Zweig ist kein Sonderfall: Freigaben, die keine Skripte zulassen,
+  # verbieten oft auch das Anlegen von Ordnern. Dann muss die Sicherung
+  # trotzdem stattfinden - lokal statt zentral, aber sie findet statt.
+  $heim = $env:USERPROFILE
+  if (-not $heim) { $heim = $HOME }
+  if (-not $heim) { $heim = [System.IO.Path]::GetTempPath() }
+  $Ziel = Join-Path $heim "Cockpit-Sicherungen"
+  Sag "  Im Datenordner kann nicht angelegt werden - es wird lokal gesichert:" "Yellow"
   Sag "  $Ziel" "Yellow"
   if (-not (Test-Path -LiteralPath $Ziel)) { New-Item -ItemType Directory -Path $Ziel -Force | Out-Null }
 }

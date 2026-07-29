@@ -88,6 +88,21 @@ AUS=$($PWSH -NoProfile -File "$SKRIPT" -Ordner "$BASIS/gibtsnicht" -Ziel "$SICHE
 echo "$AUS" | grep -q "rc=1" && a=ja || a=nein
 pruef "(8) Fehlender Datenordner endet mit Fehlercode" "$a" "$AUS"
 
+
+# ---- (9) Ausweichen, wenn im Datenordner nichts angelegt werden kann ----
+# Das ist bei gesperrten Freigaben der Regelfall, nicht die Ausnahme: Wo keine
+# Skripte erlaubt sind, darf oft auch kein Ordner angelegt werden. Erzwungen
+# wird das hier, indem statt des Ordners eine DATEI namens "Sicherungen" liegt.
+B2=$(mktemp -d); D2="$B2/daten"; mkdir -p "$D2"
+printf '{"entries":[{"id":"x"}]}' > "$D2/werkstatt-kalender-daten.json"
+: > "$D2/Sicherungen"
+AUS=$(HOME="$B2" USERPROFILE= $PWSH -NoProfile -File "$SKRIPT" -Ordner "$D2" 2>&1)
+echo "$AUS" | grep -q "lokal gesichert" && a=ja || a=nein
+pruef "(9) Ausweichen wird angekündigt" "$a" "$(echo "$AUS" | head -3 | tr '\n' ' ')"
+[ -f "$B2/Cockpit-Sicherungen/$(date +%Y-%m-%d)/werkstatt-kalender-daten.json" ] && a=ja || a=nein
+pruef "(9) Die Sicherung landet trotzdem - nur lokal" "$a" "$(find "$B2/Cockpit-Sicherungen" -name '*.json' 2>/dev/null | head -1)"
+rm -rf "$B2"
+
 rm -rf "$BASIS"
 echo ""
 echo "Sicherung: $ok/$((ok+fail))"
