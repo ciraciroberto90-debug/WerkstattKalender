@@ -25,9 +25,17 @@ synchronisiert OneDrive ihn auf alle Rechner.
 > **Das ist einmalig zu tun, danach nie wieder.** Im Anhang liegt dasselbe auf
 > einer Seite mit Bildern: `Werkstatt-Cockpit-Einrichtung.pdf`.
 >
-> **1.** Im Explorer den OneDrive-Ordner der Werkstatt öffnen — denselben, in
-> dem `werkstatt-kalender-daten.json` liegt. Dort gibt es jetzt einen Ordner
-> **`Cockpit`**.
+> **Zuerst aufräumen:** Wenn auf dem Desktop noch eine **alte Verknüpfung** zum
+> Werkstatt-Cockpit liegt — oder eine in der Taskleiste bzw. im Startmenü
+> angeheftete —, bitte jetzt **löschen**. Sonst öffnet man später aus Versehen
+> die alte Variante; die kommt an die gemeinsamen Daten nicht mehr heran, und
+> Eingaben landen nur auf dem eigenen Rechner.
+>
+> **1.** Im Explorer links auf **OneDrive**, dort den geteilten Ordner
+> **`Werkstatt`** öffnen — denselben, in dem `werkstatt-kalender-daten.json`
+> liegt. Dort gibt es jetzt einen Ordner **`Cockpit`**.
+> *(Steht `Werkstatt` nicht in der Liste: in OneDrive links unter **Geteilt**
+> suchen und einmal auf „Zu meinen Dateien hinzufügen" klicken.)*
 >
 > **2.** In diesem Ordner **`Verknuepfung anlegen.cmd`** doppelklicken.
 > Auf die Frage nach dem automatischen Start bitte **`ja`** eintippen und
@@ -59,9 +67,6 @@ synchronisiert OneDrive ihn auf alle Rechner.
 > Wenn etwas klemmt: Im Ordner `Cockpit` liegt **`Selbsttest.cmd`**. Doppelklick,
 > und der Bericht landet automatisch in der Zwischenablage — den schickt ihr mir
 > einfach.
->
-> Die alte Verknüpfung zum Cockpit bitte vom Desktop löschen, damit niemand
-> aus Versehen die alte Variante öffnet.
 >
 > Viele Grüße
 > Roberto

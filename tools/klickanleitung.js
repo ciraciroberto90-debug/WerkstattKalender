@@ -116,6 +116,10 @@ const kopfZiele = [
   { ...marken.kopf.stoerungen, nr: "4" },
 ];
 
+// Wie der geteilte Ordner im Explorer der Kollegen heisst. Steht hier oben,
+// weil nur Roberto den genauen Namen kennt - eine Zeile aendern, PDF neu bauen.
+const ORDNER = "Werkstatt";
+
 const html = `<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8">
 <title>Werkstatt-Cockpit einrichten</title>
@@ -160,6 +164,10 @@ const html = `<!DOCTYPE html>
   .obenmarke .stiel { display: block; width: 0.9mm; background: #D8352A; }
   .randmarke { position: absolute; transform: translate(-50%, -50%); }
 
+  .vorweg { border: 0.5mm solid #D8352A; background: #fdeceb; padding: 2.6mm 3.5mm;
+            border-radius: 1.5mm; margin: 0 0 5mm; break-inside: avoid; }
+  .vorweg p { margin: 0; }
+
   .kasten { border-left: 1.2mm solid #C25A26; background: #fdf6f1; padding: 3mm 4mm;
             border-radius: 0 1.5mm 1.5mm 0; margin: 1mm 0 0; break-inside: avoid; }
   .kasten p { margin: 0 0 1.5mm; }
@@ -173,13 +181,25 @@ const html = `<!DOCTYPE html>
 <h1>Werkstatt-Cockpit einrichten</h1>
 <p class="unter">Einmalig, zwei Minuten. Danach nie wieder.</p>
 
+<div class="vorweg">
+  <p><b>Zuerst aufräumen:</b> Liegt auf dem Desktop noch eine <b>alte Verknüpfung</b> zum
+     Werkstatt-Cockpit – oder eine in der Taskleiste bzw. im Startmenü angeheftete –,
+     jetzt <b>löschen</b>.</p>
+  <p class="klein">Sonst öffnet man später aus Versehen die alte Variante. Die kommt an die
+     gemeinsamen Daten nicht mehr heran, und Eingaben landen dann nur auf dem eigenen Rechner.</p>
+</div>
+
 <div class="schritt">
   <div class="nr">1</div>
   <div class="txt">
     <h2>Verknüpfung auf den Desktop holen</h2>
-    <p>Im Werkstatt-Ordner den Ordner <b>Cockpit</b> öffnen und darin
-       <b>Verknuepfung anlegen</b> doppelklicken. Auf die Frage <b>ja</b> eintippen, Enter.</p>
-    <p class="klein">Ganz unten in der Liste. Es entsteht ein Symbol auf dem Desktop, mehr passiert nicht.</p>
+    <p>Im Explorer links auf <b>OneDrive</b>, dort den geteilten Ordner <b>${ORDNER}</b>
+       öffnen – derselbe, in dem <code>werkstatt-kalender-daten.json</code> liegt. Darin
+       den Ordner <b>Cockpit</b> öffnen und <b>Verknuepfung anlegen</b> doppelklicken.
+       Auf die Frage <b>ja</b> eintippen, Enter.</p>
+    <p class="klein">Steht <b>${ORDNER}</b> nicht in der Liste: in OneDrive links unter
+       <b>Geteilt</b> suchen und einmal auf <b>„Zu meinen Dateien hinzufügen“</b> klicken.
+       Danach ist er immer da.</p>
   </div>
 </div>
 
@@ -206,7 +226,7 @@ ${bildBlock([{ datei: "app-kopf.png", ziele: kopfZiele }], 18, "oben")}
 ${bildBlock([
   { datei: "app-dialog-titel.png" },
   { datei: "app-dialog-knoepfe.png", ziele: [{ ...marken.dateikasten.oeffnen, nr: "3" }] },
-], 62)}
+], 46)}
 
 <div class="schritt">
   <div class="nr">4</div>
