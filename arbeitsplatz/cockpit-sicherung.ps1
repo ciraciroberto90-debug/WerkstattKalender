@@ -65,6 +65,34 @@ function Hash-Von($pfad) {
   try { return (Get-FileHash -LiteralPath $pfad -Algorithm SHA256).Hash } catch { return "" }
 }
 
+# Den Ordner mit den Datendateien finden.
+#
+# In der Werkstatt liegen App und Daten NICHT im selben Ordner: die App auf dem
+# Firmenlaufwerk, die JSON-Dateien in OneDrive. Wer hier stur den uebergebenen
+# Ordner nimmt, sichert einen Ordner ohne Daten - und merkt es nicht, weil
+# "0 gesichert" wie ein ruhiger Tag aussieht.
+#
+# Gesucht wird deshalb der Reihe nach: der uebergebene Ordner, der Ordner
+# dieses Skripts, dessen Elternordner. Das deckt beide Ablagen ab - Paket im
+# Datenordner und Paket in einem Unterordner davon.
+function Hat-Daten($pfad) {
+  if (-not $pfad) { return $false }
+  if (-not (Test-Path -LiteralPath $pfad)) { return $false }
+  return @(Get-ChildItem -LiteralPath $pfad -Filter "werkstatt-*.json" -File -ErrorAction SilentlyContinue).Count -gt 0
+}
+
+$skriptOrdner = Split-Path -Parent $MyInvocation.MyCommand.Path
+$elternOrdner = Split-Path -Parent $skriptOrdner
+if (-not (Hat-Daten $Ordner)) {
+  foreach ($k in @($skriptOrdner, $elternOrdner)) {
+    if (Hat-Daten $k) {
+      Sag ("  Datendateien nicht im angegebenen Ordner - gefunden in: " + $k) "Yellow"
+      $Ordner = $k
+      break
+    }
+  }
+}
+
 if (-not (Test-Path -LiteralPath $Ordner)) {
   Sag "" ; Sag "  Der Datenordner ist nicht erreichbar:" "Red"; Sag "  $Ordner" "Red"
   if (-not $Leise) { Read-Host "  Mit Eingabetaste schliessen" }

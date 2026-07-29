@@ -60,7 +60,31 @@ function Hole-Startseite {
 
 $start = Hole-Startseite
 if (-not $start) {
-  Schreibe "  FEHLER: Keine Datei 'Werkstatt_Kalender_TPM*.html' im Ordner gefunden." "Red"
+  # Wie bei der Sicherung: App und Daten liegen nicht zwingend beieinander.
+  # Bevor abgebrochen wird, im eigenen Ordner und im Elternordner nachsehen.
+  $skriptOrdner = Split-Path -Parent $MyInvocation.MyCommand.Path
+  foreach ($k in @($skriptOrdner, (Split-Path -Parent $skriptOrdner))) {
+    if ($k -and (Test-Path -LiteralPath $k)) {
+      $treffer = Get-ChildItem -LiteralPath $k -Filter "Werkstatt_Kalender_TPM*.html" -File -ErrorAction SilentlyContinue |
+                 Sort-Object LastWriteTime -Descending | Select-Object -First 1
+      if ($treffer) {
+        Schreibe ("  Programmdatei nicht im angegebenen Ordner - gefunden in: " + $k) "Yellow"
+        $Ordner = $k
+        $start = $treffer
+        break
+      }
+    }
+  }
+}
+if (-not $start) {
+  Schreibe "  FEHLER: Die Programmdatei wurde nicht gefunden." "Red"
+  Schreibe "" 
+  Schreibe "  Gesucht wurde nach 'Werkstatt_Kalender_TPM*.html' in:" "Yellow"
+  Schreibe ("    " + $Ordner) "Yellow"
+  Schreibe ("    " + (Split-Path -Parent $MyInvocation.MyCommand.Path)) "Yellow"
+  Schreibe ""
+  Schreibe "  Meist ist das Netzlaufwerk nicht verbunden. Im Explorer einmal" "Gray"
+  Schreibe "  oeffnen, dann erneut starten." "Gray"
   Read-Host "  Mit Eingabetaste schliessen"
   exit 1
 }
