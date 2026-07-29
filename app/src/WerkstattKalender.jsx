@@ -404,6 +404,52 @@ const normalisiereAnlagenteile = (arr) => (Array.isArray(arr) ? arr : [])
     name: t.name.trim(),
   }));
 
+/* ---------- Linkbereich (Cockpit-Übersicht, nur für Bearbeiter) ---------- */
+// Zwei Sammlungen nebeneinander: die des Werkstattleiters und die der
+// Vertretung. Die Kürzel stehen in denselben Daten wie die Links - so bringt
+// eine neue Vertretung keinen Eingriff im Code mit sich.
+const LINK_INHABER_VORGABE = ["RC", "AR"];
+
+// Was der Browser selbst öffnen kann und was nicht.
+//
+// Ein Netzwerkpfad (\\server\...) oder ein Laufwerksbuchstabe lässt sich aus
+// einer Webseite heraus NICHT öffnen - Chrome blockiert das, und kein Schalter
+// ändert daran etwas. Statt einen toten Knopf anzubieten, wird der Pfad in die
+// Zwischenablage gelegt; im Explorer eingefügt ist man am selben Ziel.
+const linkArt = (ziel) => {
+  const z = String(ziel || "").trim();
+  if (/^(https?|mailto|tel):/i.test(z)) return "oeffnen";
+  if (/^(\\\\|[A-Za-z]:\\|file:)/i.test(z)) return "pfad";
+  // Ohne Schema, aber wie eine Adresse gebaut ("intranet.firma.de/x") - das ist
+  // der Fall, den man beim Eintippen am ehesten trifft.
+  if (/^[\w.-]+\.[A-Za-z]{2,}(\/|$)/.test(z)) return "oeffnen";
+  return "pfad";
+};
+const linkAdresse = (ziel) => {
+  const z = String(ziel || "").trim();
+  return /^(https?|mailto|tel):/i.test(z) ? z : "https://" + z;
+};
+
+const normalisiereLinks = (roh) => {
+  const o = roh && typeof roh === "object" && !Array.isArray(roh) ? roh : {};
+  const eintraege = (Array.isArray(o.eintraege) ? o.eintraege : [])
+    .filter((l) => l && typeof l.name === "string" && l.name.trim() && typeof l.ziel === "string" && l.ziel.trim())
+    .map((l) => ({
+      id: typeof l.id === "string" && l.id ? l.id : `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      inhaber: String(l.inhaber || "").trim().toUpperCase() || LINK_INHABER_VORGABE[0],
+      name: l.name.trim(),
+      ziel: l.ziel.trim(),
+      symbol: (typeof l.symbol === "string" && l.symbol.trim()) ? l.symbol.trim().slice(0, 4) : "🔗",
+    }));
+  const gemeldet = (Array.isArray(o.inhaber) ? o.inhaber : LINK_INHABER_VORGABE)
+    .filter((k) => typeof k === "string" && k.trim())
+    .map((k) => k.trim().toUpperCase());
+  // Kürzel, die an Links hängen, müssen in der Leiste auftauchen - sonst wäre
+  // ein Link unsichtbar, ohne gelöscht zu sein.
+  const inhaber = [...new Set([...(gemeldet.length ? gemeldet : LINK_INHABER_VORGABE), ...eintraege.map((l) => l.inhaber)])];
+  return { inhaber, eintraege };
+};
+
 // R+I-Punkte aus Todoist importiert (Stand: Juli 2026). "Wasserrundgang" und
 // "Filterwartung / Schaltschränke" liefen doppelt in Todoist - hier zusammengeführt.
 // type: "weekly" (weekday), "biweekly" (weekday, anchor), "monthly-day" (day),
@@ -796,6 +842,17 @@ function App() {
   const [team, setTeam] = useState([]); // Werkstatt-Team (für Zuweisung & Arbeitsplanung)
   const [extraSchichten, setExtraSchichten] = useState([]); // eigene Schichtarten aus dem ⚙-Dialog (immer grau)
   const [anlagenteile, setAnlagenteile] = useState([]); // Anlagenteile pro Anlage (⚙-Dialog), für Störungs-Maske
+  // Linkbereich unter "Heute da" - aufgeklappt/zugeklappt merkt sich das Gerät,
+  // nicht die gemeinsame Datei: Das ist eine Vorliebe, keine gemeinsame Angabe.
+  const [links, setLinks] = useState(() => normalisiereLinks(null));
+  const [linksOffen, setLinksOffen] = useState(() => {
+    try { return localStorage.getItem("werkstatt-links-offen") === "1"; } catch (e) { return false; }
+  });
+  const [linkInhaber, setLinkInhaber] = useState(() => {
+    try { return (localStorage.getItem("werkstatt-links-inhaber") || "").toUpperCase(); } catch (e) { return ""; }
+  });
+  const [linkEntwurf, setLinkEntwurf] = useState(null); // {id?, name, ziel, symbol} solange bearbeitet wird
+  const [linkKopiert, setLinkKopiert] = useState(""); // id des Links, dessen Pfad gerade kopiert wurde
   // Alle Schichtarten: feste Grundausstattung + eigene (grau). Der Name ist
   // zugleich der gespeicherte Wert - identisch zur bisherigen Logik.
   const SCHICHTEN = useMemo(() => {
@@ -923,6 +980,7 @@ function App() {
         if (Array.isArray(d.config.team)) setTeam(normalisiereTeam(d.config.team));
         if (Array.isArray(d.config.extraSchichten)) setExtraSchichten(normalisiereExtraSchichten(d.config.extraSchichten));
         if (Array.isArray(d.config.anlagenteile)) setAnlagenteile(normalisiereAnlagenteile(d.config.anlagenteile));
+        if (d.config.links) setLinks(normalisiereLinks(d.config.links));
       }
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
@@ -1579,6 +1637,9 @@ function App() {
           if (Array.isArray(parsed.anlagenteile)) {
             setAnlagenteile(normalisiereAnlagenteile(parsed.anlagenteile));
           }
+          if (parsed.links) {
+            setLinks(normalisiereLinks(parsed.links));
+          }
         }
       } catch (e) {
         if (retriesLeft > 0) {
@@ -1592,18 +1653,19 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
     setTeam(nextTeam);
     setExtraSchichten(nextExtraSchichten);
     setAnlagenteile(nextAnlagenteile);
+    setLinks(nextLinks);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -1619,6 +1681,72 @@ function App() {
       }
     };
     await attempt(2);
+  };
+
+  /* ---------- Linkbereich: Anzeigen, Anlegen, Ändern, Sortieren ---------- */
+  // Welches Kürzel gerade angezeigt wird. Steht das gemerkte Kürzel nicht mehr
+  // in der Liste (umbenannt, entfernt), wird still das erste genommen, statt
+  // eine leere Liste zu zeigen.
+  const linkInhaberAktiv = links.inhaber.includes(linkInhaber) ? linkInhaber : (links.inhaber[0] || LINK_INHABER_VORGABE[0]);
+  const linkListe = links.eintraege.filter((l) => l.inhaber === linkInhaberAktiv);
+  const waehleLinkInhaber = (k) => {
+    setLinkInhaber(k);
+    setLinkEntwurf(null);
+    try { localStorage.setItem("werkstatt-links-inhaber", k); } catch (e) { /* Speicher voll o.ä. */ }
+  };
+  const schalteLinks = () => {
+    const next = !linksOffen;
+    setLinksOffen(next);
+    if (!next) setLinkEntwurf(null);
+    try { localStorage.setItem("werkstatt-links-offen", next ? "1" : "0"); } catch (e) { /* Speicher voll o.ä. */ }
+  };
+  const persistLinks = async (nextEintraege, nextInhaber = links.inhaber) => {
+    const next = normalisiereLinks({ inhaber: nextInhaber, eintraege: nextEintraege });
+    await persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, next);
+  };
+  const speichereLinkEntwurf = async () => {
+    const e = linkEntwurf;
+    if (!e || !e.name.trim() || !e.ziel.trim()) return;
+    const sauber = { name: e.name.trim(), ziel: e.ziel.trim(), symbol: (e.symbol || "🔗").trim() || "🔗" };
+    const next = e.id
+      ? links.eintraege.map((l) => (l.id === e.id ? { ...l, ...sauber } : l))
+      : [...links.eintraege, { ...sauber, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, inhaber: linkInhaberAktiv }];
+    setLinkEntwurf(null);
+    await persistLinks(next);
+  };
+  const loescheLink = async (id) => {
+    const l = links.eintraege.find((x) => x.id === id);
+    if (!l || !window.confirm(`„${l.name}" aus der Linkliste entfernen?`)) return;
+    setLinkEntwurf(null);
+    await persistLinks(links.eintraege.filter((x) => x.id !== id));
+  };
+  // Verschieben innerhalb des angezeigten Kürzels. Die Gesamtliste enthält auch
+  // die Links des anderen Kürzels - getauscht werden deshalb die Plätze in der
+  // Gesamtliste, die zu den beiden Nachbarn der gefilterten Liste gehören.
+  const verschiebeLink = async (id, richtung) => {
+    const sichtbar = linkListe.map((l) => l.id);
+    const i = sichtbar.indexOf(id);
+    const j = i + richtung;
+    if (i < 0 || j < 0 || j >= sichtbar.length) return;
+    const a = links.eintraege.findIndex((l) => l.id === sichtbar[i]);
+    const b = links.eintraege.findIndex((l) => l.id === sichtbar[j]);
+    const next = links.eintraege.slice();
+    [next[a], next[b]] = [next[b], next[a]];
+    await persistLinks(next);
+  };
+  const oeffneLink = async (l) => {
+    if (linkArt(l.ziel) === "oeffnen") {
+      window.open(linkAdresse(l.ziel), "_blank", "noopener,noreferrer");
+      return;
+    }
+    // Netzwerk- und Laufwerkspfade: in die Zwischenablage, im Explorer einfügen.
+    try {
+      await navigator.clipboard.writeText(l.ziel);
+      setLinkKopiert(l.id);
+      setTimeout(() => setLinkKopiert((v) => (v === l.id ? "" : v)), 2500);
+    } catch (e) {
+      window.prompt("Pfad kopieren (Strg+C, dann im Explorer einfügen):", l.ziel);
+    }
   };
 
   const registerIndex = useMemo(() => {
@@ -4032,6 +4160,153 @@ function App() {
               </div>
             );
           })()}
+
+          {/* Linkbereich - ausklappbar, direkt unter "Heute da".
+              Nur-Leser sehen die Kachel gar nicht (nicht ausgegraut, sondern
+              nicht vorhanden): Die Sammlung ist Arbeitsmittel der Bearbeiter. */}
+          {!readerMode && (
+            <div className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>
+              <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: linksOffen ? "1px solid #EEF0F2" : "none" }}>
+                <button
+                  onClick={schalteLinks}
+                  className="flex items-center gap-2"
+                  aria-expanded={linksOffen}
+                  title={linksOffen ? "Links zuklappen" : "Links aufklappen"}
+                >
+                  {/* Das Dreieck dreht sich - dieselbe Sprache wie im Schichtbuch */}
+                  <span style={{ color: "#8A9099", fontSize: "0.7rem", display: "inline-block", transform: linksOffen ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}>▶</span>
+                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>🔗 Links &amp; Dokumente</span>
+                </button>
+                <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C97A2B", fontSize: "0.62rem" }}>{linkListe.length}</span>
+                {/* Kürzel-Umschalter: immer sichtbar, auch zugeklappt - damit man
+                    sieht, wessen Sammlung sich beim Aufklappen öffnet. */}
+                <div className="flex items-center gap-1 ml-1">
+                  {links.inhaber.map((k) => {
+                    const an = k === linkInhaberAktiv;
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => { waehleLinkInhaber(k); if (!linksOffen) schalteLinks(); }}
+                        className="rounded font-extrabold"
+                        style={{
+                          fontSize: "0.62rem", letterSpacing: "0.3px", padding: "3px 9px",
+                          backgroundColor: an ? "#22262B" : "#F1F4F7",
+                          color: an ? "#fff" : "#6B7480",
+                        }}
+                        title={`Links von ${k} anzeigen`}
+                      >{k}</button>
+                    );
+                  })}
+                </div>
+                {linksOffen && (
+                  <button
+                    onClick={() => setLinkEntwurf({ name: "", ziel: "", symbol: "🔗" })}
+                    className="ml-auto text-xs font-bold"
+                    style={{ color: "#C97A2B" }}
+                  >＋ Link</button>
+                )}
+              </div>
+
+              {linksOffen && (
+                <div className="px-2 py-1.5">
+                  {linkListe.length === 0 && !linkEntwurf && (
+                    <div className="px-2 py-3 text-xs" style={{ color: "#8A9099" }}>
+                      Noch keine Links für <b>{linkInhaberAktiv}</b>. Über <b>＋ Link</b> den ersten anlegen.
+                    </div>
+                  )}
+                  {linkListe.map((l, i) => {
+                    const art = linkArt(l.ziel);
+                    const kopiert = linkKopiert === l.id;
+                    return (
+                      <div key={l.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-slate-50" style={{ marginBottom: "2px" }}>
+                        <button onClick={() => oeffneLink(l)} className="flex items-center gap-2.5 flex-1 text-left" style={{ minWidth: 0 }}
+                          title={art === "oeffnen" ? "Im Browser öffnen" : "Pfad kopieren und im Explorer einfügen"}>
+                          <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: "26px", height: "26px", borderRadius: "8px", backgroundColor: "#F1F4F7", fontSize: "0.9rem" }}>{l.symbol}</span>
+                          <span style={{ minWidth: 0 }}>
+                            <span className="block font-semibold" style={{ fontSize: "0.85rem", color: "#22262B" }}>{l.name}</span>
+                            <span className="block" style={{ fontSize: "0.72rem", color: kopiert ? "#2F7D4F" : "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {kopiert ? "✓ Pfad kopiert – im Explorer einfügen (Strg+V)" : l.ziel}
+                            </span>
+                          </span>
+                        </button>
+                        {/* Nur Pfeile, wenn es etwas zu tauschen gibt */}
+                        {linkListe.length > 1 && (
+                          <span className="flex flex-col flex-shrink-0" style={{ gap: "3px", lineHeight: 1 }}>
+                            <button onClick={() => verschiebeLink(l.id, -1)} disabled={i === 0} title="nach oben"
+                              style={{ fontSize: "0.58rem", lineHeight: 1, color: i === 0 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▲</button>
+                            <button onClick={() => verschiebeLink(l.id, 1)} disabled={i === linkListe.length - 1} title="nach unten"
+                              style={{ fontSize: "0.58rem", lineHeight: 1, color: i === linkListe.length - 1 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▼</button>
+                          </span>
+                        )}
+                        <button onClick={() => setLinkEntwurf({ ...l })} className="flex-shrink-0" title="bearbeiten"
+                          style={{ fontSize: "0.8rem", color: "#8A9099", padding: "0 4px" }}>✎</button>
+                      </div>
+                    );
+                  })}
+
+                  {linkEntwurf && (
+                    <div className="rounded-lg px-3 py-3 mt-1" style={{ backgroundColor: "#F7F9FA", border: "1px solid #E7EAEE" }}>
+                      <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: "#6B7480" }}>
+                        {linkEntwurf.id ? "Link ändern" : `Neuer Link für ${linkInhaberAktiv}`}
+                      </div>
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          value={linkEntwurf.symbol}
+                          onChange={(e) => setLinkEntwurf({ ...linkEntwurf, symbol: e.target.value })}
+                          className="rounded border px-2 py-1.5 text-center"
+                          style={{ width: "48px", borderColor: "#D8DEE4", fontSize: "0.95rem" }}
+                          title="Symbol"
+                        />
+                        <input
+                          value={linkEntwurf.name}
+                          onChange={(e) => setLinkEntwurf({ ...linkEntwurf, name: e.target.value })}
+                          placeholder="Bezeichnung, z. B. Betriebsanleitung Presse 3"
+                          className="rounded border px-2.5 py-1.5 flex-1"
+                          style={{ borderColor: "#D8DEE4", fontSize: "0.85rem" }}
+                        />
+                      </div>
+                      {/* Symbol-Vorschläge: schneller als das Emoji-Fenster von Windows */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {["🔗", "📘", "🛒", "📋", "🕐", "🔧", "🏭", "📞", "📁", "⚡", "🧯", "📊"].map((s) => (
+                          <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
+                            className="rounded" style={{ fontSize: "0.9rem", padding: "2px 5px", backgroundColor: linkEntwurf.symbol === s ? "#E7EEF4" : "transparent" }}>{s}</button>
+                        ))}
+                      </div>
+                      <input
+                        value={linkEntwurf.ziel}
+                        onChange={(e) => setLinkEntwurf({ ...linkEntwurf, ziel: e.target.value })}
+                        placeholder="Adresse oder Pfad, z. B. intranet.firma.de/teile oder \\server\Ordner\Datei.pdf"
+                        className="rounded border px-2.5 py-1.5 w-full"
+                        style={{ borderColor: "#D8DEE4", fontSize: "0.85rem", fontFamily: "ui-monospace, monospace" }}
+                      />
+                      {/* Vorher sagen, was passieren wird - nicht erst beim Klick */}
+                      {linkEntwurf.ziel.trim() && (
+                        <div className="mt-1.5" style={{ fontSize: "0.72rem", color: "#6B7480" }}>
+                          {linkArt(linkEntwurf.ziel) === "oeffnen"
+                            ? <>öffnet sich im Browser: <span style={{ fontFamily: "ui-monospace, monospace" }}>{linkAdresse(linkEntwurf.ziel)}</span></>
+                            : "Laufwerks- oder Netzwerkpfad: Ein Klick legt ihn in die Zwischenablage, im Explorer einfügen. Browser dürfen solche Pfade nicht selbst öffnen."}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-3">
+                        <button onClick={speichereLinkEntwurf}
+                          disabled={!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()}
+                          className="rounded px-3 py-1.5 font-bold text-white"
+                          style={{ backgroundColor: (!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()) ? "#C3C7CB" : "#2F6690", fontSize: "0.8rem" }}>
+                          Speichern
+                        </button>
+                        <button onClick={() => setLinkEntwurf(null)} className="rounded px-3 py-1.5 font-bold border"
+                          style={{ borderColor: "#D8DEE4", color: "#5B6572", fontSize: "0.8rem" }}>Abbrechen</button>
+                        {linkEntwurf.id && (
+                          <button onClick={() => loescheLink(linkEntwurf.id)} className="ml-auto rounded px-3 py-1.5 font-bold border"
+                            style={{ borderColor: "#E7B9B3", color: "#B23A34", fontSize: "0.8rem" }}>Löschen</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Gedankenstütze: offene Störungen */}
           {stoerOffeneListe.length > 0 && (
