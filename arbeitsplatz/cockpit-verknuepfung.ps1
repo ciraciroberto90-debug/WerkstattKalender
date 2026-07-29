@@ -17,11 +17,28 @@
 
 param(
   [string]$Starter = "",       # leer = "Cockpit starten.cmd" neben diesem Skript
+  [string]$Symbol = "",        # leer = $SymbolVorgabe weiter unten
   [switch]$MitAutostart,       # zusaetzlich in den Autostart legen
   [switch]$OhneNachfrage
 )
 
 $ErrorActionPreference = "Stop"
+
+# Das Symbol der Verknuepfung. Eine Zeile, damit es fuer alle gleich ist -
+# vorher musste es jeder von Hand auswaehlen, und dann sieht der Desktop bei
+# jedem anders aus.
+#
+# Die Zahl hinter dem Komma ist die Nummer des Symbols in der Datei. Sie laesst
+# sich nicht erraten - der Dialog "Anderes Symbol" zeigt Bilder, keine Nummern.
+# Wer das Symbol aendern will, waehlt es einmal von Hand an einer Verknuepfung
+# aus und liest den Wert danach so aus:
+#
+#   (New-Object -ComObject WScript.Shell).CreateShortcut(
+#     "$env:USERPROFILE\Desktop\Werkstatt-Cockpit.lnk").IconLocation
+#
+# Der ausgegebene Text kommt genau hier hinein - dann sieht es bei allen gleich
+# aus, ohne dass jemand klicken muss.
+$SymbolVorgabe = "%SystemRoot%\System32\shell32.dll,46"
 
 $hier = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Starter) { $Starter = Join-Path $hier "Cockpit starten.cmd" }
@@ -41,6 +58,19 @@ if (-not (Test-Path -LiteralPath $Starter)) {
 }
 Write-Host "  Starter:  $Starter"
 
+# Symbol festlegen und pruefen, dass die Datei ueberhaupt da ist. Zeigt eine
+# Verknuepfung ins Leere, nimmt Windows stillschweigend das Symbol des Ziels -
+# hier also das schwarze Fenster von cmd.exe. Dann sieht es bei einem Kollegen
+# anders aus als bei den anderen, und niemand weiss warum.
+$symbolWert = $Symbol
+if (-not $symbolWert) { $symbolWert = $SymbolVorgabe }
+$symbolDatei = [Environment]::ExpandEnvironmentVariables(($symbolWert -split ",")[0])
+Write-Host "  Symbol:   $symbolWert"
+if (-not (Test-Path -LiteralPath $symbolDatei)) {
+  Write-Host ("  Symboldatei nicht gefunden: " + $symbolDatei) -ForegroundColor Yellow
+  Write-Host "  Die Verknuepfung bekommt das Standardsymbol von cmd.exe." -ForegroundColor Yellow
+}
+
 function Lege-Verknuepfung($zielOrdner, $name) {
   $pfad = Join-Path $zielOrdner ($name + ".lnk")
   $schale = New-Object -ComObject WScript.Shell
@@ -51,7 +81,7 @@ function Lege-Verknuepfung($zielOrdner, $name) {
   $v.Arguments = '/c ""' + $Starter + '""'
   $v.WorkingDirectory = $env:SystemRoot     # NICHT der UNC-Pfad, sonst meckert cmd
   $v.WindowStyle = 7                        # minimiert
-  $v.IconLocation = (Join-Path $env:SystemRoot "System32\shell32.dll") + ",46"
+  $v.IconLocation = $symbolWert
   $v.Description = "Werkstatt-Cockpit starten (Ausliefer-Dienst und Browser)"
   $v.Save()
   return $pfad

@@ -67,6 +67,41 @@ Pruefe "ja ohne Autostart-Ordner bricht nicht ab" ($a -match "Autostart-Ordner n
 $a = Lauf "" $false
 Pruefe "nein ohne Autostart-Ordner bricht nicht ab" ($a -match "Kein Autostart")
 
+# --------------------------------------------------------------- Symbol
+# Auch aus der echten Datei geschnitten: die Ermittlung des Symbols. Das Symbol
+# soll bei allen gleich sein - genau deshalb darf es nicht still auf das
+# cmd-Fenster zurueckfallen, ohne dass es jemand sagt.
+$vonS = ($alle | Select-String -Pattern '^# Symbol festlegen und pruefen' | Select-Object -First 1).LineNumber
+if (-not $vonS) { throw "Symbol-Abschnitt nicht gefunden" }
+$bisS = ($alle | Select-String -Pattern '^\}$' | Where-Object { $_.LineNumber -gt $vonS } | Select-Object -First 1).LineNumber
+$symbolAbschnitt = ($alle[($vonS - 1)..($bisS - 1)] -join "`n")
+if ($symbolAbschnitt -notmatch "Symboldatei nicht gefunden") { throw "Falscher Symbol-Abschnitt geschnitten" }
+
+# Der Vorgabewert steht als $SymbolVorgabe oben in der Datei - auch den aus dem
+# Original lesen, damit der Test nicht seine eigene Zahl prueft.
+$vorgabeZeile = ($alle | Select-String -Pattern '^\$SymbolVorgabe\s*=' | Select-Object -First 1).Line
+$SymbolVorgabe = Invoke-Expression ($vorgabeZeile -replace '^\$SymbolVorgabe\s*=\s*', '')
+
+function SymbolLauf($uebergeben) {
+  $Symbol = $uebergeben
+  return (Invoke-Expression $symbolAbschnitt 4>&1 6>&1 | Out-String)
+}
+
+$echt = Join-Path ([System.IO.Path]::GetTempPath()) ("sym-" + [guid]::NewGuid() + ".dll")
+Set-Content -LiteralPath $echt -Value "keine echte DLL, aber vorhanden"
+
+$a = SymbolLauf ""
+Pruefe "ohne Vorgabe wird der Wert aus der Datei genommen" ($a -match [regex]::Escape($SymbolVorgabe))
+Pruefe "Vorgabewert nennt Datei und Nummer" ($SymbolVorgabe -match '^[^,]+,\d+$')
+
+$a = SymbolLauf ($echt + ",7")
+Pruefe "eine uebergebene Symboldatei sticht die Vorgabe" (($a -match [regex]::Escape($echt + ",7")) -and ($a -notmatch "nicht gefunden"))
+
+$a = SymbolLauf ("C:\gibt-es-nicht\keine.dll,3")
+Pruefe "fehlende Symboldatei wird gemeldet statt still zu schlucken" ($a -match "Symboldatei nicht gefunden")
+
+Remove-Item -LiteralPath $echt -Force -ErrorAction SilentlyContinue
+
 # Fremde Dateien im Autostart bleiben unangetastet.
 Set-Content -LiteralPath (Join-Path $sp "Etwas-anderes.lnk") -Value "fremd"
 [void](Lauf $sp $false)
