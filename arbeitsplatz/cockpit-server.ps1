@@ -182,13 +182,25 @@ try {
 
       $zeile = $leser.ReadLine()
       if (-not $zeile) { $kunde.Close(); continue }
-      # Kopfzeilen bis zur Leerzeile wegwerfen - gebraucht wird nur der Pfad.
-      while ($true) { $k = $leser.ReadLine(); if ($null -eq $k -or $k -eq "") { break } }
+      # Kopfzeilen einsammeln. Frueher wurden sie weggeworfen - fuer das
+      # Oeffnen von Dateien wird "Sec-Fetch-Site" gebraucht, siehe unten.
+      $kopfzeilen = @{}
+      while ($true) {
+        $k = $leser.ReadLine()
+        if ($null -eq $k -or $k -eq "") { break }
+        $doppel = $k.IndexOf(":")
+        if ($doppel -gt 0) {
+          $kopfzeilen[$k.Substring(0, $doppel).Trim().ToLowerInvariant()] = $k.Substring($doppel + 1).Trim()
+        }
+      }
 
       $teile = $zeile -split " "
       $methode = $teile[0]
-      $pfad = if ($teile.Length -gt 1) { $teile[1] } else { "/" }
-      $pfad = ($pfad -split "\?")[0]
+      $rohPfad = if ($teile.Length -gt 1) { $teile[1] } else { "/" }
+      $abfrage = ""
+      $fragezeichen = $rohPfad.IndexOf("?")
+      if ($fragezeichen -ge 0) { $abfrage = $rohPfad.Substring($fragezeichen + 1) }
+      $pfad = ($rohPfad -split "\?")[0]
       $pfad = [System.Uri]::UnescapeDataString($pfad)
 
       if ($methode -ne "GET" -and $methode -ne "HEAD") {
@@ -200,6 +212,74 @@ try {
       # unser Dienst laeuft - und startet dann keinen zweiten auf anderem Port.
       if ($pfad -eq "/__cockpit") {
         Antworte $strom 200 "OK" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes("werkstatt-cockpit-dienst"))
+        $kunde.Close(); continue
+      }
+
+      # Eine Datei oder einen Ordner im Explorer oeffnen.
+      #
+      # Der Browser selbst darf das nicht - ein Netzwerkpfad laesst sich aus
+      # einer Webseite heraus nicht oeffnen. Der Dienst laeuft ohnehin auf
+      # diesem Rechner und mit den Rechten des angemeldeten Benutzers, also
+      # kann er es uebernehmen.
+      #
+      # Das ist die einzige Stelle, an der dieser Dienst etwas TUT statt nur
+      # auszuliefern. Deshalb drei Sperren:
+      #
+      #  1. "Sec-Fetch-Site: same-origin". Diese Kopfzeile setzt der Browser
+      #     selbst, eine Seite kann sie nicht faelschen. Ohne sie kaeme jede
+      #     beliebige Webseite im Netz an diesen Zugang - sie muesste nur
+      #     http://localhost:8765/__oeffne?... aufrufen. Fehlt die Kopfzeile,
+      #     wird abgelehnt (nicht durchgelassen).
+      #  2. Nur echte Pfade: Netzwerkfreigabe oder Laufwerksbuchstabe, nichts
+      #     mit Anfuehrungszeichen oder Zeilenumbruechen darin.
+      #  3. Programme werden nicht gestartet. Zeigt der Pfad auf eine .exe,
+      #     .cmd, .ps1 und dergleichen, wird der Ordner geoeffnet statt der
+      #     Datei. Ein Eintrag in einer Linkliste soll ein Weg zu einer Datei
+      #     sein und kein Startknopf fuer ein Programm.
+      if ($pfad -eq "/__oeffne") {
+        $herkunft = $kopfzeilen["sec-fetch-site"]
+        if ($herkunft -ne "same-origin") {
+          Antworte $strom 403 "Forbidden" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes("Nur aus dem Cockpit heraus."))
+          Schreibe ("  403  /__oeffne  (Herkunft: " + $(if ($herkunft) { $herkunft } else { "keine Angabe" }) + ")") "DarkYellow"
+          $kunde.Close(); continue
+        }
+        $wunsch = ""
+        foreach ($paar in ($abfrage -split "&")) {
+          $g = $paar.IndexOf("=")
+          if ($g -gt 0 -and $paar.Substring(0, $g) -eq "pfad") {
+            $wunsch = [System.Uri]::UnescapeDataString($paar.Substring($g + 1).Replace("+", " "))
+          }
+        }
+        # Zeichenklasse bewusst mit \r\n\t geschrieben, NICHT mit `r`n`t: In
+        # einfachen Anfuehrungszeichen bleibt das Gegenzeichen stehen, und die
+        # Klasse haette die Buchstaben r, n und t verboten - also so gut wie
+        # jeden Pfad.
+        $sauber = ($wunsch -notmatch '["\r\n\t]') -and ($wunsch -match '^\\\\[^\\]' -or $wunsch -match '^[A-Za-z]:\\')
+        if (-not $sauber) {
+          Antworte $strom 400 "Bad Request" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes("Kein gueltiger Pfad."))
+          Schreibe "  400  /__oeffne  (kein gueltiger Pfad)" "DarkYellow"
+          $kunde.Close(); continue
+        }
+        if (-not (Test-Path -LiteralPath $wunsch)) {
+          Antworte $strom 404 "Not Found" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes("Nicht gefunden oder nicht erreichbar."))
+          Schreibe ("  404  /__oeffne  " + $wunsch) "DarkYellow"
+          $kunde.Close(); continue
+        }
+        $starten = $wunsch
+        $gefaehrlich = @(".exe", ".com", ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".msi", ".scr", ".lnk", ".reg", ".hta")
+        if ($gefaehrlich -contains [System.IO.Path]::GetExtension($wunsch).ToLowerInvariant()) {
+          $starten = Split-Path -Parent $wunsch
+          Schreibe ("  Programmdatei - es wird der Ordner geoeffnet: " + $starten) "Yellow"
+        }
+        try {
+          Start-Process -FilePath $starten -ErrorAction Stop | Out-Null
+          Antworte $strom 200 "OK" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes("geoeffnet"))
+          Schreibe ("  200  /__oeffne  " + $starten) "DarkGray"
+        } catch {
+          $m = "Konnte nicht geoeffnet werden: " + $_.Exception.Message
+          Antworte $strom 500 "Internal Server Error" "text/plain; charset=utf-8" ([System.Text.Encoding]::UTF8.GetBytes($m))
+          Schreibe ("  500  /__oeffne  " + $_.Exception.Message) "DarkYellow"
+        }
         $kunde.Close(); continue
       }
 

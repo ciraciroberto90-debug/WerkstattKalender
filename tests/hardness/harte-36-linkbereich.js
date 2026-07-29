@@ -14,7 +14,11 @@
 //   (5) Aendern, Sortieren, Loeschen - und der andere Inhaber bleibt heil.
 //   (6) Netzwerkpfade werden nicht als Web-Adresse geoeffnet.
 //   (7) Die Links ueberstehen einen Neustart der App.
+//   (8) Ueber den Ausliefer-Dienst geoeffnet: Der Klick fragt ihn nach der
+//       Datei, mit der Kopfzeile, auf der seine Zugangspruefung beruht.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const fs = require("fs");
+const http = require("http");
 const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -210,6 +214,98 @@ async function legeAn(p, name, ziel) {
     pruef("(7) Nach einem Neustart sind die Links wieder da", /Umbenannt|Anleitungen/.test(sichtbar));
     await p3.context().close();
     await p.context().close();
+  }
+
+  /* ---------------- (8) Über den Ausliefer-Dienst geöffnet ----------------
+     Bisher lief alles über file:// - da gibt es niemanden, den man um das
+     Öffnen einer Datei bitten könnte. Am Arbeitsplatz kommt die App aber über
+     http://localhost:8765/ vom Dienst. Genau dann soll ein Klick auf einen
+     Netzwerkpfad die Datei aufmachen statt nur den Pfad zu kopieren.
+     Der Dienst wird hier durch abgefangene Anfragen dargestellt; geprüft wird
+     die App-Seite: Wird gefragt, mit welchem Pfad, und was passiert danach. */
+  {
+    const html = fs.readFileSync("/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html", "utf8");
+    const platte = {
+      "kalender-daten.json": JSON.stringify({
+        ...START,
+        entries: [...START.entries, {
+          id: "config|links", updatedAt: "2026-07-20T08:00:00.000Z",
+          value: { inhaber: ["RC", "AR"], eintraege: [
+            { id: "p1", inhaber: "RC", name: "Anleitung Presse", ziel: "\\\\scheudc1\\PSG\\Presse.pdf", symbol: "📘" },
+            { id: "p2", inhaber: "RC", name: "Fehlt im Ordner", ziel: "\\\\scheudc1\\PSG\\weg.pdf", symbol: "📕" },
+          ] },
+        }],
+      }),
+    };
+    // Ein echter kleiner Server statt abgefangener Anfragen: Nur so setzt der
+    // Browser die Kopfzeile "Sec-Fetch-Site", auf die der Dienst seine
+    // Zugangsprüfung stützt. Bei abgefangenen Anfragen fehlt sie - dann hätte
+    // der Test die Prüfung stillschweigend übersprungen.
+    const gefragt = [];
+    const dienst = http.createServer((anfrage, antwort) => {
+      const u = new URL(anfrage.url, "http://localhost");
+      if (u.pathname === "/__oeffne") {
+        const pfad = u.searchParams.get("pfad");
+        gefragt.push({ pfad, herkunft: anfrage.headers["sec-fetch-site"] });
+        const weg = /weg\.pdf$/.test(pfad || "");
+        antwort.writeHead(weg ? 404 : 200, { "Content-Type": "text/plain; charset=utf-8" });
+        antwort.end(weg ? "Nicht gefunden." : "geoeffnet");
+        return;
+      }
+      antwort.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      antwort.end(html);
+    });
+    await new Promise((r) => dienst.listen(0, "127.0.0.1", r));
+    const hafen = dienst.address().port;
+
+    const ctx = await b.newContext({ viewport: { width: 1400, height: 1000 } });
+    const p = await ctx.newPage();
+    const fehler = []; p.on("pageerror", (e) => fehler.push(e.message));
+    await p.exposeFunction("__lies", (n) => platte[n] ?? "");
+    await p.exposeFunction("__schreib", (n, c) => { platte[n] = c; });
+    await p.addInitScript(() => {
+      const h = {
+        name: "kalender-daten.json", kind: "file",
+        async getFile() { const t = await window.__lies("kalender-daten.json"); return new File([t], "kalender-daten.json", { type: "application/json" }); },
+        async createWritable() { let x = ""; return { async write(c) { x += c; }, async close() { await window.__schreib("kalender-daten.json", x); }, async abort() {} }; },
+        async queryPermission() { return "granted"; },
+        async requestPermission() { return "granted"; },
+      };
+      window.showOpenFilePicker = async () => [h];
+      window.showSaveFilePicker = async () => h;
+    });
+    await p.goto("http://localhost:" + hafen + "/");
+    await p.waitForTimeout(1000);
+    await verbinde(p);
+    await p.waitForTimeout(600);
+    await kopfzeile(p).click();
+    await p.waitForTimeout(500);
+
+    let neueSeiten = 0;
+    ctx.on("page", () => { neueSeiten++; });
+    await p.getByText("Anleitung Presse").click();
+    await p.waitForTimeout(1200);
+
+    pruef("(8) Der Klick fragt den Dienst nach der Datei", gefragt.length === 1, JSON.stringify(gefragt));
+    pruef("(8) Der Pfad wird unverändert übergeben",
+          gefragt[0] && gefragt[0].pfad === "\\\\scheudc1\\PSG\\Presse.pdf", gefragt[0] && gefragt[0].pfad);
+    // Ohne diese Kopfzeile weist der Dienst ab - dann wäre der ganze Weg tot.
+    pruef("(8) Die Anfrage trägt die Herkunft same-origin",
+          gefragt[0] && gefragt[0].herkunft === "same-origin", gefragt[0] && gefragt[0].herkunft);
+    pruef("(8) Es wird kein Browser-Tab geöffnet", neueSeiten === 0, neueSeiten + " neue Seiten");
+    const nachOk = await p.locator("body").innerText();
+    pruef("(8) Der Erfolg wird am Link gemeldet", /geöffnet/.test(nachOk),
+          (nachOk.match(/✓[^\n]{0,40}/) || ["keine Meldung"])[0]);
+
+    // Datei nicht mehr da: Das muss man sehen, statt vergeblich zu warten.
+    await p.getByText("Fehlt im Ordner").click();
+    await p.waitForTimeout(1200);
+    const nachFehler = await p.locator("body").innerText();
+    pruef("(8) Eine fehlende Datei wird als solche gemeldet", /nicht gefunden/i.test(nachFehler),
+          (nachFehler.match(/✗[^\n]{0,50}/) || ["keine Meldung"])[0]);
+    pruef("(8) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+    await ctx.close();
+    await new Promise((r) => dienst.close(r));
   }
 
   await b.close();

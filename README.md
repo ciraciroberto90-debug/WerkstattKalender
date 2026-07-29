@@ -72,7 +72,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 34 Härtetests und sechs weitere Suiten | Entwicklung |
+| `tests/` | 35 Härtetests und sieben weitere Suiten | Entwicklung |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
 
@@ -113,7 +113,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 34 Härtetests
+bash tests/run-hardness-tests.sh           # 35 Härtetests
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/rollout-test.js                 # Verteilung
@@ -121,12 +121,13 @@ node tests/veroeffentlichungs-test.js      # Veröffentlichung
 node tests/hardness/diagnose-ablauf.js     # die Diagnose-Seite selbst
 bash tests/pruefe-sicherung.sh             # Sicherungsskript (braucht PowerShell)
 pwsh -File tests/pruefe-verknuepfung.ps1   # Autostart-Zweig der Verknüpfung
+pwsh -File tests/pruefe-oeffnen.ps1        # Datei öffnen über den Dienst
 node tools/startpaket-bauen.js --pruefen   # ist die Start-ZIP noch aktuell?
 ```
 
 Nach jeder Änderung an `arbeitsplatz/` gehört `node tools/startpaket-bauen.js`
 dazu – sonst verteilt die ZIP weiter den alten Stand.
 
-Stand der letzten vollständigen Prüfung: **34/34 Härtetests, 425 Einzelprüfungen,
+Stand der letzten vollständigen Prüfung: **35/35 Härtetests, 455 Einzelprüfungen,
 kein Fehlschlag** – inklusive sieben Jahrgängen Betriebsdaten (16 951 Einträge,
 1 260 Störberichte, 3,4 MB), voller Speichergrenze und beschädigter Datei.

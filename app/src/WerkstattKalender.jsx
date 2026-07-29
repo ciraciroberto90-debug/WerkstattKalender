@@ -410,12 +410,20 @@ const normalisiereAnlagenteile = (arr) => (Array.isArray(arr) ? arr : [])
 // eine neue Vertretung keinen Eingriff im Code mit sich.
 const LINK_INHABER_VORGABE = ["RC", "AR"];
 
+// Wird die App vom Ausliefer-Dienst geliefert (http://localhost:8765/), kann
+// sie ihn bitten, eine Datei zu öffnen - der läuft auf demselben Rechner und
+// darf, was der Browser nicht darf. Als Datei geöffnet (file://) gibt es
+// niemanden, den man fragen könnte; dann bleibt die Zwischenablage.
+const ueberDienst = () => {
+  try { return /^https?:$/.test(window.location.protocol); } catch (e) { return false; }
+};
+
 // Was der Browser selbst öffnen kann und was nicht.
 //
 // Ein Netzwerkpfad (\\server\...) oder ein Laufwerksbuchstabe lässt sich aus
 // einer Webseite heraus NICHT öffnen - Chrome blockiert das, und kein Schalter
-// ändert daran etwas. Statt einen toten Knopf anzubieten, wird der Pfad in die
-// Zwischenablage gelegt; im Explorer eingefügt ist man am selben Ziel.
+// ändert daran etwas. Deshalb geht der Pfad an den Dienst; erst wenn der nicht
+// erreichbar ist, wird er in die Zwischenablage gelegt.
 const linkArt = (ziel) => {
   const z = String(ziel || "").trim();
   if (/^(https?|mailto|tel):/i.test(z)) return "oeffnen";
@@ -1734,16 +1742,36 @@ function App() {
     [next[a], next[b]] = [next[b], next[a]];
     await persistLinks(next);
   };
+  // Rückmeldung am Link: was beim letzten Klick passiert ist. Ohne sie klickt
+  // man ins Leere - die Datei öffnet sich in einem anderen Fenster, und im
+  // Cockpit sieht es aus, als sei nichts geschehen.
+  const meldeAmLink = (id, text) => {
+    setLinkKopiert({ id, text });
+    setTimeout(() => setLinkKopiert((v) => (v && v.id === id ? "" : v)), 3500);
+  };
   const oeffneLink = async (l) => {
     if (linkArt(l.ziel) === "oeffnen") {
       window.open(linkAdresse(l.ziel), "_blank", "noopener,noreferrer");
       return;
     }
-    // Netzwerk- und Laufwerkspfade: in die Zwischenablage, im Explorer einfügen.
+    // Laufwerks- und Netzwerkpfade: den Dienst bitten. Mit Frist - antwortet er
+    // nicht, hängt der Klick nicht, sondern fällt auf die Zwischenablage zurück.
+    if (ueberDienst()) {
+      meldeAmLink(l.id, "wird geöffnet …");
+      try {
+        const abbruch = new AbortController();
+        const uhr = setTimeout(() => abbruch.abort(), 8000);
+        const antwort = await fetch("/__oeffne?pfad=" + encodeURIComponent(l.ziel), { cache: "no-store", signal: abbruch.signal });
+        clearTimeout(uhr);
+        if (antwort.ok) { meldeAmLink(l.id, "✓ geöffnet"); return; }
+        if (antwort.status === 404) { meldeAmLink(l.id, "✗ nicht gefunden – liegt die Datei noch dort?"); return; }
+        // 400/403/500: der Dienst hat geantwortet, aber abgelehnt. Der Pfad
+        // wird trotzdem kopiert, damit der Weg über den Explorer offen bleibt.
+      } catch (e) { /* Dienst antwortet nicht - unten weiter */ }
+    }
     try {
       await navigator.clipboard.writeText(l.ziel);
-      setLinkKopiert(l.id);
-      setTimeout(() => setLinkKopiert((v) => (v === l.id ? "" : v)), 2500);
+      meldeAmLink(l.id, "✓ Pfad kopiert – im Explorer einfügen (Strg+V)");
     } catch (e) {
       window.prompt("Pfad kopieren (Strg+C, dann im Explorer einfügen):", l.ziel);
     }
@@ -4216,16 +4244,16 @@ function App() {
                   )}
                   {linkListe.map((l, i) => {
                     const art = linkArt(l.ziel);
-                    const kopiert = linkKopiert === l.id;
+                    const meldung = linkKopiert && linkKopiert.id === l.id ? linkKopiert.text : "";
                     return (
                       <div key={l.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-slate-50" style={{ marginBottom: "2px" }}>
                         <button onClick={() => oeffneLink(l)} className="flex items-center gap-2.5 flex-1 text-left" style={{ minWidth: 0 }}
-                          title={art === "oeffnen" ? "Im Browser öffnen" : "Pfad kopieren und im Explorer einfügen"}>
+                          title={art === "oeffnen" ? "Im Browser öffnen" : "Öffnen"}>
                           <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: "26px", height: "26px", borderRadius: "8px", backgroundColor: "#F1F4F7", fontSize: "0.9rem" }}>{l.symbol}</span>
                           <span style={{ minWidth: 0 }}>
                             <span className="block font-semibold" style={{ fontSize: "0.85rem", color: "#22262B" }}>{l.name}</span>
-                            <span className="block" style={{ fontSize: "0.72rem", color: kopiert ? "#2F7D4F" : "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {kopiert ? "✓ Pfad kopiert – im Explorer einfügen (Strg+V)" : l.ziel}
+                            <span className="block" style={{ fontSize: "0.72rem", color: meldung ? (meldung.startsWith("✗") ? "#B23A34" : "#2F7D4F") : "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {meldung || l.ziel}
                             </span>
                           </span>
                         </button>
@@ -4265,11 +4293,25 @@ function App() {
                           style={{ borderColor: "#D8DEE4", fontSize: "0.85rem" }}
                         />
                       </div>
-                      {/* Symbol-Vorschläge: schneller als das Emoji-Fenster von Windows */}
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {["🔗", "📘", "🛒", "📋", "🕐", "🔧", "🏭", "📞", "📁", "⚡", "🧯", "📊"].map((s) => (
-                          <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
-                            className="rounded" style={{ fontSize: "0.9rem", padding: "2px 5px", backgroundColor: linkEntwurf.symbol === s ? "#E7EEF4" : "transparent" }}>{s}</button>
+                      {/* Symbol-Vorschläge, nach Themen geordnet: schneller als das
+                          Emoji-Fenster von Windows und auf die Werkstatt gemünzt.
+                          Wer etwas anderes will, tippt es links ins Feld. */}
+                      <div className="mb-2">
+                        {[
+                          ["Unterlagen", ["🔗", "📘", "📕", "📄", "📑", "📁", "🗂", "📇", "📝", "🖨", "📷", "🗺"]],
+                          ["Werkstatt", ["🔧", "🔩", "⚙", "🛠", "🪛", "🔨", "⛓", "🧰", "🏭", "🚜", "🧱", "🪣"]],
+                          ["Technik", ["⚡", "🔌", "💡", "🔥", "💧", "🌡", "🧪", "♻", "🛢", "🌀", "❄", "📡"]],
+                          ["Betrieb", ["🛒", "📞", "✉", "🕐", "📅", "📊", "💶", "🚚", "🏢", "👷", "🧑‍🔧", "🗓"]],
+                          ["Sicherheit", ["📋", "⚠", "🧯", "🚨", "🦺", "🥽", "🧤", "🚑", "🔒", "✅", "🚫", "☣"]],
+                        ].map(([gruppe, symbole]) => (
+                          <div key={gruppe} className="flex items-center gap-1 flex-wrap" style={{ marginBottom: "2px" }}>
+                            <span style={{ fontSize: "0.62rem", color: "#A2AAB3", width: "62px", flex: "0 0 auto" }}>{gruppe}</span>
+                            {symbole.map((s) => (
+                              <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
+                                title={"Symbol " + s}
+                                className="rounded" style={{ fontSize: "0.95rem", lineHeight: 1.2, padding: "2px 4px", backgroundColor: linkEntwurf.symbol === s ? "#E7EEF4" : "transparent" }}>{s}</button>
+                            ))}
+                          </div>
                         ))}
                       </div>
                       <input
@@ -4284,7 +4326,9 @@ function App() {
                         <div className="mt-1.5" style={{ fontSize: "0.72rem", color: "#6B7480" }}>
                           {linkArt(linkEntwurf.ziel) === "oeffnen"
                             ? <>öffnet sich im Browser: <span style={{ fontFamily: "ui-monospace, monospace" }}>{linkAdresse(linkEntwurf.ziel)}</span></>
-                            : "Laufwerks- oder Netzwerkpfad: Ein Klick legt ihn in die Zwischenablage, im Explorer einfügen. Browser dürfen solche Pfade nicht selbst öffnen."}
+                            : ueberDienst()
+                              ? "Laufwerks- oder Netzwerkpfad: Der Klick öffnet die Datei über das Cockpit-Fenster. Ist es geschlossen, wird der Pfad stattdessen kopiert."
+                              : "Laufwerks- oder Netzwerkpfad: Ein Klick legt ihn in die Zwischenablage, im Explorer einfügen. Direkt öffnen geht nur, wenn das Cockpit über das Desktop-Symbol gestartet wurde."}
                         </div>
                       )}
                       <div className="flex items-center gap-2 mt-3">
