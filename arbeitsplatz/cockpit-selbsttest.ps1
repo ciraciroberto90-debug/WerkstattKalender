@@ -23,8 +23,8 @@ function Groesse($bytes) {
 function Zeile($name, $wert, $art = "info") {
   $farbe = switch ($art) { "gut" { "Green" } "schlecht" { "Red" } "warn" { "Yellow" } default { "Gray" } }
   $zeichen = switch ($art) { "gut" { "  OK  " } "schlecht" { "  !!  " } "warn" { "  ??  " } default { "      " } }
-  Write-Host ($zeichen + $name.PadRight(40) + $wert) -ForegroundColor $farbe
-  [void]$bericht.Add(($zeichen.Trim().PadRight(4) + " " + $name.PadRight(40) + " " + $wert))
+  Write-Host ($zeichen + $name.PadRight(42) + "  " + $wert) -ForegroundColor $farbe
+  [void]$bericht.Add(($zeichen.Trim().PadRight(4) + " " + $name.PadRight(42) + "  " + $wert))
 }
 function Ueberschrift($t) {
   Write-Host ""
@@ -78,8 +78,16 @@ if (-not $dateien) { Zeile "Gefunden" "KEINE JSON-Datei im Ordner" "schlecht" }
 
 $konflikte = @()
 foreach ($d in $dateien) {
-  # Konfliktkopien von OneDrive tragen den Rechnernamen im Dateinamen.
-  if ($d.BaseName -match "-[A-Za-z0-9]+$" -and $d.BaseName -notmatch "^werkstatt-(kalender-daten|stoerungen)$") {
+  # Konfliktkopien von OneDrive heissen "<Datenname>-RECHNERNAME.json" - also
+  # der Name einer der beiden Datendateien, ein BINDESTRICH, dann der Rechner.
+  # Genau diese Regel benutzt auch der Konflikt-Waechter in der App.
+  #
+  # Wichtig ist der Bindestrich: Von Hand angelegte Sicherungen heissen
+  # ueblicherweise "werkstatt-kalender-daten_2026-07-28.json" mit UNTERSTRICH.
+  # Eine frueher hier stehende Fassung pruefte nur "endet auf -irgendwas" und
+  # haette solche Sicherungen als Konfliktkopien gemeldet - ein Fehlalarm, der
+  # jemanden dazu bringen koennte, seine Sicherung wegzuwerfen.
+  if ($d.BaseName -match "^(werkstatt-kalender-daten|werkstatt-stoerungen)-.+$") {
     $konflikte += $d
   }
   $roh = ""
