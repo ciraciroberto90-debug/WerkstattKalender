@@ -7,6 +7,9 @@ set ORDNER=\\scheudc1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitspla
 setlocal
 set HIER=%~dp0
 if "%HIER:~-1%"=="\" set HIER=%HIER:~0,-1%
+rem Liegt diese Datei selbst im App-Ordner, ist der eigene Ordner der richtige.
+if exist "%HIER%\Werkstatt_Kalender_TPM*.html" set ORDNER=%HIER%
+
 title Werkstatt-Cockpit - Sicherung zurueckholen
 
 if not exist "%HIER%\cockpit-sicherung.ps1" (

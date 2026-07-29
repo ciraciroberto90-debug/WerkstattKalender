@@ -22,6 +22,14 @@ zurück). Die Datendateien werden beim Öffnen automatisch gesichert.
 Sonst braucht ein Arbeitsplatz **nichts** – die App selbst liegt im
 Netzwerkordner und wird von dort ausgeliefert.
 
+**Alternative:** Die Dateien aus dem Paket können auch alle im App-Ordner auf
+dem Firmenlaufwerk liegen. Die Kollegen rufen dort einmal
+`Verknuepfung anlegen.cmd` auf und haben ihr Desktop-Symbol – danach nie wieder
+in den Netzwerkordner. Eine Verbesserung an den Skripten wird dann an einer
+Stelle eingespielt und gilt sofort für alle. Beide Ablagen sind in
+[`arbeitsplatz/Anleitung-Arbeitsplatz.md`](arbeitsplatz/Anleitung-Arbeitsplatz.md)
+beschrieben; die Starter erkennen selbst, wo sie liegen.
+
 ### Neue Programmversion verteilen → **eine Datei**
 
 **[`Werkstatt_Kalender_TPM.html`](Werkstatt_Kalender_TPM.html)**

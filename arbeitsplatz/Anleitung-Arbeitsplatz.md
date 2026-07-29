@@ -27,6 +27,42 @@ kopieren, alte überschreiben. Der Dienst liest bei jedem Aufruf frisch von dort
 **Beim Öffnen:** statt der Verknüpfung zur HTML-Datei ein Doppelklick auf
 `Cockpit starten.cmd`. Das Cockpit öffnet sich dann von allein.
 
+## Zwei Ablagen zur Wahl
+
+**Variante A – Paket auf jedem Rechner.** Jeder Arbeitsplatz bekommt den Ordner
+`Cockpit` lokal (Desktop oder `C:\Werkstatt`). Funktioniert überall, auch wenn
+die Freigabe keine Skripte zulässt.
+
+**Variante B – alles im App-Ordner auf dem Firmenlaufwerk.** Starter, Dienst und
+Werkzeuge liegen neben `Werkstatt_Kalender_TPM … .html`. Die Kollegen holen sich
+nur eine Verknüpfung auf den Desktop. Vorteil: Eine Verbesserung an den Skripten
+wird an **einer** Stelle eingespielt und gilt sofort für alle.
+
+Die Starter erkennen selbst, in welcher Ablage sie liegen: Findet sich neben
+ihnen eine `Werkstatt_Kalender_TPM*.html`, gilt dieser Ordner als Datenordner.
+Es muss also **kein Pfad gepflegt werden**.
+
+### Variante B einrichten
+
+1. Diese Dateien in den App-Ordner auf dem Firmenlaufwerk legen:
+   `Cockpit starten.cmd`, `Selbsttest.cmd`, `Sicherung zurueckholen.cmd`,
+   `Verknuepfung anlegen.cmd` und die vier `.ps1`-Dateien.
+2. Jeder Kollege ruft dort **einmal** `Verknuepfung anlegen.cmd` auf.
+   Es entsteht ein Desktop-Symbol „Werkstatt-Cockpit"; auf Nachfrage wird
+   zusätzlich der Autostart eingerichtet. Danach muss niemand mehr in den
+   Netzwerkordner.
+
+> **Warum eine eigene Datei dafür?** `cmd.exe` kann keinen UNC-Pfad als
+> Arbeitsverzeichnis verwenden. Eine von Hand angelegte Verknüpfung zeigt
+> deshalb bei jedem Start die Meldung „UNC-Pfade werden nicht unterstützt".
+> `Verknuepfung anlegen.cmd` setzt das Arbeitsverzeichnis auf einen lokalen
+> Pfad – dann bleibt es still. Außerdem stellt es Fenster auf *minimiert*,
+> vergibt Symbol und Namen.
+
+> **Wenn die Freigabe keine Skripte zulässt:** Manche Laufwerke lehnen
+> `.cmd`- und `.ps1`-Dateien ab (Dateityp-Sperre). Dann ist Variante B nicht
+> möglich – nimm Variante A. Das merkst du sofort beim Hineinkopieren.
+
 ## Einrichtung – einmal je Rechner, etwa zwei Minuten
 
 Die beiden Dateien gehören **nicht** in den Netzwerkordner. Sie dürfen dort

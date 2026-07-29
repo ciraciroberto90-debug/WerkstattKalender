@@ -43,6 +43,12 @@ if not defined SKRIPT (
   exit /b 1
 )
 
+rem Liegt diese Datei SELBST im App-Ordner (die uebliche Ablage: Starter und
+rem Dienst zusammen mit der Cockpit-Datei auf dem Firmenlaufwerk), dann ist der
+rem eigene Ordner der richtige. Dann muss niemand den Pfad oben pflegen - und
+rem eine Verknuepfung auf dem Desktop genuegt.
+if exist "%HIER%\Werkstatt_Kalender_TPM*.html" set ORDNER=%HIER%
+
 rem Liegt der Netzwerkordner nicht (mehr) dort, wird der eigene Ordner
 rem genommen - dann laesst sich wenigstens eine lokale Kopie ausliefern.
 if not exist "%ORDNER%" (
