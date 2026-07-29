@@ -72,7 +72,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 34 Härtetests und fünf weitere Suiten | Entwicklung |
+| `tests/` | 34 Härtetests und sechs weitere Suiten | Entwicklung |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
 
@@ -120,7 +120,12 @@ node tests/rollout-test.js                 # Verteilung
 node tests/veroeffentlichungs-test.js      # Veröffentlichung
 node tests/hardness/diagnose-ablauf.js     # die Diagnose-Seite selbst
 bash tests/pruefe-sicherung.sh             # Sicherungsskript (braucht PowerShell)
+pwsh -File tests/pruefe-verknuepfung.ps1   # Autostart-Zweig der Verknüpfung
+node tools/startpaket-bauen.js --pruefen   # ist die Start-ZIP noch aktuell?
 ```
+
+Nach jeder Änderung an `arbeitsplatz/` gehört `node tools/startpaket-bauen.js`
+dazu – sonst verteilt die ZIP weiter den alten Stand.
 
 Stand der letzten vollständigen Prüfung: **34/34 Härtetests, 425 Einzelprüfungen,
 kein Fehlschlag** – inklusive sieben Jahrgängen Betriebsdaten (16 951 Einträge,

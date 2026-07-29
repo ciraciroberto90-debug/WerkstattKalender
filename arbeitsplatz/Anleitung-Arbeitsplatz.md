@@ -48,9 +48,12 @@ Es muss also **kein Pfad gepflegt werden**.
    `Cockpit starten.cmd`, `Selbsttest.cmd`, `Sicherung zurueckholen.cmd`,
    `Verknuepfung anlegen.cmd` und die vier `.ps1`-Dateien.
 2. Jeder Kollege ruft dort **einmal** `Verknuepfung anlegen.cmd` auf.
-   Es entsteht ein Desktop-Symbol „Werkstatt-Cockpit"; auf Nachfrage wird
-   zusätzlich der Autostart eingerichtet. Danach muss niemand mehr in den
-   Netzwerkordner.
+   Es entsteht ein Desktop-Symbol „Werkstatt-Cockpit". Die Frage
+   **„Autostart einrichten? (ja/nein)"** darf jeder für sich beantworten: `ja`
+   startet das Cockpit beim Anmelden mit, `nein` überlässt es dem Desktop-Symbol.
+   Das Symbol entsteht in beiden Fällen, und ein erneuter Aufruf ändert die
+   Entscheidung wieder – auch von `ja` zurück auf `nein`. Danach muss niemand
+   mehr in den Netzwerkordner.
 
 > **Warum eine eigene Datei dafür?** `cmd.exe` kann keinen UNC-Pfad als
 > Arbeitsverzeichnis verwenden. Eine von Hand angelegte Verknüpfung zeigt

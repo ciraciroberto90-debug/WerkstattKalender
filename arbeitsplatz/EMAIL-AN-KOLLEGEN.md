@@ -38,8 +38,11 @@ synchronisiert OneDrive ihn auf alle Rechner.
 > suchen und einmal auf „Zu meinen Dateien hinzufügen" klicken.)*
 >
 > **2.** In diesem Ordner **`Verknuepfung anlegen.cmd`** doppelklicken.
-> Auf die Frage nach dem automatischen Start bitte **`ja`** eintippen und
-> Enter drücken.
+> Gefragt wird: **`Autostart einrichten? (ja/nein)`** – das dürft ihr euch
+> aussuchen. **`ja`** heißt, das Cockpit öffnet sich künftig beim Anmelden von
+> allein; **`nein`** heißt, ihr startet es selbst, wenn ihr es braucht. Das
+> Desktop-Symbol entsteht so oder so, und umentscheiden könnt ihr euch jederzeit
+> — einfach `Verknuepfung anlegen.cmd` noch einmal doppelklicken.
 >
 > **3.** Auf dem Desktop liegt jetzt **„Werkstatt-Cockpit"**. Doppelklick
 > darauf. Es öffnet sich ein kleines schwarzes Fenster (das gehört dazu und
@@ -82,8 +85,9 @@ Nur nötig, wenn der OneDrive-Weg nicht geht. Schritt 1 und 2 werden ersetzt:
 > **2.** Rechtsklick darauf → **„Alle extrahieren…"** → als Ziel den
 > **Desktop** wählen → Extrahieren. Es entsteht ein Ordner `Cockpit`.
 >
-> **3.** In diesem Ordner **`Verknuepfung anlegen.cmd`** doppelklicken.
-> Auf die Frage nach dem automatischen Start **`ja`** eintippen.
+> **3.** In diesem Ordner **`Verknuepfung anlegen.cmd`** doppelklicken und die
+> Frage nach dem Autostart mit **`ja`** oder **`nein`** beantworten – beides ist
+> in Ordnung.
 
 Ab hier weiter wie in Fassung A ab Schritt 3.
 

@@ -127,12 +127,12 @@ const html = `<!DOCTYPE html>
   @page { size: A4; margin: 13mm 14mm 10mm; }
   * { box-sizing: border-box; }
   body { font-family: "DejaVu Sans", Verdana, sans-serif; color: #1b2026; margin: 0;
-         font-size: 10.5pt; line-height: 1.4; }
+         font-size: 10pt; line-height: 1.38; }
 
-  h1 { font-size: 20pt; margin: 0 0 1.5mm; letter-spacing: -0.2pt; }
-  .unter { color: #5d666f; font-size: 10pt; margin: 0 0 6mm; }
+  h1 { font-size: 19pt; margin: 0 0 1.2mm; letter-spacing: -0.2pt; }
+  .unter { color: #5d666f; font-size: 9.5pt; margin: 0 0 4.5mm; }
 
-  .schritt { display: flex; gap: 4.5mm; margin: 0 0 4.5mm; break-inside: avoid; }
+  .schritt { display: flex; gap: 4.5mm; margin: 0 0 3.8mm; break-inside: avoid; }
   .nr { flex: 0 0 10mm; height: 10mm; border-radius: 50%; background: #C25A26; color: #fff;
         font-size: 14pt; font-weight: 700; display: flex; align-items: center;
         justify-content: center; }
@@ -143,11 +143,11 @@ const html = `<!DOCTYPE html>
   code { background: #eef1f4; padding: 0.3mm 1.2mm; border-radius: 1mm;
          font-family: "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
 
-  .bild { position: relative; margin: 1mm 0 4mm; border: 0.4mm solid #d3d9df;
+  .bild { position: relative; margin: 1mm 0 3mm; border: 0.4mm solid #d3d9df;
           border-radius: 1.5mm; overflow: hidden; break-inside: avoid; }
   .bild .teil { position: relative; }
   .bild img { display: block; width: 100%; }
-  .bild.oben { overflow: visible; margin-top: 11mm; }
+  .bild.oben { overflow: visible; margin-top: 9mm; }
   .luecke { height: 4.5mm; background: #f4f6f8; display: flex; align-items: center;
             justify-content: center; border-top: 0.3mm dashed #b9c2cb;
             border-bottom: 0.3mm dashed #b9c2cb; }
@@ -168,12 +168,17 @@ const html = `<!DOCTYPE html>
             border-radius: 1.5mm; margin: 0 0 5mm; break-inside: avoid; }
   .vorweg p { margin: 0; }
 
+  .wahl { border: 0.3mm solid #d3d9df; background: #f7f9fa; border-radius: 1.2mm;
+          padding: 2mm 2.6mm; margin: 2mm 0 0; }
+  .wahl p { margin: 0; font-size: 9.5pt; }
+  .wahl .klein { margin: 0.8mm 0 0; }
+
   .kasten { border-left: 1.2mm solid #C25A26; background: #fdf6f1; padding: 3mm 4mm;
             border-radius: 0 1.5mm 1.5mm 0; margin: 1mm 0 0; break-inside: avoid; }
   .kasten p { margin: 0 0 1.5mm; }
   .kasten p:last-child { margin: 0; }
 
-  .fuss { margin-top: 4mm; padding-top: 2mm; border-top: 0.3mm solid #d3d9df;
+  .fuss { margin-top: 1.5mm; padding-top: 1mm; border-top: 0.3mm solid #d3d9df;
           font-size: 8pt; color: #7c848d; }
 </style></head>
 <body>
@@ -182,11 +187,10 @@ const html = `<!DOCTYPE html>
 <p class="unter">Einmalig, zwei Minuten. Danach nie wieder.</p>
 
 <div class="vorweg">
-  <p><b>Zuerst aufräumen:</b> Liegt auf dem Desktop noch eine <b>alte Verknüpfung</b> zum
-     Werkstatt-Cockpit – oder eine in der Taskleiste bzw. im Startmenü angeheftete –,
-     jetzt <b>löschen</b>.</p>
+  <p><b>Zuerst aufräumen:</b> Alte Verknüpfungen zum Werkstatt-Cockpit jetzt
+     <b>löschen</b> – auf dem Desktop, in der Taskleiste, im Startmenü.</p>
   <p class="klein">Sonst öffnet man später aus Versehen die alte Variante. Die kommt an die
-     gemeinsamen Daten nicht mehr heran, und Eingaben landen dann nur auf dem eigenen Rechner.</p>
+     gemeinsamen Daten nicht mehr heran – Eingaben blieben unbemerkt auf dem eigenen Rechner.</p>
 </div>
 
 <div class="schritt">
@@ -195,11 +199,16 @@ const html = `<!DOCTYPE html>
     <h2>Verknüpfung auf den Desktop holen</h2>
     <p>Im Explorer links auf <b>OneDrive</b>, dort den geteilten Ordner <b>${ORDNER}</b>
        öffnen – derselbe, in dem <code>werkstatt-kalender-daten.json</code> liegt. Darin
-       den Ordner <b>Cockpit</b> öffnen und <b>Verknuepfung anlegen</b> doppelklicken.
-       Auf die Frage <b>ja</b> eintippen, Enter.</p>
+       den Ordner <b>Cockpit</b> öffnen und <b>Verknuepfung anlegen</b> doppelklicken.</p>
     <p class="klein">Steht <b>${ORDNER}</b> nicht in der Liste: in OneDrive links unter
-       <b>Geteilt</b> suchen und einmal auf <b>„Zu meinen Dateien hinzufügen“</b> klicken.
-       Danach ist er immer da.</p>
+       <b>Geteilt</b> suchen und einmal auf <b>„Zu meinen Dateien hinzufügen“</b> klicken.</p>
+    <div class="wahl">
+      <p>Gefragt wird: <b>Autostart einrichten? (ja/nein)</b> – <b>beides ist in Ordnung.</b></p>
+      <p class="klein"><b>ja</b> = das Cockpit öffnet sich künftig beim Anmelden von allein.
+         &nbsp; <b>nein</b> = du startest es selbst, wenn du es brauchst.
+         Das Symbol auf dem Desktop entsteht so oder so, und umentscheiden kannst du dich
+         jederzeit: <b>Verknuepfung anlegen</b> einfach noch einmal doppelklicken.</p>
+    </div>
   </div>
 </div>
 
@@ -207,8 +216,9 @@ const html = `<!DOCTYPE html>
   <div class="nr">2</div>
   <div class="txt">
     <h2>Auf dem Desktop <b>Werkstatt-Cockpit</b> doppelklicken</h2>
-    <p>Ein schwarzes Fenster geht auf – das gehört dazu und bleibt offen. Danach
-       startet das Cockpit im Browser.</p>
+    <p>Ein schwarzes Fenster geht auf – das gehört dazu. <b>Bitte nicht schließen,
+       solange du arbeitest</b>, minimieren ist in Ordnung. Danach startet das Cockpit
+       im Browser.</p>
   </div>
 </div>
 
@@ -218,15 +228,16 @@ ${bildBlock([{ datei: "app-kopf.png", ziele: kopfZiele }], 18, "oben")}
   <div class="nr">3</div>
   <div class="txt">
     <h2>Kalender-Datei verbinden</h2>
-    <p>Oben rechts auf das <b>Ordner-Symbol</b>, dann <b>„Vorhandene Datei öffnen …“</b>
-       und <code>werkstatt-kalender-daten.json</code> aussuchen.</p>
+    <p>Oben rechts auf das <b>Ordner-Symbol</b>, dann <b>„Vorhandene Datei öffnen …“</b>.
+       Im Auswahlfenster wieder in den <b>OneDrive-Ordner ${ORDNER}</b> gehen und dort
+       <code>werkstatt-kalender-daten.json</code> aussuchen.</p>
   </div>
 </div>
 
 ${bildBlock([
   { datei: "app-dialog-titel.png" },
   { datei: "app-dialog-knoepfe.png", ziele: [{ ...marken.dateikasten.oeffnen, nr: "3" }] },
-], 46)}
+], 38)}
 
 <div class="schritt">
   <div class="nr">4</div>

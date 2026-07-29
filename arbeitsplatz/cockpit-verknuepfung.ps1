@@ -70,11 +70,31 @@ if (-not $MitAutostart -and -not $OhneNachfrage) {
   $autostart = ($antwort -eq "ja")
 }
 
-if ($autostart) {
-  $startordner = [Environment]::GetFolderPath("Startup")
+# Gemessen: liefert GetFolderPath einen leeren Text, wirft Join-Path. Das
+# passiert hier nicht, kann es aber auf einem Rechner mit ungewoehnlichem
+# Profil - und dann waere das Desktop-Symbol schon angelegt und der Abbruch
+# umso verwirrender.
+$startordner = [Environment]::GetFolderPath("Startup")
+$autostartDatei = ""
+if ($startordner) { $autostartDatei = Join-Path $startordner "Werkstatt-Cockpit.lnk" }
+if ($autostart -and -not $startordner) {
+  Write-Host "  Autostart-Ordner nicht gefunden - Autostart wurde nicht eingerichtet." -ForegroundColor Yellow
+  Write-Host "  Das Desktop-Symbol funktioniert davon unabhaengig." -ForegroundColor Gray
+} elseif ($autostart) {
   $a = Lege-Verknuepfung $startordner "Werkstatt-Cockpit"
   Write-Host ("  Autostart eingerichtet: " + $a) -ForegroundColor Green
 } else {
+  # "nein" muss auch ein frueheres "ja" zuruecknehmen koennen. Sonst waere die
+  # Frage beim zweiten Durchlauf eine Luege: Man antwortet nein, der Autostart
+  # bleibt trotzdem stehen, und niemand findet den Grund.
+  if ($autostartDatei -and (Test-Path -LiteralPath $autostartDatei)) {
+    try {
+      Remove-Item -LiteralPath $autostartDatei -Force -ErrorAction Stop
+      Write-Host "  Autostart wieder entfernt." -ForegroundColor Green
+    } catch {
+      Write-Host ("  Autostart konnte nicht entfernt werden: " + $autostartDatei) -ForegroundColor Yellow
+    }
+  }
   Write-Host "  Kein Autostart - das Cockpit wird ueber das Desktop-Symbol geoeffnet." -ForegroundColor Gray
 }
 
