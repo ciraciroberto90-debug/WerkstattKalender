@@ -38,7 +38,10 @@ $ErrorActionPreference = "Stop"
 #
 # Der ausgegebene Text kommt genau hier hinein - dann sieht es bei allen gleich
 # aus, ohne dass jemand klicken muss.
-$SymbolVorgabe = "%SystemRoot%\System32\shell32.dll,46"
+# Das Zahnrad. Ausgelesen aus einer von Hand eingestellten Verknuepfung unter
+# Windows 11, nicht geraten - die vorherige Nummer 46 war ein anderes Bild, und
+# jeder Kollege musste das Zahnrad selbst heraussuchen.
+$SymbolVorgabe = "%SystemRoot%\System32\shell32.dll,314"
 
 $hier = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Starter) { $Starter = Join-Path $hier "Cockpit starten.cmd" }
