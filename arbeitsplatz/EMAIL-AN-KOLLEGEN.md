@@ -22,7 +22,9 @@ synchronisiert OneDrive ihn auf alle Rechner.
 > unseren Daten nicht mehr merkt. Mit der neuen Startweise funktioniert
 > wieder alles wie vorher.
 >
-> **Das ist einmalig zu tun, danach nie wieder.**
+> **Das ist einmalig zu tun, danach nie wieder.** Wer lieber Bilder als Text
+> mag: Im Anhang liegt dieselbe Anleitung als PDF mit Bildschirmfotos
+> (`Werkstatt-Cockpit-Einrichtung.pdf`).
 >
 > **1.** Im Explorer den OneDrive-Ordner der Werkstatt öffnen — denselben, in
 > dem `werkstatt-kalender-daten.json` liegt. Dort gibt es jetzt einen Ordner

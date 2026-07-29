@@ -80,6 +80,7 @@ Messwerte und Begründung stehen im
 
 | Datei | Wozu |
 |---|---|
+| [`doku/Werkstatt-Cockpit-Einrichtung.pdf`](doku/Werkstatt-Cockpit-Einrichtung.pdf) | **Klickanleitung für die Kollegen** – drei Seiten, an die E-Mail hängen |
 | [`doku/ANLEITUNG.md`](doku/ANLEITUNG.md) | vollständige Bedienungs- und Einrichtungsanleitung |
 | [`arbeitsplatz/Anleitung-Arbeitsplatz.md`](arbeitsplatz/Anleitung-Arbeitsplatz.md) | nur die Einrichtung eines Rechners, mit Fehlerbildern |
 | [`doku/ROLLOUT-PRUEFBERICHT.md`](doku/ROLLOUT-PRUEFBERICHT.md) | was geprüft wurde, mit Messwerten |
