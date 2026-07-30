@@ -208,6 +208,24 @@ try {
         $kunde.Close(); continue
       }
 
+      # 127.0.0.1 auf localhost umleiten.
+      #
+      # Fuer den Browser sind das ZWEI verschiedene Herkuenfte, obwohl derselbe
+      # Rechner gemeint ist. Wer die Seite einmal ueber 127.0.0.1 aufruft - ein
+      # alter Favorit, eine abgetippte Adresse -, landet in einem eigenen
+      # Gedaechtnis: kein gemerkter Dateiverweis, die JSON muss neu ausgewaehlt
+      # werden. Genau das soll nie wieder vorkommen, deshalb kommt jede Anfrage
+      # zurueck auf dieselbe Adresse.
+      $wirt = $kopfzeilen["host"]
+      if ($wirt -and $wirt -notlike "localhost*") {
+        $ziel302 = "http://localhost:$Port$rohPfad"
+        $kopf302 = "HTTP/1.1 302 Found`r`nLocation: $ziel302`r`nContent-Length: 0`r`nCache-Control: no-store`r`nConnection: close`r`n`r`n"
+        $b302 = [System.Text.Encoding]::ASCII.GetBytes($kopf302)
+        $strom.Write($b302, 0, $b302.Length); $strom.Flush()
+        Schreibe ("  302  " + $wirt + $rohPfad + "  ->  " + $ziel302) "DarkYellow"
+        $kunde.Close(); continue
+      }
+
       # Erkennungszeichen: Daran erkennt ein zweiter Start, dass hier schon
       # unser Dienst laeuft - und startet dann keinen zweiten auf anderem Port.
       if ($pfad -eq "/__cockpit") {
