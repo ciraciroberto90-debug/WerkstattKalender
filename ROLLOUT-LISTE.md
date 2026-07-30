@@ -8,7 +8,7 @@ Punkte, ohne Umschweife. Neue Aufgaben kommen unten dazu, erledigte wandern
 nach unten in „Erledigt" statt gelöscht zu werden – so bleibt nachvollziehbar,
 was schon durch ist.
 
-Stand: 29.07.2026
+Stand: 30.07.2026
 
 ---
 
@@ -21,8 +21,8 @@ Stand: 29.07.2026
       **Danach das schwarze Fenster einmal schließen und neu starten** – sonst
       läuft der alte Dienst weiter.
 - [ ] **Neue `Werkstatt_Kalender_TPM.html`** in den Netzwerkordner. Enthält den
-      Linkbereich unter „Heute da" (RC/AR). Kein Anwählen der JSON nötig, F5
-      genügt.
+      Linkstreifen unter der Menüleiste (RC/AR), der in jedem Reiter steht.
+      Kein Anwählen der JSON nötig, F5 genügt.
 
 ## Vor der Mail an die Kollegen
 
@@ -63,6 +63,9 @@ Stand: 29.07.2026
 - [x] Autostart ist eine echte Wahl – „nein" nimmt ein früheres „ja" zurück
 - [x] Zahnrad als festes Symbol der Verknüpfung (`shell32.dll,314`)
 - [x] Startpaket-ZIP wird gebaut statt von Hand gepackt (`tools/startpaket-bauen.js`)
-- [x] Linkbereich unter „Heute da", je Kürzel eine Sammlung, nur für Bearbeiter
+- [x] Linkbereich angelegt, je Kürzel eine Sammlung, nur für Bearbeiter
+- [x] Linkbereich als Streifen unter die Menüleiste gezogen (statt Kachel in der
+      Übersicht): ein Klick pro Link, in jedem Reiter sichtbar, unabhängig von
+      der Bildschirmbreite
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 60 Symbole für die Links, nach Themen geordnet

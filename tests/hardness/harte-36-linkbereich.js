@@ -1,4 +1,4 @@
-// Härtetest: LINKBEREICH unter "Heute da".
+// Härtetest: LINKSTREIFEN unter der Menüleiste.
 //
 // Die Sammlung ist ausdruecklich nur fuer Bearbeiter. Ein Nur-Leser darf sie
 // nicht sehen - und zwar wirklich nicht, nicht bloss ausgegraut. Zweitens
@@ -14,6 +14,7 @@
 //   (5) Aendern, Sortieren, Loeschen - und der andere Inhaber bleibt heil.
 //   (6) Netzwerkpfade werden nicht als Web-Adresse geoeffnet.
 //   (7) Die Links ueberstehen einen Neustart der App.
+//   (7b) Der Streifen steht in JEDEM Reiter - dafuer sitzt er oben.
 //   (8) Ueber den Ausliefer-Dienst geoeffnet: Der Klick fragt ihn nach der
 //       Datei, mit der Kopfzeile, auf der seine Zugangspruefung beruht.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
@@ -60,7 +61,10 @@ const verbinde = async (p) => {
   await p.getByText("Vorhandene Datei öffnen …").click();
   await p.waitForTimeout(2500);
 };
-const kopfzeile = (p) => p.getByText(/Links & Dokumente/i).first();
+// Der Streifen traegt sichtbar nur "🔗 Links"; der volle Name steht als
+// aria-label am Knopf, damit der Test an der Bedeutung haengt und nicht an
+// der Schreibweise im Streifen.
+const kopfzeile = (p) => p.getByRole("button", { name: "Links & Dokumente" });
 const linksInDatei = (platte, inhaber) => {
   const d = JSON.parse(platte["kalender-daten.json"] || "{}");
   const e = (d.entries || []).find((x) => x.id === "config|links");
@@ -212,6 +216,20 @@ async function legeAn(p, name, ziel) {
     await p3.waitForTimeout(500);
     const sichtbar = await p3.locator("body").innerText();
     pruef("(7) Nach einem Neustart sind die Links wieder da", /Umbenannt|Anleitungen/.test(sichtbar));
+
+    /* ---------------- (7b) In jedem Reiter erreichbar ----------------
+       Der Grund für den Platz oben: Wer in den Störungen oder im Schichtplan
+       steht, braucht seine Unterlagen genauso - und soll dafür nicht erst
+       zurück auf die Übersicht. Früher lag der Bereich in der Übersicht und
+       war von überall sonst schlicht nicht da. */
+    for (const reiter of ["Störungen", "Schichtplan", "Planung", "Backlog", "TPM"]) {
+      await p3.getByRole("button", { name: new RegExp("^" + reiter) }).first().click();
+      await p3.waitForTimeout(350);
+      const da = await kopfzeile(p3).count() > 0;
+      const chip = (await p3.locator("body").innerText()).includes("Anleitungen");
+      pruef(`(7b) Im Bereich „${reiter}" steht der Linkstreifen weiterhin`, da && chip,
+            (da && chip) ? "" : (da ? "Chip fehlt" : "Streifen fehlt"));
+    }
     await p3.context().close();
     await p.context().close();
   }
@@ -283,7 +301,9 @@ async function legeAn(p, name, ziel) {
 
     let neueSeiten = 0;
     ctx.on("page", () => { neueSeiten++; });
-    await p.getByText("Anleitung Presse").click();
+    // .first(): Der Link steht im Streifen UND - weil aufgeklappt - in der
+    // Verwaltungsliste darunter. Gemeint ist der Chip im Streifen.
+    await p.getByText("Anleitung Presse").first().click();
     await p.waitForTimeout(1200);
 
     pruef("(8) Der Klick fragt den Dienst nach der Datei", gefragt.length === 1, JSON.stringify(gefragt));
@@ -298,7 +318,7 @@ async function legeAn(p, name, ziel) {
           (nachOk.match(/✓[^\n]{0,40}/) || ["keine Meldung"])[0]);
 
     // Datei nicht mehr da: Das muss man sehen, statt vergeblich zu warten.
-    await p.getByText("Fehlt im Ordner").click();
+    await p.getByText("Fehlt im Ordner").first().click();
     await p.waitForTimeout(1200);
     const nachFehler = await p.locator("body").innerText();
     pruef("(8) Eine fehlende Datei wird als solche gemeldet", /nicht gefunden/i.test(nachFehler),

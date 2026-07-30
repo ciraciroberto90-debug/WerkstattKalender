@@ -182,6 +182,14 @@ Störungen, nicht den Rest.
 
 ## 5. Die Bereiche im Detail
 
+- **Linkstreifen (nur für Bearbeiter):** eine Zeile direkt unter der Menüleiste, in
+  jedem Bereich sichtbar. Ein Klick auf einen Chip öffnet die Datei oder die Seite.
+  Über **RC/AR** wird zwischen der eigenen Sammlung und der der Vertretung
+  umgeschaltet; hinter **🔗 Links** stecken Anlegen, Ändern, Sortieren und Löschen.
+  Die Sammlung liegt in der gemeinsamen Datei – die Vertretung hat dieselbe Liste
+  vor sich. Laufwerks- und Netzwerkpfade öffnen sich direkt, wenn das Cockpit über
+  das Desktop-Symbol gestartet wurde; sonst wird der Pfad in die Zwischenablage
+  gelegt und im Explorer eingefügt.
 - **Übersicht / Cockpit:** Kennzahlen (heute fällig, erledigt, überfällig, Monats- und
   Jahresquote als Halbkreis **mit ausgeschriebenem Monatsnamen**), eine **analoge Uhr**
   mit der laufenden Schicht (z. B. *Do., 23.07. · Spät ab 14:00*), „Heute da",
