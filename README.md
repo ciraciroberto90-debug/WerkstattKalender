@@ -80,6 +80,7 @@ Messwerte und Begründung stehen im
 
 | Datei | Wozu |
 |---|---|
+| [`ROLLOUT-LISTE.md`](ROLLOUT-LISTE.md) | **was noch zu tun ist** – offene Punkte, Entscheidungen, Erledigtes |
 | [`doku/Werkstatt-Cockpit-Einrichtung.pdf`](doku/Werkstatt-Cockpit-Einrichtung.pdf) | **Klickanleitung für die Kollegen** – eine Seite, an die E-Mail hängen |
 | [`doku/ANLEITUNG.md`](doku/ANLEITUNG.md) | vollständige Bedienungs- und Einrichtungsanleitung |
 | [`arbeitsplatz/Anleitung-Arbeitsplatz.md`](arbeitsplatz/Anleitung-Arbeitsplatz.md) | nur die Einrichtung eines Rechners, mit Fehlerbildern |
