@@ -409,6 +409,11 @@ const normalisiereAnlagenteile = (arr) => (Array.isArray(arr) ? arr : [])
 // Vertretung. Die Kürzel stehen in denselben Daten wie die Links - so bringt
 // eine neue Vertretung keinen Eingriff im Code mit sich.
 const LINK_INHABER_VORGABE = ["RC", "AR"];
+// Hintergrundfarben der Link-Symbole, der Reihe nach vergeben. Feste Folge
+// statt Zufall oder Namens-Streuung: Ein Link soll beim nächsten Öffnen an
+// derselben Stelle in derselben Farbe liegen - dann findet ihn die Hand, ohne
+// dass das Auge lesen muss. Alle Töne sind blass, damit das Symbol trägt.
+const LINK_FARBEN = ["#FDF0E2", "#E7EEF4", "#E8F1EA", "#F1ECF6", "#FBEFEF", "#EDF0F3"];
 
 // Wird die App vom Ausliefer-Dienst geliefert (http://localhost:8765/), kann
 // sie ihn bitten, eine Datei zu öffnen - der läuft auf demselben Rechner und
@@ -3398,13 +3403,9 @@ function App() {
         }
       `}</style>
 
-      {/* Kopfzeile. Die Klammer außen herum hält Menüleiste und Linkstreifen
-          zusammen oben fest: Wäre nur die dunkle Leiste klebend, schöbe sich der
-          Streifen beim Scrollen darunter weg - und die Links wären genau dann
-          fort, wenn man weiter unten in einer Liste steht und einen braucht. */}
-      <div className="no-print sticky top-0 z-10">
+      {/* Kopfzeile */}
       <div
-        className="px-4 py-3 flex flex-wrap items-center gap-3 justify-between"
+        className="no-print sticky top-0 z-10 px-4 py-3 flex flex-wrap items-center gap-3 justify-between"
         style={{ backgroundColor: "#22262B" }}
       >
         {/* Auf schmalen Geräten (Tablet hochkant, Telefon) ist nebeneinander kein
@@ -3592,214 +3593,6 @@ function App() {
           </>
           )}
         </div>
-      </div>
-
-      {/* Linkstreifen: eine Zeile unter der Menüleiste, in jedem Reiter da.
-          Nur-Leser sehen ihn gar nicht (nicht ausgegraut, sondern nicht
-          vorhanden) - die Sammlung ist Arbeitsmittel der Bearbeiter.
-          Ein Klick auf einen Chip öffnet, ohne vorher aufklappen zu müssen;
-          das Anlegen und Sortieren steckt im Feld hinter „Links". */}
-      {!readerMode && (
-        <div style={{ backgroundColor: "#2C3137", borderTop: "1px solid rgba(255,255,255,0.08)", position: "relative" }}>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5">
-            <button
-              onClick={schalteLinks}
-              aria-label="Links & Dokumente"
-              aria-expanded={linksOffen}
-              title={linksOffen ? "Linkliste schließen" : "Links anlegen, ändern, sortieren"}
-              className="flex items-center gap-1.5 shrink-0"
-            >
-              <span style={{ fontSize: "0.72rem" }}>🔗</span>
-              <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: linksOffen ? "#fff" : "#B7BEC6" }}>Links</span>
-              {/* Das Dreieck dreht sich - dieselbe Sprache wie im Schichtbuch */}
-              <span style={{ color: "#8A9099", fontSize: "0.58rem", display: "inline-block", transform: linksOffen ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}>▶</span>
-            </button>
-            {/* Kürzel-Umschalter: bestimmt, wessen Sammlung im Streifen steht */}
-            <div className="flex items-center gap-1 shrink-0">
-              {links.inhaber.map((k) => {
-                const an = k === linkInhaberAktiv;
-                return (
-                  <button
-                    key={k}
-                    onClick={() => waehleLinkInhaber(k)}
-                    className="rounded font-extrabold"
-                    style={{
-                      fontSize: "0.6rem", letterSpacing: "0.3px", padding: "2px 7px",
-                      backgroundColor: an ? "#C97A2B" : "rgba(255,255,255,0.08)",
-                      color: an ? "#fff" : "#B7BEC6",
-                    }}
-                    title={`Links von ${k} anzeigen`}
-                  >{k}</button>
-                );
-              })}
-            </div>
-            <span className="shrink-0" style={{ width: "1px", height: "14px", backgroundColor: "rgba(255,255,255,0.14)" }} />
-            {linkListe.length === 0 ? (
-              <span className="text-[11px]" style={{ color: "#8A9099" }}>
-                Noch keine Links für {linkInhaberAktiv} – auf <b style={{ color: "#B7BEC6" }}>🔗 Links</b> klicken und anlegen.
-              </span>
-            ) : linkListe.map((l) => {
-              const meldung = linkKopiert && linkKopiert.id === l.id ? linkKopiert.text : "";
-              return (
-                <button
-                  key={l.id}
-                  onClick={() => oeffneLink(l)}
-                  className="inline-flex items-center gap-1.5 rounded shrink-0"
-                  style={{
-                    padding: "2px 8px 2px 6px", maxWidth: "230px",
-                    backgroundColor: meldung ? "rgba(201,122,43,0.22)" : "rgba(255,255,255,0.07)",
-                  }}
-                  title={linkArt(l.ziel) === "oeffnen" ? `Im Browser öffnen: ${linkAdresse(l.ziel)}` : `Öffnen: ${l.ziel}`}
-                >
-                  <span style={{ fontSize: "0.8rem", lineHeight: 1.4 }}>{l.symbol}</span>
-                  <span className="text-[11px] font-semibold" style={{ color: "#E7EAEE", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
-                </button>
-              );
-            })}
-            {/* Rückmeldung zum letzten Klick. Ohne sie klickt man ins Leere:
-                die Datei geht in einem anderen Fenster auf, im Cockpit sieht
-                es aus, als sei nichts geschehen. */}
-            {linkKopiert && linkKopiert.text && (
-              <span className="text-[11px] font-bold shrink-0" style={{ color: linkKopiert.text.startsWith("✗") ? "#E8A9A3" : "#8FCBA5" }}>
-                {linkKopiert.text}
-              </span>
-            )}
-          </div>
-
-          {linksOffen && (
-            /* Als schwebendes Feld, nicht als aufgeschobene Zeile: Sonst würde
-               die klebende Kopfzeile um die ganze Verwaltung höher und verdeckte
-               beim Scrollen dauerhaft ein Drittel des Bildschirms. */
-            <div className="px-4 pb-3" style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20 }}>
-              <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7EAEE", maxWidth: "640px", boxShadow: "0 10px 28px rgba(0,0,0,0.28)" }}>
-                <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #EEF0F2" }}>
-                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>🔗 Links &amp; Dokumente</span>
-                  <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C97A2B", fontSize: "0.62rem" }}>{linkListe.length}</span>
-                  <span className="text-[11px]" style={{ color: "#8A9099" }}>Sammlung {linkInhaberAktiv}</span>
-                  <button
-                    onClick={() => setLinkEntwurf({ name: "", ziel: "", symbol: "🔗" })}
-                    className="ml-auto text-xs font-bold"
-                    style={{ color: "#C97A2B" }}
-                  >＋ Link</button>
-                </div>
-
-                <div className="px-2 py-1.5">
-                  {linkListe.length === 0 && !linkEntwurf && (
-                    <div className="px-2 py-3 text-xs" style={{ color: "#8A9099" }}>
-                      Noch keine Links für <b>{linkInhaberAktiv}</b>. Über <b>＋ Link</b> den ersten anlegen.
-                    </div>
-                  )}
-                  {linkListe.map((l, i) => {
-                    const art = linkArt(l.ziel);
-                    const meldung = linkKopiert && linkKopiert.id === l.id ? linkKopiert.text : "";
-                    return (
-                      <div key={l.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-slate-50" style={{ marginBottom: "2px" }}>
-                        <button onClick={() => oeffneLink(l)} className="flex items-center gap-2.5 flex-1 text-left" style={{ minWidth: 0 }}
-                          title={art === "oeffnen" ? "Im Browser öffnen" : "Öffnen"}>
-                          <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: "26px", height: "26px", borderRadius: "8px", backgroundColor: "#F1F4F7", fontSize: "0.9rem" }}>{l.symbol}</span>
-                          <span style={{ minWidth: 0 }}>
-                            <span className="block font-semibold" style={{ fontSize: "0.85rem", color: "#22262B" }}>{l.name}</span>
-                            <span className="block" style={{ fontSize: "0.72rem", color: meldung ? (meldung.startsWith("✗") ? "#B23A34" : "#2F7D4F") : "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {meldung || l.ziel}
-                            </span>
-                          </span>
-                        </button>
-                        {/* Nur Pfeile, wenn es etwas zu tauschen gibt */}
-                        {linkListe.length > 1 && (
-                          <span className="flex flex-col flex-shrink-0" style={{ gap: "3px", lineHeight: 1 }}>
-                            <button onClick={() => verschiebeLink(l.id, -1)} disabled={i === 0} title="nach oben"
-                              style={{ fontSize: "0.58rem", lineHeight: 1, color: i === 0 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▲</button>
-                            <button onClick={() => verschiebeLink(l.id, 1)} disabled={i === linkListe.length - 1} title="nach unten"
-                              style={{ fontSize: "0.58rem", lineHeight: 1, color: i === linkListe.length - 1 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▼</button>
-                          </span>
-                        )}
-                        <button onClick={() => setLinkEntwurf({ ...l })} className="flex-shrink-0" title="bearbeiten"
-                          style={{ fontSize: "0.8rem", color: "#8A9099", padding: "0 4px" }}>✎</button>
-                      </div>
-                    );
-                  })}
-
-                  {linkEntwurf && (
-                    <div className="rounded-lg px-3 py-3 mt-1" style={{ backgroundColor: "#F7F9FA", border: "1px solid #E7EAEE" }}>
-                      <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: "#6B7480" }}>
-                        {linkEntwurf.id ? "Link ändern" : `Neuer Link für ${linkInhaberAktiv}`}
-                      </div>
-                      <div className="flex gap-2 mb-2">
-                        <input
-                          value={linkEntwurf.symbol}
-                          onChange={(e) => setLinkEntwurf({ ...linkEntwurf, symbol: e.target.value })}
-                          className="rounded border px-2 py-1.5 text-center"
-                          style={{ width: "48px", borderColor: "#D8DEE4", fontSize: "0.95rem" }}
-                          title="Symbol"
-                        />
-                        <input
-                          value={linkEntwurf.name}
-                          onChange={(e) => setLinkEntwurf({ ...linkEntwurf, name: e.target.value })}
-                          placeholder="Bezeichnung, z. B. Betriebsanleitung Presse 3"
-                          className="rounded border px-2.5 py-1.5 flex-1"
-                          style={{ borderColor: "#D8DEE4", fontSize: "0.85rem" }}
-                        />
-                      </div>
-                      {/* Symbol-Vorschläge, nach Themen geordnet: schneller als das
-                          Emoji-Fenster von Windows und auf die Werkstatt gemünzt.
-                          Wer etwas anderes will, tippt es links ins Feld. */}
-                      <div className="mb-2">
-                        {[
-                          ["Unterlagen", ["🔗", "📘", "📕", "📄", "📑", "📁", "🗂", "📇", "📝", "🖨", "📷", "🗺"]],
-                          ["Werkstatt", ["🔧", "🔩", "⚙", "🛠", "🪛", "🔨", "⛓", "🧰", "🏭", "🚜", "🧱", "🪣"]],
-                          ["Technik", ["⚡", "🔌", "💡", "🔥", "💧", "🌡", "🧪", "♻", "🛢", "🌀", "❄", "📡"]],
-                          ["Betrieb", ["🛒", "📞", "✉", "🕐", "📅", "📊", "💶", "🚚", "🏢", "👷", "🧑‍🔧", "🗓"]],
-                          ["Sicherheit", ["📋", "⚠", "🧯", "🚨", "🦺", "🥽", "🧤", "🚑", "🔒", "✅", "🚫", "☣"]],
-                        ].map(([gruppe, symbole]) => (
-                          <div key={gruppe} className="flex items-center gap-1 flex-wrap" style={{ marginBottom: "2px" }}>
-                            <span style={{ fontSize: "0.62rem", color: "#A2AAB3", width: "62px", flex: "0 0 auto" }}>{gruppe}</span>
-                            {symbole.map((s) => (
-                              <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
-                                title={"Symbol " + s}
-                                className="rounded" style={{ fontSize: "0.95rem", lineHeight: 1.2, padding: "2px 4px", backgroundColor: linkEntwurf.symbol === s ? "#E7EEF4" : "transparent" }}>{s}</button>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                      <input
-                        value={linkEntwurf.ziel}
-                        onChange={(e) => setLinkEntwurf({ ...linkEntwurf, ziel: e.target.value })}
-                        placeholder="Adresse oder Pfad, z. B. intranet.firma.de/teile oder \\server\Ordner\Datei.pdf"
-                        className="rounded border px-2.5 py-1.5 w-full"
-                        style={{ borderColor: "#D8DEE4", fontSize: "0.85rem", fontFamily: "ui-monospace, monospace" }}
-                      />
-                      {/* Vorher sagen, was passieren wird - nicht erst beim Klick */}
-                      {linkEntwurf.ziel.trim() && (
-                        <div className="mt-1.5" style={{ fontSize: "0.72rem", color: "#6B7480" }}>
-                          {linkArt(linkEntwurf.ziel) === "oeffnen"
-                            ? <>öffnet sich im Browser: <span style={{ fontFamily: "ui-monospace, monospace" }}>{linkAdresse(linkEntwurf.ziel)}</span></>
-                            : ueberDienst()
-                              ? "Laufwerks- oder Netzwerkpfad: Der Klick öffnet die Datei über das Cockpit-Fenster. Ist es geschlossen, wird der Pfad stattdessen kopiert."
-                              : "Laufwerks- oder Netzwerkpfad: Ein Klick legt ihn in die Zwischenablage, im Explorer einfügen. Direkt öffnen geht nur, wenn das Cockpit über das Desktop-Symbol gestartet wurde."}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 mt-3">
-                        <button onClick={speichereLinkEntwurf}
-                          disabled={!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()}
-                          className="rounded px-3 py-1.5 font-bold text-white"
-                          style={{ backgroundColor: (!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()) ? "#C3C7CB" : "#2F6690", fontSize: "0.8rem" }}>
-                          Speichern
-                        </button>
-                        <button onClick={() => setLinkEntwurf(null)} className="rounded px-3 py-1.5 font-bold border"
-                          style={{ borderColor: "#D8DEE4", color: "#5B6572", fontSize: "0.8rem" }}>Abbrechen</button>
-                        {linkEntwurf.id && (
-                          <button onClick={() => loescheLink(linkEntwurf.id)} className="ml-auto rounded px-3 py-1.5 font-bold border"
-                            style={{ borderColor: "#E7B9B3", color: "#B23A34", fontSize: "0.8rem" }}>Löschen</button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
       </div>
 
       {/* Hinweisleisten zur gemeinsamen Datei */}
@@ -4329,6 +4122,229 @@ function App() {
       {/* Cockpit: Übersicht (Kennzahlen + Tagesliste + Pinnwand) */}
       {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+          {/* Meine Links: eine schmale Reihe runder Symbole ganz oben, wie die
+              Apps auf einem Telefon. Ein Klick öffnet - kein Aufklappen davor.
+              Bewusst flach gehalten (Symbol 40 px, eine Zeile Text): Die Reihe
+              steht über den Kennzahlen und darf sie nicht nach unten schieben.
+              Nur-Leser sehen sie gar nicht - nicht ausgegraut, sondern nicht
+              vorhanden: Die Sammlung ist Arbeitsmittel der Bearbeiter. */}
+          {!readerMode && (
+            <div className="wk-karte mb-2.5 px-3 py-2">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0" style={{ paddingTop: "3px" }}>
+                  <button
+                    onClick={schalteLinks}
+                    aria-label="Links & Dokumente"
+                    aria-expanded={linksOffen}
+                    title={linksOffen ? "Verwaltung schließen" : "Links anlegen, ändern, sortieren"}
+                    className="flex items-center gap-1 mb-1.5"
+                  >
+                    <span className="font-extrabold uppercase tracking-wide" style={{ color: "#22262B", fontSize: "var(--wk-txt-etikett)" }}>🔗 Meine Links</span>
+                    {/* Das Dreieck dreht sich - dieselbe Sprache wie im Schichtbuch */}
+                    <span style={{ color: "#8A9099", fontSize: "0.55rem", display: "inline-block", transform: linksOffen ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}>▶</span>
+                  </button>
+                  {/* Kürzel-Umschalter: bestimmt, wessen Sammlung in der Reihe steht */}
+                  <div className="flex items-center gap-1">
+                    {links.inhaber.map((k) => {
+                      const an = k === linkInhaberAktiv;
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => waehleLinkInhaber(k)}
+                          className="rounded font-extrabold"
+                          style={{
+                            fontSize: "0.6rem", letterSpacing: "0.3px", padding: "2px 8px",
+                            backgroundColor: an ? "#22262B" : "#F1F4F7",
+                            color: an ? "#fff" : "#6B7480",
+                          }}
+                          title={`Links von ${k} anzeigen`}
+                        >{k}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-start gap-x-3 gap-y-1.5 flex-1" style={{ minWidth: 0 }}>
+                  {linkListe.map((l, i) => {
+                    const gemeldet = linkKopiert && linkKopiert.id === l.id;
+                    return (
+                      <button
+                        key={l.id}
+                        onClick={() => oeffneLink(l)}
+                        className="flex flex-col items-center"
+                        style={{ width: "88px" }}
+                        title={linkArt(l.ziel) === "oeffnen" ? `Im Browser öffnen: ${linkAdresse(l.ziel)}` : `Öffnen: ${l.ziel}`}
+                      >
+                        <span
+                          className="inline-flex items-center justify-center"
+                          style={{
+                            width: "40px", height: "40px", borderRadius: "13px", fontSize: "1.15rem",
+                            // Feste Farbfolge statt Zufall: Beim nächsten Öffnen
+                            // liegt dasselbe Symbol in derselben Farbe - sonst
+                            // müsste man jedes Mal neu suchen.
+                            backgroundColor: gemeldet ? "#FBE7C9" : LINK_FARBEN[i % LINK_FARBEN.length],
+                            boxShadow: "0 2px 5px rgba(30,40,50,0.08)",
+                          }}
+                        >{l.symbol}</span>
+                        <span
+                          className="font-semibold text-center"
+                          style={{
+                            fontSize: "0.62rem", lineHeight: 1.25, marginTop: "4px", color: "#3C444C",
+                            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                            overflow: "hidden", wordBreak: "break-word",
+                          }}
+                        >{l.name}</span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => { if (!linksOffen) schalteLinks(); setLinkEntwurf({ name: "", ziel: "", symbol: "🔗" }); }}
+                    className="flex flex-col items-center"
+                    style={{ width: "88px" }}
+                    title={`Neuen Link für ${linkInhaberAktiv} anlegen`}
+                  >
+                    <span className="inline-flex items-center justify-center" style={{ width: "40px", height: "40px", borderRadius: "13px", fontSize: "1.05rem", color: "#A2AAB3", border: "2px dashed #CFD6DD" }}>＋</span>
+                    <span className="font-semibold text-center" style={{ fontSize: "0.62rem", lineHeight: 1.25, marginTop: "4px", color: "#A2AAB3" }}>hinzufügen</span>
+                  </button>
+                  {/* Rückmeldung zum letzten Klick. Ohne sie klickt man ins Leere:
+                      die Datei geht in einem anderen Fenster auf, im Cockpit
+                      sieht es aus, als sei nichts geschehen. */}
+                  {linkKopiert && linkKopiert.text && (
+                    <span className="font-bold self-center" style={{ fontSize: "0.72rem", color: linkKopiert.text.startsWith("✗") ? "#B23A34" : "#2F7D4F" }}>
+                      {linkKopiert.text}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {linksOffen && (
+                <div className="mt-2 pt-2" style={{ borderTop: "1px solid #EEF0F2" }}>
+                  <div className="flex items-center gap-2 px-1 pb-1">
+                    <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>Sammlung {linkInhaberAktiv}</span>
+                    <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C97A2B", fontSize: "0.62rem" }}>{linkListe.length}</span>
+                    <button
+                      onClick={() => setLinkEntwurf({ name: "", ziel: "", symbol: "🔗" })}
+                      className="ml-auto text-xs font-bold"
+                      style={{ color: "#C97A2B" }}
+                    >＋ Link</button>
+                  </div>
+                  <div style={{ maxWidth: "640px" }}>
+                    {linkListe.length === 0 && !linkEntwurf && (
+                      <div className="px-2 py-3 text-xs" style={{ color: "#8A9099" }}>
+                        Noch keine Links für <b>{linkInhaberAktiv}</b>. Über <b>＋ Link</b> den ersten anlegen.
+                      </div>
+                    )}
+                    {linkListe.map((l, i) => {
+                      const art = linkArt(l.ziel);
+                      const meldung = linkKopiert && linkKopiert.id === l.id ? linkKopiert.text : "";
+                      return (
+                        <div key={l.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-slate-50" style={{ marginBottom: "2px" }}>
+                          <button onClick={() => oeffneLink(l)} className="flex items-center gap-2.5 flex-1 text-left" style={{ minWidth: 0 }}
+                            title={art === "oeffnen" ? "Im Browser öffnen" : "Öffnen"}>
+                            <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: "26px", height: "26px", borderRadius: "8px", backgroundColor: "#F1F4F7", fontSize: "0.9rem" }}>{l.symbol}</span>
+                            <span style={{ minWidth: 0 }}>
+                              <span className="block font-semibold" style={{ fontSize: "0.85rem", color: "#22262B" }}>{l.name}</span>
+                              <span className="block" style={{ fontSize: "0.72rem", color: meldung ? (meldung.startsWith("✗") ? "#B23A34" : "#2F7D4F") : "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {meldung || l.ziel}
+                              </span>
+                            </span>
+                          </button>
+                          {/* Nur Pfeile, wenn es etwas zu tauschen gibt */}
+                          {linkListe.length > 1 && (
+                            <span className="flex flex-col flex-shrink-0" style={{ gap: "3px", lineHeight: 1 }}>
+                              <button onClick={() => verschiebeLink(l.id, -1)} disabled={i === 0} title="nach oben"
+                                style={{ fontSize: "0.58rem", lineHeight: 1, color: i === 0 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▲</button>
+                              <button onClick={() => verschiebeLink(l.id, 1)} disabled={i === linkListe.length - 1} title="nach unten"
+                                style={{ fontSize: "0.58rem", lineHeight: 1, color: i === linkListe.length - 1 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▼</button>
+                            </span>
+                          )}
+                          <button onClick={() => setLinkEntwurf({ ...l })} className="flex-shrink-0" title="bearbeiten"
+                            style={{ fontSize: "0.8rem", color: "#8A9099", padding: "0 4px" }}>✎</button>
+                        </div>
+                      );
+                    })}
+
+                    {linkEntwurf && (
+                      <div className="rounded-lg px-3 py-3 mt-1" style={{ backgroundColor: "#F7F9FA", border: "1px solid #E7EAEE" }}>
+                        <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: "#6B7480" }}>
+                          {linkEntwurf.id ? "Link ändern" : `Neuer Link für ${linkInhaberAktiv}`}
+                        </div>
+                        <div className="flex gap-2 mb-2">
+                          <input
+                            value={linkEntwurf.symbol}
+                            onChange={(e) => setLinkEntwurf({ ...linkEntwurf, symbol: e.target.value })}
+                            className="rounded border px-2 py-1.5 text-center"
+                            style={{ width: "48px", borderColor: "#D8DEE4", fontSize: "0.95rem" }}
+                            title="Symbol"
+                          />
+                          <input
+                            value={linkEntwurf.name}
+                            onChange={(e) => setLinkEntwurf({ ...linkEntwurf, name: e.target.value })}
+                            placeholder="Bezeichnung, z. B. Betriebsanleitung Presse 3"
+                            className="rounded border px-2.5 py-1.5 flex-1"
+                            style={{ borderColor: "#D8DEE4", fontSize: "0.85rem" }}
+                          />
+                        </div>
+                        {/* Symbol-Vorschläge, nach Themen geordnet: schneller als das
+                            Emoji-Fenster von Windows und auf die Werkstatt gemünzt.
+                            Wer etwas anderes will, tippt es links ins Feld. */}
+                        <div className="mb-2">
+                          {[
+                            ["Unterlagen", ["🔗", "📘", "📕", "📄", "📑", "📁", "🗂", "📇", "📝", "🖨", "📷", "🗺"]],
+                            ["Werkstatt", ["🔧", "🔩", "⚙", "🛠", "🪛", "🔨", "⛓", "🧰", "🏭", "🚜", "🧱", "🪣"]],
+                            ["Technik", ["⚡", "🔌", "💡", "🔥", "💧", "🌡", "🧪", "♻", "🛢", "🌀", "❄", "📡"]],
+                            ["Betrieb", ["🛒", "📞", "✉", "🕐", "📅", "📊", "💶", "🚚", "🏢", "👷", "🧑‍🔧", "🗓"]],
+                            ["Sicherheit", ["📋", "⚠", "🧯", "🚨", "🦺", "🥽", "🧤", "🚑", "🔒", "✅", "🚫", "☣"]],
+                          ].map(([gruppe, symbole]) => (
+                            <div key={gruppe} className="flex items-center gap-1 flex-wrap" style={{ marginBottom: "2px" }}>
+                              <span style={{ fontSize: "0.62rem", color: "#A2AAB3", width: "62px", flex: "0 0 auto" }}>{gruppe}</span>
+                              {symbole.map((s) => (
+                                <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
+                                  title={"Symbol " + s}
+                                  className="rounded" style={{ fontSize: "0.95rem", lineHeight: 1.2, padding: "2px 4px", backgroundColor: linkEntwurf.symbol === s ? "#E7EEF4" : "transparent" }}>{s}</button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                        <input
+                          value={linkEntwurf.ziel}
+                          onChange={(e) => setLinkEntwurf({ ...linkEntwurf, ziel: e.target.value })}
+                          placeholder="Adresse oder Pfad, z. B. intranet.firma.de/teile oder \\server\Ordner\Datei.pdf"
+                          className="rounded border px-2.5 py-1.5 w-full"
+                          style={{ borderColor: "#D8DEE4", fontSize: "0.85rem", fontFamily: "ui-monospace, monospace" }}
+                        />
+                        {/* Vorher sagen, was passieren wird - nicht erst beim Klick */}
+                        {linkEntwurf.ziel.trim() && (
+                          <div className="mt-1.5" style={{ fontSize: "0.72rem", color: "#6B7480" }}>
+                            {linkArt(linkEntwurf.ziel) === "oeffnen"
+                              ? <>öffnet sich im Browser: <span style={{ fontFamily: "ui-monospace, monospace" }}>{linkAdresse(linkEntwurf.ziel)}</span></>
+                              : ueberDienst()
+                                ? "Laufwerks- oder Netzwerkpfad: Der Klick öffnet die Datei über das Cockpit-Fenster. Ist es geschlossen, wird der Pfad stattdessen kopiert."
+                                : "Laufwerks- oder Netzwerkpfad: Ein Klick legt ihn in die Zwischenablage, im Explorer einfügen. Direkt öffnen geht nur, wenn das Cockpit über das Desktop-Symbol gestartet wurde."}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 mt-3">
+                          <button onClick={speichereLinkEntwurf}
+                            disabled={!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()}
+                            className="rounded px-3 py-1.5 font-bold text-white"
+                            style={{ backgroundColor: (!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()) ? "#C3C7CB" : "#2F6690", fontSize: "0.8rem" }}>
+                            Speichern
+                          </button>
+                          <button onClick={() => setLinkEntwurf(null)} className="rounded px-3 py-1.5 font-bold border"
+                            style={{ borderColor: "#D8DEE4", color: "#5B6572", fontSize: "0.8rem" }}>Abbrechen</button>
+                          {linkEntwurf.id && (
+                            <button onClick={() => loescheLink(linkEntwurf.id)} className="ml-auto rounded px-3 py-1.5 font-bold border"
+                              style={{ borderColor: "#E7B9B3", color: "#B23A34", fontSize: "0.8rem" }}>Löschen</button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Kennzahlen-Kacheln (Farbakzent links, ohne Icon) */}
           {/* Sechs Felder nebeneinander gehen erst ab sehr breiten Bildschirmen auf.
               Darunter brechen sie um, statt sich gegenseitig zusammenzuquetschen -

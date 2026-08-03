@@ -20,9 +20,9 @@ Stand: 30.07.2026
       Dateiverweis nie verlorengeht.
       **Danach das schwarze Fenster einmal schließen und neu starten** – sonst
       läuft der alte Dienst weiter.
-- [ ] **Neue `Werkstatt_Kalender_TPM.html`** in den Netzwerkordner. Enthält den
-      Linkstreifen unter der Menüleiste (RC/AR), der in jedem Reiter steht.
-      Kein Anwählen der JSON nötig, F5 genügt.
+- [ ] **Neue `Werkstatt_Kalender_TPM.html`** in den Netzwerkordner. Enthält die
+      Linkreihe oben in der Übersicht (RC/AR). Kein Anwählen der JSON nötig,
+      F5 genügt.
 
 ## Vor der Mail an die Kollegen
 
@@ -64,8 +64,7 @@ Stand: 30.07.2026
 - [x] Zahnrad als festes Symbol der Verknüpfung (`shell32.dll,314`)
 - [x] Startpaket-ZIP wird gebaut statt von Hand gepackt (`tools/startpaket-bauen.js`)
 - [x] Linkbereich angelegt, je Kürzel eine Sammlung, nur für Bearbeiter
-- [x] Linkbereich als Streifen unter die Menüleiste gezogen (statt Kachel in der
-      Übersicht): ein Klick pro Link, in jedem Reiter sichtbar, unabhängig von
-      der Bildschirmbreite
+- [x] Linkbereich als Reihe runder Symbole oben in der Übersicht („Meine Links"),
+      flach gehalten (gemessen 85 px), ein Klick pro Link
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 60 Symbole für die Links, nach Themen geordnet

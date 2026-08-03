@@ -182,10 +182,10 @@ Störungen, nicht den Rest.
 
 ## 5. Die Bereiche im Detail
 
-- **Linkstreifen (nur für Bearbeiter):** eine Zeile direkt unter der Menüleiste, in
-  jedem Bereich sichtbar. Ein Klick auf einen Chip öffnet die Datei oder die Seite.
+- **Meine Links (nur für Bearbeiter):** eine schmale Reihe runder Symbole ganz oben
+  in der Übersicht, über den Kennzahlen. Ein Klick öffnet die Datei oder die Seite.
   Über **RC/AR** wird zwischen der eigenen Sammlung und der der Vertretung
-  umgeschaltet; hinter **🔗 Links** stecken Anlegen, Ändern, Sortieren und Löschen.
+  umgeschaltet; hinter **🔗 Meine Links** stecken Anlegen, Ändern, Sortieren und Löschen.
   Die Sammlung liegt in der gemeinsamen Datei – die Vertretung hat dieselbe Liste
   vor sich. Laufwerks- und Netzwerkpfade öffnen sich direkt, wenn das Cockpit über
   das Desktop-Symbol gestartet wurde; sonst wird der Pfad in die Zwischenablage

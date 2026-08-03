@@ -1,4 +1,4 @@
-// Härtetest: LINKSTREIFEN unter der Menüleiste.
+// Härtetest: LINKREIHE oben in der Übersicht.
 //
 // Die Sammlung ist ausdruecklich nur fuer Bearbeiter. Ein Nur-Leser darf sie
 // nicht sehen - und zwar wirklich nicht, nicht bloss ausgegraut. Zweitens
@@ -14,7 +14,7 @@
 //   (5) Aendern, Sortieren, Loeschen - und der andere Inhaber bleibt heil.
 //   (6) Netzwerkpfade werden nicht als Web-Adresse geoeffnet.
 //   (7) Die Links ueberstehen einen Neustart der App.
-//   (7b) Der Streifen steht in JEDEM Reiter - dafuer sitzt er oben.
+//   (7b) Die Reihe steht ueber den Kennzahlen und bleibt flach.
 //   (8) Ueber den Ausliefer-Dienst geoeffnet: Der Klick fragt ihn nach der
 //       Datei, mit der Kopfzeile, auf der seine Zugangspruefung beruht.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
@@ -61,9 +61,9 @@ const verbinde = async (p) => {
   await p.getByText("Vorhandene Datei öffnen …").click();
   await p.waitForTimeout(2500);
 };
-// Der Streifen traegt sichtbar nur "🔗 Links"; der volle Name steht als
+// Die Reihe traegt sichtbar nur "🔗 Meine Links"; der volle Name steht als
 // aria-label am Knopf, damit der Test an der Bedeutung haengt und nicht an
-// der Schreibweise im Streifen.
+// der Schreibweise in der Reihe.
 const kopfzeile = (p) => p.getByRole("button", { name: "Links & Dokumente" });
 const linksInDatei = (platte, inhaber) => {
   const d = JSON.parse(platte["kalender-daten.json"] || "{}");
@@ -217,19 +217,35 @@ async function legeAn(p, name, ziel) {
     const sichtbar = await p3.locator("body").innerText();
     pruef("(7) Nach einem Neustart sind die Links wieder da", /Umbenannt|Anleitungen/.test(sichtbar));
 
-    /* ---------------- (7b) In jedem Reiter erreichbar ----------------
-       Der Grund für den Platz oben: Wer in den Störungen oder im Schichtplan
-       steht, braucht seine Unterlagen genauso - und soll dafür nicht erst
-       zurück auf die Übersicht. Früher lag der Bereich in der Übersicht und
-       war von überall sonst schlicht nicht da. */
-    for (const reiter of ["Störungen", "Schichtplan", "Planung", "Backlog", "TPM"]) {
-      await p3.getByRole("button", { name: new RegExp("^" + reiter) }).first().click();
-      await p3.waitForTimeout(350);
-      const da = await kopfzeile(p3).count() > 0;
-      const chip = (await p3.locator("body").innerText()).includes("Anleitungen");
-      pruef(`(7b) Im Bereich „${reiter}" steht der Linkstreifen weiterhin`, da && chip,
-            (da && chip) ? "" : (da ? "Chip fehlt" : "Streifen fehlt"));
-    }
+    /* ---------------- (7b) Platz in der Übersicht ----------------
+       Die Reihe gehört ÜBER die Kennzahlen. Stünde sie darunter, wäre sie
+       auf einem 1366-Pixel-Bildschirm der Werkstatt schon halb aus dem Bild -
+       und ein Link, den man erst herunterscrollen muss, wird nicht benutzt.
+       Gemessen wird die Lage auf dem Bildschirm, nicht die Reihenfolge im
+       Quelltext: Nur die erste sagt etwas darüber, was man wirklich sieht. */
+    const obenLinks = await kopfzeile(p3).boundingBox();
+    const obenKpi = await p3.getByText("Heute fällig").first().boundingBox();
+    pruef("(7b) Die Linkreihe steht über den Kennzahlen",
+          obenLinks && obenKpi && obenLinks.y < obenKpi.y,
+          obenLinks && obenKpi ? `Links y=${Math.round(obenLinks.y)}, Kennzahlen y=${Math.round(obenKpi.y)}` : "nicht gefunden");
+    // Flach halten ist keine Kosmetik: Die Reihe schiebt die Kennzahlen nach
+    // unten. Ueber 130 Pixel faengt sie an, die Uhr aus dem Bild zu draengen.
+    // Gemessen wird der Alltagszustand - die Verwaltung ist zugeklappt.
+    await kopfzeile(p3).click();
+    await p3.waitForTimeout(350);
+    const hoehe = await p3.evaluate(() => {
+      const k = document.querySelector('button[aria-label="Links & Dokumente"]');
+      return k ? Math.round(k.closest("div.wk-karte").getBoundingClientRect().height) : -1;
+    });
+    pruef("(7b) Die Reihe bleibt flach (unter 130 px)", hoehe > 0 && hoehe < 130, hoehe + " px");
+
+    // Sie lebt in der Übersicht - in den anderen Reitern ist sie nicht da.
+    // Das ist die bewusste Kehrseite dieses Platzes und steht hier, damit ein
+    // späterer Umzug eine Entscheidung ist und kein Versehen.
+    await p3.getByRole("button", { name: /^Störungen/ }).first().click();
+    await p3.waitForTimeout(350);
+    pruef("(7b) In den Störungen steht sie erwartungsgemäß nicht",
+          await kopfzeile(p3).count() === 0);
     await p3.context().close();
     await p.context().close();
   }
