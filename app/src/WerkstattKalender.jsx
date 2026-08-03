@@ -408,6 +408,37 @@ const normalisiereAnlagenteile = (arr) => (Array.isArray(arr) ? arr : [])
 // Zwei Sammlungen nebeneinander: die des Werkstattleiters und die der
 // Vertretung. Die Kürzel stehen in denselben Daten wie die Links - so bringt
 // eine neue Vertretung keinen Eingriff im Code mit sich.
+/* ---------- Nummer eines Störberichts ----------
+   Jahr und laufende Nummer, z. B. 2026-0214. In der Liste steht nur der
+   hintere Teil: Das Jahr sagt bereits die Datumszeile darüber, und eine
+   kurze Nummer liest sich am Telefon schneller vor. Auf dem Ausdruck und in
+   der Suche gilt die lange Form. */
+const stoerNrLang = (s) => String((s && s.nr) || "");
+const stoerNrKurz = (s) => {
+  const teile = stoerNrLang(s).split("-");
+  return teile.length === 2 ? teile[1] : teile[0];
+};
+// Nächste freie Nummer eines Jahres. Ausgangspunkt ist IMMER die übergebene
+// Liste - beim Speichern der frisch zusammengeführte Stand der gemeinsamen
+// Datei, nicht der Stand vom Öffnen der Maske.
+const naechsteStoerNr = (liste, jahr) => {
+  let hoechste = 0;
+  for (const s of liste || []) {
+    const m = /^(\d{4})-(\d+)$/.exec(stoerNrLang(s));
+    if (m && m[1] === String(jahr)) hoechste = Math.max(hoechste, Number(m[2]));
+  }
+  return `${jahr}-${String(hoechste + 1).padStart(4, "0")}`;
+};
+// Wer behält die Nummer, wenn zwei Geräte in derselben Minute gemeldet haben?
+// Der Eintrag mit der kleineren Kennung. Die Regel ist auf beiden Geräten
+// dieselbe, also rückt genau einer weiter - nicht keiner und nicht beide.
+const behaeltNummer = (liste, eigener) => {
+  const gleiche = (liste || []).filter((x) => stoerNrLang(x) && stoerNrLang(x) === stoerNrLang(eigener));
+  if (gleiche.length < 2) return true;
+  const erster = gleiche.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))[0];
+  return erster.id === eigener.id;
+};
+
 const LINK_INHABER_VORGABE = ["RC", "AR"];
 // Hintergrundfarben der Link-Symbole, der Reihe nach vergeben. Feste Folge
 // statt Zufall oder Namens-Streuung: Ein Link soll beim nächsten Öffnen an
@@ -966,6 +997,19 @@ function App() {
   const [stoerModal, setStoerModal] = useState(null); // null | {mode:'add'} | {mode:'edit', id}
   const [sDraft, setSDraft] = useState(null); // Entwurf im Melden/Bearbeiten-Dialog
   const [stoerErledigteZeigen, setStoerErledigteZeigen] = useState(true); // Schichtbuch: behobene Berichte standardmäßig mit anzeigen
+  // Filterleiste links - dieselben Begriffe wie im alten Schichtbuch, damit
+  // beim Umstieg niemand suchen muss. Die Wahl merkt sich das Gerät, nicht die
+  // gemeinsame Datei: Wie ich sortiere, geht meine Kollegen nichts an.
+  const [stoerAnsicht, setStoerAnsicht] = useState(() => {
+    try { return localStorage.getItem("werkstatt-stoer-ansicht") || "datum"; } catch (e) { return "datum"; }
+  });
+  // Vorgabe bewusst "alle": So zeigt die Liste nach dem Umstieg genau das,
+  // was sie vorher zeigte. Ein voreingestellter Zeitraum hätte am ersten Tag
+  // ausgesehen, als wären Berichte verschwunden.
+  const [stoerListeZeitraum, setStoerListeZeitraum] = useState(() => {
+    try { return localStorage.getItem("werkstatt-stoer-zeitraum") || "alle"; } catch (e) { return "alle"; }
+  });
+  const [stoerSchnell, setStoerSchnell] = useState(""); // "", "offen", "restarbeit", "lang"
   const [stoerOffeneTage, setStoerOffeneTage] = useState(null); // aufgeklappte Datums-Gruppen (null = Vorgabe: neuester Tag offen)
   const [stoerOffeneSchichten, setStoerOffeneSchichten] = useState(() => new Set()); // aufgeklappte Schichten "datum|schicht"
   const [stoerModus, setStoerModus] = useState("liste"); // "liste" | "auswertung"
@@ -1195,11 +1239,14 @@ function App() {
         if (merged) {
           try { localStorage.setItem(STOER_STORAGE_KEY, JSON.stringify(merged)); } catch (e) { /* egal */ }
           setStoerungen(merged);
+          return merged;
         }
       } catch (e) {
         setStoerErr("Störung konnte nicht in der gemeinsamen Datei gespeichert werden (Datei erreichbar?). Lokal ist alles gesichert.");
       }
     }
+    // Ohne Datei (oder wenn das Schreiben scheiterte) gilt der lokale Stand.
+    return next;
   };
   // Eine Störung anlegen/ändern/löschen (Kürzel wird wie bei der Pinnwand gemerkt)
   const speichereStoerung = async (draft) => {
@@ -1230,12 +1277,24 @@ function App() {
       const next = stoerungen.map((s) => (s.id === draft.id ? { ...s, ...gemeinsam, offen, behobenAt } : s));
       await persistStoer(next);
     } else {
+      const jahr = String(datum).slice(0, 4);
       const s = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         ...gemeinsam,
+        nr: naechsteStoerNr(stoerungen, jahr),
         offen, gemeldetAt: jetzt, behobenAt: offen ? null : (behobenAusFeld() || jetzt),
       };
-      await persistStoer([...stoerungen, s]);
+      const nachher = await persistStoer([...stoerungen, s]);
+      // Erst NACH dem Zusammenführen steht fest, ob die Nummer noch frei war:
+      // Der Kollege kann in derselben Minute gemeldet haben. Dann rückt genau
+      // einer der beiden weiter - wer, entscheidet dieselbe Regel auf beiden
+      // Geräten. Der Bericht ist gerade erst entstanden, die Verschiebung sieht
+      // also niemand.
+      const meiner = (nachher || []).find((x) => x.id === s.id);
+      if (meiner && !behaeltNummer(nachher, meiner)) {
+        const frei = naechsteStoerNr(nachher, jahr);
+        await persistStoer((nachher || []).map((x) => (x.id === s.id ? { ...x, nr: frei } : x)));
+      }
     }
     setStoerModal(null);
     setSDraft(null);
@@ -1465,8 +1524,43 @@ function App() {
   };
   const summeAusfall = (liste) => liste.reduce((sum, s) => sum + (Number(s.ausfallzeit) || 0), 0);
 
+  /* ---- Filterleiste: Zeitraum und Schnellzugriff ----
+     Die Zähler stehen bewusst an der Leiste und nicht über der Liste: Man
+     sieht dann, was ein Klick bringen WÜRDE, bevor man ihn macht. */
+  const stoerZeitGrenze = (() => {
+    const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (stoerListeZeitraum === "woche") { const w = new Date(t); w.setDate(w.getDate() - ((w.getDay() + 6) % 7)); return dateKey(w.getFullYear(), w.getMonth(), w.getDate()); }
+    if (stoerListeZeitraum === "monat") return dateKey(t.getFullYear(), t.getMonth(), 1);
+    if (stoerListeZeitraum === "jahr") return `${t.getFullYear()}-01-01`;
+    return null; // "alle"
+  })();
+  const imZeitraum = (s) => !stoerZeitGrenze || String(s.date || "") >= stoerZeitGrenze;
+  const langeStoerung = (s) => (Number(s.ausfallzeit) || 0) >= 60;
+  const mitRestarbeit = (s) => !!s.offen && String(s.nochZuTun || "").trim().length > 0;
+  const passtSchnell = (s) => {
+    if (stoerSchnell === "offen") return !!s.offen;
+    if (stoerSchnell === "restarbeit") return mitRestarbeit(s);
+    if (stoerSchnell === "lang") return langeStoerung(s);
+    return true;
+  };
+  // Zähler für die Leiste - immer über ALLE Berichte, nicht über die gerade
+  // gefilterte Auswahl. Sonst zeigte "Diese Woche 7" nach einem Klick auf
+  // "Nur offene" plötzlich 2, und die Zahl wäre wertlos.
+  const zaehleZeitraum = (art) => {
+    const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    let ab = null;
+    if (art === "woche") { const w = new Date(t); w.setDate(w.getDate() - ((w.getDay() + 6) % 7)); ab = dateKey(w.getFullYear(), w.getMonth(), w.getDate()); }
+    else if (art === "monat") ab = dateKey(t.getFullYear(), t.getMonth(), 1);
+    else if (art === "jahr") ab = `${t.getFullYear()}-01-01`;
+    return stoerungen.filter((s) => !ab || String(s.date || "") >= ab).length;
+  };
+  const stoerOhneNummer = stoerungen.filter((s) => !stoerNrLang(s));
+
   // ---- Schichtbuch-Gruppierung: nach Datum, darin nach Schicht (Früh/Spät/Nacht) ----
-  const stoerSichtbar = stoerungenSortiert.filter((s) => s.offen || stoerErledigteZeigen);
+  const stoerSichtbar = stoerungenSortiert
+    .filter((s) => s.offen || stoerErledigteZeigen)
+    .filter(imZeitraum)
+    .filter(passtSchnell);
   const stoerGruppen = (() => {
     const proTag = new Map();
     stoerSichtbar.forEach((s) => {
@@ -1491,6 +1585,66 @@ function App() {
         };
       });
   })();
+  /* ---- Die übrigen Ansichten der Leiste ----
+     Eine Ebene statt zwei: Datum und Schicht sind die einzige Gliederung, die
+     zwei Stufen braucht. Bei Anlage, Status oder Gewerk wäre eine zweite Stufe
+     nur ein zusätzlicher Klick zwischen dir und dem Bericht. */
+  const stoerEinfachGruppen = (() => {
+    if (stoerAnsicht === "datum") return null;
+    if (stoerAnsicht === "nummer") {
+      const liste = [...stoerSichtbar].sort((a, b) => stoerNrLang(b).localeCompare(stoerNrLang(a)) || String(b.gemeldetAt || "").localeCompare(String(a.gemeldetAt || "")));
+      return [{ schluessel: "alle", titel: "Alle Berichte, neueste Nummer zuerst", liste, ausfall: summeAusfall(liste), offen: liste.filter((s) => s.offen).length }];
+    }
+    const schluesselVon = (s) => {
+      if (stoerAnsicht === "anlage") return s.anlage || "ohne Anlage";
+      if (stoerAnsicht === "status") return s.offen ? "offen" : "behoben";
+      if (stoerAnsicht === "gewerk") return (STOER_GEWERK[s.gewerk] && STOER_GEWERK[s.gewerk].label) || "ohne Gewerk";
+      return "—";
+    };
+    const proGruppe = new Map();
+    stoerSichtbar.forEach((s) => {
+      const k = schluesselVon(s);
+      if (!proGruppe.has(k)) proGruppe.set(k, []);
+      proGruppe.get(k).push(s);
+    });
+    return Array.from(proGruppe.keys())
+      // Offene zuerst, sonst alphabetisch - die Anlage mit Störung soll oben stehen.
+      .sort((a, b) => {
+        if (stoerAnsicht === "status") return a === "offen" ? -1 : b === "offen" ? 1 : 0;
+        const oa = proGruppe.get(a).filter((s) => s.offen).length;
+        const ob = proGruppe.get(b).filter((s) => s.offen).length;
+        if (oa !== ob) return ob - oa;
+        return a.localeCompare(b, "de");
+      })
+      .map((k) => {
+        const liste = proGruppe.get(k);
+        return { schluessel: k, titel: k, liste, ausfall: summeAusfall(liste), offen: liste.filter((s) => s.offen).length };
+      });
+  })();
+
+  // Berichte aus der Zeit vor den Nummern nachtragen. Ausdrücklich auf Knopf-
+  // druck und nicht beim Laden: Ein Schreibvorgang in die gemeinsame Datei,
+  // den niemand ausgelöst hat, ist genau die Art Überraschung, die hier nicht
+  // passieren darf.
+  const nummernNachtragen = async () => {
+    const ohne = stoerungen.filter((s) => !stoerNrLang(s));
+    if (!ohne.length) return;
+    if (!window.confirm(`${ohne.length} Störbericht(e) ohne Nummer bekommen jetzt eine – nach Datum geordnet. Fortfahren?`)) return;
+    const geordnet = [...ohne].sort((a, b) =>
+      String(a.date || "").localeCompare(String(b.date || "")) ||
+      String(a.gemeldetAt || "").localeCompare(String(b.gemeldetAt || "")));
+    const neue = new Map();
+    const zaehler = new Map(); // Jahr -> zuletzt vergebene Nummer
+    for (const s of geordnet) {
+      const jahr = String(s.date || s.gemeldetAt || "").slice(0, 4) || String(today.getFullYear());
+      if (!zaehler.has(jahr)) zaehler.set(jahr, Number(naechsteStoerNr(stoerungen, jahr).split("-")[1]) - 1);
+      const n = zaehler.get(jahr) + 1;
+      zaehler.set(jahr, n);
+      neue.set(s.id, `${jahr}-${String(n).padStart(4, "0")}`);
+    }
+    await persistStoer(stoerungen.map((s) => (neue.has(s.id) ? { ...s, nr: neue.get(s.id) } : s)));
+  };
+
   const istTagOffen = (d, idx) => (stoerOffeneTage === null ? idx === 0 : stoerOffeneTage.has(d));
   const toggleStoerTag = (d) => setStoerOffeneTage((prev) => {
     const basis = prev === null ? new Set(stoerGruppen[0] ? [stoerGruppen[0].datum] : []) : new Set(prev);
@@ -1523,7 +1677,11 @@ function App() {
     const th = { fontSize: "0.57rem", textTransform: "uppercase", letterSpacing: "0.9px", color: "#8A9099", fontWeight: 800, textAlign: "left", padding: "6px 8px", borderBottom: "1.5px solid #D7DCE1", background: "#FAFBFC", whiteSpace: "nowrap" };
     return (
       <tr>
-        <th style={{ ...th, width: "116px" }}>{ersteSpalte}</th>
+        {/* Die Nummer steht ganz links - dieselbe Stelle wie die Spalte "Code"
+            im alten Schichtbuch. Sie ist schmal genug, dass die Spalten
+            dahinter unverändert bleiben. */}
+        <th style={{ ...th, width: "72px" }}>Nummer</th>
+        <th style={{ ...th, width: "104px" }}>{ersteSpalte}</th>
         <th style={{ ...th, width: "168px" }}>Anlage · Teil</th>
         <th style={th}>Störbeschreibung</th>
         <th style={{ ...th, width: "82px", textAlign: "right" }}>Ausfallzeit</th>
@@ -1536,7 +1694,16 @@ function App() {
     const zeit = s.gemeldetAt ? new Date(s.gemeldetAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "--:--";
     return (
       <tr key={s.id} onClick={() => oeffneStoerDetail(s)} className="wk-hover" style={{ cursor: "pointer" }} title="Bericht öffnen">
-        <td style={{ ...stoerTdBasis, paddingLeft: mitDatum ? "10px" : "38px" }}>
+        {/* Offene Berichte tragen eine rote Kante. Bisher verriet nur die
+            kleine Pille ganz rechts den Status - also am anderen Ende der
+            Zeile, und beim Überfliegen einer langen Liste zu leicht zu
+            übersehen. */}
+        <td style={{ ...stoerTdBasis, paddingLeft: mitDatum ? "10px" : "38px", boxShadow: s.offen ? "inset 3px 0 0 #C0392B" : "none" }}>
+          <span className="font-mono" style={{ fontSize: "0.7rem", fontWeight: 700, color: stoerNrLang(s) ? "#2F6690" : "#C4CBD2" }}>
+            {stoerNrLang(s) ? stoerNrKurz(s) : "–"}
+          </span>
+        </td>
+        <td style={stoerTdBasis}>
           <span className="font-mono" style={{ fontSize: "0.68rem", color: "#8A9099" }}>{mitDatum ? (s.date ? formatDateDE(s.date) : "—") : zeit}</span>
         </td>
         <td style={stoerTdBasis}>
@@ -3801,7 +3968,64 @@ function App() {
 
       {/* Cockpit: Störungen (eigene, für alle beschreibbare Datei) */}
       {view === "COCKPIT" && cockpitTab === "STOERUNGEN" && (
-        <div className="no-print max-w-5xl mx-auto px-4 mt-4">
+        <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+        <div className="flex gap-3 items-start">
+          {/* ---- Filterleiste links ---------------------------------------
+              Die Begriffe sind dieselben wie im alten Schichtbuch ("nach
+              Maschine", "nach Nummer", "nach Status"), damit der Umstieg
+              niemanden zum Suchen zwingt. Neu sind allein die Zähler: Sie
+              sagen vorher, was ein Klick bringen würde.
+              Auf schmalen Geräten fällt die Leiste weg - dort wäre für Leiste
+              UND Tabelle nebeneinander kein Platz, und die Tabelle hat
+              Vorrang. */}
+          {stoerModus === "liste" && stoerungen.length > 0 && (
+            <div className="wk-karte overflow-hidden shrink-0 hidden lg:block" style={{ width: "198px", border: "1px solid #E2E4E7" }}>
+              <div className="px-3 py-2 font-extrabold uppercase tracking-wide" style={{ fontSize: "0.62rem", color: "#22262B", borderBottom: "1px solid #EEF0F2" }}>🔎 Störberichte</div>
+              <div style={{ fontSize: "0.6rem", fontWeight: 800, letterSpacing: "0.7px", textTransform: "uppercase", color: "#A2AAB3", padding: "9px 12px 4px" }}>Ansicht</div>
+              {[["datum", "nach Datum und Schicht"], ["anlage", "nach Anlage"], ["nummer", "nach Nummer"], ["status", "nach Status"], ["gewerk", "nach Gewerk"]].map(([k, label]) => {
+                const an = stoerAnsicht === k;
+                return (
+                  <button key={k} className="w-full text-left flex items-center"
+                    onClick={() => { setStoerAnsicht(k); try { localStorage.setItem("werkstatt-stoer-ansicht", k); } catch (e) { /* egal */ } }}
+                    style={{ padding: "5px 12px", fontSize: "0.75rem", color: an ? "#A25E14" : "#3C444C", fontWeight: an ? 800 : 400, backgroundColor: an ? "#FDF0E2" : "transparent", boxShadow: an ? "inset 3px 0 0 #C97A2B" : "none" }}>
+                    {label}
+                  </button>
+                );
+              })}
+              <div style={{ height: "1px", backgroundColor: "#EEF0F2", margin: "7px 0" }} />
+              <div style={{ fontSize: "0.6rem", fontWeight: 800, letterSpacing: "0.7px", textTransform: "uppercase", color: "#A2AAB3", padding: "0 12px 4px" }}>Zeitraum</div>
+              {[["woche", "Diese Woche"], ["monat", "Dieser Monat"], ["jahr", "Dieses Jahr"], ["alle", "Alle / Archiv"]].map(([k, label]) => {
+                const an = stoerListeZeitraum === k;
+                return (
+                  <button key={k} className="w-full text-left flex items-center gap-2"
+                    onClick={() => { setStoerListeZeitraum(k); try { localStorage.setItem("werkstatt-stoer-zeitraum", k); } catch (e) { /* egal */ } }}
+                    style={{ padding: "5px 12px", fontSize: "0.75rem", color: an ? "#A25E14" : "#3C444C", fontWeight: an ? 800 : 400, backgroundColor: an ? "#FDF0E2" : "transparent", boxShadow: an ? "inset 3px 0 0 #C97A2B" : "none" }}>
+                    <span>{label}</span>
+                    <span className="ml-auto font-mono font-bold" style={{ fontSize: "0.66rem", color: an ? "#C97A2B" : "#97A0A9" }}>{zaehleZeitraum(k)}</span>
+                  </button>
+                );
+              })}
+              <div style={{ height: "1px", backgroundColor: "#EEF0F2", margin: "7px 0" }} />
+              <div style={{ fontSize: "0.6rem", fontWeight: 800, letterSpacing: "0.7px", textTransform: "uppercase", color: "#A2AAB3", padding: "0 12px 4px" }}>Schnellzugriff</div>
+              {[["offen", "⚠ Nur offene", stoerungen.filter((s) => s.offen).length],
+                ["restarbeit", "📌 Mit Restarbeit", stoerungen.filter(mitRestarbeit).length],
+                ["lang", "🕐 Über 60 min", stoerungen.filter(langeStoerung).length]].map(([k, label, n]) => {
+                const an = stoerSchnell === k;
+                return (
+                  <button key={k} className="w-full text-left flex items-center gap-2"
+                    onClick={() => setStoerSchnell(an ? "" : k)}
+                    title={an ? "Filter wieder aufheben" : undefined}
+                    style={{ padding: "5px 12px", fontSize: "0.75rem", color: an ? "#A25E14" : "#3C444C", fontWeight: an ? 800 : 400, backgroundColor: an ? "#FDF0E2" : "transparent", boxShadow: an ? "inset 3px 0 0 #C97A2B" : "none" }}>
+                    <span>{label}</span>
+                    <span className="ml-auto font-mono font-bold" style={{ fontSize: "0.66rem", color: an ? "#C97A2B" : "#97A0A9" }}>{n}</span>
+                  </button>
+                );
+              })}
+              <div style={{ height: "6px" }} />
+            </div>
+          )}
+
+          <div className="flex-1" style={{ minWidth: 0 }}>
           {/* ---- Werkzeugzeile ----------------------------------------------
               Dieselbe Anordnung wie im Backlog: Suche links, Umschalter und
               Hauptknopf rechts. Vorher standen Titel, Umschalter und Zähler in
@@ -4054,6 +4278,47 @@ function App() {
                 </div>
               );
             }
+            /* Die übrigen Ansichten der Leiste: eine Ebene, sonst dieselbe
+               Zeile wie im Schichtbuch. Ein eigener Zweig statt eines
+               Umbaus der Datums-Ansicht - die ist die meistgenutzte und
+               soll von den anderen nichts abbekommen. */
+            if (stoerEinfachGruppen) {
+              if (stoerEinfachGruppen.length === 0) {
+                return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Kein Störbericht in dieser Auswahl.</div>;
+              }
+              const grpTd = { padding: "0 8px", height: "26px", verticalAlign: "middle", whiteSpace: "nowrap", backgroundColor: "#EDF0F3", borderBottom: "1px solid #DDE1E6" };
+              return (
+                <div className="wk-karte overflow-hidden" style={{ border: "1px solid #E2E4E7" }}>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "640px" }}>
+                      <thead>{stoerKopfzeile(stoerAnsicht === "nummer" ? "Datum" : "Datum / Zeit")}</thead>
+                      <tbody>
+                        {stoerEinfachGruppen.map((g) => (
+                          <React.Fragment key={g.schluessel}>
+                            {stoerAnsicht !== "nummer" && (
+                              <tr>
+                                <td colSpan={4} style={{ ...grpTd, fontWeight: 800, fontSize: "0.75rem", color: "#22262B" }}>
+                                  {g.titel}
+                                  <span style={{ color: "#8A9099", fontWeight: 700, fontSize: "0.68rem", marginLeft: "9px" }}>{g.liste.length} {g.liste.length === 1 ? "Eintrag" : "Einträge"}</span>
+                                </td>
+                                <td style={{ ...grpTd, textAlign: "right" }}>
+                                  {g.ausfall > 0 && <span className="font-mono" style={{ fontSize: "0.72rem", color: "#5B6572", fontWeight: 700 }}>{minutenText(g.ausfall)}</span>}
+                                </td>
+                                <td style={grpTd} />
+                                <td style={grpTd}>
+                                  {g.offen > 0 && <span className="inline-flex items-center rounded-full font-extrabold" style={{ fontSize: "0.58rem", padding: "1px 7px", backgroundColor: "#FBEAE8", color: "#B23A34" }}>{g.offen} offen</span>}
+                                </td>
+                              </tr>
+                            )}
+                            {g.liste.map((s) => stoerZeileTabelle(s, true))}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            }
             if (stoerGruppen.length === 0) {
               return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine offenen Störungen. Behobene über den Schalter unten einblenden.</div>;
             }
@@ -4074,7 +4339,7 @@ function App() {
                             <React.Fragment key={g.datum}>
                               {/* Tages-Zeile */}
                               <tr onClick={() => toggleStoerTag(g.datum)} className="wk-hover" style={{ cursor: "pointer" }}>
-                                <td colSpan={3} style={{ ...grpTd, fontWeight: 800, fontSize: "0.75rem", color: "#22262B" }}>
+                                <td colSpan={4} style={{ ...grpTd, fontWeight: 800, fontSize: "0.75rem", color: "#22262B" }}>
                                   <span style={{ color: "#5B6572", fontSize: "0.6rem", marginRight: "6px", display: "inline-block", width: "8px" }}>{auf ? "▾" : "▸"}</span>
                                   {d ? d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "ohne Datum"}
                                   {istHeute && <span className="rounded font-bold uppercase" style={{ fontSize: "0.56rem", padding: "1px 6px", backgroundColor: "#C97A2B", color: "#fff", marginLeft: "8px" }}>heute</span>}
@@ -4095,7 +4360,7 @@ function App() {
                                 return (
                                   <React.Fragment key={sch}>
                                     <tr onClick={() => toggleStoerSchicht(g.datum, sch)} className="wk-hover" style={{ cursor: "pointer" }}>
-                                      <td colSpan={3} style={{ ...schTd, paddingLeft: "24px" }}>
+                                      <td colSpan={4} style={{ ...schTd, paddingLeft: "24px" }}>
                                         <span style={{ color: "#8A9099", fontSize: "0.6rem", marginRight: "6px", display: "inline-block", width: "8px" }}>{schichtAuf ? "▾" : "▸"}</span>
                                         <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.4px", padding: "1px 7px", backgroundColor: farbe.color, color: farbe.text || "#fff" }}>
                                           {sch === "—" ? "ohne Schicht" : sch}
@@ -4130,6 +4395,8 @@ function App() {
               </>
             );
           })()}
+          </div>
+        </div>
         </div>
       )}
 
