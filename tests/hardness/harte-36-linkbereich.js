@@ -250,6 +250,80 @@ async function legeAn(p, name, ziel) {
     await p.context().close();
   }
 
+  /* ---------------- (9) Die Symbolauswahl ----------------
+     Sie ist der Grund, warum niemand das Emoji-Fenster von Windows braucht.
+     Damit sie das bleibt, muss sie zwei Dinge einhalten: kein Symbol doppelt
+     (sonst sucht man zweimal dasselbe) und jede Reihe auf EINER Zeile - eine
+     umbrechende Reihe schiebt die Gruppenbeschriftung von ihren Symbolen weg
+     und macht aus der Ordnung wieder ein Suchbild. */
+  {
+    const platte = { "kalender-daten.json": JSON.stringify(START) };
+    const p = await seite(b, platte);
+    const fehler = []; p.on("pageerror", (e) => fehler.push(e.message));
+    await verbinde(p);
+    await p.waitForTimeout(600);
+    await kopfzeile(p).click();
+    await p.waitForTimeout(400);
+    await p.getByRole("button", { name: "＋ Link" }).click();
+    await p.waitForTimeout(400);
+
+    const mass = await p.evaluate(() => {
+      const alle = Array.from(document.querySelectorAll('button[title^="Symbol "]'));
+      if (!alle.length) return null;
+      const proReihe = new Map();
+      for (const k of alle) {
+        if (!proReihe.has(k.parentElement)) proReihe.set(k.parentElement, []);
+        proReihe.get(k.parentElement).push(k);
+      }
+      const feld = alle[0].closest("div.rounded-lg").getBoundingClientRect();
+      const reihen = Array.from(proReihe.values()).map((knoepfe) => ({
+        zeilen: new Set(knoepfe.map((k) => Math.round(k.getBoundingClientRect().top))).size,
+        rechts: Math.max(...knoepfe.map((k) => k.getBoundingClientRect().right)),
+      }));
+      const zaehler = {};
+      for (const k of alle) zaehler[k.textContent] = (zaehler[k.textContent] || 0) + 1;
+      return {
+        anzahl: alle.length,
+        gruppen: proReihe.size,
+        mehrzeilig: reihen.filter((r) => r.zeilen > 1).length,
+        ueberBreite: reihen.filter((r) => r.rechts > feld.right + 1).length,
+        doppelte: Object.entries(zaehler).filter(([, n]) => n > 1).map(([z]) => z),
+      };
+    });
+
+    pruef("(9) Die Symbolauswahl ist da", mass !== null && mass.anzahl > 0);
+    if (mass) {
+      pruef("(9) Es sind deutlich mehr als eine Handvoll Symbole", mass.anzahl >= 100, mass.anzahl + " Symbole in " + mass.gruppen + " Gruppen");
+      pruef("(9) Kein Symbol kommt doppelt vor", mass.doppelte.length === 0, mass.doppelte.join(" "));
+      pruef("(9) Jede Gruppe steht auf einer Zeile", mass.mehrzeilig === 0, mass.mehrzeilig + " umgebrochen");
+      pruef("(9) Keine Reihe ragt aus dem Feld heraus", mass.ueberBreite === 0, mass.ueberBreite + " zu breit");
+    }
+
+    // Zeichen wie ⚙ oder ⚠ zeichnet Windows ohne den Zusatz U+FE0F schmal und
+    // schwarzweiß. Geprüft wird, dass die Auswahl ihn mitliefert - sonst steht
+    // mitten in der bunten Reihe ein blasses Zeichen.
+    const ohneZusatz = await p.evaluate(() =>
+      Array.from(document.querySelectorAll('button[title^="Symbol "]'))
+        .map((k) => k.textContent)
+        .filter((z) => Array.from(z).length === 1 && !/\p{Emoji_Presentation}/u.test(z)));
+    pruef("(9) Textzeichen tragen den Zusatz für die bunte Darstellung",
+          ohneZusatz.length === 0, ohneZusatz.join(" "));
+
+    // Und das Gespeicherte trägt ihn auch - sonst sähe es auf dem zweiten
+    // Rechner anders aus als auf dem, wo es angelegt wurde.
+    await p.getByPlaceholder(/Bezeichnung/).fill("Warnhinweise");
+    await p.getByPlaceholder(/Adresse oder Pfad/).fill("intranet.firma.de/warnung");
+    await p.locator('button[title="Symbol ⚠️"]').click();
+    await p.getByRole("button", { name: "Speichern" }).click();
+    await p.waitForTimeout(1600);
+    const gespeichert = linksInDatei(platte, "RC").find((l) => l.name === "Warnhinweise");
+    pruef("(9) Das gespeicherte Symbol trägt den Zusatz",
+          !!gespeichert && Array.from(gespeichert.symbol).length === 2,
+          gespeichert ? JSON.stringify(gespeichert.symbol) : "nicht gespeichert");
+    pruef("(9) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 1).join(" "));
+    await p.context().close();
+  }
+
   /* ---------------- (8) Über den Ausliefer-Dienst geöffnet ----------------
      Bisher lief alles über file:// - da gibt es niemanden, den man um das
      Öffnen einer Datei bitten könnte. Am Arbeitsplatz kommt die App aber über

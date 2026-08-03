@@ -67,4 +67,5 @@ Stand: 30.07.2026
 - [x] Linkbereich als Reihe runder Symbole oben in der Übersicht („Meine Links"),
       flach gehalten (gemessen 85 px), ein Klick pro Link
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
-- [x] 60 Symbole für die Links, nach Themen geordnet
+- [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
+      Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)

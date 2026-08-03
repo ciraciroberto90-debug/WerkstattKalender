@@ -414,6 +414,18 @@ const LINK_INHABER_VORGABE = ["RC", "AR"];
 // derselben Stelle in derselben Farbe liegen - dann findet ihn die Hand, ohne
 // dass das Auge lesen muss. Alle Töne sind blass, damit das Symbol trägt.
 const LINK_FARBEN = ["#FDF0E2", "#E7EEF4", "#E8F1EA", "#F1ECF6", "#FBEFEF", "#EDF0F3"];
+// Manche Zeichen sind im Unicode-Standard "Text zuerst" - ⚙ ⚠ ⏱ ✂ ❄ und
+// weitere. Ohne den Zusatz U+FE0F zeichnet Windows sie schmal und schwarzweiß,
+// mitten in einer Reihe bunter Symbole. Der Zusatz sagt "als Bild, bitte";
+// bei Zeichen, die ohnehin als Bild gelten, ändert er nichts. Zusammengesetzte
+// Zeichen (1️⃣, 🧑‍🔧) bleiben unangetastet - dort säße er falsch.
+const alsSymbol = (s) => {
+  const t = String(s || "");
+  if (!t) return t;
+  // Als Fluchtzeichen geschrieben, nicht als unsichtbares Zeichen im Quelltext:
+  // Sonst sieht man beim Lesen nicht, was hier angehängt wird.
+  return (Array.from(t).length === 1 && !/\p{Emoji_Presentation}/u.test(t)) ? t + "\uFE0F" : t;
+};
 
 // Wird die App vom Ausliefer-Dienst geliefert (http://localhost:8765/), kann
 // sie ihn bitten, eine Datei zu öffnen - der läuft auf demselben Rechner und
@@ -1721,7 +1733,9 @@ function App() {
   const speichereLinkEntwurf = async () => {
     const e = linkEntwurf;
     if (!e || !e.name.trim() || !e.ziel.trim()) return;
-    const sauber = { name: e.name.trim(), ziel: e.ziel.trim(), symbol: (e.symbol || "🔗").trim() || "🔗" };
+    // Das Symbol wird schon beim Speichern vereinheitlicht, nicht erst beim
+    // Anzeigen: Dann steht in der gemeinsamen Datei für alle dasselbe Zeichen.
+    const sauber = { name: e.name.trim(), ziel: e.ziel.trim(), symbol: alsSymbol((e.symbol || "🔗").trim()) || "🔗" };
     const next = e.id
       ? links.eintraege.map((l) => (l.id === e.id ? { ...l, ...sauber } : l))
       : [...links.eintraege, { ...sauber, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, inhaber: linkInhaberAktiv }];
@@ -4185,7 +4199,7 @@ function App() {
                             backgroundColor: gemeldet ? "#FBE7C9" : LINK_FARBEN[i % LINK_FARBEN.length],
                             boxShadow: "0 2px 5px rgba(30,40,50,0.08)",
                           }}
-                        >{l.symbol}</span>
+                        >{alsSymbol(l.symbol)}</span>
                         <span
                           className="font-semibold text-center"
                           style={{
@@ -4241,7 +4255,7 @@ function App() {
                         <div key={l.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-slate-50" style={{ marginBottom: "2px" }}>
                           <button onClick={() => oeffneLink(l)} className="flex items-center gap-2.5 flex-1 text-left" style={{ minWidth: 0 }}
                             title={art === "oeffnen" ? "Im Browser öffnen" : "Öffnen"}>
-                            <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: "26px", height: "26px", borderRadius: "8px", backgroundColor: "#F1F4F7", fontSize: "0.9rem" }}>{l.symbol}</span>
+                            <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: "26px", height: "26px", borderRadius: "8px", backgroundColor: "#F1F4F7", fontSize: "0.9rem" }}>{alsSymbol(l.symbol)}</span>
                             <span style={{ minWidth: 0 }}>
                               <span className="block font-semibold" style={{ fontSize: "0.85rem", color: "#22262B" }}>{l.name}</span>
                               <span className="block" style={{ fontSize: "0.72rem", color: meldung ? (meldung.startsWith("✗") ? "#B23A34" : "#2F7D4F") : "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -4287,22 +4301,35 @@ function App() {
                         </div>
                         {/* Symbol-Vorschläge, nach Themen geordnet: schneller als das
                             Emoji-Fenster von Windows und auf die Werkstatt gemünzt.
-                            Wer etwas anderes will, tippt es links ins Feld. */}
+                            Wer etwas anderes will, tippt es links ins Feld.
+                            Die letzte Reihe ist zum Kennzeichnen da - Halle 1,
+                            Linie 3, roter Bereich: Zahlen und Farbpunkte
+                            unterscheiden gleichartige Links auf einen Blick,
+                            wofür es sonst kein passendes Bild gibt. */}
                         <div className="mb-2">
                           {[
-                            ["Unterlagen", ["🔗", "📘", "📕", "📄", "📑", "📁", "🗂", "📇", "📝", "🖨", "📷", "🗺"]],
-                            ["Werkstatt", ["🔧", "🔩", "⚙", "🛠", "🪛", "🔨", "⛓", "🧰", "🏭", "🚜", "🧱", "🪣"]],
-                            ["Technik", ["⚡", "🔌", "💡", "🔥", "💧", "🌡", "🧪", "♻", "🛢", "🌀", "❄", "📡"]],
-                            ["Betrieb", ["🛒", "📞", "✉", "🕐", "📅", "📊", "💶", "🚚", "🏢", "👷", "🧑‍🔧", "🗓"]],
-                            ["Sicherheit", ["📋", "⚠", "🧯", "🚨", "🦺", "🥽", "🧤", "🚑", "🔒", "✅", "🚫", "☣"]],
+                            ["Unterlagen", ["🔗", "📘", "📕", "📗", "📙", "📄", "📑", "📃", "📁", "🗂", "📇", "📝", "✏", "📌", "🖨", "📷", "🗺", "🔖"]],
+                            ["Werkstatt", ["🔧", "🔩", "⚙", "🛠", "🪛", "🔨", "🪚", "✂", "📏", "📐", "⛓", "🧰", "🧲", "🪜", "🧱", "🪣", "🧹", "🔬"]],
+                            ["Technik", ["⚡", "🔌", "💡", "🔦", "🔥", "💧", "🌡", "🧪", "🛢", "🌀", "❄", "📡", "🔋", "🖥", "⌨", "🖱", "📠", "🎛"]],
+                            ["Anlagen", ["🏭", "🏗", "🚜", "🛗", "🛞", "🏢", "🏬", "🚪", "🪟", "🧊", "🌬", "🚿", "⛽", "♻", "🪫", "🔔", "🪝", "⏱"]],
+                            ["Betrieb", ["🛒", "📞", "✉", "🕐", "⏰", "📅", "🗓", "📊", "📈", "💶", "🚚", "🚛", "📦", "🏷", "👷", "🧑‍🔧", "👥", "💬"]],
+                            ["Sicherheit", ["📋", "⚠", "🧯", "🚨", "🦺", "🥽", "🧤", "🥾", "🪖", "🚑", "🩹", "🔒", "🔑", "✅", "❌", "🚫", "☣", "☢"]],
+                            ["Kennzeichen", ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "🅰", "🅱", "⭐", "❗", "❓", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"]],
                           ].map(([gruppe, symbole]) => (
-                            <div key={gruppe} className="flex items-center gap-1 flex-wrap" style={{ marginBottom: "2px" }}>
+                            // Raster statt frei umbrechender Zeile: Emoji sind
+                            // unterschiedlich breit, und mit flex-wrap rutschte
+                            // je nach Reihe eines in die nächste Zeile - die
+                            // Reihen standen dann verschieden hoch da. Im
+                            // Raster liegt jedes Symbol in einer festen Spalte.
+                            <div key={gruppe} className="flex items-center gap-1" style={{ marginBottom: "2px" }}>
                               <span style={{ fontSize: "0.62rem", color: "#A2AAB3", width: "62px", flex: "0 0 auto" }}>{gruppe}</span>
-                              {symbole.map((s) => (
-                                <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
-                                  title={"Symbol " + s}
-                                  className="rounded" style={{ fontSize: "0.95rem", lineHeight: 1.2, padding: "2px 4px", backgroundColor: linkEntwurf.symbol === s ? "#E7EEF4" : "transparent" }}>{s}</button>
-                              ))}
+                              <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${symbole.length}, minmax(0, 1fr))` }}>
+                                {symbole.map((s) => (
+                                  <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
+                                    title={"Symbol " + alsSymbol(s)}
+                                    className="rounded" style={{ fontSize: "0.95rem", lineHeight: 1.3, padding: "2px 0", backgroundColor: alsSymbol(linkEntwurf.symbol) === alsSymbol(s) ? "#E7EEF4" : "transparent" }}>{alsSymbol(s)}</button>
+                                ))}
+                              </div>
                             </div>
                           ))}
                         </div>
