@@ -117,7 +117,7 @@ cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
 bash tests/run-hardness-tests.sh           # 35 Härtetests
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
-node tests/rollout-test.js                 # Verteilung
+node tests/rollout-test.js                 # Verteilung: Paket, Dienst, Doku, Versionswechsel
 node tests/veroeffentlichungs-test.js      # Veröffentlichung
 node tests/hardness/diagnose-ablauf.js     # die Diagnose-Seite selbst
 bash tests/pruefe-sicherung.sh             # Sicherungsskript (braucht PowerShell)
