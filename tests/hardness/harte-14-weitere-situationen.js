@@ -146,6 +146,9 @@ const setzeSchicht = async (page, person, schicht) => {
   // ---- Situation C: mehrere aufeinanderfolgende Lesefehler beim Speichern werden durchgehalten ----
   {
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    // Feste Uhr wie bei den anderen Seiten dieses Tests: Der Schichtplan
+    // oeffnet den laufenden Monat, und die Zelle unten liegt im Juli 2026.
+    await page.clock.setFixedTime(new Date('2026-07-13T09:00:00'));
     page.on('pageerror', (e) => console.log('PAGEERROR (C):', e.message));
     await page.addInitScript(() => {
       window.__mockFileContent = JSON.stringify({

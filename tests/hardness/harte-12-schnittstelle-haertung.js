@@ -17,6 +17,10 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // ---- Test 1: Transienter Lesefehler beim Speichern darf keine Daten der anderen löschen ----
   {
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    // Der Schichtplan oeffnet den LAUFENDEN Monat. Ohne feste Uhr sucht dieser
+    // Test ab August 2026 eine Julizelle, die es nicht mehr gibt - er schlug
+    // dann nicht wegen eines Fehlers fehl, sondern wegen des Kalenders.
+    await page.clock.setFixedTime(new Date('2026-07-13T09:00:00'));
     page.on('pageerror', (e) => console.log('PAGEERROR (T1):', e.message));
     await page.addInitScript(() => {
       window.__mockFileContent = JSON.stringify({
@@ -67,6 +71,10 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // ---- Test 2: Merge mit gleicher Anzahl, anderem Inhalt wird SOFORT sichtbar ----
   {
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    // Der Schichtplan oeffnet den LAUFENDEN Monat. Ohne feste Uhr sucht dieser
+    // Test ab August 2026 eine Julizelle, die es nicht mehr gibt - er schlug
+    // dann nicht wegen eines Fehlers fehl, sondern wegen des Kalenders.
+    await page.clock.setFixedTime(new Date('2026-07-13T09:00:00'));
     page.on('pageerror', (e) => console.log('PAGEERROR (T2):', e.message));
     await page.addInitScript(() => {
       window.__mockFileContent = JSON.stringify({
@@ -118,6 +126,10 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // ---- Test 3: Wiederholt scheiternder Poll wird gemeldet + Entwarnung bei Erholung ----
   {
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    // Der Schichtplan oeffnet den LAUFENDEN Monat. Ohne feste Uhr sucht dieser
+    // Test ab August 2026 eine Julizelle, die es nicht mehr gibt - er schlug
+    // dann nicht wegen eines Fehlers fehl, sondern wegen des Kalenders.
+    await page.clock.setFixedTime(new Date('2026-07-13T09:00:00'));
     page.on('pageerror', (e) => console.log('PAGEERROR (T3):', e.message));
     await page.addInitScript(() => {
       window.__mockFileContent = JSON.stringify({
@@ -166,6 +178,10 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // ---- Test 4: "Zuletzt aktualisiert"-Anzeige ist sichtbar ----
   {
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    // Der Schichtplan oeffnet den LAUFENDEN Monat. Ohne feste Uhr sucht dieser
+    // Test ab August 2026 eine Julizelle, die es nicht mehr gibt - er schlug
+    // dann nicht wegen eines Fehlers fehl, sondern wegen des Kalenders.
+    await page.clock.setFixedTime(new Date('2026-07-13T09:00:00'));
     page.on('pageerror', (e) => console.log('PAGEERROR (T4):', e.message));
     await page.addInitScript(() => {
       window.__mockFileContent = JSON.stringify({
