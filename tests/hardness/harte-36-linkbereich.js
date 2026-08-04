@@ -14,7 +14,7 @@
 //   (5) Aendern, Sortieren, Loeschen - und der andere Inhaber bleibt heil.
 //   (6) Netzwerkpfade werden nicht als Web-Adresse geoeffnet.
 //   (7) Die Links ueberstehen einen Neustart der App.
-//   (7b) Der Streifen steht in JEDEM Reiter und bleibt eine Zeile.
+//   (7b) Der Streifen steht NUR auf der Übersicht und bleibt eine Zeile.
 //   (8) Ueber den Ausliefer-Dienst geoeffnet: Der Klick fragt ihn nach der
 //       Datei, mit der Kopfzeile, auf der seine Zugangspruefung beruht.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
@@ -217,11 +217,11 @@ async function legeAn(p, name, ziel) {
     const sichtbar = await p3.locator("body").innerText();
     pruef("(7) Nach einem Neustart sind die Links wieder da", /Umbenannt|Anleitungen/.test(sichtbar));
 
-    /* ---------------- (7b) In jedem Reiter erreichbar ----------------
-       Der Grund für den Platz unter der Menüleiste: Wer in den Störungen oder
-       im Schichtplan steht, braucht seine Unterlagen genauso - und soll dafür
-       nicht erst zurück auf die Übersicht. Eine Kachel in der Übersicht konnte
-       das nicht, der Streifen kann es. */
+    /* ---------------- (7b) Nur auf der Übersicht ----------------
+       Der Streifen sitzt in derselben klebenden Klammer wie die Menüleiste
+       und nimmt jedem Reiter Platz weg. Gebraucht wird er aber beim
+       Ankommen, nicht beim Arbeiten in den Störungen oder im Schichtplan -
+       deshalb steht er ausschließlich auf der Übersicht. */
     // Zuerst zuklappen: Das Verwaltungsfeld liegt über dem Inhalt und würde
     // die Reiter darunter verdecken.
     await kopfzeile(p3).click();
@@ -230,10 +230,17 @@ async function legeAn(p, name, ziel) {
       await p3.getByRole("button", { name: new RegExp("^" + reiter) }).first().click();
       await p3.waitForTimeout(350);
       const da = await kopfzeile(p3).count() > 0;
-      const chip = (await p3.locator("body").innerText()).includes("Anleitungen");
-      pruef(`(7b) Im Bereich „${reiter}" steht der Linkstreifen weiterhin`, da && chip,
-            (da && chip) ? "" : (da ? "Chip fehlt" : "Streifen fehlt"));
+      pruef(`(7b) Im Bereich „${reiter}" ist der Linkstreifen weg`, !da, da ? "steht noch da" : "");
     }
+    // ... und auf der Übersicht ist er wieder da, samt Chips.
+    await p3.getByRole("button", { name: /^Werkstatt/ }).first().click();
+    await p3.waitForTimeout(350);
+    await p3.getByRole("button", { name: /^Übersicht/ }).first().click();
+    await p3.waitForTimeout(400);
+    const zurueck = await kopfzeile(p3).count() > 0;
+    const chipDa = (await p3.locator("body").innerText()).includes("Anleitungen");
+    pruef("(7b) Auf der Übersicht steht der Streifen mit seinen Chips", zurueck && chipDa,
+          (zurueck && chipDa) ? "" : (zurueck ? "Chip fehlt" : "Streifen fehlt"));
     // Flach halten ist keine Kosmetik: Der Streifen sitzt in derselben
     // klebenden Klammer wie die Menüleiste und nimmt dem Inhalt Platz weg.
     const hoehe = await p3.evaluate(() => {

@@ -182,8 +182,8 @@ Störungen, nicht den Rest.
 
 ## 5. Die Bereiche im Detail
 
-- **Linkstreifen (nur für Bearbeiter):** eine Zeile direkt unter der Menüleiste, in
-  jedem Bereich sichtbar. Ein Klick auf einen Chip öffnet die Datei oder die Seite.
+- **Linkstreifen (nur für Bearbeiter):** eine Zeile direkt unter der Menüleiste,
+  **auf der Übersicht**. Ein Klick auf einen Chip öffnet die Datei oder die Seite.
   Über **RC/AR** wird zwischen der eigenen Sammlung und der der Vertretung
   umgeschaltet; hinter **🔗 Links** stecken Anlegen, Ändern, Sortieren und Löschen.
   Die Sammlung liegt in der gemeinsamen Datei – die Vertretung hat dieselbe Liste
@@ -209,13 +209,13 @@ Störungen, nicht den Rest.
   Zwei Ausdrucke: **Monat** (die Matrix, quer) und **Wochen** – je Kalenderwoche
   ein Blatt im Querformat, gedacht fürs Schwarze Brett.
 - **Jahreskalender TPM & R+I:** in der Jahresansicht der Auswertung der Knopf
-  **Jahreskalender** – ein gewöhnlicher Wandkalender in **A3 quer**: zwölf
-  Monatszeilen, 31 Tagesspalten, der Name der Anlage bzw. des R+I-Punktes
-  steht senkrecht **im Tag**. Blau = TPM, violett = R+I, grün = erledigt;
-  Wochenenden und Feiertage sind hinterlegt. Der Knopf lässt die Wahl
-  zwischen **Beide (TPM & R+I)**, **Nur TPM** und **Nur R+I**.
-  Teilen sich mehrere lange Namen einen Tag, wird der Name sichtbar mit „…"
-  gekürzt – vollständig steht er im Mauszeiger-Hinweis.
+  **Jahreskalender** – ein gewöhnlicher Wandkalender in **A3 quer**: die zwölf
+  Monate stehen oben als Spalten, darunter die Tage 1 bis 31. Der Name der
+  Anlage bzw. des R+I-Punktes steht **waagrecht im Tag**; ist er zu lang,
+  wird er hinten mit „…" gekürzt und steht vollständig im Mauszeiger-Hinweis.
+  Blau = TPM, violett = R+I, grün = erledigt; Wochenenden und Feiertage sind
+  hinterlegt. Der Knopf lässt die Wahl zwischen **Beide (TPM & R+I)**,
+  **Nur TPM** und **Nur R+I**.
 - **Planung:** Tage untereinander, je Person die eingeplanten Arbeiten/Notizen; springt beim
   Öffnen direkt zum heutigen Tag. **Drucken** gibt die Woche im **Hochformat** aus –
   im selben Zeilen-Layout wie am Bildschirm (ein Block je Tag, Spalten Person ·

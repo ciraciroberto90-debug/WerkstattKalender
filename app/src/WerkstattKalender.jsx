@@ -3711,104 +3711,65 @@ function App() {
   };
 
   /* ---- Jahreskalender TPM & R+I fürs Board (A3 quer) ----
-     Ein gewöhnlicher Wandkalender: zwölf Monatszeilen, 31 Tagesspalten. Der
-     Name der Anlage bzw. des R+I-Punktes steht senkrecht *im* Tag - damit
-     zeigt der Aushang dieselbe Form wie jeder Jahresplaner an der Wand, und
-     man liest an der Spalte ab, welcher Tag gemeint ist.
-     A3 statt A4, weil 31 Tagesspalten auf A4 nicht mehr lesbar sind. */
-
-  /* Wie groß darf die Schrift eines senkrechten Namens sein, damit er ganz in
-     den Tag passt? Ein Zeichen braucht rund 0,6 em Laufweite (gemessen an
-     Arial fett: der breiteste Name kam auf 0,581 - 0,6 ist die sichere Seite).
-     Der Name darf in mehrere Spalten umbrechen; wie viele hineinpassen, sagt
-     die Breite. Probiert wird von groß nach klein, genommen wird die erste
-     Größe, bei der der ganze Name Platz hat - lieber klein und vollständig
-     als groß und abgeschnitten. */
-  /* Der Zeilenumbruch wird nachgerechnet, nicht geschätzt. Der Browser geht
-     gierig vor: Was nicht mehr in die laufende Spalte passt, kommt zuerst
-     KOMPLETT in eine neue - erst wenn ein Wort auch dort nicht ganz Platz
-     hat, wird es mittendrin getrennt. Genau diese Reihenfolge bildet die
-     Schleife ab und liefert, wie viele Spalten der Name senkrecht braucht.
-     0,62 em je Zeichen ist der sichere Wert (gemessen an Arial fett: der
-     breiteste Name kam auf 0,581). */
-  const spaltenBedarf = (name, platz, fs) => {
-    let spalten = 1, rest = platz;
-    for (const wort of String(name).split(" ").filter(Boolean)) {
-      let b = (wort.length + 1) * 0.62 * fs;            // Wort samt folgendem Leerzeichen
-      if (b <= rest) { rest -= b; continue; }
-      spalten++; rest = platz;                          // neue Spalte
-      while (b > rest) { b -= rest; spalten++; rest = platz; }
-      rest -= b;
-    }
-    return spalten;
-  };
-  /* Vom Kästchen gehen 3 px Randstreifen und 1 px Polster je Seite ab (die
-     Maße rechnen mit border-box), senkrecht 3 px oben und unten. */
-  const passtHinein = (name, hoehe, breite, fs) =>
-    spaltenBedarf(name, hoehe - 6, fs) * (fs * 1.2) <= breite - 6;
-  const passendeSchrift = (name, hoehe, breite, gross, klein) => {
-    for (let fs = gross; fs > klein; fs -= 0.5) {
-      if (passtHinein(name, hoehe, breite, fs)) return fs;
-    }
-    return klein;
-  };
-  /* Stehen drei lange Namen an einem Tag, bleibt jedem nur ein schmaler
-     Streifen - dann wird gekürzt, sichtbar mit „…". Lieber ein erkennbarer
-     Anfang als ein Name, der stumm aus dem Tag herausläuft. */
-  const kuerzeAufPlatz = (name, hoehe, breite, klein) => {
-    let text = String(name);
-    while (text.length > 1 && !passtHinein(text, hoehe, breite, klein)) {
-      text = text.slice(0, -1).trimEnd();
-    }
-    return text === String(name) ? text : text.slice(0, -1) + "…";
-  };
-
+     Ein gewöhnlicher Wandkalender: die zwölf Monate stehen oben als Spalten,
+     darunter die Tage 1 bis 31 als Zeilen. Der Name der Anlage bzw. des
+     R+I-Punktes steht WAAGRECHT im Tag und wird, wenn er zu lang ist, hinten
+     mit „…" gekürzt - vollständig steht er im Mauszeiger-Hinweis. Senkrechte
+     Namen wären zwar vollständig, liest aber niemand im Vorbeigehen.
+     A3 statt A4, weil zwölf Monatsspalten auf A4 zu schmal werden. */
   const buildJahresKalenderHTML = (jahr, art = "ALLE") => {
     const feiertage = getHolidays(jahr);
     const relevant = entries.filter((e) =>
       (e.category === "TPM" || e.category === "RI") &&
       (art === "ALLE" || e.category === art) &&
       String(e.date || "").startsWith(String(jahr)));
-
-    const zeileHoehe = 79;          // passt zwölfmal auf ein A3 quer mit 10 mm Rand
-    const chipHoehe = zeileHoehe - 20;
     const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
 
-    const kopfzeile = Array.from({ length: 31 }, (_, i) =>
-      `<th style="border:1px solid #DCE1E6;background:#FAFBFC;font-size:9px;font-weight:700;color:#6B7480;text-align:center;padding:3px 0;">${i + 1}</th>`).join("");
+    const amTag = (m, t) => relevant.filter((e) => e.date === dateKey(jahr, m, t));
 
-    const zeilen = MONTHS.map((monatsName, m) => {
-      const tageImMonat = new Date(jahr, m + 1, 0).getDate();
-      const zellen = Array.from({ length: 31 }, (_, j) => {
-        const t = j + 1;
-        if (t > tageImMonat) return `<td style="border:1px solid #DCE1E6;background:#EDF0F3;"></td>`;
-        const key = dateKey(jahr, m, t);
-        const feiertag = feiertage.get(key);
-        const amTag = relevant.filter((e) => e.date === key);
-        // Die Tagesspalte ist auf A3 quer (bedruckbar 400 mm) rund 46 px breit.
-        // Stehen mehrere Termine am selben Tag, teilen sie sich diese Breite -
-        // sonst laufen die Namen aus der Spalte heraus.
-        const chipBreite = Math.max(8, Math.floor((44 - (amTag.length - 1)) / Math.max(1, amTag.length)));
+    /* Wie hoch eine Tageszeile wird, bestimmt der vollste Monat an diesem Tag:
+       stehen am 12. irgendwo drei Termine, braucht die ganze Zeile drei
+       Kästchen Höhe. Bleibt das Blatt dadurch zu hoch für A3, werden die
+       Kästchen flacher - lieber etwas kleiner als eine zweite Seite. Umgekehrt
+       wachsen sie, wenn Platz frei bleibt (ein Blatt „nur TPM" hat kaum
+       Doppeltage), damit das Blatt die Seite auch wirklich ausfüllt.
+       Die 960 px sind der Platz, der auf der bedruckbaren A3-Fläche (1047 px)
+       nach Titel, Kopfzeile und Legende für die Zeilen übrig ist. */
+    const proTag = Array.from({ length: 31 }, (_, j) =>
+      Math.max(1, ...Array.from({ length: 12 }, (_, m) => amTag(m, j + 1).length)));
+    const gesamtHoehe = (h) => proTag.reduce((summe, n) => summe + 4 + h * n, 0);
+    let kasten = 9;
+    while (kasten < 30 && gesamtHoehe(kasten + 1) <= 960) kasten += 1;
+    const kastenSchrift = Math.max(6, Math.min(10, Math.floor(kasten * 0.62)));
+
+    const kopfzeile = MONTHS.map((name) =>
+      `<th style="border:1px solid #DCE1E6;background:#FAFBFC;font-size:11px;font-weight:800;color:#5B6572;text-align:left;padding:3px 8px;">${name}</th>`).join("");
+
+    const zeilen = Array.from({ length: 31 }, (_, j) => {
+      const t = j + 1;
+      const zellen = Array.from({ length: 12 }, (_, m) => {
+        if (t > new Date(jahr, m + 1, 0).getDate()) return `<td style="border:1px solid #DCE1E6;background:#EDF0F3;"></td>`;
+        const feiertag = feiertage.get(dateKey(jahr, m, t));
+        const eintraege = amTag(m, t);
         const grund = feiertag ? "#FDF0EE" : isWeekend(jahr, m, t) ? "#F2F5F8" : "#FFFFFF";
-        const chips = amTag.map((e) => {
+        const kaesten = eintraege.map((e) => {
           const fertig = e.status === "done";
           const farben = fertig ? "background:#E2F0E7;color:#24603D;border-left:3px solid #2F7D4F;"
             : e.category === "TPM" ? "background:#E3EDF5;color:#1F4A6B;border-left:3px solid #2F6690;"
             : "background:#EFE7F5;color:#5B3579;border-left:3px solid #7A4E9B;";
-          // Kein Haken vor dem Namen: er kostet in der schmalen Spalte eine
-          // ganze Zeile. Erledigt erkennt man an der gruenen Farbe (Legende).
-          const fs = passendeSchrift(e.name, chipHoehe, chipBreite, 8, 5);
-          const text = kuerzeAufPlatz(e.name, chipHoehe, chipBreite, 5);
-          return `<span title="${escapeHtml(e.name)}" style="writing-mode:vertical-rl;display:block;font-weight:700;line-height:1.2;margin:1px auto 0;border-radius:2px;padding:3px 1px;overflow:hidden;overflow-wrap:break-word;${farben}font-size:${fs}px;height:${chipHoehe}px;max-width:${chipBreite}px;">${escapeHtml(text)}</span>`;
+          return `<div title="${escapeHtml(e.name)}" style="${farben}font-size:${kastenSchrift}px;font-weight:700;line-height:${kasten - 2}px;height:${kasten - 1}px;border-radius:2px;padding:0 3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(e.name)}</div>`;
         }).join("");
-        return `<td style="border:1px solid #DCE1E6;background:${grund};padding:2px 1px;vertical-align:top;height:${zeileHoehe}px;">
-          <span style="display:block;text-align:center;font-size:8px;font-weight:700;color:#98A1AA;">${WEEKDAYS[(new Date(jahr, m, t).getDay() + 6) % 7]}</span>
-          <div style="display:flex;gap:1px;justify-content:center;overflow:hidden;">${chips}</div>
-          ${feiertag && !amTag.length ? `<div style="writing-mode:vertical-rl;font-size:7px;color:#B23A34;margin:1px auto 0;height:${chipHoehe}px;overflow:hidden;">${escapeHtml(feiertag)}</div>` : ""}
+        return `<td style="border:1px solid #DCE1E6;background:${grund};padding:1px 2px;vertical-align:top;">
+          <div style="display:flex;gap:3px;align-items:flex-start;">
+            <span style="flex:0 0 13px;font-size:8px;font-weight:700;color:#98A1AA;line-height:${kasten - 1}px;">${WEEKDAYS[(new Date(jahr, m, t).getDay() + 6) % 7]}</span>
+            <div style="flex:1 1 auto;min-width:0;">${kaesten || (feiertag
+              ? `<div style="font-size:8px;color:#B23A34;line-height:${kasten - 1}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(feiertag)}</div>`
+              : "")}</div>
+          </div>
         </td>`;
       }).join("");
       return `<tr>
-        <td style="border:1px solid #DCE1E6;border-left:4px solid #C9D0D8;background:#FFFFFF;font-size:11px;font-weight:800;color:#22262B;padding:4px 7px;vertical-align:top;">${monatsName}</td>
+        <td style="border:1px solid #DCE1E6;background:#FFFFFF;font-size:11px;font-weight:800;color:#22262B;text-align:right;padding:1px 6px;vertical-align:top;line-height:${kasten - 1}px;">${t}</td>
         ${zellen}</tr>`;
     }).join("");
 
@@ -3826,8 +3787,8 @@ function App() {
         <div style="font-size:11px;color:#6B7480;">${relevant.length} Termine · ${relevant.length - offen} erledigt · ${offen} offen</div>
       </div>
       <table>
-        <colgroup><col style="width:78px;">${Array.from({ length: 31 }, () => "<col>").join("")}</colgroup>
-        <thead><tr><th style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:left;font-size:11px;font-weight:700;color:#6B7480;padding:3px 7px;">${jahr}</th>${kopfzeile}</tr></thead>
+        <colgroup><col style="width:30px;">${MONTHS.map(() => "<col>").join("")}</colgroup>
+        <thead><tr><th style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;font-size:9px;font-weight:700;color:#6B7480;padding:3px 6px;">${jahr}</th>${kopfzeile}</tr></thead>
         <tbody>${zeilen}</tbody>
       </table>
       <div style="margin-top:8px;font-size:10px;color:#6B7480;">
@@ -4113,12 +4074,15 @@ function App() {
         </div>
       </div>
 
-      {/* Linkstreifen: eine Zeile unter der Menüleiste, in jedem Reiter da.
+      {/* Linkstreifen: eine Zeile unter der Menüleiste, und zwar NUR auf der
+          Übersicht. Vorher stand er in jedem Reiter und hat dort Platz und
+          Aufmerksamkeit gekostet, ohne zur Arbeit im Reiter zu gehören - die
+          Übersicht ist die Startseite, dort holt man sich seine Dokumente ab.
           Nur-Leser sehen ihn gar nicht (nicht ausgegraut, sondern nicht
           vorhanden) - die Sammlung ist Arbeitsmittel der Bearbeiter.
           Ein Klick auf einen Chip öffnet, ohne vorher aufklappen zu müssen;
           Anlegen und Sortieren stecken im Feld hinter „Links". */}
-      {!readerMode && (
+      {!readerMode && view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div style={{ backgroundColor: "#2C3137", borderTop: "1px solid rgba(255,255,255,0.08)", position: "relative" }}>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5">
             <button

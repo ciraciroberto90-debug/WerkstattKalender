@@ -4,6 +4,7 @@
 const { chromium } = require('playwright-core');
 const path = require('path');
 const APP = 'file://' + path.resolve('/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
 
@@ -260,56 +261,59 @@ const seedTeam = (personName) => {
 
     // Der Punkt der ganzen Sache: A3, sonst haengt an der Wand eine Briefmarke.
     ok('Jahreskalender: A3 quer', /@page[^}]*size:\s*A3 landscape/.test(html));
-    ok('Jahreskalender: 31 Tagesspalten',
-      (await popup.locator('thead th').count()) === 32); // Jahr + 31 Tage
-    ok('Jahreskalender: zwölf Monatszeilen',
-      (await popup.locator('tbody tr').count()) === 12);
+    ok('Jahreskalender: zwölf Monatsspalten oben',
+      (await popup.locator('thead th').count()) === 13); // Jahr + 12 Monate
+    ok('Jahreskalender: die Monate stehen im Kopf, nicht links',
+      (await popup.locator('thead th').allInnerTexts()).slice(1).join('|') === MONATE.join('|'));
+    ok('Jahreskalender: 31 Tageszeilen',
+      (await popup.locator('tbody tr').count()) === 31);
     ok('Jahreskalender: TPM und R+I stehen beide drauf',
       text.includes('Presse 7') && text.includes('Regalprobe 9'));
 
-    // Der Name steht IM Tag, nicht in einer Spalte daneben: Zelle 0 ist der
-    // Monat, danach folgen die Tage 1..31 - der 12. Maerz ist also td[12].
+    // Der Name steht IM Tag: Zeile 12 ist der 12., Zelle 0 die Tageszahl,
+    // danach folgen Januar..Dezember - Maerz ist also td[3].
     ok('Jahreskalender: der Name steht im richtigen Tag', await popup.evaluate(() => {
       const zeilen = Array.from(document.querySelectorAll('tbody tr'));
-      const maerz = Array.from(zeilen[2].querySelectorAll('td'));
-      const september = Array.from(zeilen[8].querySelectorAll('td'));
-      return maerz[12].textContent.includes('Presse 7') && september[4].textContent.includes('Presse 7');
+      const zelle = (tag, monat) => Array.from(zeilen[tag - 1].querySelectorAll('td'))[monat];
+      return zelle(12, 3).textContent.includes('Presse 7')      // 12. Maerz
+        && zelle(4, 9).textContent.includes('Presse 7');        //  4. September
     }));
-    ok('Jahreskalender: Monatsnamen sind hell hinterlegt, nicht schwarz', await popup.evaluate(() => {
-      const zelle = document.querySelector('tbody tr td');
-      const [r, g, b] = getComputedStyle(zelle).backgroundColor.match(/\d+/g).map(Number);
+    // Der Kern von Robertos Rueckmeldung: die Namen sollen WAAGRECHT stehen.
+    // "alle" auf einer leeren Liste waere immer wahr - deshalb zaehlt die
+    // Pruefung erst die Kaestchen und verlangt dann, dass jedes waagrecht ist.
+    ok('Jahreskalender: die Namen stehen waagrecht', await popup.evaluate(() => {
+      const alle = Array.from(document.querySelectorAll('td div[title]'));
+      return alle.length >= 4 && alle.every((k) => getComputedStyle(k).writingMode.startsWith('horizontal'));
+    }));
+    ok('Jahreskalender: die Monatsköpfe sind hell hinterlegt, nicht schwarz', await popup.evaluate(() => {
+      const [r, g, b] = getComputedStyle(document.querySelectorAll('thead th')[1]).backgroundColor.match(/\d+/g).map(Number);
       return (0.299 * r + 0.587 * g + 0.114 * b) > 200;   // hell = Helligkeit über 200
     }));
-    // Kein Name darf stumm aus dem Tag herauslaufen. Weil der Name in der
-    // Hoehe umbrechen darf, waechst er bei zu wenig Platz in die BREITE;
-    // gemessen wird deshalb beides.
-    ok('Jahreskalender: kein Name läuft aus dem Tag heraus', await popup.evaluate(() => {
-      const chips = Array.from(document.querySelectorAll('td span[style*="vertical-rl"]'));
-      const reihen = Array.from(document.querySelectorAll('td > div[style*="flex"]'));
-      return chips.every((s) => s.scrollHeight <= s.clientHeight + 1 && s.scrollWidth <= s.clientWidth + 1)
-        && reihen.every((d) => d.scrollWidth <= d.clientWidth + 1);
+    // Zu lange Namen werden hinten gekuerzt - aber nur in der Breite. In der
+    // Hoehe darf nichts herauslaufen, sonst schiebt sich das Blatt auseinander.
+    ok('Jahreskalender: kein Name läuft nach unten aus dem Tag', await popup.evaluate(() => {
+      const alle = Array.from(document.querySelectorAll('td div[title]'));
+      return alle.length >= 4 && alle.every((k) => k.scrollHeight <= k.clientHeight + 1);
     }));
-    // Ein Termin am Tag heisst: der Name steht vollstaendig da. Gekuerzt wird
-    // nur, wenn sich mehrere lange Namen einen Tag teilen - und dann sichtbar.
-    ok('Jahreskalender: allein stehende Namen werden nicht gekürzt', await popup.evaluate(() => {
-      const zeilen = Array.from(document.querySelectorAll('tbody tr'));
-      const mai = Array.from(zeilen[4].querySelectorAll('td'));
-      const allein = mai[20].querySelector('span[style*="vertical-rl"]');   // 20. Mai: nur ein Termin
-      const gedraengt = Array.from(mai[21].querySelectorAll('span[style*="vertical-rl"]')); // 21. Mai: drei
-      return allein.textContent.trim() === 'Regalprobe 9'
-        && gedraengt.length === 3
-        && gedraengt.some((s) => s.textContent.includes('…'));
+    // Was hineinpasst, steht ganz da; was zu lang ist, wird sichtbar gekuerzt
+    // und steht vollstaendig im Mauszeiger-Hinweis.
+    ok('Jahreskalender: kurze Namen ganz, lange gekürzt mit Hinweis', await popup.evaluate(() => {
+      const alle = Array.from(document.querySelectorAll('td div[title]'));
+      const kurz = alle.find((k) => k.title === 'Presse 7');
+      const lang = alle.find((k) => k.title === 'Kontrolle der Verbrauchsmaterialien in BTA');
+      return kurz && kurz.scrollWidth <= kurz.clientWidth + 1
+        && lang && lang.scrollWidth > lang.clientWidth + 1
+        && getComputedStyle(lang).textOverflow === 'ellipsis';
     }));
     ok('Jahreskalender: das Blatt passt auf eine A3-Seite',
       (await popup.evaluate(() => document.body.scrollHeight)) <= 1047);
-    // Erledigt zeigt sich an der Farbe, nicht an einem Haken vor dem Namen -
-    // der Haken kostet in der schmalen Tagesspalte eine ganze Zeile.
+    // Erledigt zeigt sich an der Farbe, nicht an einem Haken vor dem Namen.
     ok('Jahreskalender: erledigt und offen sind an der Farbe unterscheidbar', await popup.evaluate(() => {
       const zeilen = Array.from(document.querySelectorAll('tbody tr'));
-      const farbe = (zeile, tag) => getComputedStyle(
-        Array.from(zeilen[zeile].querySelectorAll('td'))[tag].querySelector('span[style*="vertical-rl"]')).backgroundColor;
-      return farbe(2, 12) === 'rgb(226, 240, 231)'      // 12. Maerz: erledigt, gruen
-        && farbe(8, 4) !== 'rgb(226, 240, 231)';        //  4. Sept.: offen
+      const farbe = (tag, monat) => getComputedStyle(
+        Array.from(zeilen[tag - 1].querySelectorAll('td'))[monat].querySelector('div[title]')).backgroundColor;
+      return farbe(12, 3) === 'rgb(226, 240, 231)'      // 12. Maerz: erledigt, gruen
+        && farbe(4, 9) !== 'rgb(226, 240, 231)';        //  4. Sept.: offen
     }));
     ok('Jahreskalender: die Legende erklärt beide Zustände', text.includes('erledigt') && text.includes('offen'));
     await popup.close();

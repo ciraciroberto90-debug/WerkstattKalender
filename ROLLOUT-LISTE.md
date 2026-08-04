@@ -21,7 +21,7 @@ Stand: 03.08.2026
       **Danach das schwarze Fenster einmal schließen und neu starten** – sonst
       läuft der alte Dienst weiter.
 - [ ] **Neue `Werkstatt_Kalender_TPM.html`** in den Netzwerkordner. Enthält den
-      Linkstreifen unter der Menüleiste (RC/AR), die Störberichte mit Nummer und
+      Linkstreifen auf der Übersicht (RC/AR), die Störberichte mit Nummer und
       Filterleiste sowie die neuen Ausdrucke (Schichtplan wochenweise quer,
       TPM/R+I-Jahreskalender A3). Kein Anwählen der JSON nötig, F5 genügt.
 
@@ -89,8 +89,9 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 - [x] Zahnrad als festes Symbol der Verknüpfung (`shell32.dll,314`)
 - [x] Startpaket-ZIP wird gebaut statt von Hand gepackt (`tools/startpaket-bauen.js`)
 - [x] Linkbereich angelegt, je Kürzel eine Sammlung, nur für Bearbeiter
-- [x] Linkbereich als Streifen unter der Menüleiste – ein Klick pro Link, in
-      jedem Reiter sichtbar (gemessen: eine Zeile, unter 46 px)
+- [x] Linkbereich als Streifen unter der Menüleiste – ein Klick pro Link,
+      auf der Übersicht (gemessen: eine Zeile, unter 46 px). In den übrigen
+      Reitern ist er weg, dort nahm er nur Platz weg
 - [x] Störberichte tragen eine Nummer (Jahr + laufende Zahl), Filterleiste
       links mit den Begriffen des alten Schichtbuchs, rote Kante bei offenen
 - [x] Doppelte Nummern werden gemeldet und auf Klick bereinigt – der Fall
@@ -102,9 +103,10 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 - [x] Planungs-Ausdruck auf Hochformat und das Zeilen-Layout des Bildschirms
       umgestellt (vorher eine Tagesmatrix mit Kacheln)
 - [x] TPM & R+I als Jahreskalender fürs Board, A3 quer – ein gewöhnlicher
-      Wandkalender: zwölf Monatszeilen, 31 Tagesspalten, der Name steht
-      senkrecht im Tag. Helle Monatsbeschriftung statt schwarzer Balken,
-      und zur Wahl stehen „Beide", „Nur TPM" und „Nur R+I"
+      Wandkalender: die Monate oben als Spalten, darunter die Tage 1–31,
+      der Name steht waagrecht im Tag und wird bei Bedarf hinten gekürzt.
+      Helle Monatsbeschriftung statt schwarzer Balken, und zur Wahl stehen
+      „Beide", „Nur TPM" und „Nur R+I"
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)
