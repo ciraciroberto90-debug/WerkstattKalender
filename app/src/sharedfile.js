@@ -101,17 +101,33 @@ export function mergeEntries(a, b, deleted) {
   return out;
 }
 
-// Versieht geänderte/neue Einträge mit einem Zeitstempel und meldet Löschungen.
+// Beim Vergleich "hat sich wirklich etwas geändert?" bleiben Zeitstempel und
+// Urheber außen vor. Sonst gälte jeder Eintrag als geändert, sobald ihn ein
+// anderes Gerät zuletzt angefasst hat - und beim nächsten Speichern bekäme der
+// ganze Bestand einen neuen Zeitstempel. Das Zusammenführen entscheidet nach
+// Zeitstempel; ein solcher Rundumschlag würde die Änderungen der anderen
+// verdrängen. Der Vergleich muss also blind für beide Felder sein.
+const OHNE_SPUR = ({ updatedAt, geaendertVon, ...rest }) => rest;
+
+// Versieht geänderte/neue Einträge mit Zeitstempel und Urheber und meldet
+// Löschungen. Der Urheber steht damit AM EINTRAG - dauerhaft, auch wenn die
+// Verlaufszeilen nach 90 Tagen herausaltern oder bei vielen Änderungen auf
+// einen Sammeleintrag zusammengefasst wurden.
 export function stampEntries(nextEntries, prevEntries) {
-  const strip = ({ updatedAt, ...rest }) => rest;
+  const strip = OHNE_SPUR;
   const prevById = new Map((prevEntries || []).map((e) => [e.id, e]));
   const t = nowISO();
+  const ich = werBinIch();
   const stamped = nextEntries.map((e) => {
     const prev = prevById.get(e.id);
     if (prev && prev.updatedAt && JSON.stringify(strip(prev)) === JSON.stringify(strip(e))) {
-      return { ...e, updatedAt: prev.updatedAt };
+      // Unverändert: Zeitstempel UND Urheber des anderen bleiben stehen.
+      return { ...e, updatedAt: prev.updatedAt, ...(prev.geaendertVon ? { geaendertVon: prev.geaendertVon } : {}) };
     }
-    return { ...e, updatedAt: t };
+    // Systemeinträge (Einstellungen, Verlaufszeilen) tragen ihren Urheber
+    // bereits selbst bzw. gehören niemandem - sie bleiben unberührt.
+    if (istSystemEintrag(e)) return { ...e, updatedAt: t };
+    return { ...e, updatedAt: t, geaendertVon: ich };
   });
   const removed = [];
   prevById.forEach((_, id) => {
@@ -840,7 +856,7 @@ function createSharedStore(cfg) {
   function baueVerlauf(nextEntries, prevEntries, removed, ts) {
     const zeilen = [];
     const prevById = new Map((prevEntries || []).map((e) => [e.id, e]));
-    const strip = ({ updatedAt, ...rest }) => rest;
+    const strip = OHNE_SPUR;   // dieselbe Blindheit wie beim Stempeln
     const neu = [];
     const geaendert = [];
     (nextEntries || []).forEach((e) => {

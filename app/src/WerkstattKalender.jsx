@@ -6590,6 +6590,12 @@ function App() {
                   <span style={{ fontSize: "0.75rem", color: "#8A9099" }}>
                     {live.melder ? `${live.melder} · ` : ""}erfasst {live.gemeldetAt ? new Date(live.gemeldetAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
                     {!offen && live.behobenAt ? ` · behoben ${new Date(live.behobenAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}
+                    {/* Wer zuletzt Hand angelegt hat. Steht am Bericht selbst und
+                        überlebt damit das Herausaltern der Verlaufszeilen. Nur
+                        anzeigen, wenn es jemand anderes war als der Melder -
+                        sonst wiederholt die Zeile sich nur selbst. */}
+                    {live.geaendertVon && live.geaendertVon !== live.melder
+                      ? ` · zuletzt geändert von ${live.geaendertVon}` : ""}
                   </span>
                   <span className="ml-auto" />
                   {offen && !readerMode && sDraft.nochZuTun && String(sDraft.nochZuTun).trim() && (

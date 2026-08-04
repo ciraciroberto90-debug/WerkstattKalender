@@ -8,6 +8,8 @@
 //  (4) Ein Wiederholversuch beim Speichern erzeugt keine doppelten Zeilen
 //  (5) Änderungen an den Grundeinstellungen werden festgehalten
 //  (6) Zeilen älter als 90 Tage fallen heraus
+//  (7) Der Urheber steht AM EINTRAG - dauerhaft, nicht nur in der Verlaufszeile
+//  (8) Fremde Einträge werden beim eigenen Speichern NICHT überstempelt
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
 
@@ -180,6 +182,69 @@ const A = (id, name, date = "2026-07-10") => ({ id, date, category: "ARBEIT", na
     check("(6) Fachliche Einträge bleiben unabhängig davon erhalten",
       (datei().entries || []).some((e) => e.id === "k1"));
     await u.close();
+  }
+
+  /* ---- (7) Der Urheber steht am Eintrag selbst ----
+     Die Verlaufszeilen altern nach 90 Tagen heraus und werden ab vier
+     Änderungen zu einer Sammelzeile ("geändert: 7 Einträge") zusammengefasst.
+     Danach ist nicht mehr zu sehen, wer einen einzelnen Bericht angefasst hat.
+     Deshalb trägt jeder Eintrag seinen letzten Urheber selbst. */
+  {
+    drive["kalender-daten.json"] = leer();
+    const u = await makeUser(browser, "2026-07-25T08:00:00", "R. Ciraci");
+    await adopt(u);
+    await setzeEntries(u, [A("u1", "Pumpe tauschen")]);
+    await u.waitForTimeout(400);
+    const nachAnlegen = (datei().entries || []).find((e) => e.id === "u1");
+    check("(7) Angelegter Eintrag trägt den Urheber",
+      !!nachAnlegen && nachAnlegen.geaendertVon === "R. Ciraci");
+
+    // Ein zweiter Bearbeiter ändert denselben Eintrag - der Urheber wandert mit.
+    const u2 = await makeUser(browser, "2026-07-25T08:05:00", "M. Weber");
+    await adopt(u2);
+    await u2.evaluate(() => window.__wkSharedTest.poll());
+    await u2.waitForTimeout(400);
+    await setzeEntries(u2, [{ ...A("u1", "Pumpe tauschen"), status: "done" }]);
+    await u2.waitForTimeout(400);
+    const nachAendern = (datei().entries || []).find((e) => e.id === "u1");
+    check("(7) Nach der Änderung steht der neue Urheber am Eintrag",
+      !!nachAendern && nachAendern.geaendertVon === "M. Weber");
+    check("(7) Der Urheber steht auch in der Datei, nicht nur im Speicher des Geräts",
+      JSON.stringify(datei()).includes('"geaendertVon":"M. Weber"'));
+    await u.close(); await u2.close();
+  }
+
+  /* ---- (8) Fremde Einträge bleiben unberührt ----
+     Der gefährliche Fall: Wenn beim Speichern ALLE Einträge einen neuen
+     Zeitstempel bekämen, würde der zuletzt Speichernde beim Zusammenführen
+     immer gewinnen - auch für Einträge, die er nie angefasst hat. Damit wären
+     die Änderungen der anderen still verdrängt. */
+  {
+    drive["kalender-daten.json"] = leer();
+    const u1 = await makeUser(browser, "2026-07-26T08:00:00", "R. Ciraci");
+    await adopt(u1);
+    await setzeEntries(u1, [A("f1", "Von Roberto")]);
+    await u1.waitForTimeout(400);
+    const vorher = (datei().entries || []).find((e) => e.id === "f1");
+
+    const u2 = await makeUser(browser, "2026-07-26T09:00:00", "M. Weber");
+    await adopt(u2);
+    await u2.evaluate(() => window.__wkSharedTest.poll());
+    await u2.waitForTimeout(400);
+    // Weber legt etwas EIGENES an und rührt den fremden Eintrag nicht an.
+    await setzeEntries(u2, [A("f1", "Von Roberto"), A("f2", "Von Weber")]);
+    await u2.waitForTimeout(400);
+    const nachher = (datei().entries || []).find((e) => e.id === "f1");
+    check("(8) Der fremde Eintrag behält seinen Urheber",
+      !!nachher && nachher.geaendertVon === "R. Ciraci");
+    check("(8) Der fremde Eintrag behält seinen Zeitstempel",
+      !!nachher && !!vorher && nachher.updatedAt === vorher.updatedAt);
+    check("(8) Der eigene neue Eintrag trägt den eigenen Urheber",
+      ((datei().entries || []).find((e) => e.id === "f2") || {}).geaendertVon === "M. Weber");
+    // Und der Verlauf meldet keine Änderung, die es nie gab.
+    check("(8) Keine erfundene Änderungsmeldung im Verlauf",
+      !verlauf().some((v) => v.wer === "M. Weber" && v.was.includes("Von Roberto")));
+    await u1.close(); await u2.close();
   }
 
   console.log(`\n${ok} PASS / ${fail} FAIL`);

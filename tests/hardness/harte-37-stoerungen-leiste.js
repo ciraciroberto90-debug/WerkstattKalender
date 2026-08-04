@@ -312,6 +312,37 @@ const klappeAlles = async (p) => {
     await a.context().close(); await c.context().close();
   }
 
+  /* ---------- (9) Wer zuletzt Hand angelegt hat, steht am Bericht ----------
+     Der Verlauf im ⚙ altert nach 90 Tagen heraus und fasst ab vier Änderungen
+     zusammen. Am Bericht selbst muss deshalb stehen, wer ihn zuletzt geändert
+     hat - sonst gibt es bei einer Rückfrage nach einem halben Jahr niemanden
+     mehr, den man fragen könnte. */
+  {
+    // Der Bericht kommt aus der gemeinsamen DATEI - so, wie er auch im Betrieb
+    // vom Gerät eines Kollegen hereinkommt.
+    const jetzt = new Date("2026-08-03T14:00:00").toISOString();
+    const platte = {
+      "stoer.json": JSON.stringify({
+        format: "werkstatt-stoerungen-v1", savedAt: jetzt, deleted: {}, config: null,
+        entries: [{
+          id: "s-urheber", nr: "2026-0001", date: "2026-08-03", schicht: "Früh",
+          anlage: "VSM1", stoerung: "Lager läuft heiß", offen: true,
+          melder: "M. Weber", geaendertVon: "T. Klein",
+          gemeldetAt: jetzt, updatedAt: jetzt,
+        }],
+      }),
+    };
+    const p = await seite(b, platte);
+    await klappeAlles(p);
+    await p.getByText("Lager läuft heiß").first().click();
+    await p.waitForTimeout(700);
+    const text = await p.locator("body").innerText();
+    pruef("(9) Der Melder steht im Bericht", text.includes("M. Weber"));
+    pruef("(9) Wer zuletzt geändert hat, steht ebenfalls dabei",
+      /zuletzt geändert von\s+T\. Klein/.test(text));
+    await p.context().close();
+  }
+
   await b.close();
   console.log(`\nHärte 37 (Störungen-Leiste): ${ok}/${ok + fail}`);
   process.exit(fail ? 1 : 0);

@@ -199,6 +199,12 @@ Störungen, nicht den Rest.
   derselben Sekunde melden –, meldet die App das und bereinigt es auf Klick.
   Ganz unten in der Leiste steht **Alle Berichte löschen** für den einen Fall,
   für den es gedacht ist: Testdaten vor dem Roll-out wegräumen.
+- **Wer war das?** Jeder Eintrag trägt seinen letzten Urheber mit sich
+  (`geaendertVon`), zusätzlich zum Verlauf im ⚙-Dialog. Der Verlauf altert
+  nach 90 Tagen heraus und fasst ab vier Änderungen zusammen – am Eintrag
+  selbst bleibt der Name dauerhaft. Im Störbericht steht er unten:
+  „… · zuletzt geändert von T. Klein". Den eigenen Namen setzt man einmalig
+  im ⚙ unter **Dein Name (dieses Gerät)**.
 - **Übersicht / Cockpit:** Kennzahlen (heute fällig, erledigt, überfällig, Monats- und
   Jahresquote als Halbkreis **mit ausgeschriebenem Monatsnamen**), eine **analoge Uhr**
   mit der laufenden Schicht (z. B. *Do., 23.07. · Spät ab 14:00*), „Heute da",

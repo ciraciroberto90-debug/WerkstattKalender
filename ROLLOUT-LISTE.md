@@ -183,6 +183,12 @@ Betrieb übernehmen. Beides bringt Anforderungen, die vorher zu klären sind:
       verkleinert sich nur, wenn es muss (gemessen: sechs Personen ohne jede
       Verkleinerung bei 11 px Schrift, neun Personen bei 7,9 px wirksam;
       vorher waren es 1563 px auf 1047 px Platz, also zwei Seiten)
+- [x] Jeder Eintrag trägt seinen letzten Urheber mit sich, nicht nur die
+      Verlaufszeile – die altert nach 90 Tagen heraus und fasst ab vier
+      Änderungen zusammen. Im Störbericht steht „zuletzt geändert von …".
+      Geprüft ist dabei vor allem der gefährliche Fall: fremde Einträge
+      bekommen beim eigenen Speichern KEINEN neuen Zeitstempel, sonst würde
+      der zuletzt Speichernde beim Zusammenführen alles verdrängen
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)
