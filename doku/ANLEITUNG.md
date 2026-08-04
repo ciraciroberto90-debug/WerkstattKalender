@@ -206,6 +206,12 @@ Störungen, nicht den Rest.
   Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌),
   auf den **Monitor** legen (📺) und **veröffentlichen** (🌐, dann auch für Nur-Leser sichtbar).
 - **Schichtplan:** Monatsmatrix, je Person und Tag eine Schicht (Früh/Spät/Nacht u. a.).
+  Zwei Ausdrucke: **Monat** (die Matrix, quer) und **Wochen** – je Kalenderwoche
+  ein Blatt im Querformat, gedacht fürs Schwarze Brett.
+- **Jahreskalender TPM & R+I:** in der Jahresansicht der Auswertung der Knopf
+  **Jahreskalender** – eine Zeile je Anlage bzw. R+I-Punkt, zwölf Monatsspalten,
+  **A3 quer** fürs TPM-Board. Grün = alles erledigt, orange = teilweise,
+  rot = nichts erledigt; die Zahl in der Zelle ist der Tag im Monat.
 - **Planung:** Tage untereinander, je Person die eingeplanten Arbeiten/Notizen; springt beim
   Öffnen direkt zum heutigen Tag.
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.

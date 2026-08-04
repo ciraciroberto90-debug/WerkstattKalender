@@ -20,9 +20,10 @@ Stand: 03.08.2026
       Dateiverweis nie verlorengeht.
       **Danach das schwarze Fenster einmal schließen und neu starten** – sonst
       läuft der alte Dienst weiter.
-- [ ] **Neue `Werkstatt_Kalender_TPM.html`** in den Netzwerkordner. Enthält die
-      Linkreihe oben in der Übersicht (RC/AR). Kein Anwählen der JSON nötig,
-      F5 genügt.
+- [ ] **Neue `Werkstatt_Kalender_TPM.html`** in den Netzwerkordner. Enthält den
+      Linkstreifen unter der Menüleiste (RC/AR), die Störberichte mit Nummer und
+      Filterleiste sowie die neuen Ausdrucke (Schichtplan wochenweise quer,
+      TPM/R+I-Jahreskalender A3). Kein Anwählen der JSON nötig, F5 genügt.
 
 ## Vor der Mail an die Kollegen
 
@@ -69,11 +70,6 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 - [ ] **Zwei Sicherungsdateien `…_2026-07-28`** – vorher `Selbsttest.cmd`
       laufen lassen und die Eintragszahlen vergleichen. Erst wenn die aktuelle
       Datei mindestens so viele Einträge hat, können sie weg.
-- [ ] **Testdaten aus den Störberichten entfernen** – in der App über
-      *Alle Berichte löschen* ganz unten in der Filterleiste. Das Leeren der
-      JSON im Explorer genügt NICHT: Beim Zusammenführen werden beide Seiten
-      vereinigt, ein verbundener Rechner würde die Berichte zurückbringen.
-      Nur das Löschen in der App hinterlässt Löschvermerke.
 
 ## Offene Entscheidungen
 
@@ -99,6 +95,11 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
       links mit den Begriffen des alten Schichtbuchs, rote Kante bei offenen
 - [x] Doppelte Nummern werden gemeldet und auf Klick bereinigt – der Fall
       entsteht, wenn zwei Leute in derselben Sekunde melden
+- [x] Linkfeld startet beim Öffnen der App immer zugeklappt
+- [x] Sammelknopf „Alle Berichte löschen" wieder entfernt – seine einmalige
+      Aufgabe (Testdaten) ist erledigt
+- [x] Schichtplan wochenweise drucken, quer, ein Blatt je KW (Aushang)
+- [x] TPM & R+I als Jahreskalender fürs Board, A3 quer, eine Zeile je Anlage
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)

@@ -262,40 +262,53 @@ const klappeAlles = async (p) => {
     await a.context().close(); await c.context().close();
   }
 
-  /* ---------------- (7) Alle Berichte löschen ---------------- */
+  /* ---------------- (7) Löschen wirkt auf allen Geräten ----------------
+     Der Sammelknopf "Alle Berichte löschen" ist wieder weg - er hatte genau
+     eine Aufgabe (Testdaten vor dem Roll-out) und die ist erledigt. Was
+     bleiben MUSS, ist das Wesentliche daran: Eine Löschung in der App
+     hinterlässt einen Löschvermerk, und nur der haelt den Eintrag auf den
+     anderen Rechnern fern. Ohne ihn braechte der naechste Abgleich des
+     Kollegen den Bericht zurueck - beide Seiten werden ja vereinigt. */
   {
     const platte = { "stoer.json": JSON.stringify({ format: "werkstatt-stoerungen-v1", savedAt: "2026-08-03T15:00:00.000Z", entries: BERICHTE, deleted: {}, config: null }) };
     const a = await seite(b, platte, { uhr: null });
     const c = await seite(b, platte, { uhr: null }); // zweites Gerät, kennt die Berichte noch
     await c.waitForTimeout(400);
 
-    // Falsches Wort: es darf nichts passieren.
-    a.once("dialog", (d) => d.accept("jaja"));
-    await a.getByRole("button", { name: "Alle Berichte löschen …" }).click();
-    await a.waitForTimeout(900);
-    pruef("(7) Ohne das richtige Wort wird nichts gelöscht", dateiBerichte(platte).length === 4,
-          dateiBerichte(platte).length + " Berichte");
+    pruef("(7) Der Sammelknopf zum Löschen ist nicht mehr da",
+          (await a.getByRole("button", { name: /Alle Berichte löschen/ }).count()) === 0);
 
-    a.once("dialog", (d) => d.accept("LÖSCHEN"));
-    await a.getByRole("button", { name: "Alle Berichte löschen …" }).click();
-    await a.waitForTimeout(1600);
-    pruef("(7) Mit dem richtigen Wort ist die Datei leer", dateiBerichte(platte).length === 0,
-          dateiBerichte(platte).length + " Berichte");
+    // Einen Bericht über die App löschen.
+    await klappeAlles(a);
+    await a.getByText("Lagergeräusch am Antrieb").first().click();
+    await a.waitForTimeout(700);
+    // Der Knopf heisst "🔓 Bearbeiten" - ohne Anker, sonst greift das Emoji davor.
+    const bearbeiten = a.getByRole("button", { name: /Bearbeiten/ });
+    if (await bearbeiten.count()) { await bearbeiten.first().click(); await a.waitForTimeout(600); }
+    a.once("dialog", (d) => d.accept());
+    // Der Knopf sitzt am unteren Ende der Maske, in einem eigenen Rollbereich -
+    // Playwright bekommt ihn dort nicht ins Bild. Das Ereignis wird deshalb
+    // direkt ausgeloest; der Weg dahinter ist derselbe wie beim Mausklick.
+    await a.getByRole("button", { name: "Löschen", exact: true }).first().dispatchEvent("click");
+    await a.waitForTimeout(1800);
 
-    // Der entscheidende Teil: Das zweite Gerät hat die Berichte noch lokal.
-    // Ohne Löschvermerke wuerde sein naechstes Speichern sie zurueckbringen.
-    // Nicht blind warten, sondern abgleichen, bis es angekommen ist.
-    let nochDa = "[]";
+    const inDatei = dateiBerichte(platte);
+    pruef("(7) Der Bericht ist aus der gemeinsamen Datei verschwunden",
+          !inDatei.some((s) => s.id === "t2"), inDatei.length + " Berichte");
+    const merkliste = JSON.parse(platte["stoer.json"] || "{}").deleted || {};
+    pruef("(7) Und trägt einen Löschvermerk", !!merkliste.t2, JSON.stringify(Object.keys(merkliste)));
+
+    let beiC = "[]";
     for (let i = 0; i < 10; i++) {
       await c.evaluate(() => window.__wkStoerTest.poll());
       await c.waitForTimeout(500);
-      nochDa = await c.evaluate(() => (localStorage.getItem("werkstatt-stoerungen-entries") || "[]"));
-      if (JSON.parse(nochDa).length === 0) break;
+      beiC = await c.evaluate(() => (localStorage.getItem("werkstatt-stoerungen-entries") || "[]"));
+      if (!JSON.parse(beiC).some((s) => s.id === "t2")) break;
     }
-    pruef("(7) Das zweite Gerät übernimmt die Löschung", JSON.parse(nochDa).length === 0,
-          JSON.parse(nochDa).length + " Berichte lokal");
-    pruef("(7) Und bringt sie auch nicht zurück", dateiBerichte(platte).length === 0,
-          dateiBerichte(platte).length + " Berichte in der Datei");
+    pruef("(7) Das zweite Gerät übernimmt die Löschung",
+          !JSON.parse(beiC).some((s) => s.id === "t2"), JSON.parse(beiC).length + " Berichte lokal");
+    pruef("(7) Und bringt den Bericht nicht zurück",
+          !dateiBerichte(platte).some((s) => s.id === "t2"), dateiBerichte(platte).length + " in der Datei");
     await a.context().close(); await c.context().close();
   }
 

@@ -907,9 +907,11 @@ function App() {
   // wessen Sammlung angezeigt wird, merkt sich das Gerät, nicht die gemeinsame
   // Datei: Das ist eine Vorliebe, keine gemeinsame Angabe.
   const [links, setLinks] = useState(() => normalisiereLinks(null));
-  const [linksOffen, setLinksOffen] = useState(() => {
-    try { return localStorage.getItem("werkstatt-links-offen") === "1"; } catch (e) { return false; }
-  });
+  // Beim Öffnen der App ist das Verwaltungsfeld IMMER zu. Vorher merkte sich
+  // das Gerät den Zustand - wer einmal etwas angelegt hatte, bekam es danach
+  // bei jedem Start aufgeklappt vor die Seite gelegt. Die Chips im Streifen
+  // sind ohnehin sichtbar; das Feld darunter braucht man nur zum Bearbeiten.
+  const [linksOffen, setLinksOffen] = useState(false);
   const [linkInhaber, setLinkInhaber] = useState(() => {
     try { return (localStorage.getItem("werkstatt-links-inhaber") || "").toUpperCase(); } catch (e) { return ""; }
   });
@@ -1695,23 +1697,6 @@ function App() {
     await persistStoer(liste);
   };
 
-  // Alle Störberichte entfernen - für den einen Fall, für den es gedacht ist:
-  // Testdaten vor dem Roll-out wegräumen.
-  //
-  // Wichtig, warum das ÜBER DIE APP laufen muss und nicht über das Leeren der
-  // JSON-Datei im Explorer: Beim Zusammenführen werden beide Seiten vereinigt.
-  // Eine von Hand geleerte Datei wäre also nach dem nächsten Speichern eines
-  // verbundenen Rechners wieder voll - der hat die Berichte ja noch lokal.
-  // Erst das Löschen in der App hinterlässt Löschvermerke, und nur die halten
-  // die Einträge auf allen Geräten dauerhaft fern.
-  const alleStoerungenLoeschen = async () => {
-    if (!stoerungen.length) return;
-    const wort = window.prompt(
-      `ALLE ${stoerungen.length} Störberichte werden gelöscht – auch bei den Kollegen, dauerhaft.\n\n` +
-      `Zum Bestätigen das Wort LÖSCHEN eintippen:`);
-    if (String(wort || "").trim().toUpperCase() !== "LÖSCHEN") return;
-    await persistStoer([]);
-  };
 
   const istTagOffen = (d, idx) => (stoerOffeneTage === null ? idx === 0 : stoerOffeneTage.has(d));
   const toggleStoerTag = (d) => setStoerOffeneTage((prev) => {
@@ -1959,7 +1944,6 @@ function App() {
     const next = !linksOffen;
     setLinksOffen(next);
     if (!next) setLinkEntwurf(null);
-    try { localStorage.setItem("werkstatt-links-offen", next ? "1" : "0"); } catch (e) { /* Speicher voll o.ä. */ }
   };
   const persistLinks = async (nextEintraege, nextInhaber = links.inhaber) => {
     const next = normalisiereLinks({ inhaber: nextInhaber, eintraege: nextEintraege });
@@ -3622,6 +3606,159 @@ function App() {
     openPrintWindow(html, `werkstatt-planung-kw${getISOWeek(planungMontag)}-${planungMontag.getFullYear()}.html`);
   };
 
+  /* ---- Druckvorlage Schichtplan WOCHENWEISE (quer, ein Blatt je KW) ----
+     Die Monatsmatrix daneben ist zum Planen am Bildschirm gedacht: 31 Spalten
+     auf einem Blatt sind an der Wand nicht mehr zu lesen. Für den Aushang
+     bekommt jede Kalenderwoche ihr eigenes Blatt - dieselben sieben Spalten
+     wie in der Planung, damit beide Blätter nebeneinander passen. */
+  const buildSchichtplanWochenHTML = () => {
+    const my = matrixCursor.getFullYear();
+    const mm = matrixCursor.getMonth();
+    const feiertage = getHolidays(my);
+    const tageImMonat = new Date(my, mm + 1, 0).getDate();
+
+    // Alle Montage sammeln, deren Woche in den Monat hineinragt. Die erste
+    // und die letzte Woche gehören meist zwei Monaten - sie werden trotzdem
+    // ganz gedruckt, sonst fehlten am Blattrand Tage.
+    const montage = [];
+    for (let tag = 1; tag <= tageImMonat; tag++) {
+      const d = new Date(my, mm, tag);
+      const montag = addDays(d, -((d.getDay() + 6) % 7));
+      const k = dateKey(montag.getFullYear(), montag.getMonth(), montag.getDate());
+      if (!montage.some((m) => m.k === k)) montage.push({ k, d: montag });
+    }
+
+    const rang = { mech: 0, elek: 1, azubi: 2 };
+    const mannschaft = [...team].sort((a, b) => (rang[a.rolle] ?? 9) - (rang[b.rolle] ?? 9) || String(a.name).localeCompare(String(b.name), "de"));
+
+    const seiten = montage.map(({ d: montag }, idx) => {
+      const kw = getISOWeek(montag);
+      const tage = Array.from({ length: 7 }, (_, i) => {
+        const t = addDays(montag, i);
+        return { d: t, key: dateKey(t.getFullYear(), t.getMonth(), t.getDate()), we: t.getDay() === 0 || t.getDay() === 6 };
+      });
+      const vonStr = montag.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const bisStr = addDays(montag, 6).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+      const kopf = tage.map((t) => {
+        const ft = feiertage.get(t.key);
+        return `<th style="border:1px solid #6B7280;padding:6px 4px;background:${ft ? "#FBE9E7" : t.we ? "#E5F0F8" : "#F7F8F9"};font-weight:800;color:${ft ? "#B23A34" : t.we ? "#5B87AB" : "#5B6572"};font-size:11px;text-transform:uppercase;">
+          ${t.d.toLocaleDateString("de-DE", { weekday: "short" })}<div style="font-size:13px;font-weight:900;color:#22262B;">${String(t.d.getDate()).padStart(2, "0")}.${String(t.d.getMonth() + 1).padStart(2, "0")}.</div>
+          ${ft ? `<div style="font-size:8px;font-weight:700;">${escapeHtml(ft)}</div>` : ""}</th>`;
+      }).join("");
+
+      const zeilen = mannschaft.map((mitglied) => {
+        const person = mitglied.name;
+        const rolle = TEAM_ROLLEN[mitglied.rolle || ""] || { color: "#8A9099" };
+        const zellen = tage.map((t) => {
+          const sch = schichtFuer(person, t.key);
+          const farbe = sch ? SCHICHTEN[sch] : null;
+          return `<td style="border:1px solid #6B7280;padding:0;text-align:center;background:${t.we ? "#EFF5FA" : "white"};height:34px;">
+            ${farbe ? `<div style="background:${farbe.color};color:${farbe.text || "white"};font-weight:900;font-size:15px;padding:7px 0;">${escapeHtml(farbe.kurz || sch)}</div>` : ""}</td>`;
+        }).join("");
+        return `<tr>
+          <td style="border:1px solid #6B7280;padding:5px 8px;background:#F7F8F9;font-weight:700;font-size:13px;white-space:nowrap;">
+            <span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${rolle.color};color:white;font-weight:800;font-size:8px;text-align:center;line-height:16px;margin-right:6px;">${escapeHtml(personKuerzel(person))}</span>${escapeHtml(person)}</td>
+          ${zellen}</tr>`;
+      }).join("");
+
+      return `<section style="${idx > 0 ? "page-break-before:always;" : ""}">
+        <div style="text-align:center;margin-bottom:12px;">
+          <div style="font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:0.02em;">Schichtplan</div>
+          <div style="font-family:monospace;font-size:14px;margin-top:3px;">KW ${kw} · ${vonStr} – ${bisStr}</div>
+        </div>
+        <table>
+          <colgroup><col style="width:210px;">${tage.map(() => "<col>").join("")}</colgroup>
+          <thead><tr><th style="border:1px solid #6B7280;padding:6px 8px;background:#F7F8F9;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;color:#8A9099;">Mitarbeiter</th>${kopf}</tr></thead>
+          <tbody>${zeilen}</tbody>
+        </table>
+      </section>`;
+    }).join("");
+
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Schichtplan ${MONTHS[mm]} ${my} – wochenweise</title>
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 10px; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+      </style>
+    </head><body>${seiten || "<p>Kein Team angelegt.</p>"}</body></html>`;
+  };
+
+  const handlePrintSchichtplanWochen = () => {
+    openPrintWindow(buildSchichtplanWochenHTML(),
+      `werkstatt-schichtplan-wochen-${matrixCursor.getFullYear()}-${pad(matrixCursor.getMonth() + 1)}.html`);
+  };
+
+  /* ---- Jahreskalender TPM & R+I fürs Board (A3 quer) ----
+     Gedacht zum Aufhängen: eine Zeile je Anlage bzw. R+I-Punkt, zwölf Spalten
+     für die Monate. In der Zelle stehen die Tage, an denen etwas ansteht -
+     grün, sobald alles davon erledigt ist. So sieht man aus drei Metern
+     Entfernung, wo das Jahr über noch etwas offen ist.
+     A3 statt A4, weil zwölf Monate mal zwanzig Anlagen auf A4 nicht mehr
+     lesbar sind; wer nur A4 hat, druckt es verkleinert oder auf zwei Blätter. */
+  const buildJahresKalenderHTML = (jahr) => {
+    const zeilenQuellen = [
+      ...tpmAnlagen.map((a) => ({ name: a.name, art: "TPM" })),
+      ...riItems.map((r) => ({ name: r.name, art: "RI" })),
+    ];
+    const relevant = entries.filter((e) => (e.category === "TPM" || e.category === "RI") && String(e.date || "").startsWith(String(jahr)));
+
+    const kopf = MONTHS.map((m) => `<th style="border:1px solid #6B7280;padding:5px 2px;background:#F7F8F9;font-size:11px;font-weight:800;text-transform:uppercase;color:#5B6572;">${m.slice(0, 3)}</th>`).join("");
+
+    const zeilen = zeilenQuellen.map((q) => {
+      const meine = relevant.filter((e) => e.name === q.name && e.category === q.art);
+      const zellen = Array.from({ length: 12 }, (_, m) => {
+        const imMonat = meine.filter((e) => Number(String(e.date).slice(5, 7)) === m + 1);
+        if (!imMonat.length) return `<td style="border:1px solid #C9D0D8;background:#FCFDFD;"></td>`;
+        const erledigt = imMonat.filter((e) => e.status === "done").length;
+        const alle = imMonat.length;
+        const grund = erledigt === alle ? "#E4F1E8" : erledigt > 0 ? "#FBF4E7" : "#FBEAE8";
+        const rand = erledigt === alle ? "#2F7D4F" : erledigt > 0 ? "#C97A2B" : "#C0392B";
+        const tage = imMonat
+          .slice().sort((a, b) => String(a.date).localeCompare(String(b.date)))
+          .map((e) => `<span style="display:inline-block;font-size:10px;font-weight:800;color:${e.status === "done" ? "#2F7D4F" : "#22262B"};margin:0 2px;">${e.status === "done" ? "✓" : ""}${String(e.date).slice(8, 10)}</span>`)
+          .join("");
+        return `<td style="border:1px solid ${rand};background:${grund};padding:3px 2px;text-align:center;vertical-align:middle;">${tage}</td>`;
+      }).join("");
+      const farbe = q.art === "TPM" ? "#2F6690" : "#7A4E9B";
+      return `<tr>
+        <td style="border:1px solid #6B7280;padding:4px 8px;background:#F7F8F9;font-size:12px;font-weight:700;line-height:1.25;">
+          <span style="display:inline-block;font-size:8px;font-weight:900;color:white;background:${farbe};border-radius:3px;padding:1px 5px;margin-right:6px;">${q.art === "TPM" ? "TPM" : "R+I"}</span>${escapeHtml(q.name)}</td>
+        ${zellen}</tr>`;
+    }).join("");
+
+    const offen = relevant.filter((e) => e.status !== "done").length;
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>TPM &amp; R+I Jahreskalender ${jahr}</title>
+      <style>
+        @page { size: A3 landscape; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 10px; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+      </style>
+    </head><body>
+      <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:12px;">
+        <div style="font-weight:900;font-size:28px;text-transform:uppercase;letter-spacing:0.02em;">TPM &amp; R+I · Jahreskalender ${jahr}</div>
+        <div style="font-family:monospace;font-size:13px;color:#5B6572;">${relevant.length} Termine · ${relevant.length - offen} erledigt · ${offen} offen</div>
+      </div>
+      <table>
+        <colgroup><col style="width:300px;">${MONTHS.map(() => "<col>").join("")}</colgroup>
+        <thead><tr><th style="border:1px solid #6B7280;padding:5px 8px;background:#F7F8F9;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;color:#8A9099;">Anlage / Punkt</th>${kopf}</tr></thead>
+        <tbody>${zeilen || `<tr><td colspan="13" style="padding:20px;text-align:center;color:#8A9099;">Für ${jahr} ist nichts eingetragen.</td></tr>`}</tbody>
+      </table>
+      <div style="margin-top:10px;font-size:11px;color:#5B6572;">
+        <span style="display:inline-block;width:12px;height:12px;background:#E4F1E8;border:1px solid #2F7D4F;vertical-align:-2px;"></span> alles erledigt
+        &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#FBF4E7;border:1px solid #C97A2B;vertical-align:-2px;"></span> teilweise
+        &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#FBEAE8;border:1px solid #C0392B;vertical-align:-2px;"></span> nichts erledigt
+        &nbsp;&nbsp;· Die Zahl in der Zelle ist der Tag im Monat, ✓ = erledigt.
+      </div>
+    </body></html>`;
+  };
+
+  const handlePrintJahresKalender = () => {
+    openPrintWindow(buildJahresKalenderHTML(year), `werkstatt-tpm-jahreskalender-${year}.html`);
+  };
+
   const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
   const printSuffix = view === "JAHR" ? `Jahresübersicht ${year}` : view === "PLAN" ? `${MONTHS[month]} ${year}` : `Monatsübersicht ${MONTHS[month]} ${year}`;
 
@@ -3779,6 +3916,19 @@ function App() {
               style={{ backgroundColor: "#C97A2B" }}
             >
               <Printer size={16} /> Drucken
+            </button>
+          )}
+          {/* Jahreskalender fuers TPM-Board: A3 quer, eine Zeile je Anlage.
+              Nur in der Jahresansicht - dort ist das Jahr auch gewaehlt. */}
+          {view === "JAHR" && (
+            <button
+              onClick={handlePrintJahresKalender}
+              className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "#4B5259" }}
+              aria-label="Jahreskalender drucken"
+              title="TPM & R+I als Jahresübersicht fürs Board – A3 quer"
+            >
+              <Printer size={16} /> Jahreskalender
             </button>
           )}
           {!readerMode && (
@@ -4309,18 +4459,14 @@ function App() {
                   </button>
                 );
               })}
-              {/* Ganz unten und unauffällig: gebraucht wird das genau einmal,
-                  zum Wegräumen der Testdaten vor dem Roll-out. */}
-              {stoerDarfSchreiben && (
-                <>
-                  <div style={{ height: "1px", backgroundColor: "#EEF0F2", margin: "7px 0" }} />
-                  <button onClick={alleStoerungenLoeschen} className="w-full text-left"
-                    style={{ padding: "5px 12px 9px", fontSize: "0.68rem", color: "#A2AAB3" }}
-                    title="Entfernt alle Störberichte – auch bei den Kollegen">
-                    Alle Berichte löschen …
-                  </button>
-                </>
-              )}
+              {/* Hier stand "Alle Berichte löschen". Der Knopf hatte genau eine
+                  Aufgabe - die Testdaten vor dem Roll-out wegräumen - und die
+                  ist erledigt. Ein Knopf, der alles auf einmal loescht und den
+                  niemand mehr braucht, gehoert nicht in eine Werkstatt-App.
+                  Die Funktion dahinter (alleStoerungenLoeschen) ist ebenfalls
+                  entfernt; einzelne Berichte loescht man weiterhin im Bericht
+                  selbst. */}
+              <div style={{ height: "6px" }} />
             </div>
           )}
 
@@ -5561,7 +5707,19 @@ function App() {
                 style={{ backgroundColor: "#C97A2B" }}
                 aria-label="Schichtplan drucken"
               >
-                <Printer size={14} /> Drucken
+                <Printer size={14} /> Monat
+              </button>
+              {/* Zweites Blatt fuers Schwarze Brett: je Kalenderwoche eine
+                  Seite quer. Die Monatsmatrix ist zum Planen am Bildschirm da,
+                  an der Wand sind 31 Spalten nicht mehr zu lesen. */}
+              <button
+                onClick={handlePrintSchichtplanWochen}
+                className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#4B5259" }}
+                aria-label="Schichtplan wochenweise drucken"
+                title="Je Kalenderwoche eine Seite im Querformat – zum Aushängen"
+              >
+                <Printer size={14} /> Wochen
               </button>
               <span className="ml-auto text-xs text-slate-400">Werkstattschichtplan – Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung</span>
             </div>
