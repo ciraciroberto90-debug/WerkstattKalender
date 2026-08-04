@@ -314,10 +314,17 @@ const hole = (adresse, kopf = {}) => new Promise((fertig, schief) => {
     // Der Prüfer will ein Blatt in die Hand, keinen Bildschirm.
     await p.getByRole("button", { name: "Übersicht", exact: true }).first().click();
     await p.waitForTimeout(400);
+    await p.locator('button[aria-label="Drucken"]').click();
+    await p.waitForTimeout(500);
     check("F: Ein Nachweis zum Vorlegen lässt sich drucken",
-      (await p.locator('button[aria-label="Prüfnachweis drucken"]').count()) === 1);
+      (await p.getByRole("button", { name: /^Prüfnachweis/ }).count()) === 1);
     check("F: Der Zeitraum dafür ist wählbar",
-      (await p.locator('select[aria-label="Jahr für den Nachweis"] option').count()) >= 1);
+      (await p.locator('select[aria-label="Jahr des Prüfnachweises"] option').count()) >= 1);
+    // Bevor jemand druckt, sieht er das Blatt - verkleinert, aber echt.
+    check("F: Eine Vorschau des Blattes steht daneben",
+      (await p.locator('iframe[aria-label="Druckvorschau"]').count()) === 1);
+    await p.locator('div[role="dialog"] button[aria-label="Schließen"]').click();
+    await p.waitForTimeout(200);
     await p.close();
   }
 

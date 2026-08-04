@@ -8,6 +8,19 @@ const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'A
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
 
+/* Seit dem Umbau sitzt der Drucken-Knopf oben rechts und fragt erst nach.
+   Diese Hilfe geht den Weg, den auch Roberto geht: Knopf, Vorlage wählen,
+   drucken. */
+const druckeUeberDialog = async (page, vorlage) => {
+  await page.locator('button[aria-label="Drucken"]').click();
+  await page.waitForTimeout(400);
+  if (vorlage) { await page.getByRole('button', { name: vorlage }).click(); await page.waitForTimeout(300); }
+  return Promise.all([
+    page.waitForEvent('popup'),
+    page.locator('div[role="dialog"] button:has-text("Drucken")').click(),
+  ]);
+};
+
 const seedTeam = (personName) => {
   localStorage.setItem('werkstatt-kalender-config', JSON.stringify({
     tpmAnlagen: [], riItems: [], team: [{ name: personName, rolle: 'mech' }],
@@ -33,10 +46,15 @@ const seedTeam = (personName) => {
     await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
     await page.waitForTimeout(400);
 
-    const [popup] = await Promise.all([
-      page.waitForEvent('popup'),
-      page.locator('button[aria-label="Schichtplan drucken"]').click(),
-    ]);
+    // Der Knopf sitzt oben rechts in der Kopfleiste, in jedem Bereich gleich.
+    const knopfLage = await page.evaluate(() => {
+      const k = document.querySelector('button[aria-label="Drucken"]');
+      return k ? { rechts: window.innerWidth - k.getBoundingClientRect().right, oben: k.getBoundingClientRect().top } : null;
+    });
+    ok('Schichtplan: der Drucken-Knopf sitzt oben rechts',
+      knopfLage !== null && knopfLage.oben < 60 && knopfLage.rechts < 330);
+
+    const [popup] = await druckeUeberDialog(page, /^Monat August 2026/);
     await popup.waitForLoadState('domcontentloaded');
     await popup.waitForTimeout(300);
     const titel = await popup.title();
@@ -64,10 +82,7 @@ const seedTeam = (personName) => {
     await page.getByRole('button', { name: 'Planung', exact: true }).click();
     await page.waitForTimeout(400);
 
-    const [popup] = await Promise.all([
-      page.waitForEvent('popup'),
-      page.locator('button[aria-label="Planung drucken"]').click(),
-    ]);
+    const [popup] = await druckeUeberDialog(page, null);
     await popup.waitForLoadState('domcontentloaded');
     await popup.waitForTimeout(300);
     const titel = await popup.title();
@@ -106,9 +121,11 @@ const seedTeam = (personName) => {
     await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
     await page.waitForTimeout(400);
 
+    await page.locator('button[aria-label="Drucken"]').click();
+    await page.waitForTimeout(400);
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.locator('button[aria-label="Schichtplan drucken"]').click(),
+      page.locator('div[role="dialog"] button:has-text("Drucken")').click(),
     ]);
     ok('Fallback bei blockiertem Popup: Datei wird heruntergeladen', !!download);
     const textNachFallback = await page.locator('body').innerText();
@@ -147,7 +164,7 @@ const seedTeam = (personName) => {
 
     await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
     await page.waitForTimeout(400);
-    const druckKnopf = page.locator('button[aria-label="Schichtplan drucken"]');
+    const druckKnopf = page.locator('button[aria-label="Drucken"]');
     ok('Leser: Drucken-Knopf im Schichtplan ist trotzdem sichtbar', await druckKnopf.count() === 1);
 
     await page.close();
@@ -177,10 +194,7 @@ const seedTeam = (personName) => {
     await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
     await page.waitForTimeout(500);
 
-    const [popup] = await Promise.all([
-      page.waitForEvent('popup'),
-      page.locator('button[aria-label="Schichtplan wochenweise drucken"]').click(),
-    ]);
+    const [popup] = await druckeUeberDialog(page, /^Wochenweise/);
     await popup.waitForLoadState('domcontentloaded');
     await popup.waitForTimeout(400);
     const html = await popup.content();
@@ -399,10 +413,7 @@ const seedTeam = (personName) => {
     await page.waitForTimeout(900);
     await page.getByRole('button', { name: 'Planung', exact: true }).click();
     await page.waitForTimeout(500);
-    const [popup] = await Promise.all([
-      page.waitForEvent('popup'),
-      page.locator('button[aria-label="Planung drucken"]').click(),
-    ]);
+    const [popup] = await druckeUeberDialog(page, null);
     await popup.waitForLoadState('domcontentloaded');
     await popup.setViewportSize({ width: 756, height: 1047 });
     await popup.waitForTimeout(500);
@@ -422,6 +433,95 @@ const seedTeam = (personName) => {
     ok('Planung: das Blatt hat die Breite der A4-Seite (± 2 px)',
       Math.abs(mass.breite - 702) <= 2);
     await popup.close();
+    await page.close();
+  }
+
+  // ---- Test 7: Ein Knopf, oben rechts, in jedem Bereich - mit Vorschau ----
+  // Vorher lagen die Druck-Knoepfe verstreut in den Werkzeugleisten. Geprueft
+  // wird, dass in jedem Bereich mit Ausdruck derselbe Knopf oben rechts steht,
+  // dass er erst fragt und dass die Vorschau die echte Vorlage zeigt.
+  {
+    const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
+    page.on('pageerror', (e) => console.log('PAGEERROR (Druck-Knopf):', e.message));
+    await page.clock.setFixedTime(new Date('2026-08-04T09:00:00'));
+    await page.addInitScript(() => {
+      delete window.showOpenFilePicker; delete window.showSaveFilePicker;
+      localStorage.setItem('werkstatt-kalender-config', JSON.stringify({
+        tpmAnlagen: [], riItems: [], team: [{ name: 'Testperson Druck', rolle: 'mech' }],
+      }));
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(900);
+
+    const lage = async () => page.evaluate(() => {
+      const k = document.querySelector('button[aria-label="Drucken"]');
+      if (!k) return null;
+      const r = k.getBoundingClientRect();
+      return { oben: Math.round(r.top), rechts: Math.round(window.innerWidth - r.right) };
+    });
+
+    const bereiche = [
+      [['Werkstatt', 'Schichtplan'], 'Schichtplan', true],
+      [['Werkstatt', 'Planung'], 'Planung', true],
+      [['TPM', null], 'TPM · Übersicht', true],
+      [['TPM', 'Plan'], 'TPM · Plan', true],
+      [['TPM', 'Auswertung'], 'TPM · Auswertung', true],
+      [['Werkstatt', 'Übersicht'], 'Übersicht', false],
+    ];
+    const lagen = [];
+    for (const [[haupt, unter], name, erwartet] of bereiche) {
+      await page.getByRole('button', { name: haupt, exact: true }).first().click();
+      await page.waitForTimeout(350);
+      if (unter) { await page.getByRole('button', { name: unter, exact: true }).first().click(); await page.waitForTimeout(450); }
+      const l = await lage();
+      if (erwartet) {
+        ok(`Drucken-Knopf: „${name}" hat ihn oben rechts`, l !== null && l.oben < 60 && l.rechts < 330);
+        if (l) lagen.push(`${l.oben}/${l.rechts}`);
+      } else {
+        // Auf der Übersicht gibt es keinen Ausdruck - dort waere der Knopf
+        // ein Versprechen, das die App nicht einloest.
+        ok(`Drucken-Knopf: „${name}" hat keinen, weil es dort nichts zu drucken gibt`, l === null);
+      }
+    }
+    ok('Drucken-Knopf: überall an derselben Stelle', new Set(lagen).size === 1);
+
+    // Die Vorschau ist die echte Vorlage, nicht ein nachgebautes Bildchen:
+    // im Rahmen steht dieselbe Ueberschrift wie spaeter auf dem Papier.
+    await page.getByRole('button', { name: 'Werkstatt', exact: true }).first().click();
+    await page.waitForTimeout(350);
+    await page.getByRole('button', { name: 'Schichtplan', exact: true }).first().click();
+    await page.waitForTimeout(450);
+    await page.locator('button[aria-label="Drucken"]').click();
+    await page.waitForTimeout(600);
+    ok('Druck-Dialog: fragt erst, statt sofort zu drucken',
+      (await page.locator('div[role="dialog"]').count()) === 1);
+    const vorschau = await page.evaluate(() => {
+      const f = document.querySelector('iframe[aria-label="Druckvorschau"]');
+      if (!f || !f.contentDocument) return null;
+      const rahmen = f.getBoundingClientRect();
+      // textContent, nicht innerText: innerText laesst weg, was im
+      // verkleinerten Rahmen gerade nicht sichtbar ist.
+      const inhalt = f.contentDocument.body.textContent;
+      return { text: inhalt.slice(0, 400), breite: Math.round(rahmen.width),
+               person: inhalt.includes('Testperson Druck') };
+    });
+    ok('Druck-Dialog: die Vorschau zeigt die echte Vorlage',
+      vorschau !== null && vorschau.text.includes('Schichtplan') && vorschau.person);
+    ok('Druck-Dialog: die Vorschau ist verkleinert, nicht in Originalgröße',
+      vorschau !== null && vorschau.breite <= 320);
+    // Beim Wechsel des Bereichs faengt die Auswahl wieder oben an, sonst
+    // stuende im Schichtplan noch die Wahl aus der Auswertung.
+    await page.locator('div[role="dialog"] button[aria-label="Schließen"]').click();
+    await page.waitForTimeout(250);
+    await page.getByRole('button', { name: 'TPM', exact: true }).first().click();
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Auswertung', exact: true }).first().click();
+    await page.waitForTimeout(500);
+    await page.locator('button[aria-label="Drucken"]').click();
+    await page.waitForTimeout(600);
+    ok('Druck-Dialog: nach dem Bereichswechsel steht die erste Vorlage bereit',
+      (await page.locator('div[role="dialog"] button[aria-pressed="true"]').nth(1).innerText()).includes('Jahreskalender')
+      || (await page.locator('div[role="dialog"] button[aria-pressed="true"]').first().innerText()).includes('Jahreskalender'));
     await page.close();
   }
 

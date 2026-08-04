@@ -915,7 +915,9 @@ function App() {
   // Druck-Auswahl in der Auswertung: erst fragen, was aufs Papier soll.
   const [druckWahlOffen, setDruckWahlOffen] = useState(false);
   const [druckUmfang, setDruckUmfang] = useState("ALLE");   // ALLE | TPM | RI
-  const [druckBlatt, setDruckBlatt] = useState("JAHR");     // JAHR | MONAT | LISTE
+  const [druckOption, setDruckOption] = useState("");       // welche Vorlage im Dialog gewählt ist
+  const [druckBereich, setDruckBereich] = useState("");     // aus welchem Reiter die Wahl stammt
+  const [vorschauSeiten, setVorschauSeiten] = useState(1);  // wie viele Blätter die Vorlage ergibt
   const [druckMonat, setDruckMonat] = useState(new Date().getMonth());
   const [linkInhaber, setLinkInhaber] = useState(() => {
     try { return (localStorage.getItem("werkstatt-links-inhaber") || "").toUpperCase(); } catch (e) { return ""; }
@@ -1400,7 +1402,9 @@ function App() {
   // bei einer Prüfung. Bewusst nüchtern: je Punkt die Rechtsgrundlage, alle
   // erledigten Termine mit Datum und was offen blieb. Nichts beschönigen -
   // ein Nachweis, der Lücken verschweigt, ist wertlos.
-  const druckeNachweis = (jahr) => {
+  /* Der Nachweis wird gebaut und zurueckgegeben, nicht sofort gedruckt -
+     so kann ihn die Vorschau im Druck-Dialog genauso anzeigen. */
+  const buildNachweisHTML = (jahr) => {
     const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     // WICHTIG: Die Soll-Termine stehen nicht als Einträge im Bestand - sie
     // ergeben sich aus dem Rhythmus und werden hier genauso berechnet wie im
@@ -1501,12 +1505,7 @@ function App() {
       <div class="fuss">Erstellt am ${formatDateDE(todayKey)} aus dem Werkstatt-Cockpit. Grundlage sind die im System erfassten Termine; dieser Ausdruck gibt den Stand zum Erstellungszeitpunkt wieder.</div>
       <div class="sign"><div>Datum / Unterschrift Werkstattleitung</div><div>Datum / Unterschrift Prüfer</div></div>
       </body></html>`;
-    const w = window.open("", "_blank");
-    if (!w) { setErr("Zum Drucken bitte Popups für diese Seite erlauben."); return; }
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } catch (e) { /* Nutzer kann manuell drucken */ } }, 300);
+    return html;
   };
 
   // Sortierung: offene zuerst, darin neueste zuerst
@@ -3892,18 +3891,130 @@ function App() {
     </body></html>`;
   };
 
-  /* Führt aus, was im Druck-Dialog gewählt wurde. */
+
+  /* ================= Drucken: ein Knopf, ein Dialog, eine Vorschau =================
+     Vorher lagen die Druck-Knöpfe verstreut: in der Kopfleiste, mitten in der
+     Werkzeugleiste des Schichtplans, unten in der TPM-Übersicht. Wer drucken
+     wollte, musste erst suchen. Jetzt sitzt in jedem Bereich, in dem es etwas
+     zu drucken gibt, oben rechts derselbe Knopf; was genau aufs Papier soll,
+     wird im Dialog gewählt - mit einer Vorschau daneben, damit niemand blind
+     auf „Drucken" klickt und sich hinterher am Drucker wundert. */
+  const druckAngebot = () => {
+    if (view === "COCKPIT" && cockpitTab === "SCHICHTPLAN") {
+      const my = matrixCursor.getFullYear(), mm = matrixCursor.getMonth();
+      return {
+        titel: "Schichtplan drucken",
+        bereich: "schichtplan",
+        optionen: [
+          { id: "schicht-monat", text: `Monat ${MONTHS[mm]} ${my}`,
+            erklaerung: "Die ganze Matrix auf einem Blatt – A4 quer" },
+          { id: "schicht-wochen", text: "Wochenweise, je KW ein Blatt",
+            erklaerung: "A4 quer – fürs Schwarze Brett, aus der Ferne lesbar" },
+        ],
+      };
+    }
+    if (view === "COCKPIT" && cockpitTab === "PLANUNG") {
+      return {
+        titel: "Arbeitsplanung drucken",
+        bereich: "planung",
+        optionen: [
+          { id: "planung-woche", text: `Woche KW ${getISOWeek(planungMontag)}`,
+            erklaerung: "Ein Block je Tag wie am Bildschirm – A4 hoch, immer eine Seite" },
+        ],
+      };
+    }
+    if (view === "TPMINFO") {
+      return {
+        titel: "TPM-Übersicht drucken",
+        bereich: "tpminfo",
+        optionen: [
+          { id: "nachweis", text: `Prüfnachweis ${nachweisJahr}`,
+            erklaerung: "Wiederkehrende Prüfungen mit Soll, Erledigt und Versäumt – zum Vorlegen" },
+        ],
+      };
+    }
+    if (view === "JAHR" || view === "MONAT") {
+      return {
+        titel: "Auswertung drucken",
+        bereich: "auswertung",
+        umfang: true,
+        optionen: [
+          { id: "jahreskalender", text: `Jahreskalender ${year}`,
+            erklaerung: "Alle zwölf Monate auf einem Bogen – A3 quer, fürs Board" },
+          { id: "monatsblatt", text: "Einzelner Monat", monatsWahl: true,
+            erklaerung: "Die Tage untereinander – A4 hoch, für den Schrank" },
+          { id: "liste", text: "Liste wie am Bildschirm",
+            erklaerung: "Die Auswertung, so wie sie gerade dasteht" },
+        ],
+      };
+    }
+    if (view === "PLAN") {
+      return {
+        titel: "Wartungsplan drucken",
+        bereich: "wartungsplan",
+        optionen: [
+          { id: "liste", text: `Wartungsplan ${MONTHS[month]} ${year}`,
+            erklaerung: "Der Plan, so wie er am Bildschirm steht" },
+        ],
+      };
+    }
+    if (view === "REGISTER") {
+      return {
+        titel: "Register drucken",
+        bereich: "register",
+        optionen: [
+          { id: "liste", text: "Alle Termine als Liste",
+            erklaerung: "Das Register, so wie es am Bildschirm steht" },
+        ],
+      };
+    }
+    return null;
+  };
+
+  /* Baut die gewählte Vorlage. Rückgabe ist bewusst nur HTML plus Dateiname -
+     dieselbe Vorlage geht damit in die Vorschau wie in den Drucker. */
+  const druckVorlage = (id) => {
+    const kurz = druckUmfang === "TPM" ? "tpm" : druckUmfang === "RI" ? "ri" : "tpm-ri";
+    switch (id) {
+      case "schicht-monat":
+        return { html: buildSchichtplanPrintHTML(),
+                 datei: `werkstatt-schichtplan-${matrixCursor.getFullYear()}-${pad(matrixCursor.getMonth() + 1)}.html` };
+      case "schicht-wochen":
+        return { html: buildSchichtplanWochenHTML(),
+                 datei: `werkstatt-schichtplan-wochen-${matrixCursor.getFullYear()}-${pad(matrixCursor.getMonth() + 1)}.html` };
+      case "planung-woche":
+        return { html: buildPlanungPrintHTML(),
+                 datei: `werkstatt-planung-kw${getISOWeek(planungMontag)}-${planungMontag.getFullYear()}.html` };
+      case "nachweis":
+        return { html: buildNachweisHTML(nachweisJahr), datei: `werkstatt-pruefnachweis-${nachweisJahr}.html` };
+      case "jahreskalender":
+        return { html: buildJahresKalenderHTML(year, druckUmfang), datei: `werkstatt-jahreskalender-${kurz}-${year}.html` };
+      case "monatsblatt":
+        return { html: buildMonatsKalenderHTML(year, druckMonat, druckUmfang),
+                 datei: `werkstatt-monatskalender-${kurz}-${year}-${pad(druckMonat + 1)}.html` };
+      default:
+        return { html: buildPrintDocument(),
+                 datei: `werkstatt-kalender-${view.toLowerCase()}-${year}${view === "MONAT" ? "-" + pad(month + 1) : ""}.html` };
+    }
+  };
+
+  const oeffneDruckWahl = () => {
+    const angebot = druckAngebot();
+    if (!angebot) return;
+    // Beim Wechsel des Bereichs mit der ersten Möglichkeit anfangen - sonst
+    // stünde im Schichtplan noch die Wahl aus der Auswertung. Innerhalb
+    // desselben Bereichs bleibt die zuletzt getroffene Wahl stehen.
+    if (angebot.bereich !== druckBereich || !angebot.optionen.some((o) => o.id === druckOption)) {
+      setDruckOption(angebot.optionen[0].id);
+      setDruckBereich(angebot.bereich);
+    }
+    setDruckWahlOffen(true);
+  };
+
   const handleDruckWahl = () => {
     setDruckWahlOffen(false);
-    const kurz = druckUmfang === "TPM" ? "tpm" : druckUmfang === "RI" ? "ri" : "tpm-ri";
-    if (druckBlatt === "JAHR") {
-      openPrintWindow(buildJahresKalenderHTML(year, druckUmfang), `werkstatt-jahreskalender-${kurz}-${year}.html`);
-    } else if (druckBlatt === "MONAT") {
-      openPrintWindow(buildMonatsKalenderHTML(year, druckMonat, druckUmfang),
-        `werkstatt-monatskalender-${kurz}-${year}-${pad(druckMonat + 1)}.html`);
-    } else {
-      handlePrint();   // die Liste, so wie sie am Bildschirm steht
-    }
+    const { html, datei } = druckVorlage(druckOption);
+    openPrintWindow(html, datei);
   };
 
   const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
@@ -4056,13 +4167,13 @@ function App() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
-          {view !== "COCKPIT" && view !== "TPMINFO" && (
+          {druckAngebot() && (
             <button
-              /* In der Auswertung wird zuerst gefragt, was aufs Papier soll -
-                 Jahreskalender, ein einzelner Monat oder die Liste vom
-                 Bildschirm. Anderswo gibt es nur den einen Ausdruck, dort
-                 waere die Rueckfrage ein leerer Klick. */
-              onClick={() => ((view === "JAHR" || view === "MONAT") ? setDruckWahlOffen(true) : handlePrint())}
+              /* Ein Knopf an einer Stelle - oben rechts, in jedem Bereich, in
+                 dem es etwas zu drucken gibt. Was genau, wird im Dialog
+                 gewählt; vorher lagen die Knöpfe in den Werkzeugleisten der
+                 einzelnen Reiter verstreut. */
+              onClick={oeffneDruckWahl}
               className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
               style={{ backgroundColor: "#C97A2B" }}
               aria-label="Drucken"
@@ -5615,14 +5726,6 @@ function App() {
             })}
             <button onClick={() => setPlanungCursor(addDays(planungMontag, 7))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächste Woche">›</button>
             <button onClick={() => setPlanungCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
-            <button
-              onClick={handlePrintPlanung}
-              className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: "#C97A2B" }}
-              aria-label="Planung drucken"
-            >
-              <Printer size={14} /> Drucken
-            </button>
             {/* Sprung zu jeder beliebigen Woche (z. B. Urlaub weit im Voraus eintragen) */}
             <select
               value=""
@@ -5843,26 +5946,6 @@ function App() {
               <span className="font-mono text-sm font-bold ml-2">{MONTHS[mm]} {my}</span>
               <button onClick={() => setMatrixCursor(new Date(my, mm + 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächster Monat">›</button>
               <button onClick={() => setMatrixCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
-              <button
-                onClick={handlePrintSchichtplan}
-                className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: "#C97A2B" }}
-                aria-label="Schichtplan drucken"
-              >
-                <Printer size={14} /> Monat
-              </button>
-              {/* Zweites Blatt fuers Schwarze Brett: je Kalenderwoche eine
-                  Seite quer. Die Monatsmatrix ist zum Planen am Bildschirm da,
-                  an der Wand sind 31 Spalten nicht mehr zu lesen. */}
-              <button
-                onClick={handlePrintSchichtplanWochen}
-                className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wide hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: "#4B5259" }}
-                aria-label="Schichtplan wochenweise drucken"
-                title="Je Kalenderwoche eine Seite im Querformat – zum Aushängen"
-              >
-                <Printer size={14} /> Wochen
-              </button>
               <span className="ml-auto text-xs text-slate-400">Werkstattschichtplan – Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung</span>
             </div>
 
@@ -6915,11 +6998,23 @@ function App() {
       })()}
 
       {/* Gemeinsame Datei einrichten */}
-      {/* Druck-Auswahl der Auswertung: erst fragen, dann drucken. Vorher lagen
-          zwei Knoepfe nebeneinander in der Leiste, und der Jahreskalender war
-          hinter einem Klappmenue versteckt - hier steht alles nebeneinander
-          zur Wahl, samt einzelnem Monat. */}
-      {druckWahlOffen && (
+      {/* Druck-Auswahl: links die Möglichkeiten, rechts die Vorschau.
+          Die Vorschau ist die echte Druckvorlage in einem Rahmen, nur
+          verkleinert - kein nachgebautes Bildchen, das später nicht zum
+          Ausdruck passt. Der Maßstab richtet sich nach dem Papierformat,
+          das die Vorlage selbst in ihrer @page-Regel nennt. */}
+      {druckWahlOffen && druckAngebot() && (() => {
+        const angebot = druckAngebot();
+        const gewaehlt = angebot.optionen.find((o) => o.id === druckOption) || angebot.optionen[0];
+        const vorlage = druckVorlage(gewaehlt.id);
+        // Blattmaße bei 96 dpi, so wie der Drucker sie sieht.
+        const quer = /size:\s*A[34] landscape/.test(vorlage.html);
+        const a3 = /size:\s*A3/.test(vorlage.html);
+        const blattBreite = a3 ? 1587 : quer ? 1123 : 794;
+        const blattHoehe = a3 ? 1123 : quer ? 794 : 1123;
+        const rahmenBreite = 300;
+        const massstab = rahmenBreite / blattBreite;
+        return (
         <div
           className="no-print"
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
@@ -6928,68 +7023,120 @@ function App() {
           <div
             role="dialog"
             aria-label="Was soll gedruckt werden?"
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "520px", maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "820px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="font-bold text-sm">Was soll gedruckt werden?</div>
+              <div className="font-bold text-sm">{angebot.titel}</div>
               <button onClick={() => setDruckWahlOffen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
             </div>
 
-            <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Umfang</div>
-            <div className="flex gap-2 mb-4">
-              {[["ALLE", "Beide (TPM & R+I)"], ["TPM", "Nur TPM"], ["RI", "Nur R+I"]].map(([wert, text]) => (
-                <button
-                  key={wert}
-                  onClick={() => setDruckUmfang(wert)}
-                  aria-pressed={druckUmfang === wert}
-                  className="px-3 py-1.5 rounded font-bold text-xs border"
-                  style={druckUmfang === wert
-                    ? { backgroundColor: "#2F6690", borderColor: "#2F6690", color: "white" }
-                    : { backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
-                >{text}</button>
-              ))}
-            </div>
+            <div className="flex gap-5">
+              <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+                {angebot.umfang && (
+                  <>
+                    <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Umfang</div>
+                    <div className="flex gap-2 mb-4 flex-wrap">
+                      {[["ALLE", "Beide (TPM & R+I)"], ["TPM", "Nur TPM"], ["RI", "Nur R+I"]].map(([wert, text]) => (
+                        <button
+                          key={wert}
+                          onClick={() => setDruckUmfang(wert)}
+                          aria-pressed={druckUmfang === wert}
+                          className="px-3 py-1.5 rounded font-bold text-xs border"
+                          style={druckUmfang === wert
+                            ? { backgroundColor: "#2F6690", borderColor: "#2F6690", color: "white" }
+                            : { backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
+                        >{text}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
 
-            <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Blatt</div>
-            <div className="flex flex-col gap-2 mb-4">
-              {[
-                ["JAHR", `Jahreskalender ${year}`, "Alle zwölf Monate auf einem Bogen – A3 quer, fürs Board"],
-                ["MONAT", "Einzelner Monat", "Die Tage untereinander – A4 hoch, für den Schrank"],
-                ["LISTE", "Liste wie am Bildschirm", "Die Auswertung, so wie sie gerade dasteht"],
-              ].map(([wert, text, erklaerung]) => (
-                <button
-                  key={wert}
-                  onClick={() => setDruckBlatt(wert)}
-                  aria-pressed={druckBlatt === wert}
-                  className="text-left px-3 py-2 rounded border"
-                  style={druckBlatt === wert
-                    ? { backgroundColor: "#EEF3F8", borderColor: "#2F6690" }
-                    : { backgroundColor: "white", borderColor: "#E2E4E7" }}
-                >
-                  <div className="font-bold text-xs" style={{ color: "#22262B" }}>{text}</div>
-                  <div className="text-[11px]" style={{ color: "#8A9099" }}>{erklaerung}</div>
-                </button>
-              ))}
-            </div>
+                <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Blatt</div>
+                <div className="flex flex-col gap-2 mb-4">
+                  {angebot.optionen.map((o) => (
+                    <button
+                      key={o.id}
+                      onClick={() => setDruckOption(o.id)}
+                      aria-pressed={gewaehlt.id === o.id}
+                      className="text-left px-3 py-2 rounded border"
+                      style={gewaehlt.id === o.id
+                        ? { backgroundColor: "#EEF3F8", borderColor: "#2F6690" }
+                        : { backgroundColor: "white", borderColor: "#E2E4E7" }}
+                    >
+                      <div className="font-bold text-xs" style={{ color: "#22262B" }}>{o.text}</div>
+                      <div className="text-[11px]" style={{ color: "#8A9099" }}>{o.erklaerung}</div>
+                    </button>
+                  ))}
+                </div>
 
-            {druckBlatt === "MONAT" && (
-              <div className="grid grid-cols-4 gap-1 mb-4">
-                {MONTHS.map((name, i) => (
-                  <button
-                    key={name}
-                    onClick={() => setDruckMonat(i)}
-                    aria-pressed={druckMonat === i}
-                    className="px-2 py-1.5 rounded font-bold text-[11px] border"
-                    style={druckMonat === i
-                      ? { backgroundColor: "#2F6690", borderColor: "#2F6690", color: "white" }
-                      : { backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
-                  >{name}</button>
-                ))}
+                {gewaehlt.monatsWahl && (
+                  <div className="grid grid-cols-4 gap-1 mb-4">
+                    {MONTHS.map((name, i) => (
+                      <button
+                        key={name}
+                        onClick={() => setDruckMonat(i)}
+                        aria-pressed={druckMonat === i}
+                        className="px-2 py-1.5 rounded font-bold text-[11px] border"
+                        style={druckMonat === i
+                          ? { backgroundColor: "#2F6690", borderColor: "#2F6690", color: "white" }
+                          : { backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
+                      >{name}</button>
+                    ))}
+                  </div>
+                )}
+
+                {gewaehlt.id === "nachweis" && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: "#8A9099" }}>Jahr</span>
+                    <select
+                      value={nachweisJahr}
+                      onChange={(ev) => setNachweisJahr(Number(ev.target.value))}
+                      className="px-2 py-1.5 rounded border bg-white text-xs font-bold"
+                      style={{ borderColor: "#C9D0D8", color: "#5B6572" }}
+                      aria-label="Jahr des Prüfnachweises"
+                    >
+                      {nachweisJahre.map((j) => <option key={j} value={j}>{j}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
-            )}
 
-            <div className="flex justify-end gap-2">
+              {/* Vorschau */}
+              <div style={{ flex: "0 0 auto", width: `${rahmenBreite}px` }}>
+                <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>
+                  Vorschau · {a3 ? "A3 quer" : quer ? "A4 quer" : "A4 hoch"}
+                  {vorschauSeiten > 1 ? ` · Blatt 1 von ${vorschauSeiten}` : ""}
+                </div>
+                <div
+                  style={{ width: `${rahmenBreite}px`, height: `${Math.round(blattHoehe * massstab)}px`,
+                           border: "1px solid #C9D0D8", boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                           overflow: "hidden", backgroundColor: "white" }}
+                >
+                  <iframe
+                    title="Druckvorschau"
+                    aria-label="Druckvorschau"
+                    srcDoc={vorlage.html}
+                    /* Wie viele Blätter es werden, sagt die Vorlage selbst -
+                       gemessen an ihrer Höhe, nicht geschätzt. */
+                    onLoad={(ev) => {
+                      try {
+                        const d = ev.target.contentDocument;
+                        const seiten = Math.max(1, Math.ceil(d.body.scrollHeight / blattHoehe - 0.02));
+                        setVorschauSeiten((alt) => (alt === seiten ? alt : seiten));
+                      } catch (e) { /* ohne Zugriff bleibt es bei einem Blatt */ }
+                    }}
+                    style={{ width: `${blattBreite}px`, height: `${blattHoehe}px`, border: "none",
+                             transform: `scale(${massstab})`, transformOrigin: "top left" }}
+                  />
+                </div>
+                <div className="text-[11px] mt-1" style={{ color: "#8A9099" }}>
+                  Verkleinert auf {Math.round(massstab * 100)} % – so kommt es aus dem Drucker.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={() => setDruckWahlOffen(false)}
                 className="px-3 py-1.5 rounded font-bold text-xs border"
@@ -7003,7 +7150,8 @@ function App() {
             </div>
           </div>
         </div>
-      )}
+);
+      })()}
 
       {shareOpen && (
         <div
@@ -7793,26 +7941,11 @@ function App() {
               <div className="flex items-center gap-2 flex-wrap" style={{ fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", color: "#5B6572", margin: "6px 0 12px" }}>
                 R+I-Punkte mit Rechtsgrundlage &amp; Link
                 <span style={{ flex: 1, minWidth: "12px", height: "1px", background: "linear-gradient(90deg,#E7EAEE,transparent)" }} />
-                {/* Nachweis zum Vorlegen bei einer Prüfung - listet je Punkt die
-                    Rechtsgrundlage und alle erledigten Termine des Jahres auf. */}
-                <select
-                  value={nachweisJahr}
-                  onChange={(e) => setNachweisJahr(Number(e.target.value))}
-                  aria-label="Jahr für den Nachweis"
-                  className="text-xs rounded border px-1.5 py-1"
-                  style={{ borderColor: "#D7DCE1", color: "#22262B", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}
-                >
-                  {nachweisJahre.map((j) => <option key={j} value={j}>{j}</option>)}
-                </select>
-                <button
-                  onClick={() => druckeNachweis(nachweisJahr)}
-                  className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-white"
-                  style={{ backgroundColor: "#2F6690", fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.3px", textTransform: "none" }}
-                  aria-label="Prüfnachweis drucken"
-                  title="Nachweis der wiederkehrenden Prüfungen für den gewählten Zeitraum drucken"
-                >
-                  <Printer size={13} /> Nachweis drucken
-                </button>
+                {/* Der Nachweis zum Vorlegen steckt jetzt hinter dem
+                    Drucken-Knopf oben rechts - samt Jahreswahl und Vorschau. */}
+                <span className="text-[11px]" style={{ color: "#8A9099", textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>
+                  Prüfnachweis: oben rechts über <strong>Drucken</strong>
+                </span>
               </div>
 
               {riItems.map((r) => {

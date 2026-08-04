@@ -82,18 +82,30 @@ function grosserBestand() {
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Plan', exact: true }).click(); // TPM öffnet zuerst die Übersicht -> zum Plan wechseln
   await page.waitForTimeout(300);
+  // Seit dem Umbau fragt der Drucken-Knopf erst nach. Der Weg ist damit:
+  // Knopf -> Dialog -> Drucken. Geprueft wird beides, die Vorschau im Dialog
+  // und das Popup - Nutzertext darf in KEINEM von beiden zum Tag werden.
+  await page.locator('button[aria-label="Drucken"]').click();
+  await page.waitForTimeout(600);
+  const vorschauDa = await page.locator('iframe[aria-label="Druckvorschau"]').count();
+  ok('Druck-Dialog zeigt eine Vorschau', vorschauDa === 1);
+  const vorschauSauber = await page.evaluate(() => {
+    const f = document.querySelector('iframe[aria-label="Druckvorschau"]');
+    if (!f || !f.contentDocument) return null;
+    return f.contentDocument.querySelectorAll('script[data-fremd], body script:not([data-eigen])').length;
+  });
+  ok('Vorschau enthält kein Skript aus Nutzertext', vorschauSauber === 0 || vorschauSauber === null);
+
   const [popup] = await Promise.all([
     page.waitForEvent('popup').catch(() => null),
-    page.getByRole('button', { name: /Drucken/ }).click(),
+    page.locator('div[role="dialog"] button:has-text("Drucken")').click(),
   ]);
   await page.waitForTimeout(500);
+  ok('Druckvorlage öffnet sich als Popup', !!popup);
   if (popup) {
     const druckHtml = await popup.content();
-    ok('Druckvorlage öffnet sich als Popup', true);
     ok('Druck enthält keinen ausführbaren <script>-Tag aus Nutzertext', !druckHtml.includes('<script>alert'));
     await popup.close();
-  } else {
-    ok('Druckvorlage öffnet sich als Popup (evtl. Download-Fallback genutzt)', true);
   }
 
   console.log(`\n${pass} PASS / ${fail} FAIL`);

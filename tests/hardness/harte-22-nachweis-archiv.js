@@ -41,11 +41,16 @@ const RI = (id, datum, name, status) => ({ id, date: datum, category: "RI", name
     ]);
     await page.getByRole("button", { name: "TPM", exact: true }).first().click();
     await page.waitForTimeout(600);
-    check("(A) Der Knopf für den Prüfnachweis ist da",
-      (await page.locator('button[aria-label="Prüfnachweis drucken"]').count()) === 1);
+    // Der Nachweis steckt seit dem Umbau hinter dem Drucken-Knopf oben rechts.
+    check("(A) Der Knopf zum Drucken ist da",
+      (await page.locator('button[aria-label="Drucken"]').count()) === 1);
+    await page.locator('button[aria-label="Drucken"]').click();
+    await page.waitForTimeout(500);
+    check("(A) Der Prüfnachweis steht im Druck-Dialog zur Wahl",
+      (await page.getByRole("button", { name: /^Prüfnachweis 2026/ }).count()) === 1);
 
     const [blatt] = await Promise.all([ctx.waitForEvent("page"),
-      page.locator('button[aria-label="Prüfnachweis drucken"]').click()]);
+      page.locator('div[role="dialog"] button:has-text("Drucken")').click()]);
     await blatt.waitForTimeout(900);
     const t = await blatt.locator("body").innerText();
 

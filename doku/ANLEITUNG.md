@@ -208,18 +208,27 @@ Störungen, nicht den Rest.
 - **Schichtplan:** Monatsmatrix, je Person und Tag eine Schicht (Früh/Spät/Nacht u. a.).
   Zwei Ausdrucke: **Monat** (die Matrix, quer) und **Wochen** – je Kalenderwoche
   ein Blatt im Querformat, gedacht fürs Schwarze Brett.
-- **Drucken in der Auswertung:** der Knopf **Drucken** fragt erst, was aufs
-  Papier soll. Zu wählen sind der **Umfang** (Beide / Nur TPM / Nur R+I) und
-  das **Blatt**:
-  - **Jahreskalender** – ein gewöhnlicher Wandkalender in **A3 quer**: die
-    zwölf Monate stehen oben als Spalten, darunter die Tage 1 bis 31. Der Name
-    der Anlage bzw. des R+I-Punktes steht **waagrecht im Tag**; ist er zu lang,
-    wird er hinten mit „…" gekürzt und steht vollständig im Mauszeiger-Hinweis.
-    Blau = TPM, violett = R+I, grün = erledigt; Wochenenden und Feiertage sind
-    hinterlegt.
-  - **Einzelner Monat** – dieselben Termine für einen Monat, die Tage
-    untereinander, **A4 hoch**. Für den Schrank oder zum Mitnehmen.
-  - **Liste wie am Bildschirm** – die Auswertung, so wie sie gerade dasteht.
+- **Drucken:** In jedem Bereich, in dem es etwas zu drucken gibt, sitzt der
+  Knopf **Drucken** an derselben Stelle – **oben rechts** in der Kopfleiste.
+  Ein Klick fragt erst, was aufs Papier soll, und zeigt **daneben eine
+  Vorschau des Blattes** – verkleinert, aber die echte Vorlage, nicht ein
+  nachgebautes Bildchen. Was zur Wahl steht, hängt vom Bereich ab:
+  - **Schichtplan:** der ganze Monat (A4 quer) oder wochenweise, je KW ein
+    Blatt (A4 quer, fürs Schwarze Brett).
+  - **Planung:** die Woche im Zeilen-Layout des Bildschirms (A4 hoch).
+  - **TPM · Übersicht:** der **Prüfnachweis** mit Jahresauswahl.
+  - **TPM · Plan / Register:** die Liste, so wie sie am Bildschirm steht.
+  - **TPM · Auswertung:** hier kommt zum Blatt noch der **Umfang**
+    (Beide / Nur TPM / Nur R+I) dazu:
+    - **Jahreskalender** – ein gewöhnlicher Wandkalender in **A3 quer**: die
+      zwölf Monate stehen oben als Spalten, darunter die Tage 1 bis 31. Der
+      Name der Anlage bzw. des R+I-Punktes steht **waagrecht im Tag**; ist er
+      zu lang, wird er hinten mit „…" gekürzt und steht vollständig im
+      Mauszeiger-Hinweis. Blau = TPM, violett = R+I, grün = erledigt;
+      Wochenenden und Feiertage sind hinterlegt.
+    - **Einzelner Monat** – dieselben Termine für einen Monat, die Tage
+      untereinander, **A4 hoch**. Für den Schrank oder zum Mitnehmen.
+    - **Liste wie am Bildschirm** – die Auswertung, so wie sie gerade dasteht.
 - **Planung:** Tage untereinander, je Person die eingeplanten Arbeiten/Notizen; springt beim
   Öffnen direkt zum heutigen Tag. **Drucken** gibt die Woche im **Hochformat** aus –
   im selben Zeilen-Layout wie am Bildschirm (ein Block je Tag, Spalten Person ·
