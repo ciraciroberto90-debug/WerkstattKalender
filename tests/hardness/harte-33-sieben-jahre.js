@@ -221,9 +221,15 @@ async function verbindeHaupt(p) {
   await p.waitForTimeout(1200);
   let nachweisOk = false, nachweisKopf = "";
   try {
+    // Der Nachweis steckt seit dem Umbau hinter dem Drucken-Knopf oben rechts:
+    // erst der Knopf, dann die Vorlage im Dialog, dann drucken.
+    await p.locator('button[aria-label="Drucken"]').click();
+    await p.waitForTimeout(800);
+    await p.getByRole("button", { name: /^Prüfnachweis/ }).click();
+    await p.waitForTimeout(400);
     const [nw] = await Promise.all([
       p.context().waitForEvent("page", { timeout: 30000 }),
-      p.getByRole("button", { name: /Prüfnachweis/ }).click(),
+      p.locator('div[role="dialog"] button:has-text("Drucken")').click(),
     ]);
     await nw.waitForTimeout(2500);
     nachweisKopf = (await nw.locator("body").innerText()).slice(0, 200).replace(/\s+/g, " ");
