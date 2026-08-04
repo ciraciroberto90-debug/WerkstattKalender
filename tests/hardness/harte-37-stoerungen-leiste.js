@@ -5,10 +5,10 @@
 // Dinge muessen dabei nachweisbar bleiben:
 //
 //   (1) Die Zeilen sind NICHT enger geworden. 26 px Bericht, 26 px Tag,
-//       23 px Schicht - gemessen, nicht behauptet. Das war die Bedingung.
-//   (2) Eine Nummer darf es nie zweimal geben. Auch nicht, wenn zwei Leute
-//       in derselben Minute melden - dafuer gibt es die Regel, wer weiter-
-//       rueckt, und die muss auf beiden Geraeten dieselbe sein.
+//       25 px Schicht - an der Fassung davor gemessen, nicht behauptet.
+//   (2) Eine doppelte Nummer darf nicht unbemerkt bleiben. Wer als Zweiter
+//       speichert, rueckt weiter; lesen beide gleichzeitig, sieht auch der
+//       Zweite den Ersten nicht - dann MUSS die App es melden.
 //
 // Dazu: die Ansichten der Leiste, die Zeitraeume, der Schnellzugriff, das
 // Nachtragen alter Nummern und das Loeschen aller Berichte (das ueber die
