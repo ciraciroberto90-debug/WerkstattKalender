@@ -105,6 +105,36 @@ OneDrive, entfallen Konfliktkopien und Sync-Verzug, und die Sicherung läuft
 werden – sie spricht ein eingebundenes Laufwerk genauso an wie den
 OneDrive-Ordner.
 
+## Zweiter Standort und Übergabe an die IT (angedacht)
+
+Die App soll an einem weiteren Firmenstandort laufen – eigene Daten, gleiche
+Anwendung. Und sobald App oder Daten auf einem Server liegen, soll die IT den
+Betrieb übernehmen. Beides bringt Anforderungen, die vorher zu klären sind:
+
+- [ ] **Feiertage konfigurierbar machen – Blocker für Standort 2.** Sie stehen
+      fest im Code als *Bayern* (`getHolidays`, u. a. Fronleichnam und Mariä
+      Himmelfahrt). Das ist nicht bloß Anzeige: Die R+I-Rhythmen überspringen
+      Feiertage (`isValidRiDay`). Ein Standort in einem anderen Bundesland
+      bekäme damit **falsche Solltermine – und einen falschen Prüfnachweis**.
+      Das Bundesland gehört in die Konfiguration, wie Anlagen und Team.
+- [ ] **Ein Build, zwei Datenordner – niemals zwei Kopien des Codes.** Anlagen,
+      R+I-Punkte, Team und Schichtarten liegen bereits in der Konfiguration,
+      also reicht dieselbe HTML für beide Standorte. Wird stattdessen kopiert
+      und getrennt gepflegt, laufen die Versionen binnen Monaten auseinander
+      und jeder Fehler muss zweimal behoben werden.
+- [ ] **Betriebshandbuch für die IT.** Was läuft wo (Ausliefer-Dienst, Port,
+      Autostart), welche Dateien gehören dazu, wie wird gesichert, wie
+      zurückgeholt, wie eine neue Version ausgerollt. Die vorhandene
+      Anleitung richtet sich an Anwender, nicht an einen Betreiber.
+- [ ] **Klären, wem die Anwendung gehört und wer sie ändern darf.** Solange
+      es ein Werkzeug der Werkstatt war, stellte sich die Frage nicht. Sobald
+      die IT betreibt und zwei Standorte damit arbeiten, stellt sie jemand –
+      besser vorher als hinterher.
+- [ ] **Betrieb ist nicht Entwicklung.** Die IT kann Server, Sicherung und
+      Auslieferung übernehmen. Die Weiterentwicklung bleibt davon unberührt;
+      das sollte bei der Übergabe ausdrücklich gesagt werden, sonst entsteht
+      die Erwartung, „die IT macht das jetzt", und am Ende macht es niemand.
+
 ## Offene Entscheidungen
 
 - [ ] **Excel-Anbindung (OEE / Schichtpläne).** Gemessen ist: Chrome liest eine
