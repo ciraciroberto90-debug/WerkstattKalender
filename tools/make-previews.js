@@ -34,15 +34,15 @@ const CONFIG = {
 };
 const STOER = require("./demo-stoerungen.js");
 
-// Ein paar Wartungs-/R+I-Einträge (Juli 2026), damit die Halbkreis-Quoten in der
-// Vorschau echte Werte anzeigen und sich animiert füllen. 9 erledigt / 4 offen.
-const ENTRIES = [];
-["BTS", "VSM1", "HRO", "OF320", "TS200", "B+T", "RRO", "B1", "LTA1"].forEach((name, i) => {
-  ENTRIES.push({ id: "tpm-" + i, date: "2026-07-" + String((i * 2) + 3).padStart(2, "0"), category: "TPM", name, status: "done" });
-});
-["Wasserrundgang", "Energieaufschreibung", "Kompressor Rundgang", "Werkstattreinigung"].forEach((name, i) => {
-  ENTRIES.push({ id: "ri-" + i, date: "2026-07-" + String((i * 3) + 20).padStart(2, "0"), category: "RI", name, status: "open" });
-});
+// Die Termine entstehen erst im Browser - relativ zum HEUTIGEN Tag des
+// Besuchers. Vorher standen sie fest auf Juli 2026: wer die Vorschau im
+// August öffnete, sah eine Monatsquote von 0 % und einen leeren Jahreskalender.
+// Eine Demo, die nichts zeigt, ist keine.
+const TPM_ANLAGEN = ["Masseaufbereitung", "BTS", "VSM1", "VSM2", "TS200", "OF320", "TS480", "TS320",
+  "B+T", "RRO", "HRO", "B1", "B2", "B3", "Wikler", "LTA1", "LTA2"];
+const RI_PUNKTE = ["Wasserrundgang", "Elevatorprüfung + Ölen", "HRO Trocknerketten Ölen", "Energieaufschreibung",
+  "Leiterkontrolle R+I 9", "Abwasserproben R+I 30", "Werkstattreinigung", "Filterwartung / Schaltschränke",
+  "Kompressor Rundgang", "Hygieneplan BTA", "Imissionsmessungen", "Regalkontrolle", "Sprinklerwartung"];
 
 // Demo-Version: wird sie erhöht, werden die Demo-Daten beim nächsten Laden EINMAL
 // neu gesetzt (überschreibt die alten Demo-Daten). Sonst bleibt alles wie es ist,
@@ -53,7 +53,7 @@ const SCHICHT_PLAN = [
   ["T. Klein", "Spät"], ["J. Wolf", "Spät mit B"],
   ["M. Weber", "Nacht"], ["A. Fischer", "Nacht"],
 ];
-const DEMO_VER = "demo-8";
+const DEMO_VER = "demo-9";
 // Die Vorschau schreibt NUR beim allerersten Besuch Demo-Daten hin.
 // Grund: Sie benutzt dieselben Speicher-Schlüssel wie die echte App. Früher
 // wurde bei jeder neuen Demo-Version alles überschrieben - hatte jemand in der
@@ -63,7 +63,47 @@ const DEMO_VER = "demo-8";
 const seed = `
   window.__wkDemoVer = ${JSON.stringify(DEMO_VER)};
   window.__wkDemoSetzen = function () {
-    var ents = ${JSON.stringify(ENTRIES)};
+    var TPM_ANLAGEN = ${JSON.stringify(TPM_ANLAGEN)};
+    var RI_PUNKTE = ${JSON.stringify(RI_PUNKTE)};
+    var heute = new Date();
+    var jahr = heute.getFullYear(), mHeute = heute.getMonth() + 1, tHeute = heute.getDate();
+    var datum = function (m, t) {
+      var letzter = new Date(jahr, m, 0).getDate();
+      return jahr + '-' + String(m).padStart(2, '0') + '-' + String(Math.min(t, letzter)).padStart(2, '0');
+    };
+    // Vorbei = erledigt, künftig = offen. So stimmen Quote, "überfällig" und
+    // "liegengeblieben" zueinander, egal wann jemand die Vorschau öffnet.
+    var stand = function (m, t) { return (m < mHeute || (m === mHeute && t <= tHeute)) ? 'done' : 'open'; };
+    var ents = [];
+    TPM_ANLAGEN.forEach(function (name, i) {
+      for (var m = 1 + (i % 3); m <= 12; m += 3) {
+        var t = 3 + ((i * 5 + m) % 24);
+        ents.push({ id: 'jt-' + i + '-' + m, date: datum(m, t), category: 'TPM', name: name, status: stand(m, t) });
+      }
+    });
+    RI_PUNKTE.forEach(function (name, i) {
+      var monate = i % 3 === 0 ? [1,2,3,4,5,6,7,8,9,10,11,12] : i % 3 === 1 ? [2,5,8,11] : [3,9];
+      monate.forEach(function (m) {
+        var t = 6 + ((i * 3 + m) % 20);
+        ents.push({ id: 'jr-' + i + '-' + m, date: datum(m, t), category: 'RI', name: name, status: stand(m, t) });
+      });
+    });
+    // Im laufenden Monat ein paar frisch abgehakte Anlagen. Ohne sie stünde
+    // die Monatsquote am Monatsanfang bei fast null - die Demo sähe aus, als
+    // hätte die Werkstatt nichts getan.
+    ['BTS', 'VSM1', 'HRO', 'OF320', 'TS200', 'B+T'].forEach(function (name, i) {
+      var d = new Date(); d.setDate(d.getDate() - (i + 1));
+      if (d.getMonth() + 1 !== mHeute) return;         // nur im laufenden Monat
+      ents.push({ id: 'frisch-' + i, category: 'TPM', name: name, status: 'done',
+        date: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') });
+    });
+    // Ein paar liegengebliebene Punkte kurz vor heute - die Übersicht soll
+    // zeigen, wofür die rote Kachel "Überfällig" da ist.
+    ['Wasserrundgang', 'Energieaufschreibung', 'Kompressor Rundgang', 'Werkstattreinigung'].forEach(function (name, i) {
+      var d = new Date(); d.setDate(d.getDate() - (3 + i * 4));
+      ents.push({ id: 'offen-' + i, category: 'RI', name: name, status: 'open',
+        date: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') });
+    });
     // Schichten für heute ± ein paar Tage anlegen, damit "Heute da" und der
     // Schichtplan in der Vorschau immer gefüllt sind - egal an welchem Tag geöffnet.
     var plan = ${JSON.stringify(SCHICHT_PLAN)};
