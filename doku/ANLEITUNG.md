@@ -215,7 +215,8 @@ Störungen, nicht den Rest.
   nachgebautes Bildchen. Was zur Wahl steht, hängt vom Bereich ab:
   - **Schichtplan:** der ganze Monat (A4 quer) oder wochenweise, je KW ein
     Blatt (A4 quer, fürs Schwarze Brett).
-  - **Planung:** die Woche im Zeilen-Layout des Bildschirms (A4 hoch).
+  - **Planung:** die Arbeitswoche **Montag bis Freitag** im Zeilen-Layout des
+    Bildschirms, **A4 hoch, immer eine Seite**.
   - **TPM · Übersicht:** der **Prüfnachweis** mit Jahresauswahl.
   - **TPM · Plan / Register:** die Liste, so wie sie am Bildschirm steht.
   - **TPM · Auswertung:** hier kommt zum Blatt noch der **Umfang**
@@ -232,8 +233,9 @@ Störungen, nicht den Rest.
 - **Planung:** Tage untereinander, je Person die eingeplanten Arbeiten/Notizen; springt beim
   Öffnen direkt zum heutigen Tag. **Drucken** gibt die Woche im **Hochformat** aus –
   im selben Zeilen-Layout wie am Bildschirm (ein Block je Tag, Spalten Person ·
-  Schicht · Arbeiten & Notizen). Der Ausdruck passt **immer auf eine A4-Seite**:
-  das Blatt misst sich selbst und verkleinert sich so weit, wie es nötig ist.
+  Schicht · Arbeiten & Notizen), **Montag bis Freitag**. Der Ausdruck passt
+  **immer auf eine A4-Seite**: das Blatt misst sich selbst und verkleinert
+  sich nur so weit, wie es nötig ist (bei sechs Personen gar nicht).
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.
 - **TPM → Übersicht:** ein digitales **TPM-Board**, das beim Klick auf **TPM** zuerst öffnet.
   Oben die **Monats- und Jahresquote als Halbkreise**. Es holt das Team ab und erklärt kurz,

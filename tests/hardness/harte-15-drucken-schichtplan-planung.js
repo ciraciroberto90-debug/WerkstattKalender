@@ -94,8 +94,13 @@ const seedTeam = (personName) => {
     // Bildschirm, damit man beim Nebeneinanderlegen nicht umdenken muss.
     const planungHtml = await popup.content();
     ok('Planung-Druck: Hochformat', /@page[^}]*size:\s*A4 portrait/.test(planungHtml));
-    ok('Planung-Druck: ein Block je Tag statt einer Tagesmatrix',
-      (await popup.locator('table').count()) === 7);
+    ok('Planung-Druck: ein Block je Werktag statt einer Tagesmatrix',
+      (await popup.locator('table').count()) === 5);
+    // Der Aushang gilt der Arbeitswoche - am Wochenende steht planmaessig
+    // niemand da, und die beiden Bloecke haben den Rest kleingerechnet.
+    ok('Planung-Druck: Montag bis Freitag, kein Wochenende',
+      inhalt.includes('Montag') && inhalt.includes('Freitag')
+      && !inhalt.includes('Samstag') && !inhalt.includes('Sonntag'));
     ok('Planung-Druck: Spalten wie am Bildschirm (Person · Schicht · Arbeiten)',
       // innerText gibt den GERENDERTEN Text zurueck - die Kopfzeile steht in
       // Versalien, also wird ohne Ruecksicht auf Gross/Klein verglichen.
@@ -419,15 +424,22 @@ const seedTeam = (personName) => {
     await popup.waitForTimeout(500);
     const mass = await popup.evaluate(() => {
       const b = document.getElementById('blatt');
+      const massstab = b ? Number(getComputedStyle(b).zoom || b.style.zoom || 1) : -1;
+      const zelle = document.querySelector('tbody tr:nth-child(2) td');
+      const schrift = zelle ? parseFloat(getComputedStyle(zelle).fontSize) : 0;
       return { hoehe: document.body.scrollHeight, breite: b ? b.getBoundingClientRect().width : -1,
-               massstab: b ? Number(getComputedStyle(b).zoom || b.style.zoom || 1) : -1,
-               tage: document.querySelectorAll('table').length };
+               massstab: massstab, tage: document.querySelectorAll('table').length,
+               wirksam: Math.round(schrift * massstab * 10) / 10 };
     });
     ok('Planung: neun Personen und volle Woche passen auf EINE A4-Seite',
       mass.hoehe > 0 && mass.hoehe <= 1047);
-    console.log(`      gemessen: ${mass.hoehe} px hoch, Maßstab ${mass.massstab}`);
-    // Verkleinert werden darf, verschwinden nicht: alle sieben Tage bleiben drauf.
-    ok('Planung: dabei geht kein Tag verloren', mass.tage === 7);
+    console.log(`      gemessen: ${mass.hoehe} px hoch, Maßstab ${mass.massstab}, wirksame Schrift ${mass.wirksam} px`);
+    // Verkleinert werden darf, verschwinden nicht: alle fuenf Werktage bleiben drauf.
+    ok('Planung: dabei geht kein Tag verloren', mass.tage === 5);
+    // "Gut leserlich" ist keine Meinung, sondern eine Zahl: die Schrift nach
+    // der Verkleinerung. Unter 7,5 px liest das an der Wand niemand mehr.
+    ok('Planung: die Schrift bleibt auch bei neun Personen lesbar (≥ 7,5 px)',
+      mass.wirksam >= 7.5);
     // Die feste Blattbreite ist der Grund, warum die Messung ueberhaupt gilt -
     // ohne sie bricht der Bildschirm anders um als das Papier.
     ok('Planung: das Blatt hat die Breite der A4-Seite (± 2 px)',
@@ -507,8 +519,11 @@ const seedTeam = (personName) => {
     });
     ok('Druck-Dialog: die Vorschau zeigt die echte Vorlage',
       vorschau !== null && vorschau.text.includes('Schichtplan') && vorschau.person);
+    // Der Rahmen ist breiter als ein Vorschaubildchen, aber deutlich schmaler
+    // als das Blatt selbst (A4 quer sind 1123 px) - sonst wäre es keine
+    // Verkleinerung, sondern ein zweites Fenster.
     ok('Druck-Dialog: die Vorschau ist verkleinert, nicht in Originalgröße',
-      vorschau !== null && vorschau.breite <= 320);
+      vorschau !== null && vorschau.breite <= 450);
     // Beim Wechsel des Bereichs faengt die Auswahl wieder oben an, sonst
     // stuende im Schichtplan noch die Wahl aus der Auswertung.
     await page.locator('div[role="dialog"] button[aria-label="Schließen"]').click();

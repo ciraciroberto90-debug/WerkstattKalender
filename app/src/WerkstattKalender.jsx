@@ -3565,16 +3565,20 @@ function App() {
     const haupt = [...team].filter((t) => (t.rolle || "") !== "").sort((a, b) => rang[a.rolle] - rang[b.rolle]);
 
     const chip = (text, farbe, grund) =>
-      `<span style="display:inline-block;font-size:8.5px;font-weight:700;color:${farbe};border:1px solid ${farbe};background:${grund};border-radius:3px;padding:0 5px;margin:1px 4px 1px 0;">${text}</span>`;
+      `<span style="display:inline-block;font-size:9.5px;font-weight:700;color:${farbe};border:1px solid ${farbe};background:${grund};border-radius:3px;padding:0 5px;margin:1px 4px 1px 0;">${text}</span>`;
 
-    const bloecke = planungTage.map((t) => {
+    /* Nur Montag bis Freitag. Am Wochenende steht in der Werkstatt planmäßig
+       niemand; die beiden Blöcke haben nur Platz gekostet und den Rest der
+       Seite kleingerechnet. Wer am Samstag jemanden einteilt, sieht das am
+       Bildschirm - der Aushang ist für die Arbeitswoche. */
+    const bloecke = planungTage.filter((t) => !t.we).map((t, tagNr) => {
       const feiertag = getHolidays(t.datum.getFullYear()).get(t.key);
       const tagesPlan = wochenPlan.filter((p) => p.date === t.key);
       // Sa/So kompakt: nur Personen mit Schicht - genau wie am Bildschirm.
       const tagesPersonen = t.we ? haupt.filter((m) => schichtFuer(m.name, t.key)) : haupt;
 
       const wartung = tagesPlan.length === 0
-        ? `<span style="color:#B7BEC6;font-size:9px;">–</span>`
+        ? `<span style="color:#B7BEC6;font-size:10px;">–</span>`
         : tagesPlan.map((p) => {
             const done = isPlanDone(p);
             const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
@@ -3592,13 +3596,13 @@ function App() {
         const notizen = abwesend ? "" : notizenFuer(person, t.key)
           .map((n) => chip(`📝 ${escapeHtml(n.note)}`, "#8A7A1E", "#FEF9C3")).join("");
         const inhalt = abwesend
-          ? `<span style="color:#A2AAB3;font-size:9px;font-style:italic;">abwesend</span>`
-          : (arbeiten + notizen) || `<span style="color:#C3C7CB;font-size:9px;">–</span>`;
+          ? `<span style="color:#A2AAB3;font-size:10px;font-style:italic;">abwesend</span>`
+          : (arbeiten + notizen) || `<span style="color:#C3C7CB;font-size:10px;">–</span>`;
         return `<tr>
-          <td style="padding:2px 8px;border-bottom:1px solid #E2E4E7;border-right:2px solid #22262B;white-space:nowrap;font-size:9.5px;font-weight:700;${abwesend ? "color:#A2AAB3;" : ""}">
-            <span style="display:inline-block;width:13px;height:13px;border-radius:50%;background:${rolle.color};color:white;font-weight:800;font-size:7px;text-align:center;line-height:13px;margin-right:5px;">${escapeHtml(personKuerzel(person))}</span>${escapeHtml(person)}</td>
+          <td style="padding:2px 8px;border-bottom:1px solid #E2E4E7;border-right:2px solid #22262B;white-space:nowrap;font-size:11px;font-weight:700;${abwesend ? "color:#A2AAB3;" : ""}">
+            <span style="display:inline-block;width:15px;height:15px;border-radius:50%;background:${rolle.color};color:white;font-weight:800;font-size:8px;text-align:center;line-height:15px;margin-right:6px;">${escapeHtml(personKuerzel(person))}</span>${escapeHtml(person)}</td>
           <td style="padding:2px 6px;border-bottom:1px solid #E2E4E7;border-right:2px solid #22262B;text-align:center;">
-            ${farbe ? `<span style="display:inline-block;font-size:8px;font-weight:800;color:${farbe.text || "white"};background:${farbe.color};border-radius:3px;padding:1px 5px;">${escapeHtml(farbe.kurz || schicht)}</span>` : ""}</td>
+            ${farbe ? `<span style="display:inline-block;font-size:9px;font-weight:800;color:${farbe.text || "white"};background:${farbe.color};border-radius:3px;padding:1px 6px;">${escapeHtml(farbe.kurz || schicht)}</span>` : ""}</td>
           <td style="padding:2px 8px;border-bottom:1px solid #E2E4E7;">${inhalt}</td>
         </tr>`;
       }).join("");
@@ -3607,22 +3611,22 @@ function App() {
         ? `<tr><td colspan="3" style="padding:3px 8px;color:#8A9099;font-size:9px;font-style:italic;">Niemand eingeteilt.</td></tr>`
         : "";
 
-      return `<div style="border:1.5px solid #6B7280;border-radius:5px;overflow:hidden;margin-bottom:6px;page-break-inside:avoid;">
-        <div style="background:${t.we ? "#7FA6C4" : "#4B5259"};color:white;padding:3px 9px;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;">
+      return `<div style="border:1.5px solid #6B7280;border-radius:5px;overflow:hidden;margin-bottom:4px;page-break-inside:avoid;">
+        <div style="background:${t.we ? "#7FA6C4" : "#4B5259"};color:white;padding:3px 9px;font-weight:800;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;">
           ${t.datum.toLocaleDateString("de-DE", { weekday: "long" })}
           <span style="font-family:monospace;font-weight:400;opacity:0.9;font-size:9px;text-transform:none;letter-spacing:0;margin-left:8px;">${t.datum.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })} · KW ${getISOWeek(t.datum)}</span>
           ${feiertag ? `<span style="font-size:9px;color:#FFE3DE;margin-left:8px;">${escapeHtml(feiertag)}</span>` : ""}
         </div>
         <table>
           <colgroup><col style="width:150px;"><col style="width:52px;"><col></colgroup>
-          <thead><tr>
-            <th style="background:#F7F8F9;font-size:7.5px;text-transform:uppercase;color:#8A9099;letter-spacing:0.04em;text-align:left;padding:1px 8px;border-bottom:1.5px solid #6B7280;border-right:2px solid #22262B;">Person</th>
-            <th style="background:#F7F8F9;font-size:7.5px;text-transform:uppercase;color:#8A9099;letter-spacing:0.04em;text-align:left;padding:1px 6px;border-bottom:1.5px solid #6B7280;border-right:2px solid #22262B;">Schicht</th>
-            <th style="background:#F7F8F9;font-size:7.5px;text-transform:uppercase;color:#8A9099;letter-spacing:0.04em;text-align:left;padding:1px 8px;border-bottom:1.5px solid #6B7280;">Arbeiten &amp; Notizen</th>
-          </tr></thead>
+          ${tagNr === 0 ? `<thead><tr>
+            <th style="background:#F7F8F9;font-size:8.5px;text-transform:uppercase;color:#8A9099;letter-spacing:0.04em;text-align:left;padding:2px 8px;border-bottom:1.5px solid #6B7280;border-right:2px solid #22262B;">Person</th>
+            <th style="background:#F7F8F9;font-size:8.5px;text-transform:uppercase;color:#8A9099;letter-spacing:0.04em;text-align:left;padding:2px 6px;border-bottom:1.5px solid #6B7280;border-right:2px solid #22262B;">Schicht</th>
+            <th style="background:#F7F8F9;font-size:8.5px;text-transform:uppercase;color:#8A9099;letter-spacing:0.04em;text-align:left;padding:2px 8px;border-bottom:1.5px solid #6B7280;">Arbeiten &amp; Notizen</th>
+          </tr></thead>` : ""}
           <tbody>
             <tr>
-              <td style="padding:2px 8px;background:#FBF7F1;border-top:2px solid #22262B;border-bottom:2px solid #22262B;border-right:2px solid #22262B;font-weight:800;color:#C97A2B;white-space:nowrap;font-size:9.5px;">Wartungsplan</td>
+              <td style="padding:2px 8px;background:#FBF7F1;border-top:2px solid #22262B;border-bottom:2px solid #22262B;border-right:2px solid #22262B;font-weight:800;color:#C97A2B;white-space:nowrap;font-size:11px;">Wartungsplan</td>
               <td style="background:#FBF7F1;border-top:2px solid #22262B;border-bottom:2px solid #22262B;border-right:2px solid #22262B;"></td>
               <td style="padding:2px 8px;background:#FBF7F1;border-top:2px solid #22262B;border-bottom:2px solid #22262B;">${wartung}</td>
             </tr>
@@ -3642,8 +3646,8 @@ function App() {
     </head><body>
       <div id="blatt" style="width:702px;">
         <div style="text-align:center;margin-bottom:7px;">
-          <div style="font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:0.02em;">Planung</div>
-          <div style="font-family:monospace;font-size:10px;margin-top:1px;">KW ${kw} · ${vonStr} – ${bisStr}</div>
+          <div style="font-weight:900;font-size:18px;text-transform:uppercase;letter-spacing:0.02em;">Planung</div>
+          <div style="font-family:monospace;font-size:11px;margin-top:1px;">KW ${kw} · ${vonStr} – ${addDays(planungMontag, 4).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })} · Montag bis Freitag</div>
         </div>
         ${bloecke || "<p>Kein Team angelegt.</p>"}
       </div>
@@ -7012,7 +7016,7 @@ function App() {
         const a3 = /size:\s*A3/.test(vorlage.html);
         const blattBreite = a3 ? 1587 : quer ? 1123 : 794;
         const blattHoehe = a3 ? 1123 : quer ? 794 : 1123;
-        const rahmenBreite = 300;
+        const rahmenBreite = 430;
         const massstab = rahmenBreite / blattBreite;
         return (
         <div
@@ -7023,7 +7027,7 @@ function App() {
           <div
             role="dialog"
             aria-label="Was soll gedruckt werden?"
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "820px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "22px", width: "1020px", maxWidth: "100%", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">

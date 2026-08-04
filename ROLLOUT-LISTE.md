@@ -114,10 +114,11 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
       vorher lagen sie verstreut in den Werkzeugleisten (Schichtplan,
       Planung, Prüfnachweis). Im Dialog stehen die passenden Möglichkeiten
       des Bereichs und **daneben eine Vorschau des echten Blattes**
-- [x] Der Planungs-Ausdruck passt auf **eine** A4-Seite – das Blatt misst
-      sich selbst und verkleinert sich, statt auf eine zweite Seite zu
-      rutschen (gemessen: neun Personen mit voller Woche vorher 1563 px,
-      jetzt 1046 px bei 1047 px Platz)
+- [x] Der Planungs-Ausdruck zeigt **Montag bis Freitag** und passt auf
+      **eine** A4-Seite, gut leserlich. Das Blatt misst sich selbst und
+      verkleinert sich nur, wenn es muss (gemessen: sechs Personen ohne jede
+      Verkleinerung bei 11 px Schrift, neun Personen bei 7,9 px wirksam;
+      vorher waren es 1563 px auf 1047 px Platz, also zwei Seiten)
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)
