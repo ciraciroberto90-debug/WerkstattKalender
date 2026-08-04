@@ -72,7 +72,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 35 Härtetests und sieben weitere Suiten | Entwicklung |
+| `tests/` | 36 Härtetests und sieben weitere Suiten | Entwicklung |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
 
@@ -114,7 +114,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 35 Härtetests
+bash tests/run-hardness-tests.sh           # 36 Härtetests
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/rollout-test.js                 # Verteilung: Paket, Dienst, Doku, Versionswechsel

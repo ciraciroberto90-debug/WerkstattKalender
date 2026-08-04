@@ -32,8 +32,11 @@ const pruef = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++
 
   // ---- Aufbau ----
   const spalten = await p.locator("thead th").allInnerTexts();
-  pruef("Sechs feste Spalten mit Ausfallzeit und Bearbeiter",
-    spalten.length === 6 && /AUSFALLZEIT/i.test(spalten[3]) && /BEARBEITER/i.test(spalten[4]));
+  // Seit der Filterleiste steht die Nummer als erste Spalte - dort, wo im
+  // alten Schichtbuch "Code" stand. Die uebrigen sechs sind unveraendert.
+  pruef("Sieben feste Spalten, Nummer zuerst",
+    spalten.length === 7 && /NUMMER/i.test(spalten[0]) && /AUSFALLZEIT/i.test(spalten[4]) && /BEARBEITER/i.test(spalten[5]),
+    JSON.stringify(spalten));
 
   const zeile = (t) => p.locator("tbody tr").filter({ hasText: t }).first();
 
@@ -79,8 +82,10 @@ const pruef = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++
   await p.locator('input[type="search"]').fill("hydraulik"); await p.waitForTimeout(600);
   const treffer = await p.locator("tbody tr").count();
   pruef("Suche liefert eine flache Trefferliste", treffer > 0 && treffer < 20);
-  pruef("Trefferliste zeigt das Datum in der ersten Spalte",
-    /DATUM$/i.test((await p.locator("thead th").first().innerText()).trim()));
+  const kopf = await p.locator("thead th").allInnerTexts();
+  pruef("Trefferliste zeigt Nummer und dahinter das Datum",
+    /NUMMER/i.test((kopf[0] || "").trim()) && /DATUM$/i.test((kopf[1] || "").trim()),
+    JSON.stringify(kopf.slice(0, 2)));
   pruef("Trefferzahl steht in der Werkzeugzeile", /Treffer/.test(await p.locator("body").innerText()));
   await p.locator('input[type="search"]').fill(""); await p.waitForTimeout(500);
 

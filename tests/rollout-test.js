@@ -110,13 +110,18 @@ const hole = (adresse, kopf = {}) => new Promise((fertig, schief) => {
     const reihe = await p.evaluate(() => {
       const k = document.querySelector('button[aria-label="Links & Dokumente"]');
       if (!k) return null;
-      const karte = k.closest("div.wk-karte");
-      const r = karte.getBoundingClientRect();
+      // Die Hülle des Streifens ist der Kasten mit dem dunklen Hintergrund.
+      let e = k.parentElement;
+      while (e && getComputedStyle(e).backgroundColor !== "rgb(44, 49, 55)") e = e.parentElement;
+      if (!e) return null;
+      const r = e.getBoundingClientRect();
       return { hoehe: Math.round(r.height), rechts: Math.round(r.right), fensterBreite: window.innerWidth };
     });
-    check(`A: ${etikett} (${w} px) - die Linkreihe passt in die Breite`,
+    // Auf einem schmalen Gerät darf der Streifen umbrechen - er darf nur nicht
+    // seitwärts hinauslaufen und nicht den halben Bildschirm einnehmen.
+    check(`A: ${etikett} (${w} px) - der Linkstreifen passt in die Breite`,
       reihe !== null && reihe.rechts <= reihe.fensterBreite + 2 && reihe.hoehe < 200,
-      reihe ? `${reihe.hoehe} px hoch, rechte Kante ${reihe.rechts} von ${reihe.fensterBreite}` : "Reihe nicht gefunden");
+      reihe ? `${reihe.hoehe} px hoch, rechte Kante ${reihe.rechts} von ${reihe.fensterBreite}` : "Streifen nicht gefunden");
     await p.close();
   }
 

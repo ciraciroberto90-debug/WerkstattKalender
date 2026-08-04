@@ -429,15 +429,20 @@ const naechsteStoerNr = (liste, jahr) => {
   }
   return `${jahr}-${String(hoechste + 1).padStart(4, "0")}`;
 };
-// Wer behält die Nummer, wenn zwei Geräte in derselben Minute gemeldet haben?
-// Der Eintrag mit der kleineren Kennung. Die Regel ist auf beiden Geräten
-// dieselbe, also rückt genau einer weiter - nicht keiner und nicht beide.
-const behaeltNummer = (liste, eigener) => {
-  const gleiche = (liste || []).filter((x) => stoerNrLang(x) && stoerNrLang(x) === stoerNrLang(eigener));
-  if (gleiche.length < 2) return true;
-  const erster = gleiche.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))[0];
-  return erster.id === eigener.id;
-};
+// Hat sonst jemand dieselbe Nummer? Dann rückt DER weiter, der gerade
+// speichert - nicht der, den eine Regel dazu bestimmt.
+//
+// Gemessen: Eine symmetrische Regel ("der mit der kleineren Kennung behält
+// sie") reicht nicht. Wer zuerst schreibt, sieht den anderen beim
+// Zusammenführen noch gar nicht und prüft danach nie wieder. Fällt die Regel
+// zu seinen Gunsten aus, bleibt die Nummer doppelt - genau so ist der Test
+// (6) umgefallen, bevor das hier stand.
+//
+// Warum "wer gerade speichert" immer genau einer ist: Das Schreiben in die
+// gemeinsame Datei läuft über Lesen-Zusammenführen-Schreiben. Der zweite
+// Schreiber sieht den ersten also zwangsläufig, der erste den zweiten nie.
+const nummerSchonVergeben = (liste, eigener) =>
+  (liste || []).some((x) => x.id !== eigener.id && stoerNrLang(x) && stoerNrLang(x) === stoerNrLang(eigener));
 
 const LINK_INHABER_VORGABE = ["RC", "AR"];
 // Hintergrundfarben der Link-Symbole, der Reihe nach vergeben. Feste Folge
@@ -1291,7 +1296,7 @@ function App() {
       // Geräten. Der Bericht ist gerade erst entstanden, die Verschiebung sieht
       // also niemand.
       const meiner = (nachher || []).find((x) => x.id === s.id);
-      if (meiner && !behaeltNummer(nachher, meiner)) {
+      if (meiner && nummerSchonVergeben(nachher, meiner)) {
         const frei = naechsteStoerNr(nachher, jahr);
         await persistStoer((nachher || []).map((x) => (x.id === s.id ? { ...x, nr: frei } : x)));
       }
@@ -1555,6 +1560,33 @@ function App() {
     return stoerungen.filter((s) => !ab || String(s.date || "") >= ab).length;
   };
   const stoerOhneNummer = stoerungen.filter((s) => !stoerNrLang(s));
+  // Doppelte Nummern. Beim Speichern wird der übliche Fall abgefangen: Wer als
+  // Zweiter schreibt, sieht den Ersten beim Zusammenführen und rückt weiter.
+  // Gemessen ist aber auch der Fall, in dem beide gleichzeitig lesen und der
+  // Zweite den Ersten deshalb NOCH NICHT sieht - dann steht die Nummer zweimal
+  // da, und niemand merkt es. Deshalb wird sie hier gesucht und gemeldet.
+  // Bereinigt wird auf Klick, nicht im Hintergrund: In die gemeinsame Datei
+  // schreibt diese App nur, wenn jemand es ausgelöst hat.
+  const stoerDoppelteNummern = (() => {
+    const proNummer = new Map();
+    stoerungen.forEach((s) => {
+      const n = stoerNrLang(s);
+      if (!n) return;
+      if (!proNummer.has(n)) proNummer.set(n, []);
+      proNummer.get(n).push(s);
+    });
+    const aus = [];
+    proNummer.forEach((liste) => {
+      if (liste.length < 2) return;
+      // Der älteste Bericht behält die Nummer - die Reihenfolge ist auf jedem
+      // Gerät dieselbe, also kommt überall dasselbe Ergebnis heraus.
+      const sortiert = liste.slice().sort((a, b) =>
+        String(a.gemeldetAt || a.date || "").localeCompare(String(b.gemeldetAt || b.date || "")) ||
+        String(a.id).localeCompare(String(b.id)));
+      aus.push(...sortiert.slice(1));
+    });
+    return aus;
+  })();
 
   // ---- Schichtbuch-Gruppierung: nach Datum, darin nach Schicht (Früh/Spät/Nacht) ----
   const stoerSichtbar = stoerungenSortiert
@@ -1643,6 +1675,42 @@ function App() {
       neue.set(s.id, `${jahr}-${String(n).padStart(4, "0")}`);
     }
     await persistStoer(stoerungen.map((s) => (neue.has(s.id) ? { ...s, nr: neue.get(s.id) } : s)));
+  };
+
+  // Doppelte Nummern auflösen: Der älteste Bericht behält seine, die anderen
+  // rücken hinten an. Ein Bericht, den jemand schon in der Hand hat, ändert
+  // dabei seine Nummer - deshalb steht es ausdrücklich in der Rückfrage.
+  const nummernBereinigen = async () => {
+    if (!stoerDoppelteNummern.length) return;
+    if (!window.confirm(
+      `${stoerDoppelteNummern.length} Bericht(e) tragen eine Nummer, die es schon gibt.\n\n` +
+      `Sie bekommen die nächsten freien Nummern. Der jeweils ältere Bericht behält seine.\n\n` +
+      `Fortfahren?`)) return;
+    let liste = stoerungen;
+    for (const s of stoerDoppelteNummern) {
+      const jahr = String(s.date || s.gemeldetAt || "").slice(0, 4) || String(today.getFullYear());
+      const frei = naechsteStoerNr(liste, jahr);
+      liste = liste.map((x) => (x.id === s.id ? { ...x, nr: frei } : x));
+    }
+    await persistStoer(liste);
+  };
+
+  // Alle Störberichte entfernen - für den einen Fall, für den es gedacht ist:
+  // Testdaten vor dem Roll-out wegräumen.
+  //
+  // Wichtig, warum das ÜBER DIE APP laufen muss und nicht über das Leeren der
+  // JSON-Datei im Explorer: Beim Zusammenführen werden beide Seiten vereinigt.
+  // Eine von Hand geleerte Datei wäre also nach dem nächsten Speichern eines
+  // verbundenen Rechners wieder voll - der hat die Berichte ja noch lokal.
+  // Erst das Löschen in der App hinterlässt Löschvermerke, und nur die halten
+  // die Einträge auf allen Geräten dauerhaft fern.
+  const alleStoerungenLoeschen = async () => {
+    if (!stoerungen.length) return;
+    const wort = window.prompt(
+      `ALLE ${stoerungen.length} Störberichte werden gelöscht – auch bei den Kollegen, dauerhaft.\n\n` +
+      `Zum Bestätigen das Wort LÖSCHEN eintippen:`);
+    if (String(wort || "").trim().toUpperCase() !== "LÖSCHEN") return;
+    await persistStoer([]);
   };
 
   const istTagOffen = (d, idx) => (stoerOffeneTage === null ? idx === 0 : stoerOffeneTage.has(d));
@@ -3584,9 +3652,13 @@ function App() {
         }
       `}</style>
 
-      {/* Kopfzeile */}
+      {/* Kopfzeile. Die Klammer außen herum hält Menüleiste und Linkstreifen
+          zusammen oben fest: Wäre nur die dunkle Leiste klebend, schöbe sich
+          der Streifen beim Scrollen darunter weg - und die Links wären genau
+          dann fort, wenn man weiter unten in einer Liste steht. */}
+      <div className="no-print sticky top-0 z-10">
       <div
-        className="no-print sticky top-0 z-10 px-4 py-3 flex flex-wrap items-center gap-3 justify-between"
+        className="px-4 py-3 flex flex-wrap items-center gap-3 justify-between"
         style={{ backgroundColor: "#22262B" }}
       >
         {/* Auf schmalen Geräten (Tablet hochkant, Telefon) ist nebeneinander kein
@@ -3774,6 +3846,222 @@ function App() {
           </>
           )}
         </div>
+      </div>
+
+      {/* Linkstreifen: eine Zeile unter der Menüleiste, in jedem Reiter da.
+          Nur-Leser sehen ihn gar nicht (nicht ausgegraut, sondern nicht
+          vorhanden) - die Sammlung ist Arbeitsmittel der Bearbeiter.
+          Ein Klick auf einen Chip öffnet, ohne vorher aufklappen zu müssen;
+          Anlegen und Sortieren stecken im Feld hinter „Links". */}
+      {!readerMode && (
+        <div style={{ backgroundColor: "#2C3137", borderTop: "1px solid rgba(255,255,255,0.08)", position: "relative" }}>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5">
+            <button
+              onClick={schalteLinks}
+              aria-label="Links & Dokumente"
+              aria-expanded={linksOffen}
+              title={linksOffen ? "Linkliste schließen" : "Links anlegen, ändern, sortieren"}
+              className="flex items-center gap-1.5 shrink-0"
+            >
+              <span style={{ fontSize: "0.72rem" }}>🔗</span>
+              <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: linksOffen ? "#fff" : "#B7BEC6" }}>Links</span>
+              {/* Das Dreieck dreht sich - dieselbe Sprache wie im Schichtbuch */}
+              <span style={{ color: "#8A9099", fontSize: "0.58rem", display: "inline-block", transform: linksOffen ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}>▶</span>
+            </button>
+            {/* Kürzel-Umschalter: bestimmt, wessen Sammlung im Streifen steht */}
+            <div className="flex items-center gap-1 shrink-0">
+              {links.inhaber.map((k) => {
+                const an = k === linkInhaberAktiv;
+                return (
+                  <button
+                    key={k}
+                    onClick={() => waehleLinkInhaber(k)}
+                    className="rounded font-extrabold"
+                    style={{
+                      fontSize: "0.6rem", letterSpacing: "0.3px", padding: "2px 7px",
+                      backgroundColor: an ? "#C97A2B" : "rgba(255,255,255,0.08)",
+                      color: an ? "#fff" : "#B7BEC6",
+                    }}
+                    title={`Links von ${k} anzeigen`}
+                  >{k}</button>
+                );
+              })}
+            </div>
+            <span className="shrink-0" style={{ width: "1px", height: "14px", backgroundColor: "rgba(255,255,255,0.14)" }} />
+            {linkListe.length === 0 ? (
+              <span className="text-[11px]" style={{ color: "#8A9099" }}>
+                Noch keine Links für {linkInhaberAktiv} – auf <b style={{ color: "#B7BEC6" }}>🔗 Links</b> klicken und anlegen.
+              </span>
+            ) : linkListe.map((l) => {
+              const meldung = linkKopiert && linkKopiert.id === l.id ? linkKopiert.text : "";
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => oeffneLink(l)}
+                  className="inline-flex items-center gap-1.5 rounded shrink-0"
+                  style={{
+                    padding: "2px 8px 2px 6px", maxWidth: "230px",
+                    backgroundColor: meldung ? "rgba(201,122,43,0.22)" : "rgba(255,255,255,0.07)",
+                  }}
+                  title={linkArt(l.ziel) === "oeffnen" ? `Im Browser öffnen: ${linkAdresse(l.ziel)}` : `Öffnen: ${l.ziel}`}
+                >
+                  <span style={{ fontSize: "0.8rem", lineHeight: 1.4 }}>{alsSymbol(l.symbol)}</span>
+                  <span className="text-[11px] font-semibold" style={{ color: "#E7EAEE", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
+                </button>
+              );
+            })}
+            {/* Rückmeldung zum letzten Klick. Ohne sie klickt man ins Leere:
+                die Datei geht in einem anderen Fenster auf, im Cockpit sieht
+                es aus, als sei nichts geschehen. */}
+            {linkKopiert && linkKopiert.text && (
+              <span className="text-[11px] font-bold shrink-0" style={{ color: linkKopiert.text.startsWith("✗") ? "#E8A9A3" : "#8FCBA5" }}>
+                {linkKopiert.text}
+              </span>
+            )}
+          </div>
+
+          {linksOffen && (
+              <div className="px-4 pb-3" style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20 }}>
+                <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "white", border: "1px solid #E7EAEE", maxWidth: "660px", boxShadow: "0 10px 28px rgba(0,0,0,0.28)" }}>
+                <div className="flex items-center gap-2 px-1 pb-1">
+                  <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>Sammlung {linkInhaberAktiv}</span>
+                  <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C97A2B", fontSize: "0.62rem" }}>{linkListe.length}</span>
+                  <button
+                    onClick={() => setLinkEntwurf({ name: "", ziel: "", symbol: "🔗" })}
+                    className="ml-auto text-xs font-bold"
+                    style={{ color: "#C97A2B" }}
+                  >＋ Link</button>
+                </div>
+                <div style={{ maxWidth: "640px" }}>
+                  {linkListe.length === 0 && !linkEntwurf && (
+                    <div className="px-2 py-3 text-xs" style={{ color: "#8A9099" }}>
+                      Noch keine Links für <b>{linkInhaberAktiv}</b>. Über <b>＋ Link</b> den ersten anlegen.
+                    </div>
+                  )}
+                  {linkListe.map((l, i) => {
+                    const art = linkArt(l.ziel);
+                    const meldung = linkKopiert && linkKopiert.id === l.id ? linkKopiert.text : "";
+                    return (
+                      <div key={l.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-slate-50" style={{ marginBottom: "2px" }}>
+                        <button onClick={() => oeffneLink(l)} className="flex items-center gap-2.5 flex-1 text-left" style={{ minWidth: 0 }}
+                          title={art === "oeffnen" ? "Im Browser öffnen" : "Öffnen"}>
+                          <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: "26px", height: "26px", borderRadius: "8px", backgroundColor: "#F1F4F7", fontSize: "0.9rem" }}>{alsSymbol(l.symbol)}</span>
+                          <span style={{ minWidth: 0 }}>
+                            <span className="block font-semibold" style={{ fontSize: "0.85rem", color: "#22262B" }}>{l.name}</span>
+                            <span className="block" style={{ fontSize: "0.72rem", color: meldung ? (meldung.startsWith("✗") ? "#B23A34" : "#2F7D4F") : "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {meldung || l.ziel}
+                            </span>
+                          </span>
+                        </button>
+                        {/* Nur Pfeile, wenn es etwas zu tauschen gibt */}
+                        {linkListe.length > 1 && (
+                          <span className="flex flex-col flex-shrink-0" style={{ gap: "3px", lineHeight: 1 }}>
+                            <button onClick={() => verschiebeLink(l.id, -1)} disabled={i === 0} title="nach oben"
+                              style={{ fontSize: "0.58rem", lineHeight: 1, color: i === 0 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▲</button>
+                            <button onClick={() => verschiebeLink(l.id, 1)} disabled={i === linkListe.length - 1} title="nach unten"
+                              style={{ fontSize: "0.58rem", lineHeight: 1, color: i === linkListe.length - 1 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▼</button>
+                          </span>
+                        )}
+                        <button onClick={() => setLinkEntwurf({ ...l })} className="flex-shrink-0" title="bearbeiten"
+                          style={{ fontSize: "0.8rem", color: "#8A9099", padding: "0 4px" }}>✎</button>
+                      </div>
+                    );
+                  })}
+
+                  {linkEntwurf && (
+                    <div className="rounded-lg px-3 py-3 mt-1" style={{ backgroundColor: "#F7F9FA", border: "1px solid #E7EAEE" }}>
+                      <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: "#6B7480" }}>
+                        {linkEntwurf.id ? "Link ändern" : `Neuer Link für ${linkInhaberAktiv}`}
+                      </div>
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          value={linkEntwurf.symbol}
+                          onChange={(e) => setLinkEntwurf({ ...linkEntwurf, symbol: e.target.value })}
+                          className="rounded border px-2 py-1.5 text-center"
+                          style={{ width: "48px", borderColor: "#D8DEE4", fontSize: "0.95rem" }}
+                          title="Symbol"
+                        />
+                        <input
+                          value={linkEntwurf.name}
+                          onChange={(e) => setLinkEntwurf({ ...linkEntwurf, name: e.target.value })}
+                          placeholder="Bezeichnung, z. B. Betriebsanleitung Presse 3"
+                          className="rounded border px-2.5 py-1.5 flex-1"
+                          style={{ borderColor: "#D8DEE4", fontSize: "0.85rem" }}
+                        />
+                      </div>
+                      {/* Symbol-Vorschläge, nach Themen geordnet: schneller als das
+                          Emoji-Fenster von Windows und auf die Werkstatt gemünzt.
+                          Wer etwas anderes will, tippt es links ins Feld.
+                          Die letzte Reihe ist zum Kennzeichnen da - Halle 1,
+                          Linie 3, roter Bereich: Zahlen und Farbpunkte
+                          unterscheiden gleichartige Links auf einen Blick,
+                          wofür es sonst kein passendes Bild gibt. */}
+                      <div className="mb-2">
+                        {[
+                          ["Unterlagen", ["🔗", "📘", "📕", "📗", "📙", "📄", "📑", "📃", "📁", "🗂", "📇", "📝", "✏", "📌", "🖨", "📷", "🗺", "🔖"]],
+                          ["Werkstatt", ["🔧", "🔩", "⚙", "🛠", "🪛", "🔨", "🪚", "✂", "📏", "📐", "⛓", "🧰", "🧲", "🪜", "🧱", "🪣", "🧹", "🔬"]],
+                          ["Technik", ["⚡", "🔌", "💡", "🔦", "🔥", "💧", "🌡", "🧪", "🛢", "🌀", "❄", "📡", "🔋", "🖥", "⌨", "🖱", "📠", "🎛"]],
+                          ["Anlagen", ["🏭", "🏗", "🚜", "🛗", "🛞", "🏢", "🏬", "🚪", "🪟", "🧊", "🌬", "🚿", "⛽", "♻", "🪫", "🔔", "🪝", "⏱"]],
+                          ["Betrieb", ["🛒", "📞", "✉", "🕐", "⏰", "📅", "🗓", "📊", "📈", "💶", "🚚", "🚛", "📦", "🏷", "👷", "🧑‍🔧", "👥", "💬"]],
+                          ["Sicherheit", ["📋", "⚠", "🧯", "🚨", "🦺", "🥽", "🧤", "🥾", "🪖", "🚑", "🩹", "🔒", "🔑", "✅", "❌", "🚫", "☣", "☢"]],
+                          ["Kennzeichen", ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "🅰", "🅱", "⭐", "❗", "❓", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"]],
+                        ].map(([gruppe, symbole]) => (
+                          // Raster statt frei umbrechender Zeile: Emoji sind
+                          // unterschiedlich breit, und mit flex-wrap rutschte
+                          // je nach Reihe eines in die nächste Zeile - die
+                          // Reihen standen dann verschieden hoch da. Im
+                          // Raster liegt jedes Symbol in einer festen Spalte.
+                          <div key={gruppe} className="flex items-center gap-1" style={{ marginBottom: "2px" }}>
+                            <span style={{ fontSize: "0.62rem", color: "#A2AAB3", width: "62px", flex: "0 0 auto" }}>{gruppe}</span>
+                            <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${symbole.length}, minmax(0, 1fr))` }}>
+                              {symbole.map((s) => (
+                                <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
+                                  title={"Symbol " + alsSymbol(s)}
+                                  className="rounded" style={{ fontSize: "0.95rem", lineHeight: 1.3, padding: "2px 0", backgroundColor: alsSymbol(linkEntwurf.symbol) === alsSymbol(s) ? "#E7EEF4" : "transparent" }}>{alsSymbol(s)}</button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <input
+                        value={linkEntwurf.ziel}
+                        onChange={(e) => setLinkEntwurf({ ...linkEntwurf, ziel: e.target.value })}
+                        placeholder="Adresse oder Pfad, z. B. intranet.firma.de/teile oder \\server\Ordner\Datei.pdf"
+                        className="rounded border px-2.5 py-1.5 w-full"
+                        style={{ borderColor: "#D8DEE4", fontSize: "0.85rem", fontFamily: "ui-monospace, monospace" }}
+                      />
+                      {/* Vorher sagen, was passieren wird - nicht erst beim Klick */}
+                      {linkEntwurf.ziel.trim() && (
+                        <div className="mt-1.5" style={{ fontSize: "0.72rem", color: "#6B7480" }}>
+                          {linkArt(linkEntwurf.ziel) === "oeffnen"
+                            ? <>öffnet sich im Browser: <span style={{ fontFamily: "ui-monospace, monospace" }}>{linkAdresse(linkEntwurf.ziel)}</span></>
+                            : ueberDienst()
+                              ? "Laufwerks- oder Netzwerkpfad: Der Klick öffnet die Datei über das Cockpit-Fenster. Ist es geschlossen, wird der Pfad stattdessen kopiert."
+                              : "Laufwerks- oder Netzwerkpfad: Ein Klick legt ihn in die Zwischenablage, im Explorer einfügen. Direkt öffnen geht nur, wenn das Cockpit über das Desktop-Symbol gestartet wurde."}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-3">
+                        <button onClick={speichereLinkEntwurf}
+                          disabled={!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()}
+                          className="rounded px-3 py-1.5 font-bold text-white"
+                          style={{ backgroundColor: (!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()) ? "#C3C7CB" : "#2F6690", fontSize: "0.8rem" }}>
+                          Speichern
+                        </button>
+                        <button onClick={() => setLinkEntwurf(null)} className="rounded px-3 py-1.5 font-bold border"
+                          style={{ borderColor: "#D8DEE4", color: "#5B6572", fontSize: "0.8rem" }}>Abbrechen</button>
+                        {linkEntwurf.id && (
+                          <button onClick={() => loescheLink(linkEntwurf.id)} className="ml-auto rounded px-3 py-1.5 font-bold border"
+                            style={{ borderColor: "#E7B9B3", color: "#B23A34", fontSize: "0.8rem" }}>Löschen</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              </div>
+          )}
+        </div>
+      )}
       </div>
 
       {/* Hinweisleisten zur gemeinsamen Datei */}
@@ -4021,7 +4309,18 @@ function App() {
                   </button>
                 );
               })}
-              <div style={{ height: "6px" }} />
+              {/* Ganz unten und unauffällig: gebraucht wird das genau einmal,
+                  zum Wegräumen der Testdaten vor dem Roll-out. */}
+              {stoerDarfSchreiben && (
+                <>
+                  <div style={{ height: "1px", backgroundColor: "#EEF0F2", margin: "7px 0" }} />
+                  <button onClick={alleStoerungenLoeschen} className="w-full text-left"
+                    style={{ padding: "5px 12px 9px", fontSize: "0.68rem", color: "#A2AAB3" }}
+                    title="Entfernt alle Störberichte – auch bei den Kollegen">
+                    Alle Berichte löschen …
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -4065,6 +4364,39 @@ function App() {
               </button>
             )}
           </div>
+
+          {/* Berichte aus der Zeit vor den Nummern. Der Hinweis steht nur da,
+              solange es welche gibt, und trägt sie erst auf Klick nach - ein
+              Schreibvorgang in die gemeinsame Datei, den niemand ausgelöst
+              hat, wäre genau die falsche Überraschung. */}
+          {stoerModus === "liste" && stoerDarfSchreiben && stoerOhneNummer.length > 0 && (
+            <div className="flex items-center gap-2 mb-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#FBF4E7", border: "1px solid #EAD9BC" }}>
+              <span className="text-xs" style={{ color: "#7A5B22" }}>
+                <b>{stoerOhneNummer.length}</b> {stoerOhneNummer.length === 1 ? "Bericht hat" : "Berichte haben"} noch keine Nummer – sie stammen aus der Zeit davor.
+              </span>
+              <button onClick={nummernNachtragen} className="ml-auto rounded font-bold text-white shrink-0"
+                style={{ backgroundColor: "#C97A2B", padding: "4px 10px", fontSize: "0.72rem" }}>
+                Nummern nachtragen
+              </button>
+            </div>
+          )}
+
+          {/* Zwei Berichte mit derselben Nummer. Entsteht nur, wenn zwei Leute
+              in derselben Sekunde melden und beide noch den Stand von vorher
+              gelesen haben. Selten - aber eine Nummer, die es zweimal gibt,
+              ist schlimmer als keine, deshalb wird sie hier angezeigt. */}
+          {stoerModus === "liste" && stoerDarfSchreiben && stoerDoppelteNummern.length > 0 && (
+            <div className="flex items-center gap-2 mb-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#FBEAE8", border: "1px solid #E7B9B3" }}>
+              <span className="text-xs" style={{ color: "#9A2B22" }}>
+                <b>{stoerDoppelteNummern.length}</b> {stoerDoppelteNummern.length === 1 ? "Bericht trägt" : "Berichte tragen"} eine Nummer, die es schon gibt
+                {" "}({stoerDoppelteNummern.map((s) => stoerNrKurz(s)).join(", ")}).
+              </span>
+              <button onClick={nummernBereinigen} className="ml-auto rounded font-bold text-white shrink-0"
+                style={{ backgroundColor: "#C0392B", padding: "4px 10px", fontSize: "0.72rem" }}>
+                Nummern bereinigen
+              </button>
+            </div>
+          )}
 
           {/* Fehler-Banner der Störungen-Datei */}
           {stoerErr && (
@@ -4403,242 +4735,6 @@ function App() {
       {/* Cockpit: Übersicht (Kennzahlen + Tagesliste + Pinnwand) */}
       {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
-          {/* Meine Links: eine schmale Reihe runder Symbole ganz oben, wie die
-              Apps auf einem Telefon. Ein Klick öffnet - kein Aufklappen davor.
-              Bewusst flach gehalten (Symbol 40 px, eine Zeile Text): Die Reihe
-              steht über den Kennzahlen und darf sie nicht nach unten schieben.
-              Nur-Leser sehen sie gar nicht - nicht ausgegraut, sondern nicht
-              vorhanden: Die Sammlung ist Arbeitsmittel der Bearbeiter. */}
-          {!readerMode && (
-            <div className="wk-karte mb-2.5 px-3 py-2">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0" style={{ paddingTop: "3px" }}>
-                  <button
-                    onClick={schalteLinks}
-                    aria-label="Links & Dokumente"
-                    aria-expanded={linksOffen}
-                    title={linksOffen ? "Verwaltung schließen" : "Links anlegen, ändern, sortieren"}
-                    className="flex items-center gap-1 mb-1.5"
-                  >
-                    <span className="font-extrabold uppercase tracking-wide" style={{ color: "#22262B", fontSize: "var(--wk-txt-etikett)" }}>🔗 Meine Links</span>
-                    {/* Das Dreieck dreht sich - dieselbe Sprache wie im Schichtbuch */}
-                    <span style={{ color: "#8A9099", fontSize: "0.55rem", display: "inline-block", transform: linksOffen ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}>▶</span>
-                  </button>
-                  {/* Kürzel-Umschalter: bestimmt, wessen Sammlung in der Reihe steht */}
-                  <div className="flex items-center gap-1">
-                    {links.inhaber.map((k) => {
-                      const an = k === linkInhaberAktiv;
-                      return (
-                        <button
-                          key={k}
-                          onClick={() => waehleLinkInhaber(k)}
-                          className="rounded font-extrabold"
-                          style={{
-                            fontSize: "0.6rem", letterSpacing: "0.3px", padding: "2px 8px",
-                            backgroundColor: an ? "#22262B" : "#F1F4F7",
-                            color: an ? "#fff" : "#6B7480",
-                          }}
-                          title={`Links von ${k} anzeigen`}
-                        >{k}</button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-start gap-x-3 gap-y-1.5 flex-1" style={{ minWidth: 0 }}>
-                  {linkListe.map((l, i) => {
-                    const gemeldet = linkKopiert && linkKopiert.id === l.id;
-                    return (
-                      <button
-                        key={l.id}
-                        onClick={() => oeffneLink(l)}
-                        className="flex flex-col items-center"
-                        style={{ width: "88px" }}
-                        title={linkArt(l.ziel) === "oeffnen" ? `Im Browser öffnen: ${linkAdresse(l.ziel)}` : `Öffnen: ${l.ziel}`}
-                      >
-                        <span
-                          className="inline-flex items-center justify-center"
-                          style={{
-                            width: "40px", height: "40px", borderRadius: "13px", fontSize: "1.15rem",
-                            // Feste Farbfolge statt Zufall: Beim nächsten Öffnen
-                            // liegt dasselbe Symbol in derselben Farbe - sonst
-                            // müsste man jedes Mal neu suchen.
-                            backgroundColor: gemeldet ? "#FBE7C9" : LINK_FARBEN[i % LINK_FARBEN.length],
-                            boxShadow: "0 2px 5px rgba(30,40,50,0.08)",
-                          }}
-                        >{alsSymbol(l.symbol)}</span>
-                        <span
-                          className="font-semibold text-center"
-                          style={{
-                            fontSize: "0.62rem", lineHeight: 1.25, marginTop: "4px", color: "#3C444C",
-                            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                            overflow: "hidden", wordBreak: "break-word",
-                          }}
-                        >{l.name}</span>
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => { if (!linksOffen) schalteLinks(); setLinkEntwurf({ name: "", ziel: "", symbol: "🔗" }); }}
-                    className="flex flex-col items-center"
-                    style={{ width: "88px" }}
-                    title={`Neuen Link für ${linkInhaberAktiv} anlegen`}
-                  >
-                    <span className="inline-flex items-center justify-center" style={{ width: "40px", height: "40px", borderRadius: "13px", fontSize: "1.05rem", color: "#A2AAB3", border: "2px dashed #CFD6DD" }}>＋</span>
-                    <span className="font-semibold text-center" style={{ fontSize: "0.62rem", lineHeight: 1.25, marginTop: "4px", color: "#A2AAB3" }}>hinzufügen</span>
-                  </button>
-                  {/* Rückmeldung zum letzten Klick. Ohne sie klickt man ins Leere:
-                      die Datei geht in einem anderen Fenster auf, im Cockpit
-                      sieht es aus, als sei nichts geschehen. */}
-                  {linkKopiert && linkKopiert.text && (
-                    <span className="font-bold self-center" style={{ fontSize: "0.72rem", color: linkKopiert.text.startsWith("✗") ? "#B23A34" : "#2F7D4F" }}>
-                      {linkKopiert.text}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {linksOffen && (
-                <div className="mt-2 pt-2" style={{ borderTop: "1px solid #EEF0F2" }}>
-                  <div className="flex items-center gap-2 px-1 pb-1">
-                    <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>Sammlung {linkInhaberAktiv}</span>
-                    <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C97A2B", fontSize: "0.62rem" }}>{linkListe.length}</span>
-                    <button
-                      onClick={() => setLinkEntwurf({ name: "", ziel: "", symbol: "🔗" })}
-                      className="ml-auto text-xs font-bold"
-                      style={{ color: "#C97A2B" }}
-                    >＋ Link</button>
-                  </div>
-                  <div style={{ maxWidth: "640px" }}>
-                    {linkListe.length === 0 && !linkEntwurf && (
-                      <div className="px-2 py-3 text-xs" style={{ color: "#8A9099" }}>
-                        Noch keine Links für <b>{linkInhaberAktiv}</b>. Über <b>＋ Link</b> den ersten anlegen.
-                      </div>
-                    )}
-                    {linkListe.map((l, i) => {
-                      const art = linkArt(l.ziel);
-                      const meldung = linkKopiert && linkKopiert.id === l.id ? linkKopiert.text : "";
-                      return (
-                        <div key={l.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-slate-50" style={{ marginBottom: "2px" }}>
-                          <button onClick={() => oeffneLink(l)} className="flex items-center gap-2.5 flex-1 text-left" style={{ minWidth: 0 }}
-                            title={art === "oeffnen" ? "Im Browser öffnen" : "Öffnen"}>
-                            <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: "26px", height: "26px", borderRadius: "8px", backgroundColor: "#F1F4F7", fontSize: "0.9rem" }}>{alsSymbol(l.symbol)}</span>
-                            <span style={{ minWidth: 0 }}>
-                              <span className="block font-semibold" style={{ fontSize: "0.85rem", color: "#22262B" }}>{l.name}</span>
-                              <span className="block" style={{ fontSize: "0.72rem", color: meldung ? (meldung.startsWith("✗") ? "#B23A34" : "#2F7D4F") : "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {meldung || l.ziel}
-                              </span>
-                            </span>
-                          </button>
-                          {/* Nur Pfeile, wenn es etwas zu tauschen gibt */}
-                          {linkListe.length > 1 && (
-                            <span className="flex flex-col flex-shrink-0" style={{ gap: "3px", lineHeight: 1 }}>
-                              <button onClick={() => verschiebeLink(l.id, -1)} disabled={i === 0} title="nach oben"
-                                style={{ fontSize: "0.58rem", lineHeight: 1, color: i === 0 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▲</button>
-                              <button onClick={() => verschiebeLink(l.id, 1)} disabled={i === linkListe.length - 1} title="nach unten"
-                                style={{ fontSize: "0.58rem", lineHeight: 1, color: i === linkListe.length - 1 ? "#DDE2E7" : "#8A9099", padding: "0 4px" }}>▼</button>
-                            </span>
-                          )}
-                          <button onClick={() => setLinkEntwurf({ ...l })} className="flex-shrink-0" title="bearbeiten"
-                            style={{ fontSize: "0.8rem", color: "#8A9099", padding: "0 4px" }}>✎</button>
-                        </div>
-                      );
-                    })}
-
-                    {linkEntwurf && (
-                      <div className="rounded-lg px-3 py-3 mt-1" style={{ backgroundColor: "#F7F9FA", border: "1px solid #E7EAEE" }}>
-                        <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: "#6B7480" }}>
-                          {linkEntwurf.id ? "Link ändern" : `Neuer Link für ${linkInhaberAktiv}`}
-                        </div>
-                        <div className="flex gap-2 mb-2">
-                          <input
-                            value={linkEntwurf.symbol}
-                            onChange={(e) => setLinkEntwurf({ ...linkEntwurf, symbol: e.target.value })}
-                            className="rounded border px-2 py-1.5 text-center"
-                            style={{ width: "48px", borderColor: "#D8DEE4", fontSize: "0.95rem" }}
-                            title="Symbol"
-                          />
-                          <input
-                            value={linkEntwurf.name}
-                            onChange={(e) => setLinkEntwurf({ ...linkEntwurf, name: e.target.value })}
-                            placeholder="Bezeichnung, z. B. Betriebsanleitung Presse 3"
-                            className="rounded border px-2.5 py-1.5 flex-1"
-                            style={{ borderColor: "#D8DEE4", fontSize: "0.85rem" }}
-                          />
-                        </div>
-                        {/* Symbol-Vorschläge, nach Themen geordnet: schneller als das
-                            Emoji-Fenster von Windows und auf die Werkstatt gemünzt.
-                            Wer etwas anderes will, tippt es links ins Feld.
-                            Die letzte Reihe ist zum Kennzeichnen da - Halle 1,
-                            Linie 3, roter Bereich: Zahlen und Farbpunkte
-                            unterscheiden gleichartige Links auf einen Blick,
-                            wofür es sonst kein passendes Bild gibt. */}
-                        <div className="mb-2">
-                          {[
-                            ["Unterlagen", ["🔗", "📘", "📕", "📗", "📙", "📄", "📑", "📃", "📁", "🗂", "📇", "📝", "✏", "📌", "🖨", "📷", "🗺", "🔖"]],
-                            ["Werkstatt", ["🔧", "🔩", "⚙", "🛠", "🪛", "🔨", "🪚", "✂", "📏", "📐", "⛓", "🧰", "🧲", "🪜", "🧱", "🪣", "🧹", "🔬"]],
-                            ["Technik", ["⚡", "🔌", "💡", "🔦", "🔥", "💧", "🌡", "🧪", "🛢", "🌀", "❄", "📡", "🔋", "🖥", "⌨", "🖱", "📠", "🎛"]],
-                            ["Anlagen", ["🏭", "🏗", "🚜", "🛗", "🛞", "🏢", "🏬", "🚪", "🪟", "🧊", "🌬", "🚿", "⛽", "♻", "🪫", "🔔", "🪝", "⏱"]],
-                            ["Betrieb", ["🛒", "📞", "✉", "🕐", "⏰", "📅", "🗓", "📊", "📈", "💶", "🚚", "🚛", "📦", "🏷", "👷", "🧑‍🔧", "👥", "💬"]],
-                            ["Sicherheit", ["📋", "⚠", "🧯", "🚨", "🦺", "🥽", "🧤", "🥾", "🪖", "🚑", "🩹", "🔒", "🔑", "✅", "❌", "🚫", "☣", "☢"]],
-                            ["Kennzeichen", ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "🅰", "🅱", "⭐", "❗", "❓", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"]],
-                          ].map(([gruppe, symbole]) => (
-                            // Raster statt frei umbrechender Zeile: Emoji sind
-                            // unterschiedlich breit, und mit flex-wrap rutschte
-                            // je nach Reihe eines in die nächste Zeile - die
-                            // Reihen standen dann verschieden hoch da. Im
-                            // Raster liegt jedes Symbol in einer festen Spalte.
-                            <div key={gruppe} className="flex items-center gap-1" style={{ marginBottom: "2px" }}>
-                              <span style={{ fontSize: "0.62rem", color: "#A2AAB3", width: "62px", flex: "0 0 auto" }}>{gruppe}</span>
-                              <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${symbole.length}, minmax(0, 1fr))` }}>
-                                {symbole.map((s) => (
-                                  <button key={s} onClick={() => setLinkEntwurf({ ...linkEntwurf, symbol: s })}
-                                    title={"Symbol " + alsSymbol(s)}
-                                    className="rounded" style={{ fontSize: "0.95rem", lineHeight: 1.3, padding: "2px 0", backgroundColor: alsSymbol(linkEntwurf.symbol) === alsSymbol(s) ? "#E7EEF4" : "transparent" }}>{alsSymbol(s)}</button>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <input
-                          value={linkEntwurf.ziel}
-                          onChange={(e) => setLinkEntwurf({ ...linkEntwurf, ziel: e.target.value })}
-                          placeholder="Adresse oder Pfad, z. B. intranet.firma.de/teile oder \\server\Ordner\Datei.pdf"
-                          className="rounded border px-2.5 py-1.5 w-full"
-                          style={{ borderColor: "#D8DEE4", fontSize: "0.85rem", fontFamily: "ui-monospace, monospace" }}
-                        />
-                        {/* Vorher sagen, was passieren wird - nicht erst beim Klick */}
-                        {linkEntwurf.ziel.trim() && (
-                          <div className="mt-1.5" style={{ fontSize: "0.72rem", color: "#6B7480" }}>
-                            {linkArt(linkEntwurf.ziel) === "oeffnen"
-                              ? <>öffnet sich im Browser: <span style={{ fontFamily: "ui-monospace, monospace" }}>{linkAdresse(linkEntwurf.ziel)}</span></>
-                              : ueberDienst()
-                                ? "Laufwerks- oder Netzwerkpfad: Der Klick öffnet die Datei über das Cockpit-Fenster. Ist es geschlossen, wird der Pfad stattdessen kopiert."
-                                : "Laufwerks- oder Netzwerkpfad: Ein Klick legt ihn in die Zwischenablage, im Explorer einfügen. Direkt öffnen geht nur, wenn das Cockpit über das Desktop-Symbol gestartet wurde."}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-3">
-                          <button onClick={speichereLinkEntwurf}
-                            disabled={!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()}
-                            className="rounded px-3 py-1.5 font-bold text-white"
-                            style={{ backgroundColor: (!linkEntwurf.name.trim() || !linkEntwurf.ziel.trim()) ? "#C3C7CB" : "#2F6690", fontSize: "0.8rem" }}>
-                            Speichern
-                          </button>
-                          <button onClick={() => setLinkEntwurf(null)} className="rounded px-3 py-1.5 font-bold border"
-                            style={{ borderColor: "#D8DEE4", color: "#5B6572", fontSize: "0.8rem" }}>Abbrechen</button>
-                          {linkEntwurf.id && (
-                            <button onClick={() => loescheLink(linkEntwurf.id)} className="ml-auto rounded px-3 py-1.5 font-bold border"
-                              style={{ borderColor: "#E7B9B3", color: "#B23A34", fontSize: "0.8rem" }}>Löschen</button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Kennzahlen-Kacheln (Farbakzent links, ohne Icon) */}
           {/* Sechs Felder nebeneinander gehen erst ab sehr breiten Bildschirmen auf.
               Darunter brechen sie um, statt sich gegenseitig zusammenzuquetschen -

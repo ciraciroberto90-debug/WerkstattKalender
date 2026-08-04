@@ -182,14 +182,23 @@ Störungen, nicht den Rest.
 
 ## 5. Die Bereiche im Detail
 
-- **Meine Links (nur für Bearbeiter):** eine schmale Reihe runder Symbole ganz oben
-  in der Übersicht, über den Kennzahlen. Ein Klick öffnet die Datei oder die Seite.
+- **Linkstreifen (nur für Bearbeiter):** eine Zeile direkt unter der Menüleiste, in
+  jedem Bereich sichtbar. Ein Klick auf einen Chip öffnet die Datei oder die Seite.
   Über **RC/AR** wird zwischen der eigenen Sammlung und der der Vertretung
-  umgeschaltet; hinter **🔗 Meine Links** stecken Anlegen, Ändern, Sortieren und Löschen.
+  umgeschaltet; hinter **🔗 Links** stecken Anlegen, Ändern, Sortieren und Löschen.
   Die Sammlung liegt in der gemeinsamen Datei – die Vertretung hat dieselbe Liste
   vor sich. Laufwerks- und Netzwerkpfade öffnen sich direkt, wenn das Cockpit über
   das Desktop-Symbol gestartet wurde; sonst wird der Pfad in die Zwischenablage
   gelegt und im Explorer eingefügt.
+- **Störungen:** links die Filterleiste mit denselben Begriffen wie im alten
+  Schichtbuch (*nach Datum und Schicht*, *nach Anlage*, *nach Nummer*, *nach
+  Status*, *nach Gewerk*), dazu Zeitraum und Schnellzugriff mit Zählern. Jeder
+  Störbericht trägt eine **Nummer** aus Jahr und laufender Zahl (`2026-0214`);
+  in der Liste steht der hintere Teil. Offene Berichte haben links eine rote
+  Kante. Tragen zwei Berichte dieselbe Nummer – möglich, wenn zwei Leute in
+  derselben Sekunde melden –, meldet die App das und bereinigt es auf Klick.
+  Ganz unten in der Leiste steht **Alle Berichte löschen** für den einen Fall,
+  für den es gedacht ist: Testdaten vor dem Roll-out wegräumen.
 - **Übersicht / Cockpit:** Kennzahlen (heute fällig, erledigt, überfällig, Monats- und
   Jahresquote als Halbkreis **mit ausgeschriebenem Monatsnamen**), eine **analoge Uhr**
   mit der laufenden Schicht (z. B. *Do., 23.07. · Spät ab 14:00*), „Heute da",

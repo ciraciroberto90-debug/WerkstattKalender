@@ -69,8 +69,11 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 - [ ] **Zwei Sicherungsdateien `…_2026-07-28`** – vorher `Selbsttest.cmd`
       laufen lassen und die Eintragszahlen vergleichen. Erst wenn die aktuelle
       Datei mindestens so viele Einträge hat, können sie weg.
-- [ ] **`werkstatt-stoerungen.json` ist rund 1 KB**, also praktisch leer.
-      Prüfen, ob das so gewollt ist oder ob eine falsche Datei verbunden wurde.
+- [ ] **Testdaten aus den Störberichten entfernen** – in der App über
+      *Alle Berichte löschen* ganz unten in der Filterleiste. Das Leeren der
+      JSON im Explorer genügt NICHT: Beim Zusammenführen werden beide Seiten
+      vereinigt, ein verbundener Rechner würde die Berichte zurückbringen.
+      Nur das Löschen in der App hinterlässt Löschvermerke.
 
 ## Offene Entscheidungen
 
@@ -90,8 +93,12 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 - [x] Zahnrad als festes Symbol der Verknüpfung (`shell32.dll,314`)
 - [x] Startpaket-ZIP wird gebaut statt von Hand gepackt (`tools/startpaket-bauen.js`)
 - [x] Linkbereich angelegt, je Kürzel eine Sammlung, nur für Bearbeiter
-- [x] Linkbereich als Reihe runder Symbole oben in der Übersicht („Meine Links"),
-      flach gehalten (gemessen 85 px), ein Klick pro Link
+- [x] Linkbereich als Streifen unter der Menüleiste – ein Klick pro Link, in
+      jedem Reiter sichtbar (gemessen: eine Zeile, unter 46 px)
+- [x] Störberichte tragen eine Nummer (Jahr + laufende Zahl), Filterleiste
+      links mit den Begriffen des alten Schichtbuchs, rote Kante bei offenen
+- [x] Doppelte Nummern werden gemeldet und auf Klick bereinigt – der Fall
+      entsteht, wenn zwei Leute in derselben Sekunde melden
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)
