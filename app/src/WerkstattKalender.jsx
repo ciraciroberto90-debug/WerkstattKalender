@@ -912,6 +912,8 @@ function App() {
   // bei jedem Start aufgeklappt vor die Seite gelegt. Die Chips im Streifen
   // sind ohnehin sichtbar; das Feld darunter braucht man nur zum Bearbeiten.
   const [linksOffen, setLinksOffen] = useState(false);
+  // Auswahl beim Jahreskalender: nur TPM, nur R+I oder beides zusammen.
+  const [jahresDruckOffen, setJahresDruckOffen] = useState(false);
   const [linkInhaber, setLinkInhaber] = useState(() => {
     try { return (localStorage.getItem("werkstatt-links-inhaber") || "").toUpperCase(); } catch (e) { return ""; }
   });
@@ -3709,72 +3711,140 @@ function App() {
   };
 
   /* ---- Jahreskalender TPM & R+I fürs Board (A3 quer) ----
-     Gedacht zum Aufhängen: eine Zeile je Anlage bzw. R+I-Punkt, zwölf Spalten
-     für die Monate. In der Zelle stehen die Tage, an denen etwas ansteht -
-     grün, sobald alles davon erledigt ist. So sieht man aus drei Metern
-     Entfernung, wo das Jahr über noch etwas offen ist.
-     A3 statt A4, weil zwölf Monate mal zwanzig Anlagen auf A4 nicht mehr
-     lesbar sind; wer nur A4 hat, druckt es verkleinert oder auf zwei Blätter. */
-  const buildJahresKalenderHTML = (jahr) => {
-    const zeilenQuellen = [
-      ...tpmAnlagen.map((a) => ({ name: a.name, art: "TPM" })),
-      ...riItems.map((r) => ({ name: r.name, art: "RI" })),
-    ];
-    const relevant = entries.filter((e) => (e.category === "TPM" || e.category === "RI") && String(e.date || "").startsWith(String(jahr)));
+     Ein gewöhnlicher Wandkalender: zwölf Monatszeilen, 31 Tagesspalten. Der
+     Name der Anlage bzw. des R+I-Punktes steht senkrecht *im* Tag - damit
+     zeigt der Aushang dieselbe Form wie jeder Jahresplaner an der Wand, und
+     man liest an der Spalte ab, welcher Tag gemeint ist.
+     A3 statt A4, weil 31 Tagesspalten auf A4 nicht mehr lesbar sind. */
 
-    const kopf = MONTHS.map((m) => `<th style="border:1px solid #6B7280;padding:5px 2px;background:#F7F8F9;font-size:11px;font-weight:800;text-transform:uppercase;color:#5B6572;">${m.slice(0, 3)}</th>`).join("");
+  /* Wie groß darf die Schrift eines senkrechten Namens sein, damit er ganz in
+     den Tag passt? Ein Zeichen braucht rund 0,6 em Laufweite (gemessen an
+     Arial fett: der breiteste Name kam auf 0,581 - 0,6 ist die sichere Seite).
+     Der Name darf in mehrere Spalten umbrechen; wie viele hineinpassen, sagt
+     die Breite. Probiert wird von groß nach klein, genommen wird die erste
+     Größe, bei der der ganze Name Platz hat - lieber klein und vollständig
+     als groß und abgeschnitten. */
+  /* Der Zeilenumbruch wird nachgerechnet, nicht geschätzt. Der Browser geht
+     gierig vor: Was nicht mehr in die laufende Spalte passt, kommt zuerst
+     KOMPLETT in eine neue - erst wenn ein Wort auch dort nicht ganz Platz
+     hat, wird es mittendrin getrennt. Genau diese Reihenfolge bildet die
+     Schleife ab und liefert, wie viele Spalten der Name senkrecht braucht.
+     0,62 em je Zeichen ist der sichere Wert (gemessen an Arial fett: der
+     breiteste Name kam auf 0,581). */
+  const spaltenBedarf = (name, platz, fs) => {
+    let spalten = 1, rest = platz;
+    for (const wort of String(name).split(" ").filter(Boolean)) {
+      let b = (wort.length + 1) * 0.62 * fs;            // Wort samt folgendem Leerzeichen
+      if (b <= rest) { rest -= b; continue; }
+      spalten++; rest = platz;                          // neue Spalte
+      while (b > rest) { b -= rest; spalten++; rest = platz; }
+      rest -= b;
+    }
+    return spalten;
+  };
+  /* Vom Kästchen gehen 3 px Randstreifen und 1 px Polster je Seite ab (die
+     Maße rechnen mit border-box), senkrecht 3 px oben und unten. */
+  const passtHinein = (name, hoehe, breite, fs) =>
+    spaltenBedarf(name, hoehe - 6, fs) * (fs * 1.2) <= breite - 6;
+  const passendeSchrift = (name, hoehe, breite, gross, klein) => {
+    for (let fs = gross; fs > klein; fs -= 0.5) {
+      if (passtHinein(name, hoehe, breite, fs)) return fs;
+    }
+    return klein;
+  };
+  /* Stehen drei lange Namen an einem Tag, bleibt jedem nur ein schmaler
+     Streifen - dann wird gekürzt, sichtbar mit „…". Lieber ein erkennbarer
+     Anfang als ein Name, der stumm aus dem Tag herausläuft. */
+  const kuerzeAufPlatz = (name, hoehe, breite, klein) => {
+    let text = String(name);
+    while (text.length > 1 && !passtHinein(text, hoehe, breite, klein)) {
+      text = text.slice(0, -1).trimEnd();
+    }
+    return text === String(name) ? text : text.slice(0, -1) + "…";
+  };
 
-    const zeilen = zeilenQuellen.map((q) => {
-      const meine = relevant.filter((e) => e.name === q.name && e.category === q.art);
-      const zellen = Array.from({ length: 12 }, (_, m) => {
-        const imMonat = meine.filter((e) => Number(String(e.date).slice(5, 7)) === m + 1);
-        if (!imMonat.length) return `<td style="border:1px solid #C9D0D8;background:#FCFDFD;"></td>`;
-        const erledigt = imMonat.filter((e) => e.status === "done").length;
-        const alle = imMonat.length;
-        const grund = erledigt === alle ? "#E4F1E8" : erledigt > 0 ? "#FBF4E7" : "#FBEAE8";
-        const rand = erledigt === alle ? "#2F7D4F" : erledigt > 0 ? "#C97A2B" : "#C0392B";
-        const tage = imMonat
-          .slice().sort((a, b) => String(a.date).localeCompare(String(b.date)))
-          .map((e) => `<span style="display:inline-block;font-size:10px;font-weight:800;color:${e.status === "done" ? "#2F7D4F" : "#22262B"};margin:0 2px;">${e.status === "done" ? "✓" : ""}${String(e.date).slice(8, 10)}</span>`)
-          .join("");
-        return `<td style="border:1px solid ${rand};background:${grund};padding:3px 2px;text-align:center;vertical-align:middle;">${tage}</td>`;
+  const buildJahresKalenderHTML = (jahr, art = "ALLE") => {
+    const feiertage = getHolidays(jahr);
+    const relevant = entries.filter((e) =>
+      (e.category === "TPM" || e.category === "RI") &&
+      (art === "ALLE" || e.category === art) &&
+      String(e.date || "").startsWith(String(jahr)));
+
+    const zeileHoehe = 79;          // passt zwölfmal auf ein A3 quer mit 10 mm Rand
+    const chipHoehe = zeileHoehe - 20;
+    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+
+    const kopfzeile = Array.from({ length: 31 }, (_, i) =>
+      `<th style="border:1px solid #DCE1E6;background:#FAFBFC;font-size:9px;font-weight:700;color:#6B7480;text-align:center;padding:3px 0;">${i + 1}</th>`).join("");
+
+    const zeilen = MONTHS.map((monatsName, m) => {
+      const tageImMonat = new Date(jahr, m + 1, 0).getDate();
+      const zellen = Array.from({ length: 31 }, (_, j) => {
+        const t = j + 1;
+        if (t > tageImMonat) return `<td style="border:1px solid #DCE1E6;background:#EDF0F3;"></td>`;
+        const key = dateKey(jahr, m, t);
+        const feiertag = feiertage.get(key);
+        const amTag = relevant.filter((e) => e.date === key);
+        // Die Tagesspalte ist auf A3 quer (bedruckbar 400 mm) rund 46 px breit.
+        // Stehen mehrere Termine am selben Tag, teilen sie sich diese Breite -
+        // sonst laufen die Namen aus der Spalte heraus.
+        const chipBreite = Math.max(8, Math.floor((44 - (amTag.length - 1)) / Math.max(1, amTag.length)));
+        const grund = feiertag ? "#FDF0EE" : isWeekend(jahr, m, t) ? "#F2F5F8" : "#FFFFFF";
+        const chips = amTag.map((e) => {
+          const fertig = e.status === "done";
+          const farben = fertig ? "background:#E2F0E7;color:#24603D;border-left:3px solid #2F7D4F;"
+            : e.category === "TPM" ? "background:#E3EDF5;color:#1F4A6B;border-left:3px solid #2F6690;"
+            : "background:#EFE7F5;color:#5B3579;border-left:3px solid #7A4E9B;";
+          // Kein Haken vor dem Namen: er kostet in der schmalen Spalte eine
+          // ganze Zeile. Erledigt erkennt man an der gruenen Farbe (Legende).
+          const fs = passendeSchrift(e.name, chipHoehe, chipBreite, 8, 5);
+          const text = kuerzeAufPlatz(e.name, chipHoehe, chipBreite, 5);
+          return `<span title="${escapeHtml(e.name)}" style="writing-mode:vertical-rl;display:block;font-weight:700;line-height:1.2;margin:1px auto 0;border-radius:2px;padding:3px 1px;overflow:hidden;overflow-wrap:break-word;${farben}font-size:${fs}px;height:${chipHoehe}px;max-width:${chipBreite}px;">${escapeHtml(text)}</span>`;
+        }).join("");
+        return `<td style="border:1px solid #DCE1E6;background:${grund};padding:2px 1px;vertical-align:top;height:${zeileHoehe}px;">
+          <span style="display:block;text-align:center;font-size:8px;font-weight:700;color:#98A1AA;">${WEEKDAYS[(new Date(jahr, m, t).getDay() + 6) % 7]}</span>
+          <div style="display:flex;gap:1px;justify-content:center;overflow:hidden;">${chips}</div>
+          ${feiertag && !amTag.length ? `<div style="writing-mode:vertical-rl;font-size:7px;color:#B23A34;margin:1px auto 0;height:${chipHoehe}px;overflow:hidden;">${escapeHtml(feiertag)}</div>` : ""}
+        </td>`;
       }).join("");
-      const farbe = q.art === "TPM" ? "#2F6690" : "#7A4E9B";
       return `<tr>
-        <td style="border:1px solid #6B7280;padding:4px 8px;background:#F7F8F9;font-size:12px;font-weight:700;line-height:1.25;">
-          <span style="display:inline-block;font-size:8px;font-weight:900;color:white;background:${farbe};border-radius:3px;padding:1px 5px;margin-right:6px;">${q.art === "TPM" ? "TPM" : "R+I"}</span>${escapeHtml(q.name)}</td>
+        <td style="border:1px solid #DCE1E6;border-left:4px solid #C9D0D8;background:#FFFFFF;font-size:11px;font-weight:800;color:#22262B;padding:4px 7px;vertical-align:top;">${monatsName}</td>
         ${zellen}</tr>`;
     }).join("");
 
     const offen = relevant.filter((e) => e.status !== "done").length;
-    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>TPM &amp; R+I Jahreskalender ${jahr}</title>
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${titel} Jahreskalender ${jahr}</title>
       <style>
         @page { size: A3 landscape; margin: 10mm; }
         * { box-sizing: border-box; }
-        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 10px; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
       </style>
     </head><body>
-      <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:12px;">
-        <div style="font-weight:900;font-size:28px;text-transform:uppercase;letter-spacing:0.02em;">TPM &amp; R+I · Jahreskalender ${jahr}</div>
-        <div style="font-family:monospace;font-size:13px;color:#5B6572;">${relevant.length} Termine · ${relevant.length - offen} erledigt · ${offen} offen</div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px;">
+        <div style="font-weight:900;font-size:21px;">Jahreskalender ${jahr} · ${titel}</div>
+        <div style="font-size:11px;color:#6B7480;">${relevant.length} Termine · ${relevant.length - offen} erledigt · ${offen} offen</div>
       </div>
       <table>
-        <colgroup><col style="width:300px;">${MONTHS.map(() => "<col>").join("")}</colgroup>
-        <thead><tr><th style="border:1px solid #6B7280;padding:5px 8px;background:#F7F8F9;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;color:#8A9099;">Anlage / Punkt</th>${kopf}</tr></thead>
-        <tbody>${zeilen || `<tr><td colspan="13" style="padding:20px;text-align:center;color:#8A9099;">Für ${jahr} ist nichts eingetragen.</td></tr>`}</tbody>
+        <colgroup><col style="width:78px;">${Array.from({ length: 31 }, () => "<col>").join("")}</colgroup>
+        <thead><tr><th style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:left;font-size:11px;font-weight:700;color:#6B7480;padding:3px 7px;">${jahr}</th>${kopfzeile}</tr></thead>
+        <tbody>${zeilen}</tbody>
       </table>
-      <div style="margin-top:10px;font-size:11px;color:#5B6572;">
-        <span style="display:inline-block;width:12px;height:12px;background:#E4F1E8;border:1px solid #2F7D4F;vertical-align:-2px;"></span> alles erledigt
-        &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#FBF4E7;border:1px solid #C97A2B;vertical-align:-2px;"></span> teilweise
-        &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#FBEAE8;border:1px solid #C0392B;vertical-align:-2px;"></span> nichts erledigt
-        &nbsp;&nbsp;· Die Zahl in der Zelle ist der Tag im Monat, ✓ = erledigt.
+      <div style="margin-top:8px;font-size:10px;color:#6B7480;">
+        <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">TPM</span>
+        &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#EFE7F5;color:#5B3579;border-left:4px solid #7A4E9B;">R+I</span>
+        &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E2F0E7;color:#24603D;border-left:4px solid #2F7D4F;">erledigt</span>
+        &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#F2F5F8;border:1px solid #C9D0D8;vertical-align:-2px;"></span> Wochenende
+        &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#FDF0EE;border:1px solid #C9D0D8;vertical-align:-2px;"></span> Feiertag
+        ${relevant.length ? "" : `&nbsp;&nbsp;· Für ${jahr} ist nichts eingetragen.`}
       </div>
     </body></html>`;
   };
 
-  const handlePrintJahresKalender = () => {
-    openPrintWindow(buildJahresKalenderHTML(year), `werkstatt-tpm-jahreskalender-${year}.html`);
+  const handlePrintJahresKalender = (art = "ALLE") => {
+    setJahresDruckOffen(false);
+    const kurz = art === "TPM" ? "tpm" : art === "RI" ? "ri" : "tpm-ri";
+    openPrintWindow(buildJahresKalenderHTML(year, art), `werkstatt-jahreskalender-${kurz}-${year}.html`);
   };
 
   const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
@@ -3936,18 +4006,45 @@ function App() {
               <Printer size={16} /> Drucken
             </button>
           )}
-          {/* Jahreskalender fuers TPM-Board: A3 quer, eine Zeile je Anlage.
-              Nur in der Jahresansicht - dort ist das Jahr auch gewaehlt. */}
+          {/* Jahreskalender fuers TPM-Board: A3 quer, ein Tagesraster.
+              Nur in der Jahresansicht - dort ist das Jahr auch gewaehlt.
+              Der Knopf klappt die drei Umfaenge auf, statt drei Knoepfe
+              nebeneinander in die Leiste zu haengen. */}
           {view === "JAHR" && (
-            <button
-              onClick={handlePrintJahresKalender}
-              className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: "#4B5259" }}
-              aria-label="Jahreskalender drucken"
-              title="TPM & R+I als Jahresübersicht fürs Board – A3 quer"
-            >
-              <Printer size={16} /> Jahreskalender
-            </button>
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setJahresDruckOffen((v) => !v)}
+                className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "#4B5259" }}
+                aria-label="Jahreskalender drucken"
+                aria-expanded={jahresDruckOffen}
+                title="TPM & R+I als Jahreskalender fürs Board – A3 quer"
+              >
+                <Printer size={16} /> Jahreskalender
+                <span style={{ fontSize: "0.6rem" }}>▾</span>
+              </button>
+              {jahresDruckOffen && (
+                <div
+                  className="absolute right-0 mt-1 rounded shadow-lg z-40"
+                  style={{ top: "100%", backgroundColor: "#fff", border: "1px solid #C9D0D8", minWidth: "190px" }}
+                >
+                  {[
+                    { art: "ALLE", text: "Beide (TPM & R+I)" },
+                    { art: "TPM", text: "Nur TPM" },
+                    { art: "RI", text: "Nur R+I" },
+                  ].map((w) => (
+                    <button
+                      key={w.art}
+                      onClick={() => handlePrintJahresKalender(w.art)}
+                      className="block w-full text-left px-3 py-2 text-sm font-bold hover:bg-slate-100"
+                      style={{ color: "#22262B" }}
+                    >
+                      {w.text}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {!readerMode && (
             <button

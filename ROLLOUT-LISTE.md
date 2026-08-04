@@ -101,7 +101,10 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 - [x] Schichtplan wochenweise drucken, quer, ein Blatt je KW (Aushang)
 - [x] Planungs-Ausdruck auf Hochformat und das Zeilen-Layout des Bildschirms
       umgestellt (vorher eine Tagesmatrix mit Kacheln)
-- [x] TPM & R+I als Jahreskalender fürs Board, A3 quer, eine Zeile je Anlage
+- [x] TPM & R+I als Jahreskalender fürs Board, A3 quer – ein gewöhnlicher
+      Wandkalender: zwölf Monatszeilen, 31 Tagesspalten, der Name steht
+      senkrecht im Tag. Helle Monatsbeschriftung statt schwarzer Balken,
+      und zur Wahl stehen „Beide", „Nur TPM" und „Nur R+I"
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)
