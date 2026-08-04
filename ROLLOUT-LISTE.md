@@ -8,7 +8,7 @@ Punkte, ohne Umschweife. Neue Aufgaben kommen unten dazu, erledigte wandern
 nach unten in „Erledigt" statt gelöscht zu werden – so bleibt nachvollziehbar,
 was schon durch ist.
 
-Stand: 30.07.2026
+Stand: 03.08.2026
 
 ---
 
@@ -38,7 +38,33 @@ Stand: 30.07.2026
       `arbeitsplatz/EMAIL-AN-KOLLEGEN.md`, PDF anhängen
       (`doku/Werkstatt-Cockpit-Einrichtung.pdf`).
 
+## Damit sich der 03.08. nicht wiederholt
+
+Am 03.08.2026 hatte der Vertreter nach dem Neuanlegen der Verknüpfung eine
+**leere Datei** verbunden statt der gemeinsamen. Symptome: kein Schichtplan,
+keine Links, seine Einträge kamen nicht an. Das Ordner-Symbol war trotzdem
+grün – verbunden war er ja, nur mit der falschen Datei. Beide Dateien heißen
+gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
+
+- [ ] **Pfad der verbundenen Datei anzeigen**, nicht nur den Namen – im
+      Ordner-Symbol (Mauszeiger) und im Teilen-Dialog. Zwei Dateien mit
+      demselben Namen sind sonst nicht auseinanderzuhalten.
+- [ ] **Hinweis nach dem Verbinden mit einer leeren Datei:** „Diese Datei
+      enthält keine Einträge. Ist das die richtige?" Nur direkt nach dem
+      Verbinden, nicht dauerhaft – eine wirklich neue Datei ist ja zu Recht
+      leer.
+- [ ] **App und Daten zusammenlegen** (siehe Punkt oben): Liegt die JSON im
+      selben Ordner wie die HTML, öffnet der Dateidialog gleich an der
+      richtigen Stelle. Das ist die eigentliche Wurzel.
+- [ ] **In die Klickanleitung:** den vollständigen Pfad der Datendatei
+      aufnehmen, zum Kopieren. Ohne ihn rät jeder beim Auswählen.
+
 ## Aufräumen im Datenordner
+
+- [ ] **Alte HTML-Kopien im App-Ordner** – der Selbsttest des Vertreters fand
+      `Werkstatt_Kalender_TPM (26).html`. Der Dienst liefert die zuletzt
+      geänderte aus; legt jemand eine alte Kopie neu ab, bekommen alle die
+      alte Version. Nur **eine** Datei liegen lassen.
 
 - [ ] **Zwei Sicherungsdateien `…_2026-07-28`** – vorher `Selbsttest.cmd`
       laufen lassen und die Eintragszahlen vergleichen. Erst wenn die aktuelle
