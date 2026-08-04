@@ -71,6 +71,40 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
       laufen lassen und die Eintragszahlen vergleichen. Erst wenn die aktuelle
       Datei mindestens so viele Einträge hat, können sie weg.
 
+## Umzug auf einen Server (geplant)
+
+App und Datendateien sollen künftig auf einem Server liegen statt in
+OneDrive. Zwei Dinge sind **vor** dem Aufsetzen zu klären, sonst steht die
+App hinterher still:
+
+- [ ] **Wenn die HTML vom Server ausgeliefert wird, dann zwingend über
+      `https` mit gültigem Zertifikat.** Gemessen am 04.08.2026 in Chromium:
+      über `http://<IP>:8080/` ist `window.showOpenFilePicker` **undefined**
+      (`isSecureContext = false`), über `localhost` dagegen vorhanden. Ohne
+      sicheren Ursprung gibt es keine gemeinsame Datei mehr – jeder arbeitet
+      still für sich, genau der Zustand vom 03.08., nur für alle.
+      Alternative: Die HTML bleibt lokal beim Ausliefer-Dienst (localhost),
+      und nur die **Daten** wandern auf die Server-Freigabe. Das ist der
+      billigste Weg und kostet keine Zeile Code.
+- [ ] **Der Ursprung wechselt = alle gemerkten Dateiverbindungen sind weg.**
+      Der Browser merkt sich den Dateiverweis pro Ursprung. Kommt die App
+      künftig von `https://server/…` statt von `localhost:8765`, muss
+      **jeder** die gemeinsame Datei einmal neu anwählen – der Vorgang, bei
+      dem am 03.08. eine leere Datei erwischt wurde. Deshalb: erst die vier
+      Punkte oben erledigen, dann umziehen, und den vollständigen Pfad
+      vorher an alle verteilen.
+- [ ] **Dateien per Klick öffnen braucht weiterhin den lokalen Dienst.** Eine
+      Seite vom zentralen Server kann keine Laufwerkspfade im Explorer
+      öffnen. `cockpit-server.ps1` müsste also bleiben, auch wenn die HTML
+      zentral liegt – ob eine `https`-Seite ihn ansprechen darf, ist vor der
+      Umstellung zu messen (Chrome behandelt `localhost` gesondert).
+
+**Was der Umzug bringt:** Liegen die Daten auf einer Server-Freigabe statt in
+OneDrive, entfallen Konfliktkopien und Sync-Verzug, und die Sicherung läuft
+über die Server-Sicherung mit. Die App selbst muss dafür nicht geändert
+werden – sie spricht ein eingebundenes Laufwerk genauso an wie den
+OneDrive-Ordner.
+
 ## Offene Entscheidungen
 
 - [ ] **Excel-Anbindung (OEE / Schichtpläne).** Gemessen ist: Chrome liest eine
