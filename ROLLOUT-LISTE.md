@@ -107,6 +107,13 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
       der Name steht waagrecht im Tag und wird bei Bedarf hinten gekürzt.
       Helle Monatsbeschriftung statt schwarzer Balken, und zur Wahl stehen
       „Beide", „Nur TPM" und „Nur R+I"
+- [x] Drucken in der Auswertung fragt erst nach: Umfang (beide / nur TPM /
+      nur R+I) und Blatt (Jahreskalender A3 quer, einzelner Monat A4 hoch,
+      Liste wie am Bildschirm)
+- [x] Der Planungs-Ausdruck passt auf **eine** A4-Seite – das Blatt misst
+      sich selbst und verkleinert sich, statt auf eine zweite Seite zu
+      rutschen (gemessen: neun Personen mit voller Woche vorher 1563 px,
+      jetzt 1046 px bei 1047 px Platz)
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)

@@ -235,21 +235,27 @@ const seedTeam = (personName) => {
     const jahr = page.getByRole('button', { name: /^Jahr$/ });
     if (await jahr.count()) { await jahr.first().click(); await page.waitForTimeout(500); }
 
-    ok('Jahreskalender: Knopf ist in der Jahresansicht da',
-      (await page.locator('button[aria-label="Jahreskalender drucken"]').count()) === 1);
-
-    // Der Knopf klappt drei Umfaenge auf - Roberto druckt je nach Board
-    // beides zusammen oder nur eine der beiden Listen.
-    await page.locator('button[aria-label="Jahreskalender drucken"]').click();
-    await page.waitForTimeout(200);
-    ok('Jahreskalender: drei Umfänge zur Wahl',
+    // In der Auswertung fragt der Drucken-Knopf erst, was aufs Papier soll.
+    await page.locator('button[aria-label="Drucken"]').click();
+    await page.waitForTimeout(300);
+    ok('Druck-Auswahl: der Drucken-Knopf fragt erst nach',
+      (await page.locator('div[role="dialog"][aria-label="Was soll gedruckt werden?"]').count()) === 1);
+    ok('Druck-Auswahl: drei Umfänge zur Wahl',
       (await page.getByRole('button', { name: 'Beide (TPM & R+I)' }).count()) === 1 &&
       (await page.getByRole('button', { name: 'Nur TPM' }).count()) === 1 &&
       (await page.getByRole('button', { name: 'Nur R+I' }).count()) === 1);
+    ok('Druck-Auswahl: Jahr, einzelner Monat und Bildschirmliste zur Wahl',
+      (await page.getByRole('button', { name: /^Jahreskalender 2026/ }).count()) === 1 &&
+      (await page.getByRole('button', { name: /^Einzelner Monat/ }).count()) === 1 &&
+      (await page.getByRole('button', { name: /^Liste wie am Bildschirm/ }).count()) === 1);
+    // Die zwölf Monatsknoepfe erscheinen erst, wenn ein Monat gewaehlt werden soll -
+    // sonst steht der Dialog voller Knoepfe, die niemand braucht.
+    ok('Druck-Auswahl: die Monate erscheinen erst bei „Einzelner Monat"',
+      (await page.getByRole('button', { name: 'August', exact: true }).count()) === 0);
 
     const [popup] = await Promise.all([
       page.waitForEvent('popup'),
-      page.getByRole('button', { name: 'Beide (TPM & R+I)' }).click(),
+      page.locator('div[role="dialog"] button:has-text("Drucken")').click(),
     ]);
     await popup.waitForLoadState('domcontentloaded');
     // Die Blattgroesse wird an der bedruckbaren A3-Flaeche gemessen:
@@ -320,11 +326,12 @@ const seedTeam = (personName) => {
 
     // Die beiden Filter: was nicht gewaehlt ist, steht auch nicht auf dem Blatt.
     for (const [knopf, drauf, weg] of [['Nur TPM', 'Presse 7', 'Regalprobe 9'], ['Nur R+I', 'Regalprobe 9', 'Presse 7']]) {
-      await page.locator('button[aria-label="Jahreskalender drucken"]').click();
-      await page.waitForTimeout(200);
+      await page.locator('button[aria-label="Drucken"]').click();
+      await page.waitForTimeout(250);
+      await page.getByRole('button', { name: knopf }).click();
       const [p2] = await Promise.all([
         page.waitForEvent('popup'),
-        page.getByRole('button', { name: knopf }).click(),
+        page.locator('div[role="dialog"] button:has-text("Drucken")').click(),
       ]);
       await p2.waitForLoadState('domcontentloaded');
       await p2.waitForTimeout(300);
@@ -332,6 +339,89 @@ const seedTeam = (personName) => {
       ok(`Jahreskalender: „${knopf}" zeigt nur diese Liste`, t2.includes(drauf) && !t2.includes(weg));
       await p2.close();
     }
+
+    // ---- Einzelner Monat: A4 hoch, nur dieser Monat, eine Seite ----
+    await page.locator('button[aria-label="Drucken"]').click();
+    await page.waitForTimeout(250);
+    await page.getByRole('button', { name: 'Beide (TPM & R+I)' }).click();
+    await page.getByRole('button', { name: /^Einzelner Monat/ }).click();
+    await page.waitForTimeout(200);
+    ok('Monatsblatt: nach der Wahl stehen zwölf Monate bereit',
+      (await page.getByRole('button', { name: 'März', exact: true }).count()) === 1);
+    await page.getByRole('button', { name: 'März', exact: true }).click();
+    const [p3] = await Promise.all([
+      page.waitForEvent('popup'),
+      page.locator('div[role="dialog"] button:has-text("Drucken")').click(),
+    ]);
+    await p3.waitForLoadState('domcontentloaded');
+    // A4 hoch, 10 mm Rand, 96 dpi: 794 x 1123 minus 2 x 38 px = 718 x 1047.
+    await p3.setViewportSize({ width: 756, height: 1047 });
+    await p3.waitForTimeout(400);
+    const monatHtml = await p3.content();
+    const monatText = await p3.locator('body').innerText();
+    ok('Monatsblatt: A4 hoch', /@page[^}]*size:\s*A4 portrait/.test(monatHtml));
+    ok('Monatsblatt: 31 Tage im März', (await p3.locator('tbody tr').count()) === 31);
+    ok('Monatsblatt: nur der gewählte Monat steht drauf',
+      monatText.includes('März 2026') && monatText.includes('Presse 7') && !monatText.includes('Regalprobe 9'));
+    ok('Monatsblatt: passt auf eine A4-Seite',
+      (await p3.evaluate(() => document.body.scrollHeight)) <= 1047);
+    await p3.close();
+    await page.close();
+  }
+
+  // ---- Test 6: Die Arbeitsplanung muss auf EINE A4-Seite passen ----
+  // Ein Aushang, der auf zwei Seiten rutscht, ist keiner - die zweite Seite
+  // haengt selten daneben. Geprueft wird mit einer vollen Mannschaft und
+  // Arbeiten an jedem Tag, nicht mit einem leeren Plan.
+  {
+    const namen = ['Roberto Ciraci', 'Andreas Reindl', 'Markus Hofmann', 'Stefan Weber', 'Thomas Bauer',
+                   'Michael Schmid', 'Jürgen Klein', 'Daniel Vogel', 'Patrick Huber'];
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    page.on('pageerror', (e) => console.log('PAGEERROR (Planung A4):', e.message));
+    await page.clock.setFixedTime(new Date('2026-08-04T09:00:00'));
+    await page.addInitScript((n) => {
+      delete window.showOpenFilePicker; delete window.showSaveFilePicker;
+      localStorage.setItem('werkstatt-kalender-config', JSON.stringify({
+        tpmAnlagen: [], riItems: [],
+        team: n.map((name, i) => ({ name, rolle: i % 3 === 0 ? 'elek' : i % 3 === 1 ? 'mech' : 'azubi' })),
+      }));
+      const eintraege = [];
+      for (let d = 3; d <= 9; d++) {
+        const tag = `2026-08-0${d}`;
+        n.forEach((name, i) => eintraege.push({
+          id: `a${d}-${i}`, date: tag, category: 'BACKLOG', name: 'Wartung Pumpe ' + i,
+          note: 'Lager tauschen, Dichtung prüfen', wer: name, geplant: tag, art: i % 2 ? 'elek' : 'mech',
+        }));
+      }
+      localStorage.setItem('werkstatt-kalender-entries', JSON.stringify(eintraege));
+    }, namen);
+    await page.goto(APP);
+    await page.waitForTimeout(900);
+    await page.getByRole('button', { name: 'Planung', exact: true }).click();
+    await page.waitForTimeout(500);
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup'),
+      page.locator('button[aria-label="Planung drucken"]').click(),
+    ]);
+    await popup.waitForLoadState('domcontentloaded');
+    await popup.setViewportSize({ width: 756, height: 1047 });
+    await popup.waitForTimeout(500);
+    const mass = await popup.evaluate(() => {
+      const b = document.getElementById('blatt');
+      return { hoehe: document.body.scrollHeight, breite: b ? b.getBoundingClientRect().width : -1,
+               massstab: b ? Number(getComputedStyle(b).zoom || b.style.zoom || 1) : -1,
+               tage: document.querySelectorAll('table').length };
+    });
+    ok('Planung: neun Personen und volle Woche passen auf EINE A4-Seite',
+      mass.hoehe > 0 && mass.hoehe <= 1047);
+    console.log(`      gemessen: ${mass.hoehe} px hoch, Maßstab ${mass.massstab}`);
+    // Verkleinert werden darf, verschwinden nicht: alle sieben Tage bleiben drauf.
+    ok('Planung: dabei geht kein Tag verloren', mass.tage === 7);
+    // Die feste Blattbreite ist der Grund, warum die Messung ueberhaupt gilt -
+    // ohne sie bricht der Bildschirm anders um als das Papier.
+    ok('Planung: das Blatt hat die Breite der A4-Seite (± 2 px)',
+      Math.abs(mass.breite - 702) <= 2);
+    await popup.close();
     await page.close();
   }
 

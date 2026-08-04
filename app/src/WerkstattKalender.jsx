@@ -912,8 +912,11 @@ function App() {
   // bei jedem Start aufgeklappt vor die Seite gelegt. Die Chips im Streifen
   // sind ohnehin sichtbar; das Feld darunter braucht man nur zum Bearbeiten.
   const [linksOffen, setLinksOffen] = useState(false);
-  // Auswahl beim Jahreskalender: nur TPM, nur R+I oder beides zusammen.
-  const [jahresDruckOffen, setJahresDruckOffen] = useState(false);
+  // Druck-Auswahl in der Auswertung: erst fragen, was aufs Papier soll.
+  const [druckWahlOffen, setDruckWahlOffen] = useState(false);
+  const [druckUmfang, setDruckUmfang] = useState("ALLE");   // ALLE | TPM | RI
+  const [druckBlatt, setDruckBlatt] = useState("JAHR");     // JAHR | MONAT | LISTE
+  const [druckMonat, setDruckMonat] = useState(new Date().getMonth());
   const [linkInhaber, setLinkInhaber] = useState(() => {
     try { return (localStorage.getItem("werkstatt-links-inhaber") || "").toUpperCase(); } catch (e) { return ""; }
   });
@@ -3403,6 +3406,31 @@ function App() {
   // Gemeinsame Druck-/Popup-Logik, damit TPM-Plan, Schichtplan und Planung
   // dieselbe zuverlässige Fallback-Kette (Popup -> Download bei blockiertem
   // Popup) nutzen, statt sie dreimal separat zu pflegen.
+  /* ---- „Passt auf ein Blatt" ----
+     Ein Aushang, der auf zwei Seiten rutscht, ist keiner - die zweite Seite
+     hängt selten daneben. Deshalb misst sich das fertige Blatt im Druckfenster
+     selbst und verkleinert sich so weit, bis es auf eine Seite passt.
+     Zwei Dinge sind dabei entscheidend:
+     - Die feste Breite in Pixeln. Ohne sie würde am Bildschirm anders
+       umbrochen als auf dem Papier, und die Messung wäre wertlos.
+     - `zoom` statt `transform`. `transform` verkleinert nur das Bild, der
+       Platzbedarf im Seitenfluss bleibt - Chrome würde trotzdem umbrechen.
+     Maße bei 96 dpi: A4 hoch mit 10 mm Rand sind 718 x 1047 px, davon gehen
+     die 8 px Polster des Körpers ab. */
+  const passtAufEinBlatt = (breite, hoehe) => `<script>
+    (function () {
+      var b = document.getElementById('blatt');
+      if (!b) return;
+      var f = 1;
+      function hoeheBei(x) {
+        b.style.zoom = x;
+        b.style.width = Math.round(${breite} / x) + 'px';
+        return b.getBoundingClientRect().height;
+      }
+      while (f > 0.45 && hoeheBei(f) > ${hoehe}) f = Math.round((f - 0.02) * 100) / 100;
+    })();
+  <\/script>`;
+
   const openPrintWindow = (html, downloadName) => {
     let popup = null;
     try {
@@ -3613,11 +3641,14 @@ function App() {
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
       </style>
     </head><body>
-      <div style="text-align:center;margin-bottom:10px;">
-        <div style="font-weight:900;font-size:18px;text-transform:uppercase;letter-spacing:0.02em;">Planung</div>
-        <div style="font-family:monospace;font-size:11px;margin-top:2px;">KW ${kw} · ${vonStr} – ${bisStr}</div>
+      <div id="blatt" style="width:702px;">
+        <div style="text-align:center;margin-bottom:7px;">
+          <div style="font-weight:900;font-size:16px;text-transform:uppercase;letter-spacing:0.02em;">Planung</div>
+          <div style="font-family:monospace;font-size:10px;margin-top:1px;">KW ${kw} · ${vonStr} – ${bisStr}</div>
+        </div>
+        ${bloecke || "<p>Kein Team angelegt.</p>"}
       </div>
-      ${bloecke || "<p>Kein Team angelegt.</p>"}
+      ${passtAufEinBlatt(702, 1031)}
     </body></html>`;
   };
 
@@ -3802,10 +3833,77 @@ function App() {
     </body></html>`;
   };
 
-  const handlePrintJahresKalender = (art = "ALLE") => {
-    setJahresDruckOffen(false);
-    const kurz = art === "TPM" ? "tpm" : art === "RI" ? "ri" : "tpm-ri";
-    openPrintWindow(buildJahresKalenderHTML(year, art), `werkstatt-jahreskalender-${kurz}-${year}.html`);
+  /* ---- Monatsblatt (A4 hoch) ----
+     Derselbe Kalender, nur für einen Monat: die Tage untereinander, daneben
+     was ansteht. Für den Aushang am Schrank oder zum Mitnehmen - dafür ist
+     ein A3-Bogen zu groß. */
+  const buildMonatsKalenderHTML = (jahr, monat, art = "ALLE") => {
+    const feiertage = getHolidays(jahr);
+    const relevant = entries.filter((e) =>
+      (e.category === "TPM" || e.category === "RI") &&
+      (art === "ALLE" || e.category === art) &&
+      String(e.date || "").startsWith(`${jahr}-${pad(monat + 1)}`));
+    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+
+    const zeilen = Array.from({ length: new Date(jahr, monat + 1, 0).getDate() }, (_, j) => {
+      const t = j + 1;
+      const key = dateKey(jahr, monat, t);
+      const feiertag = feiertage.get(key);
+      const amTag = relevant.filter((e) => e.date === key);
+      const grund = feiertag ? "#FDF0EE" : isWeekend(jahr, monat, t) ? "#F2F5F8" : "#FFFFFF";
+      const kaesten = amTag.map((e) => {
+        const fertig = e.status === "done";
+        const farben = fertig ? "background:#E2F0E7;color:#24603D;border-left:3px solid #2F7D4F;"
+          : e.category === "TPM" ? "background:#E3EDF5;color:#1F4A6B;border-left:3px solid #2F6690;"
+          : "background:#EFE7F5;color:#5B3579;border-left:3px solid #7A4E9B;";
+        return `<span style="${farben}display:inline-block;font-size:10px;font-weight:700;border-radius:2px;padding:1px 6px;margin:1px 4px 1px 0;">${escapeHtml(e.name)}</span>`;
+      }).join("");
+      return `<tr>
+        <td style="border:1px solid #DCE1E6;background:${grund};text-align:right;padding:2px 6px;font-size:11px;font-weight:800;width:34px;">${t}</td>
+        <td style="border:1px solid #DCE1E6;background:${grund};padding:2px 6px;font-size:9px;font-weight:700;color:#98A1AA;width:30px;">${WEEKDAYS[(new Date(jahr, monat, t).getDay() + 6) % 7]}</td>
+        <td style="border:1px solid #DCE1E6;background:${grund};padding:1px 6px;">${kaesten
+          || (feiertag ? `<span style="font-size:9px;color:#B23A34;">${escapeHtml(feiertag)}</span>` : "")}</td>
+      </tr>`;
+    }).join("");
+
+    const offen = relevant.filter((e) => e.status !== "done").length;
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${titel} ${MONTHS[monat]} ${jahr}</title>
+      <style>
+        @page { size: A4 portrait; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+      </style>
+    </head><body>
+      <div id="blatt" style="width:702px;">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:7px;">
+          <div style="font-weight:900;font-size:17px;">${MONTHS[monat]} ${jahr} · ${titel}</div>
+          <div style="font-size:10px;color:#6B7480;">${relevant.length} Termine · ${relevant.length - offen} erledigt · ${offen} offen</div>
+        </div>
+        <table><tbody>${zeilen}</tbody></table>
+        <div style="margin-top:7px;font-size:10px;color:#6B7480;">
+          <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">TPM</span>
+          &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#EFE7F5;color:#5B3579;border-left:4px solid #7A4E9B;">R+I</span>
+          &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E2F0E7;color:#24603D;border-left:4px solid #2F7D4F;">erledigt</span>
+          ${relevant.length ? "" : `&nbsp;&nbsp;· Für ${MONTHS[monat]} ${jahr} ist nichts eingetragen.`}
+        </div>
+      </div>
+      ${passtAufEinBlatt(702, 1031)}
+    </body></html>`;
+  };
+
+  /* Führt aus, was im Druck-Dialog gewählt wurde. */
+  const handleDruckWahl = () => {
+    setDruckWahlOffen(false);
+    const kurz = druckUmfang === "TPM" ? "tpm" : druckUmfang === "RI" ? "ri" : "tpm-ri";
+    if (druckBlatt === "JAHR") {
+      openPrintWindow(buildJahresKalenderHTML(year, druckUmfang), `werkstatt-jahreskalender-${kurz}-${year}.html`);
+    } else if (druckBlatt === "MONAT") {
+      openPrintWindow(buildMonatsKalenderHTML(year, druckMonat, druckUmfang),
+        `werkstatt-monatskalender-${kurz}-${year}-${pad(druckMonat + 1)}.html`);
+    } else {
+      handlePrint();   // die Liste, so wie sie am Bildschirm steht
+    }
   };
 
   const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
@@ -3960,52 +4058,17 @@ function App() {
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
           {view !== "COCKPIT" && view !== "TPMINFO" && (
             <button
-              onClick={handlePrint}
+              /* In der Auswertung wird zuerst gefragt, was aufs Papier soll -
+                 Jahreskalender, ein einzelner Monat oder die Liste vom
+                 Bildschirm. Anderswo gibt es nur den einen Ausdruck, dort
+                 waere die Rueckfrage ein leerer Klick. */
+              onClick={() => ((view === "JAHR" || view === "MONAT") ? setDruckWahlOffen(true) : handlePrint())}
               className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
               style={{ backgroundColor: "#C97A2B" }}
+              aria-label="Drucken"
             >
               <Printer size={16} /> Drucken
             </button>
-          )}
-          {/* Jahreskalender fuers TPM-Board: A3 quer, ein Tagesraster.
-              Nur in der Jahresansicht - dort ist das Jahr auch gewaehlt.
-              Der Knopf klappt die drei Umfaenge auf, statt drei Knoepfe
-              nebeneinander in die Leiste zu haengen. */}
-          {view === "JAHR" && (
-            <div style={{ position: "relative" }}>
-              <button
-                onClick={() => setJahresDruckOffen((v) => !v)}
-                className="flex items-center gap-2 text-white px-3 py-1.5 rounded font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: "#4B5259" }}
-                aria-label="Jahreskalender drucken"
-                aria-expanded={jahresDruckOffen}
-                title="TPM & R+I als Jahreskalender fürs Board – A3 quer"
-              >
-                <Printer size={16} /> Jahreskalender
-                <span style={{ fontSize: "0.6rem" }}>▾</span>
-              </button>
-              {jahresDruckOffen && (
-                <div
-                  className="absolute right-0 mt-1 rounded shadow-lg z-40"
-                  style={{ top: "100%", backgroundColor: "#fff", border: "1px solid #C9D0D8", minWidth: "190px" }}
-                >
-                  {[
-                    { art: "ALLE", text: "Beide (TPM & R+I)" },
-                    { art: "TPM", text: "Nur TPM" },
-                    { art: "RI", text: "Nur R+I" },
-                  ].map((w) => (
-                    <button
-                      key={w.art}
-                      onClick={() => handlePrintJahresKalender(w.art)}
-                      className="block w-full text-left px-3 py-2 text-sm font-bold hover:bg-slate-100"
-                      style={{ color: "#22262B" }}
-                    >
-                      {w.text}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           )}
           {!readerMode && (
             <button
@@ -6852,6 +6915,96 @@ function App() {
       })()}
 
       {/* Gemeinsame Datei einrichten */}
+      {/* Druck-Auswahl der Auswertung: erst fragen, dann drucken. Vorher lagen
+          zwei Knoepfe nebeneinander in der Leiste, und der Jahreskalender war
+          hinter einem Klappmenue versteckt - hier steht alles nebeneinander
+          zur Wahl, samt einzelnem Monat. */}
+      {druckWahlOffen && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setDruckWahlOffen(false)}
+        >
+          <div
+            role="dialog"
+            aria-label="Was soll gedruckt werden?"
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "520px", maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-bold text-sm">Was soll gedruckt werden?</div>
+              <button onClick={() => setDruckWahlOffen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+
+            <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Umfang</div>
+            <div className="flex gap-2 mb-4">
+              {[["ALLE", "Beide (TPM & R+I)"], ["TPM", "Nur TPM"], ["RI", "Nur R+I"]].map(([wert, text]) => (
+                <button
+                  key={wert}
+                  onClick={() => setDruckUmfang(wert)}
+                  aria-pressed={druckUmfang === wert}
+                  className="px-3 py-1.5 rounded font-bold text-xs border"
+                  style={druckUmfang === wert
+                    ? { backgroundColor: "#2F6690", borderColor: "#2F6690", color: "white" }
+                    : { backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
+                >{text}</button>
+              ))}
+            </div>
+
+            <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Blatt</div>
+            <div className="flex flex-col gap-2 mb-4">
+              {[
+                ["JAHR", `Jahreskalender ${year}`, "Alle zwölf Monate auf einem Bogen – A3 quer, fürs Board"],
+                ["MONAT", "Einzelner Monat", "Die Tage untereinander – A4 hoch, für den Schrank"],
+                ["LISTE", "Liste wie am Bildschirm", "Die Auswertung, so wie sie gerade dasteht"],
+              ].map(([wert, text, erklaerung]) => (
+                <button
+                  key={wert}
+                  onClick={() => setDruckBlatt(wert)}
+                  aria-pressed={druckBlatt === wert}
+                  className="text-left px-3 py-2 rounded border"
+                  style={druckBlatt === wert
+                    ? { backgroundColor: "#EEF3F8", borderColor: "#2F6690" }
+                    : { backgroundColor: "white", borderColor: "#E2E4E7" }}
+                >
+                  <div className="font-bold text-xs" style={{ color: "#22262B" }}>{text}</div>
+                  <div className="text-[11px]" style={{ color: "#8A9099" }}>{erklaerung}</div>
+                </button>
+              ))}
+            </div>
+
+            {druckBlatt === "MONAT" && (
+              <div className="grid grid-cols-4 gap-1 mb-4">
+                {MONTHS.map((name, i) => (
+                  <button
+                    key={name}
+                    onClick={() => setDruckMonat(i)}
+                    aria-pressed={druckMonat === i}
+                    className="px-2 py-1.5 rounded font-bold text-[11px] border"
+                    style={druckMonat === i
+                      ? { backgroundColor: "#2F6690", borderColor: "#2F6690", color: "white" }
+                      : { backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
+                  >{name}</button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDruckWahlOffen(false)}
+                className="px-3 py-1.5 rounded font-bold text-xs border"
+                style={{ backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
+              >Abbrechen</button>
+              <button
+                onClick={handleDruckWahl}
+                className="flex items-center gap-2 text-white px-4 py-1.5 rounded font-bold text-xs uppercase tracking-wide"
+                style={{ backgroundColor: "#C97A2B" }}
+              ><Printer size={14} /> Drucken</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {shareOpen && (
         <div
           className="no-print"

@@ -208,18 +208,23 @@ Störungen, nicht den Rest.
 - **Schichtplan:** Monatsmatrix, je Person und Tag eine Schicht (Früh/Spät/Nacht u. a.).
   Zwei Ausdrucke: **Monat** (die Matrix, quer) und **Wochen** – je Kalenderwoche
   ein Blatt im Querformat, gedacht fürs Schwarze Brett.
-- **Jahreskalender TPM & R+I:** in der Jahresansicht der Auswertung der Knopf
-  **Jahreskalender** – ein gewöhnlicher Wandkalender in **A3 quer**: die zwölf
-  Monate stehen oben als Spalten, darunter die Tage 1 bis 31. Der Name der
-  Anlage bzw. des R+I-Punktes steht **waagrecht im Tag**; ist er zu lang,
-  wird er hinten mit „…" gekürzt und steht vollständig im Mauszeiger-Hinweis.
-  Blau = TPM, violett = R+I, grün = erledigt; Wochenenden und Feiertage sind
-  hinterlegt. Der Knopf lässt die Wahl zwischen **Beide (TPM & R+I)**,
-  **Nur TPM** und **Nur R+I**.
+- **Drucken in der Auswertung:** der Knopf **Drucken** fragt erst, was aufs
+  Papier soll. Zu wählen sind der **Umfang** (Beide / Nur TPM / Nur R+I) und
+  das **Blatt**:
+  - **Jahreskalender** – ein gewöhnlicher Wandkalender in **A3 quer**: die
+    zwölf Monate stehen oben als Spalten, darunter die Tage 1 bis 31. Der Name
+    der Anlage bzw. des R+I-Punktes steht **waagrecht im Tag**; ist er zu lang,
+    wird er hinten mit „…" gekürzt und steht vollständig im Mauszeiger-Hinweis.
+    Blau = TPM, violett = R+I, grün = erledigt; Wochenenden und Feiertage sind
+    hinterlegt.
+  - **Einzelner Monat** – dieselben Termine für einen Monat, die Tage
+    untereinander, **A4 hoch**. Für den Schrank oder zum Mitnehmen.
+  - **Liste wie am Bildschirm** – die Auswertung, so wie sie gerade dasteht.
 - **Planung:** Tage untereinander, je Person die eingeplanten Arbeiten/Notizen; springt beim
   Öffnen direkt zum heutigen Tag. **Drucken** gibt die Woche im **Hochformat** aus –
   im selben Zeilen-Layout wie am Bildschirm (ein Block je Tag, Spalten Person ·
-  Schicht · Arbeiten & Notizen).
+  Schicht · Arbeiten & Notizen). Der Ausdruck passt **immer auf eine A4-Seite**:
+  das Blatt misst sich selbst und verkleinert sich so weit, wie es nötig ist.
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.
 - **TPM → Übersicht:** ein digitales **TPM-Board**, das beim Klick auf **TPM** zuerst öffnet.
   Oben die **Monats- und Jahresquote als Halbkreise**. Es holt das Team ab und erklärt kurz,
