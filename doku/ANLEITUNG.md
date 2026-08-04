@@ -213,7 +213,9 @@ Störungen, nicht den Rest.
   **A3 quer** fürs TPM-Board. Grün = alles erledigt, orange = teilweise,
   rot = nichts erledigt; die Zahl in der Zelle ist der Tag im Monat.
 - **Planung:** Tage untereinander, je Person die eingeplanten Arbeiten/Notizen; springt beim
-  Öffnen direkt zum heutigen Tag.
+  Öffnen direkt zum heutigen Tag. **Drucken** gibt die Woche im **Hochformat** aus –
+  im selben Zeilen-Layout wie am Bildschirm (ein Block je Tag, Spalten Person ·
+  Schicht · Arbeiten & Notizen).
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.
 - **TPM → Übersicht:** ein digitales **TPM-Board**, das beim Klick auf **TPM** zuerst öffnet.
   Oben die **Monats- und Jahresquote als Halbkreise**. Es holt das Team ab und erklärt kurz,

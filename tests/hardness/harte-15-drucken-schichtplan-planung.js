@@ -74,6 +74,16 @@ const seedTeam = (personName) => {
     ok('Planung-Druck: Popup-Titel enthält "Planung KW"', titel.includes('Planung KW'));
     ok('Planung-Druck: Team-Person erscheint in der Vorlage', inhalt.includes('Testperson Planung'));
     ok('Planung-Druck: Wartungsplan-Zeile ist enthalten', inhalt.includes('Wartungsplan'));
+    // Hochformat und Zeilen-Layout: Der Ausdruck soll aussehen wie der
+    // Bildschirm, damit man beim Nebeneinanderlegen nicht umdenken muss.
+    const planungHtml = await popup.content();
+    ok('Planung-Druck: Hochformat', /@page[^}]*size:\s*A4 portrait/.test(planungHtml));
+    ok('Planung-Druck: ein Block je Tag statt einer Tagesmatrix',
+      (await popup.locator('table').count()) === 7);
+    ok('Planung-Druck: Spalten wie am Bildschirm (Person · Schicht · Arbeiten)',
+      // innerText gibt den GERENDERTEN Text zurueck - die Kopfzeile steht in
+      // Versalien, also wird ohne Ruecksicht auf Gross/Klein verglichen.
+      (await popup.locator('thead th').allInnerTexts()).slice(0, 3).join('|').toLowerCase() === 'person|schicht|arbeiten & notizen');
     await popup.close();
     await page.close();
   }

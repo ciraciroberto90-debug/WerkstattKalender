@@ -99,6 +99,8 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 - [x] Sammelknopf „Alle Berichte löschen" wieder entfernt – seine einmalige
       Aufgabe (Testdaten) ist erledigt
 - [x] Schichtplan wochenweise drucken, quer, ein Blatt je KW (Aushang)
+- [x] Planungs-Ausdruck auf Hochformat und das Zeilen-Layout des Bildschirms
+      umgestellt (vorher eine Tagesmatrix mit Kacheln)
 - [x] TPM & R+I als Jahreskalender fürs Board, A3 quer, eine Zeile je Anlage
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
