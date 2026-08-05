@@ -112,9 +112,18 @@ async function verbinde(p, wartezeit) {
      Browser gibt keinen Pfad heraus, zwei Dateien gleichen Namens sind also
      nicht zu unterscheiden. Was sich sehr wohl feststellen lässt: dass keine
      Einträge drin sind. Genau danach wird jetzt gefragt. */
-  for (const [fall, anzahl, erwartet] of [["leer", 0, true], ["gefüllt", 42, false]]) {
+  for (const [fall, anzahl, lokal, erwartet] of [
+    ["leer, Gerät hat Einträge", 0, 12, true],     // der Widerspruch - hier wird gefragt
+    ["leer, Gerät auch leer", 0, 0, false],        // Erststart: leer ist zu Recht leer
+    ["gefüllt", 42, 12, false],                    // alles in Ordnung
+  ]) {
     const p = await (await b.newContext({ viewport: { width: 1400, height: 950 } })).newPage();
-    await p.addInitScript((n) => {
+    await p.addInitScript((v) => {
+      const n = v.anzahl;
+      // Was auf dem Gerät schon liegt - daran entscheidet sich die Rückfrage.
+      localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(
+        Array.from({ length: v.lokal }, (_, i) => ({ id: "l" + i, date: "2026-07-01", category: "TPM",
+          name: "VSM1", status: "open", updatedAt: "2026-07-01T08:00:00.000Z" }))));
       const inhalt = JSON.stringify({
         format: "werkstatt-kalender-v1", savedAt: "2026-08-01T06:00:00.000Z", deleted: {}, config: null,
         entries: Array.from({ length: n }, (_, i) => ({
@@ -134,13 +143,13 @@ async function verbinde(p, wartezeit) {
       };
       window.showOpenFilePicker = async () => [h];
       window.showSaveFilePicker = async () => h;
-    }, anzahl);
+    }, { anzahl, lokal });
     await p.goto(APP); await p.waitForTimeout(1400);
     await p.getByRole("button", { name: /Gemeinsame Datei/ }).first().click(); await p.waitForTimeout(400);
     await p.getByRole("button", { name: /Vorhandene Datei öffnen/ }).first().click();
     await p.waitForTimeout(2500);
     const da = (await p.locator('div[role="dialog"][aria-label="Diese Datei enthält keine Einträge"]').count()) === 1;
-    pruef(`(E) Datei ${fall}: Nachfrage ${erwartet ? "erscheint" : "erscheint NICHT"}`, da === erwartet);
+    pruef(`(E) ${fall}: Nachfrage ${erwartet ? "erscheint" : "erscheint NICHT"}`, da === erwartet);
     if (erwartet && da) {
       const t = await p.locator('div[role="dialog"]').innerText();
       // Die Kenndaten sind der Ersatz für den Pfad, den es nicht gibt.

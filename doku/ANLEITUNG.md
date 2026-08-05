@@ -237,11 +237,13 @@ Störungen, nicht den Rest.
   Name, Zahl der Einträge, Größe und letzte Änderung. Zu sehen im
   Ordner-Symbol (Mauszeiger) und im Teilen-Dialog. Ist der Werkstatt-Ordner
   über den Konflikt-Wächter freigegeben, steht dort zusätzlich der Ordnername.
-- **Warnung bei einer leeren Datei:** Wer eine *vorhandene* Datei auswählt, in
-  der kein einziger Eintrag steht, wird gefragt: „Diese Datei enthält keine
-  Einträge – ist das wirklich die gemeinsame Datei?" mit „Andere Datei
-  wählen …" daneben. Genau das hat am 03.08. gefehlt. Beim **Neuanlegen** einer
-  Datei kommt die Frage nicht – ein neuer Bestand ist zu Recht leer.
+- **Warnung beim Widerspruch:** Stehen auf dem Rechner Einträge und in der
+  eben gewählten Datei **keiner**, fragt die App nach – mit den Kenndaten
+  daneben und „Andere Datei wählen …" als erstem Knopf. Genau das hat am
+  03.08. gefehlt. Beim Neuanlegen oder beim allerersten Start kommt die Frage
+  nicht: Dort ist eine leere Datei zu Recht leer, und eine Rückfrage, die
+  jedes Mal erscheint, klickt man irgendwann weg, ohne hinzusehen. Dass eine
+  Datei leer ist, steht ohnehin dauerhaft in der Kennkarte.
 - **Zwei an einem Bericht:** Ändert jemand anderes einen Störbericht, während
   deine Bearbeiten-Maske offen ist, fragt die App beim Speichern nach – mit
   Namen, Uhrzeit und dem, was in der anderen Fassung steht. Zur Wahl stehen

@@ -1134,15 +1134,17 @@ function App() {
       setErr(null);
       setShareOpen(false);
       /* Am 03.08.2026 hat ein Kollege beim Neuanlegen der Verknüpfung eine
-         LEERE Datei erwischt statt der gemeinsamen. Das Ordner-Symbol wurde
-         grün, der Dateiname stimmte - nur die Einträge fehlten, und das fiel
-         erst Tage später auf. Ein frisch angelegter Bestand ist zu Recht leer;
-         eine eben ausgewählte "vorhandene" Datei ohne einen einzigen Eintrag
-         ist dagegen fast immer die falsche. Deshalb wird hier nachgefragt -
-         einmal, direkt nach dem Verbinden, nicht dauerhaft. */
+         LEERE Datei erwischt statt der gemeinsamen. Ordner-Symbol grün, Name
+         richtig, Inhalt leer - aufgefallen ist es Tage später.
+         Gefragt wird aber nur beim WIDERSPRUCH: Dieses Gerät hat Einträge,
+         die eben gewählte Datei keinen einzigen. Eine leere Datei allein ist
+         kein Grund - wer neu anfängt, hat zu Recht nichts drin, und eine
+         Rückfrage bei jedem Erststart wäre eine, die man wegklickt, ohne
+         hinzusehen. Dass die Datei leer ist, steht ohnehin dauerhaft in der
+         Kennkarte. */
       if (!opts || !opts.create) {
         const info = sharedFile.fileInfo();
-        if (info && info.eintraege === 0) setLeereDatei(info);
+        if (info && info.eintraege === 0 && entries.length > 0) setLeereDatei(info);
       }
     } catch (e) {
       if (e && e.name === "AbortError") return; // Dateiauswahl abgebrochen
@@ -7112,8 +7114,9 @@ function App() {
             </div>
             <div className="px-5 py-4" style={{ fontSize: "0.9rem", color: "#39414B" }}>
               <p className="mb-3">
-                Du hast eine <strong>vorhandene</strong> Datei ausgewählt – darin steht aber
-                kein einziger Eintrag. Ist das wirklich die gemeinsame Datei der Werkstatt?
+                Auf diesem Rechner stehen <strong>{entries.length} Einträge</strong> – in der eben
+                gewählten Datei steht <strong>kein einziger</strong>. Ist das wirklich die
+                gemeinsame Datei der Werkstatt?
               </p>
               <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: "#F7F9FB", border: "1px solid #E7EAED", fontSize: "0.84rem" }}>
                 <div className="font-extrabold uppercase mb-1" style={{ fontSize: "0.6rem", letterSpacing: "0.5px", color: "#5B6572" }}>Ausgewählt</div>

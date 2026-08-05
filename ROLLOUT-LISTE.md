@@ -54,10 +54,12 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
       und im Teilen-Dialog: Name, Zahl der Einträge, Größe und letzte
       Änderung – und der Ordnername, sofern der Werkstatt-Ordner freigegeben
       ist (nur dann kann `resolve()` den Weg nennen).
-- [x] **Hinweis nach dem Verbinden mit einer leeren Datei:** „Diese Datei
-      enthält keine Einträge. Ist das die richtige?" mit „Andere Datei
-      wählen …" daneben. Kommt nur beim Öffnen einer *vorhandenen* Datei,
-      nicht beim Neuanlegen – ein neuer Bestand ist zu Recht leer.
+- [x] **Hinweis beim Widerspruch:** Hat der Rechner Einträge und die eben
+      gewählte Datei keinen einzigen, wird gefragt – mit Kenndaten und
+      „Andere Datei wählen …". Erste Fassung fragte bei *jeder* leeren Datei;
+      das blockierte sieben Prüfreihen und wäre auch im Betrieb falsch
+      gewesen: Wer neu anfängt, hat zu Recht nichts drin, und eine Rückfrage
+      bei jedem Start klickt man weg, ohne hinzusehen.
 - [ ] **App und Daten zusammenlegen** (siehe Punkt oben): Liegt die JSON im
       selben Ordner wie die HTML, öffnet der Dateidialog gleich an der
       richtigen Stelle. Das ist die eigentliche Wurzel.
