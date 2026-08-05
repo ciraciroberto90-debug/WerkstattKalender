@@ -105,6 +105,53 @@ async function verbinde(p, wartezeit) {
     await p.context().close();
   }
 
+  /* (E) Die ausgewählte Datei ist LEER.
+     Der Fall vom 03.08.2026: Ein Kollege wählte beim Neuanlegen der
+     Verknüpfung eine leere Datei statt der gemeinsamen. Ordner-Symbol grün,
+     Dateiname richtig, Inhalt leer - aufgefallen ist es Tage später. Der
+     Browser gibt keinen Pfad heraus, zwei Dateien gleichen Namens sind also
+     nicht zu unterscheiden. Was sich sehr wohl feststellen lässt: dass keine
+     Einträge drin sind. Genau danach wird jetzt gefragt. */
+  for (const [fall, anzahl, erwartet] of [["leer", 0, true], ["gefüllt", 42, false]]) {
+    const p = await (await b.newContext({ viewport: { width: 1400, height: 950 } })).newPage();
+    await p.addInitScript((n) => {
+      const inhalt = JSON.stringify({
+        format: "werkstatt-kalender-v1", savedAt: "2026-08-01T06:00:00.000Z", deleted: {}, config: null,
+        entries: Array.from({ length: n }, (_, i) => ({
+          id: "e" + i, date: "2026-07-10", category: "TPM", name: "BTS", status: "done",
+          updatedAt: "2026-07-10T08:00:00.000Z" })),
+      });
+      let darf = false;
+      const h = {
+        name: "werkstatt-kalender-daten.json", kind: "file",
+        async getFile() { return new File([inhalt], "werkstatt-kalender-daten.json", { type: "application/json" }); },
+        async createWritable() {
+          if (!darf) { const e = new Error("x"); e.name = "NotAllowedError"; throw e; }
+          let b2 = ""; return { async write(c) { b2 += c; }, async close() {} };
+        },
+        async queryPermission() { return darf ? "granted" : "prompt"; },
+        async requestPermission() { darf = true; return "granted"; },
+      };
+      window.showOpenFilePicker = async () => [h];
+      window.showSaveFilePicker = async () => h;
+    }, anzahl);
+    await p.goto(APP); await p.waitForTimeout(1400);
+    await p.getByRole("button", { name: /Gemeinsame Datei/ }).first().click(); await p.waitForTimeout(400);
+    await p.getByRole("button", { name: /Vorhandene Datei öffnen/ }).first().click();
+    await p.waitForTimeout(2500);
+    const da = (await p.locator('div[role="dialog"][aria-label="Diese Datei enthält keine Einträge"]').count()) === 1;
+    pruef(`(E) Datei ${fall}: Nachfrage ${erwartet ? "erscheint" : "erscheint NICHT"}`, da === erwartet);
+    if (erwartet && da) {
+      const t = await p.locator('div[role="dialog"]').innerText();
+      // Die Kenndaten sind der Ersatz für den Pfad, den es nicht gibt.
+      pruef("(E) Die Nachfrage nennt die Kenndaten der Datei",
+        /KEINE Einträge/.test(t) && /werkstatt-kalender-daten\.json/.test(t));
+      pruef("(E) Und bietet an, eine andere zu wählen",
+        (await p.getByRole("button", { name: /Andere Datei wählen/ }).count()) === 1);
+    }
+    await p.context().close();
+  }
+
   console.log(`\n==== DATEIDIALOG: ${ok} PASS / ${fail} FAIL ====`);
   await b.close(); process.exit(fail ? 1 : 0);
 })();

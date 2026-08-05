@@ -270,6 +270,14 @@ function createSharedStore(cfg) {
   let pollTimer = null;
   // Konflikt-Wächter: Ordner-Zugriff, um OneDrive-Konfliktkopien automatisch einzusammeln
   let folderHandle = null;
+  /* Kennkarte der verbundenen Datei. Der Browser gibt einen Pfad nicht heraus -
+     ein Dateiverweis kennt nur getFile/createWritable/move, sonst nichts. Zwei
+     Dateien gleichen Namens sind damit am Namen NICHT zu unterscheiden, und
+     genau daran ist der 03.08. gescheitert. Was sich sehr wohl feststellen
+     lässt: Größe, letzte Änderung, Zahl der Einträge - und, sofern der
+     Werkstatt-Ordner freigegeben ist, der Weg innerhalb dieses Ordners. */
+  let dateiInfo = null;   // { groesse, geaendert, eintraege }
+  let dateiPfad = "";     // z. B. "Werkstatt/werkstatt-kalender-daten.json"
   let folderPerm = "none"; // "ok" | "needs-permission" | "none"
 
   /* ---------- Status ---------- */
@@ -282,6 +290,28 @@ function createSharedStore(cfg) {
   function canWrite() {
     return accessMode === "readwrite";
   }
+  /* Alles, woran sich zwei gleichnamige Dateien auseinanderhalten lassen. */
+  function fileInfo() {
+    return {
+      name: fileHandle ? fileHandle.name : "",
+      ordner: folderHandle ? folderHandle.name : "",
+      pfad: dateiPfad,
+      groesse: dateiInfo ? dateiInfo.groesse : null,
+      geaendert: dateiInfo ? dateiInfo.geaendert : null,
+      eintraege: dateiInfo ? dateiInfo.eintraege : null,
+    };
+  }
+  /* Wo liegt die Datei innerhalb des freigegebenen Ordners? Das ist die einzige
+     Wegangabe, die der Browser herausgibt - und auch nur dann. */
+  async function ermittlePfad() {
+    dateiPfad = "";
+    if (!folderHandle || !fileHandle) return;
+    try {
+      const teile = await folderHandle.resolve(fileHandle);
+      if (teile) dateiPfad = [folderHandle.name].concat(teile).join(" / ");
+    } catch (e) { /* ohne Ordner-Freigabe bleibt es beim Namen */ }
+  }
+
   function fileName() {
     return fileHandle ? fileHandle.name : "";
   }
@@ -415,9 +445,12 @@ function createSharedStore(cfg) {
   async function readFileData() {
     const file = await mitFrist(() => fileHandle.getFile(), FRIST_LESEN, "Das Öffnen der Datei");
     const text = await mitFrist(() => file.text(), FRIST_LESEN, "Das Lesen der Datei");
-    if (!text.trim()) return emptyData();
+    dateiInfo = { groesse: file.size, geaendert: file.lastModified, eintraege: null };
+    if (!text.trim()) { dateiInfo.eintraege = 0; return emptyData(); }
     try {
-      return normalizeData(JSON.parse(text));
+      const gelesen = normalizeData(JSON.parse(text));
+      dateiInfo.eintraege = ohneSystemEntries(gelesen.entries).length;
+      return gelesen;
     } catch (e) {
       // Gemessen, wie es ohne diese Stelle aussah: "Expected double-quoted
       // property name in JSON at position 182 (line 9 column 2)". Das ist der
@@ -595,6 +628,7 @@ function createSharedStore(cfg) {
       const fh = await idbGet("folder");
       if (fh) {
         folderHandle = fh;
+        ermittlePfad();          // Weg innerhalb des Ordners nachtragen
         const fp = await rechteFragen(fh, "readwrite");
         folderPerm = fp === "granted" ? "ok" : "needs-permission";
       }
@@ -762,6 +796,7 @@ function createSharedStore(cfg) {
     }
     folderHandle = handle;
     folderPerm = "ok";
+    ermittlePfad();
     try { await idbSet("folder", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
     await sammleKonfliktkopien();
     return { name: handle.name };
@@ -1235,7 +1270,7 @@ function createSharedStore(cfg) {
   };
 
   return {
-    isSupported, isConnected, canWrite, fileName, getLastWriteError, getLastSuccessfulSyncAt,
+    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
@@ -1261,6 +1296,7 @@ export const isSupported = main.isSupported;
 export const isConnected = main.isConnected;
 export const canWrite = main.canWrite;
 export const fileName = main.fileName;
+export const fileInfo = main.fileInfo;
 export const getLastWriteError = main.getLastWriteError;
 export const getLastSuccessfulSyncAt = main.getLastSuccessfulSyncAt;
 export const listBackups = main.listBackups;

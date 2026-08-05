@@ -912,6 +912,8 @@ function App() {
   // bei jedem Start aufgeklappt vor die Seite gelegt. Die Chips im Streifen
   // sind ohnehin sichtbar; das Feld darunter braucht man nur zum Bearbeiten.
   const [linksOffen, setLinksOffen] = useState(false);
+  // Nachfrage, wenn die eben verbundene Datei keinen einzigen Eintrag hat.
+  const [leereDatei, setLeereDatei] = useState(null);
   // Druck-Auswahl in der Auswertung: erst fragen, was aufs Papier soll.
   const [druckWahlOffen, setDruckWahlOffen] = useState(false);
   const [druckUmfang, setDruckUmfang] = useState("ALLE");   // ALLE | TPM | RI
@@ -1131,6 +1133,17 @@ function App() {
       setShareChecked(true);
       setErr(null);
       setShareOpen(false);
+      /* Am 03.08.2026 hat ein Kollege beim Neuanlegen der Verknüpfung eine
+         LEERE Datei erwischt statt der gemeinsamen. Das Ordner-Symbol wurde
+         grün, der Dateiname stimmte - nur die Einträge fehlten, und das fiel
+         erst Tage später auf. Ein frisch angelegter Bestand ist zu Recht leer;
+         eine eben ausgewählte "vorhandene" Datei ohne einen einzigen Eintrag
+         ist dagegen fast immer die falsche. Deshalb wird hier nachgefragt -
+         einmal, direkt nach dem Verbinden, nicht dauerhaft. */
+      if (!opts || !opts.create) {
+        const info = sharedFile.fileInfo();
+        if (info && info.eintraege === 0) setLeereDatei(info);
+      }
     } catch (e) {
       if (e && e.name === "AbortError") return; // Dateiauswahl abgebrochen
       setErr("Gemeinsame Datei: " + (e && e.message ? e.message : "Verbinden hat nicht geklappt."));
@@ -4061,6 +4074,29 @@ function App() {
     openPrintWindow(html, datei);
   };
 
+  /* Kennkarte der verbundenen Datei. Zwei Dateien gleichen Namens sind am
+     Namen nicht zu unterscheiden - der Browser gibt keinen Pfad heraus. Was
+     ihn ersetzt: Zahl der Einträge, Größe, letzte Änderung. Am 03.08. hätte
+     „0 Einträge" sofort gestutzt, wo „werkstatt-kalender-daten.json" beruhigt
+     hat. */
+  const dateiKennkarte = (info) => {
+    if (!info || !info.name) return "";
+    const teile = [info.pfad || info.name];
+    if (info.eintraege !== null && info.eintraege !== undefined) {
+      teile.push(info.eintraege === 0 ? "KEINE Einträge" : `${info.eintraege} Einträge`);
+    }
+    if (info.groesse !== null && info.groesse !== undefined) {
+      teile.push(info.groesse >= 1024 * 1024
+        ? `${(info.groesse / 1024 / 1024).toFixed(1)} MB`
+        : `${Math.max(1, Math.round(info.groesse / 1024))} KB`);
+    }
+    if (info.geaendert) {
+      teile.push("geändert " + new Date(info.geaendert).toLocaleString("de-DE",
+        { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
+    }
+    return teile.join(" · ");
+  };
+
   const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
   const printSuffix = view === "JAHR" ? `Jahresübersicht ${year}` : view === "PLAN" ? `${MONTHS[month]} ${year}` : `Monatsübersicht ${MONTHS[month]} ${year}`;
 
@@ -4281,7 +4317,7 @@ function App() {
               className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
               style={{ backgroundColor: shareState.status === "connected" ? "#2F7D4F" : "#4B5259" }}
               title={shareState.status === "connected"
-                ? `Gemeinsame Datei verbunden: ${shareState.name}${shareState.mode === "read" ? " (nur ansehen)" : ""}`
+                ? `Gemeinsame Datei verbunden\n${dateiKennkarte(sharedFile.fileInfo())}${shareState.mode === "read" ? "\n(nur ansehen)" : ""}`
                 : "Gemeinsame Datei einrichten (Teilen)"}
               aria-label="Gemeinsame Datei"
             >
@@ -7057,6 +7093,55 @@ function App() {
           des Ersten stumm überschreiben - beim Zusammenführen gewinnt der
           spätere Zeitstempel. Deshalb wird hier gefragt, mit Namen und Zeit
           des anderen, statt es einfach geschehen zu lassen. */}
+      {/* Nachfrage bei einer leeren Datei. Der Fall vom 03.08.: Ordner-Symbol
+          grün, Name richtig, Inhalt leer - und niemand merkt es, weil ein
+          leerer Bestand am Anfang normal aussieht. Deshalb einmal fragen,
+          direkt nach dem Verbinden, mit den Kenndaten daneben. */}
+      {leereDatei && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "16px" }}
+        >
+          <div
+            role="dialog"
+            aria-label="Diese Datei enthält keine Einträge"
+            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden" }}
+          >
+            <div className="px-5 py-3" style={{ backgroundColor: "#FBEAE8", borderBottom: "1px solid #E7B9B3" }}>
+              <span className="font-black" style={{ fontSize: "1.02rem", color: "#22262B" }}>⚠️ Diese Datei enthält keine Einträge</span>
+            </div>
+            <div className="px-5 py-4" style={{ fontSize: "0.9rem", color: "#39414B" }}>
+              <p className="mb-3">
+                Du hast eine <strong>vorhandene</strong> Datei ausgewählt – darin steht aber
+                kein einziger Eintrag. Ist das wirklich die gemeinsame Datei der Werkstatt?
+              </p>
+              <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: "#F7F9FB", border: "1px solid #E7EAED", fontSize: "0.84rem" }}>
+                <div className="font-extrabold uppercase mb-1" style={{ fontSize: "0.6rem", letterSpacing: "0.5px", color: "#5B6572" }}>Ausgewählt</div>
+                <div style={{ color: "#39414B" }}>{dateiKennkarte(leereDatei)}</div>
+              </div>
+              <p style={{ color: "#5B6572", fontSize: "0.84rem" }}>
+                Zwei Dateien können gleich heißen – der Browser verrät nicht, wo sie liegen.
+                Wenn deine Kollegen Einträge haben und hier „KEINE Einträge" steht, ist es
+                die falsche.
+              </p>
+            </div>
+            <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", backgroundColor: "#FAFBFC" }}>
+              <button
+                onClick={async () => { setLeereDatei(null); await connectShared({ create: false }); }}
+                className="rounded-lg font-bold text-white"
+                style={{ fontSize: "0.85rem", padding: "8px 14px", backgroundColor: "#C0392B" }}
+              >Andere Datei wählen …</button>
+              <span className="ml-auto" />
+              <button
+                onClick={() => setLeereDatei(null)}
+                className="rounded-lg font-bold"
+                style={{ fontSize: "0.85rem", padding: "8px 14px", backgroundColor: "#EEF1F4", color: "#5B6572" }}
+              >Ist richtig so</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {stoerKonflikt && (
         <div
           className="no-print"
@@ -7294,6 +7379,18 @@ function App() {
                 {shareState.status === "connected" ? (
                   <div className="text-sm rounded px-3 py-2" style={{ backgroundColor: "#E5F3EA", color: "#2F7D4F" }}>
                     Verbunden mit <strong>{shareState.name}</strong> ({shareState.mode === "read" ? "nur ansehen" : "bearbeiten"}).
+                    {/* Die Kennkarte darunter: Ein Pfad ist über den Browser nicht
+                        zu bekommen, aber Eintragszahl, Größe und letzte Änderung
+                        unterscheiden zwei gleichnamige Dateien zuverlässig. */}
+                    <div className="mt-1" style={{ fontSize: "0.78rem", color: "#3F6B4E" }}>
+                      {dateiKennkarte(sharedFile.fileInfo()) || "—"}
+                    </div>
+                    {!sharedFile.fileInfo().pfad && (
+                      <div className="mt-0.5" style={{ fontSize: "0.72rem", color: "#5E8B6C" }}>
+                        Wo die Datei liegt, kann der Browser nicht sagen. Gib unten den
+                        Werkstatt-Ordner frei, dann steht hier auch der Ordnername.
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-sm rounded px-3 py-2" style={{ backgroundColor: "#F4F5F6", color: "#5B6572" }}>

@@ -231,6 +231,17 @@ Störungen, nicht den Rest.
   läuft die App zwar, kennt aber keine Verbindung und verlangt jedes Mal ein
   neues Anwählen der Datei. Genau dabei ist am 03.08. die falsche Datei
   erwischt worden.
+- **Welche Datei ist eigentlich verbunden?** Der Browser gibt keinen Pfad
+  heraus – zwei Dateien gleichen Namens sind am Namen allein nicht zu
+  unterscheiden. Statt eines Pfades zeigt die App deshalb eine **Kennkarte**:
+  Name, Zahl der Einträge, Größe und letzte Änderung. Zu sehen im
+  Ordner-Symbol (Mauszeiger) und im Teilen-Dialog. Ist der Werkstatt-Ordner
+  über den Konflikt-Wächter freigegeben, steht dort zusätzlich der Ordnername.
+- **Warnung bei einer leeren Datei:** Wer eine *vorhandene* Datei auswählt, in
+  der kein einziger Eintrag steht, wird gefragt: „Diese Datei enthält keine
+  Einträge – ist das wirklich die gemeinsame Datei?" mit „Andere Datei
+  wählen …" daneben. Genau das hat am 03.08. gefehlt. Beim **Neuanlegen** einer
+  Datei kommt die Frage nicht – ein neuer Bestand ist zu Recht leer.
 - **Zwei an einem Bericht:** Ändert jemand anderes einen Störbericht, während
   deine Bearbeiten-Maske offen ist, fragt die App beim Speichern nach – mit
   Namen, Uhrzeit und dem, was in der anderen Fassung steht. Zur Wahl stehen

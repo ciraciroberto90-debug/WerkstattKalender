@@ -47,13 +47,17 @@ keine Links, seine Einträge kamen nicht an. Das Ordner-Symbol war trotzdem
 grün – verbunden war er ja, nur mit der falschen Datei. Beide Dateien heißen
 gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 
-- [ ] **Pfad der verbundenen Datei anzeigen**, nicht nur den Namen – im
-      Ordner-Symbol (Mauszeiger) und im Teilen-Dialog. Zwei Dateien mit
-      demselben Namen sind sonst nicht auseinanderzuhalten.
-- [ ] **Hinweis nach dem Verbinden mit einer leeren Datei:** „Diese Datei
-      enthält keine Einträge. Ist das die richtige?" Nur direkt nach dem
-      Verbinden, nicht dauerhaft – eine wirklich neue Datei ist ja zu Recht
-      leer.
+- [x] **Kennkarte der verbundenen Datei** – gemessen am 05.08.: Ein
+      Dateiverweis im Browser kennt nur `getFile`, `createWritable` und
+      `move`, **keinen Pfad**. Der ursprünglich geplante Pfad ist damit
+      technisch nicht zu bekommen. Stattdessen stehen jetzt im Ordner-Symbol
+      und im Teilen-Dialog: Name, Zahl der Einträge, Größe und letzte
+      Änderung – und der Ordnername, sofern der Werkstatt-Ordner freigegeben
+      ist (nur dann kann `resolve()` den Weg nennen).
+- [x] **Hinweis nach dem Verbinden mit einer leeren Datei:** „Diese Datei
+      enthält keine Einträge. Ist das die richtige?" mit „Andere Datei
+      wählen …" daneben. Kommt nur beim Öffnen einer *vorhandenen* Datei,
+      nicht beim Neuanlegen – ein neuer Bestand ist zu Recht leer.
 - [ ] **App und Daten zusammenlegen** (siehe Punkt oben): Liegt die JSON im
       selben Ordner wie die HTML, öffnet der Dateidialog gleich an der
       richtigen Stelle. Das ist die eigentliche Wurzel.
