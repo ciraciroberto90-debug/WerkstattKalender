@@ -58,16 +58,13 @@ export function keineAntwort(e) {
    Merkung am Ursprung hängt und nicht am Tab, galt sie danach für ALLE
    Fenster und überlebte Neustart und neue Verknüpfung.
 
-   Deshalb: Nur eine ausdrückliche Ablehnung durch Browser oder Dateisystem
-   ist ein Rechteentzug. Eine belegte Datei (NoModificationAllowedError), ein
-   Netz-Aussetzer (NotReadableError, AbortError) oder eine ausbleibende
-   Antwort sind vorübergehend - sie werden gemeldet, aber nicht festgeschrieben. */
-export function istRechteEntzug(e) {
-  if (!e) return false;
-  if (e.keineAntwort) return false;                       // Frist abgelaufen: Ausfall, kein Entzug
-  const name = String(e.name || "");
-  return name === "NotAllowedError" || name === "SecurityError";
-}
+   Am Fehlernamen allein lässt sich das nicht festmachen: Welchen Namen ein
+   schreibgeschütztes Netzlaufwerk liefert, ist nicht verlässlich. Also
+   entscheidet ein ZWEITER VERSUCH - das ist der Unterschied, auf den es
+   ankommt: Ein belegtes Schloss geht Sekundenbruchteile später auf, ein
+   fehlendes Recht bleibt. Nur wenn auch der zweite Versuch scheitert, wird
+   auf "nur ansehen" zurückgestuft. */
+const ZWEITER_VERSUCH_MS = 600;
 
 function mitFrist(bauer, ms, was) {
   return new Promise((ok, fehl) => {
@@ -502,27 +499,32 @@ function createSharedStore(cfg) {
         });
       }
       const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config };
-      try {
-        await writeFileData(candidate);
+      let geschrieben = false;
+      let letzterFehler = null;
+      // Zwei Anläufe: Der erste kann an einer belegten Datei scheitern (zweites
+      // Fenster, OneDrive-Abgleich, Virenscanner). Erst wenn auch der zweite
+      // scheitert, fehlt das Recht wirklich.
+      for (let versuch = 0; versuch < 2 && !geschrieben; versuch++) {
+        if (versuch > 0) await new Promise((r) => setTimeout(r, ZWEITER_VERSUCH_MS));
+        try {
+          await writeFileData(candidate);
+          geschrieben = true;
+        } catch (e) {
+          letzterFehler = e;
+          if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
+        }
+      }
+      if (geschrieben) {
         data = candidate;
         lastWriteError = null;
-      } catch (e) {
+      } else {
+        const e = letzterFehler;
         lastWriteError = `${e && e.name ? e.name : "Fehler"}: ${e && e.message ? e.message : e}`;
-        if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
-        if (istRechteEntzug(e)) {
-          accessMode = "read"; // Rechte auf dem Laufwerk fehlen wirklich -> nur ansehen
-          // WICHTIG: Zurückstufung auch merken. Sonst stünde nach dem nächsten
-          // Browser-Neustart fälschlich "readwrite" in der Merkliste und ein reiner
-          // Leser würde bis zum Klick auf "Jetzt verbinden" als Bearbeiter gelten.
-          try { await idbSet("mode", "read"); } catch (e2) { /* egal */ }
-        } else {
-          // Datei belegt (zweiter Tab, OneDrive-Sync, Virenscanner) oder kurz
-          // nicht erreichbar. Das Schreibrecht bleibt bestehen - gemeldet wird
-          // es trotzdem, damit niemand denkt, sein Eintrag sei in der Datei.
-          dispatchError(`Die gemeinsame Datei ließ sich gerade nicht beschreiben (${e && e.name ? e.name : "Fehler"}). `
-            + `Sie ist vermutlich einen Moment belegt - etwa weil das Cockpit in einem zweiten Fenster offen ist `
-            + `oder OneDrive gerade abgleicht. Deine Eingaben bleiben lokal gesichert, die App versucht es weiter.`);
-        }
+        accessMode = "read"; // auch der zweite Versuch scheiterte -> nur ansehen
+        // WICHTIG: Zurückstufung auch merken. Sonst stünde nach dem nächsten
+        // Browser-Neustart fälschlich "readwrite" in der Merkliste und ein reiner
+        // Leser würde bis zum Klick auf "Jetzt verbinden" als Bearbeiter gelten.
+        try { await idbSet("mode", "read"); } catch (e2) { /* egal */ }
       }
     }
 

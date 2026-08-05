@@ -133,7 +133,11 @@ const gemerkterModus = (p) => p.evaluate(() => new Promise((fertig) => {
       schreibFehler:"NoModificationAllowedError", nurErsterVersuch:true});
     const t = await p.locator("body").innerText();
     pruef("(5) Belegte Datei fuehrt NICHT in den Schreibschutz", !/Schreibschutz/.test(t));
-    pruef("(5) Der Grund wird trotzdem gemeldet", /belegt|nicht beschreiben/.test(t));
+    // Der zweite Anlauf hat geklappt - dann gibt es auch nichts zu melden.
+    // Wichtig ist, dass wirklich geschrieben wurde und nicht nur der Anschein
+    // von Schreibrecht besteht.
+    pruef("(5) Der zweite Anlauf hat wirklich geschrieben",
+      (await p.evaluate(() => window.__schreibVersuche || 0)) >= 2);
     pruef("(5) Und nichts Falsches gemerkt - der Modus bleibt schreibend",
       (await gemerkterModus(p)) !== "read");
     pruef("(5) Bearbeiten ist weiterhin moeglich", /BACKLOG/.test(t));
