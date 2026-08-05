@@ -261,6 +261,12 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
       Eintrag des anderen Fensters bekam prompt eine Löschmarke und war
       danach auf ALLEN Geräten weg. Jetzt merkt sich jedes Fenster seinen
       eigenen Stand (harte-39, mit Gegenprobe für echte Löschungen)
+- [x] **Import:** Einträge ohne Kennung bekommen eine, statt beim
+      Zusammenführen spurlos zu verschwinden (dort wird nach Kennung
+      gearbeitet – was keine hat, fällt heraus, gemeldet wurde trotzdem
+      „importiert"). Und die Rückfrage vor dem Ersetzen sagt jetzt, dass es
+      über die gemeinsame Datei **alle Kollegen** trifft, nicht nur den
+      eigenen Rechner
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)

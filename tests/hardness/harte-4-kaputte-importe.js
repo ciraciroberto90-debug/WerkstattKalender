@@ -20,6 +20,12 @@ const faelle = [
   ['team-kaputt.json', JSON.stringify({ team: "nicht-array", entries: [{ id: "1", date: "2026-07-10", category: "ARBEIT", name: "X" }] })],
   ['riesig-verschachtelt.json', JSON.stringify({ entries: [{ id: "1", date: "2026-07-10", category: "ARBEIT", name: "X", note: "a".repeat(50000) }] })],
   ['unicode-emoji.json', JSON.stringify([{ id: "1", date: "2026-07-10", category: "ARBEIT", name: "🔧Ölwechsel", note: "geht's? <script>alert(1)</script> 日本語" }])],
+  // Eintraege OHNE Kennung: Beim Zusammenfuehren wird nach Kennung gearbeitet -
+  // was keine hat, faellt heraus. Gemeldet wuerde trotzdem "importiert".
+  ['ohne-id.json', JSON.stringify([
+    { date: "2026-07-12", category: "ARBEIT", name: "Ohne Kennung eins", status: "open" },
+    { date: "2026-07-13", category: "ARBEIT", name: "Ohne Kennung zwei", status: "open" },
+  ])],
 ];
 for (const [name, content] of faelle) fs.writeFileSync(path.join(TMP, name), content);
 
@@ -64,6 +70,29 @@ for (const [name, content] of faelle) fs.writeFileSync(path.join(TMP, name), con
   // wichtig ist nur: kein XSS, kein Crash, Text bleibt als Text (kein <script> ausgeführt)
   const scriptExecuted = await page.evaluate(() => window.__xssTestMarke === true);
   ok('Kein <script>-Tag aus Notiztext wurde ausgeführt', !scriptExecuted);
+
+  /* Import ohne Kennung: Die Eintraege muessen ankommen, nicht stumm
+     verschwinden. Geprueft wird am Bestand, nicht an der Meldung - die sagte
+     auch vorher schon "importiert". */
+  {
+    await page.evaluate(() => {
+      localStorage.setItem('werkstatt-kalender-entries', JSON.stringify([
+        { id: 'bestand-1', date: '2026-07-01', category: 'ARBEIT', name: 'Bestand', status: 'open' },
+      ]));
+    });
+    await page.reload();
+    await page.waitForTimeout(500);
+    await page.setInputFiles('input[type="file"]', path.join(TMP, 'ohne-id.json'));
+    await page.waitForTimeout(700);
+    const bestand = await page.evaluate(() => JSON.parse(localStorage.getItem('werkstatt-kalender-entries') || '[]'));
+    const namen = bestand.map((e) => e.name);
+    ok('Import ohne Kennung: beide Eintraege sind da', namen.includes('Ohne Kennung eins') && namen.includes('Ohne Kennung zwei'));
+    ok('Import ohne Kennung: jeder hat jetzt eine Kennung',
+      bestand.every((e) => typeof e.id === 'string' && e.id.length > 0));
+    ok('Import ohne Kennung: die Kennungen sind verschieden',
+      new Set(bestand.map((e) => e.id)).size === bestand.length);
+    ok('Import ohne Kennung: der alte Bestand blieb erhalten', namen.includes('Bestand'));
+  }
 
   console.log(`\n${pass} PASS / ${fail} FAIL`);
   await browser.close();

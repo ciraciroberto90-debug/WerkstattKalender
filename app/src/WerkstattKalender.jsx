@@ -2268,9 +2268,16 @@ function App() {
         parsed = parsed.entries;
       }
       if (!Array.isArray(parsed)) throw new Error("Ungültiges Format");
-      const valid = parsed.filter(
-        (en) => en && typeof en.date === "string" && typeof en.category === "string" && typeof en.name === "string"
-      );
+      /* Ein Eintrag ohne Kennung („id") verschwindet beim Zusammenführen
+         stillschweigend - dort wird nach Kennung zusammengeführt, und was
+         keine hat, fällt heraus. Gemeldet würde trotzdem „X Einträge
+         importiert". Deshalb bekommt jeder Eintrag ohne Kennung hier eine,
+         statt später spurlos zu fehlen. */
+      const valid = parsed
+        .filter((en) => en && typeof en.date === "string" && typeof en.category === "string" && typeof en.name === "string")
+        .map((en) => (en.id === undefined || en.id === null || en.id === ""
+          ? { ...en, id: `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
+          : en));
       if (valid.length === 0) throw new Error("Keine gültigen Einträge in der Datei gefunden");
       const rejected = parsed.length - valid.length;
       let next = valid;
@@ -2285,7 +2292,12 @@ function App() {
           next = [...entries, ...neue];
           meldung = `${neue.length} Einträge hinzugefügt${valid.length - neue.length > 0 ? `, ${valid.length - neue.length} bereits vorhandene übersprungen` : ""}.`;
         } else {
-          const ersetzen = window.confirm(`Wirklich ALLE bestehenden ${entries.length} Einträge löschen und durch die ${valid.length} importierten ersetzen?`);
+          /* Ersetzen heißt: Für die bisherigen Einträge entstehen Löschmarken,
+             und die wirken über die gemeinsame Datei auf JEDEM Gerät. Das muss
+             in der Frage stehen - sonst denkt man, es beträfe nur einen selbst. */
+          const ersetzen = window.confirm(
+            `Wirklich ALLE bestehenden ${entries.length} Einträge löschen und durch die ${valid.length} importierten ersetzen?`
+            + `\n\nACHTUNG: Das wirkt über die gemeinsame Datei auch bei allen Kollegen – nicht nur auf diesem Rechner.`);
           if (!ersetzen) { e.target.value = ""; return; }
           meldung = `Bestand ersetzt: ${valid.length} Einträge importiert.` + (rejected > 0 ? ` (${rejected} ungültige übersprungen)` : "");
         }
