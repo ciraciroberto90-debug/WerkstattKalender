@@ -135,6 +135,32 @@ Betrieb übernehmen. Beides bringt Anforderungen, die vorher zu klären sind:
       das sollte bei der Übergabe ausdrücklich gesagt werden, sonst entsteht
       die Erwartung, „die IT macht das jetzt", und am Ende macht es niemand.
 
+## Was der 05.08. gezeigt hat
+
+Am Morgen des 05.08.2026 stand die App auf Schreibschutz, und der Selbsttest
+meldete „KEINE JSON-Datei im Ordner". Beides war halb so wild, sah aber
+schlimm aus – und genau das ist das Problem:
+
+- [ ] **Der Selbsttest prüft den falschen Ordner.** Er schaut in den
+      App-Ordner (`\\scheudc1\…\Werkstatt_Kalender`), die Daten liegen aber
+      in OneDrive. Ergebnis: „KEINE JSON-Datei" und „Sicherungen: keine" –
+      zwei Meldungen, die wie Datenverlust aussehen und niemanden kaltlassen.
+      Ein Fehlalarm dieser Art ist gefährlich, weil er zu genau der Handlung
+      treibt, die am 03.08. den Schaden angerichtet hat: eine neue Datei
+      anlegen. Der Selbsttest muss beide Orte prüfen – App-Ordner **und**
+      Datenordner – und den Datenordner aus der App übernehmen können.
+- [ ] **Im Nur-Leser-Modus kommt man nicht an die eigenen Sicherungen.**
+      Zahnrad und Export sind dort ausgeblendet (`!readerMode`). Wer in den
+      Schreibschutz rutscht – der häufigste Fall nach einem Neustart – ist
+      damit von seinem Sicherheitsnetz abgeschnitten und kann nicht einmal
+      einen Export ziehen, bevor er etwas repariert. Beides muss lesend
+      erreichbar sein.
+- [ ] **Konfliktkopie `werkstatt-stoerungen-L-RCIRACI.json` (04.08., 06:14)**
+      lag im Ordner. Der Konflikt-Wächter sammelt sie nur ein, wenn der
+      Ordner-Zugriff eingerichtet ist UND die Verbindung schreibend steht –
+      im Schreibschutz also gerade nicht. Prüfen, ob sie eingesammelt wurde;
+      erst danach darf sie verschwinden.
+
 ## Offene Entscheidungen
 
 - [ ] **Excel-Anbindung (OEE / Schichtpläne).** Gemessen ist: Chrome liest eine
