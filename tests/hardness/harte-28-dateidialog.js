@@ -112,14 +112,16 @@ async function verbinde(p, wartezeit) {
      Browser gibt keinen Pfad heraus, zwei Dateien gleichen Namens sind also
      nicht zu unterscheiden. Was sich sehr wohl feststellen lässt: dass keine
      Einträge drin sind. Genau danach wird jetzt gefragt. */
-  for (const [fall, anzahl, lokal, erwartet] of [
-    ["leer, Gerät hat Einträge", 0, 12, true],     // der Widerspruch - hier wird gefragt
-    ["leer, Gerät auch leer", 0, 0, false],        // Erststart: leer ist zu Recht leer
-    ["gefüllt", 42, 12, false],                    // alles in Ordnung
+  for (const [fall, anzahl, lokal, darfSchreiben, erwartet] of [
+    ["leer, Gerät hat Einträge", 0, 12, true, true],   // der Widerspruch - hier wird gefragt
+    ["leer, Gerät auch leer", 0, 0, true, false],      // Erststart: leer ist zu Recht leer
+    ["gefüllt", 42, 12, true, false],                  // alles in Ordnung
+    ["leer, aber Nur-Leser", 0, 12, false, false],     // er soll ansehen, nicht die Quelle wechseln
   ]) {
     const p = await (await b.newContext({ viewport: { width: 1400, height: 950 } })).newPage();
     await p.addInitScript((v) => {
       const n = v.anzahl;
+      const schreibenGeht = v.darfSchreiben;
       // Was auf dem Gerät schon liegt - daran entscheidet sich die Rückfrage.
       localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(
         Array.from({ length: v.lokal }, (_, i) => ({ id: "l" + i, date: "2026-07-01", category: "TPM",
@@ -135,7 +137,7 @@ async function verbinde(p, wartezeit) {
         name: "werkstatt-kalender-daten.json", kind: "file",
         async getFile() { return new File([inhalt], "werkstatt-kalender-daten.json", { type: "application/json" }); },
         async createWritable() {
-          if (!darf) { const e = new Error("x"); e.name = "NotAllowedError"; throw e; }
+          if (!darf || !schreibenGeht) { const e = new Error("x"); e.name = "NotAllowedError"; throw e; }
           let b2 = ""; return { async write(c) { b2 += c; }, async close() {} };
         },
         async queryPermission() { return darf ? "granted" : "prompt"; },
@@ -143,7 +145,7 @@ async function verbinde(p, wartezeit) {
       };
       window.showOpenFilePicker = async () => [h];
       window.showSaveFilePicker = async () => h;
-    }, { anzahl, lokal });
+    }, { anzahl, lokal, darfSchreiben });
     await p.goto(APP); await p.waitForTimeout(1400);
     await p.getByRole("button", { name: /Gemeinsame Datei/ }).first().click(); await p.waitForTimeout(400);
     await p.getByRole("button", { name: /Vorhandene Datei öffnen/ }).first().click();

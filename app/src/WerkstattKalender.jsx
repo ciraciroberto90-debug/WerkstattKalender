@@ -1142,7 +1142,11 @@ function App() {
          Rückfrage bei jedem Erststart wäre eine, die man wegklickt, ohne
          hinzusehen. Dass die Datei leer ist, steht ohnehin dauerhaft in der
          Kennkarte. */
-      if (!opts || !opts.create) {
+      if ((!opts || !opts.create) && sharedFile.canWrite()) {
+        // Nur für Bearbeiter. Einem Nur-Leser „Andere Datei wählen" anzubieten
+        // wäre dieselbe Einladung, die im Schreibschutz-Balken bewusst
+        // versteckt ist - er soll ansehen, nicht die Quelle wechseln. Dass die
+        // Datei leer ist, steht für ihn in der Kennkarte.
         const info = sharedFile.fileInfo();
         if (info && info.eintraege === 0 && entries.length > 0) setLeereDatei(info);
       }

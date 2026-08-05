@@ -243,7 +243,9 @@ Störungen, nicht den Rest.
   03.08. gefehlt. Beim Neuanlegen oder beim allerersten Start kommt die Frage
   nicht: Dort ist eine leere Datei zu Recht leer, und eine Rückfrage, die
   jedes Mal erscheint, klickt man irgendwann weg, ohne hinzusehen. Dass eine
-  Datei leer ist, steht ohnehin dauerhaft in der Kennkarte.
+  Datei leer ist, steht ohnehin dauerhaft in der Kennkarte. Nur-Leser bekommen
+  die Frage nicht – ihnen „Andere Datei wählen" anzubieten wäre dieselbe
+  Einladung, die im Schreibschutz-Balken bewusst versteckt ist.
 - **Zwei an einem Bericht:** Ändert jemand anderes einen Störbericht, während
   deine Bearbeiten-Maske offen ist, fragt die App beim Speichern nach – mit
   Namen, Uhrzeit und dem, was in der anderen Fassung steht. Zur Wahl stehen
