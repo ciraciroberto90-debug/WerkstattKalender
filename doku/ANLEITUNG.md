@@ -205,6 +205,13 @@ Störungen, nicht den Rest.
   selbst bleibt der Name dauerhaft. Im Störbericht steht er unten:
   „… · zuletzt geändert von T. Klein". Den eigenen Namen setzt man einmalig
   im ⚙ unter **Dein Name (dieses Gerät)**.
+- **Zwei an einem Bericht:** Ändert jemand anderes einen Störbericht, während
+  deine Bearbeiten-Maske offen ist, fragt die App beim Speichern nach – mit
+  Namen, Uhrzeit und dem, was in der anderen Fassung steht. Zur Wahl stehen
+  **„Andere Fassung übernehmen"** (deine Eingabe wird verworfen) und
+  **„Meine Fassung speichern"** (ersetzt die andere). Ohne diese Rückfrage
+  würde beim Zusammenführen einfach der spätere Zeitstempel gewinnen – und
+  niemand erführe davon.
 - **Übersicht / Cockpit:** Kennzahlen (heute fällig, erledigt, überfällig, Monats- und
   Jahresquote als Halbkreis **mit ausgeschriebenem Monatsnamen**), eine **analoge Uhr**
   mit der laufenden Schicht (z. B. *Do., 23.07. · Spät ab 14:00*), „Heute da",

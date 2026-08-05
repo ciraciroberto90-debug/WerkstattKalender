@@ -343,6 +343,69 @@ const klappeAlles = async (p) => {
     await p.context().close();
   }
 
+  /* ---------- (10) Zwei an einem Bericht: gefragt statt still überschrieben --
+     Der gefährlichste Fall im Mehrschichtbetrieb. A öffnet einen Bericht zum
+     Bearbeiten, B ändert ihn in der Zwischenzeit und speichert. Speichert A
+     jetzt, gewinnt beim Zusammenführen der spätere Zeitstempel - Bs Arbeit
+     wäre weg, ohne dass es jemand merkt. Genau deshalb muss gefragt werden. */
+  {
+    const jetzt = new Date("2026-08-03T10:00:00").toISOString();
+    const platte = {
+      "stoer.json": JSON.stringify({
+        format: "werkstatt-stoerungen-v1", savedAt: jetzt, deleted: {}, config: null,
+        entries: [{
+          id: "s-konflikt", nr: "2026-0007", date: "2026-08-03", schicht: "Früh",
+          anlage: "TS200", stoerung: "Förderband steht", offen: true,
+          melder: "R. Ciraci", gemeldetAt: jetzt, updatedAt: jetzt,
+        }],
+      }),
+    };
+    const a = await seite(b, platte);
+    await klappeAlles(a);
+    await a.getByText("Förderband steht").first().click();
+    await a.waitForTimeout(500);
+    // A entsichert und tippt - die Maske ist jetzt offen.
+    await a.getByRole("button", { name: /Bearbeiten/ }).first().click();
+    await a.waitForTimeout(500);
+    const feldA = a.locator("textarea").first();
+    await feldA.fill("Förderband steht - Motor prüfen (Fassung A)");
+    await a.waitForTimeout(200);
+
+    // Währenddessen ändert B denselben Bericht in der Datei.
+    const bNeu = { ...JSON.parse(platte["stoer.json"]) };
+    const geaendert = new Date("2026-08-03T10:05:00").toISOString();
+    bNeu.savedAt = geaendert;
+    bNeu.entries = bNeu.entries.map((e) => e.id === "s-konflikt"
+      ? { ...e, stoerung: "Förderband steht - Kette gerissen (Fassung B)", getan: "Kette getauscht",
+          updatedAt: geaendert, geaendertVon: "M. Weber" }
+      : e);
+    platte["stoer.json"] = JSON.stringify(bNeu);
+
+    // A speichert.
+    // Der Speichern-Knopf sitzt am Fuß eines Scroll-Bereichs - direkt
+    // auslösen statt scrollen, wie beim Löschen weiter oben auch.
+    await a.getByRole("button", { name: /^(Speichern|Änderungen speichern)/ }).first().dispatchEvent("click");
+    await a.waitForTimeout(1200);
+
+    const warnung = await a.locator('div[role="dialog"][aria-label="Bericht wurde inzwischen geändert"]').count();
+    pruef("(10) Es wird gewarnt, statt still zu überschreiben", warnung === 1);
+    const wtext = warnung ? await a.locator('div[role="dialog"][aria-label="Bericht wurde inzwischen geändert"]').innerText() : "";
+    pruef("(10) Die Warnung nennt den Namen des anderen", /M\. Weber/.test(wtext));
+    pruef("(10) Und zeigt, was in der anderen Fassung steht", /Kette gerissen/.test(wtext));
+    // Solange nicht entschieden ist, darf nichts geschrieben sein.
+    const zwischen = dateiBerichte(platte).find((x) => x.id === "s-konflikt") || {};
+    pruef("(10) Vor der Entscheidung bleibt die Datei unverändert",
+      /Kette gerissen/.test(String(zwischen.stoerung || "")));
+
+    // A entscheidet sich bewusst für die eigene Fassung.
+    await a.getByRole("button", { name: "Meine Fassung speichern" }).click();
+    await a.waitForTimeout(1200);
+    const danach = dateiBerichte(platte).find((x) => x.id === "s-konflikt") || {};
+    pruef("(10) Nach bewusster Entscheidung wird die eigene Fassung geschrieben",
+      /Fassung A/.test(String(danach.stoerung || "")), String(danach.stoerung || "").slice(0, 60));
+    await a.context().close();
+  }
+
   await b.close();
   console.log(`\nHärte 37 (Störungen-Leiste): ${ok}/${ok + fail}`);
   process.exit(fail ? 1 : 0);

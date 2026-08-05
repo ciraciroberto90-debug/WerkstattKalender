@@ -1009,6 +1009,13 @@ function App() {
   const [stoerChecked, setStoerChecked] = useState(false);
   const [stoerErr, setStoerErr] = useState(null); // Fehler der Störungen-Datei (eigener Banner)
   const [stoerModal, setStoerModal] = useState(null); // null | {mode:'add'} | {mode:'edit', id}
+  /* Schutz vor stillem Überschreiben: Beim Öffnen der Bearbeiten-Maske wird
+     festgehalten, auf welchem Stand der Bericht war. Hat ihn in der Zwischen-
+     zeit jemand anderes geändert, wird beim Speichern gefragt statt einfach
+     der ältere Stand darübergelegt. Ohne diese Merkung würde die spätere
+     Speicherung gewinnen - und niemand erführe davon. */
+  const [stoerBasis, setStoerBasis] = useState(null);      // { id, updatedAt }
+  const [stoerKonflikt, setStoerKonflikt] = useState(null); // { draft, fremd }
   const [sDraft, setSDraft] = useState(null); // Entwurf im Melden/Bearbeiten-Dialog
   const [stoerErledigteZeigen, setStoerErledigteZeigen] = useState(true); // Schichtbuch: behobene Berichte standardmäßig mit anzeigen
   // Filterleiste links - dieselben Begriffe wie im alten Schichtbuch, damit
@@ -1262,8 +1269,41 @@ function App() {
     // Ohne Datei (oder wenn das Schreiben scheiterte) gilt der lokale Stand.
     return next;
   };
+  // Beim Öffnen der Bearbeiten-Maske den Ausgangsstand festhalten.
+  useEffect(() => {
+    if (stoerModal && stoerModal.mode === "edit" && stoerModal.id) {
+      const s = stoerungen.find((x) => x.id === stoerModal.id);
+      setStoerBasis({ id: stoerModal.id, updatedAt: (s && s.updatedAt) || "" });
+    } else if (!stoerModal) {
+      setStoerBasis(null);
+    }
+    // Absicht: NUR beim Wechsel der Maske, nicht bei jeder Änderung der Liste -
+    // sonst würde die Basis mitwandern und der Vergleich ginge ins Leere.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stoerModal && stoerModal.mode, stoerModal && stoerModal.id]);
+
+  /* Holt den Bericht so, wie er JETZT in der gemeinsamen Datei steht. Der
+     Abgleich läuft sonst alle 30 s - beim Speichern lohnt der eine zusätzliche
+     Blick, sonst bliebe genau das Zeitfenster offen, um das es hier geht. */
+  const frischerStoerStand = async (id) => {
+    if (!sharedFile.stoer.isConnected()) return null;
+    try {
+      await sharedFile.stoer.pollNow();
+      const liste = JSON.parse(localStorage.getItem(STOER_STORAGE_KEY) || "[]");
+      return liste.find((x) => x.id === id) || null;
+    } catch (e) { return null; }   // nicht erreichbar: dann eben ohne Warnung
+  };
+
   // Eine Störung anlegen/ändern/löschen (Kürzel wird wie bei der Pinnwand gemerkt)
-  const speichereStoerung = async (draft) => {
+  const speichereStoerung = async (draft, erzwingen = false) => {
+    // Hat jemand anderes den Bericht angefasst, seit die Maske offen ist?
+    if (draft.id && !erzwingen && stoerBasis && stoerBasis.id === draft.id) {
+      const fremd = await frischerStoerStand(draft.id);
+      if (fremd && fremd.updatedAt && fremd.updatedAt !== stoerBasis.updatedAt) {
+        setStoerKonflikt({ draft, fremd });
+        return;
+      }
+    }
     const jetzt = new Date().toISOString();
     const melder = String(draft.melder || "").trim();
     if (melder) localStorage.setItem("werkstatt-kalender-name", melder);
@@ -7013,6 +7053,65 @@ function App() {
           verkleinert - kein nachgebautes Bildchen, das später nicht zum
           Ausdruck passt. Der Maßstab richtet sich nach dem Papierformat,
           das die Vorlage selbst in ihrer @page-Regel nennt. */}
+      {/* Zwei an einem Bericht: Wer als Zweiter speichert, würde die Fassung
+          des Ersten stumm überschreiben - beim Zusammenführen gewinnt der
+          spätere Zeitstempel. Deshalb wird hier gefragt, mit Namen und Zeit
+          des anderen, statt es einfach geschehen zu lassen. */}
+      {stoerKonflikt && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "16px" }}
+        >
+          <div
+            role="dialog"
+            aria-label="Bericht wurde inzwischen geändert"
+            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden" }}
+          >
+            <div className="px-5 py-3" style={{ backgroundColor: "#FBF3DA", borderBottom: "1px solid #E7D9A8" }}>
+              <span className="font-black" style={{ fontSize: "1.02rem", color: "#22262B" }}>⚠️ Dieser Bericht wurde inzwischen geändert</span>
+            </div>
+            <div className="px-5 py-4" style={{ fontSize: "0.9rem", color: "#39414B" }}>
+              <p className="mb-3">
+                <strong>{stoerKonflikt.fremd.geaendertVon || "Jemand anderes"}</strong> hat den Bericht
+                {stoerKonflikt.fremd.updatedAt
+                  ? ` am ${new Date(stoerKonflikt.fremd.updatedAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+                  : ""} bearbeitet, während deine Maske offen war.
+              </p>
+              <p className="mb-1" style={{ color: "#5B6572" }}>Speicherst du jetzt, ersetzt deine Fassung die andere.</p>
+              <div className="rounded-lg p-3 mt-3" style={{ backgroundColor: "#F7F9FB", border: "1px solid #E7EAED", fontSize: "0.84rem" }}>
+                <div className="font-extrabold uppercase mb-1" style={{ fontSize: "0.6rem", letterSpacing: "0.5px", color: "#5B6572" }}>Die andere Fassung sagt</div>
+                <div style={{ color: "#39414B", whiteSpace: "pre-wrap" }}>{stoerKonflikt.fremd.stoerung || "—"}</div>
+                {stoerKonflikt.fremd.getan && <div className="mt-1" style={{ color: "#5B6572" }}>🔧 {stoerKonflikt.fremd.getan}</div>}
+                {stoerKonflikt.fremd.nochZuTun && <div className="mt-1" style={{ color: "#C0392B" }}>📌 {stoerKonflikt.fremd.nochZuTun}</div>}
+              </div>
+            </div>
+            <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ borderTop: "1px solid #EFF1F3", backgroundColor: "#FAFBFC" }}>
+              <button
+                onClick={() => {
+                  // Die eigene Eingabe wird verworfen, der fremde Stand steht.
+                  const f = stoerKonflikt.fremd;
+                  setStoerKonflikt(null);
+                  setStoerModal({ mode: "view", id: f.id });
+                  oeffneStoerDetail(f);
+                }}
+                className="rounded-lg font-bold"
+                style={{ fontSize: "0.85rem", padding: "8px 14px", backgroundColor: "#EEF1F4", color: "#5B6572" }}
+              >Andere Fassung übernehmen</button>
+              <span className="ml-auto" />
+              <button
+                onClick={async () => {
+                  const d = stoerKonflikt.draft;
+                  setStoerKonflikt(null);
+                  await speichereStoerung(d, true);
+                }}
+                className="rounded-lg font-bold text-white"
+                style={{ fontSize: "0.85rem", padding: "8px 16px", backgroundColor: "#C0392B" }}
+              >Meine Fassung speichern</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {druckWahlOffen && druckAngebot() && (() => {
         const angebot = druckAngebot();
         const gewaehlt = angebot.optionen.find((o) => o.id === druckOption) || angebot.optionen[0];

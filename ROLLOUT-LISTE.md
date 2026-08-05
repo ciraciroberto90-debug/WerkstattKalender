@@ -189,6 +189,11 @@ Betrieb übernehmen. Beides bringt Anforderungen, die vorher zu klären sind:
       Geprüft ist dabei vor allem der gefährliche Fall: fremde Einträge
       bekommen beim eigenen Speichern KEINEN neuen Zeitstempel, sonst würde
       der zuletzt Speichernde beim Zusammenführen alles verdrängen
+- [x] Zwei an einem Störbericht: Beim Speichern wird nachgefragt, wenn ihn
+      inzwischen jemand anderes geändert hat – mit Namen, Zeit und dem Inhalt
+      der anderen Fassung. Vorher hätte der spätere Zeitstempel stumm
+      gewonnen. Vor dem Speichern wird dafür einmal frisch nachgesehen, statt
+      auf den 30-Sekunden-Takt zu warten
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)
