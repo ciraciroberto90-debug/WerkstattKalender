@@ -129,6 +129,27 @@ const OHNE_SPUR = ({ updatedAt, geaendertVon, ...rest }) => rest;
 // Löschungen. Der Urheber steht damit AM EINTRAG - dauerhaft, auch wenn die
 // Verlaufszeilen nach 90 Tagen herausaltern oder bei vielen Änderungen auf
 // einen Sammeleintrag zusammengefasst wurden.
+/* Eine Millisekunde nach dem übergebenen Zeitpunkt. */
+function knappDanach(iso) {
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? nowISO() : new Date(ms + 1).toISOString();
+}
+
+/* Welchen Zeitstempel bekommt eine Änderung?
+   Normalerweise die aktuelle Uhrzeit. Trägt der Eintrag aber bereits einen
+   Stempel, der GLEICH ODER NEUER ist, wäre die eigene Änderung beim
+   Zusammenführen sofort wieder verloren - dort entscheidet allein der größere
+   Stempel. Genau das passiert, wenn die Uhr dieses Rechners nachgeht: Alles,
+   was von hier kommt, verliert jeden Vergleich, und niemand merkt es, weil
+   die Kontroll-Lesung eine fremde neuere Fassung als Bestätigung durchgehen
+   lässt (gemessen am 05.08.2026 mit 40 Minuten Versatz).
+   Deshalb gilt: Wer eine Fassung vor sich hat und sie ändert, muss danach
+   auch den größeren Stempel tragen - unabhängig davon, wie die Uhren stehen. */
+function neuerStempel(jetzt, prev) {
+  const alt = prev && prev.updatedAt ? String(prev.updatedAt) : "";
+  return alt && alt >= jetzt ? knappDanach(alt) : jetzt;
+}
+
 export function stampEntries(nextEntries, prevEntries) {
   const strip = OHNE_SPUR;
   const prevById = new Map((prevEntries || []).map((e) => [e.id, e]));
@@ -142,8 +163,8 @@ export function stampEntries(nextEntries, prevEntries) {
     }
     // Systemeinträge (Einstellungen, Verlaufszeilen) tragen ihren Urheber
     // bereits selbst bzw. gehören niemandem - sie bleiben unberührt.
-    if (istSystemEintrag(e)) return { ...e, updatedAt: t };
-    return { ...e, updatedAt: t, geaendertVon: ich };
+    if (istSystemEintrag(e)) return { ...e, updatedAt: neuerStempel(t, prev) };
+    return { ...e, updatedAt: neuerStempel(t, prev), geaendertVon: ich };
   });
   const removed = [];
   prevById.forEach((_, id) => {
@@ -276,6 +297,7 @@ function createSharedStore(cfg) {
      genau daran ist der 03.08. gescheitert. Was sich sehr wohl feststellen
      lässt: Größe, letzte Änderung, Zahl der Einträge - und, sofern der
      Werkstatt-Ordner freigegeben ist, der Weg innerhalb dieses Ordners. */
+  let uhrVersatzMs = 0;      // wie weit die Zeitangaben in der Datei in der Zukunft liegen
   let dateiInfo = null;   // { groesse, geaendert, eintraege }
   let dateiPfad = "";     // z. B. "Werkstatt/werkstatt-kalender-daten.json"
   let folderPerm = "none"; // "ok" | "needs-permission" | "none"
@@ -442,6 +464,31 @@ function createSharedStore(cfg) {
       config: d.config && typeof d.config === "object" ? d.config : null,
     };
   }
+  /* Die Zeitstempel in der Datei kommen von den Uhren der beteiligten Rechner.
+     Liegen sie deutlich in der Zukunft, stimmt eine dieser Uhren nicht - und
+     zwar so, dass jede Zeitangabe in der App und im Prüfnachweis daneben
+     liegt. Der Datenverlust daraus ist behoben (siehe neuerStempel), die
+     falsche Uhrzeit bleibt aber ein Mangel, den nur ein Mensch beheben kann.
+     Drei Minuten Spielraum: Normale Rechner im Firmennetz liegen weit darunter. */
+  const UHR_TOLERANZ_MS = 3 * 60 * 1000;
+  function pruefeUhr(data) {
+    let groesster = String(data.savedAt || "");
+    (data.entries || []).forEach((e) => {
+      const u = String(e.updatedAt || "");
+      if (u > groesster) groesster = u;
+    });
+    if (!groesster) return;
+    const versatz = Date.parse(groesster) - Date.now();
+    // Als bleibender Zustand, nicht als Fehlermeldung: Eine falsche Uhr ist
+    // kein Vorfall, der vorübergeht - die nächste Erfolgsmeldung würde einen
+    // Hinweis sofort wieder wegräumen, und niemand hätte ihn gesehen.
+    uhrVersatzMs = Number.isNaN(versatz) || versatz <= UHR_TOLERANZ_MS ? 0 : versatz;
+  }
+  // Wie viele Minuten die Zeitangaben in der Datei vorausliegen (0 = in Ordnung).
+  function uhrVersatz() {
+    return uhrVersatzMs > 0 ? Math.round(uhrVersatzMs / 60000) : 0;
+  }
+
   async function readFileData() {
     const file = await mitFrist(() => fileHandle.getFile(), FRIST_LESEN, "Das Öffnen der Datei");
     const text = await mitFrist(() => file.text(), FRIST_LESEN, "Das Lesen der Datei");
@@ -450,6 +497,7 @@ function createSharedStore(cfg) {
     try {
       const gelesen = normalizeData(JSON.parse(text));
       dateiInfo.eintraege = ohneSystemEntries(gelesen.entries).length;
+      pruefeUhr(gelesen);
       return gelesen;
     } catch (e) {
       // Gemessen, wie es ohne diese Stelle aussah: "Expected double-quoted
@@ -1270,7 +1318,7 @@ function createSharedStore(cfg) {
   };
 
   return {
-    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, getLastWriteError, getLastSuccessfulSyncAt,
+    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
@@ -1297,6 +1345,7 @@ export const isConnected = main.isConnected;
 export const canWrite = main.canWrite;
 export const fileName = main.fileName;
 export const fileInfo = main.fileInfo;
+export const uhrVersatz = main.uhrVersatz;
 export const getLastWriteError = main.getLastWriteError;
 export const getLastSuccessfulSyncAt = main.getLastSuccessfulSyncAt;
 export const listBackups = main.listBackups;

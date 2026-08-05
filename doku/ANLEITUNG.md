@@ -246,6 +246,14 @@ Störungen, nicht den Rest.
   Datei leer ist, steht ohnehin dauerhaft in der Kennkarte. Nur-Leser bekommen
   die Frage nicht – ihnen „Andere Datei wählen" anzubieten wäre dieselbe
   Einladung, die im Schreibschutz-Balken bewusst versteckt ist.
+- **Falsche Uhrzeit:** Geht die Uhr eines Rechners nach, tragen seine
+  Änderungen ältere Zeitstempel als die der anderen – beim Zusammenführen
+  entscheidet aber genau dieser Stempel. Damit dabei nichts verlorengeht,
+  bekommt eine Änderung immer einen Stempel **über** dem der Fassung, auf der
+  sie beruht. Zusätzlich erscheint ein Hinweis, wenn die Zeitangaben in der
+  Datei mehr als drei Minuten in der Zukunft liegen – die Uhrzeiten selbst
+  (auch im Prüfnachweis) sind dann nämlich falsch, und das kann nur die
+  Windows-Zeit richten.
 - **Zwei an einem Bericht:** Ändert jemand anderes einen Störbericht, während
   deine Bearbeiten-Maske offen ist, fragt die App beim Speichern nach – mit
   Namen, Uhrzeit und dem, was in der anderen Fassung steht. Zur Wahl stehen

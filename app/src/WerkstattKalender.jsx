@@ -4734,6 +4734,21 @@ function App() {
         </div>
       )}
 
+      {/* Falsche Uhrzeit: bleibender Hinweis, keine Meldung, die die nächste
+          Erfolgsmeldung wegräumt. Der Datenverlust daraus ist behoben - eine
+          Änderung trägt jetzt immer einen größeren Zeitstempel als die Fassung,
+          auf der sie beruht. Falsch bleiben aber alle Uhrzeiten, auch im
+          Prüfnachweis, und das kann nur ein Mensch richten. */}
+      {sharedFile.uhrVersatz() > 0 && (
+        <div className="no-print mx-4 mt-2 rounded px-3 py-2 text-xs"
+             style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7D9A8", color: "#8A5320" }}>
+          <strong>⏰ Die Uhrzeit dieses Rechners stimmt vermutlich nicht.</strong>{" "}
+          In der gemeinsamen Datei stehen Zeitangaben, die {sharedFile.uhrVersatz()} Minuten in der
+          Zukunft liegen. Entweder geht die Uhr hier nach oder die eines anderen Rechners vor.
+          Deine Einträge gehen dadurch nicht verloren – aber jede Uhrzeit in der App und im
+          Prüfnachweis ist so lange falsch. Bitte die Windows-Zeit prüfen lassen.
+        </div>
+      )}
       {err && <div className="no-print mx-4 mt-2 text-xs text-red-600">{err}</div>}
 
       {/* Titel nur für den Ausdruck */}

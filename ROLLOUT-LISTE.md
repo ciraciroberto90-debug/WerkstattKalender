@@ -249,6 +249,12 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
       der anderen Fassung. Vorher hätte der spätere Zeitstempel stumm
       gewonnen. Vor dem Speichern wird dafür einmal frisch nachgesehen, statt
       auf den 30-Sekunden-Takt zu warten
+- [x] **Falsch gehende Uhr kostet keine Arbeit mehr.** Gemessen am 05.08.:
+      Ein Rechner mit 40 Minuten Rückstand verlor seine Änderung beim
+      Zusammenführen spurlos – ohne Hinweis, weil die Kontroll-Lesung eine
+      fremde neuere Fassung als Bestätigung durchgehen ließ. Jetzt trägt jede
+      Änderung einen Stempel über dem der Fassung, auf der sie beruht; dazu
+      ein bleibender Hinweis auf die falsche Uhr (harte-38)
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)
