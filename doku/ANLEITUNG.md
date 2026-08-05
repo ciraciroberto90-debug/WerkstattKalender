@@ -205,6 +205,13 @@ Störungen, nicht den Rest.
   selbst bleibt der Name dauerhaft. Im Störbericht steht er unten:
   „… · zuletzt geändert von T. Klein". Den eigenen Namen setzt man einmalig
   im ⚙ unter **Dein Name (dieses Gerät)**.
+- **Schreibschutz, obwohl du Rechte hast?** Ein Schreibversuch kann auch
+  fehlschlagen, weil die Datei gerade **belegt** ist – etwa weil das Cockpit
+  in einem zweiten Fenster offen ist oder OneDrive abgleicht. Die App meldet
+  das, stuft aber nicht mehr dauerhaft auf „nur ansehen" zurück; das tut sie
+  nur noch bei einer echten Ablehnung durch Browser oder Laufwerk. Steht ein
+  Gerät noch aus der Zeit davor auf Schreibschutz, hilft einmal
+  **Ordner-Symbol → „Datei erneut anwählen (mit Schreibrecht)"**.
 - **Zwei an einem Bericht:** Ändert jemand anderes einen Störbericht, während
   deine Bearbeiten-Maske offen ist, fragt die App beim Speichern nach – mit
   Namen, Uhrzeit und dem, was in der anderen Fassung steht. Zur Wahl stehen

@@ -138,8 +138,25 @@ Betrieb übernehmen. Beides bringt Anforderungen, die vorher zu klären sind:
 ## Was der 05.08. gezeigt hat
 
 Am Morgen des 05.08.2026 stand die App auf Schreibschutz, und der Selbsttest
-meldete „KEINE JSON-Datei im Ordner". Beides war halb so wild, sah aber
-schlimm aus – und genau das ist das Problem:
+meldete „KEINE JSON-Datei im Ordner".
+
+**Die Ursache des Schreibschutzes ist gefunden und behoben.** Beim Verbinden
+macht die App einen Schreibversuch. Schlug der fehl, schloss sie daraus
+„keine Rechte" und **merkte sich das dauerhaft**. Der Auslöser war ein
+versehentlich zweites Fenster: Der zweite Tab wollte schreiben, die Datei war
+in dem Moment belegt – und weil die Merkung am Ursprung hängt und nicht am
+Tab, galt sie danach für alle Fenster und überlebte Neustart und neue
+Verknüpfung. Seit dem Fix wird nur noch bei einer **ausdrücklichen Ablehnung**
+(`NotAllowedError`, `SecurityError`) zurückgestuft; eine belegte Datei oder
+ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
+
+- [ ] **Wer jetzt schon fälschlich auf „nur ansehen" steht, muss einmal
+      „Datei erneut anwählen (mit Schreibrecht)" klicken.** Der Fix verhindert
+      den Fall künftig, räumt aber die bereits gemerkte Rückstufung nicht von
+      selbst weg. Offen ist, ob die App das beim Start still selbst prüfen
+      soll – Vorteil: niemand sitzt unbemerkt im Schreibschutz; Nachteil: ein
+      echter Leser erzeugt dann bei jedem Start einen verbotenen
+      Schreibversuch.
 
 - [ ] **Der Selbsttest prüft den falschen Ordner.** Er schaut in den
       App-Ordner (`\\scheudc1\…\Werkstatt_Kalender`), die Daten liegen aber

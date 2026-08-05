@@ -24,9 +24,9 @@ const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwrig
 const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
 let ok=0, fail=0; const pruef=(n,c)=>{console.log((c?"PASS | ":"FAIL | ")+n); c?ok++:fail++;};
 
-async function starte(b, { dialogDauer, ersteFrage, schreibenGeht }) {
+async function starte(b, { dialogDauer, ersteFrage, schreibenGeht, schreibFehler, nurErsterVersuch }) {
   const p = await (await b.newContext({ viewport:{width:1400,height:950} })).newPage();
-  await p.addInitScript(({dialogDauer, ersteFrage, schreibenGeht}) => {
+  await p.addInitScript(({dialogDauer, ersteFrage, schreibenGeht, schreibFehler, nurErsterVersuch}) => {
     window.__fragen = 0;
     const datei = { inhalt: JSON.stringify({format:"werkstatt-kalender-v1",savedAt:"2026-07-20T08:00:00.000Z",entries:[],deleted:{},config:null}) };
     let darfSchreiben = false;
@@ -34,7 +34,12 @@ async function starte(b, { dialogDauer, ersteFrage, schreibenGeht }) {
       name:"kalender-daten.json", kind:"file",
       async getFile(){ return new File([datei.inhalt],"kalender-daten.json",{type:"application/json"}); },
       async createWritable(){
-        if (!darfSchreiben || !schreibenGeht) { const e=new Error("Zugriff verweigert"); e.name="NotAllowedError"; throw e; }
+        if (!darfSchreiben) { const e=new Error("Zugriff verweigert"); e.name="NotAllowedError"; throw e; }
+        window.__schreibVersuche = (window.__schreibVersuche || 0) + 1;
+        // schreibFehler: welcher Fehler beim Schreiben kommt. "nurErsterVersuch"
+        // bildet den echten Fall nach - eine belegte Datei ist Sekunden spaeter frei.
+        const werfen = !schreibenGeht && (!nurErsterVersuch || window.__schreibVersuche === 1);
+        if (werfen) { const e=new Error("Datei belegt"); e.name = schreibFehler || "NotAllowedError"; throw e; }
         let puf=""; return { async write(c){puf+=c;}, async close(){datei.inhalt=puf;} };
       },
       async queryPermission(){ return darfSchreiben ? "granted" : "prompt"; },
@@ -52,7 +57,7 @@ async function starte(b, { dialogDauer, ersteFrage, schreibenGeht }) {
     };
     window.showOpenFilePicker = async () => { await new Promise(r=>setTimeout(r,dialogDauer)); return [h]; };
     window.showSaveFilePicker = async () => { await new Promise(r=>setTimeout(r,dialogDauer)); return h; };
-  }, {dialogDauer, ersteFrage, schreibenGeht});
+  }, {dialogDauer, ersteFrage, schreibenGeht, schreibFehler, nurErsterVersuch});
   const fehler=[]; p.on("pageerror",e=>fehler.push(e.message));
   await p.goto(APP); await p.waitForTimeout(1500);
   await p.getByRole("button",{name:/Gemeinsame Datei/}).first().click(); await p.waitForTimeout(400);
@@ -60,6 +65,20 @@ async function starte(b, { dialogDauer, ersteFrage, schreibenGeht }) {
   await p.waitForTimeout(dialogDauer + 3500);
   return { p, fehler };
 }
+
+// Liest, was sich die App dauerhaft gemerkt hat. Genau daran hing der Fehler
+// vom 05.08.: Der Zustand ueberlebte jeden Neustart.
+const gemerkterModus = (p) => p.evaluate(() => new Promise((fertig) => {
+  const anfrage = indexedDB.open("werkstatt-kalender-fs");
+  anfrage.onerror = () => fertig("(keine Datenbank)");
+  anfrage.onsuccess = () => {
+    const db = anfrage.result;
+    if (!db.objectStoreNames.contains("handles")) return fertig("(kein Speicher)");
+    const t = db.transaction("handles", "readonly").objectStore("handles").get("mode");
+    t.onsuccess = () => fertig(t.result === undefined ? "(nichts gemerkt)" : String(t.result));
+    t.onerror = () => fertig("(Lesefehler)");
+  };
+}));
 
 (async()=>{
   const b = await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
@@ -96,6 +115,28 @@ async function starte(b, { dialogDauer, ersteFrage, schreibenGeht }) {
     pruef("(3) Echter Leser bekommt ehrlichen Schreibschutz", /Schreibschutz/.test(t));
     pruef("(3) Kein irrefuehrender 'erlauben'-Knopf fuer echte Leser",
       (await p.getByRole("button",{name:/Schreibzugriff erlauben/}).count())===0);
+    // Gegenprobe zu (5): Bei einem ECHTEN Rechteentzug MUSS die Ruecktufung
+    // gemerkt werden - sonst gaelte ein reiner Leser nach dem naechsten Start
+    // wieder als Bearbeiter.
+    pruef("(3) Die Ruecktufung wird gemerkt", (await gemerkterModus(p)) === "read");
+    await p.context().close(); }
+
+  /* (5) Die Datei ist nur BELEGT - kein Rechteentzug.
+     Am 05.08.2026 stand ein Arbeitsplatz dauerhaft auf Schreibschutz, nachdem
+     das Cockpit versehentlich ein zweites Mal geoeffnet worden war: Der zweite
+     Tab wollte schreiben, die Datei war in dem Moment belegt, und die App
+     schrieb "nur ansehen" in die Merkliste. Weil die am Ursprung haengt und
+     nicht am Tab, galt sie danach fuer alle Fenster - Neustart und neue
+     Verknuepfung halfen nicht. Eine belegte Datei darf deshalb NIE als
+     Rechteentzug festgeschrieben werden. */
+  { const {p} = await starte(b,{dialogDauer:300,ersteFrage:"ok",schreibenGeht:false,
+      schreibFehler:"NoModificationAllowedError", nurErsterVersuch:true});
+    const t = await p.locator("body").innerText();
+    pruef("(5) Belegte Datei fuehrt NICHT in den Schreibschutz", !/Schreibschutz/.test(t));
+    pruef("(5) Der Grund wird trotzdem gemeldet", /belegt|nicht beschreiben/.test(t));
+    pruef("(5) Und nichts Falsches gemerkt - der Modus bleibt schreibend",
+      (await gemerkterModus(p)) !== "read");
+    pruef("(5) Bearbeiten ist weiterhin moeglich", /BACKLOG/.test(t));
     await p.context().close(); }
 
   // (4) Ausdrueckliche Ablehnung im Browser-Dialog: gar keine Verbindung,

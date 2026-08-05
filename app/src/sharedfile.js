@@ -50,6 +50,25 @@ export function keineAntwort(e) {
   return !!(e && e.keineAntwort);
 }
 
+/* Ist ein fehlgeschlagener Schreibversuch wirklich ein ENTZOGENES RECHT?
+   Am 05.08.2026 stand ein Arbeitsplatz dauerhaft auf Schreibschutz, nachdem
+   die App versehentlich ein zweites Mal geöffnet worden war. Ursache: Der
+   zweite Tab probierte zu schreiben, die Datei war in dem Moment belegt, und
+   die App deutete das als "keine Rechte" - und merkte es sich. Weil die
+   Merkung am Ursprung hängt und nicht am Tab, galt sie danach für ALLE
+   Fenster und überlebte Neustart und neue Verknüpfung.
+
+   Deshalb: Nur eine ausdrückliche Ablehnung durch Browser oder Dateisystem
+   ist ein Rechteentzug. Eine belegte Datei (NoModificationAllowedError), ein
+   Netz-Aussetzer (NotReadableError, AbortError) oder eine ausbleibende
+   Antwort sind vorübergehend - sie werden gemeldet, aber nicht festgeschrieben. */
+export function istRechteEntzug(e) {
+  if (!e) return false;
+  if (e.keineAntwort) return false;                       // Frist abgelaufen: Ausfall, kein Entzug
+  const name = String(e.name || "");
+  return name === "NotAllowedError" || name === "SecurityError";
+}
+
 function mitFrist(bauer, ms, was) {
   return new Promise((ok, fehl) => {
     let erledigt = false;
@@ -490,11 +509,20 @@ function createSharedStore(cfg) {
       } catch (e) {
         lastWriteError = `${e && e.name ? e.name : "Fehler"}: ${e && e.message ? e.message : e}`;
         if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
-        accessMode = "read"; // keine Schreibrechte (IT-Freigabe) -> nur ansehen
-        // WICHTIG: Zurückstufung auch merken. Sonst stünde nach dem nächsten
-        // Browser-Neustart fälschlich "readwrite" in der Merkliste und ein reiner
-        // Leser würde bis zum Klick auf "Jetzt verbinden" als Bearbeiter gelten.
-        try { await idbSet("mode", "read"); } catch (e2) { /* egal */ }
+        if (istRechteEntzug(e)) {
+          accessMode = "read"; // Rechte auf dem Laufwerk fehlen wirklich -> nur ansehen
+          // WICHTIG: Zurückstufung auch merken. Sonst stünde nach dem nächsten
+          // Browser-Neustart fälschlich "readwrite" in der Merkliste und ein reiner
+          // Leser würde bis zum Klick auf "Jetzt verbinden" als Bearbeiter gelten.
+          try { await idbSet("mode", "read"); } catch (e2) { /* egal */ }
+        } else {
+          // Datei belegt (zweiter Tab, OneDrive-Sync, Virenscanner) oder kurz
+          // nicht erreichbar. Das Schreibrecht bleibt bestehen - gemeldet wird
+          // es trotzdem, damit niemand denkt, sein Eintrag sei in der Datei.
+          dispatchError(`Die gemeinsame Datei ließ sich gerade nicht beschreiben (${e && e.name ? e.name : "Fehler"}). `
+            + `Sie ist vermutlich einen Moment belegt - etwa weil das Cockpit in einem zweiten Fenster offen ist `
+            + `oder OneDrive gerade abgleicht. Deine Eingaben bleiben lokal gesichert, die App versucht es weiter.`);
+        }
       }
     }
 
