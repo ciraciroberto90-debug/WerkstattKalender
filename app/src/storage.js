@@ -8,6 +8,30 @@ import * as shared from "./sharedfile.js";
 const ENTRIES_KEY = "werkstatt-kalender-entries";
 const CONFIG_KEY = "werkstatt-kalender-config";
 
+/* Der zuletzt von DIESEM Fenster geschriebene Stand.
+   Warum nicht einfach der localStorage? Weil ihn sich alle Fenster derselben
+   Seite teilen. Aus dem Unterschied zwischen "vorher" und "jetzt" leitet die
+   App ab, was der Bediener GELÖSCHT hat - und wenn "vorher" von einem zweiten
+   Fenster stammt, sind dessen frische Einträge plötzlich Löschkandidaten.
+   Gemessen am 05.08.2026: Zwei Fenster offen, das zweite speichert seinen
+   etwas älteren Stand - der Eintrag des ersten bekam eine Löschmarke und war
+   danach auf ALLEN Geräten weg. Deshalb merkt sich jedes Fenster seinen
+   eigenen letzten Stand; gelöscht wird nur, was dieses Fenster selbst
+   entfernt hat. */
+const eigenerStand = new Map();
+
+// Bringt ein Abgleich neue Daten, ist das der neue Ausgangspunkt dieses
+// Fensters - sonst gälte ein anderswo gelöschter Eintrag beim nächsten
+// Speichern noch einmal als eigene Löschung.
+["werkstatt-shared-update", "werkstatt-stoer-update"].forEach((ev) => {
+  window.addEventListener(ev, (e) => {
+    if (e && e.detail && Array.isArray(e.detail.entries)) {
+      eigenerStand.set(ev.startsWith("werkstatt-shared") ? ENTRIES_KEY : "werkstatt-stoerungen-entries",
+        JSON.stringify(e.detail.entries));
+    }
+  });
+});
+
 // Erkennt jede inhaltliche Abweichung zwischen dem, was gerade gespeichert
 // werden sollte, und dem tatsächlich zusammengeführten Ergebnis - nicht nur
 // eine andere Anzahl. Sonst würde z. B. eine zeitgleich geänderte Notiz des
@@ -26,10 +50,13 @@ function unterscheidetSichVon(next, merged) {
 window.storage = {
   async get(key) {
     const value = localStorage.getItem(key);
+    if (value !== null) eigenerStand.set(key, value);
     return value === null ? null : { key, value };
   },
   async set(key, value) {
-    const prevRaw = localStorage.getItem(key);
+    // Ausgangspunkt ist der eigene letzte Stand, nicht der geteilte Speicher.
+    const prevRaw = eigenerStand.has(key) ? eigenerStand.get(key) : localStorage.getItem(key);
+    eigenerStand.set(key, value);
     // Der Zwischenspeicher des Browsers ist begrenzt (meist ~5 MB). Läuft er
     // voll, darf das NICHT den Weg in die gemeinsame Datei abschneiden - die
     // Datei ist der maßgebliche Bestand und kennt diese Grenze nicht. Früher
@@ -49,6 +76,7 @@ window.storage = {
           const merged = await shared.saveEntries(next, prev);
           if (merged) {
             const mergedRaw = JSON.stringify(merged);
+            eigenerStand.set(key, mergedRaw);
             try {
               localStorage.setItem(key, mergedRaw);
               lokalGespeichert = true;

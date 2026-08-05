@@ -255,6 +255,12 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
       fremde neuere Fassung als Bestätigung durchgehen ließ. Jetzt trägt jede
       Änderung einen Stempel über dem der Fassung, auf der sie beruht; dazu
       ein bleibender Hinweis auf die falsche Uhr (harte-38)
+- [x] **Zwei Fenster löschen sich nicht mehr gegenseitig die Arbeit weg.**
+      Gemessen am 05.08.: Beide Fenster teilen den Zwischenspeicher; aus dem
+      Unterschied dazu leitete die App ab, was gelöscht wurde – ein frischer
+      Eintrag des anderen Fensters bekam prompt eine Löschmarke und war
+      danach auf ALLEN Geräten weg. Jetzt merkt sich jedes Fenster seinen
+      eigenen Stand (harte-39, mit Gegenprobe für echte Löschungen)
 - [x] Dateien öffnen sich direkt über den Ausliefer-Dienst
 - [x] 126 Symbole für die Links in sieben Themengruppen, darunter Zahlen und
       Farbpunkte zum Kennzeichnen (Halle 1, Linie 3, roter Bereich)

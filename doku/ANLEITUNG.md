@@ -246,6 +246,10 @@ Störungen, nicht den Rest.
   Datei leer ist, steht ohnehin dauerhaft in der Kennkarte. Nur-Leser bekommen
   die Frage nicht – ihnen „Andere Datei wählen" anzubieten wäre dieselbe
   Einladung, die im Schreibschutz-Balken bewusst versteckt ist.
+- **Zwei Fenster derselben App:** Sie teilen sich den Zwischenspeicher des
+  Browsers. Damit das zweite Fenster nicht die frischen Einträge des ersten
+  als „gelöscht" meldet, merkt sich jedes Fenster seinen **eigenen** letzten
+  Stand – gelöscht wird nur, was dieses Fenster selbst entfernt hat.
 - **Falsche Uhrzeit:** Geht die Uhr eines Rechners nach, tragen seine
   Änderungen ältere Zeitstempel als die der anderen – beim Zusammenführen
   entscheidet aber genau dieser Stempel. Damit dabei nichts verlorengeht,
