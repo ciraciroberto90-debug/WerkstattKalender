@@ -3835,16 +3835,16 @@ function App() {
         }).join("");
         return `<td style="border:1px solid #DCE1E6;background:${grund};padding:1px 2px;vertical-align:top;">
           <div style="display:flex;gap:3px;align-items:flex-start;">
-            <span style="flex:0 0 13px;font-size:8px;font-weight:700;color:#98A1AA;line-height:${kasten - 1}px;">${WEEKDAYS[(new Date(jahr, m, t).getDay() + 6) % 7]}</span>
+            <span style="flex:0 0 24px;font-size:8px;font-weight:700;color:#98A1AA;line-height:${kasten - 1}px;white-space:nowrap;"><b style="color:#5B6572;font-size:9px;">${t}</b> ${WEEKDAYS[(new Date(jahr, m, t).getDay() + 6) % 7]}</span>
             <div style="flex:1 1 auto;min-width:0;">${kaesten || (feiertag
               ? `<div style="font-size:8px;color:#B23A34;line-height:${kasten - 1}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(feiertag)}</div>`
               : "")}</div>
           </div>
         </td>`;
       }).join("");
-      return `<tr>
-        <td style="border:1px solid #DCE1E6;background:#FFFFFF;font-size:11px;font-weight:800;color:#22262B;text-align:right;padding:1px 6px;vertical-align:top;line-height:${kasten - 1}px;">${t}</td>
-        ${zellen}</tr>`;
+      // Die Tageszahl steht IN jedem Tag, nicht in einer Spalte am Rand: Wer
+      // im Dezember etwas sucht, will nicht quer über das Blatt zurückschauen.
+      return `<tr>${zellen}</tr>`;
     }).join("");
 
     const offen = relevant.filter((e) => e.status !== "done").length;
@@ -3861,8 +3861,8 @@ function App() {
         <div style="font-size:11px;color:#6B7480;">${relevant.length} Termine · ${relevant.length - offen} erledigt · ${offen} offen</div>
       </div>
       <table>
-        <colgroup><col style="width:30px;">${MONTHS.map(() => "<col>").join("")}</colgroup>
-        <thead><tr><th style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;font-size:9px;font-weight:700;color:#6B7480;padding:3px 6px;">${jahr}</th>${kopfzeile}</tr></thead>
+        <colgroup>${MONTHS.map(() => "<col>").join("")}</colgroup>
+        <thead><tr>${kopfzeile}</tr></thead>
         <tbody>${zeilen}</tbody>
       </table>
       <div style="margin-top:8px;font-size:10px;color:#6B7480;">

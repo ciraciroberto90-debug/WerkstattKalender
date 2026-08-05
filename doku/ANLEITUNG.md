@@ -261,7 +261,10 @@ Störungen, nicht den Rest.
   - **TPM · Auswertung:** hier kommt zum Blatt noch der **Umfang**
     (Beide / Nur TPM / Nur R+I) dazu:
     - **Jahreskalender** – ein gewöhnlicher Wandkalender in **A3 quer**: die
-      zwölf Monate stehen oben als Spalten, darunter die Tage 1 bis 31. Der
+      zwölf Monate stehen oben als Spalten, darunter die Tage 1 bis 31.
+      Tageszahl und Wochentag stehen **in jedem Tag** (z. B. „12 Do"), nicht
+      in einer Spalte am Rand – sonst schaut man im Dezember quer über das
+      ganze Blatt zurück. Der
       Name der Anlage bzw. des R+I-Punktes steht **waagrecht im Tag**; ist er
       zu lang, wird er hinten mit „…" gekürzt und steht vollständig im
       Mauszeiger-Hinweis. Blau = TPM, violett = R+I, grün = erledigt;

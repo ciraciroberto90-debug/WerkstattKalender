@@ -287,9 +287,18 @@ const seedTeam = (personName) => {
     // Der Punkt der ganzen Sache: A3, sonst haengt an der Wand eine Briefmarke.
     ok('Jahreskalender: A3 quer', /@page[^}]*size:\s*A3 landscape/.test(html));
     ok('Jahreskalender: zwölf Monatsspalten oben',
-      (await popup.locator('thead th').count()) === 13); // Jahr + 12 Monate
+      (await popup.locator('thead th').count()) === 12);
     ok('Jahreskalender: die Monate stehen im Kopf, nicht links',
-      (await popup.locator('thead th').allInnerTexts()).slice(1).join('|') === MONATE.join('|'));
+      (await popup.locator('thead th').allInnerTexts()).join('|') === MONATE.join('|'));
+    // Die Tageszahl gehört IN den Tag, nicht in eine Spalte am Rand - sonst
+    // schaut man im Dezember quer über das ganze Blatt zurück.
+    ok('Jahreskalender: die Tageszahl steht in jedem Tag', await popup.evaluate(() => {
+      const zeilen = Array.from(document.querySelectorAll('tbody tr'));
+      const zelle = (tag, monat) => Array.from(zeilen[tag - 1].querySelectorAll('td'))[monat];
+      const text = (tag, monat) => (zelle(tag, monat).textContent || '').replace(/\s+/g, ' ').trim();
+      // 12. März 2026 ist ein Donnerstag, 25. Dezember ein Freitag.
+      return /^12 Do/.test(text(12, 2)) && /^25 Fr/.test(text(25, 11));
+    }));
     ok('Jahreskalender: 31 Tageszeilen',
       (await popup.locator('tbody tr').count()) === 31);
     ok('Jahreskalender: TPM und R+I stehen beide drauf',
@@ -300,8 +309,8 @@ const seedTeam = (personName) => {
     ok('Jahreskalender: der Name steht im richtigen Tag', await popup.evaluate(() => {
       const zeilen = Array.from(document.querySelectorAll('tbody tr'));
       const zelle = (tag, monat) => Array.from(zeilen[tag - 1].querySelectorAll('td'))[monat];
-      return zelle(12, 3).textContent.includes('Presse 7')      // 12. Maerz
-        && zelle(4, 9).textContent.includes('Presse 7');        //  4. September
+      return zelle(12, 2).textContent.includes('Presse 7')      // 12. Maerz
+        && zelle(4, 8).textContent.includes('Presse 7');        //  4. September
     }));
     // Der Kern von Robertos Rueckmeldung: die Namen sollen WAAGRECHT stehen.
     // "alle" auf einer leeren Liste waere immer wahr - deshalb zaehlt die
@@ -311,7 +320,7 @@ const seedTeam = (personName) => {
       return alle.length >= 4 && alle.every((k) => getComputedStyle(k).writingMode.startsWith('horizontal'));
     }));
     ok('Jahreskalender: die Monatsköpfe sind hell hinterlegt, nicht schwarz', await popup.evaluate(() => {
-      const [r, g, b] = getComputedStyle(document.querySelectorAll('thead th')[1]).backgroundColor.match(/\d+/g).map(Number);
+      const [r, g, b] = getComputedStyle(document.querySelectorAll('thead th')[0]).backgroundColor.match(/\d+/g).map(Number);
       return (0.299 * r + 0.587 * g + 0.114 * b) > 200;   // hell = Helligkeit über 200
     }));
     // Zu lange Namen werden hinten gekuerzt - aber nur in der Breite. In der
@@ -337,8 +346,8 @@ const seedTeam = (personName) => {
       const zeilen = Array.from(document.querySelectorAll('tbody tr'));
       const farbe = (tag, monat) => getComputedStyle(
         Array.from(zeilen[tag - 1].querySelectorAll('td'))[monat].querySelector('div[title]')).backgroundColor;
-      return farbe(12, 3) === 'rgb(226, 240, 231)'      // 12. Maerz: erledigt, gruen
-        && farbe(4, 9) !== 'rgb(226, 240, 231)';        //  4. Sept.: offen
+      return farbe(12, 2) === 'rgb(226, 240, 231)'      // 12. Maerz: erledigt, gruen
+        && farbe(4, 8) !== 'rgb(226, 240, 231)';        //  4. Sept.: offen
     }));
     ok('Jahreskalender: die Legende erklärt beide Zustände', text.includes('erledigt') && text.includes('offen'));
     await popup.close();
