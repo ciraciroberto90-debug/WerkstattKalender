@@ -209,9 +209,28 @@ Störungen, nicht den Rest.
   fehlschlagen, weil die Datei gerade **belegt** ist – etwa weil das Cockpit
   in einem zweiten Fenster offen ist oder OneDrive abgleicht. Die App meldet
   das, stuft aber nicht mehr dauerhaft auf „nur ansehen" zurück; das tut sie
-  nur noch bei einer echten Ablehnung durch Browser oder Laufwerk. Steht ein
-  Gerät noch aus der Zeit davor auf Schreibschutz, hilft einmal
-  **Ordner-Symbol → „Datei erneut anwählen (mit Schreibrecht)"**.
+  nur noch bei einer echten Ablehnung durch Browser oder Laufwerk.
+
+  **Wenn ein Gerät trotzdem im Schreibschutz feststeckt** – etwa noch aus der
+  Zeit vor diesem Stand –, gibt es einen Notausgang, der bewusst nicht in der
+  Oberfläche steht: Die App über die **Verknüpfung** öffnen (also
+  `localhost:8765`, nicht per Doppelklick) und in der Adresszeile
+  **`?verwalten=1`** anhängen:
+
+  > `http://localhost:8765/?verwalten=1`
+
+  Im gelben Balken erscheinen dann zwei Knöpfe: **„Schreibzugriff erneut
+  versuchen"** und **„Mit Schreibrecht verbinden …"** (dieselbe Datei wählen,
+  „Ersetzen" bestätigen – der Inhalt bleibt erhalten, er wird vorher gelesen
+  und zusammengeführt). Versteckt sind sie deshalb, weil „Andere Datei
+  wählen" für einen echten Nur-Leser zu verlockend wäre.
+
+  **Wichtig: immer über die Verknüpfung arbeiten, nie per Doppelklick.** Der
+  Browser führt für `localhost:8765` und `file://` getrennte Merklisten –
+  Dateiverweis, Zugriffsmodus, Zwischenspeicher. Per Doppelklick geöffnet
+  läuft die App zwar, kennt aber keine Verbindung und verlangt jedes Mal ein
+  neues Anwählen der Datei. Genau dabei ist am 03.08. die falsche Datei
+  erwischt worden.
 - **Zwei an einem Bericht:** Ändert jemand anderes einen Störbericht, während
   deine Bearbeiten-Maske offen ist, fragt die App beim Speichern nach – mit
   Namen, Uhrzeit und dem, was in der anderen Fassung steht. Zur Wahl stehen

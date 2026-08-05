@@ -150,13 +150,19 @@ Verknüpfung. Seit dem Fix wird nur noch bei einer **ausdrücklichen Ablehnung**
 (`NotAllowedError`, `SecurityError`) zurückgestuft; eine belegte Datei oder
 ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
 
-- [ ] **Wer jetzt schon fälschlich auf „nur ansehen" steht, muss einmal
-      „Datei erneut anwählen (mit Schreibrecht)" klicken.** Der Fix verhindert
-      den Fall künftig, räumt aber die bereits gemerkte Rückstufung nicht von
-      selbst weg. Offen ist, ob die App das beim Start still selbst prüfen
-      soll – Vorteil: niemand sitzt unbemerkt im Schreibschutz; Nachteil: ein
-      echter Leser erzeugt dann bei jedem Start einen verbotenen
-      Schreibversuch.
+- [ ] **Wer jetzt schon fälschlich auf „nur ansehen" steht**, öffnet die App
+      über die Verknüpfung mit **`?verwalten=1`** und klickt „Schreibzugriff
+      erneut versuchen". Der Fix verhindert den Fall künftig, räumt eine
+      bereits gemerkte Rückstufung aber nicht von selbst weg.
+      **Entschieden (05.08.):** Die Rettungsknöpfe bleiben versteckt – für
+      einen echten Nur-Leser wäre „Andere Datei wählen" zu verlockend. Der
+      Weg über `?verwalten=1` steht dafür jetzt in der Anleitung.
+- [ ] **Getrennte Merklisten je Ursprung** – `localhost:8765` und `file://`
+      sind für den Browser zwei Welten: eigener Dateiverweis, eigener
+      Zugriffsmodus, eigener Zwischenspeicher. Wer die HTML per Doppelklick
+      öffnet, muss jedes Mal neu anwählen – und greift irgendwann daneben.
+      Steht in der Anleitung; beim Umzug auf den Server ist es derselbe
+      Mechanismus, der alle Verbindungen kappt.
 
 - [ ] **Der Selbsttest prüft den falschen Ordner.** Er schaut in den
       App-Ordner (`\\scheudc1\…\Werkstatt_Kalender`), die Daten liegen aber
