@@ -190,6 +190,26 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
       im Schreibschutz also gerade nicht. Prüfen, ob sie eingesammelt wurde;
       erst danach darf sie verschwinden.
 
+## Programm-Fassung (Probelauf)
+
+Die App gibt es jetzt zusätzlich als **installierbares Programm** (Electron,
+`programm/`) – gleiche App, gleiche Datendateien, aber echte Pfade statt
+Browser-Verweise. Zum Testen als portable ZIP, ohne Installation und ohne
+Adminrechte. Entscheidung ausdrücklich offen: Gefällt es nicht oder wird die
+IT-Hürde zu groß, läuft die HTML-Fassung unverändert weiter – beide arbeiten
+auf denselben Dateien.
+
+- [ ] **Roberto testet die ZIP** (`Werkstatt-Cockpit-Programm-win64.zip`):
+      entpacken, `Werkstatt-Cockpit.exe`, SmartScreen einmal mit „Trotzdem
+      ausführen" bestätigen. Erst mit einer **Kopie** der Daten üben.
+- [ ] **Bei Gefallen → mit der IT klären:** Signatur der EXE (SmartScreen),
+      Verteilung auf die Rechner, Update-Weg. Das ist der Punkt, an dem das
+      Programm dem Browser überlegen wird – vorher ist es nur gleichwertig
+      plus Komfort.
+- [ ] **Falls das Programm die Hauptfassung wird:** Ausliefer-Dienst und
+      localhost-Verknüpfungen abbauen, Anleitung umschreiben, Linkbereich
+      auf `oeffnePfad` der Brücke umstellen (Explorer direkt, ohne Dienst).
+
 ## Offene Entscheidungen
 
 - [ ] **→ Roberto: Bild der obersten Zeilen der OEE-Tabelle liefern.** Ein

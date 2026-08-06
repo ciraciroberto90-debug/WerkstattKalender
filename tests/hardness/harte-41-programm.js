@@ -1,0 +1,231 @@
+// Härtetest: PROGRAMM-FASSUNG (Desktop-Brücke).
+//
+// Als installierbares Programm (Electron) bekommt die App über
+// window.__werkstattDesktop direkte Dateizugriffe mit echten Pfaden. Dieser
+// Test fährt die GEBAUTE App mit genau dieser Brücke - dahinter liegt ein
+// echtes Verzeichnis auf der Platte, kein Mock-Objekt im Speicher. Die
+// Brücke hier ist dieselbe Schnittstelle, die programm/vorspann.js im
+// Electron-Rahmen bereitstellt (waehleDatei, lese, schreibe, liste, merke…).
+//
+// Gegenprobe: Ohne den Programm-Zweig in sharedfile.js läuft KEINE dieser
+// Prüfungen - die App würde nach window.showOpenFilePicker greifen, und den
+// gibt es hier nicht (bewusst gelöscht, wie in Electron unter file://).
+//
+// Geprüft wird, was das Programm dem Browser voraus hat:
+//   (1) Verbinden über den Betriebssystem-Dialog (Pfad statt Verweis)
+//   (2) Die Kennkarte zeigt den VOLLEN echten Pfad - im Browser unmöglich
+//       (gemessen am 05.08.: ein Browser-Verweis kennt keinen Pfad)
+//   (3) Speichern landet wirklich in der Datei auf der Platte
+//   (4) Fremde Änderung an der Datei kommt per Abgleich herein
+//   (5) NEUSTART: Die App verbindet sich VON SELBST wieder - ohne Klick,
+//       ohne Rechtefrage, ohne "Jetzt verbinden" (der ganze Komplex vom
+//       03.-05.08. existiert im Programm nicht)
+//   (6) Es wird dabei kein einziger Dateidialog mehr geöffnet
+//   (7) Die Löschmarken-Logik läuft unverändert (dieselbe Sync-Maschine)
+//   (8) OEE-Quellordner ist im Programm NUR LESEND - löschen ausgeschlossen
+const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+let ok = 0, fail = 0;
+const pruef = (n, c, zusatz) => {
+  console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
+  c ? ok++ : fail++;
+};
+
+(async () => {
+  // Echtes Arbeitsverzeichnis auf der Platte - wie der OneDrive-Ordner
+  const ordner = fs.mkdtempSync(path.join(os.tmpdir(), "wk-programm-"));
+  const dateiPfad = path.join(ordner, "werkstatt-kalender-daten.json");
+  const jetzt = new Date().toISOString();
+  fs.writeFileSync(dateiPfad, JSON.stringify({
+    format: "werkstatt-kalender-v1", savedAt: jetzt,
+    entries: [
+      { id: "vorhanden-1", date: "2026-08-06", category: "SCHICHT", name: "Anna", scope: "tag", wert: "Früh", updatedAt: jetzt },
+    ],
+    deleted: {},
+    config: { tpmAnlagen: [], riItems: [], team: [{ name: "Anna", rolle: "mech" }] },
+  }, null, 2));
+
+  // Gemerkte Pfade des "Programms" (im echten Electron: einstellungen.json)
+  const einstellungen = {};
+  let dialogAufrufe = 0;
+
+  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
+
+  // Die Brücke: identische Schnittstelle wie programm/vorspann.js, dahinter
+  // echtes fs - über exposeFunction laufen die Aufrufe durch Node.
+  async function verdrahte(page) {
+    page.on("pageerror", (e) => console.log("PAGEERROR:", e.message));
+    await page.exposeFunction("__d_waehleDatei", async () => { dialogAufrufe++; return dateiPfad; });
+    await page.exposeFunction("__d_waehleDateiNeu", async (v) => { dialogAufrufe++; return path.join(ordner, String(v)); });
+    await page.exposeFunction("__d_waehleOrdner", async () => { dialogAufrufe++; return ordner; });
+    await page.exposeFunction("__d_lese", async (p) => {
+      try {
+        const inhalt = fs.readFileSync(String(p));
+        const stat = fs.statSync(String(p));
+        return { bytesB64: inhalt.toString("base64"), geaendert: Math.round(stat.mtimeMs), groesse: stat.size };
+      } catch (e) { return null; }
+    });
+    await page.exposeFunction("__d_schreibe", async (p, text) => {
+      const tmp = String(p) + ".tmp";
+      fs.writeFileSync(tmp, String(text));
+      fs.renameSync(tmp, String(p));
+      return true;
+    });
+    await page.exposeFunction("__d_liste", async (p) =>
+      fs.readdirSync(String(p), { withFileTypes: true })
+        .filter((e) => e.isFile())
+        .map((e) => ({ name: e.name, pfad: path.join(String(p), e.name) })));
+    await page.exposeFunction("__d_entferne", async (p) => { fs.unlinkSync(String(p)); return true; });
+    await page.exposeFunction("__d_merke", async (k, w) => {
+      if (w === null || w === undefined) delete einstellungen[k]; else einstellungen[k] = String(w);
+      return true;
+    });
+    await page.exposeFunction("__d_gemerkt", async (k) => (einstellungen[k] === undefined ? null : einstellungen[k]));
+    await page.addInitScript(() => {
+      // Wie in Electron: kein Browser-Dateizugriff, nur die Brücke
+      delete window.showOpenFilePicker;
+      delete window.showSaveFilePicker;
+      delete window.showDirectoryPicker;
+      const b64zuBytes = (b64) => {
+        const roh = atob(b64);
+        const arr = new Uint8Array(roh.length);
+        for (let i = 0; i < roh.length; i++) arr[i] = roh.charCodeAt(i);
+        return arr;
+      };
+      window.__werkstattDesktop = {
+        waehleDatei: () => window.__d_waehleDatei(),
+        waehleDateiNeu: (v) => window.__d_waehleDateiNeu(v),
+        waehleOrdner: () => window.__d_waehleOrdner(),
+        lese: async (p) => {
+          const r = await window.__d_lese(p);
+          return r ? { bytes: b64zuBytes(r.bytesB64), geaendert: r.geaendert, groesse: r.groesse } : null;
+        },
+        schreibe: (p, t) => window.__d_schreibe(p, t),
+        liste: (p) => window.__d_liste(p),
+        entferne: (p) => window.__d_entferne(p),
+        merke: (k, w) => window.__d_merke(k, w),
+        gemerkt: (k) => window.__d_gemerkt(k),
+      };
+    });
+  }
+
+  /* ---- (1)(2)(3) Erstes Verbinden ---- */
+  let page = await ctx.newPage();
+  await verdrahte(page);
+  await page.goto(APP);
+  await page.waitForTimeout(600);
+
+  await page.locator('button[aria-label="Gemeinsame Datei"]').click();
+  await page.getByText("Vorhandene Datei öffnen …").click();
+  await page.waitForTimeout(1000);
+  pruef("(1) Verbinden über den Programm-Dialog klappt",
+    await page.evaluate(() => window.__wkSharedTest.canWrite()), "canWrite");
+  pruef("(1) Der vorhandene Bestand wurde übernommen",
+    (await page.locator("body").innerText()).length > 0 &&
+    await page.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]").some((e) => e.id === "vorhanden-1")));
+
+  // Kennkarte: im Browser steht hier bestenfalls "Ordner / Datei" - nur das
+  // Programm kann den vollen Pfad nennen
+  const kennkarte = await page.evaluate(() => window.__wkSharedTest.fileInfo());
+  pruef("(2) Die Kennkarte kennt den vollen echten Pfad",
+    kennkarte && kennkarte.pfad === dateiPfad, (kennkarte && kennkarte.pfad) || "(leer)");
+  // Der Verbinden-Dialog schliesst sich nach dem Verbinden - fuer die
+  // Kennkarte einmal neu oeffnen, so wie es der Nutzer auch taete.
+  await page.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await page.waitForTimeout(200);
+  await page.locator('button[aria-label="Gemeinsame Datei"]').click();
+  await page.waitForTimeout(500);
+  const dialogText = await page.locator("body").innerText();
+  pruef("(2) Und der Verbinden-Dialog zeigt ihn an",
+    dialogText.includes(dateiPfad), dialogText.split("\n").find((z) => z.includes(ordner)) || "(nicht sichtbar)");
+
+  // Speichern -> muss auf der Platte ankommen
+  await page.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await page.waitForTimeout(300);
+  await page.evaluate(async () => {
+    const alt = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
+    await window.storage.set("werkstatt-kalender-entries",
+      JSON.stringify(alt.concat([{ id: "neu-1", date: "2026-08-07", category: "SCHICHT", name: "Anna", scope: "tag", wert: "Spät" }])), false);
+  });
+  await page.waitForTimeout(900);
+  let aufPlatte = JSON.parse(fs.readFileSync(dateiPfad, "utf8"));
+  pruef("(3) Die Änderung steht wirklich in der Datei auf der Platte",
+    aufPlatte.entries.some((e) => e.id === "neu-1"),
+    "IDs: " + aufPlatte.entries.filter((e) => !/^(config\||log\|)/.test(e.id)).map((e) => e.id).join(", "));
+
+  /* ---- (4) Fremde Änderung kommt per Abgleich herein ---- */
+  aufPlatte = JSON.parse(fs.readFileSync(dateiPfad, "utf8"));
+  const fremdZeit = new Date().toISOString();
+  aufPlatte.savedAt = fremdZeit;
+  aufPlatte.entries.push({ id: "fremd-1", date: "2026-08-08", category: "SCHICHT", name: "Anna", scope: "tag", wert: "Nacht", updatedAt: fremdZeit });
+  fs.writeFileSync(dateiPfad, JSON.stringify(aufPlatte, null, 2));
+  await page.evaluate(() => window.__wkSharedTest.poll());
+  await page.waitForTimeout(600);
+  pruef("(4) Die fremde Änderung erscheint nach dem Abgleich",
+    await page.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]").some((e) => e.id === "fremd-1")));
+
+  /* ---- (7) Löschmarken: dieselbe Sync-Maschine läuft unverändert ---- */
+  await page.evaluate(async () => {
+    const alt = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
+    await window.storage.set("werkstatt-kalender-entries",
+      JSON.stringify(alt.filter((e) => e.id !== "vorhanden-1")), false);
+  });
+  await page.waitForTimeout(900);
+  aufPlatte = JSON.parse(fs.readFileSync(dateiPfad, "utf8"));
+  pruef("(7) Löschen erzeugt eine Löschmarke in der Datei",
+    !!aufPlatte.deleted["vorhanden-1"] && !aufPlatte.entries.some((e) => e.id === "vorhanden-1"),
+    "deleted: " + Object.keys(aufPlatte.deleted).join(", "));
+
+  const dialogeVorNeustart = dialogAufrufe;
+  await page.close();
+
+  /* ---- (5)(6) Neustart: von selbst wieder verbunden, ohne Dialog ---- */
+  page = await ctx.newPage();
+  await verdrahte(page);
+  await page.goto(APP);
+  await page.waitForTimeout(1200);
+
+  pruef("(5) Nach dem Neustart ist die App VON SELBST verbunden",
+    await page.evaluate(() => window.__wkSharedTest.canWrite()), "canWrite nach Neustart");
+  const text = await page.locator("body").innerText();
+  pruef("(5) Kein 'Jetzt verbinden' und keine Rechtefrage",
+    !/Jetzt verbinden|Zugriff erlauben|nicht mehr frei/i.test(text));
+  pruef("(6) Dabei wurde KEIN Dateidialog geöffnet",
+    dialogAufrufe === dialogeVorNeustart, dialogAufrufe + " Dialogaufrufe gesamt");
+  pruef("(5) Und der Bestand ist vollständig da",
+    await page.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]").some((e) => e.id === "fremd-1")));
+
+  /* ---- (8) OEE-Quellordner ist im Programm nur lesend ---- */
+  // Die Handle-Fabrik setzt nurLesen selbst durch - egal, was das Laufwerk
+  // erlauben würde. Gegenprobe direkt daneben: derselbe Ordner ohne nurLesen
+  // darf löschen, sonst wäre die Prüfung wertlos.
+  const opfer = path.join(ordner, "wichtige-sicherung.xlsx");
+  fs.writeFileSync(opfer, "nicht anfassen");
+  const nurLesenErgebnis = await page.evaluate(async ([ordnerPfad, dateiName]) => {
+    const gesperrt = window.__wkDesktopTest.ordnerHandle(ordnerPfad, { nurLesen: true });
+    try {
+      await gesperrt.removeEntry(dateiName);
+      return "GELÖSCHT";
+    } catch (e) { return "verweigert: " + e.message; }
+  }, [ordner, "wichtige-sicherung.xlsx"]);
+  pruef("(8) Löschen auf dem nur-lesenden Ordner wird verweigert",
+    /verweigert/.test(nurLesenErgebnis) && fs.existsSync(opfer), nurLesenErgebnis);
+  const schreibErgebnis = await page.evaluate(async ([ordnerPfad, dateiName]) => {
+    const offen = window.__wkDesktopTest.ordnerHandle(ordnerPfad);
+    try {
+      await offen.removeEntry(dateiName);
+      return "gelöscht";
+    } catch (e) { return "FEHLER: " + e.message; }
+  }, [ordner, "wichtige-sicherung.xlsx"]);
+  pruef("(8) Gegenprobe: ohne nurLesen geht das Löschen durch",
+    schreibErgebnis === "gelöscht" && !fs.existsSync(opfer), schreibErgebnis);
+
+  console.log(`\n==== PROGRAMM-FASSUNG: ${ok} PASS / ${fail} FAIL ====`);
+  await browser.close();
+  fs.rmSync(ordner, { recursive: true, force: true });
+  process.exit(fail > 0 ? 1 : 0);
+})().catch((e) => { console.error("CRASH:", e.message); process.exit(1); });

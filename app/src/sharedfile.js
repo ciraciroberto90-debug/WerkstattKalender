@@ -278,6 +278,102 @@ function configAusEintraegen(entries) {
 }
 
 /* ==================================================================== */
+/* Programm-Fassung (Desktop-Brücke)                                    */
+/* ==================================================================== */
+/* Läuft die App als installierbares Programm (Electron), stellt dessen
+   Vorspann-Skript window.__werkstattDesktop bereit: direkte Dateizugriffe
+   über echte Pfade, ohne Browser-Sandkasten. Die Brücke wird hier in
+   Objekte übersetzt, die GENAU so aussehen wie die Dateiverweise des
+   Browsers (getFile / createWritable / queryPermission …).
+
+   Warum dieser Umweg statt eines eigenen Speicherwegs: Die gesamte
+   Sync-Logik - Zusammenführen, Kontroll-Lesung, optimistische Sperre,
+   Löschmarken - arbeitet ausschließlich über diese Verweis-Schnittstelle.
+   Bleibt die Schnittstelle gleich, bleibt die Sync-Logik unangetastet,
+   und die 39 bestehenden Prüfreihen gelten für beide Fassungen.
+
+   Was sich dadurch ändert, ist nur die Verbindungsschicht:
+   - Verweise sind PFADE (merkbar als Text, gehen nie verloren),
+   - Rechte-Fragen entfallen (das Dateisystem entscheidet, nicht der Browser),
+   - die Kennkarte zeigt den vollen echten Pfad. */
+function desktopBruecke() {
+  return (typeof window !== "undefined" && window.__werkstattDesktop) || null;
+}
+function istDesktop() {
+  return !!desktopBruecke();
+}
+function desktopDateiHandle(pfad) {
+  const d = desktopBruecke();
+  const name = String(pfad).split(/[\\/]/).pop();
+  return {
+    kind: "file",
+    name,
+    pfad, // volle Wegangabe - gibt es im Browser nicht, hier schon
+    async getFile() {
+      const r = await d.lese(pfad);
+      if (!r) { const e = new Error("Datei nicht gefunden: " + pfad); e.name = "NotFoundError"; throw e; }
+      return new File([r.bytes], name, { lastModified: r.geaendert });
+    },
+    async createWritable() {
+      let puffer = "";
+      return {
+        async write(teil) { puffer += teil; },
+        // Geschrieben wird erst beim Abschluss, und zwar in einem Zug über
+        // eine Zwischendatei mit Umbenennen - halbe Dateien gibt es so nicht.
+        async close() { await d.schreibe(pfad, puffer); },
+        async abort() { puffer = ""; },
+      };
+    },
+    // Rechtefragen stellt das Programm nicht - ob geschrieben werden darf,
+    // entscheiden die Datei-Rechte des Laufwerks beim Schreibversuch selbst,
+    // genau wie bei jedem anderen Programm.
+    async queryPermission() { return "granted"; },
+    async requestPermission() { return "granted"; },
+  };
+}
+function desktopOrdnerHandle(pfad, { nurLesen = false } = {}) {
+  const d = desktopBruecke();
+  const name = String(pfad).split(/[\\/]/).pop() || String(pfad);
+  return {
+    kind: "directory",
+    name,
+    pfad,
+    nurLesen,
+    async *entries() {
+      const liste = await d.liste(pfad);
+      for (const eintrag of liste || []) {
+        yield [eintrag.name, desktopDateiHandle(eintrag.pfad)];
+      }
+    },
+    async getFileHandle(dateiName) {
+      const liste = await d.liste(pfad);
+      const treffer = (liste || []).find((e) => e.name === dateiName);
+      if (!treffer) { const e = new Error("NotFoundError"); e.name = "NotFoundError"; throw e; }
+      return desktopDateiHandle(treffer.pfad);
+    },
+    async removeEntry(dateiName) {
+      // Der OEE-Ordner auf dem Firmenlaufwerk ist ausdrücklich nur lesend -
+      // das setzt hier die App durch, nicht erst das Laufwerk.
+      if (nurLesen) throw new Error("Dieser Ordner ist nur lesend verbunden.");
+      const liste = await d.liste(pfad);
+      const treffer = (liste || []).find((e) => e.name === dateiName);
+      if (!treffer) { const e = new Error("NotFoundError"); e.name = "NotFoundError"; throw e; }
+      await d.entferne(treffer.pfad);
+    },
+    async resolve(dateiHandle) {
+      // Im Programm kennt jeder Verweis seinen vollen Pfad selbst -
+      // resolve wird nur der Vollständigkeit halber beantwortet.
+      if (dateiHandle && dateiHandle.pfad && String(dateiHandle.pfad).startsWith(String(pfad))) {
+        return String(dateiHandle.pfad).slice(String(pfad).length).split(/[\\/]/).filter(Boolean);
+      }
+      return null;
+    },
+    async queryPermission() { return "granted"; },
+    async requestPermission() { return "granted"; },
+  };
+}
+
+/* ==================================================================== */
 /* Fabrik: eine unabhängige Sync-Instanz je Datei                       */
 /* ==================================================================== */
 function createSharedStore(cfg) {
@@ -328,6 +424,7 @@ function createSharedStore(cfg) {
 
   /* ---------- Status ---------- */
   function isSupported() {
+    if (istDesktop()) return true; // Programm-Fassung: Dateizugriff immer da
     return typeof window !== "undefined" && typeof window.showOpenFilePicker === "function";
   }
   function isConnected() {
@@ -351,6 +448,9 @@ function createSharedStore(cfg) {
      Wegangabe, die der Browser herausgibt - und auch nur dann. */
   async function ermittlePfad() {
     dateiPfad = "";
+    // Im Programm kennt der Verweis seinen vollen Pfad selbst - das ist die
+    // Angabe, die der Browser nie herausgibt und an der der 03.08. scheiterte.
+    if (fileHandle && fileHandle.pfad) { dateiPfad = fileHandle.pfad; return; }
     if (!folderHandle || !fileHandle) return;
     try {
       const teile = await folderHandle.resolve(fileHandle);
@@ -402,6 +502,32 @@ function createSharedStore(cfg) {
       tx.oncomplete = () => { db.close(); resolve(); };
       tx.onerror = () => { db.close(); reject(tx.error); };
     });
+  }
+
+  /* ---------- Verweise merken: Browser vs. Programm ----------------------
+     Im Browser wird der Dateiverweis selbst in der IndexedDB abgelegt (nur
+     dort lebt er). Im Programm ist der Verweis ein PFAD - schlichter Text,
+     der in der Einstellungsdatei des Programms liegt und jeden Neustart
+     unbeschadet uebersteht. Genau dieser Unterschied beerdigt die ganze
+     Klasse "Verweis tot / Rechte weg / Schreibschutz nach Neustart". */
+  async function merkeVerweis(schluessel, handle) {
+    const d = desktopBruecke();
+    if (d && handle && handle.pfad) return d.merke(DB_NAME + ":" + schluessel, handle.pfad);
+    return idbSet(schluessel, handle);
+  }
+  async function holeVerweis(schluessel, alsOrdner, ordnerOpts) {
+    const d = desktopBruecke();
+    if (d) {
+      const pfad = await d.gemerkt(DB_NAME + ":" + schluessel);
+      if (!pfad) return null;
+      return alsOrdner ? desktopOrdnerHandle(pfad, ordnerOpts) : desktopDateiHandle(pfad);
+    }
+    return idbGet(schluessel);
+  }
+  async function vergissVerweis(schluessel) {
+    const d = desktopBruecke();
+    if (d) return d.merke(DB_NAME + ":" + schluessel, null);
+    return idbDel(schluessel);
   }
 
   /* ---------- Lokale Sicherungen (Sicherheitsnetz gegen Datenverlust) ---------- */
@@ -609,6 +735,10 @@ function createSharedStore(cfg) {
   // (von der IT vergeben): Schlägt das Schreiben dort fehl, schaltet die App
   // automatisch auf "nur ansehen" um.
   async function adoptCurrentFile(justCreated) {
+    // Kennkarte: Wegangabe nachtragen. Im Programm ist das der volle echte
+    // Pfad des Verweises; im Browser geht es nur ueber den freigegebenen
+    // Ordner. Hier ist der eine Punkt, durch den JEDER Verbindungsweg laeuft.
+    ermittlePfad();
     let data = justCreated ? emptyData() : await readFileData();
 
     if (accessMode === "readwrite") {
@@ -668,7 +798,15 @@ function createSharedStore(cfg) {
   async function pickShared({ create = false } = {}) {
     const types = [{ description: "Werkstatt-Cockpit Daten", accept: { "application/json": [".json"] } }];
     let handle;
-    if (create) {
+    const bruecke = desktopBruecke();
+    if (bruecke) {
+      // Programm: echter Dateidialog des Betriebssystems, Ergebnis ist ein Pfad.
+      const pfad = create
+        ? await bruecke.waehleDateiNeu(SUGGESTED_NAME)
+        : await bruecke.waehleDatei();
+      if (!pfad) { const e = new Error("Abgebrochen"); e.name = "AbortError"; throw e; }
+      handle = desktopDateiHandle(pfad);
+    } else if (create) {
       handle = await window.showSaveFilePicker({ suggestedName: SUGGESTED_NAME, types });
     } else {
       [handle] = await window.showOpenFilePicker({ types });
@@ -697,7 +835,7 @@ function createSharedStore(cfg) {
     fileHandle = handle;
     accessMode = "readwrite"; // adoptCurrentFile stuft bei fehlenden Laufwerks-Rechten auf "read" zurück
     try {
-      await idbSet("handle", handle);
+      await merkeVerweis("handle", handle);
       await idbSet("mode", "readwrite");
     } catch (e) {
       // Verweis lässt sich nicht merken (z. B. IndexedDB blockiert) – Verbindung gilt
@@ -713,7 +851,7 @@ function createSharedStore(cfg) {
     let handle = null;
     let mode = "readwrite";
     try {
-      handle = await idbGet("handle");
+      handle = await holeVerweis("handle");
       mode = (await idbGet("mode")) || "readwrite";
     } catch (e) { /* IndexedDB nicht verfügbar */ }
     if (!handle) return { status: "none" };
@@ -721,7 +859,7 @@ function createSharedStore(cfg) {
     gemerkterModus = mode;
     // Konflikt-Wächter: gemerkten Ordner mit wiederherstellen (falls eingerichtet)
     try {
-      const fh = await idbGet("folder");
+      const fh = await holeVerweis("folder", true);
       if (fh) {
         folderHandle = fh;
         ermittlePfad();          // Weg innerhalb des Ordners nachtragen
@@ -731,7 +869,7 @@ function createSharedStore(cfg) {
     } catch (e) { /* IndexedDB nicht verfügbar */ }
     // Quellordner (OEE-Tabelle auf dem Firmenlaufwerk) mit wiederherstellen
     try {
-      const qh = await idbGet("quellordner");
+      const qh = await holeVerweis("quellordner", true, { nurLesen: true });
       if (qh) {
         quellHandle = qh;
         const qp = await rechteFragen(qh, "read");
@@ -796,7 +934,7 @@ function createSharedStore(cfg) {
   // Aktivierung haelt, und das Verbinden schlug mit
   // "Not allowed to request permissions in this context" fehl.
   async function reconnect() {
-    const handle = gemerkterHandle || (await idbGet("handle"));
+    const handle = gemerkterHandle || (await holeVerweis("handle"));
     const mode = gemerkterHandle ? gemerkterModus : ((await idbGet("mode")) || "readwrite");
     if (!handle) throw new Error("Keine gemerkte Datei gefunden.");
     const p = await mitFrist(() => handle.requestPermission({ mode }),
@@ -836,14 +974,22 @@ function createSharedStore(cfg) {
   async function pickWritable() {
     const types = [{ description: "Werkstatt-Cockpit Daten", accept: { "application/json": [".json"] } }];
     const vorschlag = fileHandle ? fileHandle.name : SUGGESTED_NAME;
-    const handle = await window.showSaveFilePicker({ suggestedName: vorschlag, types });
+    let handle;
+    const bruecke = desktopBruecke();
+    if (bruecke) {
+      const pfad = await bruecke.waehleDateiNeu(vorschlag);
+      if (!pfad) { const e = new Error("Abgebrochen"); e.name = "AbortError"; throw e; }
+      handle = desktopDateiHandle(pfad);
+    } else {
+      handle = await window.showSaveFilePicker({ suggestedName: vorschlag, types });
+    }
     fileHandle = handle;
     accessMode = "readwrite";
     schreibfrageOffen = false;
     gemerkterHandle = handle;
     gemerkterModus = "readwrite";
     try {
-      await idbSet("handle", handle);
+      await merkeVerweis("handle", handle);
       await idbSet("mode", "readwrite");
     } catch (e) { /* gilt dann nur fuer diese Sitzung */ }
     const data = await adoptCurrentFile(false); // vorhandenen Inhalt uebernehmen, NICHT neu anlegen
@@ -858,6 +1004,7 @@ function createSharedStore(cfg) {
       protokoll: window.location ? window.location.protocol : "?",
       sichererKontext: !!window.isSecureContext,
       herkunft: window.location ? String(window.location.origin) : "?",
+      programm: istDesktop(), // laeuft als installierbares Programm (Electron)
     };
   }
 
@@ -869,9 +1016,9 @@ function createSharedStore(cfg) {
     folderHandle = null;
     folderPerm = "none";
     try {
-      await idbDel("handle");
+      await vergissVerweis("handle");
       await idbDel("mode");
-      await idbDel("folder");
+      await vergissVerweis("folder");
     } catch (e) { /* egal */ }
   }
 
@@ -915,6 +1062,17 @@ function createSharedStore(cfg) {
     return folderHandle ? folderHandle.name : "";
   }
   async function pickFolder() {
+    const bruecke = desktopBruecke();
+    if (bruecke) {
+      const pfad = await bruecke.waehleOrdner();
+      if (!pfad) { const e = new Error("Abgebrochen"); e.name = "AbortError"; throw e; }
+      folderHandle = desktopOrdnerHandle(pfad);
+      folderPerm = "ok";
+      ermittlePfad();
+      try { await merkeVerweis("folder", folderHandle); } catch (e) { /* nur diese Sitzung */ }
+      await sammleKonfliktkopien();
+      return { name: folderHandle.name };
+    }
     const handle = await window.showDirectoryPicker({ mode: "readwrite" });
     // Gleiche Regel wie bei der Datei: zuerst fragen, ohne await davor.
     if (handle.requestPermission) {
@@ -929,14 +1087,14 @@ function createSharedStore(cfg) {
     folderHandle = handle;
     folderPerm = "ok";
     ermittlePfad();
-    try { await idbSet("folder", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
+    try { await merkeVerweis("folder", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
     await sammleKonfliktkopien();
     return { name: handle.name };
   }
   async function reconnectFolder() {
     // Auch hier gilt: kein await vor requestPermission, solange der Verweis
     // schon im Speicher liegt (tryRestore hat ihn beim Start geholt).
-    const h = folderHandle || (await idbGet("folder"));
+    const h = folderHandle || (await holeVerweis("folder", true));
     if (!h) throw new Error("Kein gemerkter Ordner gefunden.");
     const p = await mitFrist(() => h.requestPermission({ mode: "readwrite" }),
                              FRIST_NACHFRAGE, "Die Frage nach dem Ordnerzugriff");
@@ -949,7 +1107,7 @@ function createSharedStore(cfg) {
   async function forgetFolder() {
     folderHandle = null;
     folderPerm = "none";
-    try { await idbDel("folder"); } catch (e) { /* egal */ }
+    try { await vergissVerweis("folder"); } catch (e) { /* egal */ }
   }
 
   /* ---------- Quellordner: fremde Dateien NUR LESEN ----------------------
@@ -966,6 +1124,17 @@ function createSharedStore(cfg) {
      Ist kein Quellordner eingerichtet, wird ersatzweise im Datenordner
      nachgesehen - liegt die Tabelle dort, spart das den zweiten Handgriff. */
   async function pickQuellOrdner() {
+    const bruecke = desktopBruecke();
+    if (bruecke) {
+      const pfad = await bruecke.waehleOrdner();
+      if (!pfad) { const e = new Error("Abgebrochen"); e.name = "AbortError"; throw e; }
+      // nurLesen setzt die App selbst durch - loeschen ist auf diesem
+      // Ordner ausgeschlossen, egal was das Laufwerk erlauben wuerde.
+      quellHandle = desktopOrdnerHandle(pfad, { nurLesen: true });
+      quellPerm = "ok";
+      try { await merkeVerweis("quellordner", quellHandle); } catch (e) { /* nur diese Sitzung */ }
+      return { name: quellHandle.name };
+    }
     const handle = await window.showDirectoryPicker({ mode: "read" });
     if (handle.requestPermission) {
       try {
@@ -978,11 +1147,11 @@ function createSharedStore(cfg) {
     }
     quellHandle = handle;
     quellPerm = "ok";
-    try { await idbSet("quellordner", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
+    try { await merkeVerweis("quellordner", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
     return { name: handle.name };
   }
   async function reconnectQuellOrdner() {
-    const h = quellHandle || (await idbGet("quellordner"));
+    const h = quellHandle || (await holeVerweis("quellordner", true, { nurLesen: true }));
     if (!h) throw new Error("Kein gemerkter Quellordner gefunden.");
     const p = await mitFrist(() => h.requestPermission({ mode: "read" }),
                              FRIST_NACHFRAGE, "Die Frage nach dem Ordnerzugriff");
@@ -994,7 +1163,7 @@ function createSharedStore(cfg) {
   async function vergissQuellOrdner() {
     quellHandle = null;
     quellPerm = "none";
-    try { await idbDel("quellordner"); } catch (e) { /* egal */ }
+    try { await vergissVerweis("quellordner"); } catch (e) { /* egal */ }
   }
   function quellOrdnerStatus() {
     // "none" = keiner eingerichtet, "needs-permission" = nach Neustart einmal
@@ -1479,6 +1648,7 @@ function createSharedStore(cfg) {
     },
     sammle: sammleKonfliktkopien,
     adoptQuellOrdner(handle) { quellHandle = handle; quellPerm = "ok"; },
+    fileInfo, // Kennkarte auch fuer Pruefungen ablesbar
   };
 
   return {
@@ -1564,4 +1734,6 @@ export const stoer = createSharedStore({
 if (typeof window !== "undefined") {
   window.__wkSharedTest = main._test;
   window.__wkStoerTest = stoer._test;
+  // Programm-Fassung: die Handle-Fabriken fuer Pruefungen erreichbar machen
+  window.__wkDesktopTest = { dateiHandle: desktopDateiHandle, ordnerHandle: desktopOrdnerHandle };
 }

@@ -3,3 +3,6 @@ app/dist/
 
 # Lokale Arbeitsdateien (Screenshots, Test-Skripte) – nicht versionieren
 scratchpad/
+programm/node_modules/
+programm/ausgabe/
+programm/app/

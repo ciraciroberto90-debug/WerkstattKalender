@@ -72,7 +72,8 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 39 Härtetests und sieben weitere Suiten | Entwicklung |
+| `tests/` | 40 Härtetests und acht weitere Suiten | Entwicklung |
+| `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
 
@@ -114,7 +115,8 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 39 Härtetests
+bash tests/run-hardness-tests.sh           # 40 Härtetests
+node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/rollout-test.js                 # Verteilung: Paket, Dienst, Doku, Versionswechsel
@@ -129,8 +131,10 @@ node tools/startpaket-bauen.js --pruefen   # ist die Start-ZIP noch aktuell?
 Nach jeder Änderung an `arbeitsplatz/` gehört `node tools/startpaket-bauen.js`
 dazu – sonst verteilt die ZIP weiter den alten Stand.
 
-Stand der letzten vollständigen Prüfung (06.08.2026): **39/39 Härtetests,
-625 Einzelprüfungen, kein Fehlschlag** – inklusive sieben Jahrgängen
+Stand der letzten vollständigen Prüfung (06.08.2026): **40/40 Härtetests,
+638 Einzelprüfungen, kein Fehlschlag** – inklusive sieben Jahrgängen
 Betriebsdaten (16 951 Einträge, 1 260 Störberichte, 3,4 MB), voller
 Speichergrenze, beschädigter Datei, falsch gehender Uhr, zwei gleichzeitig
-offenen Fenstern und einer echten Excel-Tabelle.
+offenen Fenstern, einer echten Excel-Tabelle und der Programm-Fassung
+(harte-41 mit der Desktop-Brücke; dazu `pruefe-programm.js` gegen das echte
+Electron-Programm: 7/7).

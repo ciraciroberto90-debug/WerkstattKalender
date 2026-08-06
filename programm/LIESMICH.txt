@@ -1,0 +1,45 @@
+WERKSTATT-COCKPIT ALS PROGRAMM (Probefassung)
+=============================================
+
+Was ist das?
+  Dieselbe App wie die HTML - aber als eigenstaendiges Programm.
+  Kein Browser noetig, keine Verknuepfung auf localhost, kein
+  Ausliefer-Dienst. Dateien werden ueber echte Pfade angesprochen.
+
+Ausprobieren (keine Installation, keine Adminrechte):
+  1. Werkstatt-Cockpit-Programm-win64.zip entpacken,
+     z. B. auf den Desktop oder nach C:\Werkstatt\Cockpit-Programm
+  2. Doppelklick auf Werkstatt-Cockpit.exe
+  3. Beim ersten Start zeigt Windows-SmartScreen eine Warnung
+     ("unbekannter Herausgeber"):
+        "Weitere Informationen" -> "Trotzdem ausfuehren"
+     Grund: Die EXE ist nicht signiert. Die Signatur gehoert zur
+     IT-Uebergabe (steht in der Roll-out-Liste).
+  4. In der App wie gewohnt die gemeinsame Datei verbinden
+     (Ordner-Symbol -> Vorhandene Datei oeffnen). Der Dialog ist
+     jetzt der normale Windows-Dateidialog mit echten Pfaden.
+
+Was ist anders als im Browser?
+  - Nach einem Neustart ist die Datei VON SELBST wieder verbunden -
+    kein "Jetzt verbinden", keine Rechtefrage, kein Schreibschutz-
+    Theater. Der gemerkte Pfad ist schlichter Text und geht nie
+    verloren.
+  - Die Kennkarte zeigt den vollen echten Pfad der Datei.
+  - Zweites Oeffnen holt das vorhandene Fenster nach vorn, statt
+    eine zweite Instanz zu starten.
+  - Der OEE-Ordner wird grundsaetzlich nur lesend angesprochen.
+
+Wichtig fuers Testen:
+  - Das Programm arbeitet auf DENSELBEN Datendateien wie die
+    HTML-Fassung - beide koennen nebeneinander laufen, der Sync
+    fuehrt wie immer zusammen. Zum reinen Ausprobieren am besten
+    trotzdem erst mit einer Kopie der Daten ueben.
+  - Der lokale Zwischenspeicher (Name, Ansichts-Einstellungen)
+    ist getrennt vom Browser - der eigene Name muss im Programm
+    einmal neu eingetragen werden (Zahnrad).
+
+Neu bauen (Entwicklung):
+  cd app && npm run build          (App-HTML erzeugen)
+  cd programm && npm install       (einmalig)
+  npm run bauen                    (ZIP unter programm/ausgabe/)
+  node tests/pruefe-programm.js    (Pruefung gegen das echte Programm)

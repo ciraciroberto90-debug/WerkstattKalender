@@ -582,6 +582,40 @@ Solange alle dieselbe Version haben, spielt das keine Rolle.
 
 ---
 
+## 10a. Die App als installierbares Programm (Probelauf)
+
+Neben der HTML-Fassung gibt es die App als **eigenständiges Programm**
+(Ordner `programm/`, ausgeliefert als `Werkstatt-Cockpit-Programm-win64.zip`).
+Es ist dieselbe App mit derselben Sync-Logik – nur die Verbindungsschicht ist
+eine andere: Dateien werden über **echte Pfade** angesprochen statt über
+Browser-Verweise.
+
+**Was dadurch entfällt:**
+
+- das „Jetzt verbinden" nach jedem Browser-Neustart – der gemerkte Pfad ist
+  schlichter Text und geht nie verloren; das Programm verbindet sich von selbst
+- die Rechtefragen des Browsers und der ganze Schreibschutz-Komplex
+  (03.–05.08.) – ob geschrieben werden darf, entscheidet das Laufwerk
+- der Ausliefer-Dienst (`cockpit-server.ps1`) samt localhost-Verknüpfung
+- die Gefahr eines zweiten Fensters: ein zweiter Start holt das vorhandene
+  Fenster nach vorn
+
+**Ausprobieren:** ZIP entpacken (Desktop genügt, keine Adminrechte),
+`Werkstatt-Cockpit.exe` doppelklicken. Windows-SmartScreen warnt beim ersten
+Start vor dem unbekannten Herausgeber → „Weitere Informationen" → „Trotzdem
+ausführen" (die Signatur gehört zur IT-Übergabe). Beide Fassungen arbeiten
+auf **denselben Datendateien** und können nebeneinander laufen – zum Üben
+trotzdem erst eine Kopie der Daten nehmen. Der eigene Name (⚙) muss im
+Programm einmal neu eingetragen werden, er ist geräte- bzw. programmweise
+gespeichert.
+
+Geprüft wird die Programm-Fassung doppelt: harte-41 fährt die App mit der
+Programm-Brücke gegen ein echtes Verzeichnis, `tests/pruefe-programm.js`
+startet das echte Electron-Programm und schreibt durch es hindurch auf die
+Platte.
+
+---
+
 ## 11. Grenzen
 
 **Technisch:**
