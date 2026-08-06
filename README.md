@@ -130,7 +130,7 @@ Nach jeder Änderung an `arbeitsplatz/` gehört `node tools/startpaket-bauen.js`
 dazu – sonst verteilt die ZIP weiter den alten Stand.
 
 Stand der letzten vollständigen Prüfung (06.08.2026): **39/39 Härtetests,
-614 Einzelprüfungen, kein Fehlschlag** – inklusive sieben Jahrgängen
+625 Einzelprüfungen, kein Fehlschlag** – inklusive sieben Jahrgängen
 Betriebsdaten (16 951 Einträge, 1 260 Störberichte, 3,4 MB), voller
 Speichergrenze, beschädigter Datei, falsch gehender Uhr, zwei gleichzeitig
 offenen Fenstern und einer echten Excel-Tabelle.

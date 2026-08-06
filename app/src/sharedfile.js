@@ -322,6 +322,9 @@ function createSharedStore(cfg) {
   let dateiInfo = null;   // { groesse, geaendert, eintraege }
   let dateiPfad = "";     // z. B. "Werkstatt/werkstatt-kalender-daten.json"
   let folderPerm = "none"; // "ok" | "needs-permission" | "none"
+  // Zweiter, rein lesender Ordner für fremde Tabellen (OEE auf dem Firmenlaufwerk)
+  let quellHandle = null;
+  let quellPerm = "none";
 
   /* ---------- Status ---------- */
   function isSupported() {
@@ -726,6 +729,15 @@ function createSharedStore(cfg) {
         folderPerm = fp === "granted" ? "ok" : "needs-permission";
       }
     } catch (e) { /* IndexedDB nicht verfügbar */ }
+    // Quellordner (OEE-Tabelle auf dem Firmenlaufwerk) mit wiederherstellen
+    try {
+      const qh = await idbGet("quellordner");
+      if (qh) {
+        quellHandle = qh;
+        const qp = await rechteFragen(qh, "read");
+        quellPerm = qp === "granted" ? "ok" : "needs-permission";
+      }
+    } catch (e) { /* IndexedDB nicht verfügbar */ }
 
     // Solange der Browser eine Auskunft GIBT, gilt sie - auch ein "prompt".
     // Das ist keine Formsache: "prompt" heisst, der Zugriff ist noch nicht
@@ -940,23 +952,77 @@ function createSharedStore(cfg) {
     try { await idbDel("folder"); } catch (e) { /* egal */ }
   }
 
-  /* ---------- Weitere Dateien im Datenordner (NUR LESEN) ---------- */
-  // Gedacht für die OEE-Tabelle: Sie liegt neben der gemeinsamen Datei. Über
-  // den ohnehin schon eingerichteten Ordnerzugriff findet sie jedes Gerät
-  // selbst - niemand muss sie auf seinem Rechner einzeln anwählen, und in der
-  // gemeinsamen Datei steht nur der DATEINAME, kein Verweis (ein Dateiverweis
-  // lässt sich nicht weitergeben, er gilt nur im Browser, der ihn geholt hat).
-  // Geschrieben wird hier nie: Die Tabelle gehört jemand anderem.
+  /* ---------- Quellordner: fremde Dateien NUR LESEN ----------------------
+     Gedacht für die OEE-Tabelle. Die liegt auf dem Firmenlaufwerk, also NICHT
+     im Datenordner - deshalb ein zweiter, eigener Ordnerzugriff.
+     Zwei Dinge sind hier anders als beim Datenordner:
+     - Er wird ausdrücklich nur LESEND angefragt (mode: "read"). Damit kann die
+       App auf diesem Laufwerk gar nichts anrichten, auch nicht durch einen
+       Fehler. Die Tabelle gehört jemand anderem.
+     - Er gilt pro Gerät. Ein Ordnerzugriff lässt sich nicht weitergeben, er
+       gilt nur in dem Browser, der ihn erteilt bekommen hat. In der
+       gemeinsamen Datei steht deshalb nur der DATEINAME; den Ordner wählt
+       jeder Arbeitsplatz einmal selbst an.
+     Ist kein Quellordner eingerichtet, wird ersatzweise im Datenordner
+     nachgesehen - liegt die Tabelle dort, spart das den zweiten Handgriff. */
+  async function pickQuellOrdner() {
+    const handle = await window.showDirectoryPicker({ mode: "read" });
+    if (handle.requestPermission) {
+      try {
+        const p = await mitFrist(() => handle.requestPermission({ mode: "read" }),
+                                 FRIST_NACHFRAGE, "Die Frage nach dem Ordnerzugriff");
+        if (p === "denied") throw new Error("Der Zugriff auf den Ordner wurde nicht erlaubt.");
+      } catch (e) {
+        if (!keineAntwort(e) && !/Not allowed to request permissions/.test(String(e && e.message || ""))) throw e;
+      }
+    }
+    quellHandle = handle;
+    quellPerm = "ok";
+    try { await idbSet("quellordner", handle); } catch (e) { /* gilt dann nur für diese Sitzung */ }
+    return { name: handle.name };
+  }
+  async function reconnectQuellOrdner() {
+    const h = quellHandle || (await idbGet("quellordner"));
+    if (!h) throw new Error("Kein gemerkter Quellordner gefunden.");
+    const p = await mitFrist(() => h.requestPermission({ mode: "read" }),
+                             FRIST_NACHFRAGE, "Die Frage nach dem Ordnerzugriff");
+    if (p !== "granted") throw new Error("Der Zugriff wurde nicht erlaubt.");
+    quellHandle = h;
+    quellPerm = "ok";
+    return { name: h.name };
+  }
+  async function vergissQuellOrdner() {
+    quellHandle = null;
+    quellPerm = "none";
+    try { await idbDel("quellordner"); } catch (e) { /* egal */ }
+  }
+  function quellOrdnerStatus() {
+    // "none" = keiner eingerichtet, "needs-permission" = nach Neustart einmal
+    // bestätigen, "ok" = lesebereit
+    if (quellHandle) return quellPerm;
+    return folderHandle && folderPerm === "ok" ? "ersatz" : "none";
+  }
+  function quellOrdnerName() {
+    if (quellHandle) return quellHandle.name;
+    return folderHandle && folderPerm === "ok" ? folderHandle.name : "";
+  }
+  // Welcher Ordner gilt gerade? Erst der eigene Quellordner, sonst der Datenordner.
+  function leseOrdner() {
+    if (quellHandle && quellPerm === "ok") return quellHandle;
+    if (folderHandle && folderPerm === "ok") return folderHandle;
+    return null;
+  }
   async function leseAusOrdner(name) {
-    if (!folderHandle || folderPerm !== "ok") return null;
-    if (!name) return null;
-    const handle = await folderHandle.getFileHandle(name); // NotFoundError, wenn sie fehlt
+    const ordner = leseOrdner();
+    if (!ordner || !name) return null;
+    const handle = await ordner.getFileHandle(name); // NotFoundError, wenn sie fehlt
     return await handle.getFile();
   }
   async function listeOrdnerDateien(endung) {
-    if (!folderHandle || folderPerm !== "ok") return [];
+    const ordner = leseOrdner();
+    if (!ordner) return [];
     const raus = [];
-    for await (const [name, handle] of folderHandle.entries()) {
+    for await (const [name, handle] of ordner.entries()) {
       if (!handle || handle.kind !== "file") continue;
       if (endung && !name.toLowerCase().endsWith(String(endung).toLowerCase())) continue;
       if (name.startsWith("~$")) continue; // Excel-Sperrdatei einer offenen Mappe
@@ -1412,6 +1478,7 @@ function createSharedStore(cfg) {
       folderPerm = "ok";
     },
     sammle: sammleKonfliktkopien,
+    adoptQuellOrdner(handle) { quellHandle = handle; quellPerm = "ok"; },
   };
 
   return {
@@ -1421,6 +1488,7 @@ function createSharedStore(cfg) {
     pickWritable, umgebung,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
     leseAusOrdner, listeOrdnerDateien,
+    pickQuellOrdner, reconnectQuellOrdner, vergissQuellOrdner, quellOrdnerStatus, quellOrdnerName,
     saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
   };
 }
@@ -1464,6 +1532,12 @@ export const sammleKonfliktkopien = main.sammleKonfliktkopien;
 // Weitere Dateien im Datenordner mitlesen (OEE-Tabelle) - nur lesend
 export const leseAusOrdner = main.leseAusOrdner;
 export const listeOrdnerDateien = main.listeOrdnerDateien;
+// Eigener, rein lesender Ordner fuer die OEE-Tabelle auf dem Firmenlaufwerk
+export const pickQuellOrdner = main.pickQuellOrdner;
+export const reconnectQuellOrdner = main.reconnectQuellOrdner;
+export const vergissQuellOrdner = main.vergissQuellOrdner;
+export const quellOrdnerStatus = main.quellOrdnerStatus;
+export const quellOrdnerName = main.quellOrdnerName;
 export const saveEntries = main.saveEntries;
 export const saveConfig = main.saveConfig;
 export const readLog = main.readLog;

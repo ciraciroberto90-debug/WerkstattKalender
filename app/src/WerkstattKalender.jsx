@@ -316,18 +316,19 @@ function OeeKachel({ stand, onKlick, darfEinrichten }) {
 
   if (lage === "ok") {
     const wert = stand.oee;
-    const diff = stand.vortag != null && wert != null ? Math.round((wert - stand.vortag) * 10) / 10 : null;
-    const tagText = stand.tag
-      ? new Date(stand.tag + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })
-      : "Gesamt";
+    const diff = stand.vergleich != null && wert != null ? Math.round((wert - stand.vergleich) * 10) / 10 : null;
+    const zeitraum = oeeZeitraumText(stand);
     const teile = [stand.verfuegbarkeit, stand.leistung, stand.qualitaet];
     return (
       <button
         onClick={onKlick}
         className="wk-karte px-4 py-3.5 flex flex-col justify-center text-left"
-        style={{ boxShadow: `inset 3px 0 0 0 ${farbeFuer(wert)}, var(--wk-schatten)` }}
-        title={`OEE ${tagText} aus „${stand.datei}", Blatt „${stand.blatt}" · ${stand.zeilen} Zeile(n)`
-          + (teile.every((t) => t != null) ? `\nV ${teile[0]} % · L ${teile[1]} % · Q ${teile[2]} %` : "")}
+        style={{ boxShadow: `inset 3px 0 0 0 ${stand.veraltet ? "#C97A2B" : farbeFuer(wert)}, var(--wk-schatten)` }}
+        title={`OEE über alle Anlagen (${zeitraum}) aus „${stand.datei}", Blatt „${stand.blatt}"`
+          + `\n${stand.anlagen || 0} Anlage(n), ${stand.zeilen} Zeile(n)`
+          + (teile.every((t) => t != null) ? `\nV ${teile[0]} % · L ${teile[1]} % · Q ${teile[2]} %` : "")
+          + (stand.veraltet ? `\nAchtung: jüngster Eintrag liegt ${stand.alterStunden} h zurück` : "")
+          + "\nKlicken für die Anlagenübersicht"}
       >
         <div className="flex items-baseline gap-1">
           <span className="font-extrabold" style={{ fontSize: "2.1rem", lineHeight: 1, letterSpacing: "-1.6px", fontVariantNumeric: "tabular-nums", color: farbeFuer(wert) }}>
@@ -343,7 +344,7 @@ function OeeKachel({ stand, onKlick, darfEinrichten }) {
           )}
         </div>
         <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          OEE · {tagText}
+          OEE · {zeitraum}
         </div>
       </button>
     );
@@ -593,7 +594,7 @@ const normalisiereLinks = (roh) => {
 const normalisiereOee = (roh) => {
   const o = roh && typeof roh === "object" && !Array.isArray(roh) ? roh : {};
   const spalten = {};
-  ["datum", "anlage", "schicht", "oee", "verfuegbarkeit", "leistung", "qualitaet"].forEach((f) => {
+  ["datum", "zeit", "anlage", "schicht", "oee", "verfuegbarkeit", "leistung", "qualitaet"].forEach((f) => {
     const v = o.spalten && o.spalten[f];
     if (Number.isInteger(v) && v >= 0) spalten[f] = v;
   });
@@ -606,45 +607,98 @@ const normalisiereOee = (roh) => {
 };
 const oeeEingerichtet = (q) => !!(q && q.datei);
 
-/* Aus den Zeilen der Tabelle die Zahlen für die Kachel:
-   der jüngste Tag mit Daten, sein Mittel, und der Vergleich zum Vortag.
-   Gemittelt wird ungewichtet über alle Zeilen des Tages - ohne die
-   Laufzeiten je Anlage ginge eine Gewichtung nur auf gut Glück, und geraten
-   wird hier nichts. */
-const werteOeeAus = (zeilen) => {
-  const proTag = new Map();
-  zeilen.forEach((z) => {
-    if (!z.tag) return;
-    if (!proTag.has(z.tag)) proTag.set(z.tag, []);
-    proTag.get(z.tag).push(z);
+/* Aus den Zeilen der Tabelle die Zahlen für die Kachel.
+   Gefragt ist die Gesamtübersicht aller Anlagen über die LETZTEN 24 STUNDEN.
+   Das geht nur, wenn die Zeilen einen Zeitpunkt tragen (Uhrzeitspalte,
+   Uhrzeit im Datum oder wenigstens die Schicht - siehe leseOeeZeilen).
+   Trägt die Tabelle nur ein Datum, wäre ein 24-Stunden-Fenster geraten:
+   Dann gilt der jüngste Tag, und die Kachel sagt auch "Tag" statt "24 h".
+   Gemittelt wird ungewichtet über alle Anlagen - ohne Laufzeit oder Stückzahl
+   je Zeile wäre jede Gewichtung erfunden. */
+const OEE_FENSTER_MS = 24 * 3600 * 1000;
+
+const oeeMittel = (liste, feld) => {
+  const w = liste.map((x) => x[feld]).filter((x) => typeof x === "number");
+  return w.length ? Math.round((w.reduce((a, b) => a + b, 0) / w.length) * 10) / 10 : null;
+};
+
+// Je Anlage ein Mittel - das ist die Gesamtübersicht, die hinter der Kachel steckt
+const oeeProAnlage = (liste) => {
+  const map = new Map();
+  liste.forEach((z) => {
+    const name = z.anlage || "(ohne Anlage)";
+    if (!map.has(name)) map.set(name, []);
+    map.get(name).push(z);
   });
-  const tage = [...proTag.keys()].sort();
-  const mittel = (liste, feld) => {
-    const w = liste.map((x) => x[feld]).filter((x) => typeof x === "number");
-    return w.length ? Math.round((w.reduce((a, b) => a + b, 0) / w.length) * 10) / 10 : null;
-  };
-  if (tage.length === 0) {
-    // Kein Datum in der Tabelle (oder keine Datumsspalte zugeordnet):
-    // dann gilt das Mittel über alles, klar gekennzeichnet.
-    return zeilen.length
-      ? { tag: null, oee: mittel(zeilen, "oee"), vortag: null, zeilen: zeilen.length,
-          verfuegbarkeit: mittel(zeilen, "verfuegbarkeit"), leistung: mittel(zeilen, "leistung"), qualitaet: mittel(zeilen, "qualitaet"),
-          anlagen: [...new Set(zeilen.map((z) => z.anlage).filter(Boolean))] }
-      : null;
+  return [...map.entries()]
+    .map(([anlage, zs]) => ({
+      anlage,
+      oee: oeeMittel(zs, "oee"),
+      verfuegbarkeit: oeeMittel(zs, "verfuegbarkeit"),
+      leistung: oeeMittel(zs, "leistung"),
+      qualitaet: oeeMittel(zs, "qualitaet"),
+      zeilen: zs.length,
+    }))
+    .sort((a, b) => (a.oee == null ? 1 : b.oee == null ? -1 : a.oee - b.oee)); // schlechteste zuerst
+};
+
+const werteOeeAus = (zeilen, jetztMs) => {
+  if (!zeilen.length) return null;
+  const jetzt = jetztMs || Date.now();
+  const mitZeit = zeilen.filter((z) => z.zeitMs != null);
+  const genau = mitZeit.length > 0 && mitZeit.some((z) => z.zeitGenau);
+
+  const bau = (liste, modus, zusatz) => ({
+    modus, // "24h" | "tag" | "gesamt"
+    oee: oeeMittel(liste, "oee"),
+    verfuegbarkeit: oeeMittel(liste, "verfuegbarkeit"),
+    leistung: oeeMittel(liste, "leistung"),
+    qualitaet: oeeMittel(liste, "qualitaet"),
+    zeilen: liste.length,
+    proAnlage: oeeProAnlage(liste),
+    anlagen: [...new Set(liste.map((z) => z.anlage).filter(Boolean))].length,
+    ...zusatz,
+  });
+
+  if (genau) {
+    const imFenster = mitZeit.filter((z) => z.zeitMs > jetzt - OEE_FENSTER_MS && z.zeitMs <= jetzt + 3600e3);
+    if (imFenster.length) {
+      // Vergleich: die 24 Stunden davor
+      const davor = mitZeit.filter((z) => z.zeitMs > jetzt - 2 * OEE_FENSTER_MS && z.zeitMs <= jetzt - OEE_FENSTER_MS);
+      const von = Math.min(...imFenster.map((z) => z.zeitMs));
+      const bis = Math.max(...imFenster.map((z) => z.zeitMs));
+      return bau(imFenster, "24h", { vergleich: davor.length ? oeeMittel(davor, "oee") : null, von, bis });
+    }
+    // Nichts in den letzten 24 Stunden - die Tabelle hinkt hinterher. Das
+    // darf die Kachel nicht verschweigen, sonst steht dort eine Zahl von
+    // vorgestern, die wie die von heute Morgen aussieht.
+    const juengste = Math.max(...mitZeit.map((z) => z.zeitMs));
+    const letzterTag = new Date(juengste);
+    const tagKey = `${letzterTag.getFullYear()}-${String(letzterTag.getMonth() + 1).padStart(2, "0")}-${String(letzterTag.getDate()).padStart(2, "0")}`;
+    const liste = zeilen.filter((z) => z.tag === tagKey);
+    // "veraltet" nur, wenn die Daten wirklich ZURÜCKliegen. Zeilen in der
+    // Zukunft (Planwerte, vertippte Jahreszahl) sind nicht veraltet - sie
+    // hier so zu nennen wäre schlicht falsch.
+    const alter = Math.round((jetzt - juengste) / 3600e3);
+    return bau(liste, "tag", alter > 24 ? { tag: tagKey, veraltet: true, alterStunden: alter } : { tag: tagKey });
   }
+
+  // Nur Tagesdaten: jüngster Tag, Vergleich zum Vortag
+  const tage = [...new Set(zeilen.map((z) => z.tag).filter(Boolean))].sort();
+  if (!tage.length) return bau(zeilen, "gesamt", {});
   const letzter = tage[tage.length - 1];
-  const heutige = proTag.get(letzter);
-  const vor = tage.length > 1 ? mittel(proTag.get(tage[tage.length - 2]), "oee") : null;
-  return {
-    tag: letzter,
-    oee: mittel(heutige, "oee"),
-    vortag: vor,
-    zeilen: heutige.length,
-    verfuegbarkeit: mittel(heutige, "verfuegbarkeit"),
-    leistung: mittel(heutige, "leistung"),
-    qualitaet: mittel(heutige, "qualitaet"),
-    anlagen: [...new Set(heutige.map((z) => z.anlage).filter(Boolean))],
-  };
+  const liste = zeilen.filter((z) => z.tag === letzter);
+  const vor = tage.length > 1 ? oeeMittel(zeilen.filter((z) => z.tag === tage[tage.length - 2]), "oee") : null;
+  return bau(liste, "tag", { tag: letzter, vergleich: vor });
+};
+
+// Beschriftung der Kachel: sagt, WORÜBER die Zahl geht
+const oeeZeitraumText = (s) => {
+  if (!s) return "";
+  if (s.modus === "24h") return "letzte 24 h";
+  if (s.modus === "gesamt") return "gesamt";
+  const tag = s.tag ? new Date(s.tag + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }) : "";
+  return s.veraltet ? `${tag} (veraltet)` : tag;
 };
 
 // R+I-Punkte aus Todoist importiert (Stand: Juli 2026). "Wasserrundgang" und
@@ -1054,6 +1108,7 @@ function App() {
   const [oeeQuelle, setOeeQuelle] = useState(() => normalisiereOee(null));
   const [oeeStand, setOeeStand] = useState({ lage: "aus" }); // aus | laedt | ok | fehler
   const [settingsOee, setSettingsOee] = useState(null); // Entwurf im ⚙-Dialog
+  const [oeeUebersichtOffen, setOeeUebersichtOffen] = useState(false);
   // Nachfrage, wenn die eben verbundene Datei keinen einzigen Eintrag hat.
   const [leereDatei, setLeereDatei] = useState(null);
   // Druck-Auswahl in der Auswertung: erst fragen, was aufs Papier soll.
@@ -2159,13 +2214,13 @@ function App() {
         datei = await sharedFile.leseAusOrdner(q.datei);
       } catch (e) {
         // getFileHandle wirft, wenn die Datei nicht (mehr) da ist
-        setOeeStand({ lage: "fehler", text: `„${q.datei}" liegt nicht im Datenordner.`, datei: q.datei });
+        setOeeStand({ lage: "fehler", text: `„${q.datei}" liegt nicht im gewählten Ordner (${sharedFile.quellOrdnerName() || "kein Ordner"}).`, datei: q.datei });
         return;
       }
       if (!datei) {
         setOeeStand({
           lage: "fehler",
-          text: "Der Datenordner ist nicht verbunden – ohne ihn findet die App die Tabelle nicht.",
+          text: "Kein Ordner mit der Tabelle verbunden – nach einem Neustart einmal in ⚙ → OEE freigeben.",
           ordnerFehlt: true, datei: q.datei,
         });
         return;
@@ -2183,7 +2238,7 @@ function App() {
         ? q.spalten
         : erkenneSpalten(blatt.zeilen[kopfzeile] || []);
       const zeilen = leseOeeZeilen(blatt.zeilen, spalten, kopfzeile);
-      const aus = werteOeeAus(zeilen);
+      const aus = werteOeeAus(zeilen, Date.now());
       oeeMerker.current.stempel = stempel;
       if (!aus) {
         setOeeStand({
@@ -5566,7 +5621,12 @@ function App() {
             <OeeKachel
               stand={oeeStand}
               darfEinrichten={!readerMode}
-              onKlick={() => { if (!readerMode) openSettings(); }}
+              onKlick={() => {
+                // Steht eine Zahl da, will man wissen, welche Anlage sie drückt -
+                // nicht in die Einrichtung. Die erreicht man aus dem Popup heraus.
+                if (oeeStand.lage === "ok") setOeeUebersichtOffen(true);
+                else if (!readerMode) openSettings();
+              }}
             />
             {/* Hier stand bis zuletzt ein zweiter, gleich beschrifteter Halbkreis für
                 das Jahr - die beiden waren kaum auseinanderzuhalten. Die Jahresquote
@@ -7428,6 +7488,92 @@ function App() {
           des Ersten stumm überschreiben - beim Zusammenführen gewinnt der
           spätere Zeitstempel. Deshalb wird hier gefragt, mit Namen und Zeit
           des anderen, statt es einfach geschehen zu lassen. */}
+      {/* Anlagenübersicht hinter der OEE-Kachel: Die eine Zahl sagt, wie es
+          steht - hier steht, WER sie drückt. Sortiert nach der schlechtesten
+          Anlage zuerst, denn die ist der Grund, warum man hinschaut. */}
+      {oeeUebersichtOffen && oeeStand.lage === "ok" && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "16px" }}
+          onClick={() => setOeeUebersichtOffen(false)}
+        >
+          <div
+            role="dialog"
+            aria-label="OEE Anlagenübersicht"
+            onClick={(e) => e.stopPropagation()}
+            style={{ backgroundColor: "white", borderRadius: "var(--wk-eck)", width: "560px", maxWidth: "100%", maxHeight: "84vh", overflowY: "auto", padding: "20px 22px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)" }}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-extrabold" style={{ color: "#22262B" }}>OEE · alle Anlagen</span>
+              <span className="text-xs font-bold rounded px-2 py-0.5" style={{ backgroundColor: "#EEF1F4", color: "#5B6572" }}>
+                {oeeZeitraumText(oeeStand)}
+              </span>
+              <button onClick={() => setOeeUebersichtOffen(false)} aria-label="Schließen" className="ml-auto text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
+              {oeeStand.datei}{oeeStand.blatt ? ` · Blatt ${oeeStand.blatt}` : ""} · {oeeStand.zeilen} Zeile(n)
+              {oeeStand.gelesenAm && ` · gelesen ${new Date(oeeStand.gelesenAm).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`}
+            </div>
+            {oeeStand.veraltet && (
+              <div className="text-xs rounded px-3 py-2 mb-3" style={{ backgroundColor: "#FBF3DA", color: "#7A5A00" }}>
+                In den letzten 24 Stunden steht nichts in der Tabelle. Der jüngste Eintrag liegt
+                <strong> {oeeStand.alterStunden} Stunden</strong> zurück – gezeigt wird deshalb dieser Tag,
+                nicht die letzten 24 Stunden.
+              </div>
+            )}
+            <div className="flex items-baseline gap-2 mb-3">
+              <span className="font-extrabold" style={{ fontSize: "2.4rem", lineHeight: 1, letterSpacing: "-1.8px", color: "#22262B" }}>
+                {oeeStand.oee != null ? oeeStand.oee.toFixed(1).replace(".", ",") : "–"}
+              </span>
+              <span className="font-extrabold" style={{ fontSize: "1rem", color: "#22262B" }}>%</span>
+              <span className="text-xs" style={{ color: "#8A9099" }}>
+                Mittel über {oeeStand.anlagen || 0} Anlage(n)
+                {[oeeStand.verfuegbarkeit, oeeStand.leistung, oeeStand.qualitaet].every((x) => x != null) &&
+                  ` · V ${String(oeeStand.verfuegbarkeit).replace(".", ",")} % · L ${String(oeeStand.leistung).replace(".", ",")} % · Q ${String(oeeStand.qualitaet).replace(".", ",")} %`}
+              </span>
+            </div>
+            <table className="w-full" style={{ fontSize: "0.8rem" }}>
+              <thead>
+                <tr style={{ color: "#8A9099", fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                  <th className="text-left font-bold pb-1">Anlage</th>
+                  <th className="text-right font-bold pb-1">OEE</th>
+                  <th className="text-right font-bold pb-1">V</th>
+                  <th className="text-right font-bold pb-1">L</th>
+                  <th className="text-right font-bold pb-1">Q</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(oeeStand.proAnlage || []).map((a) => {
+                  const f = a.oee == null ? "#8A9099" : a.oee >= 85 ? "#2F7D4F" : a.oee >= 70 ? "#C97A2B" : "#B23A34";
+                  const zahl = (x) => (x == null ? "–" : x.toFixed(1).replace(".", ","));
+                  return (
+                    <tr key={a.anlage} style={{ borderTop: "1px solid #F0F2F4" }}>
+                      <td className="py-1.5 font-semibold" style={{ color: "#22262B" }}>{a.anlage}</td>
+                      <td className="py-1.5 text-right font-extrabold" style={{ color: f, fontVariantNumeric: "tabular-nums" }}>{zahl(a.oee)}</td>
+                      <td className="py-1.5 text-right" style={{ color: "#6B7480", fontVariantNumeric: "tabular-nums" }}>{zahl(a.verfuegbarkeit)}</td>
+                      <td className="py-1.5 text-right" style={{ color: "#6B7480", fontVariantNumeric: "tabular-nums" }}>{zahl(a.leistung)}</td>
+                      <td className="py-1.5 text-right" style={{ color: "#6B7480", fontVariantNumeric: "tabular-nums" }}>{zahl(a.qualitaet)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="text-xs mt-3" style={{ color: "#C3C7CB" }}>
+              Ungewichtetes Mittel je Anlage – ohne Laufzeit in der Tabelle wäre jede Gewichtung geraten.
+            </div>
+            {!readerMode && (
+              <button
+                onClick={() => { setOeeUebersichtOffen(false); openSettings(); }}
+                className="text-xs font-bold mt-3"
+                style={{ color: "#2F6690" }}
+              >
+                Quelle einrichten …
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Nachfrage bei einer leeren Datei. Der Fall vom 03.08.: Ordner-Symbol
           grün, Name richtig, Inhalt leer - und niemand merkt es, weil ein
           leerer Bestand am Anfang normal aussieht. Deshalb einmal fragen,
@@ -8266,7 +8412,7 @@ function App() {
               const blatt = (o.blaetter || []).find((b) => b.name === o.blatt);
               const kopf = blatt ? blatt.kopf : [];
               const felder = [
-                ["datum", "Datum"], ["anlage", "Anlage"], ["schicht", "Schicht"],
+                ["datum", "Datum"], ["zeit", "Uhrzeit"], ["anlage", "Anlage"], ["schicht", "Schicht"],
                 ["oee", "OEE"], ["verfuegbarkeit", "Verfügbarkeit"], ["leistung", "Leistung"], ["qualitaet", "Qualität"],
               ];
               const setzeSpalte = (feld, wert) => setSettingsOee((v) => {
@@ -8280,10 +8426,64 @@ function App() {
                     Die Kachel auf der Übersicht liest die Zahl direkt aus der Tabelle – gelesen wird jede Minute,
                     aber nur wenn Excel die Datei wirklich geändert hat. In die Tabelle wird nie geschrieben.
                   </div>
-                  {sharedFile.folderStatus() !== "ok" ? (
+                  {/* Der Ordner mit der OEE-Tabelle liegt auf dem Firmenlaufwerk,
+                      nicht bei den Daten - deshalb ein eigener, rein LESENDER
+                      Zugriff. Er gilt pro Gerät: Ein Ordnerzugriff lässt sich
+                      nicht weitergeben. Der Dateiname und die Spaltenzuordnung
+                      dagegen stehen in der gemeinsamen Datei und gelten für alle. */}
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="text-xs font-bold" style={{ color: "#5B6572" }}>Ordner mit der Tabelle:</span>
+                    {sharedFile.quellOrdnerStatus() === "ok" ? (
+                      <span className="text-xs font-mono rounded px-2 py-1" style={{ backgroundColor: "#EAF3EC", color: "#1F7A3D" }}>
+                        📁 {sharedFile.quellOrdnerName()}
+                      </span>
+                    ) : sharedFile.quellOrdnerStatus() === "needs-permission" ? (
+                      <button
+                        onClick={async () => {
+                          try { await sharedFile.reconnectQuellOrdner(); setSettingsOee((v) => ({ ...v, lage: "", text: "" })); await oeeDateienSuchen(); }
+                          catch (e) { setSettingsOee((v) => ({ ...v, lage: "fehler", text: String((e && e.message) || e) })); }
+                        }}
+                        className="text-xs font-bold px-2.5 py-1.5 rounded"
+                        style={{ backgroundColor: "#FBF3DA", color: "#7A5A00" }}
+                      >
+                        „{sharedFile.quellOrdnerName()}" wieder freigeben
+                      </button>
+                    ) : sharedFile.quellOrdnerStatus() === "ersatz" ? (
+                      <span className="text-xs" style={{ color: "#8A9099" }}>
+                        keiner gewählt – es wird im Datenordner „{sharedFile.quellOrdnerName()}" gesucht
+                      </span>
+                    ) : (
+                      <span className="text-xs" style={{ color: "#8A9099" }}>noch keiner gewählt</span>
+                    )}
+                    <button
+                      onClick={async () => {
+                        try { await sharedFile.pickQuellOrdner(); setSettingsOee((v) => ({ ...v, lage: "", text: "" })); await oeeDateienSuchen(); }
+                        catch (e) { setSettingsOee((v) => ({ ...v, lage: "fehler", text: String((e && e.message) || e) })); }
+                      }}
+                      className="text-xs font-bold px-2.5 py-1.5 rounded"
+                      style={{ backgroundColor: "#EEF1F4", color: "#2F6690" }}
+                    >
+                      Ordner wählen …
+                    </button>
+                    {sharedFile.quellOrdnerStatus() !== "none" && sharedFile.quellOrdnerStatus() !== "ersatz" && (
+                      <button
+                        onClick={async () => { await sharedFile.vergissQuellOrdner(); setSettingsOee((v) => ({ ...v, dateien: null, blaetter: null })); }}
+                        className="text-xs font-bold px-2 py-1.5 rounded"
+                        style={{ backgroundColor: "#F7F8F9", color: "#B23A34" }}
+                      >
+                        Ordner vergessen
+                      </button>
+                    )}
+                  </div>
+                  <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+                    Der Ordner wird nur <strong>lesend</strong> geöffnet – die App kann auf dem Laufwerk nichts verändern.
+                    Er gilt für dieses Gerät; jeder Arbeitsplatz wählt ihn einmal selbst.
+                    Die Zuordnung darunter gilt für alle.
+                  </div>
+                  {sharedFile.quellOrdnerStatus() === "none" ? (
                     <div className="text-xs rounded px-3 py-2 mb-2" style={{ backgroundColor: "#FBF3DA", color: "#7A5A00" }}>
-                      Dafür muss der <strong>Datenordner</strong> verbunden sein (oben über „Gemeinsame Datei" → Ordner freigeben).
-                      Ohne ihn findet die App die Tabelle nicht.
+                      Ohne Ordner findet die App die Tabelle nicht. Entweder oben einen wählen –
+                      oder die Tabelle liegt im Datenordner, dann genügt dessen Freigabe.
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -8344,6 +8544,9 @@ function App() {
                       </div>
                       <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
                         Fehlt die OEE-Spalte, wird sie aus Verfügbarkeit × Leistung × Qualität gerechnet.
+                        Für „letzte 24 Stunden" braucht es einen Zeitpunkt je Zeile: eine Uhrzeitspalte, eine
+                        Uhrzeit im Datum oder wenigstens die Schicht. Steht nur ein Datum in der Tabelle,
+                        zeigt die Kachel den jüngsten Tag – und schreibt das auch dazu.
                       </div>
                     </>
                   )}

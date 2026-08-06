@@ -68,8 +68,9 @@ const spalte = (i) => {
   while (i > 0) { const r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = Math.floor((i - 1) / 26); }
   return s;
 };
-// Excel zählt Tage ab dem 30.12.1899
-const alsSerie = (d) => Math.round((d.getTime() - Date.UTC(1899, 11, 30)) / 86400000);
+// Excel zählt Tage ab dem 30.12.1899. Der Nachkommateil ist die Uhrzeit -
+// deshalb NICHT runden, sonst geht die Zeit verloren.
+const alsSerie = (d) => (d.getTime() - Date.UTC(1899, 11, 30)) / 86400000;
 
 /* zeilen: Array von Arrays. Zellen: Zahl, String, {datum: Date} oder
    {prozent: 0.87} (als Prozent formatiert, wie es Excel tut). */

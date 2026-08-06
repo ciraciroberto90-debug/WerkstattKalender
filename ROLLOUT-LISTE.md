@@ -193,24 +193,29 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
 ## Offene Entscheidungen
 
 - [ ] **OEE-Kachel an die echte Tabelle anpassen.** Die Anbindung steht und
-      läuft gegen ein Prüfmuster (harte-40), die echte Tabelle hat sie noch
-      nie gesehen. Zu klären, sobald sie im Datenordner liegt:
-      - **Spaltenüberschriften.** Die Erkennung sucht nach „Datum", „Anlage",
-        „OEE", „Verfügbarkeit", „Leistung", „Qualität". Heißen sie anders,
-        wird die Zuordnung in ⚙ einmal von Hand gesetzt – das ist vorgesehen,
-        kostet aber einen Handgriff. Kommen die Überschriften mehrfach vor
-        (je Anlage ein Block), muss die Erkennung erweitert werden.
-      - **Welcher Zeitraum gehört auf die Kachel?** Aktuell: der jüngste Tag
-        mit Daten, gemittelt über alle Zeilen dieses Tages, mit Pfeil zum
-        Vortag. Offen, ob es die laufende Schicht, die Woche oder eine
-        einzelne Anlage sein soll.
-      - **Gewichtung.** Gemittelt wird ungewichtet. Sind die Anlagen
+      läuft gegen ein Prüfmuster (harte-40, 24 Prüfungen) – die echte Tabelle
+      hat sie noch nie gesehen. Entschieden ist (06.08.): Gesamtübersicht
+      über alle Anlagen, Zeitraum immer die letzten 24 Stunden, Tabelle liegt
+      auf dem Firmenlaufwerk in einem eigenen Ordner. Offen bleibt:
+      - **Spaltenüberschriften.** Die Erkennung sucht nach „Datum",
+        „Uhrzeit", „Anlage", „Schicht", „OEE", „Verfügbarkeit", „Leistung",
+        „Qualität". Heißen sie anders, wird die Zuordnung in ⚙ einmal von
+        Hand gesetzt – vorgesehen, kostet aber einen Handgriff. Kommen die
+        Überschriften mehrfach vor (je Anlage ein Block), muss die Erkennung
+        erweitert werden. **Dafür braucht es ein Bild der obersten Zeilen.**
+      - **Trägt die Tabelle einen Zeitpunkt je Zeile?** Für „letzte 24 h"
+        wird eine Uhrzeitspalte, eine Uhrzeit im Datum oder wenigstens die
+        Schicht gebraucht. Steht nur ein Datum darin, zeigt die Kachel den
+        jüngsten Tag statt 24 Stunden – sie schreibt das dazu, aber es wäre
+        nicht das Gewünschte.
+      - **Gewichtung.** Gemittelt wird ungewichtet über die Anlagen. Sind sie
         unterschiedlich lange gelaufen, ist das nicht ganz die Wahrheit –
-        dafür bräuchte es die Laufzeit je Zeile.
-      - **Wo liegt die Tabelle?** Gefunden wird sie über den Datenordner.
-        Liegt sie woanders (eigener Ordner, Netzlaufwerk), muss der Ordner
-        entweder freigegeben oder ein zweiter Ordnerzugriff eingerichtet
-        werden.
+        dafür bräuchte es eine Spalte mit Laufzeit oder Stückzahl.
+      - **Ordner je Arbeitsplatz.** Der Zugriff auf den Ordner gilt pro Gerät
+        und muss dort einmal gewählt werden; nach einem Browser-Neustart
+        einmal bestätigt. Dateiname und Zuordnung gelten dagegen für alle.
+        Falls das auf Dauer stört: Tabelle in den Datenordner legen, dann
+        entfällt der zweite Ordner.
       - Schichtpläne aus Excel sind damit noch **nicht** angebunden – der
         Leser kann es (er gibt jedes Blatt als Zeilen zurück), die Zuordnung
         auf Personen und Tage fehlt.
@@ -288,14 +293,19 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
       gelöscht)
 - [x] **OEE live aus einer Excel-Tabelle, als Kachel auf der Übersicht.**
       Gelesen wird die `.xlsx` ohne fremde Bibliothek – Chrome packt das ZIP
-      selbst aus, das XML liest der eingebaute Parser. Die Tabelle liegt im
-      Datenordner neben der gemeinsamen Datei; gespeichert wird nur der
-      **Dateiname** und die Spaltenzuordnung, denn ein Dateiverweis lässt sich
-      nicht weitergeben – jedes Gerät findet die Tabelle über seinen eigenen
-      Ordnerzugriff. Neu gelesen wird jede Minute und beim Zurückklicken in
-      die App, aber nur wenn Excel die Datei wirklich angefasst hat.
-      **Geschrieben wird nie** (harte-40 prüft das mit). Fehlt die Datei,
-      steht das in der Kachel – keine stille Null
+      selbst aus, das XML liest der eingebaute Parser. Die Tabelle liegt auf
+      dem Firmenlaufwerk in einem eigenen, **rein lesenden** Ordnerzugriff
+      (getrennt vom Datenordner); gespeichert wird in der gemeinsamen Datei
+      nur der **Dateiname** und die Spaltenzuordnung, denn ein Ordnerzugriff
+      lässt sich nicht weitergeben – den wählt jeder Arbeitsplatz einmal
+      selbst. Gezeigt wird das Mittel **aller Anlagen der letzten 24
+      Stunden** mit Vergleich zu den 24 Stunden davor; ein Klick öffnet die
+      Anlagenübersicht, schlechteste Anlage oben. Neu gelesen wird jede
+      Minute und beim Zurückklicken in die App, aber nur wenn Excel die Datei
+      wirklich angefasst hat. **Geschrieben wird nie** (harte-40 prüft das
+      mit). Fehlt die Datei oder hinkt die Tabelle hinterher, steht das in
+      der Kachel – keine stille Null und keine alte Zahl, die wie eine
+      frische aussieht
 - [x] **Alle Kacheln der Übersicht haben exakt dieselben Maße.** Die Uhr lag
       über zwei Kachelbreiten und war damit die einzige mit einem anderen
       Maß. Jetzt: sieben Kacheln, je eine Spalte, gemessen 169,7 × 98,7 px –

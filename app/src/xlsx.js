@@ -255,6 +255,9 @@ export function findeKopfzeile(zeilen) {
 }
 
 const SUCHWORTE = {
+  // "zeit" allein wäre zu gierig - es steckt auch in "Ausfallzeit" und
+  // "Laufzeit", und die sind etwas ganz anderes.
+  zeit: ["uhrzeit", "startzeit", "beginn", "zeitstempel"],
   datum: ["datum", "tag", "date", "schichttag"],
   anlage: ["anlage", "maschine", "linie", "equipment", "kostenstelle", "arbeitsplatz"],
   schicht: ["schicht", "shift"],
@@ -327,6 +330,33 @@ export function alsTagesschluessel(wert) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/* Tagesbeginn einer Schichtbezeichnung - dieselben Grenzen wie überall in der
+   App (6 / 14 / 22 Uhr). Damit bekommt auch eine Tabelle ohne Uhrzeitspalte
+   einen brauchbaren Zeitpunkt, sobald sie die Schicht nennt. */
+const SCHICHT_BEGINN = [
+  [/fr(ü|ue)h|f$|^f\b|morgen/i, 6],
+  [/sp(ä|ae)t|^s\b/i, 14],
+  [/nacht|^n\b/i, 22],
+];
+function schichtStunde(text) {
+  const s = String(text || "").trim();
+  if (!s) return null;
+  for (const [muster, stunde] of SCHICHT_BEGINN) if (muster.test(s)) return stunde;
+  return null;
+}
+
+/* Bruchteil eines Excel-Tages (0,5 = 12:00) oder "07:30" als Minuten. */
+function alsTageszeit(wert) {
+  if (wert == null || wert === "") return null;
+  if (wert instanceof Date) return wert.getHours() * 60 + wert.getMinutes();
+  if (typeof wert === "number") {
+    const bruch = wert - Math.floor(wert);
+    return Math.round(bruch * 24 * 60);
+  }
+  const m = String(wert).match(/(\d{1,2})[:.](\d{2})/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
 /* Aus Blatt + Spaltenzuordnung die Zeilen als Datensätze lesen. */
 export function leseOeeZeilen(zeilen, spalten, kopfzeile) {
   const start = (kopfzeile == null ? findeKopfzeile(zeilen) : kopfzeile) + 1;
@@ -345,10 +375,36 @@ export function leseOeeZeilen(zeilen, spalten, kopfzeile) {
       oee = Math.round(((v / 100) * (l / 100) * (q / 100)) * 1000) / 10;
     }
     if (oee == null) continue;
+    const schicht = spalten.schicht != null && z[spalten.schicht] != null ? String(z[spalten.schicht]).trim() : "";
+
+    /* Zeitpunkt der Zeile - nötig für ein Fenster "letzte 24 Stunden".
+       Drei Quellen, in dieser Reihenfolge, weil jede genauer ist als die
+       nächste: eine Uhrzeitspalte, eine Uhrzeit im Datum selbst, sonst der
+       Beginn der genannten Schicht. Steht nichts davon in der Tabelle,
+       bleibt es beim Tag - das wird dann auch so angezeigt und nicht als
+       "letzte 24 h" ausgegeben. */
+    let minuten = spalten.zeit != null ? alsTageszeit(z[spalten.zeit]) : null;
+    let genau = minuten != null;
+    if (minuten == null && spalten.datum != null) {
+      const roh = z[spalten.datum];
+      const imDatum = (roh instanceof Date && (roh.getHours() || roh.getMinutes()))
+        || (typeof roh === "number" && Math.abs(roh - Math.round(roh)) > 1e-6);
+      if (imDatum) { minuten = alsTageszeit(roh); genau = true; }
+    }
+    if (minuten == null) {
+      const st = schichtStunde(schicht);
+      if (st != null) { minuten = st * 60; genau = true; }
+    }
+    let zeitMs = null;
+    if (tag) {
+      const [jj, mm, tt] = tag.split("-").map(Number);
+      zeitMs = new Date(jj, mm - 1, tt, 0, minuten != null ? minuten : 0).getTime();
+    }
+
     raus.push({
-      tag,
+      tag, zeitMs, zeitGenau: genau,
       anlage: spalten.anlage != null && z[spalten.anlage] != null ? String(z[spalten.anlage]).trim() : "",
-      schicht: spalten.schicht != null && z[spalten.schicht] != null ? String(z[spalten.schicht]).trim() : "",
+      schicht,
       oee, verfuegbarkeit: v, leistung: l, qualitaet: q,
     });
   }

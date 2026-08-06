@@ -166,27 +166,51 @@ Auf der Übersicht kann eine Kachel den **OEE-Wert direkt aus einer
 Excel-Tabelle** anzeigen. Einmal eingerichtet, gilt das für alle – die
 Einrichtung steht in der gemeinsamen Datei.
 
-**Voraussetzung:** Der **Datenordner ist freigegeben** (wie beim
-Konflikt-Wächter, Abschnitt 3.5) und die `.xlsx` liegt **in diesem Ordner**.
-Der Grund: Ein Dateiverweis lässt sich nicht weitergeben – er gilt nur in dem
-Browser, der ihn geholt hat. Deshalb merkt sich die App nur den *Dateinamen*,
-und jedes Gerät findet die Tabelle über seinen eigenen Ordnerzugriff.
+**Einrichten:** ⚙ → **OEE aus Excel** → **„Ordner wählen …"** (der Ordner auf
+dem Firmenlaufwerk, in dem die Tabelle liegt) → Datei und Tabellenblatt
+wählen → **„OEE-Quelle übernehmen"**.
 
-**Einrichten:** ⚙ → **OEE aus Excel** → „Tabellen im Ordner suchen" → Datei
-und Tabellenblatt wählen. Die Spalten erkennt die App an den Überschriften
-(*Datum, Anlage, Schicht, OEE, Verfügbarkeit, Leistung, Qualität*); jede
-Zuordnung lässt sich darunter von Hand ändern. Zum Schluss **„OEE-Quelle
-übernehmen"**.
+Zwei Dinge sind dabei getrennt:
 
-Was die Kachel zeigt: den **jüngsten Tag** mit Daten, gemittelt über alle
-Zeilen dieses Tages, dazu den Pfeil zum Vortag. Fehlt eine OEE-Spalte, wird
-sie aus *Verfügbarkeit × Leistung × Qualität* gerechnet. Der Mauszeiger auf
-der Kachel nennt Datei, Blatt, Zeilenzahl und die drei Einzelwerte.
+- Der **Ordner** gilt für *dieses Gerät*. Ein Ordnerzugriff lässt sich nicht
+  weitergeben – er gilt nur in dem Browser, der ihn erteilt bekommen hat.
+  Jeder Arbeitsplatz wählt ihn also einmal selbst; nach einem Browser-Neustart
+  genügt ein Klick auf „wieder freigeben".
+- **Dateiname und Spaltenzuordnung** stehen in der gemeinsamen Datei und
+  gelten *für alle*. Das wird einmal eingerichtet, nicht an jedem Rechner.
+
+Liegt die Tabelle ausnahmsweise im Datenordner, genügt dessen Freigabe – dann
+wird dort gesucht, und der zweite Ordner entfällt.
+
+Die Spalten erkennt die App an den Überschriften (*Datum, Uhrzeit, Anlage,
+Schicht, OEE, Verfügbarkeit, Leistung, Qualität*); jede Zuordnung lässt sich
+darunter von Hand ändern.
+
+**Was die Kachel zeigt:** das Mittel über **alle Anlagen der letzten 24
+Stunden**, dazu den Pfeil zum Vergleich mit den 24 Stunden davor. Ein **Klick
+auf die Kachel** öffnet die Anlagenübersicht – jede Anlage mit ihrem Wert,
+die schlechteste oben, denn die ist der Grund hinzuschauen.
+
+Für „letzte 24 Stunden" braucht jede Zeile einen Zeitpunkt. Die App nimmt in
+dieser Reihenfolge: eine **Uhrzeitspalte**, eine **Uhrzeit im Datum**, sonst
+den Beginn der genannten **Schicht** (6 / 14 / 22 Uhr, dieselben Grenzen wie
+im Schichtplan). Steht in der Tabelle nur ein Datum, wäre ein
+24-Stunden-Fenster geraten – dann zeigt die Kachel den jüngsten Tag und
+schreibt den Tag auch dazu.
+
+Fehlt eine OEE-Spalte, wird sie aus *Verfügbarkeit × Leistung × Qualität*
+gerechnet. Gemittelt wird **ungewichtet** über die Anlagen – ohne Laufzeit
+oder Stückzahl je Zeile wäre jede Gewichtung erfunden.
 
 - **Gelesen** wird jede Minute und immer, wenn man aus Excel in die App
   zurückklickt – aber nur, wenn Excel die Datei wirklich geändert hat.
-- **Geschrieben wird nie.** Die Tabelle gehört jemand anderem; die App öffnet
-  sie ausschließlich lesend.
+- **Geschrieben wird nie.** Die Tabelle gehört jemand anderem; der Ordner wird
+  ausdrücklich nur *lesend* angefragt, die App kann auf dem Laufwerk nichts
+  verändern.
+- **Hinkt die Tabelle hinterher** – steht in den letzten 24 Stunden nichts
+  darin –, sagt die Kachel das („veraltet") und nennt in der Übersicht, wie
+  viele Stunden der jüngste Eintrag zurückliegt. Eine alte Zahl darf nicht wie
+  eine frische aussehen.
 - Fehlt die Datei oder passt die Zuordnung nicht, sagt die Kachel das
   ausdrücklich. Es erscheint **nie** eine erfundene Zahl.
 - Prozente dürfen als `0,87` oder als `87` in der Tabelle stehen, Datumsangaben
