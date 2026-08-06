@@ -192,6 +192,12 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
 
 ## Offene Entscheidungen
 
+- [ ] **→ Roberto: Bild der obersten Zeilen der OEE-Tabelle liefern.** Ein
+      Bildschirmfoto der ersten ~10 Zeilen mit der Überschriftenzeile genügt;
+      die Zahlen dürfen erfunden sein, gebraucht wird der Aufbau. Alternativ:
+      Tabelle in den Ordner legen, in ⚙ → OEE anwählen und ein Bild vom
+      Dialog schicken – da steht, was die App erkannt hat. **Ohne das bleibt
+      der nächste Punkt liegen.**
 - [ ] **OEE-Kachel an die echte Tabelle anpassen.** Die Anbindung steht und
       läuft gegen ein Prüfmuster (harte-40, 24 Prüfungen) – die echte Tabelle
       hat sie noch nie gesehen. Entschieden ist (06.08.): Gesamtübersicht
