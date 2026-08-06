@@ -192,12 +192,28 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
 
 ## Offene Entscheidungen
 
-- [ ] **Excel-Anbindung (OEE / Schichtpläne).** Gemessen ist: Chrome liest eine
-      `.xlsx` ohne fremde Bibliothek (12 ms klein, 2,0 s bei 10 950 Zeilen).
-      Gebraucht wird noch: die Datei oder ein Bild der obersten Zeilen, und was
-      auf der Übersicht stehen soll (gestern? laufender Monat? Wochenverlauf?).
-      Geplant: nur anzeigen, nicht zurückschreiben, Datei über den
-      Ausliefer-Dienst statt Anwählen auf jedem Rechner.
+- [ ] **OEE-Kachel an die echte Tabelle anpassen.** Die Anbindung steht und
+      läuft gegen ein Prüfmuster (harte-40), die echte Tabelle hat sie noch
+      nie gesehen. Zu klären, sobald sie im Datenordner liegt:
+      - **Spaltenüberschriften.** Die Erkennung sucht nach „Datum", „Anlage",
+        „OEE", „Verfügbarkeit", „Leistung", „Qualität". Heißen sie anders,
+        wird die Zuordnung in ⚙ einmal von Hand gesetzt – das ist vorgesehen,
+        kostet aber einen Handgriff. Kommen die Überschriften mehrfach vor
+        (je Anlage ein Block), muss die Erkennung erweitert werden.
+      - **Welcher Zeitraum gehört auf die Kachel?** Aktuell: der jüngste Tag
+        mit Daten, gemittelt über alle Zeilen dieses Tages, mit Pfeil zum
+        Vortag. Offen, ob es die laufende Schicht, die Woche oder eine
+        einzelne Anlage sein soll.
+      - **Gewichtung.** Gemittelt wird ungewichtet. Sind die Anlagen
+        unterschiedlich lange gelaufen, ist das nicht ganz die Wahrheit –
+        dafür bräuchte es die Laufzeit je Zeile.
+      - **Wo liegt die Tabelle?** Gefunden wird sie über den Datenordner.
+        Liegt sie woanders (eigener Ordner, Netzlaufwerk), muss der Ordner
+        entweder freigegeben oder ein zweiter Ordnerzugriff eingerichtet
+        werden.
+      - Schichtpläne aus Excel sind damit noch **nicht** angebunden – der
+        Leser kann es (er gibt jedes Blatt als Zeilen zurück), die Zuordnung
+        auf Personen und Tage fehlt.
 
 ---
 
@@ -270,6 +286,21 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
       alles mit Datum oder Wörtern wie „Sicherung"/„Kopie" bleibt liegen
       (harte-16, Gegenprobe: drei Sicherungen wurden ohne die Änderung
       gelöscht)
+- [x] **OEE live aus einer Excel-Tabelle, als Kachel auf der Übersicht.**
+      Gelesen wird die `.xlsx` ohne fremde Bibliothek – Chrome packt das ZIP
+      selbst aus, das XML liest der eingebaute Parser. Die Tabelle liegt im
+      Datenordner neben der gemeinsamen Datei; gespeichert wird nur der
+      **Dateiname** und die Spaltenzuordnung, denn ein Dateiverweis lässt sich
+      nicht weitergeben – jedes Gerät findet die Tabelle über seinen eigenen
+      Ordnerzugriff. Neu gelesen wird jede Minute und beim Zurückklicken in
+      die App, aber nur wenn Excel die Datei wirklich angefasst hat.
+      **Geschrieben wird nie** (harte-40 prüft das mit). Fehlt die Datei,
+      steht das in der Kachel – keine stille Null
+- [x] **Alle Kacheln der Übersicht haben exakt dieselben Maße.** Die Uhr lag
+      über zwei Kachelbreiten und war damit die einzige mit einem anderen
+      Maß. Jetzt: sieben Kacheln, je eine Spalte, gemessen 169,7 × 98,7 px –
+      dafür ist die Uhr auf Zifferblatt, Uhrzeit, Schicht-Schild und
+      Übergabezeit eingedampft
 - [x] **Eine Uhr, die vorgeht, leert nicht mehr die Lösch-Merkliste.** Die
       Merkliste steht in der gemeinsamen Datei – wer sie kürzt, kürzt sie für
       alle. Gekürzt wurde nach „jetzt minus 180 Tage", also nach der Uhr des

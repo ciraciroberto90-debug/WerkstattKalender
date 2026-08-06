@@ -160,6 +160,38 @@ OneDrive legt bei zeitgleichen Änderungen manchmal „Konfliktkopien" an
 führt ihren Inhalt zusammen. Einrichtung: im Dialog **Gemeinsame Datei** den
 OneDrive-Ordner einmalig freigeben. Danach läuft es von selbst.
 
+### 3.6 OEE aus einer Excel-Tabelle (optional)
+
+Auf der Übersicht kann eine Kachel den **OEE-Wert direkt aus einer
+Excel-Tabelle** anzeigen. Einmal eingerichtet, gilt das für alle – die
+Einrichtung steht in der gemeinsamen Datei.
+
+**Voraussetzung:** Der **Datenordner ist freigegeben** (wie beim
+Konflikt-Wächter, Abschnitt 3.5) und die `.xlsx` liegt **in diesem Ordner**.
+Der Grund: Ein Dateiverweis lässt sich nicht weitergeben – er gilt nur in dem
+Browser, der ihn geholt hat. Deshalb merkt sich die App nur den *Dateinamen*,
+und jedes Gerät findet die Tabelle über seinen eigenen Ordnerzugriff.
+
+**Einrichten:** ⚙ → **OEE aus Excel** → „Tabellen im Ordner suchen" → Datei
+und Tabellenblatt wählen. Die Spalten erkennt die App an den Überschriften
+(*Datum, Anlage, Schicht, OEE, Verfügbarkeit, Leistung, Qualität*); jede
+Zuordnung lässt sich darunter von Hand ändern. Zum Schluss **„OEE-Quelle
+übernehmen"**.
+
+Was die Kachel zeigt: den **jüngsten Tag** mit Daten, gemittelt über alle
+Zeilen dieses Tages, dazu den Pfeil zum Vortag. Fehlt eine OEE-Spalte, wird
+sie aus *Verfügbarkeit × Leistung × Qualität* gerechnet. Der Mauszeiger auf
+der Kachel nennt Datei, Blatt, Zeilenzahl und die drei Einzelwerte.
+
+- **Gelesen** wird jede Minute und immer, wenn man aus Excel in die App
+  zurückklickt – aber nur, wenn Excel die Datei wirklich geändert hat.
+- **Geschrieben wird nie.** Die Tabelle gehört jemand anderem; die App öffnet
+  sie ausschließlich lesend.
+- Fehlt die Datei oder passt die Zuordnung nicht, sagt die Kachel das
+  ausdrücklich. Es erscheint **nie** eine erfundene Zahl.
+- Prozente dürfen als `0,87` oder als `87` in der Tabelle stehen, Datumsangaben
+  als echtes Datum oder als Text (`05.08.2026`, `2026-08-05`).
+
 ---
 
 ## 4. Rollen & Rechte
@@ -182,6 +214,10 @@ Störungen, nicht den Rest.
 
 ## 5. Die Bereiche im Detail
 
+- **Kachelreihe der Übersicht:** sieben Kacheln in einer Zeile, alle gleich
+  groß – *Heute fällig, Heute erledigt, Überfällig, Diesen Monat, Wartung &
+  R+I, OEE* und die *Uhr* (Uhrzeit, laufende Schicht, Zeitpunkt der Übergabe).
+  Ein Klick auf die OEE-Kachel führt in die Einrichtung (Abschnitt 3.6).
 - **Linkstreifen (nur für Bearbeiter):** eine Zeile direkt unter der Menüleiste,
   **auf der Übersicht**. Ein Klick auf einen Chip öffnet die Datei oder die Seite.
   Über **RC/AR** wird zwischen der eigenen Sammlung und der der Vertretung

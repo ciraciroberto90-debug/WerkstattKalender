@@ -940,6 +940,31 @@ function createSharedStore(cfg) {
     try { await idbDel("folder"); } catch (e) { /* egal */ }
   }
 
+  /* ---------- Weitere Dateien im Datenordner (NUR LESEN) ---------- */
+  // Gedacht für die OEE-Tabelle: Sie liegt neben der gemeinsamen Datei. Über
+  // den ohnehin schon eingerichteten Ordnerzugriff findet sie jedes Gerät
+  // selbst - niemand muss sie auf seinem Rechner einzeln anwählen, und in der
+  // gemeinsamen Datei steht nur der DATEINAME, kein Verweis (ein Dateiverweis
+  // lässt sich nicht weitergeben, er gilt nur im Browser, der ihn geholt hat).
+  // Geschrieben wird hier nie: Die Tabelle gehört jemand anderem.
+  async function leseAusOrdner(name) {
+    if (!folderHandle || folderPerm !== "ok") return null;
+    if (!name) return null;
+    const handle = await folderHandle.getFileHandle(name); // NotFoundError, wenn sie fehlt
+    return await handle.getFile();
+  }
+  async function listeOrdnerDateien(endung) {
+    if (!folderHandle || folderPerm !== "ok") return [];
+    const raus = [];
+    for await (const [name, handle] of folderHandle.entries()) {
+      if (!handle || handle.kind !== "file") continue;
+      if (endung && !name.toLowerCase().endsWith(String(endung).toLowerCase())) continue;
+      if (name.startsWith("~$")) continue; // Excel-Sperrdatei einer offenen Mappe
+      raus.push(name);
+    }
+    return raus.sort((a, b) => a.localeCompare(b, "de"));
+  }
+
   // Inhalt einer Konfliktkopie in die Hauptdatei einpflegen (mit Kontroll-Lesung
   // und optimistischer Sperre wie beim normalen Speichern). Gibt zurück, wie
   // viele Einträge aus der Kopie tatsächlich neu übernommen wurden.
@@ -1395,6 +1420,7 @@ function createSharedStore(cfg) {
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
+    leseAusOrdner, listeOrdnerDateien,
     saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
   };
 }
@@ -1435,6 +1461,9 @@ export const pickFolder = main.pickFolder;
 export const reconnectFolder = main.reconnectFolder;
 export const forgetFolder = main.forgetFolder;
 export const sammleKonfliktkopien = main.sammleKonfliktkopien;
+// Weitere Dateien im Datenordner mitlesen (OEE-Tabelle) - nur lesend
+export const leseAusOrdner = main.leseAusOrdner;
+export const listeOrdnerDateien = main.listeOrdnerDateien;
 export const saveEntries = main.saveEntries;
 export const saveConfig = main.saveConfig;
 export const readLog = main.readLog;

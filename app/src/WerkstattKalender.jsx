@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
+import { leseArbeitsmappe, findeKopfzeile, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -264,36 +265,109 @@ function WerkstattUhr() {
     : std >= 14 && std < 22 ? { name: "Spätschicht", naechste: "Nacht", ab: "22:00", bg: "#CDEBD8", fg: "#14512A" }
     : { name: "Nachtschicht", naechste: "Früh", ab: "06:00", bg: "#D3E2EE", fg: "#1E4763" };
   const zeit = `${String(std).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-  // Kurzer Wochentag: der lange bricht die Zeile neben der Schichtangabe um
-  const datum = jetzt.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+  // Nur Tag und Monat: In der schmalen Kachel ist neben dem Schicht-Schild und
+  // der Übergabezeit kein Platz mehr für den Wochentag - und der steht ohnehin
+  // direkt darunter über der Tagesliste ("Heute · Donnerstag, 06.08.").
+  const datum = jetzt.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
   const dreh = (grad) => ({ transform: `rotate(${grad}deg)`, transformOrigin: "50px 50px" });
 
+  // Schmal genug für eine Kachel von der Breite aller anderen: Zifferblatt und
+  // Uhrzeit nebeneinander, darunter eine Zeile mit Schicht und Übergabe. Vorher
+  // lag die Uhr über zwei Kachelbreiten und war die einzige Kachel mit einem
+  // anderen Maß - im Raster fiel das sofort auf.
   return (
-    <div className="wk-karte px-4 py-3 flex items-center gap-3 justify-center flex-1" title={`${zeit} Uhr · ${schicht.name}`}>
-      <svg viewBox="0 0 100 100" style={{ width: "46px", height: "46px", flexShrink: 0 }}
-           role="img" aria-label={`${zeit} Uhr, ${schicht.name}, ${schicht.naechste} ab ${schicht.ab}`}>
-        <circle cx="50" cy="50" r="46" fill="#fff" stroke="#22262B" strokeWidth="3" />
-        <g stroke="#8A9099" strokeWidth="2" strokeLinecap="round">
-          <line x1="50" y1="9" x2="50" y2="15" /><line x1="91" y1="50" x2="85" y2="50" />
-          <line x1="50" y1="91" x2="50" y2="85" /><line x1="9" y1="50" x2="15" y2="50" />
-        </g>
-        <line x1="50" y1="50" x2="50" y2="28" stroke="#22262B" strokeWidth="4.5" strokeLinecap="round" style={dreh((std % 12) * 30 + min * 0.5)} />
-        <line x1="50" y1="50" x2="50" y2="18" stroke="#22262B" strokeWidth="3" strokeLinecap="round" style={dreh(min * 6 + sek * 0.1)} />
-        <line x1="50" y1="56" x2="50" y2="16" stroke="#C97A2B" strokeWidth="1.4" strokeLinecap="round" style={dreh(sek * 6)} />
-        <circle cx="50" cy="50" r="3" fill="#22262B" />
-      </svg>
-      <div style={{ minWidth: 0 }}>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono font-extrabold" style={{ fontSize: "1.15rem", letterSpacing: "-0.8px", fontVariantNumeric: "tabular-nums", color: "#22262B", lineHeight: 1 }}>{zeit}</span>
-          <span style={{ fontSize: "0.6rem", fontWeight: 800, padding: "2px 8px", borderRadius: "var(--wk-eck-rund)", backgroundColor: schicht.bg, color: schicht.fg, whiteSpace: "nowrap" }}>
-            {schicht.name.toUpperCase()}
-          </span>
-        </div>
-        <div style={{ fontSize: "0.66rem", fontWeight: 600, color: "#6B7480", marginTop: "3px", lineHeight: 1.25 }}>
-          {datum} · {schicht.naechste} ab {schicht.ab}
-        </div>
+    <div className="wk-karte px-3 py-3 flex flex-col justify-center" title={`${zeit} Uhr · ${schicht.name} · ${schicht.naechste} ab ${schicht.ab}`}>
+      <div className="flex items-center gap-2">
+        <svg viewBox="0 0 100 100" style={{ width: "34px", height: "34px", flexShrink: 0 }}
+             role="img" aria-label={`${zeit} Uhr, ${schicht.name}, ${schicht.naechste} ab ${schicht.ab}`}>
+          <circle cx="50" cy="50" r="46" fill="#fff" stroke="#22262B" strokeWidth="4" />
+          <g stroke="#8A9099" strokeWidth="3" strokeLinecap="round">
+            <line x1="50" y1="9" x2="50" y2="16" /><line x1="91" y1="50" x2="84" y2="50" />
+            <line x1="50" y1="91" x2="50" y2="84" /><line x1="9" y1="50" x2="16" y2="50" />
+          </g>
+          <line x1="50" y1="50" x2="50" y2="28" stroke="#22262B" strokeWidth="6" strokeLinecap="round" style={dreh((std % 12) * 30 + min * 0.5)} />
+          <line x1="50" y1="50" x2="50" y2="18" stroke="#22262B" strokeWidth="4" strokeLinecap="round" style={dreh(min * 6 + sek * 0.1)} />
+          <line x1="50" y1="56" x2="50" y2="16" stroke="#C97A2B" strokeWidth="2" strokeLinecap="round" style={dreh(sek * 6)} />
+          <circle cx="50" cy="50" r="4" fill="#22262B" />
+        </svg>
+        <span className="font-mono font-extrabold" style={{ fontSize: "1.55rem", letterSpacing: "-1.4px", fontVariantNumeric: "tabular-nums", color: "#22262B", lineHeight: 1 }}>{zeit}</span>
+      </div>
+      <div className="flex items-center gap-1.5 mt-1.5" style={{ minWidth: 0 }}>
+        <span style={{ fontSize: "0.55rem", fontWeight: 800, padding: "2px 6px", borderRadius: "var(--wk-eck-rund)", backgroundColor: schicht.bg, color: schicht.fg, whiteSpace: "nowrap", flexShrink: 0 }}>
+          {schicht.name.slice(0, 4).toUpperCase()}
+        </span>
+        <span style={{ fontSize: "0.6rem", fontWeight: 600, color: "#6B7480", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {/* Nur der Zeitpunkt der Übergabe - welche Schicht dann kommt, steht
+              im Tooltip. Ausgeschrieben passte es nicht in die Kachelbreite
+              (gemessen: abgeschnitten bei 1600 px Fensterbreite). */}
+          {datum} · ➜ {schicht.ab}
+        </span>
       </div>
     </div>
+  );
+}
+
+/* OEE-Kachel: die Zahl aus der Excel-Tabelle, im selben Maß wie die anderen
+   Kacheln. Sie zeigt bewusst auch, WORAUS sie kommt (Tag, Zeilen, Datei) -
+   eine Kennzahl ohne Herkunft ist in einer Werkstattbesprechung wertlos. */
+function OeeKachel({ stand, onKlick, darfEinrichten }) {
+  const lage = (stand && stand.lage) || "aus";
+  const farbeFuer = (w) => (w == null ? "#8A9099" : w >= 85 ? "#2F7D4F" : w >= 70 ? "#C97A2B" : "#B23A34");
+
+  if (lage === "ok") {
+    const wert = stand.oee;
+    const diff = stand.vortag != null && wert != null ? Math.round((wert - stand.vortag) * 10) / 10 : null;
+    const tagText = stand.tag
+      ? new Date(stand.tag + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })
+      : "Gesamt";
+    const teile = [stand.verfuegbarkeit, stand.leistung, stand.qualitaet];
+    return (
+      <button
+        onClick={onKlick}
+        className="wk-karte px-4 py-3.5 flex flex-col justify-center text-left"
+        style={{ boxShadow: `inset 3px 0 0 0 ${farbeFuer(wert)}, var(--wk-schatten)` }}
+        title={`OEE ${tagText} aus „${stand.datei}", Blatt „${stand.blatt}" · ${stand.zeilen} Zeile(n)`
+          + (teile.every((t) => t != null) ? `\nV ${teile[0]} % · L ${teile[1]} % · Q ${teile[2]} %` : "")}
+      >
+        <div className="flex items-baseline gap-1">
+          <span className="font-extrabold" style={{ fontSize: "2.1rem", lineHeight: 1, letterSpacing: "-1.6px", fontVariantNumeric: "tabular-nums", color: farbeFuer(wert) }}>
+            {/* Immer eine Nachkommastelle: 90 und 90,0 sind dieselbe Zahl,
+                aber die springende Stellenzahl laesst die Kachel zappeln. */}
+            {wert != null ? wert.toFixed(1).replace(".", ",") : "–"}
+          </span>
+          <span className="font-extrabold" style={{ fontSize: "0.9rem", color: farbeFuer(wert) }}>%</span>
+          {diff != null && diff !== 0 && (
+            <span className="font-bold" style={{ fontSize: "0.62rem", marginLeft: "2px", color: diff > 0 ? "#2F7D4F" : "#B23A34" }}>
+              {diff > 0 ? "▲" : "▼"}{Math.abs(diff).toFixed(1).replace(".", ",")}
+            </span>
+          )}
+        </div>
+        <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          OEE · {tagText}
+        </div>
+      </button>
+    );
+  }
+
+  const [zeichen, gross, klein, akzent] = lage === "laedt"
+    ? ["…", "", "OEE wird gelesen", "#CBD1D8"]
+    : lage === "fehler"
+      ? ["!", "", "OEE · Tabelle prüfen", "#B23A34"]
+      : ["–", "", darfEinrichten ? "OEE · einrichten" : "OEE · nicht eingerichtet", "#CBD1D8"];
+  return (
+    <button
+      onClick={onKlick}
+      className="wk-karte px-4 py-3.5 flex flex-col justify-center text-left"
+      style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)` }}
+      title={lage === "fehler" ? String(stand.text || "") : "OEE aus einer Excel-Tabelle anzeigen"}
+    >
+      <div className="font-extrabold" style={{ fontSize: "2.1rem", lineHeight: 1, letterSpacing: "-1.6px", color: lage === "fehler" ? "#B23A34" : "#C3C7CB" }}>
+        {gross || zeichen}
+      </div>
+      <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {klein}
+      </div>
+    </button>
   );
 }
 
@@ -509,6 +583,68 @@ const normalisiereLinks = (roh) => {
   // ein Link unsichtbar, ohne gelöscht zu sein.
   const inhaber = [...new Set([...(gemeldet.length ? gemeldet : LINK_INHABER_VORGABE), ...eintraege.map((l) => l.inhaber)])];
   return { inhaber, eintraege };
+};
+
+/* OEE-Quelle: WO die Tabelle liegt und WELCHE Spalte was bedeutet.
+   Das steht in der gemeinsamen Datei, damit es einmal eingerichtet wird und
+   nicht auf jedem Rechner erneut. Der Dateiverweis selbst lässt sich NICHT
+   teilen (er gilt nur im Browser, der ihn geholt hat) - deshalb steht hier
+   nur der Dateiname, gefunden wird die Tabelle über den Datenordner. */
+const normalisiereOee = (roh) => {
+  const o = roh && typeof roh === "object" && !Array.isArray(roh) ? roh : {};
+  const spalten = {};
+  ["datum", "anlage", "schicht", "oee", "verfuegbarkeit", "leistung", "qualitaet"].forEach((f) => {
+    const v = o.spalten && o.spalten[f];
+    if (Number.isInteger(v) && v >= 0) spalten[f] = v;
+  });
+  return {
+    datei: typeof o.datei === "string" ? o.datei.trim() : "",
+    blatt: typeof o.blatt === "string" ? o.blatt.trim() : "",
+    kopfzeile: Number.isInteger(o.kopfzeile) && o.kopfzeile >= 0 ? o.kopfzeile : null,
+    spalten,
+  };
+};
+const oeeEingerichtet = (q) => !!(q && q.datei);
+
+/* Aus den Zeilen der Tabelle die Zahlen für die Kachel:
+   der jüngste Tag mit Daten, sein Mittel, und der Vergleich zum Vortag.
+   Gemittelt wird ungewichtet über alle Zeilen des Tages - ohne die
+   Laufzeiten je Anlage ginge eine Gewichtung nur auf gut Glück, und geraten
+   wird hier nichts. */
+const werteOeeAus = (zeilen) => {
+  const proTag = new Map();
+  zeilen.forEach((z) => {
+    if (!z.tag) return;
+    if (!proTag.has(z.tag)) proTag.set(z.tag, []);
+    proTag.get(z.tag).push(z);
+  });
+  const tage = [...proTag.keys()].sort();
+  const mittel = (liste, feld) => {
+    const w = liste.map((x) => x[feld]).filter((x) => typeof x === "number");
+    return w.length ? Math.round((w.reduce((a, b) => a + b, 0) / w.length) * 10) / 10 : null;
+  };
+  if (tage.length === 0) {
+    // Kein Datum in der Tabelle (oder keine Datumsspalte zugeordnet):
+    // dann gilt das Mittel über alles, klar gekennzeichnet.
+    return zeilen.length
+      ? { tag: null, oee: mittel(zeilen, "oee"), vortag: null, zeilen: zeilen.length,
+          verfuegbarkeit: mittel(zeilen, "verfuegbarkeit"), leistung: mittel(zeilen, "leistung"), qualitaet: mittel(zeilen, "qualitaet"),
+          anlagen: [...new Set(zeilen.map((z) => z.anlage).filter(Boolean))] }
+      : null;
+  }
+  const letzter = tage[tage.length - 1];
+  const heutige = proTag.get(letzter);
+  const vor = tage.length > 1 ? mittel(proTag.get(tage[tage.length - 2]), "oee") : null;
+  return {
+    tag: letzter,
+    oee: mittel(heutige, "oee"),
+    vortag: vor,
+    zeilen: heutige.length,
+    verfuegbarkeit: mittel(heutige, "verfuegbarkeit"),
+    leistung: mittel(heutige, "leistung"),
+    qualitaet: mittel(heutige, "qualitaet"),
+    anlagen: [...new Set(heutige.map((z) => z.anlage).filter(Boolean))],
+  };
 };
 
 // R+I-Punkte aus Todoist importiert (Stand: Juli 2026). "Wasserrundgang" und
@@ -912,6 +1048,12 @@ function App() {
   // bei jedem Start aufgeklappt vor die Seite gelegt. Die Chips im Streifen
   // sind ohnehin sichtbar; das Feld darunter braucht man nur zum Bearbeiten.
   const [linksOffen, setLinksOffen] = useState(false);
+  /* OEE aus der Excel-Tabelle. Die Einrichtung (oeeQuelle) steht in der
+     gemeinsamen Datei, der abgelesene Stand (oeeStand) gilt nur für dieses
+     Gerät - er wird ja hier gerade frisch aus der Tabelle gelesen. */
+  const [oeeQuelle, setOeeQuelle] = useState(() => normalisiereOee(null));
+  const [oeeStand, setOeeStand] = useState({ lage: "aus" }); // aus | laedt | ok | fehler
+  const [settingsOee, setSettingsOee] = useState(null); // Entwurf im ⚙-Dialog
   // Nachfrage, wenn die eben verbundene Datei keinen einzigen Eintrag hat.
   const [leereDatei, setLeereDatei] = useState(null);
   // Druck-Auswahl in der Auswertung: erst fragen, was aufs Papier soll.
@@ -1074,6 +1216,7 @@ function App() {
         if (Array.isArray(d.config.extraSchichten)) setExtraSchichten(normalisiereExtraSchichten(d.config.extraSchichten));
         if (Array.isArray(d.config.anlagenteile)) setAnlagenteile(normalisiereAnlagenteile(d.config.anlagenteile));
         if (d.config.links) setLinks(normalisiereLinks(d.config.links));
+        if (d.config.oee) setOeeQuelle(normalisiereOee(d.config.oee));
       }
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
@@ -1949,6 +2092,9 @@ function App() {
           if (parsed.links) {
             setLinks(normalisiereLinks(parsed.links));
           }
+          if (parsed.oee) {
+            setOeeQuelle(normalisiereOee(parsed.oee));
+          }
         }
       } catch (e) {
         if (retriesLeft > 0) {
@@ -1962,7 +2108,7 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -1970,11 +2116,12 @@ function App() {
     setExtraSchichten(nextExtraSchichten);
     setAnlagenteile(nextAnlagenteile);
     setLinks(nextLinks);
+    setOeeQuelle(nextOee);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -1991,6 +2138,91 @@ function App() {
     };
     await attempt(2);
   };
+
+  /* ---------- OEE aus der Excel-Tabelle ----------------------------------
+     "Live" heißt hier: Die Tabelle wird regelmäßig neu gelesen. Gelesen wird
+     nur, wenn Excel sie wirklich angefasst hat (Änderungszeit + Größe) -
+     eine Mappe mit ein paar tausend Zeilen jede Minute komplett auszupacken
+     wäre Arbeit ohne Ergebnis und würde die Übersicht ruckeln lassen.
+     Geschrieben wird nie: Die Tabelle gehört jemand anderem. */
+  const oeeMerker = useRef({ stempel: "", laeuft: false });
+  const OEE_TAKT_MS = 60000;
+
+  const leseOee = React.useCallback(async (erzwingen) => {
+    const q = oeeQuelle;
+    if (!oeeEingerichtet(q)) { setOeeStand({ lage: "aus" }); return; }
+    if (oeeMerker.current.laeuft) return;
+    oeeMerker.current.laeuft = true;
+    try {
+      let datei = null;
+      try {
+        datei = await sharedFile.leseAusOrdner(q.datei);
+      } catch (e) {
+        // getFileHandle wirft, wenn die Datei nicht (mehr) da ist
+        setOeeStand({ lage: "fehler", text: `„${q.datei}" liegt nicht im Datenordner.`, datei: q.datei });
+        return;
+      }
+      if (!datei) {
+        setOeeStand({
+          lage: "fehler",
+          text: "Der Datenordner ist nicht verbunden – ohne ihn findet die App die Tabelle nicht.",
+          ordnerFehlt: true, datei: q.datei,
+        });
+        return;
+      }
+      const stempel = `${datei.lastModified}-${datei.size}`;
+      if (!erzwingen && stempel === oeeMerker.current.stempel) return; // unverändert
+      setOeeStand((v) => (v.lage === "ok" ? v : { lage: "laedt" }));
+      const mappe = await leseArbeitsmappe(datei);
+      const blatt = (q.blatt && mappe.blaetter.find((b) => b.name === q.blatt))
+        || mappe.blaetter.find((b) => !b.versteckt)
+        || mappe.blaetter[0];
+      if (!blatt) throw new Error("Kein Tabellenblatt gefunden");
+      const kopfzeile = q.kopfzeile != null ? q.kopfzeile : findeKopfzeile(blatt.zeilen);
+      const spalten = Object.keys(q.spalten || {}).length
+        ? q.spalten
+        : erkenneSpalten(blatt.zeilen[kopfzeile] || []);
+      const zeilen = leseOeeZeilen(blatt.zeilen, spalten, kopfzeile);
+      const aus = werteOeeAus(zeilen);
+      oeeMerker.current.stempel = stempel;
+      if (!aus) {
+        setOeeStand({
+          lage: "fehler", datei: q.datei,
+          text: `In „${blatt.name}" wurde keine OEE-Spalte gefunden. Zuordnung in ⚙ → OEE prüfen.`,
+        });
+        return;
+      }
+      setOeeStand({
+        lage: "ok", ...aus, datei: q.datei, blatt: blatt.name,
+        gelesenAm: new Date().toISOString(),
+        dateiStand: datei.lastModified,
+      });
+    } catch (e) {
+      setOeeStand({ lage: "fehler", datei: q.datei, text: String((e && e.message) || e) });
+    } finally {
+      oeeMerker.current.laeuft = false;
+    }
+  }, [oeeQuelle]);
+
+  useEffect(() => {
+    if (!oeeEingerichtet(oeeQuelle)) { setOeeStand({ lage: "aus" }); return; }
+    oeeMerker.current.stempel = ""; // Einrichtung geändert -> auf jeden Fall neu lesen
+    let lebt = true;
+    const tick = () => { if (lebt) leseOee(false); };
+    tick();
+    const timer = setInterval(tick, OEE_TAKT_MS);
+    // Wer aus Excel zurück in die App klickt, will die neue Zahl sofort sehen
+    // und nicht bis zu einer Minute warten.
+    const beiFokus = () => { if (document.visibilityState === "visible") tick(); };
+    window.addEventListener("focus", beiFokus);
+    document.addEventListener("visibilitychange", beiFokus);
+    return () => {
+      lebt = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", beiFokus);
+      document.removeEventListener("visibilitychange", beiFokus);
+    };
+  }, [oeeQuelle, leseOee]);
 
   /* ---------- Linkbereich: Anzeigen, Anlegen, Ändern, Sortieren ---------- */
   // Welches Kürzel gerade angezeigt wird. Steht das gemerkte Kürzel nicht mehr
@@ -2103,8 +2335,69 @@ function App() {
     setNeuesTeilAnlage("");
     setNeuesTeilName("");
     setSettingsOpen(true);
+    // OEE-Einrichtung als Entwurf: erst beim Übernehmen wandert sie in die
+    // gemeinsame Datei - sonst würde jedes Herumprobieren sofort bei allen
+    // Kollegen landen.
+    setSettingsOee({ ...normalisiereOee(oeeQuelle), lage: "", text: "", dateien: null, blaetter: null });
     sharedFile.listBackups().then(setBackups).catch(() => setBackups([]));
     sharedFile.readLog().then(setVerlauf).catch(() => setVerlauf([]));
+  };
+
+  /* ---------- OEE einrichten (im ⚙-Dialog) ---------- */
+  // Welche Excel-Tabellen liegen im Datenordner? Nur lesen, nichts anfassen.
+  const oeeDateienSuchen = async () => {
+    setSettingsOee((v) => ({ ...v, lage: "laedt", text: "" }));
+    try {
+      const liste = await sharedFile.listeOrdnerDateien(".xlsx");
+      setSettingsOee((v) => ({
+        ...v, lage: liste.length ? "" : "leer", dateien: liste,
+        text: liste.length ? "" : "Im Datenordner liegt keine .xlsx-Datei.",
+      }));
+    } catch (e) {
+      setSettingsOee((v) => ({ ...v, lage: "fehler", text: String((e && e.message) || e) }));
+    }
+  };
+
+  // Tabelle probeweise lesen: Blätter, Kopfzeile und erkannte Spalten zeigen,
+  // BEVOR irgendetwas gespeichert wird.
+  const oeeTabellePruefen = async (dateiName, blattName) => {
+    setSettingsOee((v) => ({ ...v, lage: "laedt", text: "", datei: dateiName }));
+    try {
+      const datei = await sharedFile.leseAusOrdner(dateiName);
+      if (!datei) throw new Error("Der Datenordner ist nicht verbunden.");
+      const mappe = await leseArbeitsmappe(datei);
+      const blaetter = mappe.blaetter.map((b) => {
+        const kz = findeKopfzeile(b.zeilen);
+        return { name: b.name, kopfzeile: kz, kopf: kz >= 0 ? (b.zeilen[kz] || []) : [], zeilen: b.zeilen.length };
+      });
+      const gewaehlt = blaetter.find((b) => b.name === blattName) || blaetter.find((b) => Object.keys(erkenneSpalten(b.kopf)).length > 0) || blaetter[0];
+      const erkannt = erkenneSpalten(gewaehlt.kopf);
+      setSettingsOee((v) => ({
+        ...v, lage: "", text: "", datei: dateiName, blaetter,
+        blatt: gewaehlt.name, kopfzeile: gewaehlt.kopfzeile,
+        // Eine bestehende Zuordnung nicht wegwerfen, nur weil neu gelesen wurde
+        spalten: (v.blatt === gewaehlt.name && Object.keys(v.spalten || {}).length) ? v.spalten : erkannt,
+      }));
+    } catch (e) {
+      setSettingsOee((v) => ({ ...v, lage: "fehler", text: String((e && e.message) || e), blaetter: null }));
+    }
+  };
+
+  const oeeUebernehmen = async () => {
+    const q = normalisiereOee(settingsOee);
+    await persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, q);
+    // Kein eigener Leseaufruf hier: Der Effekt an oeeQuelle liest ohnehin neu,
+    // sobald die Einrichtung steht. Ein zusaetzlicher Aufruf an dieser Stelle
+    // haette noch die ALTE Einrichtung vor sich (der Zustand ist im selben
+    // Durchlauf noch nicht umgesetzt) und wuerde das frische Ergebnis mit
+    // einem "nicht eingerichtet" ueberschreiben - gemessen an harte-40.
+    oeeMerker.current.stempel = "";
+  };
+
+  const oeeEntfernen = async () => {
+    await persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, normalisiereOee(null));
+    setSettingsOee({ ...normalisiereOee(null), lage: "", text: "", dateien: null, blaetter: null });
+    setOeeStand({ lage: "aus" });
   };
 
   // Sicherung wiederherstellen (Sicherheitsnetz gegen Datenverlust): ersetzt
@@ -5248,10 +5541,12 @@ function App() {
       {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
           {/* Kennzahlen-Kacheln (Farbakzent links, ohne Icon) */}
-          {/* Sechs Felder nebeneinander gehen erst ab sehr breiten Bildschirmen auf.
-              Darunter brechen sie um, statt sich gegenseitig zusammenzuquetschen -
-              sonst bricht die Datumszeile der Uhr auf zwei Zeilen. */}
-          <div className="grid gap-2.5 mb-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-7">
+          {/* Sieben Felder nebeneinander gehen erst ab sehr breiten Bildschirmen
+              auf. Darunter brechen sie um, statt sich gegenseitig
+              zusammenzuquetschen. JEDE Kachel nimmt genau eine Spalte -
+              auto-rows-fr sorgt dafür, dass auch die umgebrochenen Reihen
+              dieselbe Höhe haben, sonst wären die Maße nur in einer Zeile gleich. */}
+          <div className="grid gap-2.5 mb-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-7 auto-rows-fr">
             {[
               [heutePlan.length, "Heute fällig", "#22262B", "#C97A2B"],
               [heuteErledigtCount, "Heute erledigt", "#2F7D4F", "#2F7D4F"],
@@ -5266,11 +5561,18 @@ function App() {
               </div>
             ))}
             <HalbkreisQuote prozent={quoteMonatHeute} label="Wartung & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter Wartungs- und R+I-Punkte im Monat" />
+            {/* OEE kommt aus der Excel-Tabelle im Datenordner - eingerichtet wird
+                sie in ⚙, angezeigt wird sie hier, wo die Schicht sie sieht. */}
+            <OeeKachel
+              stand={oeeStand}
+              darfEinrichten={!readerMode}
+              onKlick={() => { if (!readerMode) openSettings(); }}
+            />
             {/* Hier stand bis zuletzt ein zweiter, gleich beschrifteter Halbkreis für
                 das Jahr - die beiden waren kaum auseinanderzuhalten. Die Jahresquote
                 steht jetzt in der TPM-Übersicht neben der Monatsquote, wo der
                 Vergleich hingehört. An dieser Stelle sagt die Uhr mehr. */}
-            <div className="xl:col-span-2 flex"><WerkstattUhr /></div>
+            <WerkstattUhr />
           </div>
 
           {/* Heute da: Schicht-Spalten mit farbigem Kopf + Avatar-Chips (aktuelle Schicht hervorgehoben) */}
@@ -7951,6 +8253,126 @@ function App() {
                 ))}
               </div>
             )}
+
+            {/* ---- OEE aus einer Excel-Tabelle ------------------------------
+                Die Tabelle liegt im Datenordner neben der gemeinsamen Datei.
+                Gespeichert wird nur der DATEINAME und die Spaltenzuordnung -
+                ein Dateiverweis lässt sich nicht weitergeben, jedes Gerät
+                findet die Tabelle über seinen eigenen Ordnerzugriff.
+                Geschrieben wird in die Tabelle nie. */}
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>OEE aus Excel</div>
+            {settingsOee && (() => {
+              const o = settingsOee;
+              const blatt = (o.blaetter || []).find((b) => b.name === o.blatt);
+              const kopf = blatt ? blatt.kopf : [];
+              const felder = [
+                ["datum", "Datum"], ["anlage", "Anlage"], ["schicht", "Schicht"],
+                ["oee", "OEE"], ["verfuegbarkeit", "Verfügbarkeit"], ["leistung", "Leistung"], ["qualitaet", "Qualität"],
+              ];
+              const setzeSpalte = (feld, wert) => setSettingsOee((v) => {
+                const s = { ...(v.spalten || {}) };
+                if (wert === "") delete s[feld]; else s[feld] = Number(wert);
+                return { ...v, spalten: s };
+              });
+              return (
+                <div className="mb-5">
+                  <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+                    Die Kachel auf der Übersicht liest die Zahl direkt aus der Tabelle – gelesen wird jede Minute,
+                    aber nur wenn Excel die Datei wirklich geändert hat. In die Tabelle wird nie geschrieben.
+                  </div>
+                  {sharedFile.folderStatus() !== "ok" ? (
+                    <div className="text-xs rounded px-3 py-2 mb-2" style={{ backgroundColor: "#FBF3DA", color: "#7A5A00" }}>
+                      Dafür muss der <strong>Datenordner</strong> verbunden sein (oben über „Gemeinsame Datei" → Ordner freigeben).
+                      Ohne ihn findet die App die Tabelle nicht.
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <button onClick={oeeDateienSuchen} className="text-xs font-bold px-2.5 py-1.5 rounded" style={{ backgroundColor: "#EEF1F4", color: "#2F6690" }}>
+                        Tabellen im Ordner suchen
+                      </button>
+                      {o.dateien && o.dateien.length > 0 && (
+                        <select
+                          value={o.datei || ""}
+                          onChange={(e) => oeeTabellePruefen(e.target.value, "")}
+                          className="text-xs rounded px-2 py-1.5"
+                          style={{ border: "1px solid #D8DDE3", maxWidth: "260px" }}
+                          aria-label="Excel-Tabelle wählen"
+                        >
+                          <option value="">– Tabelle wählen –</option>
+                          {o.dateien.map((d) => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      )}
+                      {o.blaetter && o.blaetter.length > 0 && (
+                        <select
+                          value={o.blatt || ""}
+                          onChange={(e) => oeeTabellePruefen(o.datei, e.target.value)}
+                          className="text-xs rounded px-2 py-1.5"
+                          style={{ border: "1px solid #D8DDE3" }}
+                          aria-label="Tabellenblatt wählen"
+                        >
+                          {o.blaetter.map((b) => <option key={b.name} value={b.name}>{b.name} ({b.zeilen} Zeilen)</option>)}
+                        </select>
+                      )}
+                    </div>
+                  )}
+                  {o.lage === "laedt" && <div className="text-xs italic" style={{ color: "#8A9099" }}>Tabelle wird gelesen …</div>}
+                  {o.text && <div className="text-xs mb-2" style={{ color: o.lage === "fehler" ? "#B23A34" : "#8A9099" }}>{o.text}</div>}
+
+                  {kopf.length > 0 && (
+                    <>
+                      <div className="text-xs mb-1.5" style={{ color: "#5B6572" }}>
+                        Welche Spalte ist was? (erkannt an der Überschrift – hier änderbar)
+                      </div>
+                      <div className="grid gap-1.5 mb-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))" }}>
+                        {felder.map(([feld, label]) => (
+                          <label key={feld} className="flex items-center gap-1.5 text-xs">
+                            <span style={{ color: "#5B6572", minWidth: "84px" }}>{label}</span>
+                            <select
+                              value={o.spalten && o.spalten[feld] != null ? o.spalten[feld] : ""}
+                              onChange={(e) => setzeSpalte(feld, e.target.value)}
+                              className="text-xs rounded px-1.5 py-1 flex-1"
+                              style={{ border: "1px solid #D8DDE3", minWidth: 0 }}
+                              aria-label={`Spalte für ${label}`}
+                            >
+                              <option value="">– keine –</option>
+                              {kopf.map((z, i) => (
+                                <option key={i} value={i}>{String(z == null || z === "" ? `Spalte ${i + 1}` : z).slice(0, 40)}</option>
+                              ))}
+                            </select>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+                        Fehlt die OEE-Spalte, wird sie aus Verfügbarkeit × Leistung × Qualität gerechnet.
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={oeeUebernehmen}
+                      disabled={!o.datei}
+                      className="text-xs font-bold px-3 py-1.5 rounded text-white"
+                      style={{ backgroundColor: o.datei ? "#2F6690" : "#C3C7CB" }}
+                    >
+                      OEE-Quelle übernehmen
+                    </button>
+                    {oeeEingerichtet(oeeQuelle) && (
+                      <button onClick={oeeEntfernen} className="text-xs font-bold px-2.5 py-1.5 rounded" style={{ backgroundColor: "#F7F8F9", color: "#B23A34" }}>
+                        Entfernen
+                      </button>
+                    )}
+                    <span className="text-xs" style={{ color: "#8A9099" }}>
+                      {oeeEingerichtet(oeeQuelle)
+                        ? `Aktiv: ${oeeQuelle.datei}${oeeQuelle.blatt ? " · " + oeeQuelle.blatt : ""}`
+                        : "Noch keine Tabelle eingerichtet"}
+                      {oeeStand.lage === "ok" && ` · zuletzt gelesen ${new Date(oeeStand.gelesenAm).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`}
+                      {oeeStand.lage === "fehler" && ` · ${oeeStand.text}`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Sicherungen (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>

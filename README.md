@@ -72,7 +72,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 38 Härtetests und sieben weitere Suiten | Entwicklung |
+| `tests/` | 39 Härtetests und sieben weitere Suiten | Entwicklung |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
 
@@ -114,7 +114,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 38 Härtetests
+bash tests/run-hardness-tests.sh           # 39 Härtetests
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/rollout-test.js                 # Verteilung: Paket, Dienst, Doku, Versionswechsel
@@ -129,8 +129,8 @@ node tools/startpaket-bauen.js --pruefen   # ist die Start-ZIP noch aktuell?
 Nach jeder Änderung an `arbeitsplatz/` gehört `node tools/startpaket-bauen.js`
 dazu – sonst verteilt die ZIP weiter den alten Stand.
 
-Stand der letzten vollständigen Prüfung (06.08.2026): **38/38 Härtetests,
-601 Einzelprüfungen, kein Fehlschlag** – inklusive sieben Jahrgängen
+Stand der letzten vollständigen Prüfung (06.08.2026): **39/39 Härtetests,
+614 Einzelprüfungen, kein Fehlschlag** – inklusive sieben Jahrgängen
 Betriebsdaten (16 951 Einträge, 1 260 Störberichte, 3,4 MB), voller
-Speichergrenze, beschädigter Datei, falsch gehender Uhr und zwei gleichzeitig
-offenen Fenstern.
+Speichergrenze, beschädigter Datei, falsch gehender Uhr, zwei gleichzeitig
+offenen Fenstern und einer echten Excel-Tabelle.
