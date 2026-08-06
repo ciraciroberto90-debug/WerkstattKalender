@@ -33,14 +33,16 @@ const pruef = (n, c, zusatz) => {
 };
 const platte = {};
 
-async function geraet(browser, uhr, name) {
+async function geraet(browser, uhr, name, lokaleEintraege) {
   const ctx = await browser.newContext({ viewport: { width: 1300, height: 900 } });
   const p = await ctx.newPage();
   await p.clock.setFixedTime(new Date(uhr));
   await p.exposeFunction("__lies", (n) => platte[n] ?? "");
   await p.exposeFunction("__schreib", (n, c) => { platte[n] = c; });
-  await p.addInitScript((wer) => {
+  await p.addInitScript(([wer, vorrat]) => {
     localStorage.setItem("werkstatt-kalender-name", wer);
+    // Ein Gerät, das schon einen eigenen Bestand mitbringt (lange offline)
+    if (vorrat) localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(vorrat));
     window.__mk = (name) => ({
       name, kind: "file",
       async getFile() { const t = await window.__lies(name); return new File([t], name, { type: "application/json" }); },
@@ -49,7 +51,7 @@ async function geraet(browser, uhr, name) {
       async requestPermission() { return "granted"; },
     });
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
-  }, name);
+  }, [name, lokaleEintraege || null]);
   await p.goto(APP);
   await p.waitForTimeout(900);
   await p.evaluate(async () => await window.__wkSharedTest.adopt(window.__mk("kalender-daten.json"), "readwrite"));
@@ -118,6 +120,41 @@ const A = (id, name, status = "open") => ({ id, date: "2026-08-05", category: "A
     const text = await c.locator("body").innerText();
     pruef("(3) Und es wird NICHT vor der Uhr gewarnt", !/geht nach/i.test(text));
     await a.context().close(); await c.context().close();
+  }
+
+  /* ---- (4) Eine Uhr, die weit VORGEHT, darf die Lösch-Merkliste nicht leeren ----
+     Die Merkliste steht in der gemeinsamen Datei: Wer sie kürzt, kürzt sie für
+     alle. Mit "jetzt minus 180 Tage" hätte ein Rechner mit falschem Jahr
+     (leere Knopfzelle) sie komplett geleert - und das nächste Gerät, das lange
+     offline war, hätte längst Gelöschtes wieder mitgebracht. */
+  {
+    Object.keys(platte).forEach((k) => delete platte[k]);
+    platte["kalender-daten.json"] = JSON.stringify({
+      format: "werkstatt-kalender-v1", savedAt: "2026-08-05T08:00:00.000Z",
+      entries: [], config: null,
+      // Vor gut 100 Tagen gelöscht - die Marke muss noch lange gelten (180 Tage)
+      deleted: { "weg-1": "2026-04-27T09:00:00.000Z" },
+    });
+
+    // Der Rechner mit dem falschen Jahr speichert ganz normal etwas.
+    const schnell = await geraet(b, "2027-08-05T10:00:00", "M. Weber");
+    await setze(schnell, [A("neu-1", "Ventil tauschen")]);
+    await schnell.waitForTimeout(900);
+
+    const merkliste = JSON.parse(platte["kalender-daten.json"] || "{}").deleted || {};
+    pruef("(4) Die Lösch-Merkliste überlebt einen Rechner mit falschem Jahr",
+      !!merkliste["weg-1"], "Marken in der Datei: " + JSON.stringify(merkliste));
+
+    // Und die Probe aufs Exempel: Ein lange abgemeldetes Gerät bringt den
+    // gelöschten Eintrag noch mit - er darf nicht zurückkommen.
+    const spaet = await geraet(b, "2026-08-05T10:05:00", "A. Radke",
+      [{ ...A("weg-1", "Alter Auftrag"), updatedAt: "2026-04-01T07:00:00.000Z" }]);
+    await spaet.waitForTimeout(900);
+    pruef("(4) Der längst gelöschte Eintrag kommt nicht zurück",
+      !inDatei().some((e) => e.id === "weg-1"),
+      "in der Datei: " + inDatei().map((e) => e.id).join(", "));
+
+    await schnell.context().close(); await spaet.context().close();
   }
 
   console.log(`\n==== UHRZEIT: ${ok} PASS / ${fail} FAIL ====`);

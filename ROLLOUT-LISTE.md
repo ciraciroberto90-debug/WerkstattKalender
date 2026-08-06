@@ -261,6 +261,33 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
       Eintrag des anderen Fensters bekam prompt eine Löschmarke und war
       danach auf ALLEN Geräten weg. Jetzt merkt sich jedes Fenster seinen
       eigenen Stand (harte-39, mit Gegenprobe für echte Löschungen)
+- [x] **Der Konflikt-Wächter fasst keine Sicherungen mehr an.** Er erkannte
+      jede Datei, die mit dem Namen der Hauptdatei plus Bindestrich anfing,
+      als OneDrive-Konfliktkopie – und eine erkannte Kopie wird nach dem
+      Einsammeln **gelöscht**. Eine von Hand angelegte
+      `werkstatt-kalender-daten-2026-08-05.json` wäre damit weg gewesen.
+      Jetzt zählt nur noch ein Anhang, der wie ein Gerätename aussieht;
+      alles mit Datum oder Wörtern wie „Sicherung"/„Kopie" bleibt liegen
+      (harte-16, Gegenprobe: drei Sicherungen wurden ohne die Änderung
+      gelöscht)
+- [x] **Eine Uhr, die vorgeht, leert nicht mehr die Lösch-Merkliste.** Die
+      Merkliste steht in der gemeinsamen Datei – wer sie kürzt, kürzt sie für
+      alle. Gekürzt wurde nach „jetzt minus 180 Tage", also nach der Uhr des
+      einzelnen Rechners: Ein Gerät mit falschem Jahr (leere Knopfzelle)
+      leerte sie komplett. Gemessen: Danach brachte ein lange abgemeldetes
+      Gerät einen vor 100 Tagen gelöschten Eintrag zurück. Bezugspunkt ist
+      jetzt der frühere von beiden – eigene Uhr oder jüngste Löschmarke –,
+      damit geht jeder Uhrfehler in die ungefährliche Richtung (harte-38)
+- [x] **Die lokalen Sicherungen reichen jetzt über den Tag hinaus.** Gemessen
+      an einem simulierten Arbeitstag (alle zwei Minuten eine fremde
+      Änderung, 8 Stunden): Die 30 Plätze reichten am Feierabend nur noch
+      **58 Minuten** zurück – ein Fehler, der erst am nächsten Morgen
+      auffällt, hatte kein Netz mehr. Zusätzlich zu den 30 jüngsten bleibt
+      jetzt je Kalendertag der letzte Stand, 14 Tage lang. Im Verwalten-
+      Dialog werden auch alle angezeigt (vorher nur die 15 jüngsten – die
+      Tagesstände wären unerreichbar gewesen), und die Zahl daneben zählt
+      nur noch echte Einträge statt Einstellungen und Verlaufszeilen
+      mitzuzählen (harte-9)
 - [x] **Import:** Einträge ohne Kennung bekommen eine, statt beim
       Zusammenführen spurlos zu verschwinden (dort wird nach Kennung
       gearbeitet – was keine hat, fällt heraus, gemeldet wurde trotzdem

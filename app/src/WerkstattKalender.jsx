@@ -7955,16 +7955,23 @@ function App() {
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Sicherungen (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Bei jedem Speichern wird der Stand hier zusätzlich lokal gesichert - falls doch mal etwas schiefgeht, kannst du eine frühere Version wiederherstellen.
+              Aufgehoben werden die 30 jüngsten Stände und zusätzlich je Tag der letzte Stand der vergangenen 14 Tage.
             </div>
             {backups.length === 0 ? (
               <div className="text-xs italic mb-5" style={{ color: "#C3C7CB" }}>Noch keine Sicherung vorhanden.</div>
             ) : (
-              <div className="flex flex-col gap-1 mb-5" style={{ maxHeight: "160px", overflowY: "auto" }}>
-                {backups.slice(0, 15).map((b) => (
+              // Alle anzeigen (die Liste ist von Haus aus begrenzt): Eine
+              // Kürzung auf die jüngsten würde genau die Tagesstände verdecken,
+              // wegen denen der Speicher überhaupt so weit zurückreicht.
+              <div className="flex flex-col gap-1 mb-5" style={{ maxHeight: "220px", overflowY: "auto" }}>
+                {backups.map((b) => (
                   <div key={b.ts} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded" style={{ backgroundColor: "#F7F8F9" }}>
                     <span className="text-xs font-mono" style={{ color: "#5B6572" }}>
                       {new Date(b.ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      <span style={{ color: "#C3C7CB" }}> · {(b.entries || []).length} Einträge</span>
+                      {/* b.anzahl zählt nur die fachlichen Einträge - Einstellungen
+                          und Verlaufszeilen stecken zwar mit in der Sicherung,
+                          würden die Zahl aber unbrauchbar aufblähen. */}
+                      <span style={{ color: "#C3C7CB" }}> · {b.anzahl != null ? b.anzahl : (b.entries || []).length} Einträge</span>
                     </span>
                     <button onClick={() => setRestoreConfirm(b)} className="text-xs font-bold flex-shrink-0" style={{ color: "#2F6690" }}>
                       Wiederherstellen

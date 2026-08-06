@@ -18,6 +18,12 @@
 const IDB_STORE = "handles";
 const IDB_BACKUP_STORE = "backups";
 const BACKUP_MAX_COUNT = 30; // lokale Sicherungen (pro Gerät) - Sicherheitsnetz gegen Datenverlust
+/* Zusätzlich zu den 30 jüngsten wird je Kalendertag der letzte Stand aufgehoben.
+   Gemessen ohne diesen Tagesspeicher: Nach einem normalen Arbeitstag (alle zwei
+   Minuten eine fremde Änderung, 8 Stunden) reichten die 30 Plätze nur noch
+   58 Minuten zurück. Ein Fehler, der erst am nächsten Morgen auffällt, hätte
+   also keine Sicherung mehr gehabt - genau der Fall, für den das Netz da ist. */
+const BACKUP_TAGE = 14; // zusätzlich: je Kalendertag ein Stand, 14 Tage zurück
 const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 3600 * 1000; // Lösch-Merkliste: 180 Tage aufheben
 const POLL_MS = 30000; // alle 30 s nach Änderungen der anderen schauen
 const POLL_FEHLER_SCHWELLE = 3; // ab 3 Fehlversuchen in Folge (~90s) wird gewarnt
@@ -173,8 +179,23 @@ export function stampEntries(nextEntries, prevEntries) {
   return { stamped, removed };
 }
 
+/* Die Lösch-Merkliste altert NICHT nach der Uhr des einzelnen Rechners.
+   Grund: Wer die Liste kürzt, kürzt sie für alle - sie steht in der
+   gemeinsamen Datei. Ein Rechner, dessen Uhr weit vorgeht (falsches Jahr nach
+   leerer Knopfzelle), hätte mit "jetzt minus 180 Tage" die ganze Merkliste
+   geleert, und die nächste alte Kopie oder OneDrive-Konfliktkopie hätte
+   längst Gelöschtes wieder auferstehen lassen.
+   Bezugspunkt ist deshalb der FRÜHERE der beiden Werte: die eigene Uhr oder
+   die jüngste Löschmarke in der Datei. Geht eine Uhr vor, gewinnt die Datei;
+   steht eine falsche Marke in der Zukunft, gewinnt die Uhr. Beide Fehler
+   führen damit in dieselbe, ungefährliche Richtung: Es wird eher zu wenig
+   aufgeräumt als zu viel. */
 function pruneTombstones(deleted) {
-  const cutoff = new Date(Date.now() - TOMBSTONE_MAX_AGE_MS).toISOString();
+  const marken = Object.keys(deleted).map((id) => Date.parse(deleted[id])).filter((ms) => !Number.isNaN(ms));
+  if (marken.length === 0) return;
+  const juengste = Math.max(...marken);
+  const bezug = Math.min(Date.now(), juengste);
+  const cutoff = new Date(bezug - TOMBSTONE_MAX_AGE_MS).toISOString();
   Object.keys(deleted).forEach((id) => {
     if (String(deleted[id]) < cutoff) delete deleted[id];
   });
@@ -412,23 +433,47 @@ function createSharedStore(cfg) {
       tx.onerror = () => { db.close(); reject(tx.error); };
     });
   }
+  /* Welche Sicherungen bleiben liegen? Zwei Körbe, die sich überschneiden dürfen:
+     die 30 jüngsten (feinmaschig für "eben gerade") und je Kalendertag der
+     letzte Stand für 14 Tage (grobmaschig für "gestern war es noch da").
+     Ohne den zweiten Korb spülen ein paar Stunden Normalbetrieb den ganzen
+     Vortag aus dem Speicher - siehe Messung bei BACKUP_TAGE. */
+  function behalteSicherungen(alle) {
+    const neuesteZuerst = alle.slice().sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
+    const behalten = new Set(neuesteZuerst.slice(0, BACKUP_MAX_COUNT).map((b) => b.ts));
+    const tage = new Set();
+    for (const b of neuesteZuerst) {
+      const tag = String(b.ts).slice(0, 10);
+      if (tage.has(tag)) continue;      // je Tag reicht der jüngste Stand
+      if (tage.size >= BACKUP_TAGE) break;
+      tage.add(tag);
+      behalten.add(b.ts);
+    }
+    return behalten;
+  }
+
   async function recordBackup(entries, config) {
     try {
       const ts = nowISO();
       await idbAddBackup({ ts, entries: entries || [], config: config || null });
       const all = await idbGetAllBackups();
-      if (all.length > BACKUP_MAX_COUNT) {
-        const sorted = all.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
-        const zuViel = sorted.slice(0, sorted.length - BACKUP_MAX_COUNT);
-        for (const b of zuViel) await idbDelBackup(b.ts);
+      const behalten = behalteSicherungen(all);
+      for (const b of all) {
+        if (!behalten.has(b.ts)) await idbDelBackup(b.ts);
       }
     } catch (e) { /* Sicherung ist ein Zusatz - das eigentliche Speichern hat schon geklappt */ }
   }
   // Neueste zuerst - fürs Anzeigen/Wiederherstellen im Verwalten-Dialog.
+  // "anzahl" ist bewusst die Zahl der FACHLICHEN Einträge: In den Sicherungen
+  // stehen auch Einstellungen und Verlaufszeilen. Gemessen an einem Beispiel
+  // mit einem einzigen Termin zeigte die Liste "5 Einträge" - nach dieser Zahl
+  // sucht man sich aber den Wiederherstellungspunkt aus.
   async function listBackups() {
     try {
       const all = await idbGetAllBackups();
-      return all.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
+      return all
+        .sort((a, b) => String(b.ts).localeCompare(String(a.ts)))
+        .map((b) => ({ ...b, anzahl: ohneSystemEntries(b.entries).length }));
     } catch (e) { return []; }
   }
 
@@ -818,6 +863,33 @@ function createSharedStore(cfg) {
     } catch (e) { /* egal */ }
   }
 
+  /* Von Hand angelegte Sicherungen erkennt man an diesen Wörtern im Anhang.
+     Sie werden nie eingesammelt - siehe istKonfliktkopie(). */
+  const SICHERUNGS_WOERTER = [
+    "sicherung", "kopie", "backup", "archiv", "alt", "old", "copy", "test",
+  ];
+
+  /* Ist das wirklich eine Konfliktkopie von OneDrive?
+     OneDrive hängt den GERÄTENAMEN an: "werkstatt-kalender-daten-L-RCIRACI".
+     Von Hand angelegte Sicherungen tragen dagegen ein Datum oder ein Wort wie
+     "Sicherung": "werkstatt-kalender-daten-2026-08-05.json".
+     Die Unterscheidung ist wichtig, weil eine erkannte Kopie nach dem
+     Einsammeln GELÖSCHT wird - eine zu weite Regel räumt also fremde
+     Sicherungen weg. Im Zweifel gilt deshalb: lieber nicht erkennen. Eine
+     nicht erkannte Kopie bleibt liegen und wird vom Selbsttest gemeldet, das
+     kostet einen Handgriff. Eine falsch erkannte Sicherung ist dagegen weg. */
+  function istKonfliktkopie(basis, name) {
+    if (!name.startsWith(basis + "-")) return false;
+    const anhang = name.slice(basis.length + 1).replace(/\.json$/i, "");
+    if (!anhang) return false;
+    if (/^\d/.test(anhang)) return false;             // beginnt mit Ziffer -> Datum
+    if (/\d{4}/.test(anhang)) return false;           // Jahreszahl -> Datum
+    if (/\d+[-_.]\d+[-_.]\d+/.test(anhang)) return false; // 05.08.26 -> Datum
+    const klein = anhang.toLowerCase();
+    if (SICHERUNGS_WOERTER.some((w) => klein.split(/[-_.]/).includes(w))) return false;
+    return /^[A-Za-z][A-Za-z0-9_.-]*$/.test(anhang);
+  }
+
   /* ---------- Konflikt-Wächter ---------- */
   // OneDrive kann Konflikte bei JSON-Dateien nicht selbst zusammenführen - es
   // legt Kopien wie "werkstatt-kalender-daten-GERAET.json" an. Mit einmaliger
@@ -935,7 +1007,7 @@ function createSharedStore(cfg) {
         if (!handle || handle.kind !== "file") continue;
         if (!/\.json$/i.test(name)) continue;
         if (name === fileHandle.name) continue;
-        if (!name.startsWith(basis + "-")) continue;
+        if (!istKonfliktkopie(basis, name)) continue;
         kandidaten.push([name, handle]);
       }
       for (const [name, handle] of kandidaten) {

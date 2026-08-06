@@ -446,8 +446,18 @@ Die App ersetzt einen Backend-Server durch mehrere Schutzmechanismen:
   geprüft, ob die eigene Änderung wirklich drinsteht.
 - **Selbstheilung:** Ein Hintergrund-Check gleicht sehr seltene Zeitfenster automatisch aus.
 - **Tombstones:** Absichtlich Gelöschtes wird nicht durch alte Kopien wiederbelebt.
+  Die Lösch-Merkliste gilt 180 Tage und altert **nicht** nach der Uhr eines einzelnen
+  Rechners – sonst könnte ein Gerät mit falschem Jahr sie für alle leeren.
 - **Konflikt-Wächter:** OneDrive-Konfliktkopien werden automatisch eingesammelt.
-- **Lokale Sicherungen:** je Gerät die letzten 30 Stände (⚙ → Sicherungen).
+  Erkannt wird nur, was wie ein Gerätename aussieht (`…-L-RCIRACI.json`).
+  Selbst angelegte Sicherungen mit Datum im Namen (`…-2026-08-05.json`) oder mit
+  Wörtern wie „Sicherung"/„Kopie" bleiben unangetastet – eine erkannte Kopie wird
+  nach dem Einsammeln gelöscht, deshalb im Zweifel lieber liegen lassen.
+- **Lokale Sicherungen:** je Gerät die 30 jüngsten Stände **und zusätzlich je
+  Kalendertag der letzte Stand der vergangenen 14 Tage** (⚙ → Sicherungen).
+  Der Tagesspeicher ist wichtig, weil die 30 jüngsten Plätze an einem normalen
+  Arbeitstag gemessen nur ~58 Minuten zurückreichen – ein Fehler, der erst am
+  nächsten Morgen auffällt, hätte sonst kein Netz mehr.
 - **OneDrive-Versionsverlauf:** zusätzlicher Rettungsanker in OneDrive selbst.
 - **Voller Zwischenspeicher wird ehrlich gemeldet:** Ist der lokale Speicher des Browsers
   voll, die gemeinsame Datei aber erreichbar, sagt die App ausdrücklich, dass die Änderung

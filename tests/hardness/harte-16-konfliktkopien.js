@@ -38,6 +38,23 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
         deleted: {}, config: null,
       }),
       'ganz-andere-datei.json': '{"nichts":"besonderes"}',
+      // Von Hand angelegte Sicherungen: gleicher Namensstamm, aber KEINE
+      // Konfliktkopien. Sie dürfen weder eingesammelt noch gelöscht werden.
+      'werkstatt-kalender-daten-2026-08-05.json': JSON.stringify({
+        format: 'werkstatt-kalender-v1', savedAt: alt,
+        entries: [{ id: 'sicherung-alt', date: '2026-01-02', category: 'SCHICHT', name: 'Anna', scope: 'tag', wert: 'Alt', updatedAt: alt }],
+        deleted: {}, config: null,
+      }),
+      'werkstatt-kalender-daten-Sicherung-2026-08-05.json': JSON.stringify({
+        format: 'werkstatt-kalender-v1', savedAt: alt,
+        entries: [{ id: 'sicherung-zwei', date: '2026-01-03', category: 'SCHICHT', name: 'Anna', scope: 'tag', wert: 'Alt', updatedAt: alt }],
+        deleted: {}, config: null,
+      }),
+      'werkstatt-kalender-daten-Sicherung.json': JSON.stringify({
+        format: 'werkstatt-kalender-v1', savedAt: alt,
+        entries: [{ id: 'sicherung-drei', date: '2026-01-04', category: 'SCHICHT', name: 'Anna', scope: 'tag', wert: 'Alt', updatedAt: alt }],
+        deleted: {}, config: null,
+      }),
     };
 
     const dateiHandle = (name) => ({
@@ -88,6 +105,22 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   ok('Bestehender Eintrag der Hauptdatei ist noch da', haupt.entries.some((e) => e.id === 'haupt-1'));
   ok('Absichtlich Gelöschtes wurde NICHT wiederbelebt', !haupt.entries.some((e) => e.id === 'geloescht-1'));
   ok('Lösch-Merkliste ist erhalten', !!haupt.deleted['geloescht-1']);
+
+  // ---- Sicherungen von Hand: gleicher Namensstamm, aber unantastbar ----
+  // Ohne diese Unterscheidung würde der Wächter sie einsammeln UND löschen -
+  // die Sicherung wäre genau dann weg, wenn man sie braucht.
+  const sicherungen = [
+    'werkstatt-kalender-daten-2026-08-05.json',
+    'werkstatt-kalender-daten-Sicherung-2026-08-05.json',
+    'werkstatt-kalender-daten-Sicherung.json',
+  ];
+  for (const s of sicherungen) {
+    ok(`Sicherung "${s}" wurde nicht gelöscht`, ordnerDanach.includes(s));
+  }
+  const sicherungInhalt = await page.evaluate((n) => window.__ordner[n], sicherungen[0]);
+  ok('Sicherung wurde auch inhaltlich nicht angefasst', /"sicherung-alt"/.test(sicherungInhalt || ''));
+  ok('Einträge der Sicherung wurden NICHT in die Hauptdatei gezogen',
+    !haupt.entries.some((e) => ['sicherung-alt', 'sicherung-zwei', 'sicherung-drei'].includes(e.id)));
 
   const text = await page.locator('body').innerText();
   ok('Grüne Info-Meldung erscheint', text.includes('Konfliktkopie') && text.includes('eingesammelt'));

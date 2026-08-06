@@ -87,6 +87,70 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   await page.waitForTimeout(300);
   ok('Kein JS-Fehler beim Wiederherstellen', errors.length === 0);
 
+  // ---- Reichweite: übersteht das Netz einen Arbeitstag? ----
+  // Gemessen ohne Tagesspeicher: Ein normaler Arbeitstag (alle zwei Minuten
+  // eine fremde Änderung) spülte alle Sicherungen der Vortage weg - übrig
+  // blieb knapp eine Stunde Rückblick. Ein Fehler, der erst am nächsten
+  // Morgen auffällt, hätte dann keine Sicherung mehr. Deshalb: je Kalendertag
+  // bleibt der letzte Stand erhalten.
+  const seite2 = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  seite2.on('pageerror', (e) => console.log('PAGEERROR(2):', e.message));
+  await seite2.clock.install({ time: new Date('2026-08-03T06:00:00') });
+  await seite2.addInitScript(() => {
+    window.__inhalt = JSON.stringify({
+      format: 'werkstatt-kalender-v1', savedAt: new Date().toISOString(),
+      entries: [], deleted: {}, config: { tpmAnlagen: [], riItems: [], team: [] },
+    });
+    window.__handle = {
+      name: 'werkstatt-kalender-daten.json', kind: 'file',
+      async getFile() { return new File([window.__inhalt], 'werkstatt-kalender-daten.json', { type: 'application/json' }); },
+      async createWritable() { let b = ''; return { async write(c) { b += c; }, async close() { window.__inhalt = b; } }; },
+      async queryPermission() { return 'granted'; },
+      async requestPermission() { return 'granted'; },
+    };
+    window.showOpenFilePicker = async () => [window.__handle];
+  });
+  await seite2.goto(APP);
+  await seite2.waitForTimeout(300);
+  await seite2.evaluate(async () => { await window.__wkSharedTest.adopt(window.__handle, 'readwrite'); });
+  await seite2.waitForTimeout(200);
+
+  // Drei Arbeitstage, je 40 fremde Änderungen im Abstand von zwei Minuten.
+  // 40 > BACKUP_MAX_COUNT(30): Ohne Tagesspeicher bliebe nach Tag 3 kein
+  // einziger Stand von Tag 1 oder Tag 2 übrig.
+  for (let tag = 0; tag < 3; tag++) {
+    for (let i = 0; i < 40; i++) {
+      await seite2.clock.fastForward('02:00');
+      await seite2.evaluate(async (n) => {
+        const d = JSON.parse(window.__inhalt);
+        d.savedAt = new Date().toISOString();
+        d.entries.push({ id: 'fremd-' + n, date: '2026-08-03', category: 'NOTE', text: 'x', updatedAt: new Date().toISOString() });
+        window.__inhalt = JSON.stringify(d);
+        await window.__wkSharedTest.poll();
+      }, tag * 100 + i);
+    }
+    await seite2.clock.fastForward('24:00:00'); // Feierabend bis zum nächsten Arbeitstag
+  }
+
+  const stand = await seite2.evaluate(async () => {
+    const req = indexedDB.open('werkstatt-kalender-fs', 2);
+    const all = await new Promise((res) => {
+      req.onsuccess = () => {
+        const tx = req.result.transaction('backups', 'readonly');
+        const r = tx.objectStore('backups').getAll();
+        r.onsuccess = () => res(r.result || []);
+      };
+    });
+    const ts = all.map((x) => x.ts).sort();
+    return { anzahl: all.length, tage: [...new Set(ts.map((t) => t.slice(0, 10)))], aeltester: ts[0], neuester: ts[ts.length - 1] };
+  });
+  const rueckblickStunden = (Date.parse(stand.neuester) - Date.parse(stand.aeltester)) / 3600e3;
+  console.log('Sicherungen nach 3 simulierten Arbeitstagen:', stand.anzahl, '- Tage:', stand.tage.join(', '));
+  console.log('Rückblick:', rueckblickStunden.toFixed(1), 'Stunden');
+  ok('Sicherungen von mindestens 3 verschiedenen Tagen sind erhalten', stand.tage.length >= 3);
+  ok('Rückblick reicht über 24 Stunden hinaus', rueckblickStunden > 24);
+  ok('Der Speicher bleibt begrenzt (höchstens 44 Sicherungen)', stand.anzahl <= 44);
+
   console.log(`\n${pass} PASS / ${fail} FAIL`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);
