@@ -1,0 +1,40 @@
+WERKSTATT-COCKPIT: PROGRAMM HERUNTERLADEN (fuer Kollegen)
+==========================================================
+
+Die Programm-ZIP ist 110 MB gross - GitHub nimmt keine einzelne Datei
+ueber 100 MB an. Deshalb liegt sie hier in ZWEI Teilen. Das Zusammen-
+setzen macht eine Klick-Datei, es geht dabei nichts verloren.
+
+So geht's (ohne Adminrechte, ohne Installation):
+
+  1. Diese drei Dateien herunterladen und in EINEN Ordner legen
+     (auf GitHub die Datei anklicken, dann oben rechts der
+     Download-Knopf mit dem Pfeil):
+        WC-Programm-1.teil
+        WC-Programm-2.teil
+        Zusammenfuegen.cmd
+
+  2. Doppelklick auf Zusammenfuegen.cmd
+     -> es entsteht Werkstatt-Cockpit-Programm-win64.zip
+
+  3. Die ZIP entpacken (Rechtsklick -> "Alle extrahieren ..."),
+     z. B. nach C:\Werkstatt\Cockpit-Programm
+
+  4. Doppelklick auf Werkstatt-Cockpit.exe
+     Beim ersten Start meldet sich Windows-SmartScreen
+     ("unbekannter Herausgeber"):
+        "Weitere Informationen" -> "Trotzdem ausfuehren"
+     Grund: Die EXE ist noch nicht signiert (Signatur = IT-Uebergabe,
+     steht in der Roll-out-Liste).
+
+  5. In der App die gemeinsame Datei verbinden
+     (Ordner-Symbol -> "Vorhandene Datei oeffnen ...") und im
+     Zahnrad den eigenen Namen eintragen. Fertig.
+
+Updates: Das Programm holt sich neue App-Versionen selbst aus dem
+Netzwerkordner (Zahnrad -> Reiter "Verlauf & Sicherung" ->
+Programm-Updates -> Ordner angeben). Diese ZIP hier muss nur dann neu
+heruntergeladen werden, wenn sich der Programm-RAHMEN aendert - das
+sagt Roberto dann an.
+
+Mehr Details: programm/LIESMICH.txt im gleichen Repository.

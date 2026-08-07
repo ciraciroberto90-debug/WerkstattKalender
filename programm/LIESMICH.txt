@@ -38,8 +38,16 @@ Wichtig fuers Testen:
     ist getrennt vom Browser - der eigene Name muss im Programm
     einmal neu eingetragen werden (Zahnrad).
 
+Herunterladen (Kollegen):
+  Die fertige ZIP liegt in zwei Teilen im GitHub-Repository unter
+  programm/verteilung/ - dort steht in LIESMICH-DOWNLOAD.txt Schritt
+  fuer Schritt, wie die Teile zusammengesetzt werden (Doppelklick auf
+  Zusammenfuegen.cmd). Grund fuer die Teilung: GitHub nimmt keine
+  einzelne Datei ueber 100 MB an, die ZIP hat 110 MB.
+
 Updates:
-  Einmal einrichten: Zahnrad -> "Programm-Updates" -> den Netzwerkordner
+  Einmal einrichten: Zahnrad -> Reiter "Verlauf & Sicherung" ->
+  "Programm-Updates" -> den Netzwerkordner
   angeben, in dem die App-HTML liegt (Pfad einfuegen oder Ordner waehlen).
   Ab dann schaut das Programm alle 5 Minuten dort nach. Liegt eine neuere
   Werkstatt_Kalender_TPM*.html bereit, erscheint oben im Fenster

@@ -1,0 +1,4 @@
+# Die Teil-Dateien sind Binaerstuecke der Programm-ZIP, die .cmd traegt
+# bewusst Windows-Zeilenenden - Git darf an beidem nichts umwandeln.
+*.teil -text
+programm/verteilung/Zusammenfuegen.cmd -text

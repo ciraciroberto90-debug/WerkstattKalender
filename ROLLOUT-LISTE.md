@@ -8,7 +8,7 @@ Punkte, ohne Umschweife. Neue Aufgaben kommen unten dazu, erledigte wandern
 nach unten in „Erledigt" statt gelöscht zu werden – so bleibt nachvollziehbar,
 was schon durch ist.
 
-Stand: 03.08.2026
+Stand: 07.08.2026
 
 ---
 
@@ -204,7 +204,8 @@ auf denselben Dateien.
       ausführen" bestätigen. Erst mit einer **Kopie** der Daten üben.
       Stand 07.08.: Erster Start beim Testen hat geklappt.
 - [x] **Updates ohne Neuinstallation:** Das Programm schaut alle 5 Minuten
-      in einen einmal eingestellten Netzwerkordner (⚙ → Programm-Updates).
+      in einen einmal eingestellten Netzwerkordner (⚙ → Reiter „Verlauf &
+      Sicherung" → Programm-Updates).
       Liegt dort eine neuere App-HTML, erscheint „Neue Version verfügbar" –
       ein Klick übernimmt sie und lädt neu. Der Update-Ablauf bleibt also
       derselbe wie bisher: HTML in den Ordner legen. Eine halb kopierte
@@ -221,6 +222,16 @@ auf denselben Dateien.
 - [x] **OEE-Ordner per Pfad-Eingabe:** In ⚙ → OEE lässt sich der Pfad jetzt
       auch einfügen statt anklicken; zeigt er direkt auf die .xlsx, werden
       Ordner und Datei in einem Rutsch übernommen (harte-41)
+- [x] **Programm-ZIP für Kollegen auf GitHub (07.08.):** liegt in
+      `programm/verteilung/` – in **zwei Teilen** plus `Zusammenfuegen.cmd`,
+      weil GitHub keine einzelne Datei über 100 MB annimmt (die ZIP hat
+      110 MB). Zusammensetzen ist byte-identisch nachgewiesen; die
+      Klick-Anleitung für Kollegen steht in `LIESMICH-DOWNLOAD.txt` daneben.
+- [ ] **Schöner wäre ein GitHub-Release** (ein einziger Download-Knopf,
+      Anhänge bis 2 GB): Das kann Roberto selbst im Browser anlegen –
+      Repository → „Releases" → „Draft a new release" → die zusammengesetzte
+      ZIP hineinziehen. Die Werkzeuge dieser Umgebung können keine
+      Release-Anhänge hochladen, deshalb der Weg über die Teil-Dateien.
 - [ ] **Bei Gefallen → mit der IT klären:** Signatur der EXE (SmartScreen),
       Verteilung auf die Rechner, Update-Weg. Das ist der Punkt, an dem das
       Programm dem Browser überlegen wird – vorher ist es nur gleichwertig
@@ -279,6 +290,22 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Monats- und Jahresdiagramm hinter der OEE-Kachel (07.08.).** Ein
+      Klick auf die Kachel zeigt jetzt zuerst den **Monatsverlauf**
+      (Tagesbalken des jüngsten Monats) und den **Jahresverlauf**
+      (Monatsmittel), als schlichte Balken in den Ampelfarben der
+      Excel-Legende (rot < 60 ≤ gelb < 80 ≤ grün), mit Hilfslinien bei 60
+      und 80. Gespeist aus den Tageszeilen der Tabelle; Monatsmittel sind
+      **ungewichtet** und das Blatt sagt das dazu. Steht der Pivot-Filter
+      nur auf einem Monat, weist ein Hinweis auf den Jahresfilter in Excel
+      (harte-40, Fall 12)
+- [x] **⚙-Dialog aufgeräumt: vier Reiter statt einer langen Rolle (07.08.).**
+      „Anlagen & R+I" (Anlagen, R+I-Punkte, Anlagenteile), „Team &
+      Schichten" (Team, Schichtarten, eigener Name), „OEE" und „Verlauf &
+      Sicherung" (Änderungsverlauf, Programm-Updates, Sicherungen).
+      Speichern/Abbrechen und der Versionsstand bleiben in jedem Reiter
+      sichtbar. Die betroffenen Suiten klicken jetzt zuerst den Reiter
+      (harte-2, harte-9, harte-40, harte-41, rollout)
 - [x] Klickanleitung als PDF, eine Seite, mit echten Bildschirmfotos
 - [x] Autostart ist eine echte Wahl – „nein" nimmt ein früheres „ja" zurück
 - [x] Zahnrad als festes Symbol der Verknüpfung (`shell32.dll,314`)
