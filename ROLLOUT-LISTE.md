@@ -237,20 +237,25 @@ auf denselben Dateien.
       hat sie noch nie gesehen. Entschieden ist (06.08.): Gesamtübersicht
       über alle Anlagen, Zeitraum immer die letzten 24 Stunden, Tabelle liegt
       auf dem Firmenlaufwerk in einem eigenen Ordner. Offen bleibt:
-      - **Spaltenüberschriften.** Die Erkennung sucht nach „Datum",
-        „Uhrzeit", „Anlage", „Schicht", „OEE", „Verfügbarkeit", „Leistung",
-        „Qualität". Heißen sie anders, wird die Zuordnung in ⚙ einmal von
-        Hand gesetzt – vorgesehen, kostet aber einen Handgriff. Kommen die
-        Überschriften mehrfach vor (je Anlage ein Block), muss die Erkennung
-        erweitert werden. **Dafür braucht es ein Bild der obersten Zeilen.**
-      - **Trägt die Tabelle einen Zeitpunkt je Zeile?** Für „letzte 24 h"
-        wird eine Uhrzeitspalte, eine Uhrzeit im Datum oder wenigstens die
-        Schicht gebraucht. Steht nur ein Datum darin, zeigt die Kachel den
-        jüngsten Tag statt 24 Stunden – sie schreibt das dazu, aber es wäre
-        nicht das Gewünschte.
-      - **Gewichtung.** Gemittelt wird ungewichtet über die Anlagen. Sind sie
-        unterschiedlich lange gelaufen, ist das nicht ganz die Wahrheit –
-        dafür bräuchte es eine Spalte mit Laufzeit oder Stückzahl.
+      - [x] **Spaltenüberschriften – erledigt am 07.08.** Roberto hat die
+        echte Tabelle gezeigt: eine **Pivot** (Anlagen als Spaltenblöcke mit
+        „Gutm./OEE_M/OEE%n", Kopf über mehrere Zeilen verteilt, Zeilen =
+        Datum mit FRÜH/MITTAG/NACHT, GES-Summe unten, „Gesamt: OEE%n"
+        rechts). Der Kopf wird jetzt als **Bereich** gelesen (aus „Gesamt:"
+        über „OEE%n" wird eine Beschriftung), die Erkennung bevorzugt die
+        Gesamt-Spalte, und die Kachel zeigt die **Tages-Gesamt-OEE** – nicht
+        die GES-Zeile, nicht ein Mittel über alles (harte-40, Fall 11;
+        gemessen vorher: 67,3 „gesamt" und falsche Spalte)
+      - **Wichtig im Betrieb:** Die Pivot zeigt nur den GEFILTERTEN
+        Zeitraum. Bleibt der Monatsfilter auf einem alten Monat stehen,
+        meldet die Kachel „veraltet" – dann in Excel den Filter auf den
+        laufenden Zeitraum stellen (oder Filter lösen) und speichern.
+      - **Gewichtung erledigt sich hier von selbst:** Die Tageszeile der
+        Pivot ist bereits die von Excel gerechnete Gesamt-OEE – die App
+        rechnet nichts nach, sie zeigt genau diese Zelle.
+      - **Je-Anlage-Ansicht im Klick-Popup** zeigt bei der Pivot bisher nur
+        eine Zeile „(ohne Anlage)" – die Blöcke (TS200, TS320, …) je Anlage
+        auszulesen wäre der nächste Ausbau, wenn gewünscht.
       - **Ordner je Arbeitsplatz.** Der Zugriff auf den Ordner gilt pro Gerät
         und muss dort einmal gewählt werden; nach einem Browser-Neustart
         einmal bestätigt. Dateiname und Zuordnung gelten dagegen für alle.

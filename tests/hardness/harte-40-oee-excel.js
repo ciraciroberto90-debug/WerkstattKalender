@@ -24,6 +24,14 @@
 //       Zahl wie eine frische aussehen zu lassen
 //  (10) Die Tabelle darf in einem EIGENEN Ordner liegen (Firmenlaufwerk),
 //       getrennt vom Datenordner
+//  (11) PIVOT-Tabellen (Robertos echte OEE-Auswertung, 07.08.): Anlagen als
+//       Spaltenbloecke mit "Gutm./OEE_M/OEE%n", Kopf ueber MEHRERE Zeilen
+//       verteilt, Zeilen = Datum mit FRUEH/MITTAG/NACHT darunter, GES-Summe
+//       am Ende, "Gesamt: OEE%n" rechts. Erwartet: Datum und Gesamt-Spalte
+//       werden von selbst erkannt, die Kachel zeigt die Tages-Gesamt-OEE -
+//       nicht die GES-Zeile, nicht ein Mittel ueber alles.
+//       (Gemessen vor der Aenderung: nur 4 Spalten waehlbar, OEE_M statt
+//       OEE%n erkannt, Kachel zeigte 67,3 "gesamt" - alles falsch.)
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const { arbeitsmappeBauen } = require("../hilfen/xlsx-bauen.js");
 const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
@@ -307,6 +315,60 @@ const kachel = (p) => p.locator("button[title*='OEE']").first();
     pruef("(6) Und nennt im Klartext, was fehlt",
       /liegt nicht im gewählten Ordner/i.test(String(titel || "")), String(titel || "—"));
     pruef("(6) Es steht keine erfundene Zahl da", !/\d,\d\s*%/.test(text), text.replace(/\n/g, " · "));
+    await p.context().close();
+  }
+
+  /* ---- (11) Pivot wie Robertos echte Auswertung ---- */
+  {
+    const mitternacht = (tageZurueck) => {
+      const d = new Date(); d.setHours(0, 0, 0, 0);
+      return new Date(d.getTime() - tageZurueck * 86400000);
+    };
+    const PIVOT = arbeitsmappeBauen([{
+      name: "Pivot",
+      zeilen: [
+        [], [], [],
+        [null, "ab 60 % bis", 0.8],
+        [], [], [], [], [], [],
+        // Kopf ueber drei Zeilen verteilt - wie in der echten Pivot
+        [null, null, null, "DREH", null, null, null, null, null, null, null, null, null, "Gesamt: Gutm.", "Gesamt: OEE_M", "Gesamt: OEE%n"],
+        [null, "Datum/Schicht", null, "TS200", null, null, "TS320", null, null, "VSM1", null, null, null, null, null, null],
+        [null, null, null, "Gutm.", "OEE_M", "OEE%n", "Gutm.", "OEE_M", "OEE%n", "Gutm.", "OEE_M", "OEE%n", null, null, null, null],
+        // Gestern: Tagessumme 54,6 + Schichtzeilen
+        [null, { datum: mitternacht(1) }, null, 3500, 7680, { prozent: 0.456 }, 11989, 14620, { prozent: 0.82 }, 1868, 4737, { prozent: 0.394 }, null, 15782, 28908, { prozent: 0.546 }],
+        [null, "FRÜH", null, 3500, 7680, { prozent: 0.456 }, 4830, 5760, { prozent: 0.839 }, 1060, 3032, { prozent: 0.35 }, null, 15782, 28908, { prozent: 0.546 }],
+        // Heute: Tagessumme 71,6 + Schichtzeilen
+        [null, { datum: mitternacht(0) }, null, 11960, 17745, { prozent: 0.674 }, 14496, 18967, { prozent: 0.764 }, 3649, 6401, { prozent: 0.57 }, null, 45723, 63900, { prozent: 0.716 }],
+        [null, "FRÜH", null, 4860, 6400, { prozent: 0.759 }, 3956, 6167, { prozent: 0.642 }, 1372, 2678, { prozent: 0.512 }, null, 13788, 19663, { prozent: 0.701 }],
+        [null, "MITTAG", null, 3650, 6109, { prozent: 0.597 }, 4940, 6400, { prozent: 0.772 }, 1569, 3032, { prozent: 0.518 }, null, 15555, 22577, { prozent: 0.689 }],
+        // GES ueber den ganzen Zeitraum - darf die Kachel NICHT stellen
+        [null, "GES", null, 73689, 137740, { prozent: 0.535 }, 304865, 394262, { prozent: 0.773 }, 55759, 109718, { prozent: 0.508 }, null, 973491, 1416140, { prozent: 0.687 }],
+      ],
+    }]);
+    const p = await starte(b, { imDatenordner: { "OEE_Auswertung.xlsx": PIVOT.toString("base64") } });
+    const zuordnung = await richteEin(p, "OEE_Auswertung.xlsx");
+    pruef("(11) Pivot: Die Spalte 'Gesamt: OEE%n' wird von selbst erkannt",
+      zuordnung === "15", "erkannte Spalte: " + zuordnung);
+    // Der Dialog ist nach richteEin zu - fuer den Blick auf die Zuordnung
+    // einmal neu oeffnen (sie kommt jetzt aus der gespeicherten Quelle)
+    await p.locator('button[aria-label="Verwalten"]').click();
+    await p.waitForTimeout(500);
+    await p.getByRole("button", { name: "Tabellen im Ordner suchen" }).click();
+    await p.waitForTimeout(300);
+    await p.locator('select[aria-label="Excel-Tabelle wählen"]').selectOption("OEE_Auswertung.xlsx");
+    await p.waitForTimeout(900);
+    const datumSpalte = await p.locator('select[aria-label="Spalte für Datum"]').inputValue().catch(() => "");
+    await p.getByRole("button", { name: "Abbrechen" }).first().click().catch(() => {});
+    await p.waitForTimeout(400);
+    pruef("(11) Pivot: Auch die Datumsspalte (Zeilenbeschriftung)",
+      datumSpalte === "1", "erkannte Spalte: " + datumSpalte);
+    const text = await kachel(p).innerText();
+    pruef("(11) Pivot: Die Kachel zeigt die TAGES-Gesamt-OEE",
+      /71,6/.test(text), text.replace(/\n/g, " · "));
+    pruef("(11) Pivot: ... nicht die GES-Zeile (68,7) und kein Mittel ueber alles",
+      !/68,7|67,/.test(text), text.replace(/\n/g, " · "));
+    pruef("(11) Pivot: Der Pfeil vergleicht mit dem Vortag (54,6 -> +17,0)",
+      /▲/.test(text) && /17,0/.test(text), text.replace(/\n/g, " · "));
     await p.context().close();
   }
 

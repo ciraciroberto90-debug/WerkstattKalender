@@ -184,7 +184,11 @@ wird dort gesucht, und der zweite Ordner entfällt.
 
 Die Spalten erkennt die App an den Überschriften (*Datum, Uhrzeit, Anlage,
 Schicht, OEE, Verfügbarkeit, Leistung, Qualität*); jede Zuordnung lässt sich
-darunter von Hand ändern.
+darunter von Hand ändern. **Auch Pivot-Tabellen werden verstanden:** Ein über
+mehrere Zeilen verteilter Kopf wird zusammengesetzt („Gesamt:" über „OEE%n"
+ergibt *Gesamt: OEE%n*), bei mehreren OEE-Spalten gewinnt die Gesamt-Spalte,
+und Zwischenzeilen (FRÜH/MITTAG/NACHT) sowie die GES-Summenzeile stellen die
+Kachel nicht – sie zeigt die **Tageszeile**.
 
 **Was die Kachel zeigt:** das Mittel über **alle Anlagen der letzten 24
 Stunden**, dazu den Pfeil zum Vergleich mit den 24 Stunden davor. Ein **Klick

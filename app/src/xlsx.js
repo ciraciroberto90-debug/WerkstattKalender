@@ -254,6 +254,43 @@ export function findeKopfzeile(zeilen) {
   return -1;
 }
 
+/* Pivot-Tabellen haben keinen einzeiligen Kopf: Oben stehen Gruppen
+   ("DREH", "Gesamt: OEE%n"), darunter je Block "Gutm. | OEE_M | OEE%n",
+   und die Datumsspalte trägt ihre Beschriftung wieder woanders. Gemessen an
+   Robertos OEE-Auswertung: Wer nur EINE Zeile als Kopf nimmt, sieht die
+   Hälfte der Spalten nicht.
+   Deshalb: Der Kopf ist der BEREICH von der ersten Zeile mit mehreren
+   Texten bis zur ersten Datenzeile (erste Zeile mit einem Datum oder
+   überwiegend Zahlen). Je Spalte werden die Texte des Bereichs
+   untereinander zusammengesetzt - aus "Gesamt:" über "OEE%n" wird
+   "Gesamt: OEE%n", und jede Spalte hat eine Beschriftung. */
+export function findeKopfbereich(zeilen) {
+  const istDatenzeile = (zeile) => {
+    let daten = 0;
+    let zahlen = 0;
+    for (const z of zeile || []) {
+      if (z instanceof Date) daten++;
+      else if (typeof z === "number") zahlen++;
+    }
+    return daten > 0 || zahlen >= 3;
+  };
+  const start = findeKopfzeile(zeilen);
+  if (start < 0) return { kopfzeile: -1, kopf: [] };
+  let ende = start;
+  for (let i = start; i < Math.min(zeilen.length, start + 8); i++) {
+    if (istDatenzeile(zeilen[i] || [])) break;
+    ende = i;
+  }
+  const kopf = [];
+  for (let i = start; i <= ende; i++) {
+    (zeilen[i] || []).forEach((z, spalte) => {
+      if (typeof z !== "string" || !z.trim()) return;
+      kopf[spalte] = kopf[spalte] ? kopf[spalte] + " " + z.trim() : z.trim();
+    });
+  }
+  return { kopfzeile: ende, kopf };
+}
+
 const SUCHWORTE = {
   // "zeit" allein wäre zu gierig - es steckt auch in "Ausfallzeit" und
   // "Laufzeit", und die sind etwas ganz anderes.
@@ -261,7 +298,12 @@ const SUCHWORTE = {
   datum: ["datum", "tag", "date", "schichttag"],
   anlage: ["anlage", "maschine", "linie", "equipment", "kostenstelle", "arbeitsplatz"],
   schicht: ["schicht", "shift"],
-  oee: ["oee", "gesamtanlageneffektivität", "gae", "geffektivität"],
+  // Das LÄNGSTE passende Suchwort gewinnt. In der Pivot heißen die Spalten
+  // "OEE_M" und "OEE%n" je Anlage plus "Gesamt: OEE%n" rechts - gesucht wird
+  // deshalb zuerst die Gesamt-Spalte, dann die normierte (%n), dann irgendein
+  // "OEE". (Die Normierung unten wirft Sonderzeichen raus: "Gesamt: OEE%n"
+  // wird zu "gesamtoeen".)
+  oee: ["gesamtoeen", "oeegesamt", "oeen", "oee", "gesamtanlageneffektivität", "gae"],
   verfuegbarkeit: ["verfügbarkeit", "verfuegbarkeit", "availability", "vgrad"],
   leistung: ["leistung", "performance", "lgrad"],
   qualitaet: ["qualität", "qualitaet", "quality", "qgrad"],
@@ -271,7 +313,9 @@ const SUCHWORTE = {
    { datum: 0, anlage: 1, oee: 5 }. Was nicht gefunden wird, fehlt - die
    Zuordnung lässt sich in den Einstellungen von Hand nachziehen. */
 export function erkenneSpalten(kopf) {
-  const norm = (s) => String(s == null ? "" : s).toLowerCase().replace(/[\s._-]/g, "");
+  // Alles außer Buchstaben/Ziffern fliegt raus - "Gesamt: OEE%n" und
+  // "gesamtoeen" sollen sich treffen, egal wie Excel es schreibt.
+  const norm = (s) => String(s == null ? "" : s).toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
   const zellen = (kopf || []).map(norm);
   const treffer = {};
   Object.entries(SUCHWORTE).forEach(([feld, worte]) => {
@@ -289,8 +333,9 @@ export function erkenneSpalten(kopf) {
     });
     if (besteSpalte >= 0) treffer[feld] = besteSpalte;
   });
-  // "OEE" steckt als Wortteil auch in "OEE-Ziel" o. ä. - steht eine echte
-  // OEE-Spalte daneben, gewinnt die kürzere Überschrift.
+  // "Datum/Schicht" beschriftet in der Pivot EINE Spalte - dann gehört sie
+  // dem Datum, und die Schichtnamen darunter sind Zeilen, keine Spalte.
+  if (treffer.schicht != null && treffer.schicht === treffer.datum) delete treffer.schicht;
   return treffer;
 }
 

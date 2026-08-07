@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
-import { leseArbeitsmappe, findeKopfzeile, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
+import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -2242,10 +2242,11 @@ function App() {
         || mappe.blaetter.find((b) => !b.versteckt)
         || mappe.blaetter[0];
       if (!blatt) throw new Error("Kein Tabellenblatt gefunden");
-      const kopfzeile = q.kopfzeile != null ? q.kopfzeile : findeKopfzeile(blatt.zeilen);
+      const bereich = findeKopfbereich(blatt.zeilen);
+      const kopfzeile = q.kopfzeile != null ? q.kopfzeile : bereich.kopfzeile;
       const spalten = Object.keys(q.spalten || {}).length
         ? q.spalten
-        : erkenneSpalten(blatt.zeilen[kopfzeile] || []);
+        : erkenneSpalten(bereich.kopf);
       const zeilen = leseOeeZeilen(blatt.zeilen, spalten, kopfzeile);
       const aus = werteOeeAus(zeilen, Date.now());
       oeeMerker.current.stempel = stempel;
@@ -2448,8 +2449,10 @@ function App() {
       if (!datei) throw new Error("Der Datenordner ist nicht verbunden.");
       const mappe = await leseArbeitsmappe(datei);
       const blaetter = mappe.blaetter.map((b) => {
-        const kz = findeKopfzeile(b.zeilen);
-        return { name: b.name, kopfzeile: kz, kopf: kz >= 0 ? (b.zeilen[kz] || []) : [], zeilen: b.zeilen.length };
+        // Kopf als BEREICH: Pivot-Tabellen verteilen ihre Beschriftungen
+        // über mehrere Zeilen ("Gesamt:" oben, "OEE%n" darunter).
+        const bereich = findeKopfbereich(b.zeilen);
+        return { name: b.name, kopfzeile: bereich.kopfzeile, kopf: bereich.kopf, zeilen: b.zeilen.length };
       });
       const gewaehlt = blaetter.find((b) => b.name === blattName) || blaetter.find((b) => Object.keys(erkenneSpalten(b.kopf)).length > 0) || blaetter[0];
       const erkannt = erkenneSpalten(gewaehlt.kopf);
@@ -8704,7 +8707,10 @@ function App() {
                               aria-label={`Spalte für ${label}`}
                             >
                               <option value="">– keine –</option>
-                              {kopf.map((z, i) => (
+                              {/* Array.from: der zusammengesetzte Kopf hat Lücken,
+                                  und map() würde sie überspringen - dann wären
+                                  unbeschriftete Spalten gar nicht wählbar. */}
+                              {Array.from(kopf).map((z, i) => (
                                 <option key={i} value={i}>{String(z == null || z === "" ? `Spalte ${i + 1}` : z).slice(0, 40)}</option>
                               ))}
                             </select>
