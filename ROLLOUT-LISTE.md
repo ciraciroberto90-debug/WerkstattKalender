@@ -79,6 +79,14 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 
 ## Umzug auf einen Server (geplant)
 
+**Robertos Ansage vom 07.08.: Die JSON muss raus aus OneDrive.** Der
+Daten-Umzug aufs Firmenlaufwerk ist damit gesetzt, nicht mehr nur angedacht.
+Die App kann die Datei dort lesen und schreiben – das Laufwerk wird wie
+jeder Ordner angesprochen (die OEE-Tabelle kommt heute schon von dort).
+Vor dem Stichtag erst mit einer KOPIE der JSON in einem Laufwerksordner
+proben; beim Umzug selbst wählt jedes Gerät die Datei einmal neu an –
+vorher den vollen Pfad an alle verteilen (der 03.08.-Fall).
+
 App und Datendateien sollen künftig auf einem Server liegen statt in
 OneDrive. Zwei Dinge sind **vor** dem Aufsetzen zu klären, sonst steht die
 App hinterher still:
