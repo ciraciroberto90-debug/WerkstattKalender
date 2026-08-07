@@ -242,6 +242,20 @@ auf denselben Dateien.
 
 ## Offene Entscheidungen
 
+- [ ] **Benutzergruppen mit Lese-/Schreibrecht (Robertos Wunsch vom 07.08.).**
+      Roberto gibt eine Namensliste vor, jeder Name bekommt ein Recht
+      (lesen oder schreiben). Beim ersten Start wählt man seinen Namen aus
+      der Liste statt ihn frei einzutippen; das Gerät merkt sich die Wahl.
+      Nur die Gruppe „Verwalter" (Roberto + Vertreter) sieht und ändert die
+      Benutzerverwaltung im ⚙. Die Liste liegt in der gemeinsamen Datei –
+      eine Änderung gilt damit sofort für alle. **Ehrlich dazugesagt:** Ohne
+      Kennwort ist das eine Leitplanke gegen Versehen, kein Schloss – wer
+      will, wählt einen fremden Namen, und wer den Datenordner am Laufwerk
+      öffnen darf, kommt an der App vorbei. Echte Zugriffskontrolle können
+      nur Laufwerksrechte der IT oder ein Server leisten. Vor dem Bau zu
+      klären: die Namensliste selbst, was für Unbekannte gilt (Vorschlag:
+      nur lesen), und ob die Verwalter-Funktionen ein einfaches Kennwort
+      bekommen sollen.
 - [ ] **→ Roberto: Bild der obersten Zeilen der OEE-Tabelle liefern.** Ein
       Bildschirmfoto der ersten ~10 Zeilen mit der Überschriftenzeile genügt;
       die Zahlen dürfen erfunden sein, gebraucht wird der Aufbau. Alternativ:
