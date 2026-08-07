@@ -325,9 +325,12 @@ function OeeKachel({ stand, onKlick, darfEinrichten }) {
         className="wk-karte px-4 py-3.5 flex flex-col justify-center text-left"
         style={{ boxShadow: `inset 3px 0 0 0 ${stand.veraltet ? "#C97A2B" : farbeFuer(wert)}, var(--wk-schatten)` }}
         title={`OEE über alle Anlagen (${zeitraum}) aus „${stand.datei}", Blatt „${stand.blatt}"`
-          + `\n${stand.anlagen || 0} Anlage(n), ${stand.zeilen} Zeile(n)`
+          + (stand.modus === "summe" ? "\nSummenzeile (GES/Gesamtergebnis) der Tabelle - Zeitraum wie in Excel gefiltert" : `\n${stand.anlagen || 0} Anlage(n), ${stand.zeilen} Zeile(n)`)
+          + (stand.juengsterTag && stand.juengsterTagWert != null
+              ? `\nJüngster Tag (${new Date(stand.juengsterTag + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}): ${String(stand.juengsterTagWert).replace(".", ",")} %`
+              : "")
           + (teile.every((t) => t != null) ? `\nV ${teile[0]} % · L ${teile[1]} % · Q ${teile[2]} %` : "")
-          + (stand.veraltet ? `\nAchtung: jüngster Eintrag liegt ${stand.alterStunden} h zurück` : "")
+          + (stand.veraltet ? `\nAchtung: jüngster Eintrag liegt ${stand.alterStunden} h zurück - Pivot-Filter/Aktualisierung in Excel prüfen` : "")
           + "\nKlicken für die Anlagenübersicht"}
       >
         <div className="flex items-baseline gap-1">
@@ -642,9 +645,41 @@ const oeeProAnlage = (liste) => {
     .sort((a, b) => (a.oee == null ? 1 : b.oee == null ? -1 : a.oee - b.oee)); // schlechteste zuerst
 };
 
-const werteOeeAus = (zeilen, jetztMs) => {
-  if (!zeilen.length) return null;
+const werteOeeAus = (alleZeilen, jetztMs) => {
+  if (!alleZeilen.length) return null;
   const jetzt = jetztMs || Date.now();
+
+  /* Robertos Ansage vom 07.08.: "Das ist letztendlich das, was zählt" - die
+     GES-Zeile der Pivot, Excels Gesamtergebnis über den gefilterten
+     Zeitraum. Steht eine solche Summenzeile in der Tabelle, zeigt die Kachel
+     SIE; der jüngste Tag wandert als Zusatzinfo in den Tooltip. Tabellen
+     ohne Summenzeile behalten das bisherige Verhalten (24 h bzw. Tag). */
+  const summen = alleZeilen.filter((z) => z.istSumme);
+  const zeilen = alleZeilen.filter((z) => !z.istSumme);
+  if (summen.length) {
+    const s = summen[summen.length - 1];
+    // Zusatz: der jüngste Tag der Tabelle - als Einordnung und als
+    // Frische-Wächter (eine Pivot, deren Filter auf einem alten Monat
+    // steht, darf nicht wie eine aktuelle Zahl aussehen).
+    const tage = [...new Set(zeilen.map((z) => z.tag).filter(Boolean))].sort();
+    const letzter = tage.length ? tage[tage.length - 1] : null;
+    const letzterWert = letzter ? oeeMittel(zeilen.filter((z) => z.tag === letzter), "oee") : null;
+    const alterStunden = letzter ? Math.round((jetzt - new Date(letzter + "T00:00:00").getTime()) / 3600e3) : null;
+    return {
+      modus: "summe",
+      oee: s.oee,
+      verfuegbarkeit: s.verfuegbarkeit, leistung: s.leistung, qualitaet: s.qualitaet,
+      zeilen: alleZeilen.length,
+      proAnlage: [],
+      anlagen: 0,
+      vergleich: null,
+      juengsterTag: letzter, juengsterTagWert: letzterWert,
+      veraltet: alterStunden != null && alterStunden > 48,
+      alterStunden,
+    };
+  }
+  if (!zeilen.length) return null;
+
   const mitZeit = zeilen.filter((z) => z.zeitMs != null);
   const genau = mitZeit.length > 0 && mitZeit.some((z) => z.zeitGenau);
 
@@ -695,6 +730,7 @@ const werteOeeAus = (zeilen, jetztMs) => {
 // Beschriftung der Kachel: sagt, WORÜBER die Zahl geht
 const oeeZeitraumText = (s) => {
   if (!s) return "";
+  if (s.modus === "summe") return s.veraltet ? "Gesamt (veraltet)" : "Gesamt";
   if (s.modus === "24h") return "letzte 24 h";
   if (s.modus === "gesamt") return "gesamt";
   const tag = s.tag ? new Date(s.tag + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }) : "";
@@ -7586,9 +7622,19 @@ function App() {
             </div>
             {oeeStand.veraltet && (
               <div className="text-xs rounded px-3 py-2 mb-3" style={{ backgroundColor: "#FBF3DA", color: "#7A5A00" }}>
-                In den letzten 24 Stunden steht nichts in der Tabelle. Der jüngste Eintrag liegt
-                <strong> {oeeStand.alterStunden} Stunden</strong> zurück – gezeigt wird deshalb dieser Tag,
-                nicht die letzten 24 Stunden.
+                Der jüngste Eintrag der Tabelle liegt <strong>{oeeStand.alterStunden} Stunden</strong> zurück.
+                In Excel prüfen: Ist der Pivot-Filter (Monat/KW) auf dem laufenden Zeitraum,
+                und wurde die Datei nach dem Aktualisieren gespeichert?
+              </div>
+            )}
+            {oeeStand.modus === "summe" && (
+              <div className="text-xs mb-3" style={{ color: "#5B6572" }}>
+                Gezeigt wird die <strong>Summenzeile</strong> der Tabelle (GES/Gesamtergebnis) –
+                der Zeitraum ist der in Excel gefilterte.
+                {oeeStand.juengsterTag && oeeStand.juengsterTagWert != null && (
+                  <> Jüngster Tag ({new Date(oeeStand.juengsterTag + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}):{" "}
+                  <strong>{String(oeeStand.juengsterTagWert).replace(".", ",")} %</strong>.</>
+                )}
               </div>
             )}
             <div className="flex items-baseline gap-2 mb-3">

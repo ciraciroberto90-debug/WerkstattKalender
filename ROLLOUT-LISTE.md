@@ -251,6 +251,11 @@ auf denselben Dateien.
         Gesamt-Spalte, und die Kachel zeigt die **Tages-Gesamt-OEE** – nicht
         die GES-Zeile, nicht ein Mittel über alles (harte-40, Fall 11;
         gemessen vorher: 67,3 „gesamt" und falsche Spalte)
+      - [x] **Die Kachel zeigt die GES-Zeile (07.08., zweite Ansage):**
+        „Das ist letztendlich das, was zählt" – Excels Gesamtergebnis über
+        den gefilterten Zeitraum, nicht die jüngste Tageszeile. Der jüngste
+        Tag steht als Einordnung im Tooltip und im Klick-Popup. Tabellen
+        ohne Summenzeile behalten das bisherige Verhalten (harte-40)
       - **Wichtig im Betrieb:** Die Pivot zeigt nur den GEFILTERTEN
         Zeitraum. Bleibt der Monatsfilter auf einem alten Monat stehen,
         meldet die Kachel „veraltet" – dann in Excel den Filter auf den

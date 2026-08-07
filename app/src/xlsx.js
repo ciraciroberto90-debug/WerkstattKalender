@@ -404,6 +404,11 @@ function alsTageszeit(wert) {
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 }
 
+/* Summenzeile erkennen: "GES" in Robertos Pivot, "Gesamtergebnis" nennt es
+   Excel von Haus aus. Diese Zeile ist die von Excel gerechnete Gesamt-OEE
+   ueber den GEFILTERTEN Zeitraum - fuer die Werkstatt die Zahl, die zaehlt. */
+const SUMMEN_MUSTER = /^(ges|gesamt|gesamtergebnis|summe|total|grand\s*total)$/i;
+
 /* Aus Blatt + Spaltenzuordnung die Zeilen als Datensätze lesen. */
 export function leseOeeZeilen(zeilen, spalten, kopfzeile) {
   const start = (kopfzeile == null ? findeKopfzeile(zeilen) : kopfzeile) + 1;
@@ -423,6 +428,8 @@ export function leseOeeZeilen(zeilen, spalten, kopfzeile) {
     }
     if (oee == null) continue;
     const schicht = spalten.schicht != null && z[spalten.schicht] != null ? String(z[spalten.schicht]).trim() : "";
+    const datumRoh = spalten.datum != null ? z[spalten.datum] : undefined;
+    const istSumme = typeof datumRoh === "string" && SUMMEN_MUSTER.test(datumRoh.trim());
 
     /* Zeitpunkt der Zeile - nötig für ein Fenster "letzte 24 Stunden".
        Drei Quellen, in dieser Reihenfolge, weil jede genauer ist als die
@@ -449,7 +456,7 @@ export function leseOeeZeilen(zeilen, spalten, kopfzeile) {
     }
 
     raus.push({
-      tag, zeitMs, zeitGenau: genau,
+      tag, zeitMs, zeitGenau: genau, istSumme,
       anlage: spalten.anlage != null && z[spalten.anlage] != null ? String(z[spalten.anlage]).trim() : "",
       schicht,
       oee, verfuegbarkeit: v, leistung: l, qualitaet: q,

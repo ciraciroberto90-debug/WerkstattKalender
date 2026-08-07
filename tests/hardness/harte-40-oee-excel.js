@@ -363,12 +363,14 @@ const kachel = (p) => p.locator("button[title*='OEE']").first();
     pruef("(11) Pivot: Auch die Datumsspalte (Zeilenbeschriftung)",
       datumSpalte === "1", "erkannte Spalte: " + datumSpalte);
     const text = await kachel(p).innerText();
-    pruef("(11) Pivot: Die Kachel zeigt die TAGES-Gesamt-OEE",
-      /71,6/.test(text), text.replace(/\n/g, " · "));
-    pruef("(11) Pivot: ... nicht die GES-Zeile (68,7) und kein Mittel ueber alles",
-      !/68,7|67,/.test(text), text.replace(/\n/g, " · "));
-    pruef("(11) Pivot: Der Pfeil vergleicht mit dem Vortag (54,6 -> +17,0)",
-      /▲/.test(text) && /17,0/.test(text), text.replace(/\n/g, " · "));
+    // Robertos Ansage vom 07.08.: Die GES-Zeile ist die Zahl, die zaehlt.
+    pruef("(11) Pivot: Die Kachel zeigt die SUMMENZEILE (GES: 68,7)",
+      /68,7/.test(text) && /Gesamt/.test(text), text.replace(/\n/g, " · "));
+    pruef("(11) Pivot: ... nicht den juengsten Tag (71,6) und kein Mittel ueber alles",
+      !/71,6|67,3/.test(text), text.replace(/\n/g, " · "));
+    const kachelTitel = String(await kachel(p).getAttribute("title"));
+    pruef("(11) Pivot: Der juengste Tag steht als Einordnung im Tooltip",
+      /71,6/.test(kachelTitel), kachelTitel.split("\n").find((z) => /Tag/.test(z)) || "—");
     await p.context().close();
   }
 
