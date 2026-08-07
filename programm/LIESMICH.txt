@@ -55,3 +55,11 @@ Neu bauen (Entwicklung):
   cd programm && npm install       (einmalig)
   npm run bauen                    (ZIP unter programm/ausgabe/)
   node tests/pruefe-programm.js    (Pruefung gegen das echte Programm)
+
+Symbol:
+  Das Programm traegt das Schild-mit-Zahnrad-Symbol (Fenster und
+  Taskleiste). Die EXE-Datei selbst zeigt im Explorer noch das
+  Standard-Symbol - das aendert sich mit dem Signatur-Schritt der IT.
+  Bis dahin: Fuer die Desktop-Verknuepfung Rechtsklick -> Eigenschaften
+  -> Anderes Symbol -> die Datei symbol.ico direkt im Programmordner
+  (neben der EXE) waehlen.

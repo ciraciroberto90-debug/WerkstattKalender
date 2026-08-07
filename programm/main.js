@@ -275,6 +275,9 @@ function erstelleFenster() {
     width: 1500,
     height: 950,
     title: "Werkstatt-Cockpit",
+    // Schild mit Zahnrad - Robertos Wahl vom 07.08. Windows nimmt die .ico
+    // (alle Groessen enthalten), andere Systeme das grosse PNG.
+    icon: path.join(__dirname, "symbol", process.platform === "win32" ? "symbol.ico" : "symbol-512.png"),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "vorspann.js"),

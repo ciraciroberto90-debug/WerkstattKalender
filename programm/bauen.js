@@ -45,10 +45,20 @@ const AUSGABE = path.join(HIER, "ausgabe");
     // main.js braucht zur Laufzeit nur Electron selbst - node_modules
     // komplett draussen lassen, sonst wandert das Bau-Werkzeug mit ins Paket.
     ignore: [/^\/ausgabe($|\/)/, /^\/bauen\.js$/, /^\/node_modules($|\/)/],
+    // Hinweis: Das Symbol IN der EXE-Datei (Explorer-Ansicht) braucht beim
+    // Packen unter Linux Wine (rcedit) - hier nicht vorhanden. Das Fenster-
+    // und Taskleisten-Symbol kommt aus main.js; fuer Verknuepfungen liegt
+    // symbol/symbol.ico im Paket ("Anderes Symbol ..."). Die EXE selbst
+    // bekommt ihr Symbol mit dem Signatur-Schritt der IT.
     appCopyright: "Werkstatt",
   });
   const ordner = pfade[0];
   console.log("Gepackt:", ordner);
+
+  // Die .ico zusaetzlich NEBEN die EXE legen: Fuer "Verknuepfung ->
+  // Anderes Symbol" muss sie im Explorer anwaehlbar sein - im app.asar
+  // steckt sie unerreichbar.
+  fs.copyFileSync(path.join(HIER, "symbol", "symbol.ico"), path.join(ordner, "symbol.ico"));
 
   // 3. ZIP daraus machen
   const zipPfad = path.join(AUSGABE, "Werkstatt-Cockpit-Programm-win64.zip");

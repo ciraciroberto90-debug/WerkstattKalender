@@ -213,6 +213,11 @@ auf denselben Dateien.
       nachgewiesen am echten Electron (pruefe-programm.js, 12 Prüfungen)
 - [x] **Laufwerks-Links öffnen sich im Programm direkt** (shell.openPath),
       statt nur den Pfad zu kopieren – der Fall aus Robertos Test am 07.08.
+- [x] **Programm-Symbol: Schild mit Zahnrad** (Robertos Wahl aus zwölf
+      Entwürfen, 07.08.). Fenster und Taskleiste zeigen es sofort; die
+      `symbol.ico` liegt neben der EXE für Verknüpfungen. Das Symbol IN der
+      EXE-Datei (Explorer) braucht Windows-Werkzeug beim Packen und kommt
+      mit dem Signatur-Schritt der IT
 - [x] **OEE-Ordner per Pfad-Eingabe:** In ⚙ → OEE lässt sich der Pfad jetzt
       auch einfügen statt anklicken; zeigt er direkt auf die .xlsx, werden
       Ordner und Datei in einem Rutsch übernommen (harte-41)
