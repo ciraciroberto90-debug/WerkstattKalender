@@ -255,7 +255,13 @@ auf denselben Dateien.
       nur Laufwerksrechte der IT oder ein Server leisten. Vor dem Bau zu
       klären: die Namensliste selbst, was für Unbekannte gilt (Vorschlag:
       nur lesen), und ob die Verwalter-Funktionen ein einfaches Kennwort
-      bekommen sollen.
+      bekommen sollen. **Robertos Absicht dahinter (07.08.): die
+      Rechteverwaltung von OneDrive lösen.** Heute kommt lesen/schreiben
+      aus der Freigabe-Ebene (OneDrive „Anzeigen"/„Bearbeiten" bzw.
+      Laufwerksrechte); mit den Benutzergruppen regelt die App das selbst –
+      alle bekommen dieselbe Datei, die App entscheidet nach Namen. Das
+      passt zum geplanten Umzug aufs Firmenlaufwerk und macht die
+      Doppel-Freigaben (Hauptdatei/Störungen getrennt teilen) überflüssig.
 - [ ] **→ Roberto: Bild der obersten Zeilen der OEE-Tabelle liefern.** Ein
       Bildschirmfoto der ersten ~10 Zeilen mit der Überschriftenzeile genügt;
       die Zahlen dürfen erfunden sein, gebraucht wird der Aufbau. Alternativ:
