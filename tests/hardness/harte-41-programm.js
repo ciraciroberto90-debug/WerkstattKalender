@@ -23,6 +23,12 @@
 //   (6) Es wird dabei kein einziger Dateidialog mehr geöffnet
 //   (7) Die Löschmarken-Logik läuft unverändert (dieselbe Sync-Maschine)
 //   (8) OEE-Quellordner ist im Programm NUR LESEND - löschen ausgeschlossen
+//   (9) Laufwerks-Links öffnen sich direkt über den Rahmen (shell.openPath),
+//       statt nur den Pfad zu kopieren
+//  (10) OEE: ein eingefügter PFAD genügt - zeigt er auf die .xlsx, werden
+//       Ordner und Datei in einem Rutsch übernommen
+//  (11) Update-Meldung des Rahmens erscheint als Leiste; "Jetzt
+//       aktualisieren" ruft die Übernahme, ein Fehler wird ehrlich gezeigt
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const fs = require("fs");
 const os = require("os");
@@ -85,6 +91,12 @@ const pruef = (n, c, zusatz) => {
       return true;
     });
     await page.exposeFunction("__d_gemerkt", async (k) => (einstellungen[k] === undefined ? null : einstellungen[k]));
+    await page.exposeFunction("__d_pfadInfo", async (p) => {
+      try {
+        const stat = fs.statSync(String(p));
+        return stat.isDirectory() ? "ordner" : stat.isFile() ? "datei" : null;
+      } catch (e) { return null; }
+    });
     await page.addInitScript(() => {
       // Wie in Electron: kein Browser-Dateizugriff, nur die Brücke
       delete window.showOpenFilePicker;
@@ -96,6 +108,9 @@ const pruef = (n, c, zusatz) => {
         for (let i = 0; i < roh.length; i++) arr[i] = roh.charCodeAt(i);
         return arr;
       };
+      window.__oeffnePfadAufrufe = [];
+      window.__updateUebernahmen = 0;
+      window.__updateErgebnis = { ok: true };
       window.__werkstattDesktop = {
         waehleDatei: () => window.__d_waehleDatei(),
         waehleDateiNeu: (v) => window.__d_waehleDateiNeu(v),
@@ -109,6 +124,13 @@ const pruef = (n, c, zusatz) => {
         entferne: (p) => window.__d_entferne(p),
         merke: (k, w) => window.__d_merke(k, w),
         gemerkt: (k) => window.__d_gemerkt(k),
+        oeffnePfad: async (p) => { window.__oeffnePfadAufrufe.push(p); return true; },
+        pfadInfo: (p) => window.__d_pfadInfo(p),
+        aufUpdate: (cb) => { window.__updateMelden = cb; },
+        updateOrdnerSetzen: async () => true,
+        updateStatus: async () => ({ ordner: "", stand: "" }),
+        updatePruefen: async () => true,
+        updateUebernehmen: async () => { window.__updateUebernahmen++; return window.__updateErgebnis; },
       };
     });
   }
@@ -223,6 +245,73 @@ const pruef = (n, c, zusatz) => {
   }, [ordner, "wichtige-sicherung.xlsx"]);
   pruef("(8) Gegenprobe: ohne nurLesen geht das Löschen durch",
     schreibErgebnis === "gelöscht" && !fs.existsSync(opfer), schreibErgebnis);
+
+  /* ---- (9) Laufwerks-Link öffnet sich über den Rahmen ---- */
+  // Link anlegen (Linkstreifen ist nur auf der Übersicht sichtbar)
+  await page.getByRole("button", { name: "Links & Dokumente" }).click().catch(() => {});
+  await page.waitForTimeout(400);
+  await page.getByRole("button", { name: "＋ Link" }).click();
+  await page.waitForTimeout(300);
+  await page.getByPlaceholder(/Bezeichnung/).fill("Prüfplan-Ordner");
+  await page.getByPlaceholder(/Adresse oder Pfad/).fill("X:\\Werkstatt\\Pruefplaene");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.waitForTimeout(1600);
+  await page.getByText("Prüfplan-Ordner").first().click();
+  await page.waitForTimeout(600);
+  const geoeffnet = await page.evaluate(() => window.__oeffnePfadAufrufe);
+  pruef("(9) Der Laufwerkspfad wird über den Rahmen geöffnet",
+    geoeffnet.length === 1 && geoeffnet[0] === "X:\\Werkstatt\\Pruefplaene", JSON.stringify(geoeffnet));
+  pruef("(9) Die Rückmeldung sagt 'geöffnet', nicht 'Pfad kopiert'",
+    /✓ geöffnet/.test(await page.locator("body").innerText()));
+  // Linkfeld wieder zuklappen - sonst ueberdeckt es die Update-Leiste
+  await page.getByRole("button", { name: "Links & Dokumente" }).click().catch(() => {});
+  await page.waitForTimeout(300);
+
+  /* ---- (10) OEE über eingefügten Pfad - direkt auf die .xlsx ---- */
+  const { arbeitsmappeBauen } = require("../hilfen/xlsx-bauen.js");
+  const xlsxOrdner = fs.mkdtempSync(path.join(os.tmpdir(), "wk-oee-"));
+  const vorStunden = (h) => new Date(Date.now() - h * 3600e3);
+  fs.writeFileSync(path.join(xlsxOrdner, "OEE_Halle1.xlsx"), arbeitsmappeBauen([{
+    name: "OEE",
+    zeilen: [
+      ["Datum", "Uhrzeit", "Anlage", "OEE"],
+      [{ datum: vorStunden(2) }, { datum: vorStunden(2) }, "BTS", { prozent: 0.85 }],
+    ],
+  }]));
+  await page.locator('button[aria-label="Verwalten"]').click();
+  await page.waitForTimeout(500);
+  await page.locator('input[aria-label="OEE-Pfad einfügen"]').fill(path.join(xlsxOrdner, "OEE_Halle1.xlsx"));
+  await page.getByRole("button", { name: "Pfad übernehmen" }).click();
+  await page.waitForTimeout(1200);
+  const oeeText = await page.locator("body").innerText();
+  pruef("(10) Der eingefügte .xlsx-Pfad setzt Ordner UND Datei",
+    /OEE_Halle1\.xlsx/.test(oeeText) && (await page.locator('select[aria-label="Spalte für OEE"]').inputValue().catch(() => "")) === "3",
+    "erkannte OEE-Spalte: " + await page.locator('select[aria-label="Spalte für OEE"]').inputValue().catch(() => "—"));
+  await page.getByRole("button", { name: "OEE-Quelle übernehmen" }).click();
+  await page.waitForTimeout(900);
+  await page.getByRole("button", { name: "Abbrechen" }).first().click().catch(() => {});
+  await page.waitForTimeout(900);
+  pruef("(10) Die Kachel zeigt den Wert aus der Tabelle",
+    /85,0/.test(await page.locator("button[title*='OEE']").first().innerText()),
+    (await page.locator("button[title*='OEE']").first().innerText()).replace(/\n/g, " · "));
+
+  /* ---- (11) Update-Meldung und Übernahme ---- */
+  await page.evaluate(() => { window.scrollTo(0, 0); window.__updateMelden && window.__updateMelden({ name: "Werkstatt_Kalender_TPM.html", geaendert: Date.now() }); });
+  await page.waitForTimeout(400);
+  // Die Leiste liegt unter der klebenden Kopfzeile - fuer den Klick in Sicht scrollen
+  await page.getByRole("button", { name: "Jetzt aktualisieren" }).scrollIntoViewIfNeeded();
+  pruef("(11) Die Update-Leiste erscheint",
+    /Neue Version verfügbar/.test(await page.locator("body").innerText()));
+  // Fehlerfall zuerst: Übernahme schlägt fehl -> ehrliche Meldung, App läuft weiter
+  await page.evaluate(() => { window.__updateErgebnis = { ok: false, grund: "Die Datei wird gerade noch kopiert - bitte gleich nochmal." }; });
+  await page.getByRole("button", { name: "Jetzt aktualisieren" }).click();
+  await page.waitForTimeout(500);
+  const nachFehler = await page.locator("body").innerText();
+  pruef("(11) Ein Fehlschlag wird ehrlich gemeldet",
+    /Update nicht übernommen/.test(nachFehler) && /gerade noch kopiert/.test(nachFehler));
+  pruef("(11) Und die Übernahme wurde wirklich versucht",
+    (await page.evaluate(() => window.__updateUebernahmen)) === 1);
+  fs.rmSync(xlsxOrdner, { recursive: true, force: true });
 
   console.log(`\n==== PROGRAMM-FASSUNG: ${ok} PASS / ${fail} FAIL ====`);
   await browser.close();

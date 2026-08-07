@@ -38,6 +38,18 @@ Wichtig fuers Testen:
     ist getrennt vom Browser - der eigene Name muss im Programm
     einmal neu eingetragen werden (Zahnrad).
 
+Updates:
+  Einmal einrichten: Zahnrad -> "Programm-Updates" -> den Netzwerkordner
+  angeben, in dem die App-HTML liegt (Pfad einfuegen oder Ordner waehlen).
+  Ab dann schaut das Programm alle 5 Minuten dort nach. Liegt eine neuere
+  Werkstatt_Kalender_TPM*.html bereit, erscheint oben im Fenster
+  "Neue Version verfuegbar" - ein Klick uebernimmt sie und laedt neu.
+  Der Update-Ablauf der Werkstatt bleibt damit derselbe wie bisher:
+  neue HTML in den Netzwerkordner legen, fertig.
+  Eine unvollstaendig kopierte Datei wird nie uebernommen - der Inhalt
+  wird vor der Uebernahme geprueft, und bei einem Fehler laeuft die
+  bisherige Version unveraendert weiter.
+
 Neu bauen (Entwicklung):
   cd app && npm run build          (App-HTML erzeugen)
   cd programm && npm install       (einmalig)

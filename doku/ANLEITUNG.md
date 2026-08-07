@@ -609,10 +609,25 @@ trotzdem erst eine Kopie der Daten nehmen. Der eigene Name (⚙) muss im
 Programm einmal neu eingetragen werden, er ist geräte- bzw. programmweise
 gespeichert.
 
+**Updates im Programm:** einmal in ⚙ → **Programm-Updates** den Netzwerkordner
+angeben, in dem die App-HTML liegt (Pfad einfügen oder Ordner wählen). Das
+Programm schaut alle 5 Minuten nach; liegt dort eine neuere
+`Werkstatt_Kalender_TPM*.html`, erscheint oben **„Neue Version verfügbar"** –
+ein Klick übernimmt sie und lädt neu. Der Update-Ablauf der Werkstatt bleibt
+derselbe: neue HTML in den Netzwerkordner legen. Eine unvollständig kopierte
+Datei wird nie übernommen (Inhalt wird vor der Übernahme geprüft; bei einem
+Fehler läuft die bisherige Version unverändert weiter).
+
+**Außerdem im Programm:** Laufwerks-Links im Linkstreifen öffnen sich direkt
+im Explorer (ohne Ausliefer-Dienst), und der OEE-Ordner lässt sich auch durch
+**Einfügen eines Pfads** setzen – zeigt der Pfad direkt auf die `.xlsx`,
+werden Ordner und Datei in einem Rutsch übernommen.
+
 Geprüft wird die Programm-Fassung doppelt: harte-41 fährt die App mit der
-Programm-Brücke gegen ein echtes Verzeichnis, `tests/pruefe-programm.js`
-startet das echte Electron-Programm und schreibt durch es hindurch auf die
-Platte.
+Programm-Brücke gegen ein echtes Verzeichnis (20 Prüfungen),
+`tests/pruefe-programm.js` startet das echte Electron-Programm, schreibt durch
+es hindurch auf die Platte und spielt den kompletten Update-Kreislauf durch –
+einschließlich einer halben HTML, die liegen bleibt (12 Prüfungen).
 
 ---
 

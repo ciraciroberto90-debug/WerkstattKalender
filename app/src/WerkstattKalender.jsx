@@ -1108,6 +1108,11 @@ function App() {
   const [oeeQuelle, setOeeQuelle] = useState(() => normalisiereOee(null));
   const [oeeStand, setOeeStand] = useState({ lage: "aus" }); // aus | laedt | ok | fehler
   const [settingsOee, setSettingsOee] = useState(null); // Entwurf im ⚙-Dialog
+  /* Programm-Update: Der Rahmen meldet, wenn im Update-Ordner eine neuere
+     App-HTML liegt. Bleibender Zustand statt fluechtiger Meldung - ein
+     Update soll nicht von der naechsten Erfolgsmeldung weggewischt werden. */
+  const [programmUpdate, setProgrammUpdate] = useState(null); // {name, geaendert} | {laeuft} | {fehler}
+  const [programmUpdateStatus, setProgrammUpdateStatus] = useState(null); // fuer ⚙
   const [oeeUebersichtOffen, setOeeUebersichtOffen] = useState(false);
   // Nachfrage, wenn die eben verbundene Datei keinen einzigen Eintrag hat.
   const [leereDatei, setLeereDatei] = useState(null);
@@ -1282,6 +1287,10 @@ function App() {
       if (infoTimer) clearTimeout(infoTimer);
       infoTimer = setTimeout(() => setShareInfo(null), 15000);
     };
+    // Programm-Update-Meldungen des Rahmens entgegennehmen (nur im Programm)
+    if (window.__werkstattDesktop && window.__werkstattDesktop.aufUpdate) {
+      window.__werkstattDesktop.aufUpdate((info) => setProgrammUpdate(info || {}));
+    }
     window.addEventListener("werkstatt-shared-update", onUpdate);
     window.addEventListener("werkstatt-shared-error", onShareError);
     window.addEventListener("werkstatt-shared-ok", onShareOk);
@@ -2343,6 +2352,18 @@ function App() {
       window.open(linkAdresse(l.ziel), "_blank", "noopener,noreferrer");
       return;
     }
+    // Im Programm: Laufwerks- und Netzwerkpfade direkt öffnen - das kann der
+    // Rahmen selbst (shell.openPath), ganz ohne Ausliefer-Dienst. Genau der
+    // Fall, in dem bisher nur der Pfad kopiert wurde.
+    if (window.__werkstattDesktop && window.__werkstattDesktop.oeffnePfad) {
+      meldeAmLink(l.id, "wird geöffnet …");
+      try {
+        const ergebnis = await window.__werkstattDesktop.oeffnePfad(l.ziel);
+        if (ergebnis === true) { meldeAmLink(l.id, "✓ geöffnet"); return; }
+        meldeAmLink(l.id, "✗ " + String(ergebnis || "nicht gefunden – liegt die Datei noch dort?"));
+        return;
+      } catch (e) { /* unten weiter zur Zwischenablage */ }
+    }
     // Laufwerks- und Netzwerkpfade: den Dienst bitten. Mit Frist - antwortet er
     // nicht, hängt der Klick nicht, sondern fällt auf die Zwischenablage zurück.
     if (ueberDienst()) {
@@ -2396,6 +2417,11 @@ function App() {
     setSettingsOee({ ...normalisiereOee(oeeQuelle), lage: "", text: "", dateien: null, blaetter: null });
     sharedFile.listBackups().then(setBackups).catch(() => setBackups([]));
     sharedFile.readLog().then(setVerlauf).catch(() => setVerlauf([]));
+    if (window.__werkstattDesktop && window.__werkstattDesktop.updateStatus) {
+      window.__werkstattDesktop.updateStatus()
+        .then((st) => setProgrammUpdateStatus({ ...st, eingabe: st.ordner || "" }))
+        .catch(() => setProgrammUpdateStatus(null));
+    }
   };
 
   /* ---------- OEE einrichten (im ⚙-Dialog) ---------- */
@@ -5110,6 +5136,47 @@ function App() {
         </div>
       )}
       {err && <div className="no-print mx-4 mt-2 text-xs text-red-600">{err}</div>}
+
+      {/* Programm-Update: Im Update-Ordner liegt eine neuere App-HTML. Ein
+          Klick übernimmt sie und lädt neu - die Daten sind davon unberührt,
+          sie liegen in der gemeinsamen Datei. Bleibender Hinweis, kein
+          Popup-Fenster: Wer mitten in einer Eingabe steckt, klickt später. */}
+      {programmUpdate && !programmUpdate.fehler && (
+        <div className="no-print mx-4 mt-2 rounded px-3 py-2 text-xs flex items-center gap-3 flex-wrap"
+             style={{ backgroundColor: "#EAF3EC", border: "1px solid #BFDCC6", color: "#1F5A31" }}>
+          <span>
+            <strong>⬆ Neue Version verfügbar</strong>
+            {programmUpdate.name ? <> – {programmUpdate.name}</> : null}
+            {programmUpdate.geaendert ? <> ({new Date(programmUpdate.geaendert).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })})</> : null}
+          </span>
+          <button
+            onClick={async () => {
+              setProgrammUpdate({ laeuft: true });
+              try {
+                const r = await window.__werkstattDesktop.updateUebernehmen();
+                // Bei Erfolg lädt der Rahmen die Seite neu - diese Zeile
+                // sieht man nur, wenn etwas dazwischenkam.
+                if (!r || !r.ok) setProgrammUpdate({ fehler: (r && r.grund) || "Update fehlgeschlagen." });
+              } catch (e) {
+                setProgrammUpdate({ fehler: String((e && e.message) || e) });
+              }
+            }}
+            disabled={!!programmUpdate.laeuft}
+            className="font-bold px-3 py-1 rounded text-white"
+            style={{ backgroundColor: programmUpdate.laeuft ? "#8A9099" : "#1F7A3D" }}
+          >
+            {programmUpdate.laeuft ? "wird übernommen …" : "Jetzt aktualisieren"}
+          </button>
+          <button onClick={() => setProgrammUpdate(null)} className="font-bold" style={{ color: "#5B6572" }}>später</button>
+        </div>
+      )}
+      {programmUpdate && programmUpdate.fehler && (
+        <div className="no-print mx-4 mt-2 rounded px-3 py-2 text-xs flex items-center gap-3"
+             style={{ backgroundColor: "#FBEAE8", border: "1px solid #E7B9B3", color: "#9A2B22" }}>
+          <span><strong>Update nicht übernommen:</strong> {programmUpdate.fehler} Die bisherige Version läuft unverändert weiter.</span>
+          <button onClick={() => setProgrammUpdate(null)} className="font-bold" style={{ color: "#5B6572" }}>ok</button>
+        </div>
+      )}
 
       {/* Titel nur für den Ausdruck */}
       <div className="print-only text-center py-2">
@@ -8400,6 +8467,68 @@ function App() {
               </div>
             )}
 
+            {/* ---- Programm-Fassung: Updates --------------------------------
+                Nur sichtbar, wenn die App als Programm laeuft. Der Rahmen
+                schaut in diesem Ordner nach neuen App-HTML-Dateien - dem
+                selben Ordner, in den heute schon jede neue Version gelegt
+                wird. Der Update-Ablauf der Werkstatt bleibt also derselbe. */}
+            {programmUpdateStatus !== null && (
+              <>
+                <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Programm-Updates</div>
+                <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+                  Das Programm schaut alle 5 Minuten in diesen Ordner. Liegt dort eine neuere
+                  <span className="font-mono"> Werkstatt_Kalender_TPM*.html</span>, erscheint oben „Neue Version verfügbar" –
+                  ein Klick übernimmt sie. Eine unvollständig kopierte Datei wird nie übernommen.
+                </div>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={programmUpdateStatus.eingabe}
+                    onChange={(e) => setProgrammUpdateStatus((v) => ({ ...v, eingabe: e.target.value, meldung: "" }))}
+                    placeholder={"Pfad einfügen, z. B. \\\\server\\werkstatt\\Werkstatt_Kalender"}
+                    className="text-xs rounded px-2 py-1.5 font-mono flex-1"
+                    style={{ border: "1px solid #D8DDE3", minWidth: "260px" }}
+                    aria-label="Update-Ordner Pfad"
+                  />
+                  <button
+                    onClick={async () => {
+                      try {
+                        const pfad = (programmUpdateStatus.eingabe || "").trim().replace(/^"|"$/g, "");
+                        if (pfad) {
+                          const art = await window.__werkstattDesktop.pfadInfo(pfad);
+                          if (art !== "ordner") { setProgrammUpdateStatus((v) => ({ ...v, meldung: "Unter diesem Pfad wurde kein Ordner gefunden." })); return; }
+                        }
+                        await window.__werkstattDesktop.updateOrdnerSetzen(pfad || null);
+                        setProgrammUpdateStatus((v) => ({ ...v, ordner: pfad, eingabe: pfad, meldung: pfad ? "✓ übernommen – es wird ab jetzt hier nachgesehen" : "Update-Prüfung ausgeschaltet" }));
+                      } catch (e) { setProgrammUpdateStatus((v) => ({ ...v, meldung: String((e && e.message) || e) })); }
+                    }}
+                    className="text-xs font-bold px-2.5 py-1.5 rounded text-white"
+                    style={{ backgroundColor: "#2F6690" }}
+                  >
+                    Übernehmen
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const pfad = await window.__werkstattDesktop.waehleOrdner();
+                        if (!pfad) return;
+                        await window.__werkstattDesktop.updateOrdnerSetzen(pfad);
+                        setProgrammUpdateStatus((v) => ({ ...v, ordner: pfad, eingabe: pfad, meldung: "✓ übernommen – es wird ab jetzt hier nachgesehen" }));
+                      } catch (e) { setProgrammUpdateStatus((v) => ({ ...v, meldung: String((e && e.message) || e) })); }
+                    }}
+                    className="text-xs font-bold px-2.5 py-1.5 rounded"
+                    style={{ backgroundColor: "#EEF1F4", color: "#2F6690" }}
+                  >
+                    Ordner wählen …
+                  </button>
+                </div>
+                <div className="text-xs mb-5" style={{ color: programmUpdateStatus.meldung && programmUpdateStatus.meldung.startsWith("✓") ? "#1F7A3D" : "#8A9099" }}>
+                  {programmUpdateStatus.meldung
+                    || (programmUpdateStatus.ordner ? `Aktiv: ${programmUpdateStatus.ordner}` : "Noch kein Update-Ordner eingerichtet.")}
+                </div>
+              </>
+            )}
+
             {/* ---- OEE aus einer Excel-Tabelle ------------------------------
                 Die Tabelle liegt im Datenordner neben der gemeinsamen Datei.
                 Gespeichert wird nur der DATEINAME und die Spaltenzuordnung -
@@ -8475,6 +8604,46 @@ function App() {
                       </button>
                     )}
                   </div>
+                  {/* Pfadzeile: Wer den Pfad schon in der Zwischenablage hat,
+                      soll ihn einfach einfuegen koennen statt sich durch den
+                      Dialog zu klicken. Zeigt der Pfad direkt auf die .xlsx,
+                      werden Ordner UND Datei in einem Rutsch uebernommen.
+                      Nur im Programm - der Browser kann aus einem Pfad-Text
+                      keinen Zugriff machen, das verbietet seine Sandbox. */}
+                  {window.__werkstattDesktop && (
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <input
+                        type="text"
+                        value={(o.pfadEingabe != null ? o.pfadEingabe : "")}
+                        onChange={(e) => setSettingsOee((v) => ({ ...v, pfadEingabe: e.target.value }))}
+                        placeholder={"… oder Pfad einfügen (Ordner oder direkt die .xlsx)"}
+                        className="text-xs rounded px-2 py-1.5 font-mono flex-1"
+                        style={{ border: "1px solid #D8DDE3", minWidth: "260px" }}
+                        aria-label="OEE-Pfad einfügen"
+                      />
+                      <button
+                        onClick={async () => {
+                          try {
+                            const erg = await sharedFile.setzeQuellOrdnerPfad(o.pfadEingabe);
+                            setSettingsOee((v) => ({ ...v, lage: "", text: "" }));
+                            if (erg.dateiName && erg.dateiName.toLowerCase().endsWith(".xlsx")) {
+                              // Datei-Auswahl sichtbar machen, damit man SIEHT, was übernommen wurde
+                              setSettingsOee((v) => ({ ...v, dateien: [erg.dateiName] }));
+                              await oeeTabellePruefen(erg.dateiName, "");
+                            } else {
+                              await oeeDateienSuchen();
+                            }
+                          } catch (e) {
+                            setSettingsOee((v) => ({ ...v, lage: "fehler", text: String((e && e.message) || e) }));
+                          }
+                        }}
+                        className="text-xs font-bold px-2.5 py-1.5 rounded text-white"
+                        style={{ backgroundColor: "#2F6690" }}
+                      >
+                        Pfad übernehmen
+                      </button>
+                    </div>
+                  )}
                   <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
                     Der Ordner wird nur <strong>lesend</strong> geöffnet – die App kann auf dem Laufwerk nichts verändern.
                     Er gilt für dieses Gerät; jeder Arbeitsplatz wählt ihn einmal selbst.

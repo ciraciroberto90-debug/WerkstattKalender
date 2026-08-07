@@ -1160,6 +1160,33 @@ function createSharedStore(cfg) {
     quellPerm = "ok";
     return { name: h.name };
   }
+  /* Quellordner direkt ueber einen eingefuegten Pfad setzen - nur im
+     Programm moeglich (der Browser kann aus einem Pfad-Text keinen Zugriff
+     machen, das erlaubt seine Sandbox nicht). Zeigt der Pfad auf eine
+     .xlsx-DATEI, wird ihr Ordner genommen und der Dateiname mit
+     zurueckgegeben - so genuegt ein einziger kopierter Pfad fuer alles. */
+  async function setzeQuellOrdnerPfad(pfad) {
+    const d = desktopBruecke();
+    if (!d) throw new Error("Pfad einfügen geht nur in der Programm-Fassung.");
+    const sauber = String(pfad || "").trim().replace(/^"|"$/g, ""); // Windows kopiert gern mit Anfuehrungszeichen
+    if (!sauber) throw new Error("Kein Pfad angegeben.");
+    const art = await d.pfadInfo(sauber);
+    if (!art) throw new Error(`Unter „${sauber}" wurde nichts gefunden - Pfad und Laufwerk prüfen.`);
+    let ordnerPfad = sauber;
+    let dateiName = "";
+    if (art === "datei") {
+      // Trenner beibehalten, wie er im eingefuegten Pfad steht
+      const trenner = sauber.includes("\\") ? "\\" : "/";
+      const teile = sauber.split(/[\\/]/);
+      dateiName = teile.pop();
+      ordnerPfad = teile.join(trenner);
+    }
+    quellHandle = desktopOrdnerHandle(ordnerPfad, { nurLesen: true });
+    quellPerm = "ok";
+    try { await merkeVerweis("quellordner", quellHandle); } catch (e) { /* nur diese Sitzung */ }
+    return { name: quellHandle.name, dateiName };
+  }
+
   async function vergissQuellOrdner() {
     quellHandle = null;
     quellPerm = "none";
@@ -1658,7 +1685,7 @@ function createSharedStore(cfg) {
     pickWritable, umgebung,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
     leseAusOrdner, listeOrdnerDateien,
-    pickQuellOrdner, reconnectQuellOrdner, vergissQuellOrdner, quellOrdnerStatus, quellOrdnerName,
+    pickQuellOrdner, reconnectQuellOrdner, vergissQuellOrdner, quellOrdnerStatus, quellOrdnerName, setzeQuellOrdnerPfad,
     saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
   };
 }
@@ -1708,6 +1735,7 @@ export const reconnectQuellOrdner = main.reconnectQuellOrdner;
 export const vergissQuellOrdner = main.vergissQuellOrdner;
 export const quellOrdnerStatus = main.quellOrdnerStatus;
 export const quellOrdnerName = main.quellOrdnerName;
+export const setzeQuellOrdnerPfad = main.setzeQuellOrdnerPfad;
 export const saveEntries = main.saveEntries;
 export const saveConfig = main.saveConfig;
 export const readLog = main.readLog;

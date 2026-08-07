@@ -22,4 +22,12 @@ contextBridge.exposeInMainWorld("__werkstattDesktop", {
   gemerkt: (schluessel) => ipcRenderer.invoke("gemerkt", schluessel),
   // Laufwerkspfade im Explorer öffnen (ersetzt den Ausliefer-Dienst-Trick)
   oeffnePfad: (pfad) => ipcRenderer.invoke("oeffne-pfad", pfad),
+  // Liegt an diesem Pfad eine Datei, ein Ordner - oder nichts?
+  pfadInfo: (pfad) => ipcRenderer.invoke("pfad-info", pfad),
+  // Programm-Updates: neue App-HTML aus dem Netzwerkordner uebernehmen
+  aufUpdate: (cb) => ipcRenderer.on("update-verfuegbar", (ev, info) => cb(info)),
+  updateOrdnerSetzen: (pfad) => ipcRenderer.invoke("update-ordner-setzen", pfad),
+  updateStatus: () => ipcRenderer.invoke("update-status"),
+  updatePruefen: () => ipcRenderer.invoke("update-pruefen"),
+  updateUebernehmen: () => ipcRenderer.invoke("update-uebernehmen"),
 });

@@ -202,6 +202,20 @@ auf denselben Dateien.
 - [ ] **Roberto testet die ZIP** (`Werkstatt-Cockpit-Programm-win64.zip`):
       entpacken, `Werkstatt-Cockpit.exe`, SmartScreen einmal mit „Trotzdem
       ausführen" bestätigen. Erst mit einer **Kopie** der Daten üben.
+      Stand 07.08.: Erster Start beim Testen hat geklappt.
+- [x] **Updates ohne Neuinstallation:** Das Programm schaut alle 5 Minuten
+      in einen einmal eingestellten Netzwerkordner (⚙ → Programm-Updates).
+      Liegt dort eine neuere App-HTML, erscheint „Neue Version verfügbar" –
+      ein Klick übernimmt sie und lädt neu. Der Update-Ablauf bleibt also
+      derselbe wie bisher: HTML in den Ordner legen. Eine halb kopierte
+      Datei wird nie übernommen (Inhalt wird geprüft, zweimal vermessen,
+      atomar übernommen; bei Fehler läuft die alte Fassung weiter) –
+      nachgewiesen am echten Electron (pruefe-programm.js, 12 Prüfungen)
+- [x] **Laufwerks-Links öffnen sich im Programm direkt** (shell.openPath),
+      statt nur den Pfad zu kopieren – der Fall aus Robertos Test am 07.08.
+- [x] **OEE-Ordner per Pfad-Eingabe:** In ⚙ → OEE lässt sich der Pfad jetzt
+      auch einfügen statt anklicken; zeigt er direkt auf die .xlsx, werden
+      Ordner und Datei in einem Rutsch übernommen (harte-41)
 - [ ] **Bei Gefallen → mit der IT klären:** Signatur der EXE (SmartScreen),
       Verteilung auf die Rechner, Update-Weg. Das ist der Punkt, an dem das
       Programm dem Browser überlegen wird – vorher ist es nur gleichwertig

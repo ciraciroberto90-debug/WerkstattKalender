@@ -132,6 +132,143 @@ ipcMain.handle("oeffne-pfad", async (ev, pfad) => {
   return fehler === "" ? true : fehler;
 });
 
+// Was ist an diesem Pfad? Fuer die Pfad-Eingabezeile (OEE-Ordner): Der
+// Nutzer fuegt einen kopierten Pfad ein, wir sagen, ob dort eine Datei oder
+// ein Ordner liegt - ohne Dialog.
+ipcMain.handle("pfad-info", async (ev, pfad) => {
+  try {
+    const stat = await fs.stat(String(pfad));
+    return stat.isDirectory() ? "ordner" : stat.isFile() ? "datei" : null;
+  } catch (e) {
+    return null;
+  }
+});
+
+/* ---------- Programm-Updates ------------------------------------------
+   Der Rahmen ist absichtlich duenn - alles, was sich je aendert, steckt in
+   der App-HTML. Deshalb funktioniert das Update wie bisher in der Werkstatt:
+   Die neue HTML wird in den Netzwerkordner gelegt. Das Programm schaut dort
+   regelmaessig nach, meldet "Neue Version verfuegbar", und ein Klick
+   uebernimmt die Datei ins eigene Profil und laedt neu.
+
+   Sicherung gegen halbe Dateien: Eine HTML, die gerade erst zur Haelfte auf
+   das Laufwerk kopiert ist, darf NIE uebernommen werden. Deshalb wird
+   (1) zweimal im Abstand gemessen, ob die Datei noch waechst,
+   (2) der Inhalt geprueft (beginnt mit <!doctype, endet mit </html>,
+       plausible Groesse) und
+   (3) atomar ins Profil geschrieben. Schlaegt irgendetwas fehl, laeuft die
+   bisherige Fassung unveraendert weiter. */
+const UPDATE_TAKT_MS = 5 * 60 * 1000;
+const HTML_MUSTER = /^Werkstatt_Kalender_TPM.*\.html$/i;
+
+function aktuelleHtml() {
+  // Vom Update uebernommene Fassung im Profil - sonst die eingebaute
+  const uebernommen = path.join(app.getPath("userData"), "app-aktuell.html");
+  if (fssync.existsSync(uebernommen) && htmlPlausibel(fssync.readFileSync(uebernommen, "utf8"))) {
+    return uebernommen;
+  }
+  return path.join(__dirname, "app", "Werkstatt_Kalender_TPM.html");
+}
+function htmlPlausibel(text) {
+  const t = String(text || "");
+  return t.length > 200000
+    && /^\s*<!doctype html/i.test(t)
+    && /<\/html>\s*$/i.test(t);
+}
+async function findeNeuesteHtml(ordner) {
+  const eintraege = await fs.readdir(String(ordner), { withFileTypes: true });
+  let beste = null;
+  for (const e of eintraege) {
+    if (!e.isFile() || !HTML_MUSTER.test(e.name)) continue;
+    const voll = path.join(String(ordner), e.name);
+    const stat = await fs.stat(voll);
+    if (!beste || stat.mtimeMs > beste.mtimeMs) beste = { pfad: voll, name: e.name, mtimeMs: stat.mtimeMs, groesse: stat.size };
+  }
+  return beste;
+}
+let updateGemeldet = ""; // damit dieselbe Version nicht alle 5 Minuten neu poppt
+async function pruefeUpdate(fenster) {
+  const einstellungen = leseEinstellungen();
+  const ordner = einstellungen["programm:update-ordner"];
+  if (!ordner) return;
+  let neueste = null;
+  try {
+    neueste = await findeNeuesteHtml(ordner);
+  } catch (e) { return; /* Laufwerk gerade nicht da - naechster Takt */ }
+  if (!neueste) return;
+  const stand = String(einstellungen["programm:html-stand"] || "");
+  const kennung = `${neueste.mtimeMs}-${neueste.groesse}`;
+  if (kennung === stand || kennung === updateGemeldet) return;
+  updateGemeldet = kennung;
+  const ziel = fenster || BrowserWindow.getAllWindows()[0];
+  if (ziel) {
+    ziel.webContents.send("update-verfuegbar", {
+      name: neueste.name,
+      geaendert: Math.round(neueste.mtimeMs),
+      groesse: neueste.groesse,
+    });
+  }
+}
+
+ipcMain.handle("update-ordner-setzen", async (ev, pfad) => {
+  const alle = leseEinstellungen();
+  if (pfad) alle["programm:update-ordner"] = String(pfad);
+  else delete alle["programm:update-ordner"];
+  await schreibeEinstellungen(alle);
+  updateGemeldet = "";
+  await pruefeUpdate(BrowserWindow.fromWebContents(ev.sender));
+  return true;
+});
+
+ipcMain.handle("update-status", async () => {
+  const alle = leseEinstellungen();
+  return {
+    ordner: alle["programm:update-ordner"] || "",
+    stand: alle["programm:html-stand"] || "",
+    laeuftAus: aktuelleHtml().includes("app-aktuell.html") ? "uebernommener Fassung" : "eingebauter Fassung",
+  };
+});
+
+ipcMain.handle("update-pruefen", async (ev) => {
+  updateGemeldet = "";
+  await pruefeUpdate(BrowserWindow.fromWebContents(ev.sender));
+  return true;
+});
+
+ipcMain.handle("update-uebernehmen", async (ev) => {
+  const einstellungen = leseEinstellungen();
+  const ordner = einstellungen["programm:update-ordner"];
+  if (!ordner) return { ok: false, grund: "Kein Update-Ordner eingerichtet." };
+  const neueste = await findeNeuesteHtml(ordner);
+  if (!neueste) return { ok: false, grund: "Im Update-Ordner liegt keine App-HTML." };
+
+  // (1) Waechst die Datei noch? Dann kopiert OneDrive/der Explorer gerade.
+  const vorher = await fs.stat(neueste.pfad);
+  await new Promise((r) => setTimeout(r, 600));
+  const nachher = await fs.stat(neueste.pfad);
+  if (vorher.size !== nachher.size || vorher.mtimeMs !== nachher.mtimeMs) {
+    return { ok: false, grund: "Die Datei wird gerade noch kopiert - bitte gleich nochmal." };
+  }
+
+  // (2) Inhalt pruefen - eine halbe HTML faellt hier durch
+  const text = await fs.readFile(neueste.pfad, "utf8");
+  if (!htmlPlausibel(text)) {
+    return { ok: false, grund: "Die Datei ist unvollstaendig oder keine App-HTML - nichts uebernommen." };
+  }
+
+  // (3) Atomar ins Profil schreiben, Stand merken, neu laden
+  const ziel = path.join(app.getPath("userData"), "app-aktuell.html");
+  const tmp = ziel + ".tmp";
+  await fs.writeFile(tmp, text, "utf8");
+  await fs.rename(tmp, ziel);
+  const alle = leseEinstellungen();
+  alle["programm:html-stand"] = `${nachher.mtimeMs}-${nachher.size}`;
+  await schreibeEinstellungen(alle);
+  const fenster = BrowserWindow.fromWebContents(ev.sender);
+  if (fenster) fenster.loadFile(ziel);
+  return { ok: true };
+});
+
 /* ---------- Fenster ---------- */
 function erstelleFenster() {
   const fenster = new BrowserWindow({
@@ -159,7 +296,9 @@ function erstelleFenster() {
     return { action: "allow" };
   });
 
-  fenster.loadFile(path.join(__dirname, "app", "Werkstatt_Kalender_TPM.html"));
+  fenster.loadFile(aktuelleHtml());
+  // Nach dem Laden einmal nach Updates schauen, danach im Takt
+  fenster.webContents.once("did-finish-load", () => pruefeUpdate(fenster));
   return fenster;
 }
 
@@ -178,6 +317,7 @@ if (!einzig) {
   });
   app.whenReady().then(() => {
     erstelleFenster();
+    setInterval(() => pruefeUpdate(null), UPDATE_TAKT_MS);
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) erstelleFenster();
     });
