@@ -195,8 +195,9 @@ Der jüngste Tag steht zur Einordnung im Tooltip und in der Übersicht.
 **Was die Kachel zeigt:** ohne Summenzeile das Mittel über **alle Anlagen der
 letzten 24 Stunden**, dazu den Pfeil zum Vergleich mit den 24 Stunden davor.
 Ein **Klick auf die Kachel** öffnet die Auswertung: **Monatsverlauf**
-(Tagesbalken des jüngsten Monats) und **Jahresverlauf** (Monatsmittel) als
-Balkendiagramm in Ampelfarben – und darunter, sofern die Tabelle je Anlage
+(Tageswerte des jüngsten Monats) und **Jahresverlauf** (Monatsmittel) als
+Punkt-Linien-Kurve wie bei der TPM-Termintreue, die Punkte in Ampelfarben
+– und darunter, sofern die Tabelle je Anlage
 liefert, jede Anlage mit ihrem Wert, die schlechteste oben, denn die ist der
 Grund hinzuschauen. Steht der Pivot-Filter nur auf einem Monat, ist der
 Jahresverlauf entsprechend kurz – für das volle Bild in Excel den Filter auf

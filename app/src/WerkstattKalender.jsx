@@ -307,46 +307,74 @@ function WerkstattUhr() {
   );
 }
 
-/* Balkendiagramm für die OEE-Auswertung im Klick-Popup. Bewusst schlichte
-   SVG-Balken ohne Bibliothek: Ampelfarben nach denselben Schwellen wie in
-   der Excel-Legende (ab 60 % gelb, ab 80 % grün), Werte an den Balken. */
-function OeeBalken({ daten, breite = 560, hoehe = 150 }) {
+/* Punkt-Linien-Diagramm für die OEE-Auswertung im Klick-Popup - bewusst im
+   Stil der Termintreue-Kurve bei TPM (Robertos Wunsch vom 07.08.): Linie
+   mit Punkten auf fester 0-100-Skala, Fläche dezent gefüllt. Die Punkte
+   tragen die Ampelfarben der Excel-Legende (ab 60 % gelb, ab 80 % grün),
+   die Schwellen 60/80 sind gestrichelt eingezeichnet. Beschriftet werden
+   nur erster, letzter, höchster und tiefster Wert - der Rest steht im
+   Maus-Hinweis, sonst wird es Zahlensalat. */
+function OeeVerlauf({ daten, breite = 560, hoehe = 150 }) {
   if (!daten || daten.length === 0) return null;
-  const rand = { links: 30, unten: 22, oben: 14 };
-  const innenB = breite - rand.links - 8;
-  const innenH = hoehe - rand.unten - rand.oben;
-  const max = 100;
-  const bBreite = Math.max(4, Math.min(34, Math.floor(innenB / daten.length) - 3));
-  const farbe = (w) => (w == null ? "#D5D9DE" : w >= 80 ? "#3E9B5F" : w >= 60 ? "#E8B33C" : "#B23A34");
-  const zeigeWert = daten.length <= 16; // sonst wird es Zahlensalat
+  const L = 30, R = 10, O = 16, U = 22;
+  const innenB = breite - L - R, innenH = hoehe - O - U;
+  const x = (i) => L + (daten.length === 1 ? innenB / 2 : (i * innenB) / (daten.length - 1));
+  const y = (w) => O + innenH - (Math.min(w, 100) / 100) * innenH;
+  const farbe = (w) => (w >= 80 ? "#3E9B5F" : w >= 60 ? "#E8B33C" : "#B23A34");
+
+  // Lücken (Einträge ohne Wert) trennen die Linie, statt sie zu überbrücken -
+  // eine durchgezogene Linie über eine Lücke wäre eine Behauptung.
+  const abschnitte = [];
+  let lauf = [];
+  daten.forEach((d, i) => {
+    if (d.oee == null) { if (lauf.length) abschnitte.push(lauf); lauf = []; }
+    else lauf.push(i);
+  });
+  if (lauf.length) abschnitte.push(lauf);
+
+  // Nur wenige Punkte beschriften: erster, letzter, höchster, tiefster.
+  const wertIdx = daten.map((d, i) => (d.oee != null ? i : null)).filter((i) => i != null);
+  const beschriftet = new Set();
+  if (wertIdx.length) {
+    let maxI = wertIdx[0], minI = wertIdx[0];
+    wertIdx.forEach((i) => {
+      if (daten[i].oee > daten[maxI].oee) maxI = i;
+      if (daten[i].oee < daten[minI].oee) minI = i;
+    });
+    [wertIdx[0], wertIdx[wertIdx.length - 1], maxI, minI].forEach((i) => beschriftet.add(i));
+  }
+
   return (
     <svg viewBox={`0 0 ${breite} ${hoehe}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="OEE-Verlauf">
-      {[0, 60, 80, 100].map((m) => {
-        const y = rand.oben + innenH * (1 - m / max);
+      {[0, 60, 80, 100].map((m) => (
+        <g key={m}>
+          <line x1={L} x2={breite - R} y1={y(m)} y2={y(m)} stroke={m === 60 || m === 80 ? "#E7D9A8" : m === 0 ? "#C3C7CB" : "#EEF0F2"} strokeWidth="1" strokeDasharray={m === 60 || m === 80 ? "4 3" : ""} />
+          <text x={L - 5} y={y(m) + 3} textAnchor="end" fontSize="9" fill="#8A9099">{m}</text>
+        </g>
+      ))}
+      {abschnitte.map((abschnitt, ai) => {
+        const pfad = abschnitt.map((i, k) => `${k === 0 ? "M" : "L"} ${x(i)} ${y(daten[i].oee)}`).join(" ");
+        const flaeche = `${pfad} L ${x(abschnitt[abschnitt.length - 1])} ${y(0)} L ${x(abschnitt[0])} ${y(0)} Z`;
         return (
-          <g key={m}>
-            <line x1={rand.links} x2={breite - 4} y1={y} y2={y} stroke={m === 60 || m === 80 ? "#E7D9A8" : "#EEF0F2"} strokeWidth="1" strokeDasharray={m === 60 || m === 80 ? "4 3" : ""} />
-            <text x={rand.links - 5} y={y + 3} textAnchor="end" fontSize="9" fill="#8A9099">{m}</text>
+          <g key={ai}>
+            {abschnitt.length > 1 && <path d={flaeche} fill="#2F6690" opacity="0.10" />}
+            {abschnitt.length > 1 && <path d={pfad} fill="none" stroke="#2F6690" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
           </g>
         );
       })}
-      {daten.map((d, i) => {
-        const w = d.oee;
-        const h = w == null ? 0 : Math.max(2, innenH * Math.min(w, max) / max);
-        const x = rand.links + (innenB / daten.length) * i + ((innenB / daten.length) - bBreite) / 2;
-        const y = rand.oben + innenH - h;
-        return (
-          <g key={d.beschriftung + i}>
-            <rect x={x} y={y} width={bBreite} height={h} rx="2.5" fill={farbe(w)}>
-              <title>{`${d.titel || d.beschriftung}: ${w == null ? "–" : String(w).replace(".", ",")} %`}</title>
-            </rect>
-            {zeigeWert && w != null && (
-              <text x={x + bBreite / 2} y={y - 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5B6572">{Math.round(w)}</text>
-            )}
-            <text x={x + bBreite / 2} y={hoehe - 8} textAnchor="middle" fontSize={daten.length > 20 ? 7 : 9} fill="#8A9099">{d.beschriftung}</text>
-          </g>
-        );
-      })}
+      {daten.map((d, i) => d.oee != null && (
+        <g key={d.beschriftung + i}>
+          <circle cx={x(i)} cy={y(d.oee)} r="3.5" fill={farbe(d.oee)} stroke="#fff" strokeWidth="1.5">
+            <title>{`${d.titel || d.beschriftung}: ${String(d.oee).replace(".", ",")} %`}</title>
+          </circle>
+          {beschriftet.has(i) && (
+            <text x={x(i)} y={y(d.oee) - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill="#22262B">{Math.round(d.oee)}</text>
+          )}
+        </g>
+      ))}
+      {daten.map((d, i) => (
+        <text key={"b" + i} x={x(i)} y={hoehe - 8} textAnchor="middle" fontSize={daten.length > 20 ? 7 : 9} fill="#8A9099">{d.beschriftung}</text>
+      ))}
     </svg>
   );
 }
@@ -7741,11 +7769,11 @@ function App() {
               return (
                 <>
                   <div className="text-xs font-extrabold uppercase tracking-wide mb-1" style={{ color: "#22262B" }}>Monatsverlauf · {monatName}</div>
-                  <OeeBalken daten={monatsTage} />
+                  <OeeVerlauf daten={monatsTage} />
                   <div className="text-xs font-extrabold uppercase tracking-wide mb-1 mt-4" style={{ color: "#22262B" }}>Jahresverlauf · {jahrKey}</div>
-                  <OeeBalken daten={monate} />
+                  <OeeVerlauf daten={monate} />
                   <div className="text-xs mt-1 mb-2" style={{ color: "#8A9099" }}>
-                    Monatsbalken = Mittel der Tageswerte in der Tabelle (ungewichtet).
+                    Monatspunkte = Mittel der Tageswerte in der Tabelle (ungewichtet).
                     {monate.length <= 1 && <> Für den vollen Jahresverlauf in Excel den Pivot-Filter auf das ganze Jahr {jahrKey} stellen.</>}
                   </div>
                 </>

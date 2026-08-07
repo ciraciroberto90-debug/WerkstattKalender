@@ -292,13 +292,16 @@ auf denselben Dateien.
 
 - [x] **Monats- und Jahresdiagramm hinter der OEE-Kachel (07.08.).** Ein
       Klick auf die Kachel zeigt jetzt zuerst den **Monatsverlauf**
-      (Tagesbalken des jüngsten Monats) und den **Jahresverlauf**
-      (Monatsmittel), als schlichte Balken in den Ampelfarben der
-      Excel-Legende (rot < 60 ≤ gelb < 80 ≤ grün), mit Hilfslinien bei 60
-      und 80. Gespeist aus den Tageszeilen der Tabelle; Monatsmittel sind
-      **ungewichtet** und das Blatt sagt das dazu. Steht der Pivot-Filter
-      nur auf einem Monat, weist ein Hinweis auf den Jahresfilter in Excel
-      (harte-40, Fall 12)
+      (Tageswerte des jüngsten Monats) und den **Jahresverlauf**
+      (Monatsmittel). Auf Robertos Ansage („ein Punkt-Linien-Diagramm ist
+      besser, in etwa so wie bei TPM") als **Punkt-Linien-Kurve** im Stil
+      der Termintreue-Kurve – erste Fassung waren Balken. Punkte in den
+      Ampelfarben der Excel-Legende (rot < 60 ≤ gelb < 80 ≤ grün),
+      Schwellen 60/80 gestrichelt, beschriftet nur erster/letzter/
+      höchster/tiefster Wert. Gespeist aus den Tageszeilen der Tabelle;
+      Monatsmittel sind **ungewichtet** und das Blatt sagt das dazu. Steht
+      der Pivot-Filter nur auf einem Monat, weist ein Hinweis auf den
+      Jahresfilter in Excel (harte-40, Fall 12)
 - [x] **⚙-Dialog aufgeräumt: vier Reiter statt einer langen Rolle (07.08.).**
       „Anlagen & R+I" (Anlagen, R+I-Punkte, Anlagenteile), „Team &
       Schichten" (Team, Schichtarten, eigener Name), „OEE" und „Verlauf &

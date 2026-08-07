@@ -397,11 +397,12 @@ const kachel = (p) => p.locator("button[title*='OEE']").first();
       (auswertungText.match(/Jahresverlauf ·[^\n]*/i) || ["—"])[0]);
     const gleicherMonat = heute.getMonth() === gestern.getMonth() && heute.getFullYear() === gestern.getFullYear();
     const gleichesJahr = heute.getFullYear() === gestern.getFullYear();
-    // Tagesbalken im juengsten Monat + Monatsbalken im juengsten Jahr
-    const erwarteteBalken = (gleicherMonat ? 2 : 1) + (!gleichesJahr ? 1 : gleicherMonat ? 1 : 2);
-    const balken = await auswertung.locator('svg[aria-label="OEE-Verlauf"] rect').count();
-    pruef("(12) Es stehen echte Balken in den Diagrammen (Tage + Monate)",
-      balken === erwarteteBalken, balken + " Balken (erwartet " + erwarteteBalken + ")");
+    // Tagespunkte im juengsten Monat + Monatspunkte im juengsten Jahr
+    // (Punkt-Linien-Diagramm wie bei der TPM-Termintreue - Robertos Wunsch)
+    const erwartetePunkte = (gleicherMonat ? 2 : 1) + (!gleichesJahr ? 1 : gleicherMonat ? 1 : 2);
+    const punkte = await auswertung.locator('svg[aria-label="OEE-Verlauf"] circle').count();
+    pruef("(12) Es stehen echte Punkte in den Diagrammen (Tage + Monate)",
+      punkte === erwartetePunkte, punkte + " Punkte (erwartet " + erwartetePunkte + ")");
     if (gleicherMonat) pruef("(12) Bei nur einem Monat steht der Hinweis auf den Pivot-Jahresfilter",
       /Pivot-Filter/.test(auswertungText),
       (auswertungText.match(/[^\n]*Pivot-Filter[^\n]*/) || ["—"])[0].trim().slice(0, 90));
