@@ -131,10 +131,10 @@ node tools/startpaket-bauen.js --pruefen   # ist die Start-ZIP noch aktuell?
 Nach jeder Änderung an `arbeitsplatz/` gehört `node tools/startpaket-bauen.js`
 dazu – sonst verteilt die ZIP weiter den alten Stand.
 
-Stand der letzten vollständigen Prüfung (06.08.2026): **40/40 Härtetests,
-638 Einzelprüfungen, kein Fehlschlag** – inklusive sieben Jahrgängen
+Stand der letzten vollständigen Prüfung (07.08.2026): **40/40 Härtetests,
+645 Einzelprüfungen, kein Fehlschlag** – inklusive sieben Jahrgängen
 Betriebsdaten (16 951 Einträge, 1 260 Störberichte, 3,4 MB), voller
 Speichergrenze, beschädigter Datei, falsch gehender Uhr, zwei gleichzeitig
 offenen Fenstern, einer echten Excel-Tabelle und der Programm-Fassung
-(harte-41 mit der Desktop-Brücke; dazu `pruefe-programm.js` gegen das echte
-Electron-Programm: 7/7).
+(harte-41 mit der Desktop-Brücke, 20 Prüfungen; dazu `pruefe-programm.js`
+gegen das echte Electron-Programm samt Update-Kreislauf: 12/12).
