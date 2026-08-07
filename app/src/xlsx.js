@@ -295,7 +295,9 @@ const SUCHWORTE = {
   // "zeit" allein wäre zu gierig - es steckt auch in "Ausfallzeit" und
   // "Laufzeit", und die sind etwas ganz anderes.
   zeit: ["uhrzeit", "startzeit", "beginn", "zeitstempel"],
-  datum: ["datum", "tag", "date", "schichttag"],
+  // "Zeilenbeschriftungen"/"Row Labels": So nennt Excel die Zeilenspalte
+  // einer Pivot von Haus aus - dort stehen bei Robertos Auswertung die Tage.
+  datum: ["zeilenbeschriftung", "rowlabels", "datum", "tag", "date", "schichttag"],
   anlage: ["anlage", "maschine", "linie", "equipment", "kostenstelle", "arbeitsplatz"],
   schicht: ["schicht", "shift"],
   // Das LÄNGSTE passende Suchwort gewinnt. In der Pivot heißen die Spalten
