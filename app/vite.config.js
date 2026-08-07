@@ -7,4 +7,9 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 // Webserver per Doppelklick läuft (siehe "build"-Script in package.json).
 export default defineConfig({
   plugins: [react(), tailwindcss(), viteSingleFile()],
+  define: {
+    // Sichtbarer Versionsstand (⚙ unten). Gemessen am 07.08.: Roberto sass
+    // vor einer aelteren Fassung, und niemand konnte es der App ansehen.
+    __BUILD_ZEIT__: JSON.stringify(new Date().toISOString()),
+  },
 });

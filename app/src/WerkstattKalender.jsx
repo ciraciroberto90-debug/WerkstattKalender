@@ -8796,6 +8796,15 @@ function App() {
             <div className="text-xs text-slate-400 mt-3">
               Umbenennen überträgt sich automatisch auf bestehende Kalender-Einträge. Montags-Rotation-Slots und die B1-Rolle sollten je nur einmal vergeben sein, sonst greift automatisch der erste Treffer.
             </div>
+            {/* Versionsstand: Wann wurde DIESE App-Fassung gebaut? Gemessen am
+                07.08.: Roberto sass beim OEE-Einrichten vor einer aelteren
+                Fassung ("Dropdown faengt bei Spalte 4 an"), und nichts in der
+                App konnte ihm das sagen. Jetzt steht es hier - jede Frage
+                "welche Version laeuft bei dir?" ist ein Blick ins Zahnrad. */}
+            <div className="text-xs mt-2 font-mono" style={{ color: "#C3C7CB" }}>
+              Version vom {new Date(__BUILD_ZEIT__).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })} Uhr
+              {typeof window !== "undefined" && window.__werkstattDesktop ? " · Programm-Fassung" : " · Browser-Fassung"}
+            </div>
           </div>
         </div>
       )}
