@@ -307,6 +307,50 @@ function WerkstattUhr() {
   );
 }
 
+/* Balkendiagramm für die OEE-Auswertung im Klick-Popup. Bewusst schlichte
+   SVG-Balken ohne Bibliothek: Ampelfarben nach denselben Schwellen wie in
+   der Excel-Legende (ab 60 % gelb, ab 80 % grün), Werte an den Balken. */
+function OeeBalken({ daten, breite = 560, hoehe = 150 }) {
+  if (!daten || daten.length === 0) return null;
+  const rand = { links: 30, unten: 22, oben: 14 };
+  const innenB = breite - rand.links - 8;
+  const innenH = hoehe - rand.unten - rand.oben;
+  const max = 100;
+  const bBreite = Math.max(4, Math.min(34, Math.floor(innenB / daten.length) - 3));
+  const farbe = (w) => (w == null ? "#D5D9DE" : w >= 80 ? "#3E9B5F" : w >= 60 ? "#E8B33C" : "#B23A34");
+  const zeigeWert = daten.length <= 16; // sonst wird es Zahlensalat
+  return (
+    <svg viewBox={`0 0 ${breite} ${hoehe}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="OEE-Verlauf">
+      {[0, 60, 80, 100].map((m) => {
+        const y = rand.oben + innenH * (1 - m / max);
+        return (
+          <g key={m}>
+            <line x1={rand.links} x2={breite - 4} y1={y} y2={y} stroke={m === 60 || m === 80 ? "#E7D9A8" : "#EEF0F2"} strokeWidth="1" strokeDasharray={m === 60 || m === 80 ? "4 3" : ""} />
+            <text x={rand.links - 5} y={y + 3} textAnchor="end" fontSize="9" fill="#8A9099">{m}</text>
+          </g>
+        );
+      })}
+      {daten.map((d, i) => {
+        const w = d.oee;
+        const h = w == null ? 0 : Math.max(2, innenH * Math.min(w, max) / max);
+        const x = rand.links + (innenB / daten.length) * i + ((innenB / daten.length) - bBreite) / 2;
+        const y = rand.oben + innenH - h;
+        return (
+          <g key={d.beschriftung + i}>
+            <rect x={x} y={y} width={bBreite} height={h} rx="2.5" fill={farbe(w)}>
+              <title>{`${d.titel || d.beschriftung}: ${w == null ? "–" : String(w).replace(".", ",")} %`}</title>
+            </rect>
+            {zeigeWert && w != null && (
+              <text x={x + bBreite / 2} y={y - 3} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5B6572">{Math.round(w)}</text>
+            )}
+            <text x={x + bBreite / 2} y={hoehe - 8} textAnchor="middle" fontSize={daten.length > 20 ? 7 : 9} fill="#8A9099">{d.beschriftung}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 /* OEE-Kachel: die Zahl aus der Excel-Tabelle, im selben Maß wie die anderen
    Kacheln. Sie zeigt bewusst auch, WORAUS sie kommt (Tag, Zeilen, Datei) -
    eine Kennzahl ohne Herkunft ist in einer Werkstattbesprechung wertlos. */
@@ -656,6 +700,19 @@ const werteOeeAus = (alleZeilen, jetztMs) => {
      ohne Summenzeile behalten das bisherige Verhalten (24 h bzw. Tag). */
   const summen = alleZeilen.filter((z) => z.istSumme);
   const zeilen = alleZeilen.filter((z) => !z.istSumme);
+  /* Tagesreihe für die Diagramme im Klick-Popup: je Tag das Mittel der
+     Tageszeilen (in der Pivot ist das genau die eine Tagessummenzeile).
+     Enthalten ist, was die Tabelle hergibt - steht der Pivot-Filter auf
+     einem Monat, reicht die Reihe genau so weit. */
+  const tagesReihe = (() => {
+    const proTag = new Map();
+    zeilen.forEach((z) => {
+      if (!z.tag) return;
+      if (!proTag.has(z.tag)) proTag.set(z.tag, []);
+      proTag.get(z.tag).push(z);
+    });
+    return [...proTag.keys()].sort().map((tag) => ({ tag, oee: oeeMittel(proTag.get(tag), "oee") }));
+  })();
   if (summen.length) {
     const s = summen[summen.length - 1];
     // Zusatz: der jüngste Tag der Tabelle - als Einordnung und als
@@ -667,6 +724,7 @@ const werteOeeAus = (alleZeilen, jetztMs) => {
     const alterStunden = letzter ? Math.round((jetzt - new Date(letzter + "T00:00:00").getTime()) / 3600e3) : null;
     return {
       modus: "summe",
+      tagesReihe,
       oee: s.oee,
       verfuegbarkeit: s.verfuegbarkeit, leistung: s.leistung, qualitaet: s.qualitaet,
       zeilen: alleZeilen.length,
@@ -685,6 +743,7 @@ const werteOeeAus = (alleZeilen, jetztMs) => {
 
   const bau = (liste, modus, zusatz) => ({
     modus, // "24h" | "tag" | "gesamt"
+    tagesReihe,
     oee: oeeMittel(liste, "oee"),
     verfuegbarkeit: oeeMittel(liste, "verfuegbarkeit"),
     leistung: oeeMittel(liste, "leistung"),
@@ -1144,6 +1203,9 @@ function App() {
   const [oeeQuelle, setOeeQuelle] = useState(() => normalisiereOee(null));
   const [oeeStand, setOeeStand] = useState({ lage: "aus" }); // aus | laedt | ok | fehler
   const [settingsOee, setSettingsOee] = useState(null); // Entwurf im ⚙-Dialog
+  /* ⚙ in Reitern statt einer langen Rolle - Robertos Wunsch vom 07.08.
+     ("nicht sortiert, mache eine kleine Menüleiste oben"). */
+  const [settingsTab, setSettingsTab] = useState("anlagen"); // anlagen | team | oee | pflege
   /* Programm-Update: Der Rahmen meldet, wenn im Update-Ordner eine neuere
      App-HTML liegt. Bleibender Zustand statt fluechtiger Meldung - ein
      Update soll nicht von der naechsten Erfolgsmeldung weggewischt werden. */
@@ -2447,6 +2509,7 @@ function App() {
     setNeueSchichtName("");
     setNeuesTeilAnlage("");
     setNeuesTeilName("");
+    setSettingsTab("anlagen");
     setSettingsOpen(true);
     // OEE-Einrichtung als Entwurf: erst beim Übernehmen wandert sie in die
     // gemeinsame Datei - sonst würde jedes Herumprobieren sofort bei allen
@@ -7607,7 +7670,7 @@ function App() {
             role="dialog"
             aria-label="OEE Anlagenübersicht"
             onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor: "white", borderRadius: "var(--wk-eck)", width: "560px", maxWidth: "100%", maxHeight: "84vh", overflowY: "auto", padding: "20px 22px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)" }}
+            style={{ backgroundColor: "white", borderRadius: "var(--wk-eck)", width: "640px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", padding: "20px 22px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)" }}
           >
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-extrabold" style={{ color: "#22262B" }}>OEE · alle Anlagen</span>
@@ -7643,11 +7706,52 @@ function App() {
               </span>
               <span className="font-extrabold" style={{ fontSize: "1rem", color: "#22262B" }}>%</span>
               <span className="text-xs" style={{ color: "#8A9099" }}>
-                Mittel über {oeeStand.anlagen || 0} Anlage(n)
+                {/* Im Summen-Modus rechnet die App nichts - die Zahl IST die GES-Zeile */}
+                {oeeStand.modus === "summe" ? "Summenzeile der Tabelle" : `Mittel über ${oeeStand.anlagen || 0} Anlage(n)`}
                 {[oeeStand.verfuegbarkeit, oeeStand.leistung, oeeStand.qualitaet].every((x) => x != null) &&
                   ` · V ${String(oeeStand.verfuegbarkeit).replace(".", ",")} % · L ${String(oeeStand.leistung).replace(".", ",")} % · Q ${String(oeeStand.qualitaet).replace(".", ",")} %`}
               </span>
             </div>
+            {/* Monats- und Jahresverlauf aus den Tageszeilen der Tabelle.
+                Robertos Wunsch vom 07.08.: eine kleine Auswertung hinter der
+                Kachel. Gezeigt wird, was die Tabelle hergibt - steht der
+                Pivot-Filter nur auf einem Monat, ist der Jahresverlauf
+                entsprechend kurz, und ein Hinweis sagt das dazu. */}
+            {(() => {
+              const reihe = oeeStand.tagesReihe || [];
+              if (!reihe.length) return null;
+              const letzter = reihe[reihe.length - 1].tag;
+              const monatKey = letzter.slice(0, 7);
+              const monatsTage = reihe.filter((d) => d.tag.startsWith(monatKey))
+                .map((d) => ({ beschriftung: String(Number(d.tag.slice(8, 10))), titel: new Date(d.tag + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }), oee: d.oee }));
+              const proMonat = new Map();
+              reihe.forEach((d) => {
+                const k = d.tag.slice(0, 7);
+                if (!proMonat.has(k)) proMonat.set(k, []);
+                proMonat.get(k).push(d.oee);
+              });
+              const jahrKey = letzter.slice(0, 4);
+              const monate = [...proMonat.keys()].filter((k) => k.startsWith(jahrKey)).sort()
+                .map((k) => ({
+                  beschriftung: MONTHS_SHORT[Number(k.slice(5, 7)) - 1],
+                  titel: `${MONTHS[Number(k.slice(5, 7)) - 1]} ${jahrKey}`,
+                  oee: (() => { const w = proMonat.get(k).filter((x) => typeof x === "number"); return w.length ? Math.round((w.reduce((x, y) => x + y, 0) / w.length) * 10) / 10 : null; })(),
+                }));
+              const monatName = `${MONTHS[Number(monatKey.slice(5, 7)) - 1]} ${monatKey.slice(0, 4)}`;
+              return (
+                <>
+                  <div className="text-xs font-extrabold uppercase tracking-wide mb-1" style={{ color: "#22262B" }}>Monatsverlauf · {monatName}</div>
+                  <OeeBalken daten={monatsTage} />
+                  <div className="text-xs font-extrabold uppercase tracking-wide mb-1 mt-4" style={{ color: "#22262B" }}>Jahresverlauf · {jahrKey}</div>
+                  <OeeBalken daten={monate} />
+                  <div className="text-xs mt-1 mb-2" style={{ color: "#8A9099" }}>
+                    Monatsbalken = Mittel der Tageswerte in der Tabelle (ungewichtet).
+                    {monate.length <= 1 && <> Für den vollen Jahresverlauf in Excel den Pivot-Filter auf das ganze Jahr {jahrKey} stellen.</>}
+                  </div>
+                </>
+              );
+            })()}
+            {(oeeStand.proAnlage || []).length > 0 && (
             <table className="w-full" style={{ fontSize: "0.8rem" }}>
               <thead>
                 <tr style={{ color: "#8A9099", fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.3px" }}>
@@ -7674,9 +7778,12 @@ function App() {
                 })}
               </tbody>
             </table>
+            )}
+            {(oeeStand.proAnlage || []).length > 0 && (
             <div className="text-xs mt-3" style={{ color: "#C3C7CB" }}>
               Ungewichtetes Mittel je Anlage – ohne Laufzeit in der Tabelle wäre jede Gewichtung geraten.
             </div>
+            )}
             {!readerMode && (
               <button
                 onClick={() => { setOeeUebersichtOffen(false); openSettings(); }}
@@ -8089,11 +8196,28 @@ function App() {
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "680px", maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="font-bold text-sm">Anlagen &amp; R+I-Punkte verwalten</div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-sm">Verwalten</div>
               <button onClick={() => setSettingsOpen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
             </div>
 
+            {/* Reiterleiste: vier Themen statt einer langen Rolle */}
+            <div className="flex gap-1 mb-4 pb-2 border-b" style={{ borderColor: "#E2E4E7" }}>
+              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"], ["oee", "OEE"], ["pflege", "Verlauf & Sicherung"]].map(([k, name]) => (
+                <button
+                  key={k}
+                  onClick={() => setSettingsTab(k)}
+                  className="text-xs font-bold px-3 py-1.5 rounded"
+                  style={settingsTab === k
+                    ? { backgroundColor: "#22262B", color: "#fff" }
+                    : { backgroundColor: "#F1F3F5", color: "#5B6572" }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+
+            {settingsTab === "anlagen" && (<>
             <div className="text-xs font-bold uppercase mb-2" style={{ color: CATS.TPM.color }}>TPM-Anlagen</div>
             <div className="flex flex-col gap-1.5 mb-2">
               {settingsTpm.map((a, idx) => (
@@ -8317,6 +8441,9 @@ function App() {
               + R+I-Punkt hinzufügen
             </button>
 
+            </>)}
+
+            {settingsTab === "team" && (<>
             <div className="text-xs font-bold uppercase mb-2" style={{ color: "#22262B" }}>Team (für Zuweisung &amp; Arbeitsplanung)</div>
             <div className="flex flex-col gap-1.5 mb-2">
               {settingsTeam.map((t, idx) => (
@@ -8424,6 +8551,9 @@ function App() {
               </button>
             </div>
 
+            </>)}
+
+            {settingsTab === "anlagen" && (<>
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Anlagenteile (für Störberichte)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Teile je Anlage – erscheinen beim Melden einer Störung als Auswahl neben der Anlage. Nur du pflegst diese Liste.
@@ -8482,6 +8612,9 @@ function App() {
               </button>
             </div>
 
+            </>)}
+
+            {settingsTab === "team" && (<>
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Dein Name (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Wird im Verlauf und bei Störmeldungen als Urheber eingetragen. Bleibt auf diesem Gerät.
@@ -8494,6 +8627,9 @@ function App() {
               style={{ borderColor: "#D7DCE1" }}
             />
 
+            </>)}
+
+            {settingsTab === "pflege" && (<>
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Verlauf (wer hat was geändert)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Änderungen der letzten 90 Tage aus der gemeinsamen Datei. Wer keinen Namen hinterlegt hat, erscheint als „Unbekannt".
@@ -8578,6 +8714,9 @@ function App() {
               </>
             )}
 
+            </>)}
+
+            {settingsTab === "oee" && (<>
             {/* ---- OEE aus einer Excel-Tabelle ------------------------------
                 Die Tabelle liegt im Datenordner neben der gemeinsamen Datei.
                 Gespeichert wird nur der DATEINAME und die Spaltenzuordnung -
@@ -8798,6 +8937,9 @@ function App() {
               );
             })()}
 
+            </>)}
+
+            {settingsTab === "pflege" && (<>
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Sicherungen (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Bei jedem Speichern wird der Stand hier zusätzlich lokal gesichert - falls doch mal etwas schiefgeht, kannst du eine frühere Version wiederherstellen.
@@ -8826,6 +8968,8 @@ function App() {
                 ))}
               </div>
             )}
+
+            </>)}
 
             <div className="flex gap-2 pt-2 border-t" style={{ borderColor: "#E2E4E7" }}>
               <button

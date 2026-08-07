@@ -176,6 +176,9 @@ async function starte(browser, { imDatenordner = {}, imQuellordner = null } = {}
 async function richteEin(p, datei, { eigenerOrdner = false } = {}) {
   await p.locator('button[aria-label="Verwalten"]').click();
   await p.waitForTimeout(400);
+  // Der Dialog hat jetzt Reiter - die OEE-Einrichtung liegt hinter "OEE"
+  await p.getByRole("button", { name: "OEE", exact: true }).click();
+  await p.waitForTimeout(250);
   if (eigenerOrdner) {
     await p.getByRole("button", { name: "Ordner wählen …" }).click();
     await p.waitForTimeout(700);
@@ -353,6 +356,8 @@ const kachel = (p) => p.locator("button[title*='OEE']").first();
     // einmal neu oeffnen (sie kommt jetzt aus der gespeicherten Quelle)
     await p.locator('button[aria-label="Verwalten"]').click();
     await p.waitForTimeout(500);
+    await p.getByRole("button", { name: "OEE", exact: true }).click();
+    await p.waitForTimeout(250);
     await p.getByRole("button", { name: "Tabellen im Ordner suchen" }).click();
     await p.waitForTimeout(300);
     await p.locator('select[aria-label="Excel-Tabelle wählen"]').selectOption("OEE_Auswertung.xlsx");
@@ -371,6 +376,37 @@ const kachel = (p) => p.locator("button[title*='OEE']").first();
     const kachelTitel = String(await kachel(p).getAttribute("title"));
     pruef("(11) Pivot: Der juengste Tag steht als Einordnung im Tooltip",
       /71,6/.test(kachelTitel), kachelTitel.split("\n").find((z) => /Tag/.test(z)) || "—");
+
+    /* (12) Klick auf die Kachel -> Monats- und Jahresdiagramm.
+       Die Testdaten liegen relativ zu "heute" (gestern + heute) - die
+       Erwartungen rechnen deshalb mit, statt feste Monate zu behaupten.
+       innerText liefert die per CSS grossgeschriebenen Ueberschriften,
+       darum vergleicht alles hier ohne Ruecksicht auf Gross/Klein. */
+    await kachel(p).click();
+    await p.waitForTimeout(400);
+    const auswertung = p.locator('[aria-label="OEE Anlagenübersicht"]');
+    pruef("(12) Die Auswertung öffnet sich auch im Summen-Modus", await auswertung.count() === 1);
+    const auswertungText = await auswertung.innerText();
+    const heute = mitternacht(0), gestern = mitternacht(1);
+    const monatName = heute.toLocaleDateString("de-DE", { month: "long" });
+    pruef("(12) Der Monatsverlauf ist da (mit Monat und Jahr in der Überschrift)",
+      new RegExp(`Monatsverlauf · ${monatName} ${heute.getFullYear()}`, "i").test(auswertungText),
+      (auswertungText.match(/Monatsverlauf[^\n]*/i) || ["—"])[0]);
+    pruef("(12) Der Jahresverlauf ist da",
+      new RegExp(`Jahresverlauf · ${heute.getFullYear()}`, "i").test(auswertungText),
+      (auswertungText.match(/Jahresverlauf ·[^\n]*/i) || ["—"])[0]);
+    const gleicherMonat = heute.getMonth() === gestern.getMonth() && heute.getFullYear() === gestern.getFullYear();
+    const gleichesJahr = heute.getFullYear() === gestern.getFullYear();
+    // Tagesbalken im juengsten Monat + Monatsbalken im juengsten Jahr
+    const erwarteteBalken = (gleicherMonat ? 2 : 1) + (!gleichesJahr ? 1 : gleicherMonat ? 1 : 2);
+    const balken = await auswertung.locator('svg[aria-label="OEE-Verlauf"] rect').count();
+    pruef("(12) Es stehen echte Balken in den Diagrammen (Tage + Monate)",
+      balken === erwarteteBalken, balken + " Balken (erwartet " + erwarteteBalken + ")");
+    if (gleicherMonat) pruef("(12) Bei nur einem Monat steht der Hinweis auf den Pivot-Jahresfilter",
+      /Pivot-Filter/.test(auswertungText),
+      (auswertungText.match(/[^\n]*Pivot-Filter[^\n]*/) || ["—"])[0].trim().slice(0, 90));
+    await p.locator('[aria-label="OEE Anlagenübersicht"] button[aria-label="Schließen"]').click();
+    await p.waitForTimeout(300);
     await p.context().close();
   }
 

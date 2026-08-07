@@ -46,6 +46,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // Umbenennen im Verwalten-Dialog
   await page.locator('button[aria-label="Werkstatt-Monitor"]').locator('xpath=preceding-sibling::button[1]').click(); // Zahnrad (Verwalten)
   await page.waitForTimeout(300);
+  // Das Team liegt seit der Reiter-Aufteilung hinter "Team & Schichten"
+  await page.getByRole('button', { name: 'Team & Schichten', exact: true }).click();
+  await page.waitForTimeout(250);
   await page.locator('input[value="Alt Name"]').fill('Neuer Name');
   await page.getByRole('button', { name: /Speichern/ }).first().click();
   await page.waitForTimeout(400);
@@ -63,6 +66,8 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // aber die App darf nicht abstürzen
   await page.locator('button[aria-label="Werkstatt-Monitor"]').locator('xpath=preceding-sibling::button[1]').click();
   await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Team & Schichten', exact: true }).click();
+  await page.waitForTimeout(250);
   await page.locator('button[aria-label="Person entfernen"]').first().click();
   await page.getByRole('button', { name: /Speichern/ }).first().click();
   await page.waitForTimeout(400);

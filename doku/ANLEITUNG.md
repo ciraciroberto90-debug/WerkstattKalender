@@ -166,9 +166,9 @@ Auf der Übersicht kann eine Kachel den **OEE-Wert direkt aus einer
 Excel-Tabelle** anzeigen. Einmal eingerichtet, gilt das für alle – die
 Einrichtung steht in der gemeinsamen Datei.
 
-**Einrichten:** ⚙ → **OEE aus Excel** → **„Ordner wählen …"** (der Ordner auf
-dem Firmenlaufwerk, in dem die Tabelle liegt) → Datei und Tabellenblatt
-wählen → **„OEE-Quelle übernehmen"**.
+**Einrichten:** ⚙ → Reiter **OEE** → **„Ordner wählen …"** (der Ordner auf
+dem Firmenlaufwerk, in dem die Tabelle liegt – oder den Pfad einfach in die
+Zeile einfügen) → Datei und Tabellenblatt wählen → **„OEE-Quelle übernehmen"**.
 
 Zwei Dinge sind dabei getrennt:
 
@@ -187,13 +187,20 @@ Schicht, OEE, Verfügbarkeit, Leistung, Qualität*); jede Zuordnung lässt sich
 darunter von Hand ändern. **Auch Pivot-Tabellen werden verstanden:** Ein über
 mehrere Zeilen verteilter Kopf wird zusammengesetzt („Gesamt:" über „OEE%n"
 ergibt *Gesamt: OEE%n*), bei mehreren OEE-Spalten gewinnt die Gesamt-Spalte,
-und Zwischenzeilen (FRÜH/MITTAG/NACHT) sowie die GES-Summenzeile stellen die
-Kachel nicht – sie zeigt die **Tageszeile**.
+und Zwischenzeilen (FRÜH/MITTAG/NACHT) zählen nicht doppelt. **Hat die
+Tabelle eine GES-/Gesamtergebnis-Zeile, zeigt die Kachel genau diese Zahl** –
+das ist die Zahl, die zählt; der Zeitraum ist dann der in Excel gefilterte.
+Der jüngste Tag steht zur Einordnung im Tooltip und in der Übersicht.
 
-**Was die Kachel zeigt:** das Mittel über **alle Anlagen der letzten 24
-Stunden**, dazu den Pfeil zum Vergleich mit den 24 Stunden davor. Ein **Klick
-auf die Kachel** öffnet die Anlagenübersicht – jede Anlage mit ihrem Wert,
-die schlechteste oben, denn die ist der Grund hinzuschauen.
+**Was die Kachel zeigt:** ohne Summenzeile das Mittel über **alle Anlagen der
+letzten 24 Stunden**, dazu den Pfeil zum Vergleich mit den 24 Stunden davor.
+Ein **Klick auf die Kachel** öffnet die Auswertung: **Monatsverlauf**
+(Tagesbalken des jüngsten Monats) und **Jahresverlauf** (Monatsmittel) als
+Balkendiagramm in Ampelfarben – und darunter, sofern die Tabelle je Anlage
+liefert, jede Anlage mit ihrem Wert, die schlechteste oben, denn die ist der
+Grund hinzuschauen. Steht der Pivot-Filter nur auf einem Monat, ist der
+Jahresverlauf entsprechend kurz – für das volle Bild in Excel den Filter auf
+das ganze Jahr stellen.
 
 Für „letzte 24 Stunden" braucht jede Zeile einen Zeitpunkt. Die App nimmt in
 dieser Reihenfolge: eine **Uhrzeitspalte**, eine **Uhrzeit im Datum**, sonst
@@ -379,9 +386,12 @@ Störungen, nicht den Rest.
 - **TPM → Plan / R+I:** wiederkehrende Wartungen und Inspektionen mit Terminlogik.
 - **Auswertung (Monat/Jahr):** unter den Zahlen der **Trend der Termintreue** – zwölf Monate
   als Kurve. Monate ohne fällige Termine bleiben bewusst leer, statt als 0 % zu erscheinen.
-- **Einstellungen (⚙ oben rechts):** Anlagen, R+I-Punkte (inkl. **Info / Rechtsgrundlage / Link**
-  je Punkt für die TPM-Übersicht), **Team**, **Schichtarten**, **Anlagenteile** (für Störberichte),
-  **dein Name**, der **Verlauf** und die **lokalen Sicherungen** dieses Geräts.
+- **Einstellungen (⚙ oben rechts):** aufgeteilt in vier Reiter –
+  **Anlagen & R+I** (Anlagen, R+I-Punkte inkl. **Info / Rechtsgrundlage / Link**,
+  Anlagenteile für Störberichte), **Team & Schichten** (Team, Schichtarten,
+  dein Name), **OEE** (Excel-Anbindung, Abschnitt 3.6) und
+  **Verlauf & Sicherung** (Änderungsverlauf, Programm-Updates, lokale
+  Sicherungen dieses Geräts).
   → **Grundeinstellungen immer aus der aktuellen App-Version pflegen** (siehe Kapitel 10).
 
 ---
@@ -470,7 +480,7 @@ Drei Dinge, die man beim Vorlegen wissen sollte:
 
 ### 7.2 Verlauf – wer hat wann was geändert
 
-**⚙ → „Verlauf (wer hat was geändert)"** listet die Änderungen der **letzten 90 Tage**
+**⚙ → Reiter „Verlauf & Sicherung" → „Verlauf (wer hat was geändert)"** listet die Änderungen der **letzten 90 Tage**
 aus der gemeinsamen Datei: Zeitpunkt, Name, was geschah.
 
 - Es wird nur mitgeschrieben, solange eine **gemeinsame Datei verbunden** ist.
@@ -518,7 +528,7 @@ Die App ersetzt einen Backend-Server durch mehrere Schutzmechanismen:
   Wörtern wie „Sicherung"/„Kopie" bleiben unangetastet – eine erkannte Kopie wird
   nach dem Einsammeln gelöscht, deshalb im Zweifel lieber liegen lassen.
 - **Lokale Sicherungen:** je Gerät die 30 jüngsten Stände **und zusätzlich je
-  Kalendertag der letzte Stand der vergangenen 14 Tage** (⚙ → Sicherungen).
+  Kalendertag der letzte Stand der vergangenen 14 Tage** (⚙ → Reiter „Verlauf & Sicherung").
   Der Tagesspeicher ist wichtig, weil die 30 jüngsten Plätze an einem normalen
   Arbeitstag gemessen nur ~58 Minuten zurückreichen – ein Fehler, der erst am
   nächsten Morgen auffällt, hätte sonst kein Netz mehr.
@@ -613,7 +623,7 @@ trotzdem erst eine Kopie der Daten nehmen. Der eigene Name (⚙) muss im
 Programm einmal neu eingetragen werden, er ist geräte- bzw. programmweise
 gespeichert.
 
-**Updates im Programm:** einmal in ⚙ → **Programm-Updates** den Netzwerkordner
+**Updates im Programm:** einmal in ⚙ → Reiter **Verlauf & Sicherung** → **Programm-Updates** den Netzwerkordner
 angeben, in dem die App-HTML liegt (Pfad einfügen oder Ordner wählen). Das
 Programm schaut alle 5 Minuten nach; liegt dort eine neuere
 `Werkstatt_Kalender_TPM*.html`, erscheint oben **„Neue Version verfügbar"** –

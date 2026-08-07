@@ -264,7 +264,11 @@ const hole = (adresse, kopf = {}) => new Promise((fertig, schief) => {
       // Verwalten öffnen lädt die Sicherungen
       const b = document.querySelector('button[aria-label="Verwalten"]');
       if (b) b.click();
-      await new Promise((r) => setTimeout(r, 900));
+      await new Promise((r) => setTimeout(r, 500));
+      // Sicherungen liegen seit der Reiter-Aufteilung hinter "Verlauf & Sicherung"
+      const reiter = [...document.querySelectorAll("button")].find((k) => k.textContent.trim() === "Verlauf & Sicherung");
+      if (reiter) reiter.click();
+      await new Promise((r) => setTimeout(r, 500));
       return /sicherungen/i.test(document.body.innerText);
     });
     check("E: Es gibt lokale Sicherungen zum Wiederherstellen", sicherungen);

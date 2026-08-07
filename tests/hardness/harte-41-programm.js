@@ -280,6 +280,9 @@ const pruef = (n, c, zusatz) => {
   }]));
   await page.locator('button[aria-label="Verwalten"]').click();
   await page.waitForTimeout(500);
+  // Die OEE-Einrichtung liegt seit der Reiter-Aufteilung hinter dem Reiter "OEE"
+  await page.getByRole("button", { name: "OEE", exact: true }).click();
+  await page.waitForTimeout(250);
   await page.locator('input[aria-label="OEE-Pfad einfügen"]').fill(path.join(xlsxOrdner, "OEE_Halle1.xlsx"));
   await page.getByRole("button", { name: "Pfad übernehmen" }).click();
   await page.waitForTimeout(1200);

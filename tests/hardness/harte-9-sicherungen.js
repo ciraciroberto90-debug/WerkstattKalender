@@ -63,6 +63,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // Verwalten-Dialog öffnen -> Sicherungen-Liste sichtbar
   await page.locator('button[aria-label="Verwalten"]').click();
   await page.waitForTimeout(400);
+  // Sicherungen liegen seit der Reiter-Aufteilung hinter "Verlauf & Sicherung"
+  await page.getByRole('button', { name: 'Verlauf & Sicherung', exact: true }).click();
+  await page.waitForTimeout(250);
   const dialogText = await page.locator('body').innerText();
   ok('"Sicherungen"-Bereich ist im Verwalten-Dialog sichtbar', dialogText.toLowerCase().includes('sicherungen (dieses gerät)'));
   ok('Mind. ein "Wiederherstellen"-Link ist sichtbar', await page.getByRole('button', { name: 'Wiederherstellen' }).count() >= 1);
