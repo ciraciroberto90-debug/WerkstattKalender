@@ -11,7 +11,11 @@
 //  (5) Rückweg: Wer zur alten Fassung zurückmuss, verliert seine Termine nicht.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const NEU = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
-const ALT = "file:///tmp/alt/alt.html";
+// Die eingefrorene Alt-Fassung liegt als Pruefmuster IM Repo (Stand 9e62715,
+// vor der Umstellung der Einstellungen auf Einzel-Eintraege). Vorher lag sie
+// unter /tmp und war nach jedem frischen Arbeitscontainer verschwunden -
+// der Test scheiterte dann an der Umgebung statt an der Sache.
+const ALT = "file:///home/user/WerkstattKalender/tests/hilfen/alt-fassung.html";
 
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
