@@ -426,6 +426,30 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Tempo-Nachschärfung (10.08., Robertos „teilweise noch nachhängend"):**
+      Gemessen an 6-fach gedrosselter CPU (wie ein Werkstatt-PC, 6000+
+      Einträge): **Jeder Tastendruck** in Pinnwand-Zettel und Suchfeldern
+      kostete eine Vollzeichnung der ganzen Oberfläche (~60-90 ms je
+      Zeichen; 20 von 20 Anschlägen träge, 1366 ms Gesamtverzug). Ursache:
+      alle Eingabefelder hingen am Zustand der einen Riesen-Komponente.
+      Behoben durch **Tipp-Inseln**: Zettel-Verfasser mit eigenem Zustand,
+      vier Suchfelder (Pinnwand, Störungen, Backlog, Planungs-Auswahl) mit
+      150-ms-Denkpause. Nachher: 3 von 20 Anschlägen leicht träge, 73 ms
+      Gesamtverzug (−95 %). Zusätzlich: Hintergrund-Abgleiche als „nicht
+      dringend" (unterbrechbar durch Klicks), unveränderte Stände behalten
+      ihre Referenz (Einträge per Kennung+Zeitstempel-Fingerabdruck, OEE-
+      Leerlauf). Ehrlich vermerkt: Der Grundpreis einer echten fremden
+      Änderung (~250 ms Vollzeichnung auf schwacher CPU) bleibt - er sinkt
+      erst mit dem nächsten Schritt.
+- [ ] **Nächster Tempo-Schritt (falls es weiter spürbar hakt):** die
+      Oberfläche in eigenständige Bausteine aufteilen (Schichtplan-Matrix,
+      Planung, Übersicht, Störungsliste je als eigene Komponente mit
+      Memo-Grenze) - dann zeichnet eine fremde Änderung nur noch die
+      betroffene Ansicht. Größerer Umbau, gehört in eine ruhige Woche,
+      nicht in den Release-Abend. Auch die Störungs-Maske und weitere
+      Formulare können Tipp-Inseln werden, falls dort Tippen zäh ist -
+      Roberto sagt, wo es hakt.
+
 - [x] **Monats- und Jahresdiagramm hinter der OEE-Kachel (07.08.).** Ein
       Klick auf die Kachel zeigt jetzt zuerst den **Monatsverlauf**
       (Tageswerte des jüngsten Monats) und den **Jahresverlauf**

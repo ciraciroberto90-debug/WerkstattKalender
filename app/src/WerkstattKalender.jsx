@@ -22,6 +22,76 @@ function SyncAnzeige({ style }) {
   );
 }
 
+/* Tipp-Insel: Der Zettel-Verfasser hält seinen Text SELBST, statt jeden
+   Tastendruck durch die große Cockpit-Komponente zu schicken. Gemessen am
+   10.08. (6-fach gedrosselte CPU wie ein Werkstatt-PC): vorher machte JEDER
+   Tastendruck ~60 ms Vollzeichnung der ganzen Oberfläche - das war Robertos
+   "Nachhängen beim Eintragen". Erst das Anpinnen reicht den fertigen Text
+   nach oben. */
+function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen }) {
+  const [text, setText] = useState("");
+  const [name, setName] = useState(startName || "");
+  return (
+    <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+      <textarea
+        autoFocus
+        spellCheck
+        lang="de"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Was sollen die anderen wissen? (z. B. Ersatzteil kommt Do. früh)"
+        rows={3}
+        className="w-full text-sm border rounded px-3 py-2 mb-2"
+        style={{ borderColor: "#D6D9DC", resize: "vertical" }}
+      />
+      <div className="flex gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Dein Name/Kürzel"
+          className="text-sm border rounded px-3 py-1.5"
+          style={{ borderColor: "#D6D9DC", width: "160px" }}
+        />
+        <button
+          onClick={() => onAnpinnen(text, name)}
+          disabled={!text.trim() || !name.trim()}
+          className="text-sm font-bold px-4 py-1.5 rounded text-white disabled:opacity-40"
+          style={{ backgroundColor: "#2F7D4F" }}
+        >
+          Anpinnen
+        </button>
+        <button onClick={onAbbrechen} className="text-sm px-3 py-1.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
+      </div>
+    </div>
+  );
+}
+
+/* Such-Insel: Das Feld tippt lokal und reicht den Begriff erst nach einer
+   kurzen Denkpause (150 ms) nach oben - die Trefferliste braucht die große
+   Komponente, das Tippen selbst nicht. Gleiches Mess-Ergebnis wie beim
+   Zettel-Verfasser: ohne Insel kostet jeder Tastendruck eine Vollzeichnung. */
+function SuchFeld({ wert, onWert, ...rest }) {
+  const [lokal, setLokal] = useState(wert || "");
+  const timer = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(timer.current), []);
+  // Von außen nur das LEEREN übernehmen (z. B. Ansichtswechsel). Ein voller
+  // Rückabgleich könnte auf einem trägen Rechner gerade Getipptes
+  // überschreiben - der Ernstfall dieser Insel ist ja der träge Rechner.
+  React.useEffect(() => { if (!wert) setLokal(""); }, [wert]);
+  return (
+    <input
+      {...rest}
+      value={lokal}
+      onChange={(e) => {
+        const v = e.target.value;
+        setLokal(v);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => onWert(v), 150);
+      }}
+    />
+  );
+}
+
 // Halbkreis-Anzeige für die Erledigungs-Quoten in der Übersicht: der Bogen füllt
 // sich beim Anzeigen weich bis zum Zielwert, die Prozentzahl zählt synchron mit
 // hoch, ein kleiner Punkt reitet auf der Bogenspitze und die Farbe richtet sich
@@ -1426,14 +1496,32 @@ function App() {
       });
     const onUpdate = (ev) => {
       const d = ev.detail || {};
+      // ALLES hier ist Hintergrund-Arbeit (Abgleich alle 30 s bzw. Rücklauf
+      // nach dem Speichern) - als "nicht dringend" markiert darf React eine
+      // laufende Neuzeichnung UNTERBRECHEN, wenn der Bediener klickt oder
+      // tippt. Ohne startTransition fraß die Renderwelle eines fremden
+      // Speicherns spürbar Klicks (Robertos "hängt nach", 10.08.).
+      React.startTransition(() => {
       // Zusammenführen statt Ersetzen: Ein sehr kurz zurückliegender eigener
       // Speicherstand (z. B. gerade eben bestätigt) darf durch einen von der
       // Datei abgeholten, minimal älteren Stand nicht stillschweigend aus der
       // Ansicht verschwinden - jeweils der neuere Zeitstempel je Eintrag gewinnt.
       if (Array.isArray(d.entries)) {
-        setEntries((prev) => sharedFile.mergeEntries(d.entries, prev || [], d.deleted || {}));
+        setEntries((prev) => {
+          const merged = sharedFile.mergeEntries(d.entries, prev || [], d.deleted || {});
+          // Unverändertes Ergebnis behält seine Referenz: Ein Abgleich, der
+          // inhaltlich nichts Neues bringt (z. B. das Neuverbinden eines
+          // Kollegen schreibt die Datei identisch neu), zeichnet dann nichts.
+          // Der Vergleich läuft über Kennung+Zeitstempel statt den vollen
+          // Inhalt - jede echte Änderung bekommt einen neuen Zeitstempel
+          // (stampEntries), und die Voll-Serialisierung von Tausenden
+          // Einträgen wäre auf einem Werkstatt-PC selbst schon eine Bremse.
+          if (prev && merged.length === prev.length
+              && merged.every((e, i) => e.id === prev[i].id && e.updatedAt === prev[i].updatedAt)) return prev;
+          return merged;
+        });
       }
-      if (Array.isArray(d.verlauf)) setVerlauf(d.verlauf);
+      if (Array.isArray(d.verlauf)) setVerlauf((alt) => (JSON.stringify(alt) === JSON.stringify(d.verlauf) ? alt : d.verlauf));
       if (d.config) {
         // stabil(): Nur bei INHALTLICH neuem Stand eine neue Referenz setzen.
         // Jeder Abgleich liefert die Einstellungen mit - würden hier immer
@@ -1452,6 +1540,7 @@ function App() {
         // muss die Anmeldepflicht überall wieder verschwinden.
         if (Array.isArray(d.config.benutzer)) setBenutzerListe(stabil(normalisiereBenutzer(d.config.benutzer)));
       }
+      });
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
     const onShareOk = () => setShareErr(null);
@@ -1482,7 +1571,16 @@ function App() {
     const onStoerUpdate = (ev) => {
       const d = ev.detail || {};
       if (Array.isArray(d.entries)) {
-        setStoerungen((prev) => sharedFile.mergeEntries(d.entries, prev || [], d.deleted || {}));
+        // Hintergrund-Abgleich wie bei der Hauptdatei: nicht dringend, und
+        // ein inhaltlich unveränderter Stand behält seine Referenz.
+        React.startTransition(() => {
+          setStoerungen((prev) => {
+            const merged = sharedFile.mergeEntries(d.entries, prev || [], d.deleted || {});
+            if (prev && merged.length === prev.length
+                && merged.every((e, i) => e.id === prev[i].id && e.updatedAt === prev[i].updatedAt)) return prev;
+            return merged;
+          });
+        });
       }
     };
     const onStoerError = (ev) => setStoerErr(ev.detail || "Störungen-Datei: unbekannter Fehler.");
@@ -2413,9 +2511,14 @@ function App() {
   const oeeMerker = useRef({ stempel: "", laeuft: false });
   const OEE_TAKT_MS = 60000;
 
+  // Der OEE-Takt läuft jede Minute - ein UNVERÄNDERTER Stand ("aus", derselbe
+  // Fehler) darf dabei keine neue Objekt-Referenz bekommen, sonst zeichnet
+  // React die ganze Übersicht im Minutentakt neu (Teil von Robertos
+  // "hängt nach" am 10.08.).
+  const setOeeStandStabil = (neu) => setOeeStand((alt) => (JSON.stringify(alt) === JSON.stringify(neu) ? alt : neu));
   const leseOee = React.useCallback(async (erzwingen) => {
     const q = oeeQuelle;
-    if (!oeeEingerichtet(q)) { setOeeStand({ lage: "aus" }); return; }
+    if (!oeeEingerichtet(q)) { setOeeStandStabil({ lage: "aus" }); return; }
     if (oeeMerker.current.laeuft) return;
     oeeMerker.current.laeuft = true;
     try {
@@ -2424,11 +2527,11 @@ function App() {
         datei = await sharedFile.leseAusOrdner(q.datei);
       } catch (e) {
         // getFileHandle wirft, wenn die Datei nicht (mehr) da ist
-        setOeeStand({ lage: "fehler", text: `„${q.datei}" liegt nicht im gewählten Ordner (${sharedFile.quellOrdnerName() || "kein Ordner"}).`, datei: q.datei });
+        setOeeStandStabil({ lage: "fehler", text: `„${q.datei}" liegt nicht im gewählten Ordner (${sharedFile.quellOrdnerName() || "kein Ordner"}).`, datei: q.datei });
         return;
       }
       if (!datei) {
-        setOeeStand({
+        setOeeStandStabil({
           lage: "fehler",
           text: "Kein Ordner mit der Tabelle verbunden – nach einem Neustart einmal in ⚙ → OEE freigeben.",
           ordnerFehlt: true, datei: q.datei,
@@ -3318,23 +3421,23 @@ function App() {
     if (wer === "AR" || wer === "ALEXANDERRADKE") return ZETTEL_FARBEN.gelb;
     return ZETTEL_FARBEN[z.farbe] || ZETTEL_FARBEN.gelb;
   };
-  const addZettel = async () => {
-    if (!zettelText.trim() || !zettelName.trim()) return;
-    localStorage.setItem("werkstatt-kalender-name", zettelName.trim());
+  const addZettel = async (text, name) => {
+    if (!String(text || "").trim() || !String(name || "").trim()) return;
+    setZettelName(String(name).trim());
+    localStorage.setItem("werkstatt-kalender-name", String(name).trim());
     const farben = Object.keys(ZETTEL_FARBEN);
     const zettel = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       date: todayKey,
       category: "NOTIZ",
-      name: zettelName.trim(),
+      name: String(name).trim(),
       status: "open",
-      note: zettelText.trim(),
+      note: String(text).trim(),
       zeit: new Date().toISOString(),
       farbe: farben[zettelListe.length % farben.length],
       monitor: false,
     };
     await persist([...entries, zettel]);
-    setZettelText("");
     setZettelOpen(false);
   };
   const deleteZettel = async (id) => {
@@ -5579,10 +5682,10 @@ function App() {
               bereits, wo man ist. */}
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             {stoerModus === "liste" && stoerungen.length > 0 && (
-              <input
+              <SuchFeld
                 type="search"
-                value={stoerSuche}
-                onChange={(ev) => setStoerSuche(ev.target.value)}
+                wert={stoerSuche}
+                onWert={setStoerSuche}
                 placeholder="🔍 Suchen in Anlage, Teil, Beschreibung, Bearbeiter …"
                 className="text-sm border rounded-lg px-3 py-1.5"
                 style={{ borderColor: "#D7DCE1", flex: "1 1 220px", minWidth: "170px" }}
@@ -6150,10 +6253,10 @@ function App() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>📌 Pinnwand</span>
-                <input
+                <SuchFeld
                   type="search"
-                  value={zettelSuche}
-                  onChange={(e) => setZettelSuche(e.target.value)}
+                  wert={zettelSuche}
+                  onWert={setZettelSuche}
                   placeholder="🔍 Suche …"
                   className="text-xs border rounded px-2 py-1 ml-auto"
                   style={{ borderColor: "#D6D9DC", width: "150px" }}
@@ -6173,37 +6276,7 @@ function App() {
               </div>
 
               {zettelOpen && (
-                <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
-                  <textarea
-                    autoFocus
-                    spellCheck
-                    lang="de"
-                    value={zettelText}
-                    onChange={(e) => setZettelText(e.target.value)}
-                    placeholder="Was sollen die anderen wissen? (z. B. Ersatzteil kommt Do. früh)"
-                    rows={3}
-                    className="w-full text-sm border rounded px-3 py-2 mb-2"
-                    style={{ borderColor: "#D6D9DC", resize: "vertical" }}
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      value={zettelName}
-                      onChange={(e) => setZettelName(e.target.value)}
-                      placeholder="Dein Name/Kürzel"
-                      className="text-sm border rounded px-3 py-1.5"
-                      style={{ borderColor: "#D6D9DC", width: "160px" }}
-                    />
-                    <button
-                      onClick={addZettel}
-                      disabled={!zettelText.trim() || !zettelName.trim()}
-                      className="text-sm font-bold px-4 py-1.5 rounded text-white disabled:opacity-40"
-                      style={{ backgroundColor: "#2F7D4F" }}
-                    >
-                      Anpinnen
-                    </button>
-                    <button onClick={() => setZettelOpen(false)} className="text-sm px-3 py-1.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
-                  </div>
-                </div>
+                <PinnwandVerfasser startName={zettelName} onAnpinnen={addZettel} onAbbrechen={() => setZettelOpen(false)} />
               )}
 
               {zettelListe.length === 0 && !zettelOpen && (
@@ -6369,10 +6442,10 @@ function App() {
               erscheint darunter als abwerfbare Marke, damit kein Filter
               unbemerkt greift. */}
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <input
+            <SuchFeld
               type="search"
-              value={blSuche}
-              onChange={(e) => setBlSuche(e.target.value)}
+              wert={blSuche}
+              onWert={setBlSuche}
               placeholder="🔍 Suchen in Anlage und Arbeit …"
               className="text-sm border rounded-lg px-3 py-1.5"
               style={{ borderColor: "#D7DCE1", flex: "1 1 220px", minWidth: "170px" }}
@@ -7019,10 +7092,10 @@ function App() {
                   {label}
                 </button>
               ))}
-              <input
+              <SuchFeld
                 type="search"
-                value={pickerSuche}
-                onChange={(e) => setPickerSuche(e.target.value)}
+                wert={pickerSuche}
+                onWert={setPickerSuche}
                 placeholder="🔍 Anlage, Arbeit …"
                 className="text-xs border rounded px-2 py-1 flex-1"
                 style={{ borderColor: "#D6D9DC", minWidth: "140px" }}
