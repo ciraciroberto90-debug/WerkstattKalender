@@ -6,3 +6,5 @@ scratchpad/
 programm/node_modules/
 programm/ausgabe/
 programm/app/
+node_modules
+package-lock.json
