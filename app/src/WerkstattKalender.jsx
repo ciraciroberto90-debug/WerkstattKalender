@@ -1435,16 +1435,22 @@ function App() {
       }
       if (Array.isArray(d.verlauf)) setVerlauf(d.verlauf);
       if (d.config) {
-        if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(d.config.tpmAnlagen);
-        if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(riMitWissen(d.config.riItems));
-        if (Array.isArray(d.config.team)) setTeam(normalisiereTeam(d.config.team));
-        if (Array.isArray(d.config.extraSchichten)) setExtraSchichten(normalisiereExtraSchichten(d.config.extraSchichten));
-        if (Array.isArray(d.config.anlagenteile)) setAnlagenteile(normalisiereAnlagenteile(d.config.anlagenteile));
-        if (d.config.links) setLinks(normalisiereLinks(d.config.links));
-        if (d.config.oee) setOeeQuelle(normalisiereOee(d.config.oee));
+        // stabil(): Nur bei INHALTLICH neuem Stand eine neue Referenz setzen.
+        // Jeder Abgleich liefert die Einstellungen mit - würden hier immer
+        // frische Objekte gesetzt, zeichnete React nach jedem Speichern und
+        // jedem Poll die halbe Oberfläche neu (Robertos "hängt nach" am
+        // Release-Tag). Gleicher Inhalt -> gleiche Referenz -> kein Neuzeichnen.
+        const stabil = (neu) => (alt) => (JSON.stringify(alt) === JSON.stringify(neu) ? alt : neu);
+        if (Array.isArray(d.config.tpmAnlagen) && d.config.tpmAnlagen.length > 0) setTpmAnlagen(stabil(d.config.tpmAnlagen));
+        if (Array.isArray(d.config.riItems) && d.config.riItems.length > 0) setRiItems(stabil(riMitWissen(d.config.riItems)));
+        if (Array.isArray(d.config.team)) setTeam(stabil(normalisiereTeam(d.config.team)));
+        if (Array.isArray(d.config.extraSchichten)) setExtraSchichten(stabil(normalisiereExtraSchichten(d.config.extraSchichten)));
+        if (Array.isArray(d.config.anlagenteile)) setAnlagenteile(stabil(normalisiereAnlagenteile(d.config.anlagenteile)));
+        if (d.config.links) setLinks(stabil(normalisiereLinks(d.config.links)));
+        if (d.config.oee) setOeeQuelle(stabil(normalisiereOee(d.config.oee)));
         // Auch eine LEERE Liste übernehmen: Löscht Roberto alle Benutzer,
         // muss die Anmeldepflicht überall wieder verschwinden.
-        if (Array.isArray(d.config.benutzer)) setBenutzerListe(normalisiereBenutzer(d.config.benutzer));
+        if (Array.isArray(d.config.benutzer)) setBenutzerListe(stabil(normalisiereBenutzer(d.config.benutzer)));
       }
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");

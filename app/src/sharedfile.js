@@ -612,6 +612,7 @@ function createSharedStore(cfg) {
       detail: { entries: ohneSystemEntries(data.entries), config: configAusEintraegen(data.entries) || data.config, deleted: data.deleted, verlauf: extractLogEntries(data.entries) },
     }));
   }
+  let letzteConfigMeldung = ""; // zuletzt gemeldeter Stand - gleiche Meldung nie zweimal
   function dispatchConfigUpdate(entries) {
     // Nur die Grundeinstellungen melden (bewusst OHNE entries): Nach dem
     // eigenen Speichern kann die Kontroll-Lesung eine frische Änderung der
@@ -620,8 +621,17 @@ function createSharedStore(cfg) {
     // Stand); die App erführe die Änderung erst, wenn ein FREMDES Gerät die
     // Datei erneut anfasst. Gemessen in harte-42, Fall (11): Ein
     // herabgestufter Bearbeiter behielte seine Rechte auf unbestimmte Zeit.
+    //
+    // Aber: UNVERÄNDERTE Einstellungen werden nicht gemeldet. Sonst löst
+    // jeder Pinnwand-Zettel eine Renderwelle über die ganze Oberfläche aus -
+    // Robertos Beobachtung am Release-Tag ("Klicks werden teilweise nicht
+    // gut angenommen").
     const cfg = configAusEintraegen(entries);
-    if (cfg) window.dispatchEvent(new CustomEvent(EV + "-update", { detail: { config: cfg } }));
+    if (!cfg) return;
+    const roh = JSON.stringify(cfg);
+    if (roh === letzteConfigMeldung) return;
+    letzteConfigMeldung = roh;
+    window.dispatchEvent(new CustomEvent(EV + "-update", { detail: { config: cfg } }));
   }
   function dispatchError(message) {
     window.dispatchEvent(new CustomEvent(EV + "-error", { detail: message }));
