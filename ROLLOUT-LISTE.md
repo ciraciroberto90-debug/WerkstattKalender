@@ -77,7 +77,7 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
       laufen lassen und die Eintragszahlen vergleichen. Erst wenn die aktuelle
       Datei mindestens so viele Einträge hat, können sie weg.
 
-## Umzug auf einen Server (geplant)
+## Umzug auf einen Server - STICHTAG 10.08. (Robertos Entscheidung)
 
 **Robertos Ansage vom 07.08.: Die JSON muss raus aus OneDrive.** Der
 Daten-Umzug aufs Firmenlaufwerk ist damit gesetzt, nicht mehr nur angedacht.
@@ -318,7 +318,13 @@ auf denselben Dateien.
       gibt (sonst ließen sich Namen durchprobieren). Dritte Ansage vom
       10.08.: Abmelden-Knopf oben rechts für alle Angemeldeten (auch Leser/
       Bearbeiter) - danach lässt sich ein anderer Benutzer anmelden oder
-      über das Anmelde-Fenster eine andere JSON-Datei verbinden. Erster
+      über das Anmelde-Fenster eine andere JSON-Datei verbinden. Vierte
+      Ansage vom 10.08. umgesetzt: **Ohne Anmeldung nie Schreibmodus** -
+      der Dialog hat dafür „Nur ansehen (ohne Anmeldung)" (App läuft als
+      Leser, wie ein Aushang), oben rechts holt ein Anmelden-Knopf den
+      Dialog zurück (harte-42, jetzt 29 Prüfungen). Robertos erster
+      Benutzer: RobertoCiraci als Verwalter - damit pflegt er alle
+      weiteren selbst. Erster
       Benutzer steht von selbst auf Verwalter; der letzte Verwalter lässt
       sich nicht herabstufen; Benutzerwechsel über das Datei-Fenster.
       Leser dürfen weiterhin Störungen melden (bewusst, wie bisher).

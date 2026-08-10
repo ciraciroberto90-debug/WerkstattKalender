@@ -101,6 +101,20 @@ const ok = (n, c, zusatz) => {
   ok("(3) Nach dem Anlegen der Liste erscheint der Anmelde-Dialog",
     (await p.locator('[aria-label="Anmelden"]').count()) === 1);
 
+  /* ---- (3b) „Nur ansehen" (Robertos Regel vom 10.08.): ohne Anmeldung
+     NIE Schreibmodus - aber ansehen wie ein Aushang darf jeder ---- */
+  await p.getByRole("button", { name: "Nur ansehen (ohne Anmeldung)" }).click();
+  await p.waitForTimeout(400);
+  ok("(3b) 'Nur ansehen' schließt den Dialog", (await p.locator('[aria-label="Anmelden"]').count()) === 0);
+  ok("(3b) Ohne Anmeldung ist die App NUR-LESER (kein Zahnrad, trotz schreibbarer Datei)",
+    (await p.locator('button[aria-label="Verwalten"]').count()) === 0);
+  ok("(3b) Oben rechts steht jetzt der Anmelden-Knopf",
+    (await p.locator('button[aria-label="Benutzer anmelden"]').count()) === 1);
+  await p.locator('button[aria-label="Benutzer anmelden"]').click();
+  await p.waitForTimeout(400);
+  ok("(3b) Der Knopf holt den Anmelde-Dialog zurück",
+    (await p.locator('[aria-label="Anmelden"]').count()) === 1);
+
   /* ---- (4) Schreibfelder statt Auswahlliste (Robertos Ansage vom 10.08.):
      Der Dialog darf die Benutzernamen NICHT verraten ---- */
   ok("(4) Der Anmelde-Dialog hat KEIN Dropdown mit den Benutzernamen",

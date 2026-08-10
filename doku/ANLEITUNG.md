@@ -251,6 +251,11 @@ vergeben) und merkt sich die Wahl. Drei Rollen:
 - **Bearbeiter** – schreiben.
 - **Leser** – nur ansehen (blaue „Schreibschutz"-Leiste).
 
+**Ohne Anmeldung ist die App grundsätzlich Nur-Leser** – im Anmelde-Fenster
+führt „Nur ansehen (ohne Anmeldung)" direkt in die Ansicht (wie ein Aushang),
+oben rechts steht dann ein blauer **Anmelden**-Knopf für später. Schreiben
+gibt es nie ohne Anmeldung.
+
 Die Anmeldung ist ein **Schreibfeld, keine Auswahlliste** – der Dialog verrät
 die Benutzernamen nicht, und bei falschem Namen oder Kennwort kommt bewusst
 dieselbe Meldung. Groß-/Kleinschreibung des Namens ist egal.

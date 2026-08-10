@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv, LogOut, LogIn } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
 
@@ -1363,6 +1363,10 @@ function App() {
   const [benutzerListe, setBenutzerListe] = useState([]);
   const [angemeldet, setAngemeldet] = useState(() => localStorage.getItem("werkstatt-kalender-benutzer") || "");
   const [anmeldung, setAnmeldung] = useState({ name: "", kennwort: "", fehler: "" }); // Entwurf im Anmelde-Dialog
+  // „Nur ansehen": Der Anmelde-Dialog wurde bewusst weggeklickt - die App
+  // läuft dann als Leser (Robertos Regel vom 10.08.: ohne Anmeldung NIE
+  // Schreibmodus, aber ansehen wie ein Aushang darf jeder).
+  const [anmeldungZu, setAnmeldungZu] = useState(false);
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
   const [shareInfo, setShareInfo] = useState(null); // grüne Hinweis-Meldung (z. B. Konfliktkopie eingesammelt), verschwindet von selbst
   const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
@@ -1634,7 +1638,7 @@ function App() {
   const meinBenutzer = benutzerAktiv ? benutzerListe.find((b) => b.name === angemeldet) || null : null;
   const benutzerDarfSchreiben = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle !== "leser");
   const istVerwalter = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle === "verwalter");
-  const anmeldungOffen = benutzerAktiv && meinBenutzer == null;
+  const anmeldungOffen = benutzerAktiv && meinBenutzer == null && !anmeldungZu;
   const vollzugriff = shareChecked && (shareState.status === "unsupported" || (shareState.status === "connected" && shareState.mode === "readwrite")) && benutzerDarfSchreiben;
   const readerMode = !vollzugriff;
   // Enger gefasst als readerMode: nur wer TATSÄCHLICH schon verbunden UND
@@ -2776,6 +2780,7 @@ function App() {
   const abmelden = () => {
     setAngemeldet("");
     setAnmeldung({ name: "", kennwort: "", fehler: "" });
+    setAnmeldungZu(false); // nach dem Abmelden fragt der Dialog wieder
     try { localStorage.removeItem("werkstatt-kalender-benutzer"); } catch (e) { /* egal */ }
   };
 
@@ -4954,6 +4959,19 @@ function App() {
               aria-label="Abmelden"
             >
               <LogOut size={14} />
+            </button>
+          )}
+          {/* Gegenstück für „Nur ansehen": Wer ohne Anmeldung schaut, kommt
+              hier jederzeit zurück zum Anmelde-Dialog. */}
+          {benutzerAktiv && !meinBenutzer && (
+            <button
+              onClick={() => setAnmeldungZu(false)}
+              className="flex items-center gap-1.5 text-white px-2 py-1.5 rounded hover:opacity-90 transition-opacity text-xs font-bold"
+              style={{ backgroundColor: "#2F6690" }}
+              title="Anmelden (zum Bearbeiten)"
+              aria-label="Benutzer anmelden"
+            >
+              <LogIn size={14} /> Anmelden
             </button>
           )}
           {/* Gemeinsame Datei: kleines Ordner-Symbol + "zuletzt aktualisiert"-Anzeige.
@@ -8412,6 +8430,17 @@ function App() {
             >
               Anmelden
             </button>
+            <button
+              onClick={() => setAnmeldungZu(true)}
+              className="w-full rounded px-3 py-2 text-sm font-bold mt-2 border"
+              style={{ color: "#5B6572", borderColor: "#C9CDD2", backgroundColor: "#F7F8F9" }}
+            >
+              Nur ansehen (ohne Anmeldung)
+            </button>
+            <div className="text-xs mt-1" style={{ color: "#8A9099" }}>
+              Ohne Anmeldung zeigt die App nur den aktuellen Stand – wie ein
+              Aushang. Zum Bearbeiten später oben rechts anmelden.
+            </div>
             <button
               onClick={() => setShareOpen(true)}
               className="w-full rounded px-3 py-2 text-sm font-bold mt-2 border"
