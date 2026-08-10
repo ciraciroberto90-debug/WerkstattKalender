@@ -322,7 +322,10 @@ auf denselben Dateien.
       Ansage vom 10.08. umgesetzt: **Ohne Anmeldung nie Schreibmodus** -
       der Dialog hat dafür „Nur ansehen (ohne Anmeldung)" (App läuft als
       Leser, wie ein Aushang), oben rechts holt ein Anmelden-Knopf den
-      Dialog zurück (harte-42, jetzt 29 Prüfungen). Robertos erster
+      Dialog zurück (harte-42, jetzt 32 Prüfungen - darunter Robertos
+      Nachfrage vom 10.08.: Benutzer-Leser unterliegen ALLEN bisherigen
+      Leser-Regeln, nachgewiesen an der schärfsten: unveröffentlichte
+      Pinnwand-Zettel bleiben für sie unsichtbar, Bearbeiter sehen sie). Robertos erster
       Benutzer: RobertoCiraci als Verwalter - damit pflegt er alle
       weiteren selbst. Erster
       Benutzer steht von selbst auf Verwalter; der letzte Verwalter lässt

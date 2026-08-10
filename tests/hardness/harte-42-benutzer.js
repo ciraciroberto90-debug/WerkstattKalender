@@ -27,9 +27,15 @@ const ok = (n, c, zusatz) => {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 
   // Dateiinhalt lebt in Node - so überlebt er den "Neustart" (zweite Seite)
+  // Zwei Pinnwand-Zettel: einer veröffentlicht, einer intern. Ein Leser darf
+  // NUR den veröffentlichten sehen - dieselbe Regel wie bei Datei-Lesern.
+  const jetztIso = new Date().toISOString();
   let dateiInhalt = JSON.stringify({
-    format: "werkstatt-kalender-v1", savedAt: new Date().toISOString(),
-    entries: [], deleted: {},
+    format: "werkstatt-kalender-v1", savedAt: jetztIso,
+    entries: [
+      { id: "z-oeffentlich", date: "2026-08-10", category: "NOTIZ", name: "RC", status: "open", note: "AUSHANG Sommerfest", zeit: jetztIso, veroeffentlicht: true, updatedAt: jetztIso },
+      { id: "z-intern", date: "2026-08-10", category: "NOTIZ", name: "RC", status: "open", note: "INTERN Gehaltsrunde", zeit: jetztIso, updatedAt: jetztIso },
+    ], deleted: {},
     config: { tpmAnlagen: [], riItems: [], team: [{ name: "Peter Test", rolle: "mech" }] },
   });
 
@@ -144,6 +150,14 @@ const ok = (n, c, zusatz) => {
     (await p.locator('button[aria-label="Verwalten"]').count()) === 0);
   ok("(5) Der Urheber-Name dieses Geräts ist jetzt der Benutzername",
     (await p.evaluate(() => localStorage.getItem("werkstatt-kalender-name"))) === "MWerkstatt");
+  // Robertos Nachfrage vom 10.08.: ALLE bisherigen Leser-Regeln gelten auch
+  // fuer Benutzer-Leser - hier die schaerfste: unveroeffentlichte Zettel
+  // bleiben unsichtbar, veroeffentlichte nicht.
+  const leserSicht = await p.locator("body").innerText();
+  ok("(5) Leser sieht den VERÖFFENTLICHTEN Pinnwand-Zettel",
+    /AUSHANG Sommerfest/.test(leserSicht));
+  ok("(5) GEGENPROBE: Der interne Zettel bleibt für den Leser unsichtbar",
+    !/INTERN Gehaltsrunde/.test(leserSicht));
 
   /* ---- (5b) Abmelden-Knopf oben rechts (Robertos Wunsch vom 10.08.):
      auch Leser und Bearbeiter kommen damit zur Anmeldung UND zur
@@ -222,6 +236,9 @@ const ok = (n, c, zusatz) => {
   await p2.waitForTimeout(600);
   ok("(9) Als Bearbeiter ist das Zahnrad wieder da",
     (await p2.locator('button[aria-label="Verwalten"]').count()) === 1);
+  const bearbeiterSicht = await p2.locator("body").innerText();
+  ok("(9) Der Bearbeiter sieht auch den INTERNEN Pinnwand-Zettel",
+    /INTERN Gehaltsrunde/.test(bearbeiterSicht) && /AUSHANG Sommerfest/.test(bearbeiterSicht));
   await p2.locator('button[aria-label="Verwalten"]').click();
   await p2.waitForTimeout(400);
   await p2.getByRole("button", { name: "Team & Schichten", exact: true }).click();
