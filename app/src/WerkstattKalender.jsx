@@ -2359,7 +2359,14 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = benutzerListe) => {
+  // WÄCHTER Benutzerliste: nextBenutzer bleibt standardmäßig null = "nicht
+  // anfassen". Nur die Benutzer-Maske im ⚙ (Verwalter) übergibt eine Liste.
+  // Gemessen (harte-42, Fall 10): Die Vorher/Nachher-Mechanik von saveConfig
+  // fing den Überschreib-Fall auch OHNE diesen Wächter ab - er macht das
+  // Überleben fremder Rechteänderungen aber strukturell sicher (das Feld wird
+  // von Links-/OEE-/Einstellungs-Speichern gar nicht mehr berührt), statt es
+  // der Zusammenführung zu überlassen.
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -2368,12 +2375,12 @@ function App() {
     setAnlagenteile(nextAnlagenteile);
     setLinks(nextLinks);
     setOeeQuelle(nextOee);
-    setBenutzerListe(nextBenutzer);
+    if (nextBenutzer) setBenutzerListe(nextBenutzer);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, benutzer: nextBenutzer }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}) }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -2727,8 +2734,9 @@ function App() {
     const teileMitRename = settingsAnlagenteile.map((t) => (tpmRenames.has(t.anlage) ? { ...t, anlage: tpmRenames.get(t.anlage) } : t));
 
     // Benutzer & Rechte: nur Verwalter dürfen die Liste ändern. Neue Kennwörter
-    // werden hier gehasht - in die Datei wandert nie Klartext.
-    let nextBenutzer = benutzerListe;
+    // werden hier gehasht - in die Datei wandert nie Klartext. null heißt:
+    // das Feld in der Datei gar nicht anfassen (Wächter, siehe persistConfig).
+    let nextBenutzer = null;
     if (istVerwalter) {
       const entwurf = settingsBenutzer
         .map((b) => ({ ...b, name: b.name.trim() }))
@@ -5356,6 +5364,26 @@ function App() {
               )}
             </>
           )}
+        </div>
+      )}
+      {/* Schreibschutz auf BENUTZER-Ebene: Die Datei dürfte schreiben, aber
+          die Rolle (Leser) bzw. die fehlende Anmeldung sagt Nur-Lesen. Ohne
+          diese Leiste sähe der Betroffene nur verschwundene Knöpfe und wüsste
+          nicht, warum - dieselbe ehrliche Ansage wie beim Datei-Schreibschutz,
+          nur mit dem Grund und dem direkten Weg zur Anmeldung. */}
+      {shareState.status === "connected" && shareState.mode !== "read" && benutzerAktiv && !benutzerDarfSchreiben && (
+        <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" style={{ backgroundColor: "#E5F0F8", color: "#2F6690" }}>
+          <span>
+            🔒 Schreibschutz – {meinBenutzer
+              ? <>angemeldet als <strong>{meinBenutzer.name}</strong> (Leser): dieser Rechner zeigt den gemeinsamen Stand nur an.</>
+              : "ohne Anmeldung zeigt dieser Rechner den gemeinsamen Stand nur an."}
+          </span>
+          {!meinBenutzer && (
+            <button onClick={() => setAnmeldungZu(false)} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#2F6690" }}>
+              Anmelden …
+            </button>
+          )}
+          <span className="font-normal" style={{ color: "#5B87AB" }}>Aktualisiert: <SyncAnzeige style={{ color: "#5B87AB" }} /></span>
         </div>
       )}
       {shareErr && (

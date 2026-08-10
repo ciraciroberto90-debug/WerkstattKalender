@@ -612,6 +612,17 @@ function createSharedStore(cfg) {
       detail: { entries: ohneSystemEntries(data.entries), config: configAusEintraegen(data.entries) || data.config, deleted: data.deleted, verlauf: extractLogEntries(data.entries) },
     }));
   }
+  function dispatchConfigUpdate(entries) {
+    // Nur die Grundeinstellungen melden (bewusst OHNE entries): Nach dem
+    // eigenen Speichern kann die Kontroll-Lesung eine frische Änderung der
+    // ANDEREN enthalten - z. B. eine Rechteänderung in der Benutzerliste.
+    // Der 30-Sekunden-Abgleich schweigt danach aber (lastSavedAt = eigener
+    // Stand); die App erführe die Änderung erst, wenn ein FREMDES Gerät die
+    // Datei erneut anfasst. Gemessen in harte-42, Fall (11): Ein
+    // herabgestufter Bearbeiter behielte seine Rechte auf unbestimmte Zeit.
+    const cfg = configAusEintraegen(entries);
+    if (cfg) window.dispatchEvent(new CustomEvent(EV + "-update", { detail: { config: cfg } }));
+  }
   function dispatchError(message) {
     window.dispatchEvent(new CustomEvent(EV + "-error", { detail: message }));
   }
@@ -1408,6 +1419,7 @@ function createSharedStore(cfg) {
           const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
           await recordBackup(bestaetigt, null);
           nachpruefenUndHeilen(stamped, removed, delStamp);
+          dispatchConfigUpdate(bestaetigt);
           dispatchOk(); // Entwarnung erst hier: Die Änderung steht nachweislich in der Datei.
           return ohneSystemEntries(bestaetigt);
         }
@@ -1586,6 +1598,7 @@ function createSharedStore(cfg) {
           await recordBackup(kontrolle.entries, null);
           const zurueck = {};
           bestaetigt.forEach((e) => { zurueck[e.id.slice(CONFIG_PREFIX.length)] = e.value; });
+          dispatchConfigUpdate(kontrolle.entries);
           dispatchOk(); // Entwarnung erst hier: Die Einstellungen stehen nachweislich in der Datei.
           return zurueck;
         }

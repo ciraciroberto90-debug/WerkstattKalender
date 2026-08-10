@@ -325,7 +325,33 @@ auf denselben Dateien.
       Dialog zurück (harte-42, jetzt 32 Prüfungen - darunter Robertos
       Nachfrage vom 10.08.: Benutzer-Leser unterliegen ALLEN bisherigen
       Leser-Regeln, nachgewiesen an der schärfsten: unveröffentlichte
-      Pinnwand-Zettel bleiben für sie unsichtbar, Bearbeiter sehen sie). Robertos erster
+      Pinnwand-Zettel bleiben für sie unsichtbar, Bearbeiter sehen sie).
+- [x] **Day-of-Release-Prüfung (10.08., Robertos Auftrag):** Alle Suiten
+      gegen den Endstand, akribische Lückensuche bei Rechten/Datenverlust.
+      Zwei echte Lücken gefunden und geschlossen, eine Hypothese widerlegt:
+      1. **Herabstufung griff nicht live.** Nach dem eigenen Speichern warf
+         die App den frisch gelesenen Datei-Stand (samt geänderter
+         Benutzerliste) für die Rechte-Ableitung weg, und der Abgleich
+         schwieg (eigener Schreibstand). Ein Herabgestufter hätte seine
+         Rechte behalten, bis ein fremdes Gerät die Datei anfasst. Jetzt
+         meldet jede Speicher-Bestätigung die Grundeinstellungen an die
+         App zurück - Entzug greift sofort (harte-42 Fall 11, Gegenprobe:
+         2 FAIL vor dem Fix).
+      2. **Benutzer-Leser sahen keine Schreibschutz-Leiste** (die hing nur
+         an den Datei-Rechten) - nur verschwundene Knöpfe, ohne Grund.
+         Jetzt eigene blaue Leiste mit Rolle bzw. „ohne Anmeldung" und
+         Anmelden-Knopf.
+      3. **Widerlegte Hypothese (ehrlich vermerkt):** Ein Gerät mit altem
+         Zwischenspeicher könnte fremde Rechteänderungen überschreiben -
+         gemessen: Die Vorher/Nachher-Mechanik von saveConfig fing das
+         bereits ab. Zusätzlich eingebauter Wächter: Links-/OEE-/
+         Einstellungs-Speichern fasst das Benutzer-Feld strukturell gar
+         nicht mehr an (nur die Benutzer-Maske schreibt es); ein alter
+         Sicherungsstand kann die Anmeldepflicht ebenfalls nicht mehr
+         entfernen (harte-42 Fall 10, jetzt 38 Prüfungen).
+      Nicht prüfbar in dieser Umgebung (kein PowerShell): Dienst-Teil des
+      Rollout-Tests und die drei pwsh-Suiten - seit dem letzten grünen
+      Lauf unverändert. Robertos erster
       Benutzer: RobertoCiraci als Verwalter - damit pflegt er alle
       weiteren selbst. Erster
       Benutzer steht von selbst auf Verwalter; der letzte Verwalter lässt

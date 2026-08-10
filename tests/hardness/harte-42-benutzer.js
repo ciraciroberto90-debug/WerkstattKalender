@@ -245,6 +245,63 @@ const ok = (n, c, zusatz) => {
   await p2.waitForTimeout(300);
   ok("(9) Aber die Benutzerverwaltung sieht nur der Verwalter",
     !/Benutzer & Rechte/i.test(await p2.locator("body").innerText()));
+  await p2.getByRole("button", { name: "Abbrechen" }).first().click().catch(() => {});
+  await p2.waitForTimeout(400);
+
+  /* ---- (10) WÄCHTER: Fremde Rechteänderungen überleben jedes andere
+     Speichern. Nachgestellt: Der Vertreter ändert an einem anderen PC eine
+     Rolle (direkt in der Datei, Stempel wenige Sekunden alt), dieses Gerät
+     hat einen Zwischenspeicher ohne benutzer-Feld - und legt dann nur einen
+     Link an. Gemessen am 10.08.: Schon die Vorher/Nachher-Mechanik von
+     saveConfig fing das ab; seither fasst der Link-/OEE-/Einstellungs-Pfad
+     das Benutzer-Feld zusätzlich GAR NICHT mehr an (persistConfig,
+     nextBenutzer=null). Diese Prüfung nagelt die Zusage fest. ---- */
+  {
+    // Vertreter am anderen PC: MWerkstatt wird Leser (frischer Zeitstempel)
+    const datei = JSON.parse(dateiInhalt);
+    const eintrag = datei.entries.find((e) => e.id === "config|benutzer");
+    ok("(10) Vorbereitung: Die Benutzerliste liegt als eigener Eintrag in der Datei", !!eintrag);
+    // Die Änderung des Vertreters liegt REALISTISCH ein paar Sekunden zurück -
+    // ein Zukunfts-Stempel würde sie künstlich schützen und den Fall verfehlen.
+    eintrag.value = eintrag.value.map((b) => (b.name === "MWerkstatt" ? { ...b, rolle: "leser" } : b));
+    eintrag.updatedAt = new Date(Date.now() - 5000).toISOString();
+    datei.savedAt = new Date(Date.now() - 4000).toISOString();
+    dateiInhalt = JSON.stringify(datei);
+    // Alter Zwischenspeicher dieses Geräts: config-Block OHNE benutzer-Feld
+    await p2.evaluate(() => {
+      const roh = JSON.parse(localStorage.getItem("werkstatt-kalender-config") || "{}");
+      delete roh.benutzer;
+      localStorage.setItem("werkstatt-kalender-config", JSON.stringify(roh));
+    });
+    // Und jetzt: nur einen Link anlegen - mit den Benutzern hat das nichts zu tun
+    await p2.getByRole("button", { name: "Links & Dokumente" }).click();
+    await p2.waitForTimeout(300);
+    await p2.getByRole("button", { name: "＋ Link" }).click();
+    await p2.waitForTimeout(300);
+    await p2.getByPlaceholder(/Bezeichnung/).fill("Prüfplan-Ordner");
+    await p2.getByPlaceholder(/Adresse oder Pfad/).fill("X:\\Werkstatt\\Pruefplaene");
+    await p2.getByRole("button", { name: "Speichern" }).click();
+    await p2.waitForTimeout(1600);
+    const nachher = JSON.parse(dateiInhalt);
+    const benutzerNachher = (nachher.entries.find((e) => e.id === "config|benutzer") || {}).value || [];
+    ok("(10) Der Link ist gespeichert (der Speicherpfad lief wirklich)",
+      JSON.stringify((nachher.entries.find((e) => e.id === "config|links") || {}).value || {}).includes("Prüfplan-Ordner"));
+    ok("(10) WÄCHTER: Die Rechteänderung des Vertreters ÜBERLEBT das Link-Speichern",
+      (benutzerNachher.find((b) => b.name === "MWerkstatt") || {}).rolle === "leser",
+      "MWerkstatt: " + ((benutzerNachher.find((b) => b.name === "MWerkstatt") || {}).rolle || "—"));
+
+    /* ---- (11) Die Herabstufung greift LIVE: Das betroffene Gerät ist
+       als MWerkstatt angemeldet - beim nächsten Abgleich verliert es die
+       Bearbeiter-Rechte von selbst, ohne Ab-/Anmelden, ohne Neustart. */
+    await p2.evaluate(() => window.__wkSharedTest.poll());
+    await p2.waitForTimeout(1200);
+    ok("(11) Nach dem Abgleich ist das Gerät von selbst Nur-Leser (Zahnrad weg)",
+      (await p2.locator('button[aria-label="Verwalten"]').count()) === 0);
+    ok("(11) Die Schreibschutz-Leiste sagt es dem Betroffenen klar",
+      /Schreibschutz/.test(await p2.locator("body").innerText()));
+    ok("(11) Angemeldet bleibt er trotzdem (kein Rauswurf, nur weniger Rechte)",
+      (await p2.evaluate(() => localStorage.getItem("werkstatt-kalender-benutzer"))) === "MWerkstatt");
+  }
 
   console.log(`\n==== BENUTZERGRUPPEN: ${pass} PASS / ${fail} FAIL ====`);
   await browser.close();
