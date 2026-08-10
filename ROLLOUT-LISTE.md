@@ -177,6 +177,42 @@ OneDrive, entfallen Konfliktkopien und Sync-Verzug, und die Sicherung läuft
 werden – sie spricht ein eingebundenes Laufwerk genauso an wie den
 OneDrive-Ordner.
 
+## Sicherheit (Robertos Frage vom 10.08.: „Lücken von außen?")
+
+Bestandsaufnahme: **Von außen (Internet) ist praktisch nichts angreifbar,
+weil nichts von außen erreichbar ist** - kein Server, keine offenen Ports
+(der localhost-Dienst horcht nur auf dem eigenen Rechner, gemessen im
+Prüfbericht), Daten nur im Firmennetz. Der OneDrive-Ausstieg hat die
+Außenfläche zusätzlich verkleinert. Das Programm ist sauber abgeschottet
+(contextIsolation an, nodeIntegration aus, nur die definierte Brücke),
+die Druckvorlagen entschärfen eingefügte Texte. Die eine echte
+Außen-Flanke ist das GitHub-Konto; nach innen zählen Laufwerksrechte:
+
+- [ ] **GitHub-Konto mit Zwei-Faktor absichern (wichtigste Einzelmaßnahme).**
+      Kollegen laden das Programm von GitHub - wer das Konto übernimmt,
+      könnte eine manipulierte ZIP unterschieben. Zwei-Faktor macht das
+      praktisch dicht. Zusätzlich überlegen: Repo privat stellen und die
+      ZIP stattdessen einmal aufs Firmenlaufwerk legen (das öffentliche
+      Repo verrät auch interne Pfade/Servernamen aus dieser Liste).
+- [ ] **Schreibrecht auf den App-/Update-Ordner eng fassen (IT-Freigabe).**
+      Wer dort eine HTML ablegen darf, verteilt Code an alle Programme -
+      das ist der mächtigste Hebel im Haus. Nur Roberto + Vertreter
+      (+ IT) sollten dort schreiben dürfen; der Datenordner darf breiter
+      freigegeben sein. Endgültig löst das die signierte EXE der IT
+      (Punkt unten), denn die App prüft Updates auf Vollständigkeit,
+      nicht auf Herkunft.
+- [ ] **Kennwörter der Benutzerliste sind Leitplanke, kein Geheimnis:**
+      Sie stehen als ungesalzener SHA-256 in der offenen JSON - wer die
+      Datei lesen darf, kann einfache Wörter durchprobieren. Deshalb dort
+      NIE ein Kennwort verwenden, das woanders (Windows, E-Mail) gilt.
+- [ ] **SmartScreen-Gewöhnung beenden:** Solange die EXE unsigniert ist,
+      lernen die Kollegen, „Trotzdem ausführen" zu klicken - genau das
+      Klickmuster, das Angreifer brauchen. Die IT-Signatur (bestehender
+      Punkt) ist damit auch eine Sicherheitsmaßnahme, nicht nur Komfort.
+- [ ] Bei Bedarf: gründliche Durchsicht aller Stellen, an denen Texte in
+      HTML-Druckvorlagen eingesetzt werden (Stichprobe war sauber, eine
+      vollständige Prüfung stand noch nicht an).
+
 ## Zweiter Standort und Übergabe an die IT (angedacht)
 
 Die App soll an einem weiteren Firmenstandort laufen – eigene Daten, gleiche
