@@ -463,14 +463,21 @@ auf denselben Dateien.
 ## Erledigt
 
 - [x] **Workshop-Foliensatz für den 26.08. (Robertos 3-h-Termin):**
-      `doku/Werkstatt-Cockpit-Workshop.pptx` - 12 Folien für die ersten
-      15-20 Minuten. Holt Laien ab (Vorher/Nachher, Technik in einem Bild),
-      zeigt fünf Funktionen bildlich (echte Bildschirmfotos mit
-      Beispieldaten), endet mit Fakten: Testzahlen, Kosten/Ersparnis mit
-      denselben Quellen [1]-[3] wie in der Entscheidungsvorlage, plus
-      „was es bewusst NICHT kann". Sprechernotizen auf jeder Folie.
-      Die Entscheidungsvorlage (MD + PDF) wurde dazu um einen
-      Quellen-Abschnitt ergänzt - jede Preisaussage hat jetzt einen Beleg.
+      `doku/Werkstatt-Cockpit-Workshop.pptx` - 13 Folien für die ersten
+      15-20 Minuten, als **Einführung für alle** (nicht als GF-Vorlage).
+      Holt Laien ab (Vorher/Nachher, Technik in einem Bild), zeigt fünf
+      Funktionen bildlich (echte Bildschirmfotos mit Beispieldaten), dann:
+      Rollen inkl. Vertretungsregel (Vertretung = gleichberechtigter
+      Verwalter), eigene Folie „Was passiert mit unseren Daten?" (alle
+      Datenverlust-Prüfungen), Testzahlen, Kosten (50 h × 24,50 € ≈
+      1 225 €) und Ersparnis nach Jahren hergeleitet (Jahr 1 ≈ 20 000 €,
+      ab Jahr 2 ≈ 12 000 €/Jahr, Zahlen wie in der Entscheidungsvorlage,
+      Quellen [1]-[3]). Auf Robertos Ansage entfernt: die „was es bewusst
+      NICHT kann"-Box (nichts davon wurde je versucht) und der
+      Mehr-Standort-Punkt (Schwesterwerk bekäme eine eigenständige
+      Ausgabe - steht jetzt so auf der Abschluss-Folie). Sprechernotizen
+      auf jeder Folie. Die Entscheidungsvorlage (MD + PDF) wurde zuvor um
+      einen Quellen-Abschnitt ergänzt - jede Preisaussage hat einen Beleg.
 - [x] **Tempo-Nachschärfung (10.08., Robertos „teilweise noch nachhängend"):**
       Gemessen an 6-fach gedrosselter CPU (wie ein Werkstatt-PC, 6000+
       Einträge): **Jeder Tastendruck** in Pinnwand-Zettel und Suchfeldern
