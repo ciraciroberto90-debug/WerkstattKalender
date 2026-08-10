@@ -123,8 +123,13 @@ Lesen klappt also schon. Zu klären, in dieser Reihenfolge:
       Ziels** (`daten.schreibe-4711.json`) und beginnt nicht mehr mit
       einem Punkt (programm/zwischenname.js, pruefe-programm 18/18).
       Wieder ein RAHMEN-Fix → noch einmal ZIP tauschen.
-- [ ] **Falls es danach immer noch klemmt:** Der Grund in der Leiste sagt
-      dann, was der Server ablehnt → mit genau dieser Meldung zur IT.
+- [x] **BESTÄTIGT (10.08., Roberto): „hat geklappt."** Mit der neuen
+      Zwischendatei-Endung schreibt das Programm auf das Firmenlaufwerk -
+      der Schreibschutz ist weg. Damit ist am echten Laufwerk bewiesen:
+      Das Programm kann die JSON dort **lesen UND schreiben**. Der Weg für
+      den OneDrive-Ausstieg ist frei; offen bleibt nur der Stichtag-Umzug
+      (Pfad an alle verteilen, jedes Gerät wählt einmal neu an) und die
+      `.crswap`-Probe für die Browser-Rechner (Punkt unten).
 - [ ] **Fürs Umziehen der BROWSER-Rechner aufs Laufwerk wichtig:** Chrome
       legt beim Speichern eigene Zwischendateien mit der Endung `.crswap`
       an – eine Dateityp-Prüfung des Servers würde auch die abweisen, und
