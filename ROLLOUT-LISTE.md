@@ -92,15 +92,24 @@ Firmenlaufwerk verbunden → App ging auf **Schreibschutz**. Das ist das
 ehrliche, erwartete Verhalten, wenn der Schreibversuch am Laufwerk scheitert -
 Lesen klappt also schon. Zu klären, in dieser Reihenfolge:
 
-- [ ] Schreibschutz-Häkchen der KOPIE prüfen (Rechtsklick → Eigenschaften) -
-      beim Kopieren wandert es gern mit. Entfernen, Programm neu starten.
-- [ ] Kann Roberto in dem Ordner eine NEUE Datei anlegen (Rechtsklick → Neu →
-      Textdokument)? Das Programm speichert atomar über eine Zwischendatei -
-      es braucht das Recht, im Ordner neue Dateien anzulegen, nicht nur die
-      vorhandene zu ändern. „Ändern erlaubt, Neuanlegen verboten" ist auf
-      Firmenlaufwerken der häufigste Stolperstein.
-- [ ] Reicht beides nicht: IT nach Schreibrecht der Werkstatt-Gruppe auf
-      genau diesen Ordner fragen (eine Standardfreigabe, kein Sonderwunsch).
+- [x] Schreibschutz-Häkchen der KOPIE geprüft (10.08., Robertos Bild): NICHT
+      gesetzt - scheidet aus.
+- [x] Neue Datei im Ordner anlegen: GEHT (10.08.) - Ordnerrechte scheiden
+      damit als Ursache weitgehend aus.
+- [x] **Konsequenz eingebaut (10.08.):** Der Schreibschutz wird nach einem
+      Fehlschlag GEMERKT - ein Neustart allein heilt ihn nicht. Und im
+      Programm gibt es keine Adresszeile für den Diagnose-Modus
+      `?verwalten=1`. Deshalb zeigt die Programm-Fassung jetzt in der
+      Schreibschutz-Leiste immer den **technischen Grund** und den Knopf
+      **„Schreibzugriff erneut versuchen"** (der Datei-Wechsel-Knopf bleibt
+      versteckt - 03.08.-Lehre). Gegenprobe dokumentiert: ohne die Änderung
+      2 FAIL (harte-41, Fall 12).
+- [ ] **Nächster Schritt für Roberto:** neue HTML einspielen, Programm
+      öffnen → in der Leiste steht der technische Grund → einmal
+      „Schreibzugriff erneut versuchen" klicken. Klappt es dann, war der
+      erste Fehlschlag vorübergehend (Datei kurz belegt, Virenscanner).
+      Steht dort ein Rechte-Fehler (EPERM/EACCES), den Grund hier melden -
+      dann ist es doch eine Freigabe-Frage an die IT.
 
 App und Datendateien sollen künftig auf einem Server liegen statt in
 OneDrive. Zwei Dinge sind **vor** dem Aufsetzen zu klären, sonst steht die

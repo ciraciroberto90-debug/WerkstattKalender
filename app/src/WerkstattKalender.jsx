@@ -2247,6 +2247,12 @@ function App() {
   // ein BEARBEITER fälschlich im Schreibschutz gelandet ist. Normale Leser sehen
   // diese Knöpfe nicht (zu verlockend).
   const rettungsModus = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("verwalten") === "1";
+  // In der PROGRAMM-Fassung gibt es keine Adresszeile - ?verwalten=1 ist dort
+  // unerreichbar (Robertos Laufwerks-Probe am 10.08.: Schreibschutz, aber kein
+  // Weg zum technischen Grund). Deshalb zeigt das Programm den Grund und den
+  // Erneut-versuchen-Knopf immer; die verlockenden Datei-Wechsel-Knöpfe
+  // bleiben weiterhin versteckt.
+  const istProgramm = typeof window !== "undefined" && !!window.__werkstattDesktop;
 
   // Werkstatt-Monitor: Uhr sekündlich aktualisieren, ESC beendet den Vollbild-Modus,
   // Bildschirm bleibt wach (wichtig für einen Kiosk-Rechner ohne Nutzereingaben)
@@ -5296,7 +5302,7 @@ function App() {
               wählen" zu verlockend. Ein Bearbeiter, der hier fälschlich gelandet ist
               (Datei gesperrt o. ä.), öffnet die App einmalig mit ?verwalten=1 in der
               Adresszeile - dann erscheinen die Knöpfe. */}
-          {rettungsModus && (
+          {(rettungsModus || istProgramm) && (
             <>
               {sharedFile.getLastWriteError() && (
                 <span className="font-normal" style={{ color: "#5B87AB" }}>Technischer Grund: {sharedFile.getLastWriteError()}</span>
@@ -5318,13 +5324,18 @@ function App() {
               >
                 Schreibzugriff erneut versuchen
               </button>
-              <button
-                onClick={() => setShareOpen(true)}
-                className="px-2.5 py-1 rounded border"
-                style={{ borderColor: "#2F6690", color: "#2F6690", backgroundColor: "white" }}
-              >
-                Andere Datei wählen …
-              </button>
+              {/* Der Datei-Wechsel bleibt auch im Programm hinter dem
+                  Rettungs-Modus - er ist der Knopf, der am 03.08. in die
+                  falsche Datei geführt hätte. */}
+              {rettungsModus && (
+                <button
+                  onClick={() => setShareOpen(true)}
+                  className="px-2.5 py-1 rounded border"
+                  style={{ borderColor: "#2F6690", color: "#2F6690", backgroundColor: "white" }}
+                >
+                  Andere Datei wählen …
+                </button>
+              )}
             </>
           )}
         </div>

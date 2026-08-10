@@ -57,6 +57,7 @@ const pruef = (n, c, zusatz) => {
   // Gemerkte Pfade des "Programms" (im echten Electron: einstellungen.json)
   const einstellungen = {};
   let dialogAufrufe = 0;
+  let schreibSperre = false; // Fall (12): das Laufwerk verweigert das Schreiben
 
   const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
@@ -76,6 +77,10 @@ const pruef = (n, c, zusatz) => {
       } catch (e) { return null; }
     });
     await page.exposeFunction("__d_schreibe", async (p, text) => {
+      if (schreibSperre) {
+        // Wie ein Firmenlaufwerk ohne Schreibrecht: EPERM beim Umbenennen
+        throw new Error("EPERM: operation not permitted, rename '" + String(p) + ".tmp' -> '" + String(p) + "'");
+      }
       const tmp = String(p) + ".tmp";
       fs.writeFileSync(tmp, String(text));
       fs.renameSync(tmp, String(p));
@@ -315,6 +320,39 @@ const pruef = (n, c, zusatz) => {
   pruef("(11) Und die Übernahme wurde wirklich versucht",
     (await page.evaluate(() => window.__updateUebernahmen)) === 1);
   fs.rmSync(xlsxOrdner, { recursive: true, force: true });
+
+  /* ---- (12) Schreibschutz auf dem Laufwerk: Das Programm zeigt den GRUND
+     und den Erneut-versuchen-Knopf OHNE ?verwalten=1 (im Programm gibt es
+     keine Adresszeile - Robertos Laufwerks-Probe vom 10.08.). Ohne die
+     Änderung blieben Grund und Knopf unsichtbar. ---- */
+  {
+    schreibSperre = true; // das "Laufwerk" verweigert jedes Schreiben
+    const p12 = await ctx.newPage();
+    await verdrahte(p12);
+    await p12.goto(APP);
+    await p12.waitForTimeout(600);
+    await p12.locator('button[aria-label="Gemeinsame Datei"]').click();
+    await p12.getByText("Vorhandene Datei öffnen …").click();
+    await p12.waitForTimeout(1500);
+    await p12.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+    await p12.waitForTimeout(400);
+    const leiste = await p12.locator("body").innerText();
+    pruef("(12) Verweigert das Laufwerk das Schreiben, steht die App auf Schreibschutz",
+      /Schreibschutz/.test(leiste));
+    pruef("(12) Das Programm nennt den technischen Grund OHNE verwalten=1",
+      /Technischer Grund:/.test(leiste), (leiste.match(/Technischer Grund:[^\n]*/) || ["—"])[0].slice(0, 90));
+    pruef("(12) Der Erneut-versuchen-Knopf ist im Programm sichtbar",
+      (await p12.getByRole("button", { name: "Schreibzugriff erneut versuchen" }).count()) === 1);
+    pruef("(12) Der Datei-Wechsel-Knopf bleibt trotzdem versteckt (03.08.-Lehre)",
+      (await p12.getByRole("button", { name: "Andere Datei wählen …" }).count()) === 0);
+    // Laufwerk gibt das Schreiben wieder frei -> ein Klick heilt die Verbindung
+    schreibSperre = false;
+    await p12.getByRole("button", { name: "Schreibzugriff erneut versuchen" }).click();
+    await p12.waitForTimeout(1200);
+    pruef("(12) Nach dem Freigeben heilt der Knopf die Verbindung (Schreibschutz weg)",
+      !/Schreibschutz – dieser Rechner/.test(await p12.locator("body").innerText()));
+    await p12.close();
+  }
 
   console.log(`\n==== PROGRAMM-FASSUNG: ${ok} PASS / ${fail} FAIL ====`);
   await browser.close();
