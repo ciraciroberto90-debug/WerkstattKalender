@@ -104,7 +104,18 @@ Lesen klappt also schon. Zu klären, in dieser Reihenfolge:
       **„Schreibzugriff erneut versuchen"** (der Datei-Wechsel-Knopf bleibt
       versteckt - 03.08.-Lehre). Gegenprobe dokumentiert: ohne die Änderung
       2 FAIL (harte-41, Fall 12).
-- [ ] **Nächster Schritt für Roberto:** neue HTML einspielen, Programm
+- [x] **Aufgeklärt (10.08., zweites Bild):** Es lief die ALTE App-Fassung
+      (Kachel „68,0 % gesamt" kleingeschrieben = Anzeige von vor der
+      Pivot-Umstellung), obwohl die neue ZIP installiert war. Ursache im
+      Rahmen: Eine früher per Update übernommene `app-aktuell.html` im
+      Programm-Profil gewann BEDINGUNGSLOS gegen die eingebaute Fassung -
+      eine neue ZIP lief damit nie. Behoben: Es gewinnt die jüngere
+      Bau-Zeit (Fassungen ohne Stempel gelten als uralt). Nachweis am
+      echten Electron mit Gegenprobe (pruefe-programm 15/15; alter Rahmen:
+      FAIL). Achtung: Das ist ein RAHMEN-Fix → einmal ZIP tauschen.
+- [ ] **Nächster Schritt für Roberto:** neue ZIP einspielen (vorher alle
+      Cockpit-Fenster schließen - der Zweitstart-Schutz holt sonst das
+      alte Fenster nach vorn), Programm
       öffnen → in der Leiste steht der technische Grund → einmal
       „Schreibzugriff erneut versuchen" klicken. Klappt es dann, war der
       erste Fehlschlag vorübergehend (Datei kurz belegt, Virenscanner).
