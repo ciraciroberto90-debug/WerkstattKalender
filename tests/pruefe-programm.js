@@ -194,9 +194,55 @@ const pruef = (n, c, zusatz) => {
   await page.screenshot({ path: foto });
   console.log("Bildschirmfoto:", foto);
 
-  console.log(`\n==== ECHTES PROGRAMM: ${ok} PASS / ${fail} FAIL ====`);
+  /* ---- Neue ZIP schlaegt alte Profil-Fassung (Robertos Fall vom 10.08.) ----
+     Der Rahmen bevorzugte die per Update uebernommene Fassung BEDINGUNGSLOS -
+     wer eine neue ZIP installierte, bekam trotzdem die alte App aus dem
+     Profil und wunderte sich (Kachel "gesamt" statt "Gesamt", kein
+     Erneut-versuchen-Knopf). Jetzt gewinnt die juengere Bau-Zeit.
+     Nachgestellt: alte Fassung (ohne Bau-Stempel) als app-aktuell.html ins
+     Profil legen, Programm neu starten - es MUSS die eingebaute laden. */
   await browser.close();
+  // kind ist der xvfb-Wrapper - kill() liesse das Electron dahinter weiterlaufen,
+  // und die Pruefung unten verbaende sich mit dem ALTEN Fenster. Deshalb hart
+  // aufraeumen wie beim Start, und der zweite Lauf bekommt einen EIGENEN Port.
   kind.kill();
+  try { execSync("pkill -9 -f 'electron \\.' || true; pkill -9 -f 'xvfb-run' || true", { shell: "/bin/bash" }); } catch (e) { /* nichts lief */ }
+  await new Promise((r) => setTimeout(r, 1500));
+  const port2 = port + 1;
+  const profil = [path.join(os.homedir(), ".config", "Werkstatt-Cockpit"), path.join(os.homedir(), ".config", "werkstatt-cockpit")]
+    .find((p) => fs.existsSync(path.join(p, "app-aktuell.html")));
+  pruef("Neustart-Szenario: Die uebernommene Fassung liegt im Profil", !!profil, profil || "—");
+  if (profil) {
+    fs.copyFileSync(path.join(wurzel, "tests", "hilfen", "alt-fassung.html"), path.join(profil, "app-aktuell.html"));
+    const kind2 = spawn("xvfb-run", ["-a", elektronBin, ".", "--no-sandbox", `--remote-debugging-port=${port2}`], {
+      cwd: path.join(wurzel, "programm"),
+      env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: "1" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let browser2 = null;
+    for (let i = 0; i < 40 && !browser2; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      try { browser2 = await chromium.connectOverCDP(`http://127.0.0.1:${port2}`); } catch (e) { /* noch nicht bereit */ }
+    }
+    let seite2 = null;
+    if (browser2) {
+      const ctx2 = browser2.contexts()[0];
+      for (let i = 0; i < 40 && !seite2; i++) {
+        seite2 = ctx2.pages().find((p) => /app-aktuell\.html|Werkstatt_Kalender_TPM\.html/i.test(p.url()));
+        if (!seite2) await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+    pruef("Neustart mit alter Profil-Fassung: Das Programm kommt hoch", !!seite2);
+    if (seite2) {
+      pruef("Neue ZIP schlaegt alte Profil-Fassung: Es laeuft die EINGEBAUTE (juengere) App",
+        /Werkstatt_Kalender_TPM\.html/i.test(seite2.url()) && !/app-aktuell\.html/i.test(seite2.url()),
+        seite2.url());
+    }
+    if (browser2) await browser2.close();
+    kind2.kill();
+  }
+
+  console.log(`\n==== ECHTES PROGRAMM: ${ok} PASS / ${fail} FAIL ====`);
   fs.rmSync(ordner, { recursive: true, force: true });
   process.exit(fail > 0 ? 1 : 0);
 })().catch((e) => { console.error("CRASH:", e.message); process.exit(1); });

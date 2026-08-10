@@ -161,13 +161,29 @@ ipcMain.handle("pfad-info", async (ev, pfad) => {
 const UPDATE_TAKT_MS = 5 * 60 * 1000;
 const HTML_MUSTER = /^Werkstatt_Kalender_TPM.*\.html$/i;
 
+function bauZeit(text) {
+  // Der Bau-Zeitstempel steckt genau einmal als Literal in der App-HTML
+  // (vite traegt __BUILD_ZEIT__ ein). Fassungen ohne Stempel sind aelter
+  // als der Stempel selbst - sie gelten als uralt.
+  const m = String(text || "").match(/"(20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)"/);
+  return m ? (Date.parse(m[1]) || 0) : 0;
+}
 function aktuelleHtml() {
-  // Vom Update uebernommene Fassung im Profil - sonst die eingebaute
+  // Vom Update uebernommene Fassung im Profil ODER die eingebaute - es
+  // gewinnt die JUENGERE Bau-Zeit. Robertos Fall vom 10.08.: Neue ZIP
+  // installiert, aber eine frueher per Update uebernommene, aeltere Fassung
+  // aus dem Profil gewann bedingungslos - die neue ZIP lief nie.
   const uebernommen = path.join(app.getPath("userData"), "app-aktuell.html");
-  if (fssync.existsSync(uebernommen) && htmlPlausibel(fssync.readFileSync(uebernommen, "utf8"))) {
-    return uebernommen;
-  }
-  return path.join(__dirname, "app", "Werkstatt_Kalender_TPM.html");
+  const eingebaut = path.join(__dirname, "app", "Werkstatt_Kalender_TPM.html");
+  try {
+    if (fssync.existsSync(uebernommen)) {
+      const textU = fssync.readFileSync(uebernommen, "utf8");
+      if (htmlPlausibel(textU) && bauZeit(textU) >= bauZeit(fssync.readFileSync(eingebaut, "utf8"))) {
+        return uebernommen;
+      }
+    }
+  } catch (e) { /* im Zweifel laeuft die eingebaute Fassung */ }
+  return eingebaut;
 }
 function htmlPlausibel(text) {
   const t = String(text || "");
