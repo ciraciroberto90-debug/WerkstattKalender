@@ -84,6 +84,7 @@ Messwerte und Begründung stehen im
 | [`ROLLOUT-LISTE.md`](ROLLOUT-LISTE.md) | **was noch zu tun ist** – offene Punkte, Entscheidungen, Erledigtes |
 | [`doku/Werkstatt-Cockpit-Einrichtung.pdf`](doku/Werkstatt-Cockpit-Einrichtung.pdf) | **Klickanleitung für die Kollegen** – eine Seite, an die E-Mail hängen |
 | [`doku/ANLEITUNG.md`](doku/ANLEITUNG.md) | vollständige Bedienungs- und Einrichtungsanleitung |
+| [`doku/Entscheidungsvorlage-Werkstatt-Cockpit.pdf`](doku/Entscheidungsvorlage-Werkstatt-Cockpit.pdf) | **Freigabe-Vorlage für die Geschäftsführung** – Nutzen, Kosten, Risiken, Auflagen |
 | [`arbeitsplatz/Anleitung-Arbeitsplatz.md`](arbeitsplatz/Anleitung-Arbeitsplatz.md) | nur die Einrichtung eines Rechners, mit Fehlerbildern |
 | [`doku/ROLLOUT-PRUEFBERICHT.md`](doku/ROLLOUT-PRUEFBERICHT.md) | was geprüft wurde, mit Messwerten |
 | [`doku/IT-ANFRAGE.md`](doku/IT-ANFRAGE.md) | fertige Anfrage, falls doch eine zentrale Lösung gewünscht wird |

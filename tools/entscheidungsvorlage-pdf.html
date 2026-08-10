@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Entscheidungsvorlage Werkstatt-Cockpit</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #22262B; font-size: 10.5pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 15pt; margin: 0 0 2mm; }
+  h2 { font-size: 11.5pt; margin: 5mm 0 2mm; border-bottom: 1.5px solid #22262B; padding-bottom: 1mm; }
+  p { margin: 0 0 2.5mm; }
+  table { border-collapse: collapse; width: 100%; margin: 2mm 0 3mm; font-size: 9.5pt; }
+  th, td { border: 1px solid #9AA1A9; padding: 1.6mm 2.5mm; text-align: left; vertical-align: top; }
+  th { background: #EEF1F4; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .03em; }
+  .kopf { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm 8mm; margin: 3mm 0 4mm; font-size: 10pt; }
+  .kopf b { display: inline-block; width: 26mm; }
+  .kasten { border: 1.5px solid #22262B; padding: 3mm 4mm; margin: 2mm 0 3mm; background: #F7F8F9; }
+  .gross { font-size: 12pt; font-weight: 800; }
+  .hinweis { color: #5B6572; font-size: 8.5pt; font-style: italic; }
+  .unterschriften { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .unterschriften div { border-top: 1px solid #22262B; padding-top: 1.5mm; font-size: 9.5pt; }
+  .u-platz { height: 16mm; }
+  ul { margin: 0 0 2.5mm; padding-left: 5mm; }
+  li { margin-bottom: 1mm; }
+  .seite { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>Entscheidungsvorlage: Freigabe „Werkstatt-Cockpit"</h1>
+<div class="kopf">
+  <span><b>An:</b> Geschäftsführung</span>
+  <span><b>Von:</b> R. Ciraci, Werkstattleiter</span>
+  <span><b>Datum:</b> 10.08.2026</span>
+  <span><b>Anlagen:</b> Anleitung, Prüfbericht</span>
+</div>
+<div class="kasten"><b>Beantragte Entscheidung:</b> Freigabe des Werkstatt-Cockpits als
+offizielles Arbeitsmittel der Instandhaltung – mit den vier Auflagen aus Abschnitt&nbsp;7.</div>
+
+<h2>1. Worum es geht</h2>
+<p>Die Werkstatt (8&nbsp;Mitarbeiter + Leitung) arbeitet seit mehreren Wochen produktiv mit einer
+selbst aufgebauten Planungs- und Dokumentations-Software: Schichtplan, Arbeitsplanung, digitales
+Schichtbuch (Störberichte), Wartungs- und Inspektionsplanung (TPM/R+I) mit druckfertigem
+Prüfnachweis, OEE-Anzeige live aus der bestehenden Excel-Auswertung, Pinnwand und Hallenmonitor.
+Seit dem 10.08. läuft sie auf allen Werkstatt-Rechnern als eigenständiges Programm; die Daten
+liegen ausschließlich auf dem Firmenlaufwerk (OneDrive wurde abgelöst), der Zugriff ist über
+Benutzerrollen (Verwalter / Bearbeiter / Leser) geregelt.</p>
+
+<h2>2. Funktionsumfang – und bewusste Grenzen</h2>
+<table>
+  <tr><th>Funktion</th><th>Ersetzt bisher</th><th>Reife</th></tr>
+  <tr><td>Schichtplan (Monatsmatrix, Feiertage, Aushang-Druck je KW)</td><td>Excel-Blatt</td><td>hoch</td></tr>
+  <tr><td>Arbeitsplanung je Tag/Person inkl. Wartungsplan</td><td>Excel + Zuruf</td><td>hoch</td></tr>
+  <tr><td>Störberichte/Schichtbuch: Nummern, Suche, Anlagen-Historie, A4-Druck, Ausfallzeiten-Auswertung</td><td>Papier-Schichtbuch</td><td>hoch</td></tr>
+  <tr><td>TPM/R+I mit Terminlogik und <b>druckfertigem Jahres-Prüfnachweis</b></td><td>Hand-Nachweise</td><td>hoch – Kernstärke</td></tr>
+  <tr><td>OEE live aus der bestehenden Pivot-Excel, Monats-/Jahresverlauf</td><td>manuelles Nachschauen</td><td>neu, an echter Tabelle nachgewiesen</td></tr>
+  <tr><td>Pinnwand (Übergaben), Werkstatt-Monitor für den Hallenbildschirm</td><td>Zettel</td><td>hoch</td></tr>
+  <tr><td>Benutzerrollen; gemeinsame Datei mit Eintrag-für-Eintrag-Zusammenführung; automatische lokale Sicherungen</td><td>–</td><td>hoch, intensiv getestet</td></tr>
+</table>
+<p><b>Bewusst nicht enthalten:</b> Ersatzteil-Lager mit Bestellwesen, mobile Erfassung per QR-Code,
+echter Mehr-Standort-Betrieb, revisionssicherer (unveränderbarer) Audit-Trail. Die Benutzerrechte
+sind eine Leitplanke gegen Versehen – echte Zugriffskontrolle leisten die Laufwerksrechte der IT.</p>
+<p><b>Qualitätsstand (gemessen):</b> 41 automatische Testsuiten mit rund 700 Einzelprüfungen vor
+jeder Auslieferung, zusätzlich 18 Prüfungen gegen das echte installierte Programm – inklusive
+Härtefällen wie beschädigter Datei, falsch gehender Rechneruhr, zwei gleichzeitig offenen Fenstern
+und sieben Jahrgängen Testdaten (16&nbsp;951 Einträge). Stand 10.08.: fehlerfrei.</p>
+
+<h2>3. Kosten bis heute</h2>
+<table>
+  <tr><th>Posten</th><th>Betrag</th></tr>
+  <tr><td>Software-Lizenzen</td><td><b>0&nbsp;€</b></td></tr>
+  <tr><td>Server / Hardware / IT-Aufwand</td><td><b>0&nbsp;€</b> (vorhandene PCs, vorhandenes Laufwerk)</td></tr>
+  <tr><td>KI-Werkzeug (Monats-Abo, 2 Monate)</td><td>ca. ______&nbsp;€ <span class="hinweis">(Abo-Preis eintragen; Größenordnung unter 100&nbsp;€/Monat)</span></td></tr>
+  <tr><td>Arbeitszeit Werkstattleiter, 5 Wochen (Anforderungen, Tests, Einführung)</td><td>geschätzt ca. 50&nbsp;h ≈ <b>2&nbsp;500&nbsp;€</b> <span class="hinweis">(50&nbsp;€/h interner Satz, Schätzung)</span></td></tr>
+  <tr><td><b>Summe bis heute</b></td><td><b>≈ 2&nbsp;500–2&nbsp;700&nbsp;€</b></td></tr>
+</table>
+<p>Zur Einordnung des Ergebnisses: ca. 25&nbsp;500 Zeilen Programmcode – davon 9&nbsp;700 Zeilen
+automatische Tests –, vollständige Anleitung und Prüfbericht, entstanden in 5&nbsp;Wochen
+(261 dokumentierte Entwicklungsschritte). Extern beauftragt entspräche das grob 40–60
+Personentagen Individualentwicklung: <b>Ersatzwert rund 40&nbsp;000&nbsp;€</b>
+<span class="hinweis">(Marktschätzung, 900&nbsp;€/Personentag)</span>.</p>
+
+<h2>4. Was es spart</h2>
+<div class="kasten gross">Mit diesem Programm haben wir im ersten Jahr rund 20&nbsp;000&nbsp;€ gespart.</div>
+<p>Herleitung – bewusst konservativ, Annahmen offen:</p>
+<ul>
+  <li><b>Vermiedene Kauf-Software (CMMS):</b> marktüblich 30–60&nbsp;€/Nutzer/Monat plus Einführung.
+  Angesetzt: 4&nbsp;200&nbsp;€/Jahr Lizenz + ~8&nbsp;000&nbsp;€ Einführung/Schulung →
+  <b>≈ 12&nbsp;000&nbsp;€ im ersten Jahr</b> (danach ≈ 4&nbsp;200&nbsp;€/Jahr wiederkehrend).</li>
+  <li><b>Zeitgewinn im Betrieb:</b> Wegfall von Zettelsuche, Doppel-Erfassung, Übergabe-Telefonaten;
+  der Prüfnachweis entsteht nebenbei. Konservativ 5–10&nbsp;Minuten je Person und Arbeitstag
+  (9&nbsp;Personen, 220&nbsp;Tage, 45&nbsp;€/h) → <b>≈ 7&nbsp;500–15&nbsp;000&nbsp;€/Jahr</b>
+  <span class="hinweis">(Annahme – nach 3 Monaten Betrieb mit echten Zahlen nachschärfen)</span>.</li>
+</ul>
+<p>Dem stehen Kosten von unter 3&nbsp;000&nbsp;€ gegenüber. Ab Jahr&nbsp;2 wiederkehrend
+≈ 12&nbsp;000–19&nbsp;000&nbsp;€/Jahr. Die Daten liegen offen lesbar im Haus – ein späterer
+Umstieg auf ein Kaufsystem verliert nichts.</p>
+
+<div class="seite"></div>
+
+<h2>5. Risiken – ehrlich benannt, mit Gegenmaßnahme</h2>
+<table>
+  <tr><th>Risiko</th><th>Einordnung</th><th>Gegenmaßnahme (= Auflage)</th></tr>
+  <tr><td><b>Personenabhängigkeit</b> (Pflege hängt am Werkstattleiter)</td>
+      <td>größtes Einzelrisiko; die Software läuft auch „eingefroren" unbegrenzt weiter (kein Server, nichts läuft ab)</td>
+      <td>Auflage 3: Vertreter einweisen, Betriebshandbuch für die IT</td></tr>
+  <tr><td>Kein Hersteller-Support, keine Gewährleistung</td>
+      <td>strukturell; gemildert durch Testabdeckung und offene Datenhaltung</td>
+      <td>Auflagen 1–3</td></tr>
+  <tr><td>Update-Ordner verteilt Programmstände an alle Rechner</td>
+      <td>mächtigster interner Hebel</td>
+      <td>Auflage 2: Schreibrecht eng fassen, EXE durch IT signieren</td></tr>
+  <tr><td>Benutzerrechte sind Leitplanke, kein Schloss</td>
+      <td>bekannt und dokumentiert</td>
+      <td>Laufwerksrechte der IT bleiben maßgeblich (Auflage 1)</td></tr>
+  <tr><td>Datenverlust</td>
+      <td>tägliche Server-Sicherung + automatische lokale Sicherungen je Gerät (14 Tage)</td>
+      <td>Auflage 1: IT bestätigt Sicherung des Ordners</td></tr>
+</table>
+<p>Von außen (Internet) ist die Anwendung praktisch nicht angreifbar – es gibt keinen Server und
+keine offenen Ports; Details im Sicherheitsabschnitt der Roll-out-Liste.</p>
+
+<h2>6. Warum (noch) keine Kauf-Software – und wann doch</h2>
+<p>Der teuerste Teil jeder Instandhaltungs-Software ist nicht die Lizenz, sondern Anpassung und
+Akzeptanz. Beides ist bereits vorhanden: Die Software bildet exakt unsere Abläufe ab und wird von
+der gesamten Mannschaft täglich benutzt. Ein Kaufsystem würde heute Geld kosten, Monate Einführung
+brauchen und das Akzeptanzrisiko neu eröffnen.</p>
+<p><b>Definierte Kaufen-Grenze</b> (Teil des Beschlusses): Sobald eine der folgenden Anforderungen
+real wird, wird die CMMS-Frage neu bewertet – die offene Datenhaltung macht eine Migration
+jederzeit möglich: Ersatzteil-Lager/Bestellwesen · mobile Erfassung mit QR-Codes · zweiter
+Standort im Echtbetrieb · behördlich geforderter revisionssicherer Audit-Trail · dauerhaft mehr
+als ~20 Nutzer.</p>
+
+<h2>7. Beschlussvorschlag</h2>
+<p>Die Geschäftsführung gibt das Werkstatt-Cockpit als Arbeitsmittel der Instandhaltung frei,
+unter vier Auflagen:</p>
+<ul>
+  <li><b>1. IT bestätigt die tägliche Sicherung</b> des Datenordners auf dem Firmenlaufwerk und
+  behält die Ordner-Zugriffsrechte bei sich.</li>
+  <li><b>2. IT signiert die Programm-EXE</b> und fasst das Schreibrecht auf den App-/Update-Ordner
+  eng (Werkstattleiter, Vertreter, IT).</li>
+  <li><b>3. Vertretungsregel:</b> Der Vertreter wird in Einrichtung und Wiederherstellung
+  eingewiesen; ein Betriebshandbuch für die IT wird bis ________ erstellt.</li>
+  <li><b>4. Jährliche Überprüfung</b> (oder bei Erreichen der Kaufen-Grenze aus Abschnitt&nbsp;6):
+  Nutzen, Kosten und CMMS-Frage werden neu bewertet.</li>
+</ul>
+
+<div class="unterschriften">
+  <div><div class="u-platz"></div>Ort, Datum, Unterschrift<br><b>Geschäftsführung</b></div>
+  <div><div class="u-platz"></div>Ort, Datum, Unterschrift<br><b>Werkstattleitung</b></div>
+</div>
+
+<p class="hinweis" style="margin-top:6mm">Alle mit „Schätzung/Annahme" gekennzeichneten Zahlen sind
+als solche zu lesen; die gemessenen Angaben (Testumfang, Codeumfang, Laufzeit, Betrieb) stammen aus
+dem Projekt selbst und sind im Repository nachvollziehbar (README, Roll-out-Liste, Prüfbericht).</p>
+
+</body>
+</html>
