@@ -64,17 +64,23 @@ Umfang des Ergebnisses zur Einordnung: ca. 25 500 Zeilen Programmcode – davon
 9 700 Zeilen automatische Tests –, vollständige Anleitung, Prüfbericht,
 Betriebs-Merkzettel; entstanden in 5 Wochen (261 dokumentierte
 Entwicklungsschritte). Extern beauftragt entspräche das grob 40–60
-Personentagen Individualentwicklung, also einem **Ersatzwert von rund
-40 000 €** *(Marktschätzung bei 900 €/Personentag, ungemessen)*.
+Personentagen Individualentwicklung. Der marktübliche Satz für
+IT-Freiberufler liegt laut Freelancer-Kompass 2025 (Befragung von rund
+6 000 Freiberuflern) bei Ø 104–105 €/Stunde, also ≈ 840 €/Personentag
+[Q1] [Q2] → **Ersatzwert 34 000–50 000 €, konservativ rund 40 000 €**.
 
 ## 4. Was es spart
 
 **„Mit diesem Programm haben wir im ersten Jahr rund 20 000 € gespart."**
 Herleitung – bewusst konservativ, alle Annahmen offen:
 
-1. **Vermiedene Kauf-Software:** Ein Instandhaltungssystem (CMMS) für ~10
-   Nutzer kostet marktüblich 30–60 €/Nutzer/Monat plus Einführung. Angesetzt:
-   4 200 €/Jahr Lizenz + ~8 000 € einmalige Einführung/Schulung →
+1. **Vermiedene Kauf-Software:** Instandhaltungssysteme (CMMS) kosten
+   marktüblich 20–100 €/Nutzer/Monat [Q3] [Q4]; konkrete deutsche
+   Anbieter-Pakete liegen bei 69–80 €/Nutzer/Monat, die Einführung
+   (Datenübernahme, Anpassung, Schulung) bei 50–150 % der Jahreslizenz [Q5].
+   Für 10 Nutzer wären das realistisch 8 300–9 600 €/Jahr Lizenz plus
+   4 000–14 000 € Einführung. **Angesetzt wird bewusst das untere Ende:**
+   4 200 €/Jahr Lizenz (35 €/Nutzer) + 8 000 € Einführung →
    **≈ 12 000 € im ersten Jahr** (danach ≈ 4 200 €/Jahr wiederkehrend).
 2. **Zeitgewinn im Betrieb:** Wegfall von Zettelsuche, Doppel-Erfassung,
    Übergabe-Telefonaten; Prüfnachweis entsteht nebenbei statt als
@@ -143,7 +149,28 @@ Instandhaltung frei, unter vier Auflagen:
 
 ---
 
+## 8. Quellen
+
+- **[Q1]** freelancermap, „Freelancer-Kompass 2025": Ø-Stundensatz 104 €
+  (DACH), IT-Freiberufler 105 €/h – Befragung von rund 6 000 Freiberuflern.
+  Berichtet u. a. von Computerwoche: „Freelancer-Kompass 2025: IT-Freiberufler
+  verdienen 105 Euro in der Stunde" (computerwoche.de, 2025).
+- **[Q2]** heise online: „Freelancer-Studie 2025: Das verdienen IT-Freiberufler
+  in Deutschland" (heise.de, 2025).
+- **[Q3]** osapiens: „Instandhaltungssoftware Vergleich 2026" – typische
+  Preisspanne 20–100 €/Nutzer/Monat (osapiens.com, abgerufen 10.08.2026).
+- **[Q4]** Streit Software: „Wartungsplaner Software – Anbieter 2026 im
+  Vergleich" – kleine Lösungen ab ~30 €/Nutzer/Monat, große Einführungen
+  10 000 €+ (streit-software.de, abgerufen 10.08.2026).
+- **[Q5]** remberg (deutscher CMMS-Anbieter): „Was bestimmt die Kosten einer
+  CMMS-Lösung?" – Paketpreise 69–80 €/Nutzer/Monat, Implementierung oft
+  50–150 % der Jahreslizenz (remberg.com/de/blog/kosten-cmms, abgerufen
+  10.08.2026).
+- **Interne, gemessene Angaben** (Testumfang, Codeumfang, Laufzeit,
+  Betriebsstand) stammen aus dem Projekt-Repository und sind dort
+  nachvollziehbar (README, Roll-out-Liste, Prüfbericht).
+
 *Alle mit „Schätzung/Annahme" gekennzeichneten Zahlen sind als solche zu
-lesen; die gemessenen Angaben (Testumfang, Codeumfang, Laufzeit, Betrieb)
-stammen aus dem Projekt selbst und sind im Repository nachvollziehbar
-(README, Roll-out-Liste, Prüfbericht).*
+lesen. Der angesetzte Zeitgewinn (Abschnitt 4, Punkt 2) ist eine interne
+Annahme ohne externe Quelle und wird nach drei Monaten Betrieb mit echten
+Beobachtungen nachgeschärft.*

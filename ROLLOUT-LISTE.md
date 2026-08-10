@@ -462,6 +462,15 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Workshop-Foliensatz für den 26.08. (Robertos 3-h-Termin):**
+      `doku/Werkstatt-Cockpit-Workshop.pptx` - 12 Folien für die ersten
+      15-20 Minuten. Holt Laien ab (Vorher/Nachher, Technik in einem Bild),
+      zeigt fünf Funktionen bildlich (echte Bildschirmfotos mit
+      Beispieldaten), endet mit Fakten: Testzahlen, Kosten/Ersparnis mit
+      denselben Quellen [1]-[3] wie in der Entscheidungsvorlage, plus
+      „was es bewusst NICHT kann". Sprechernotizen auf jeder Folie.
+      Die Entscheidungsvorlage (MD + PDF) wurde dazu um einen
+      Quellen-Abschnitt ergänzt - jede Preisaussage hat jetzt einen Beleg.
 - [x] **Tempo-Nachschärfung (10.08., Robertos „teilweise noch nachhängend"):**
       Gemessen an 6-fach gedrosselter CPU (wie ein Werkstatt-PC, 6000+
       Einträge): **Jeder Tastendruck** in Pinnwand-Zettel und Suchfeldern
