@@ -87,6 +87,21 @@ Vor dem Stichtag erst mit einer KOPIE der JSON in einem Laufwerksordner
 proben; beim Umzug selbst wählt jedes Gerät die Datei einmal neu an –
 vorher den vollen Pfad an alle verteilen (der 03.08.-Fall).
 
+**Erste Probe am 10.08. (Roberto, Programm-Fassung):** Kopie der JSON auf dem
+Firmenlaufwerk verbunden → App ging auf **Schreibschutz**. Das ist das
+ehrliche, erwartete Verhalten, wenn der Schreibversuch am Laufwerk scheitert -
+Lesen klappt also schon. Zu klären, in dieser Reihenfolge:
+
+- [ ] Schreibschutz-Häkchen der KOPIE prüfen (Rechtsklick → Eigenschaften) -
+      beim Kopieren wandert es gern mit. Entfernen, Programm neu starten.
+- [ ] Kann Roberto in dem Ordner eine NEUE Datei anlegen (Rechtsklick → Neu →
+      Textdokument)? Das Programm speichert atomar über eine Zwischendatei -
+      es braucht das Recht, im Ordner neue Dateien anzulegen, nicht nur die
+      vorhandene zu ändern. „Ändern erlaubt, Neuanlegen verboten" ist auf
+      Firmenlaufwerken der häufigste Stolperstein.
+- [ ] Reicht beides nicht: IT nach Schreibrecht der Werkstatt-Gruppe auf
+      genau diesen Ordner fragen (eine Standardfreigabe, kein Sonderwunsch).
+
 App und Datendateien sollen künftig auf einem Server liegen statt in
 OneDrive. Zwei Dinge sind **vor** dem Aufsetzen zu klären, sonst steht die
 App hinterher still:
@@ -250,7 +265,22 @@ auf denselben Dateien.
 
 ## Offene Entscheidungen
 
-- [ ] **Benutzergruppen mit Lese-/Schreibrecht (Robertos Wunsch vom 07.08.).**
+- [x] **Benutzergruppen mit Lese-/Schreibrecht - umgesetzt am 10.08.**
+      Robertos Vorgaben: Benutzer legt er selbst im ⚙ an (z. B. RobertoCiraci
+      = Verwalter, MWerkstatt = Leser), Abfrage beim ersten Start, einfache
+      Kennwörter wie "Leser" möglich (in der Datei nur als Hash). Zweite
+      Ansage vom 10.08. umgesetzt: Der Anmelde-Dialog hat KEIN Dropdown -
+      Benutzername und Kennwort sind Schreibfelder, die Namen werden nicht
+      verraten, und die Fehlermeldung sagt bewusst nicht, ob es den Namen
+      gibt (sonst ließen sich Namen durchprobieren). Dritte Ansage vom
+      10.08.: Abmelden-Knopf oben rechts für alle Angemeldeten (auch Leser/
+      Bearbeiter) - danach lässt sich ein anderer Benutzer anmelden oder
+      über das Anmelde-Fenster eine andere JSON-Datei verbinden. Erster
+      Benutzer steht von selbst auf Verwalter; der letzte Verwalter lässt
+      sich nicht herabstufen; Benutzerwechsel über das Datei-Fenster.
+      Leser dürfen weiterhin Störungen melden (bewusst, wie bisher).
+      Härtetest harte-42 (20 Prüfungen) mit Gegenprobe: Leser ohne Zahnrad,
+      obwohl die Datei schreibbar wäre. Ursprüngliche Notiz:
       Roberto gibt eine Namensliste vor, jeder Name bekommt ein Recht
       (lesen oder schreiben). Beim ersten Start wählt man seinen Namen aus
       der Liste statt ihn frei einzutippen; das Gerät merkt sich die Wahl.

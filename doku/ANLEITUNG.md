@@ -153,6 +153,9 @@ Bearbeiter vorgeschlagen. Er bleibt auf dem jeweiligen Gerät und wandert nicht 
 gemeinsame Datei. **Wer keinen Namen einträgt, erscheint im Verlauf als „Unbekannt"** –
 damit ist der Verlauf für diesen Arbeitsplatz wertlos. Zwei Minuten Aufwand pro PC.
 
+> Ist die **Benutzerliste** eingerichtet (Kapitel 4), entfällt dieser Schritt:
+> Die Anmeldung trägt den Benutzernamen automatisch als Gerätenamen ein.
+
 ### 3.5 Konflikt-Wächter (optional, empfohlen)
 
 OneDrive legt bei zeitgleichen Änderungen manchmal „Konfliktkopien" an
@@ -232,19 +235,45 @@ oder Stückzahl je Zeile wäre jede Gewichtung erfunden.
 
 ## 4. Rollen & Rechte
 
-Die App unterscheidet automatisch anhand der **OneDrive-/Laufwerks-Rechte**:
+Es gibt **zwei Ebenen**, und beide müssen schreiben erlauben:
 
-- **Bearbeiter** (Schreibrecht auf die Daten-Datei): sehen und ändern alles.
-- **Nur-Leser** (nur Ansehen-Recht): sehen Übersicht, Schichtplan, Planung, Störungen und
-  den TPM-Plan – können die **Hauptdaten aber nicht ändern** (blaue „Schreibschutz"-Leiste).
+**Ebene 1 – die Datei-Rechte** (OneDrive-Freigabe bzw. Laufwerksrechte der IT).
+Wer die Daten-Datei nur ansehen darf, kann auch mit Tricks nichts speichern –
+das ist das echte Schloss.
+
+**Ebene 2 – die Benutzerliste in der App** (⚙ → Team & Schichten → **Benutzer &
+Rechte**). Sie ist freiwillig: Solange keine Benutzer angelegt sind, verhält
+sich die App wie immer. Legt der Werkstattleiter Benutzer an, fragt die App
+auf jedem Gerät **einmal** nach dem Benutzernamen (plus Kennwort, falls
+vergeben) und merkt sich die Wahl. Drei Rollen:
+
+- **Verwalter** – schreiben und die Benutzerliste pflegen (Werkstattleiter + Vertreter).
+- **Bearbeiter** – schreiben.
+- **Leser** – nur ansehen (blaue „Schreibschutz"-Leiste).
+
+Die Anmeldung ist ein **Schreibfeld, keine Auswahlliste** – der Dialog verrät
+die Benutzernamen nicht, und bei falschem Namen oder Kennwort kommt bewusst
+dieselbe Meldung. Groß-/Kleinschreibung des Namens ist egal.
+
+Die Liste liegt in der gemeinsamen Datei: Eine Rechteänderung im ⚙ gilt sofort
+für alle. Kennwörter stehen nie im Klartext in der Datei. Der letzte Verwalter
+kann nicht gelöscht oder herabgestuft werden – sonst könnte danach niemand mehr
+Benutzer pflegen. **Abmelden:** der Knopf oben rechts (Tür-Symbol) – für alle
+Angemeldeten, auch Leser. Danach lässt sich im Anmelde-Fenster ein anderer
+Benutzer eintragen oder über **„Gemeinsame Datei verbinden / wechseln …"**
+eine andere JSON-Datei anwählen. Der Sinn der Liste: Die Rechtevergabe hängt
+damit **nicht mehr an OneDrive-Freigaben** – alle bekommen dieselbe Datei, wer
+was darf, steht in der App.
+
+> **Ehrlich gesagt:** Die Benutzerliste ist eine **Leitplanke gegen Versehen,
+> kein Schloss.** Die App liegt offen auf dem Laufwerk; wer den Datenordner
+> öffnen darf, kommt an ihr vorbei, und ohne Kennwort kann jeder jeden Namen
+> wählen. Echtes Sperren leisten nur die Datei-Rechte (Ebene 1). Für den
+> Werkstattalltag ist das dasselbe Vertrauensmodell wie beim Papier-Schichtbuch.
 
 **Wichtige Ausnahme – Störungen:** Die Störungen-Datei ist für **alle** freigegeben.
 Deshalb dürfen **auch Leser** Störungen anlegen, bearbeiten und löschen – aber nur die
 Störungen, nicht den Rest.
-
-> **Die Rechte kommen aus OneDrive, nicht aus der App.** Es gibt kein Passwort und keine
-> Benutzerverwaltung im Programm. Wer in OneDrive Schreibrecht auf die Daten-Datei hat,
-> ist Bearbeiter – wer es nicht hat, kann auch mit Tricks nichts speichern.
 
 ---
 

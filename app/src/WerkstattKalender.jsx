@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv, LogOut } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
 
@@ -511,6 +511,35 @@ const TEAM_ROLLEN = {
 const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
   .map((t) => (typeof t === "string" ? { name: t, rolle: "" } : { name: String(t.name || ""), rolle: TEAM_ROLLEN[t.rolle] ? t.rolle : "" }))
   .filter((t) => t.name.trim());
+
+/* ---------- Benutzergruppen (Robertos Wunsch vom 07.08.) ----------
+   Eine Namensliste in der gemeinsamen Datei entscheidet, wer schreiben darf -
+   damit hängt die Rechtevergabe nicht mehr an OneDrive-Freigaben. Drei Rollen:
+   "verwalter" (schreiben + Benutzer pflegen), "bearbeiter" (schreiben),
+   "leser" (nur ansehen). Solange die Liste LEER ist, verhält sich die App wie
+   bisher - so kann niemand durch ein Update ausgesperrt werden, und Roberto
+   legt die Liste selbst an, wenn er soweit ist.
+   EHRLICH GESAGT ist das eine Leitplanke gegen Versehen, kein Schloss: Die
+   App liegt offen auf dem Laufwerk, wer den Datenordner öffnen darf, kommt
+   an ihr vorbei. Echtes Sperren können nur Laufwerksrechte der IT. */
+const BENUTZER_ROLLEN = {
+  verwalter: "Verwalter (schreiben + Benutzer pflegen)",
+  bearbeiter: "Bearbeiter (schreiben)",
+  leser: "Leser (nur ansehen)",
+};
+const normalisiereBenutzer = (roh) => (Array.isArray(roh) ? roh : [])
+  .map((b) => ({
+    name: typeof (b && b.name) === "string" ? b.name.trim() : "",
+    rolle: BENUTZER_ROLLEN[b && b.rolle] ? b.rolle : "bearbeiter",
+    // Kennwörter stehen NIE im Klartext in der Datei, nur als SHA-256-Wert.
+    // (Auch das ist kein Geheimnis im strengen Sinn - siehe Kommentar oben.)
+    kennwortHash: typeof (b && b.kennwortHash) === "string" ? b.kennwortHash : "",
+  }))
+  .filter((b) => b.name);
+const kennwortHashen = async (text) => {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text)));
+  return [...new Uint8Array(bytes)].map((x) => x.toString(16).padStart(2, "0")).join("");
+};
 
 // Werkstattschichtplan - Schichtarten wie das Excel-Dropdown (Blatt "Daten").
 // Der Schlüssel ist zugleich der gespeicherte Wert und die Anzeige.
@@ -1280,6 +1309,7 @@ function App() {
   const [settingsTpm, setSettingsTpm] = useState([]);
   const [settingsRi, setSettingsRi] = useState([]);
   const [settingsTeam, setSettingsTeam] = useState([]);
+  const [settingsBenutzer, setSettingsBenutzer] = useState([]); // Benutzer & Rechte im ⚙-Dialog (nur Verwalter)
   const [settingsSchichten, setSettingsSchichten] = useState([]); // eigene Schichtarten im ⚙-Dialog
   const [settingsAnlagenteile, setSettingsAnlagenteile] = useState([]); // Anlagenteile im ⚙-Dialog
   const [neuesTeilAnlage, setNeuesTeilAnlage] = useState(""); // Auswahl beim Anlegen eines Anlagenteils
@@ -1328,6 +1358,11 @@ function App() {
   const [zettelSuche, setZettelSuche] = useState(""); // Mini-Suche in der Pinnwand
   const [zettelText, setZettelText] = useState("");
   const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
+  // Benutzergruppen: Liste aus der gemeinsamen Datei; die Anmeldung merkt sich
+  // das Gerät - wie von Roberto gewünscht "beim ersten Login für immer".
+  const [benutzerListe, setBenutzerListe] = useState([]);
+  const [angemeldet, setAngemeldet] = useState(() => localStorage.getItem("werkstatt-kalender-benutzer") || "");
+  const [anmeldung, setAnmeldung] = useState({ name: "", kennwort: "", fehler: "" }); // Entwurf im Anmelde-Dialog
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
   const [shareInfo, setShareInfo] = useState(null); // grüne Hinweis-Meldung (z. B. Konfliktkopie eingesammelt), verschwindet von selbst
   const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
@@ -1403,6 +1438,9 @@ function App() {
         if (Array.isArray(d.config.anlagenteile)) setAnlagenteile(normalisiereAnlagenteile(d.config.anlagenteile));
         if (d.config.links) setLinks(normalisiereLinks(d.config.links));
         if (d.config.oee) setOeeQuelle(normalisiereOee(d.config.oee));
+        // Auch eine LEERE Liste übernehmen: Löscht Roberto alle Benutzer,
+        // muss die Anmeldepflicht überall wieder verschwinden.
+        if (Array.isArray(d.config.benutzer)) setBenutzerListe(normalisiereBenutzer(d.config.benutzer));
       }
     };
     const onShareError = (ev) => setShareErr(ev.detail || "Gemeinsame Datei: unbekannter Fehler.");
@@ -1587,7 +1625,17 @@ function App() {
   // "nach Browser-Neustart getrennt" (needs-permission) trägt zwar den gemerkten
   // Modus, ist aber unbestätigt und gilt deshalb als Nur-Lesen, bis der Nutzer
   // auf "Jetzt verbinden" klickt und die Schreibrechte erneut bewiesen sind.
-  const vollzugriff = shareChecked && (shareState.status === "unsupported" || (shareState.status === "connected" && shareState.mode === "readwrite"));
+  // ---- Benutzergruppen: die Namensliste aus der gemeinsamen Datei ----
+  // Sie greift ZUSÄTZLICH zu den Datei-Rechten: Auch wenn das Laufwerk
+  // schreiben ließe, bleibt ein "Leser"-Benutzer in der App Nur-Leser.
+  // Solange die Anmeldung aussteht, gilt Nur-Lesen - erst der bestätigte
+  // Benutzer beweist das Gegenteil (dieselbe Denkweise wie bei der Datei).
+  const benutzerAktiv = benutzerListe.length > 0;
+  const meinBenutzer = benutzerAktiv ? benutzerListe.find((b) => b.name === angemeldet) || null : null;
+  const benutzerDarfSchreiben = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle !== "leser");
+  const istVerwalter = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle === "verwalter");
+  const anmeldungOffen = benutzerAktiv && meinBenutzer == null;
+  const vollzugriff = shareChecked && (shareState.status === "unsupported" || (shareState.status === "connected" && shareState.mode === "readwrite")) && benutzerDarfSchreiben;
   const readerMode = !vollzugriff;
   // Enger gefasst als readerMode: nur wer TATSÄCHLICH schon verbunden UND
   // bestätigt Nur-Lesen ist. Wichtig für den "Gemeinsame Datei"-Knopf selbst -
@@ -2285,6 +2333,9 @@ function App() {
           if (parsed.oee) {
             setOeeQuelle(normalisiereOee(parsed.oee));
           }
+          if (Array.isArray(parsed.benutzer)) {
+            setBenutzerListe(normalisiereBenutzer(parsed.benutzer));
+          }
         }
       } catch (e) {
         if (retriesLeft > 0) {
@@ -2298,7 +2349,7 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = benutzerListe) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -2307,11 +2358,12 @@ function App() {
     setAnlagenteile(nextAnlagenteile);
     setLinks(nextLinks);
     setOeeQuelle(nextOee);
+    setBenutzerListe(nextBenutzer);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, benutzer: nextBenutzer }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -2532,6 +2584,8 @@ function App() {
     // _orig merkt sich den Namen beim Öffnen - so bleiben Umbenennungen auch
     // nach Umsortieren (↑/↓) der richtigen Person zugeordnet
     setSettingsTeam(team.map((t) => ({ ...t, _orig: t.name })));
+    // kennwortNeu: Klartext-Entwurf NUR im Dialog; beim Speichern wird gehasht
+    setSettingsBenutzer(benutzerListe.map((b) => ({ ...b, kennwortNeu: "" })));
     setSettingsSchichten(extraSchichten.map((s) => ({ ...s })));
     setSettingsAnlagenteile(anlagenteile.map((t) => ({ ...t })));
     setNeueSchichtName("");
@@ -2661,9 +2715,62 @@ function App() {
 
     // Anlagenteile umbenannter Anlagen mitziehen
     const teileMitRename = settingsAnlagenteile.map((t) => (tpmRenames.has(t.anlage) ? { ...t, anlage: tpmRenames.get(t.anlage) } : t));
-    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten), normalisiereAnlagenteile(teileMitRename));
+
+    // Benutzer & Rechte: nur Verwalter dürfen die Liste ändern. Neue Kennwörter
+    // werden hier gehasht - in die Datei wandert nie Klartext.
+    let nextBenutzer = benutzerListe;
+    if (istVerwalter) {
+      const entwurf = settingsBenutzer
+        .map((b) => ({ ...b, name: b.name.trim() }))
+        .filter((b) => b.name);
+      // Wächter gegen das Selbst-Aussperren: Eine nicht-leere Liste ohne
+      // einen einzigen Verwalter könnte danach niemand mehr bearbeiten.
+      if (entwurf.length > 0 && !entwurf.some((b) => b.rolle === "verwalter")) {
+        setErr("Benutzerliste nicht gespeichert: Mindestens ein Benutzer muss Verwalter sein - sonst könnte danach niemand mehr Benutzer pflegen.");
+        return;
+      }
+      nextBenutzer = [];
+      for (const b of entwurf) {
+        nextBenutzer.push({
+          name: b.name,
+          rolle: BENUTZER_ROLLEN[b.rolle] ? b.rolle : "bearbeiter",
+          kennwortHash: b.kennwortNeu ? await kennwortHashen(b.kennwortNeu) : (b.kennwortHash || ""),
+        });
+      }
+    }
+
+    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten), normalisiereAnlagenteile(teileMitRename), links, oeeQuelle, nextBenutzer);
     if (nextEntries !== entries) await persist(nextEntries);
     setSettingsOpen(false);
+  };
+
+  /* ---------- Benutzergruppen: An- und Abmelden ---------- */
+  const anmelden = async () => {
+    // Getippt statt gewählt (Robertos Ansage vom 10.08.): Groß/Klein wird
+    // verziehen, Tippfehler nicht. Die Fehlermeldung verrät bewusst NICHT,
+    // ob es den Namen gibt - sonst ließen sich Benutzernamen durchprobieren.
+    const getippt = anmeldung.name.trim().toLowerCase();
+    const b = getippt ? benutzerListe.find((x) => x.name.toLowerCase() === getippt) : null;
+    const abweisen = () => setAnmeldung((v) => ({ ...v, fehler: "Benutzername oder Kennwort stimmt nicht." }));
+    if (!b) { abweisen(); return; }
+    if (b.kennwortHash) {
+      const h = await kennwortHashen(anmeldung.kennwort || "");
+      if (h !== b.kennwortHash) { abweisen(); return; }
+    }
+    setAngemeldet(b.name);
+    // Der Benutzername ist ab jetzt auch der Urheber im Verlauf und der
+    // Melder-Vorschlag bei Störungen - ein Name, eine Wahrheit.
+    setZettelName(b.name);
+    try {
+      localStorage.setItem("werkstatt-kalender-benutzer", b.name);
+      localStorage.setItem("werkstatt-kalender-name", b.name);
+    } catch (e) { /* Speicher voll o. ä. - dann fragt das Gerät beim nächsten Start erneut */ }
+    setAnmeldung({ name: "", kennwort: "", fehler: "" });
+  };
+  const abmelden = () => {
+    setAngemeldet("");
+    setAnmeldung({ name: "", kennwort: "", fehler: "" });
+    try { localStorage.removeItem("werkstatt-kalender-benutzer"); } catch (e) { /* egal */ }
   };
 
   const addSettingsTpm = () => {
@@ -4826,6 +4933,22 @@ function App() {
                 <Download size={14} />
               </button>
             </>
+          )}
+          {/* Abmelden (Benutzergruppen, Robertos Wunsch vom 10.08.): sichtbar
+              für JEDEN Angemeldeten - gerade Leser und Bearbeiter haben sonst
+              keinen bequemen Weg, den Benutzer zu wechseln oder an einem
+              Gerät eine andere Datei zu verbinden. Der Klick meldet ab; im
+              Anmelde-Fenster gibt es dann auch den Weg zur Datei-Verbindung. */}
+          {benutzerAktiv && meinBenutzer && (
+            <button
+              onClick={abmelden}
+              className="flex items-center gap-1 text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "#4B5259" }}
+              title={`Abmelden (angemeldet als ${meinBenutzer.name})`}
+              aria-label="Abmelden"
+            >
+              <LogOut size={14} />
+            </button>
           )}
           {/* Gemeinsame Datei: kleines Ordner-Symbol + "zuletzt aktualisiert"-Anzeige.
               Grün = verbunden, Grau = noch nicht eingerichtet.
@@ -8095,6 +8218,17 @@ function App() {
               <button onClick={() => setShareOpen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
             </div>
 
+            {/* Benutzergruppen: Auch Nur-Leser haben dieses Fenster - deshalb
+                steht der Benutzerwechsel hier und nicht (nur) im Zahnrad. */}
+            {benutzerAktiv && meinBenutzer && (
+              <div className="text-xs rounded px-3 py-2 mb-3 flex items-center gap-2" style={{ backgroundColor: "#F1F3F5", color: "#5B6572" }}>
+                <span>Angemeldet als <strong>{meinBenutzer.name}</strong> ({BENUTZER_ROLLEN[meinBenutzer.rolle]})</span>
+                <button onClick={() => { setShareOpen(false); abmelden(); }} className="ml-auto font-bold underline" style={{ color: "#5B6572" }}>
+                  Benutzer wechseln …
+                </button>
+              </div>
+            )}
+
             {!sharedFile.isSupported() ? (
               <div className="text-sm text-slate-600 leading-relaxed">
                 Dieser Browser unterstützt den direkten Dateizugriff nicht. Bitte <strong>Microsoft Edge</strong> oder <strong>Google Chrome</strong> verwenden – dort funktioniert die gemeinsame Datei zuverlässig.
@@ -8209,6 +8343,75 @@ function App() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Anmeldung (Benutzergruppen): erscheint, sobald die gemeinsame Datei
+          eine Benutzerliste trägt und dieses Gerät noch keinen (gültigen)
+          Benutzer gewählt hat. Bewusst OHNE Wegklick-Möglichkeit: Bis zur
+          Anmeldung ist die App Nur-Lesen - wer nur schauen will, meldet sich
+          als Leser-Benutzer an (z. B. "MWerkstatt"). */}
+      {/* Solange das Datei-Fenster offen ist, tritt die Anmeldung zurück -
+          so lässt sich VOR der Anmeldung eine andere JSON verbinden
+          (z. B. nach dem Umzug aufs Firmenlaufwerk). */}
+      {anmeldungOffen && !loading && !shareOpen && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 90, padding: "16px" }}
+        >
+          <div role="dialog" aria-label="Anmelden" style={{ backgroundColor: "white", borderRadius: "var(--wk-eck)", width: "380px", maxWidth: "100%", padding: "20px 22px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)" }}>
+            <div className="font-extrabold text-sm mb-1" style={{ color: "#22262B" }}>Anmelden</div>
+            <div className="text-xs mb-3" style={{ color: "#5B6572" }}>
+              Für diese Werkstatt ist eine Benutzerliste eingerichtet. Einmal
+              anmelden - dieses Gerät merkt sich die Wahl.
+            </div>
+            {/* Bewusst SCHREIBFELDER statt einer Auswahlliste (Robertos
+                Ansage vom 10.08.): Ein Dropdown würde jedem alle
+                Benutzernamen verraten und die Anmeldung auf einen Klick
+                verkürzen. Wer sich anmeldet, muss den Namen kennen. */}
+            <label className="block text-xs font-bold mb-1" style={{ color: "#5B6572" }}>Benutzername</label>
+            <input
+              aria-label="Benutzername"
+              className="w-full border rounded px-2 py-1.5 text-sm mb-2"
+              style={{ borderColor: "#C9CDD2" }}
+              value={anmeldung.name}
+              autoFocus
+              onChange={(e) => setAnmeldung((v) => ({ ...v, name: e.target.value, fehler: "" }))}
+              onKeyDown={(e) => { if (e.key === "Enter") anmelden(); }}
+            />
+            <label className="block text-xs font-bold mb-1" style={{ color: "#5B6572" }}>Kennwort</label>
+            <input
+              type="password"
+              aria-label="Kennwort"
+              className="w-full border rounded px-2 py-1.5 text-sm mb-2"
+              style={{ borderColor: "#C9CDD2" }}
+              value={anmeldung.kennwort}
+              onChange={(e) => setAnmeldung((v) => ({ ...v, kennwort: e.target.value, fehler: "" }))}
+              onKeyDown={(e) => { if (e.key === "Enter") anmelden(); }}
+            />
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>Ohne vergebenes Kennwort das Feld leer lassen.</div>
+            {anmeldung.fehler && (
+              <div className="text-xs rounded px-2 py-1.5 mb-2" style={{ backgroundColor: "#FBEAE9", color: "#8C2B26" }}>{anmeldung.fehler}</div>
+            )}
+            <button
+              onClick={anmelden}
+              className="w-full rounded px-3 py-2 text-sm font-bold text-white"
+              style={{ backgroundColor: "#22262B" }}
+            >
+              Anmelden
+            </button>
+            <button
+              onClick={() => setShareOpen(true)}
+              className="w-full rounded px-3 py-2 text-sm font-bold mt-2 border"
+              style={{ color: "#5B6572", borderColor: "#C9CDD2", backgroundColor: "#F7F8F9" }}
+            >
+              Gemeinsame Datei verbinden / wechseln …
+            </button>
+            <div className="text-xs mt-3" style={{ color: "#8A9099" }}>
+              Benutzername unbekannt? Rechte und Benutzer pflegt der
+              Werkstattleiter (Zahnrad → Team &amp; Schichten).
+            </div>
           </div>
         </div>
       )}
@@ -8646,6 +8849,7 @@ function App() {
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Dein Name (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Wird im Verlauf und bei Störmeldungen als Urheber eingetragen. Bleibt auf diesem Gerät.
+              {benutzerAktiv && meinBenutzer && <> Angemeldet als <strong>{meinBenutzer.name}</strong> ({BENUTZER_ROLLEN[meinBenutzer.rolle]}).</>}
             </div>
             <input
               value={zettelName}
@@ -8654,6 +8858,75 @@ function App() {
               className="w-full text-sm px-2 py-1.5 rounded border mb-5"
               style={{ borderColor: "#D7DCE1" }}
             />
+
+            {/* Benutzer & Rechte: sichtbar für Verwalter - und für alle,
+                solange noch KEINE Liste existiert (sonst könnte niemand die
+                erste anlegen). Die Rechte lösen die OneDrive-Freigaben ab:
+                Datei-Ebene gibt allen dieselbe Datei, die App entscheidet
+                nach Benutzername. */}
+            {istVerwalter && (<>
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Benutzer &amp; Rechte (Anmeldung)</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Sobald hier Benutzer stehen, fragt die App beim ersten Start nach dem
+              Benutzernamen; das Gerät merkt sich die Wahl. <strong>Leser</strong> können
+              nur ansehen (Störungen melden bleibt erlaubt), <strong>Bearbeiter</strong> schreiben,
+              <strong> Verwalter</strong> pflegen zusätzlich diese Liste. Kennwort ist freiwillig
+              (leer lassen = Änderung/keins). Das ist eine Leitplanke gegen Versehen – echtes
+              Sperren leisten nur die Laufwerksrechte der IT.
+            </div>
+            {settingsBenutzer.map((b, idx) => (
+              <div key={idx} className="flex items-center gap-2 mb-1.5">
+                <input
+                  value={b.name}
+                  aria-label={`Benutzername ${idx + 1}`}
+                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, name: v } : x))); }}
+                  placeholder="z. B. RobertoCiraci"
+                  className="flex-1 text-sm px-2 py-1.5 rounded border"
+                  style={{ borderColor: "#D7DCE1" }}
+                />
+                <select
+                  value={b.rolle}
+                  aria-label={`Rolle ${idx + 1}`}
+                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, rolle: v } : x))); }}
+                  className="text-sm px-2 py-1.5 rounded border"
+                  style={{ borderColor: "#D7DCE1", width: "130px" }}
+                >
+                  <option value="verwalter">Verwalter</option>
+                  <option value="bearbeiter">Bearbeiter</option>
+                  <option value="leser">Leser</option>
+                </select>
+                <input
+                  type="password"
+                  value={b.kennwortNeu}
+                  aria-label={`Kennwort ${idx + 1}`}
+                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, kennwortNeu: v } : x))); }}
+                  placeholder={b.kennwortHash ? "Kennwort gesetzt" : "Kennwort (optional)"}
+                  className="text-sm px-2 py-1.5 rounded border"
+                  style={{ borderColor: "#D7DCE1", width: "150px" }}
+                />
+                <button
+                  onClick={() => setSettingsBenutzer((prev) => prev.filter((_, i) => i !== idx))}
+                  aria-label="Benutzer entfernen"
+                  className="text-slate-400 hover:text-red-600"
+                ><X size={15} /></button>
+              </div>
+            ))}
+            <button
+              onClick={() => setSettingsBenutzer((prev) => [...prev, { name: "", rolle: prev.length === 0 ? "verwalter" : "bearbeiter", kennwortHash: "", kennwortNeu: "" }])}
+              className="text-xs font-bold mb-2"
+              style={{ color: "#22262B" }}
+            >
+              + Benutzer hinzufügen
+            </button>
+            <div className="text-xs mb-5" style={{ color: "#8A9099" }}>
+              {settingsBenutzer.length === 0
+                ? "Ohne Benutzer verhält sich die App wie bisher (keine Anmeldung). Der erste Benutzer sollte der Verwalter sein."
+                : "Mindestens ein Verwalter muss bleiben - das prüft die App beim Speichern."}
+              {benutzerAktiv && meinBenutzer && (
+                <> · <button onClick={() => { setSettingsOpen(false); abmelden(); }} className="font-bold underline" style={{ color: "#5B6572" }}>Benutzer wechseln …</button></>
+              )}
+            </div>
+            </>)}
 
             </>)}
 
