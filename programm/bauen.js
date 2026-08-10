@@ -44,7 +44,10 @@ const AUSGABE = path.join(HIER, "ausgabe");
     asar: true,
     // main.js braucht zur Laufzeit nur Electron selbst - node_modules
     // komplett draussen lassen, sonst wandert das Bau-Werkzeug mit ins Paket.
-    ignore: [/^\/ausgabe($|\/)/, /^\/bauen\.js$/, /^\/node_modules($|\/)/],
+    // verteilung/ enthaelt die GitHub-Teilstuecke der fertigen ZIP - die
+    // duerfen nicht wieder IN die naechste ZIP wandern (sonst verdoppelt
+    // sich das Paket mit jedem Bau).
+    ignore: [/^\/ausgabe($|\/)/, /^\/bauen\.js$/, /^\/node_modules($|\/)/, /^\/verteilung($|\/)/],
     // Hinweis: Das Symbol IN der EXE-Datei (Explorer-Ansicht) braucht beim
     // Packen unter Linux Wine (rcedit) - hier nicht vorhanden. Das Fenster-
     // und Taskleisten-Symbol kommt aus main.js; fuer Verknuepfungen liegt
