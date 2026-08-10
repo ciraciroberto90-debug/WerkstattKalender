@@ -17,6 +17,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require("electron")
 const fs = require("fs/promises");
 const fssync = require("fs");
 const path = require("path");
+const { zwischenName } = require("./zwischenname.js");
 
 /* ---------- Einstellungen (gemerkte Pfade) ---------- */
 function einstellungsPfad() {
@@ -79,9 +80,11 @@ ipcMain.handle("lese", async (ev, pfad) => {
 
 ipcMain.handle("schreibe", async (ev, pfad, text) => {
   // Atomar: Zwischendatei im selben Ordner, dann Umbenennen. Bricht der
-  // Rechner mittendrin ab, ist die Zieldatei unangetastet.
+  // Rechner mittendrin ab, ist die Zieldatei unangetastet. Die Namensregel
+  // steckt in zwischenname.js - samt der Lehre von Robertos Laufwerk
+  // (Dateityp-Filter weisen unbekannte Endungen mit EPERM ab).
   const ziel = String(pfad);
-  const tmp = path.join(path.dirname(ziel), "." + path.basename(ziel) + ".schreibe-" + process.pid);
+  const tmp = zwischenName(ziel, process.pid);
   await fs.writeFile(tmp, String(text), "utf8");
   try {
     await fs.rename(tmp, ziel);

@@ -29,6 +29,19 @@ const pruef = (n, c, zusatz) => {
     process.exit(0);
   }
 
+  /* ---- Namensregel der Zwischendatei (Robertos Laufwerk, 10.08.) ----
+     Gemessen: Das Anlegen von ".daten.json.schreibe-44312" wies das
+     Firmenlaufwerk mit EPERM ab (Dateityp-Filter kennt die Endung nicht),
+     eine .txt im selben Ordner ging. Die Zwischendatei muss deshalb die
+     ENDUNG DES ZIELS tragen und darf nicht versteckt beginnen. */
+  const { zwischenName } = require(path.join(wurzel, "programm", "zwischenname.js"));
+  const zn = zwischenName("/laufwerk/ordner/daten - Kopie.json", 4431);
+  pruef("Zwischendatei endet auf die Endung des Ziels (.json)", zn.endsWith(".json"), zn);
+  pruef("Zwischendatei ist eindeutig und liegt im selben Ordner",
+    zn === "/laufwerk/ordner/daten - Kopie.schreibe-4431.json", zn);
+  pruef("Zwischendatei beginnt nicht mit einem Punkt (keine versteckte Datei)",
+    !path.basename(zn).startsWith("."));
+
   // Echtes Arbeitsverzeichnis mit gemeinsamer Datei
   const ordner = fs.mkdtempSync(path.join(os.tmpdir(), "wk-electron-"));
   const dateiPfad = path.join(ordner, "werkstatt-kalender-daten.json");

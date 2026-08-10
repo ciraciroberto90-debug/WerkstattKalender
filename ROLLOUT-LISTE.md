@@ -113,6 +113,24 @@ Lesen klappt also schon. Zu klären, in dieser Reihenfolge:
       Bau-Zeit (Fassungen ohne Stempel gelten als uralt). Nachweis am
       echten Electron mit Gegenprobe (pruefe-programm 15/15; alter Rahmen:
       FAIL). Achtung: Das ist ein RAHMEN-Fix → einmal ZIP tauschen.
+- [x] **Der technische Grund liegt vor (10.08., drittes Bild):**
+      `EPERM ... open '\\SCHEUDC1\...\.werkstatt-kalender-daten - Kopie.json.schreibe-44312'`
+      – der Server verweigert schon das ANLEGEN der Zwischendatei fürs
+      atomare Schreiben, während eine .txt im selben Ordner anstandslos
+      geht. Das passt auf eine **Dateityp-Prüfung des Servers** (FSRM):
+      unbekannte Endung „.schreibe-44312" + versteckter Punkt-Name →
+      abgewiesen. Behoben: Die Zwischendatei trägt jetzt die **Endung des
+      Ziels** (`daten.schreibe-4711.json`) und beginnt nicht mehr mit
+      einem Punkt (programm/zwischenname.js, pruefe-programm 18/18).
+      Wieder ein RAHMEN-Fix → noch einmal ZIP tauschen.
+- [ ] **Falls es danach immer noch klemmt:** Der Grund in der Leiste sagt
+      dann, was der Server ablehnt → mit genau dieser Meldung zur IT.
+- [ ] **Fürs Umziehen der BROWSER-Rechner aufs Laufwerk wichtig:** Chrome
+      legt beim Speichern eigene Zwischendateien mit der Endung `.crswap`
+      an – eine Dateityp-Prüfung des Servers würde auch die abweisen, und
+      daran können wir nichts ändern. Vor dem Umzug einmal im Zielordner
+      mit einem Browser-Rechner probespeichern; klemmt es, muss die IT
+      `.crswap` (und `.json`) im Ordner zulassen.
 - [ ] **Nächster Schritt für Roberto:** neue ZIP einspielen (vorher alle
       Cockpit-Fenster schließen - der Zweitstart-Schutz holt sonst das
       alte Fenster nach vorn), Programm
