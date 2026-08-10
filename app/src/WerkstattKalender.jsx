@@ -3307,12 +3307,15 @@ function App() {
   const quoteJahrHeute = quoteFuer(kalenderEntries.filter((e) => e.date.startsWith(todayKey.slice(0, 4) + "-")));
 
   const ZETTEL_FARBEN = { gelb: "#FEF9C3", blau: "#E0F2FE", gruen: "#DCFCE7" };
-  // Feste Farben je Verfasser-Kürzel (Wunsch: RC immer blau, AR immer gelb),
-  // alle anderen behalten die abwechselnde Zufallsfarbe des Zettels.
+  // Feste Farben je Verfasser (Wunsch: Roberto immer blau, Alexander immer
+  // gelb), alle anderen behalten die abwechselnde Zufallsfarbe des Zettels.
+  // Seit der Benutzer-Anmeldung heißen die Urheber mit vollem Benutzernamen
+  // (RobertoCiraci statt RC) - beide Schreibweisen zählen, sonst wären die
+  // alten Zettel anders gefärbt als die neuen desselben Verfassers.
   const zettelFarbeFuer = (z) => {
     const wer = String(z.name || "").trim().toUpperCase();
-    if (wer === "RC") return ZETTEL_FARBEN.blau;
-    if (wer === "AR") return ZETTEL_FARBEN.gelb;
+    if (wer === "RC" || wer === "ROBERTOCIRACI") return ZETTEL_FARBEN.blau;
+    if (wer === "AR" || wer === "ALEXANDERRADKE") return ZETTEL_FARBEN.gelb;
     return ZETTEL_FARBEN[z.farbe] || ZETTEL_FARBEN.gelb;
   };
   const addZettel = async () => {
@@ -6632,13 +6635,15 @@ function App() {
                     const tagesPersonen = t.we ? haupt.filter((m) => schichtFuer(m.name, t.key)) : haupt;
                     return (
                       <div key={t.key} data-planungstag={t.key} className="overflow-hidden" style={{ border: "1.5px solid #6B7280", borderRadius: "6px", backgroundColor: "white", marginBottom: "6px" }}>
-                        {/* Tages-Balken */}
-                        <div style={{ background: istHeute ? "#C97A2B" : t.we ? "#7FA6C4" : "#4B5259", color: "white", padding: "4px 10px", display: "flex", gap: "10px", alignItems: "baseline", flexWrap: "wrap", fontWeight: 800, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {/* Tages-Balken. Feiertage (Bayern) bekommen einen roten Balken
+                            mit Namen - "Heute" bleibt orange und gewinnt, sonst wüsste
+                            man am Feiertag selbst nicht mehr, welcher Tag heute ist. */}
+                        <div style={{ background: istHeute ? "#C97A2B" : feiertag ? "#B23A34" : t.we ? "#7FA6C4" : "#4B5259", color: "white", padding: "4px 10px", display: "flex", gap: "10px", alignItems: "baseline", flexWrap: "wrap", fontWeight: 800, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                           {t.datum.toLocaleDateString("de-DE", { weekday: "long" })}
                           <span className="font-mono" style={{ fontWeight: 400, opacity: 0.9, fontSize: "0.7rem", textTransform: "none", letterSpacing: 0 }}>
                             {t.datum.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })} · KW {getISOWeek(t.datum)}{istHeute ? " · HEUTE" : ""}
                           </span>
-                          {feiertag && <span style={{ fontSize: "0.7rem", color: "#FFE3DE" }}>{feiertag}</span>}
+                          {feiertag && <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#FFE3DE" }}>★ {feiertag}</span>}
                         </div>
                         <div style={{ overflowX: "auto" }}>
                           <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "0.75rem" }}>
@@ -6865,15 +6870,19 @@ function App() {
                               const we = t.dow === 0 || t.dow === 6;
                               const schicht = schichtFuer(person, t.key);
                               const heutig = t.key === todayKey;
+                              // Feiertage (Bayern) auch in den Tageszellen färben, nicht nur
+                              // im Kopf - Robertos Wunsch vom 10.08.: beim Planen sofort
+                              // sehen, wo gar nicht erst eingeteilt werden sollte.
+                              const ft = feiertage.get(t.key);
                               const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
                               const wochenendStart = t.dow === 6; // Samstag = Beginn des Wochenendes - Abgrenzung zum Freitag davor
                               return (
-                                <td key={t.key} style={{
+                                <td key={t.key} title={ft || undefined} style={{
                                   border: "1.5px solid #6B7280",
                                   borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : wochenendStart ? "3px solid #22262B" : "1.5px solid #6B7280",
                                   borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                                   padding: 0,
-                                  background: heutig ? "#FDF3E7" : we ? "#EFF5FA" : "white",
+                                  background: heutig ? "#FDF3E7" : ft ? "#FBEFED" : we ? "#EFF5FA" : "white",
                                 }}>
                                   <button
                                     onClick={(ev) => {
