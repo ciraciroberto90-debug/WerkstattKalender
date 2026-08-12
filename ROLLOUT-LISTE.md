@@ -462,6 +462,26 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Stressprobe 15 Jahre (Robertos Frage vom 12.08.: „zukunftssicher?"):**
+      `tests/stress-15-jahre.js` - Messfahrt mit 36 098 Einträgen + 2 682
+      Störberichten über 2011-2026 (7,1 MB), Ergebnis 17/17. Gemessen:
+      Verbinden 5-11 s, gleichzeitiges Speichern zweier Bearbeiter ~10 s
+      (beide Änderungen da, nichts verloren), Reiterwechsel 0,2-0,6 s,
+      Volltextsuche und Auswertung über 15 Jahrgänge unter 1,5 s,
+      Prüfnachweis ~2,6 s, Tippen bei 6-fach gedrosselter CPU flüssig
+      (0,26 s Verzug auf 18 Zeichen). **Ehrlicher Befund:** Oberhalb von
+      ~5 MB (ab etwa 10-12 Jahrgängen) passt der volle Bestand nicht mehr
+      in den Browser-Zwischenspeicher - die örtliche Zweitschrift enthält
+      dann nur noch die eigenen frischen Änderungen (die überleben
+      Neuladen + Wiederverbinden, gemessen), aber Offline-LESEN nach einem
+      Browser-Neustart ohne Laufwerk geht dann nicht mehr. Der eingebaute
+      Schutz davor ist die „Aufräumen empfohlen"-Erinnerung (kam bei 15
+      Jahrgängen) samt Auslagern alter Jahrgänge.
+- [ ] **Anleitung ergänzen (klein):** ein Absatz, dass oberhalb ~5 MB
+      Bestand die örtliche Zweitschrift entfällt (Folge: kein Offline-Lesen
+      nach Browser-Neustart, solange das Laufwerk weg ist) und das
+      Auslagern alter Jahrgänge das behebt.
+
 - [x] **Workshop-Foliensatz für den 26.08. (Robertos 3-h-Termin):**
       `doku/Werkstatt-Cockpit-Workshop.pptx` - 13 Folien für die ersten
       15-20 Minuten, als **Einführung für alle** (nicht als GF-Vorlage).

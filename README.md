@@ -122,6 +122,7 @@ node tests/pruefe-programm.js              # echtes Electron-Programm (braucht p
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/rollout-test.js                 # Verteilung: Paket, Dienst, Doku, Versionswechsel
+node tests/stress-15-jahre.js              # Messfahrt: 15 Jahrgänge, 36 000+ Einträge, 7 MB
 node tests/veroeffentlichungs-test.js      # Veröffentlichung
 node tests/hardness/diagnose-ablauf.js     # die Diagnose-Seite selbst
 bash tests/pruefe-sicherung.sh             # Sicherungsskript (braucht PowerShell)
