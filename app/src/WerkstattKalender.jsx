@@ -1470,7 +1470,7 @@ function App() {
     try { return localStorage.getItem("werkstatt-stoer-zeitraum") || "alle"; } catch (e) { return "alle"; }
   });
   const [stoerSchnell, setStoerSchnell] = useState(""); // "", "offen", "restarbeit", "lang"
-  const [stoerOffeneTage, setStoerOffeneTage] = useState(null); // aufgeklappte Datums-Gruppen (null = Vorgabe: neuester Tag offen)
+  const [stoerOffeneTage, setStoerOffeneTage] = useState(null); // aufgeklappte Datums-Gruppen (null = Vorgabe: alle zu)
   const [stoerOffeneSchichten, setStoerOffeneSchichten] = useState(() => new Set()); // aufgeklappte Schichten "datum|schicht"
   const [stoerModus, setStoerModus] = useState("liste"); // "liste" | "auswertung"
   const [stoerZeitraum, setStoerZeitraum] = useState("jahr"); // "monat" | "jahr" | "alle"
@@ -1936,6 +1936,100 @@ function App() {
     w.focus();
     setTimeout(() => { try { w.print(); } catch (e) { /* Nutzer kann manuell drucken */ } }, 300);
   };
+  /* Schichtbericht: alle Störungen der letzten drei Schichten bis jetzt.
+     Robertos Ansage vom 13.08.: Nach „Drucken" im Störungs-Bereich einen
+     Tagesbericht über die letzten drei Schichten - zum Ausdrucken UND zum
+     Zeigen am Bildschirm (dort führt Drucken → „Als PDF speichern" zur PDF).
+     Die Schichtfolge ist fest (Früh 06-14, Spät 14-22, Nacht 22-06); die
+     Nacht zählt zu dem Tag, an dem sie begonnen hat - so trägt es auch die
+     Werkstatt in die Berichte ein. */
+  const stoerSchichtSlots = () => {
+    const jetzt = new Date();
+    const h = jetzt.getHours();
+    const tagKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const datum = new Date(jetzt);
+    let idx;
+    if (h >= 6 && h < 14) idx = 0;
+    else if (h >= 14 && h < 22) idx = 1;
+    else { idx = 2; if (h < 6) datum.setDate(datum.getDate() - 1); }
+    const slots = [];
+    for (let i = 0; i < 3; i++) {
+      slots.push({ datum: tagKey(datum), schicht: STOER_SCHICHTEN[idx] });
+      idx--; if (idx < 0) { idx = 2; datum.setDate(datum.getDate() - 1); }
+    }
+    return slots; // [laufende Schicht, die davor, die davor]
+  };
+  const buildStoerSchichtberichtHTML = () => {
+    const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const zeitVon = { "Früh": "06:00–14:00", "Spät": "14:00–22:00", "Nacht": "22:00–06:00" };
+    const slots = stoerSchichtSlots();
+    const jetzt = new Date();
+    const stand = jetzt.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const proSlot = slots.map((slot) => ({
+      ...slot,
+      liste: stoerungen
+        .filter((s) => s.date === slot.datum && s.schicht === slot.schicht)
+        .sort((a, b) => String(a.gemeldetAt || "").localeCompare(String(b.gemeldetAt || ""))),
+    }));
+    const alle = proSlot.flatMap((x) => x.liste);
+    const ausfallGesamt = alle.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
+    const abschnitt = (slot) => {
+      const d = new Date(slot.datum + "T00:00:00");
+      const kopf = `${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })} · ${esc(slot.schicht)} (${zeitVon[slot.schicht] || ""})`;
+      if (slot.liste.length === 0) {
+        return `<div class="abschnitt"><h2>${kopf}</h2><div class="leer">keine Störungen</div></div>`;
+      }
+      const zeilen = slot.liste.map((s) => {
+        const details = [
+          s.ursache ? "Ursache: " + esc(s.ursache) : "",
+          s.getan ? "Getan: " + esc(s.getan) : "",
+          s.offen && s.nochZuTun ? "Noch zu tun: " + esc(s.nochZuTun) : "",
+          s.ersatzteile ? "Ersatzteile: " + esc(s.ersatzteile) + (s.nachbestellt ? " (nachbestellt)" : "") : "",
+        ].filter(Boolean).join(" · ");
+        return `<tr>
+          <td class="nr">${esc(stoerNrLang(s))}</td>
+          <td><strong>${esc(s.anlage) || "—"}</strong>${s.anlagenteil ? " · " + esc(s.anlagenteil) : ""}</td>
+          <td>${esc(s.stoerung)}${details ? `<div class="klein">${details}</div>` : ""}</td>
+          <td class="zahl">${(Number(s.ausfallzeit) || 0) > 0 ? minutenText(s.ausfallzeit) : ""}</td>
+          <td class="status ${s.offen ? "offen" : "behoben"}">${s.offen ? "OFFEN" : "behoben"}</td>
+          <td>${esc(s.melder) || ""}</td>
+        </tr>`;
+      }).join("");
+      return `<div class="abschnitt"><h2>${kopf}</h2>
+        <table><thead><tr><th>Nr.</th><th>Anlage</th><th>Störung</th><th>Ausfall</th><th>Status</th><th>Melder</th></tr></thead>
+        <tbody>${zeilen}</tbody></table></div>`;
+    };
+    const html = `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Schichtbericht Störungen – Stand ${esc(stand)}</title>
+      <style>
+        @page { size: A4 portrait; margin: 14mm; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; font-size: 11pt; }
+        h1 { font-size: 17pt; margin: 0 0 1mm; }
+        h2 { font-size: 11.5pt; margin: 6mm 0 2mm; padding-bottom: 1mm; border-bottom: 1pt solid #22262B; }
+        .kopf { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #22262B; padding-bottom: 3mm; }
+        .kopf .stand { color: #5B6572; font-size: 10pt; }
+        .summe { margin-top: 2.5mm; color: #5B6572; font-size: 10pt; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.4pt; color: #5B6572; padding: 1.5mm 2mm; border-bottom: 0.75pt solid #C4CBD2; }
+        td { text-align: left; vertical-align: top; padding: 2mm; border-bottom: 0.5pt solid #DDE1E6; font-size: 10pt; }
+        td.nr { white-space: nowrap; font-family: ui-monospace, Consolas, monospace; font-size: 9pt; color: #5B6572; }
+        td.zahl { white-space: nowrap; text-align: right; font-family: ui-monospace, Consolas, monospace; font-size: 9.5pt; }
+        td.status { white-space: nowrap; font-weight: 700; font-size: 9pt; }
+        td.status.offen { color: #C0392B; }
+        td.status.behoben { color: #1F7A3D; }
+        .klein { color: #5B6572; font-size: 9pt; margin-top: 0.8mm; }
+        .leer { color: #8A9099; font-style: italic; font-size: 10pt; padding: 1.5mm 2mm; }
+      </style></head><body>
+      <div class="kopf">
+        <h1>Schichtbericht Störungen</h1>
+        <div class="stand">Stand: ${esc(stand)}</div>
+      </div>
+      <div class="summe">Letzte drei Schichten · ${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}${ausfallGesamt > 0 ? " · Ausfallzeit gesamt " + esc(minutenText(ausfallGesamt)) : ""}</div>
+      ${proSlot.map(abschnitt).join("")}
+      </body></html>`;
+    return html;
+  };
+
   // Auswählbare Zeiträume für den Nachweis: alle Jahre, für die überhaupt
   // R+I-Termine vorliegen, dazu immer das laufende Jahr.
   const nachweisJahre = React.useMemo(() => {
@@ -2250,9 +2344,12 @@ function App() {
   };
 
 
-  const istTagOffen = (d, idx) => (stoerOffeneTage === null ? idx === 0 : stoerOffeneTage.has(d));
+  // Robertos Ansage vom 13.08.: Die Tages-Gruppen sind beim Öffnen IMMER zu -
+  // man sieht erst nur die Tage untereinander (neuester oben) und klappt
+  // gezielt auf. Vorher stand der neueste Tag offen.
+  const istTagOffen = (d, idx) => stoerOffeneTage !== null && stoerOffeneTage.has(d);
   const toggleStoerTag = (d) => setStoerOffeneTage((prev) => {
-    const basis = prev === null ? new Set(stoerGruppen[0] ? [stoerGruppen[0].datum] : []) : new Set(prev);
+    const basis = prev === null ? new Set() : new Set(prev);
     if (basis.has(d)) basis.delete(d); else basis.add(d);
     return basis;
   });
@@ -4740,6 +4837,17 @@ function App() {
         ],
       };
     }
+    if (view === "COCKPIT" && cockpitTab === "STOERUNGEN") {
+      return {
+        titel: "Störungen drucken",
+        bereich: "stoerungen",
+        anzeige: true, // zusätzlich zum Drucker: am Bildschirm zeigen (Monitor/Besprechung)
+        optionen: [
+          { id: "stoer-schichtbericht", text: "Schichtbericht – letzte 3 Schichten",
+            erklaerung: "Alle Störungen der laufenden und der zwei vorigen Schichten, Stand jetzt – A4 hoch" },
+        ],
+      };
+    }
     if (view === "TPMINFO") {
       return {
         titel: "TPM-Übersicht drucken",
@@ -4804,6 +4912,8 @@ function App() {
                  datei: `werkstatt-planung-kw${getISOWeek(planungMontag)}-${planungMontag.getFullYear()}.html` };
       case "nachweis":
         return { html: buildNachweisHTML(nachweisJahr), datei: `werkstatt-pruefnachweis-${nachweisJahr}.html` };
+      case "stoer-schichtbericht":
+        return { html: buildStoerSchichtberichtHTML(), datei: `werkstatt-schichtbericht-${todayKey}.html` };
       case "jahreskalender":
         return { html: buildJahresKalenderHTML(year, druckUmfang), datei: `werkstatt-jahreskalender-${kurz}-${year}.html` };
       case "monatsblatt":
@@ -4832,6 +4942,21 @@ function App() {
     setDruckWahlOffen(false);
     const { html, datei } = druckVorlage(druckOption);
     openPrintWindow(html, datei);
+  };
+
+  /* Dieselbe Vorlage OHNE Druckdialog öffnen - zum Zeigen am Monitor in der
+     Besprechung. Wer eine PDF will, druckt aus diesem Fenster heraus und
+     wählt „Als PDF speichern" - dafür braucht es keinen eigenen Weg. */
+  const handleDruckAnzeige = () => {
+    setDruckWahlOffen(false);
+    const { html } = druckVorlage(druckOption);
+    let w = null;
+    try { w = window.open("", "_blank"); } catch (e) { w = null; }
+    if (!w) { setErr("Zum Anzeigen bitte Pop-ups für diese Seite erlauben."); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
   };
 
   /* Kennkarte der verbundenen Datei. Zwei Dateien gleichen Namens sind am
@@ -8207,8 +8332,14 @@ function App() {
         const a3 = /size:\s*A3/.test(vorlage.html);
         const blattBreite = a3 ? 1587 : quer ? 1123 : 794;
         const blattHoehe = a3 ? 1123 : quer ? 794 : 1123;
-        const rahmenBreite = 430;
-        const massstab = rahmenBreite / blattBreite;
+        // Robertos Ansage vom 13.08.: Die Vorschau soll deutlich größer sein.
+        // Statt fester 430 px nimmt sie sich so viel Platz, wie Blattform und
+        // Bildschirm hergeben - begrenzt über Breite UND Höhe, damit das
+        // Blatt ohne Blättern im Dialog steht.
+        const maxBreite = 640;
+        const maxHoehe = Math.max(420, Math.round((typeof window !== "undefined" ? window.innerHeight : 900) * 0.72));
+        const massstab = Math.min(maxBreite / blattBreite, maxHoehe / blattHoehe);
+        const rahmenBreite = Math.round(blattBreite * massstab);
         return (
         <div
           className="no-print"
@@ -8218,7 +8349,7 @@ function App() {
           <div
             role="dialog"
             aria-label="Was soll gedruckt werden?"
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "22px", width: "1020px", maxWidth: "100%", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "22px", width: `${rahmenBreite + 560}px`, maxWidth: "100%", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -8337,6 +8468,16 @@ function App() {
                 className="px-3 py-1.5 rounded font-bold text-xs border"
                 style={{ backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
               >Abbrechen</button>
+              {angebot.anzeige && (
+                <button
+                  /* Zum Zeigen am Monitor: dieselbe Vorlage, nur ohne
+                     Druckdialog. Von dort aus liefert Drucken → „Als PDF
+                     speichern" auch die PDF. */
+                  onClick={handleDruckAnzeige}
+                  className="px-4 py-1.5 rounded font-bold text-xs uppercase tracking-wide border"
+                  style={{ backgroundColor: "white", borderColor: "#2F6690", color: "#2F6690" }}
+                >Am Bildschirm zeigen</button>
+              )}
               <button
                 onClick={handleDruckWahl}
                 className="flex items-center gap-2 text-white px-4 py-1.5 rounded font-bold text-xs uppercase tracking-wide"

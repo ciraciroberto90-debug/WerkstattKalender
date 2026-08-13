@@ -46,10 +46,17 @@ async function verbindeStoer(page, create) {
 
 // Schicht "Früh" in der Liste aufklappen, damit die Zeilen sichtbar werden.
 // Idempotent: nur klicken, wenn noch keine Zeile sichtbar ist.
+// Seit dem 13.08. sind auch die Tages-Gruppen von Haus aus zu (Robertos
+// Ansage) - deshalb zuerst den Tag aufklappen, dann die Schicht.
 async function zeigeFrueh(page) {
   const zeileDa = await page.locator('tbody tr').filter({ hasText: /Hydraulikdruck|halbe Geschwindigkeit/ }).count();
   if (zeileDa > 0) return;
-  const kopf = page.locator('tbody tr').filter({ hasText: /^\s*▸?\s*FRÜH/i }).first();
+  let kopf = page.locator('tbody tr').filter({ hasText: /^\s*▸?\s*FRÜH/i }).first();
+  if (!(await kopf.count())) {
+    const tag = page.locator('tbody tr').first();
+    if (await tag.count()) { await tag.click(); await page.waitForTimeout(250); }
+    kopf = page.locator('tbody tr').filter({ hasText: /^\s*▸?\s*FRÜH/i }).first();
+  }
   if (await kopf.count()) { await kopf.click(); await page.waitForTimeout(250); }
 }
 

@@ -530,9 +530,11 @@ const seedTeam = (personName) => {
       vorschau !== null && vorschau.text.includes('Schichtplan') && vorschau.person);
     // Der Rahmen ist breiter als ein Vorschaubildchen, aber deutlich schmaler
     // als das Blatt selbst (A4 quer sind 1123 px) - sonst wäre es keine
-    // Verkleinerung, sondern ein zweites Fenster.
+    // Verkleinerung, sondern ein zweites Fenster. Seit dem 13.08. nimmt sich
+    // die Vorschau auf Robertos Ansage mehr Platz (bis 640 px bzw. 72 % der
+    // Fensterhöhe) - verkleinert bleibt sie trotzdem.
     ok('Druck-Dialog: die Vorschau ist verkleinert, nicht in Originalgröße',
-      vorschau !== null && vorschau.breite <= 450);
+      vorschau !== null && vorschau.breite >= 480 && vorschau.breite < 1123);
     // Beim Wechsel des Bereichs faengt die Auswahl wieder oben an, sonst
     // stuende im Schichtplan noch die Wahl aus der Auswertung.
     await page.locator('div[role="dialog"] button[aria-label="Schließen"]').click();

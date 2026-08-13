@@ -41,10 +41,9 @@ const pruef = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++
   const zeile = (t) => p.locator("tbody tr").filter({ hasText: t }).first();
 
   // ---- Rechnerische Probe: Tagessumme = Summe der Schichten = Summe der Berichte ----
-  // Der neueste Tag ist von Haus aus aufgeklappt und hat selbst eine
-  // FRÜH-Zeile. Ohne ihn zuzuklappen misst man dessen Schicht statt der
-  // gesuchten - die Summe kaeme dann nicht hin.
-  await zeile("23.07.2026").click(); await p.waitForTimeout(300);
+  // Seit dem 13.08. sind alle Tage von Haus aus zugeklappt (Robertos
+  // Ansage) - nur den gesuchten Tag oeffnen, dann sind seine Schichten
+  // die einzigen in der Tabelle und die Summen eindeutig.
   await zeile("15.07.2026").click(); await p.waitForTimeout(400);
   const soll = STOER.filter((s) => s.date === "2026-07-15").reduce((a, s) => a + (Number(s.ausfallzeit) || 0), 0);
   const tagText = await zeile("15.07.2026").innerText();

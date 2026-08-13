@@ -462,6 +462,19 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Störungen: Liste, Vorschau, Schichtbericht (Robertos Ansagen vom
+      13.08.):** (1) Die Tages-Gruppen im Schichtbuch sind beim Öffnen
+      immer zugeklappt - erst nur die Tage untereinander, neuester oben.
+      (2) Die Druck-Vorschau ist in allen Bereichen deutlich größer
+      (Blatt passt sich an Bildschirm und Format an, statt fester
+      430 px). (3) Neuer „Schichtbericht - letzte 3 Schichten" hinter
+      dem Drucken-Knopf im Störungs-Bereich: alle Störungen der
+      laufenden und der zwei vorigen Schichten (Früh 06-14, Spät 14-22,
+      Nacht 22-06; die Nacht zählt zum Tag ihres Beginns) mit Summe der
+      Ausfallzeit - wahlweise über „Drucken" aufs Papier oder über
+      „Am Bildschirm zeigen" als Ansicht für den Monitor (von dort
+      liefert Drucken → „Als PDF speichern" die PDF).
+
 - [x] **Stressprobe 15 Jahre (Robertos Frage vom 12.08.: „zukunftssicher?"):**
       `tests/stress-15-jahre.js` - Messfahrt mit 36 098 Einträgen + 2 682
       Störberichten über 2011-2026 (7,1 MB), Ergebnis 17/17. Gemessen:
