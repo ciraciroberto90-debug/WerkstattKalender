@@ -1959,10 +1959,23 @@ function App() {
     }
     return slots; // [laufende Schicht, die davor, die davor]
   };
+  /* Feste Farben der drei Bericht-Schichten für die Druckvorlagen. Robertos
+     Wahl vom 13.08. (aus drei gezeigten Varianten): Tabellen-Protokoll in
+     A4 quer, die Zeilen leicht in der Schichtfarbe hinterlegt - Früh
+     gelblich, Spät grünlich, Nacht bläulich; die Gruppenzeile einen Ton
+     kräftiger. Offenes bleibt zusätzlich über das rote OFFEN-Schild und die
+     orangene Aufgaben-Spalte erkennbar (auch auf Schwarz-Weiß-Druckern). */
+  const STOER_DRUCK_FARBEN = {
+    "Früh": { chip: "#F0C230", chipText: "#2B2200", zeile: "#FDF6DF", gruppe: "#F6E9BC" },
+    "Spät": { chip: "#1F7A3D", chipText: "#fff", zeile: "#EAF3EC", gruppe: "#D8EADD" },
+    "Nacht": { chip: "#2F6690", chipText: "#fff", zeile: "#E9F0F7", gruppe: "#D5E3F0" },
+  };
   const buildStoerSchichtberichtHTML = () => {
     const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const zeitVon = { "Früh": "06:00–14:00", "Spät": "14:00–22:00", "Nacht": "22:00–06:00" };
-    const slots = stoerSchichtSlots();
+    // Die drei Zeitfenster kommen aus der Uhr; ANGEZEIGT wird in der festen
+    // Folge Früh -> Spät -> Nacht (Robertos Ansage), nicht chronologisch.
+    const slots = [...stoerSchichtSlots()].sort((a, b) => STOER_SCHICHTEN.indexOf(a.schicht) - STOER_SCHICHTEN.indexOf(b.schicht));
     const jetzt = new Date();
     const stand = jetzt.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const proSlot = slots.map((slot) => ({
@@ -1973,61 +1986,166 @@ function App() {
     }));
     const alle = proSlot.flatMap((x) => x.liste);
     const ausfallGesamt = alle.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
-    const abschnitt = (slot) => {
-      const d = new Date(slot.datum + "T00:00:00");
-      const kopf = `${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })} · ${esc(slot.schicht)} (${zeitVon[slot.schicht] || ""})`;
-      if (slot.liste.length === 0) {
-        return `<div class="abschnitt"><h2>${kopf}</h2><div class="leer">keine Störungen</div></div>`;
-      }
-      const zeilen = slot.liste.map((s) => {
-        const details = [
-          s.ursache ? "Ursache: " + esc(s.ursache) : "",
-          s.getan ? "Getan: " + esc(s.getan) : "",
-          s.offen && s.nochZuTun ? "Noch zu tun: " + esc(s.nochZuTun) : "",
-          s.ersatzteile ? "Ersatzteile: " + esc(s.ersatzteile) + (s.nachbestellt ? " (nachbestellt)" : "") : "",
-        ].filter(Boolean).join(" · ");
-        return `<tr>
-          <td class="nr">${esc(stoerNrLang(s))}</td>
-          <td><strong>${esc(s.anlage) || "—"}</strong>${s.anlagenteil ? " · " + esc(s.anlagenteil) : ""}</td>
-          <td>${esc(s.stoerung)}${details ? `<div class="klein">${details}</div>` : ""}</td>
-          <td class="zahl">${(Number(s.ausfallzeit) || 0) > 0 ? minutenText(s.ausfallzeit) : ""}</td>
-          <td class="status ${s.offen ? "offen" : "behoben"}">${s.offen ? "OFFEN" : "behoben"}</td>
-          <td>${esc(s.melder) || ""}</td>
-        </tr>`;
-      }).join("");
-      return `<div class="abschnitt"><h2>${kopf}</h2>
-        <table><thead><tr><th>Nr.</th><th>Anlage</th><th>Störung</th><th>Ausfall</th><th>Status</th><th>Melder</th></tr></thead>
-        <tbody>${zeilen}</tbody></table></div>`;
+    const offene = alle.filter((s) => s.offen).length;
+    const chip = (sch) => {
+      const f = STOER_DRUCK_FARBEN[sch] || { chip: "#8A9099", chipText: "#fff" };
+      return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${f.chip};color:${f.chipText};font-weight:800;font-size:8pt;text-transform:uppercase;letter-spacing:0.5px">${esc(sch)}</span>`;
     };
-    const html = `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Schichtbericht Störungen – Stand ${esc(stand)}</title>
+    const gruppe = (slot) => {
+      const d = new Date(slot.datum + "T00:00:00");
+      const f = STOER_DRUCK_FARBEN[slot.schicht] || { gruppe: "#E9EDF1" };
+      const summe = slot.liste.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
+      return `<tr class="gruppe"><td colspan="7" style="background:${f.gruppe}">${chip(slot.schicht)} &nbsp;${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })} · ${esc(slot.schicht)} (${zeitVon[slot.schicht] || ""}) &nbsp;<span class="gsumme">· ${slot.liste.length} ${slot.liste.length === 1 ? "Bericht" : "Berichte"}${summe > 0 ? " · " + esc(minutenText(summe)) : ""}</span></td></tr>`;
+    };
+    const zeile = (s, slot) => {
+      const f = STOER_DRUCK_FARBEN[slot.schicht] || { zeile: "#fff" };
+      return `<tr style="background:${f.zeile}">
+        <td class="nr"><span class="mono">${esc(stoerNrLang(s))}</span><div class="klein mono">${(Number(s.ausfallzeit) || 0) > 0 ? esc(minutenText(s.ausfallzeit)) : "–"}</div></td>
+        <td><strong>${esc(s.anlage) || "—"}</strong>${s.anlagenteil ? `<div class="klein">${esc(s.anlagenteil)}</div>` : ""}</td>
+        <td>${esc(s.stoerung)}${s.ursache ? `<div class="klein">Ursache: ${esc(s.ursache)}</div>` : ""}</td>
+        <td>${esc(s.getan || "")}${s.ersatzteile ? `<div class="klein">Ersatzteile: ${esc(s.ersatzteile)}${s.nachbestellt ? " (nachbestellt)" : ""}</div>` : ""}</td>
+        <td class="naechste">${s.offen ? esc(s.nochZuTun || "") : ""}</td>
+        <td>${s.offen ? '<span class="st offen">OFFEN</span>' : '<span class="st ok">OK</span>'}</td>
+        <td>${esc(s.melder) || ""}</td>
+      </tr>`;
+    };
+    return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Schichtbericht Störungen – Stand ${esc(stand)}</title>
       <style>
-        @page { size: A4 portrait; margin: 14mm; }
+        @page { size: A4 landscape; margin: 10mm; }
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; font-size: 11pt; }
-        h1 { font-size: 17pt; margin: 0 0 1mm; }
-        h2 { font-size: 11.5pt; margin: 6mm 0 2mm; padding-bottom: 1mm; border-bottom: 1pt solid #22262B; }
-        .kopf { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #22262B; padding-bottom: 3mm; }
-        .kopf .stand { color: #5B6572; font-size: 10pt; }
-        .summe { margin-top: 2.5mm; color: #5B6572; font-size: 10pt; }
+        body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; margin: 0; }
+        h1 { font-size: 15pt; margin: 0; }
+        .kopf { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2.5px solid #22262B; padding-bottom: 2.5mm; margin-bottom: 3mm; }
+        .kopf .stand { text-align: right; color: #5B6572; font-size: 8.5pt; line-height: 1.5; }
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.4pt; color: #5B6572; padding: 1.5mm 2mm; border-bottom: 0.75pt solid #C4CBD2; }
-        td { text-align: left; vertical-align: top; padding: 2mm; border-bottom: 0.5pt solid #DDE1E6; font-size: 10pt; }
-        td.nr { white-space: nowrap; font-family: ui-monospace, Consolas, monospace; font-size: 9pt; color: #5B6572; }
-        td.zahl { white-space: nowrap; text-align: right; font-family: ui-monospace, Consolas, monospace; font-size: 9.5pt; }
-        td.status { white-space: nowrap; font-weight: 700; font-size: 9pt; }
-        td.status.offen { color: #C0392B; }
-        td.status.behoben { color: #1F7A3D; }
-        .klein { color: #5B6572; font-size: 9pt; margin-top: 0.8mm; }
-        .leer { color: #8A9099; font-style: italic; font-size: 10pt; padding: 1.5mm 2mm; }
+        th { background: #22262B; color: #fff; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.4pt; text-align: left; padding: 1.8mm 2mm; }
+        td { font-size: 8.5pt; vertical-align: top; padding: 1.8mm 2mm; border-bottom: 0.5pt solid #D8DCE1; }
+        tr.gruppe td { border-bottom: 1pt solid #B9C0C8; padding: 1.4mm 2mm; font-weight: 800; font-size: 9pt; }
+        .gsumme { font-weight: 600; color: #5B6572; }
+        td.nr { white-space: nowrap; }
+        .mono { font-family: ui-monospace, Consolas, monospace; font-size: 8pt; }
+        .klein { color: #5B6572; font-size: 7.5pt; margin-top: 0.6mm; }
+        .naechste { color: #8A4B00; font-weight: 600; }
+        .st { font-weight: 800; font-size: 8pt; padding: 0.5mm 2mm; border-radius: 2.5mm; border: 1.2pt solid; white-space: nowrap; }
+        .st.ok { color: #1F7A3D; border-color: #1F7A3D; }
+        .st.offen { color: #fff; background: #C0392B; border-color: #C0392B; }
+        .leer { color: #8A9099; font-style: italic; }
+        .fuss { margin-top: 4mm; display: flex; justify-content: space-between; color: #8A9099; font-size: 7.5pt; border-top: 0.5pt solid #C4CBD2; padding-top: 1.5mm; }
       </style></head><body>
       <div class="kopf">
         <h1>Schichtbericht Störungen</h1>
-        <div class="stand">Stand: ${esc(stand)}</div>
+        <div class="stand">Stand: <strong>${esc(stand)}</strong><br>Letzte drei Schichten · ${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"} · ${offene} offen${ausfallGesamt > 0 ? " · Ausfallzeit " + esc(minutenText(ausfallGesamt)) : ""}</div>
       </div>
-      <div class="summe">Letzte drei Schichten · ${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}${ausfallGesamt > 0 ? " · Ausfallzeit gesamt " + esc(minutenText(ausfallGesamt)) : ""}</div>
-      ${proSlot.map(abschnitt).join("")}
+      <table>
+      <thead><tr><th style="width:20mm">Nr. / Ausfall</th><th style="width:38mm">Anlage · Teil</th><th style="width:55mm">Abweichung / Störung</th><th style="width:62mm">Was wurde unternommen?</th><th style="width:52mm">Was muss die nächste Schicht tun?</th><th style="width:13mm">Status</th><th style="width:20mm">Melder</th></tr></thead>
+      <tbody>
+      ${proSlot.map((slot) => gruppe(slot) + (slot.liste.length === 0
+        ? `<tr><td colspan="7" class="leer">keine Störungen</td></tr>`
+        : slot.liste.map((s) => zeile(s, slot)).join(""))).join("")}
+      </tbody></table>
+      <div class="fuss"><span>Werkstatt-Cockpit · Schichtbericht</span><span>gedruckt ${esc(stand)}</span></div>
       </body></html>`;
-    return html;
+  };
+
+  /* Monats-Auswertung der Störungen als Druckblatt (Robertos Ansage vom
+     13.08.): oben Kennzahlen, darunter das Diagramm und die Anlagen-Liste -
+     beides nach ANZAHL der Störungen, nicht nach Ausfallzeit ("die Zeit
+     variiert zu stark"). Die Ausfallzeit bleibt als Zusatzangabe an jeder
+     Zahl stehen. Unten die Störungen mit Ausfall als Notizen-Liste. */
+  const buildStoerMonatsblattHTML = (jahr, monatIdx) => {
+    const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const key = `${jahr}-${pad(monatIdx + 1)}`;
+    const liste = stoerungen.filter((s) => String(s.date || "").startsWith(key));
+    const tageImMonat = new Date(jahr, monatIdx + 1, 0).getDate();
+    const jetzt = new Date();
+    const stand = jetzt.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const heuteTag = (jetzt.getFullYear() === jahr && jetzt.getMonth() === monatIdx) ? jetzt.getDate() : tageImMonat;
+    const gesamtMin = liste.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
+    const offene = liste.filter((s) => s.offen).length;
+    const proTag = Array.from({ length: tageImMonat }, (_, i) =>
+      liste.filter((s) => Number(String(s.date).slice(8, 10)) === i + 1).length);
+    const maxTag = Math.max(1, ...proTag);
+    const proAnlage = [...liste.reduce((m, s) => {
+      const k = s.anlage || "ohne Anlage";
+      if (!m.has(k)) m.set(k, { anlage: k, anzahl: 0, min: 0 });
+      const r = m.get(k); r.anzahl++; r.min += Number(s.ausfallzeit) || 0;
+      return m;
+    }, new Map()).values()].sort((a, b) => b.anzahl - a.anzahl || b.min - a.min);
+    // Balkendiagramm Anzahl je Tag - als SVG, damit es im Druck gestochen bleibt
+    const w = 760, h = 150, links = 26, unten = 22;
+    const bw = (w - links - 6) / tageImMonat;
+    const balken = proTag.map((n, i) => {
+      const bh = n === 0 ? 0 : Math.max(4, (n / maxTag) * (h - unten - 26));
+      const x = links + i * bw, y = h - unten - bh;
+      const zukunft = i + 1 > heuteTag;
+      return `<rect x="${(x + 1).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${bh.toFixed(1)}" fill="${zukunft ? "#E2E6EA" : "#2F6690"}" rx="1"/>` +
+        (n > 0 ? `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" font-size="8" text-anchor="middle" fill="#5B6572">${n}</text>` : "") +
+        `<text x="${(x + bw / 2).toFixed(1)}" y="${h - unten + 10}" font-size="7.5" text-anchor="middle" fill="${(i + 1) % 5 === 0 || i === 0 ? "#5B6572" : "#B7BEC6"}">${i + 1}</text>`;
+    }).join("");
+    const maxAnz = Math.max(1, ...proAnlage.map((r) => r.anzahl));
+    const anlagenBalken = proAnlage.slice(0, 10).map((r) =>
+      `<div class="bz"><span class="name">${esc(r.anlage)}</span><span class="balken" style="width:${Math.max(2, (r.anzahl / maxAnz) * 60)}mm"></span><span class="wert">${r.anzahl}×${r.min > 0 ? " · " + esc(minutenText(r.min)) : ""}</span></div>`).join("");
+    const notizen = liste
+      .filter((s) => (Number(s.ausfallzeit) || 0) > 0 || s.offen)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.gemeldetAt || "").localeCompare(String(b.gemeldetAt || "")));
+    const notizZeilen = notizen.map((s) => `<tr>
+      <td class="mono">${esc(String(s.date).slice(8, 10))}.${esc(String(s.date).slice(5, 7))}.${s.schicht ? `<div class="klein">${esc(s.schicht)}</div>` : ""}</td>
+      <td><strong>${esc(s.anlage) || "—"}</strong>${s.anlagenteil ? `<div class="klein">${esc(s.anlagenteil)}</div>` : ""}</td>
+      <td>${esc(s.stoerung)}${s.getan ? `<div class="klein">→ ${esc(s.getan)}</div>` : ""}${s.offen && s.nochZuTun ? `<div class="klein" style="color:#8A4B00;font-weight:600">➜ ${esc(s.nochZuTun)}</div>` : ""}</td>
+      <td class="mono" style="text-align:right">${(Number(s.ausfallzeit) || 0) > 0 ? esc(minutenText(s.ausfallzeit)) : "–"}</td>
+      <td>${s.offen ? '<span class="st offen">OFFEN</span>' : '<span class="st ok">OK</span>'}</td>
+      <td>${esc(s.melder) || ""}</td></tr>`).join("");
+    return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Störungs-Auswertung ${esc(MONTHS[monatIdx])} ${jahr}</title>
+      <style>
+        @page { size: A4 portrait; margin: 11mm; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; margin: 0; }
+        h1 { font-size: 14.5pt; margin: 0; }
+        h2 { font-size: 10pt; margin: 4mm 0 1.5mm; text-transform: uppercase; letter-spacing: 0.4pt; color: #5B6572; }
+        .kopf { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2.5px solid #22262B; padding-bottom: 2.5mm; margin-bottom: 3mm; }
+        .kopf .stand { text-align: right; color: #5B6572; font-size: 8.5pt; line-height: 1.5; }
+        .kpis { display: flex; gap: 3mm; margin-bottom: 3mm; }
+        .kpi { flex: 1; border: 0.8pt solid #C4CBD2; border-radius: 2mm; padding: 2mm 3mm; }
+        .kpi .z { font-size: 14pt; font-weight: 800; }
+        .kpi .l { font-size: 7.5pt; color: #5B6572; margin-top: 0.5mm; line-height: 1.3; }
+        .kpi.rot .z { color: #C0392B; }
+        .mono { font-family: ui-monospace, Consolas, monospace; font-size: 8pt; }
+        .bz { display: flex; align-items: center; gap: 2mm; margin-bottom: 1.2mm; font-size: 8pt; }
+        .bz .name { flex: 0 0 48mm; text-align: right; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bz .balken { height: 4.2mm; background: #2F6690; border-radius: 0.8mm; }
+        .bz .wert { color: #5B6572; font-size: 7.5pt; white-space: nowrap; }
+        table { width: 100%; border-collapse: collapse; }
+        th { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.4pt; text-align: left; color: #5B6572; padding: 1.4mm 2mm; border-bottom: 1pt solid #22262B; }
+        td { font-size: 8.5pt; vertical-align: top; padding: 1.5mm 2mm; border-bottom: 0.5pt solid #DDE1E6; }
+        .klein { color: #5B6572; font-size: 7.5pt; margin-top: 0.5mm; }
+        .st { font-weight: 800; font-size: 7.5pt; padding: 0.4mm 1.8mm; border-radius: 2.5mm; border: 1.1pt solid; white-space: nowrap; }
+        .st.ok { color: #1F7A3D; border-color: #1F7A3D; }
+        .st.offen { color: #fff; background: #C0392B; border-color: #C0392B; }
+        .leer { color: #8A9099; font-style: italic; font-size: 9pt; }
+        .fuss { margin-top: 4mm; display: flex; justify-content: space-between; color: #8A9099; font-size: 7.5pt; border-top: 0.5pt solid #C4CBD2; padding-top: 1.5mm; }
+      </style></head><body>
+      <div class="kopf">
+        <h1>Störungs-Auswertung · ${esc(MONTHS[monatIdx])} ${jahr}</h1>
+        <div class="stand">Stand: <strong>${esc(stand)}</strong></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="z">${liste.length}</div><div class="l">Störungen</div></div>
+        <div class="kpi"><div class="z">${gesamtMin > 0 ? esc(minutenText(gesamtMin)) : "0 min"}</div><div class="l">Ausfallzeit gesamt</div></div>
+        <div class="kpi rot"><div class="z">${offene}</div><div class="l">noch offen</div></div>
+        <div class="kpi"><div class="z">${liste.length ? Math.round(gesamtMin / liste.length) + " min" : "–"}</div><div class="l">Ø je Störung</div></div>
+      </div>
+      ${liste.length === 0 ? `<div class="leer">Keine Störberichte in diesem Monat.</div>` : `
+      <h2>Störungen je Tag (Anzahl)</h2>
+      <svg viewBox="0 0 ${w} ${h}" style="width:186mm;display:block">
+        <line x1="${links}" y1="${h - unten}" x2="${w - 4}" y2="${h - unten}" stroke="#8A9099" stroke-width="1"/>${balken}</svg>
+      <h2>Anlagen nach Anzahl der Störungen</h2>
+      ${anlagenBalken}
+      <h2>Störungen mit Ausfall bzw. offen – Notizen</h2>
+      ${notizen.length === 0 ? `<div class="leer">keine</div>` : `<table>
+      <thead><tr><th style="width:14mm">Tag</th><th style="width:40mm">Anlage · Teil</th><th>Störung → Maßnahme</th><th style="width:16mm">Ausfall</th><th style="width:13mm">Status</th><th style="width:22mm">Melder</th></tr></thead>
+      <tbody>${notizZeilen}</tbody></table>`}`}
+      <div class="fuss"><span>Werkstatt-Cockpit · Monats-Auswertung Störungen</span><span>gedruckt ${esc(stand)}</span></div>
+      </body></html>`;
   };
 
   // Auswählbare Zeiträume für den Nachweis: alle Jahre, für die überhaupt
@@ -4844,7 +4962,9 @@ function App() {
         anzeige: true, // zusätzlich zum Drucker: am Bildschirm zeigen (Monitor/Besprechung)
         optionen: [
           { id: "stoer-schichtbericht", text: "Schichtbericht – letzte 3 Schichten",
-            erklaerung: "Alle Störungen der laufenden und der zwei vorigen Schichten, Stand jetzt – A4 hoch" },
+            erklaerung: "Alle Störungen der laufenden und der zwei vorigen Schichten, Stand jetzt – A4 quer, Zeilen in der Schichtfarbe" },
+          { id: "stoer-monat", text: "Monats-Auswertung", monatsWahl: true,
+            erklaerung: "Diagramm und Anlagen-Liste nach Anzahl der Störungen, darunter die Ausfälle mit Notizen – A4 hoch" },
         ],
       };
     }
@@ -4914,6 +5034,12 @@ function App() {
         return { html: buildNachweisHTML(nachweisJahr), datei: `werkstatt-pruefnachweis-${nachweisJahr}.html` };
       case "stoer-schichtbericht":
         return { html: buildStoerSchichtberichtHTML(), datei: `werkstatt-schichtbericht-${todayKey}.html` };
+      case "stoer-monat": {
+        // Jahr = laufendes Jahr; die Monats-Kacheln im Dialog wählen den Monat.
+        const jahrHeute = Number(todayKey.slice(0, 4));
+        return { html: buildStoerMonatsblattHTML(jahrHeute, druckMonat),
+                 datei: `werkstatt-stoerungen-monat-${jahrHeute}-${pad(druckMonat + 1)}.html` };
+      }
       case "jahreskalender":
         return { html: buildJahresKalenderHTML(year, druckUmfang), datei: `werkstatt-jahreskalender-${kurz}-${year}.html` };
       case "monatsblatt":

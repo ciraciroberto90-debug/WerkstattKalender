@@ -474,6 +474,19 @@ auf denselben Dateien.
       Ausfallzeit - wahlweise über „Drucken" aufs Papier oder über
       „Am Bildschirm zeigen" als Ansicht für den Monitor (von dort
       liefert Drucken → „Als PDF speichern" die PDF).
+      **Nachschärfung nach drei gezeigten Varianten (Robertos Wahl):**
+      Tabellen-Protokoll in A4 quer, angelehnt an das alte
+      Schichtprotokoll (Nr., Abweichung, Was wurde unternommen, „Was muss
+      die nächste Schicht tun?", Status, Melder), Schichten fest in der
+      Folge Früh → Spät → Nacht, Zeilen leicht in der Schichtfarbe
+      hinterlegt (Früh gelblich, Spät grünlich, Nacht bläulich).
+      **Dazu neu: „Monats-Auswertung"** als zweite Druckvorlage im
+      Störungs-Bereich (A4 hoch, Monat per Kachel wählbar): Kennzahlen,
+      Balkendiagramm „Störungen je Tag" und die Anlagen-Liste - beides
+      bewusst nach ANZAHL statt Ausfallzeit gereiht („die Zeit variiert
+      zu stark", Ausfallzeit steht als Zusatz daneben), darunter alle
+      Störungen mit Ausfall bzw. offen als Notizen-Liste. Suite nach dem
+      Umbau: 41/41.
 
 - [x] **Stressprobe 15 Jahre (Robertos Frage vom 12.08.: „zukunftssicher?"):**
       `tests/stress-15-jahre.js` - Messfahrt mit 36 098 Einträgen + 2 682
