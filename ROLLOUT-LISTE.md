@@ -462,6 +462,22 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **OneDrive-Reste aus den Meldungen entfernt (Robertos Fund vom
+      17.08.):** Die Warnung „Datei unvollständig" empfahl noch, auf den
+      „nächsten OneDrive-Abgleich" zu warten - seit dem Umzug aufs
+      Firmenlaufwerk ist die häufigste Ursache aber ein kurzer
+      Netzwerk-Aussetzer. Text nennt jetzt das Laufwerk („kurz warten,
+      bis das Laufwerk wieder erreichbar ist, erneut speichern").
+      Dazu bereinigt: Titel des Datei-Fensters („Firmenlaufwerk" statt
+      „Firmenlaufwerk / OneDrive"), Erklärtext, Konflikt-Wächter-Kasten
+      (Hinweis: auf dem Firmenlaufwerk entstehen keine Konfliktkopien,
+      der Wächter bleibt für den Fall der Fälle), Diagnose-Zeile.
+      Wichtig fürs Verhalten (Robertos Frage): Bei einem
+      Laufwerksabbruch muss NICHTS neu verbunden werden - die App
+      probiert automatisch weiter, lokal bleibt alles gesichert, der
+      nächste erfolgreiche Abgleich führt eintragsweise zusammen.
+      harte-35 auf den neuen Wortlaut nachgezogen, Suite 41/41.
+
 - [x] **Termin-Archiv für Versäumtes (Robertos Ansage vom 17.08.):**
       Versäumte TPM-/R+I-Termine bleiben höchstens EINE Woche unter
       „Liegengeblieben" in der Übersicht. Was älter ist, wandert in das

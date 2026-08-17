@@ -701,13 +701,18 @@ function createSharedStore(cfg) {
       // Es passiert bei einem mitten im Schreiben abgebrochenen Abgleich, und
       // in dem Moment braucht der Bediener zwei Auskuenfte: Es ist nichts
       // kaputtgeschrieben, und was er tun soll.
+      // Seit dem Umzug aufs Firmenlaufwerk (10.08.) ist die häufigste Ursache
+      // ein kurzer Netzwerk-Aussetzer beim Lesen - nicht mehr der
+      // OneDrive-Abgleich. Der Text nennt deshalb das Laufwerk zuerst;
+      // Roberto stolperte am 17.08. über die alte OneDrive-Formulierung.
       const fehler = new Error(
         `Die gemeinsame Datei „${fileHandle ? fileHandle.name : ""}" ist unvollständig ` +
-        `(${text.length} Zeichen gelesen, Ende fehlt). Das passiert, wenn ein Abgleich ` +
-        `mitten im Schreiben abbricht – etwa weil ein Rechner ausgeschaltet wurde. ` +
+        `(${text.length} Zeichen gelesen, Ende fehlt). Das passiert, wenn die Verbindung zum ` +
+        `Laufwerk mitten im Lesen oder Schreiben abbricht – etwa bei einem kurzen ` +
+        `Netzwerk-Aussetzer oder weil ein Rechner ausgeschaltet wurde. ` +
         `Es wurde nichts überschrieben, deine Arbeit ist lokal gesichert. ` +
-        `Meist ist die Datei nach dem nächsten OneDrive-Abgleich wieder vollständig – ` +
-        `kurz warten und erneut speichern. Bleibt es dabei: ⚙ → Sicherungen.`,
+        `Meist genügt es, kurz zu warten, bis das Laufwerk wieder erreichbar ist, ` +
+        `und erneut zu speichern. Bleibt es dabei: ⚙ → Sicherungen.`,
       );
       fehler.name = "DateiUnvollstaendig";
       fehler.dateiKaputt = true;

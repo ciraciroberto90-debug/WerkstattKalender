@@ -5716,7 +5716,7 @@ function App() {
                     const st = await sharedFile.retryWrite();
                     setShareState(st);
                     setErr(st.mode === "read"
-                      ? `Schreibzugriff weiterhin nicht möglich (${sharedFile.getLastWriteError() || "unbekannter Grund"}). Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte? Ordner von OneDrive/Defender geschützt?`
+                      ? `Schreibzugriff weiterhin nicht möglich (${sharedFile.getLastWriteError() || "unbekannter Grund"}). Prüfen: Datei schreibgeschützt (Explorer → Eigenschaften)? Gerade in einem anderen Programm geöffnet? Ordner ohne Schreibrechte? Ordner vom Virenschutz (Defender) geschützt?`
                       : null);
                   } catch (e2) {
                     setErr("Gemeinsame Datei: " + (e2 && e2.message ? e2.message : "Erneuter Versuch fehlgeschlagen."));
@@ -8707,7 +8707,7 @@ function App() {
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <div className="font-bold text-sm">Gemeinsame Datei (Firmenlaufwerk / OneDrive)</div>
+              <div className="font-bold text-sm">Gemeinsame Datei (Firmenlaufwerk)</div>
               <button onClick={() => setShareOpen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
             </div>
 
@@ -8729,8 +8729,8 @@ function App() {
             ) : (
               <div className="flex flex-col gap-3">
                 <div className="text-xs text-slate-500 leading-relaxed">
-                  Alle Einträge werden in einer JSON-Datei gespeichert, die auf einem gemeinsamen Laufwerk liegt
-                  (Netzlaufwerk oder ein per Explorer synchronisierter OneDrive-Ordner). <strong>Wer die Datei
+                  Alle Einträge werden in einer JSON-Datei gespeichert, die auf dem Firmenlaufwerk liegt
+                  (ein per Explorer synchronisierter OneDrive-Ordner ginge auch). <strong>Wer die Datei
                   bearbeiten darf, legen die Datei-Rechte auf dem Laufwerk fest</strong> (IT-Freigabe): Mit
                   Schreibrechten kann man Einträge ändern, ohne Schreibrechte zeigt die App automatisch nur den
                   aktuellen Stand an (Aktualisierung alle 30 Sekunden).
@@ -8783,9 +8783,10 @@ function App() {
                   <div className="rounded px-3 py-2.5" style={{ border: "1.5px solid #6B7280", backgroundColor: "#F7F8F9" }}>
                     <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Konflikt-Wächter</div>
                     <div className="text-xs mb-2" style={{ color: "#8A9099", lineHeight: 1.5 }}>
-                      OneDrive legt bei Sync-Konflikten Kopien wie „…-GERÄTENAME.json" an. Mit einmaliger
-                      Ordner-Freigabe sammelt die App solche Kopien automatisch ein: Der Inhalt wird sicher in die
-                      Hauptdatei übernommen, die Kopie danach gelöscht – du bekommst dann eine kurze grüne Meldung.
+                      Nur relevant, falls die Datei je wieder in einem OneDrive-Ordner liegt – auf dem
+                      Firmenlaufwerk entstehen keine Konfliktkopien. OneDrive legt bei Sync-Konflikten Kopien wie
+                      „…-GERÄTENAME.json" an; mit einmaliger Ordner-Freigabe sammelt die App solche Kopien
+                      automatisch ein und übernimmt den Inhalt sicher in die Hauptdatei.
                     </div>
                     {sharedFile.folderStatus() === "ok" ? (
                       <div className="flex items-center gap-2 flex-wrap">

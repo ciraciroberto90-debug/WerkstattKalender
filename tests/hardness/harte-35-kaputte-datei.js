@@ -94,8 +94,11 @@ const schreibVersuch = (p, entries) => p.evaluate(async (e) => {
     const text2 = await p.locator("body").innerText();
     pruef("(2) Das Scheitern wird gemeldet, nicht verschwiegen",
           /unvollständig/i.test(text2), (text2.match(/Die gemeinsame Datei[^\n]{0,70}/) || ["keine Meldung"])[0]);
+    // Wortlaut seit 17.08. ohne OneDrive-Bezug ("kurz zu warten, bis das
+    // Laufwerk wieder erreichbar ist, und erneut zu speichern") - geprüft
+    // wird die Handlungsanweisung, nicht der exakte Satzbau.
     pruef("(2) Die Meldung sagt, was zu tun ist",
-          /warten und erneut speichern/i.test(text2) && /Sicherungen/.test(text2));
+          /warten/i.test(text2) && /erneut zu speichern|erneut speichern/i.test(text2) && /Sicherungen/.test(text2));
     pruef("(2) Auch hier kein roher Text des Browsers",
           !/Expected|SyntaxError|position \d+|JSON at/i.test(text2));
 
