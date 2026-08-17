@@ -55,6 +55,17 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
         entries: [{ id: 'sicherung-drei', date: '2026-01-04', category: 'SCHICHT', name: 'Anna', scope: 'tag', wert: 'Alt', updatedAt: alt }],
         deleted: {}, config: null,
       }),
+      // Robertos Beweisstück vom 17.08.: Eine von Hand als kaputt markierte
+      // Alt-Datei ("…-Kaputt-17-08"). "17-08" sind nur ZWEI Zahlengruppen -
+      // ohne das Schutzwort "kaputt" ginge sie als Konfliktkopie durch und
+      // wäre nach dem Einsammeln gelöscht. Hier lesbar angelegt, damit die
+      // Prüfung den scharfen Fall trifft (eine unlesbare rettet schon der
+      // Parse-Fehler).
+      'werkstatt-kalender-daten-Kaputt-17-08.json': JSON.stringify({
+        format: 'werkstatt-kalender-v1', savedAt: alt,
+        entries: [{ id: 'beweisstueck', date: '2026-01-05', category: 'SCHICHT', name: 'Anna', scope: 'tag', wert: 'Alt', updatedAt: alt }],
+        deleted: {}, config: null,
+      }),
     };
 
     const dateiHandle = (name) => ({
@@ -113,6 +124,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
     'werkstatt-kalender-daten-2026-08-05.json',
     'werkstatt-kalender-daten-Sicherung-2026-08-05.json',
     'werkstatt-kalender-daten-Sicherung.json',
+    'werkstatt-kalender-daten-Kaputt-17-08.json',
   ];
   for (const s of sicherungen) {
     ok(`Sicherung "${s}" wurde nicht gelöscht`, ordnerDanach.includes(s));
@@ -120,7 +132,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   const sicherungInhalt = await page.evaluate((n) => window.__ordner[n], sicherungen[0]);
   ok('Sicherung wurde auch inhaltlich nicht angefasst', /"sicherung-alt"/.test(sicherungInhalt || ''));
   ok('Einträge der Sicherung wurden NICHT in die Hauptdatei gezogen',
-    !haupt.entries.some((e) => ['sicherung-alt', 'sicherung-zwei', 'sicherung-drei'].includes(e.id)));
+    !haupt.entries.some((e) => ['sicherung-alt', 'sicherung-zwei', 'sicherung-drei', 'beweisstueck'].includes(e.id)));
 
   const text = await page.locator('body').innerText();
   ok('Grüne Info-Meldung erscheint', text.includes('Konfliktkopie') && text.includes('eingesammelt'));

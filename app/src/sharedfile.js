@@ -1073,6 +1073,11 @@ function createSharedStore(cfg) {
      Sie werden nie eingesammelt - siehe istKonfliktkopie(). */
   const SICHERUNGS_WOERTER = [
     "sicherung", "kopie", "backup", "archiv", "alt", "old", "copy", "test",
+    // Seit Robertos 17.08.: Eine von Hand als kaputt markierte Datei
+    // ("…-Kaputt-17-08.json") ist ein aufgehobenes Beweisstück, keine
+    // Konfliktkopie - ohne diese Wörter würde der Wächter sie einsammeln
+    // und löschen, sobald sie (teilweise) lesbar ist.
+    "kaputt", "defekt",
   ];
 
   /* Ist das wirklich eine Konfliktkopie von OneDrive?
