@@ -937,6 +937,7 @@ function createSharedStore(cfg) {
 
     fileHandle = handle;
     accessMode = mode;
+    let leseFehlerBeimStart = false;
     try {
       await adoptCurrentFile(false);
     } catch (e) {
@@ -944,9 +945,19 @@ function createSharedStore(cfg) {
         fileHandle = null;
         return { status: "verweis-tot", name: handle.name, mode };
       }
-      dispatchError("Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
+      leseFehlerBeimStart = true;
     }
     startPolling();
+    if (leseFehlerBeimStart) {
+      // Robertos Fund vom 17.08.: Ohne dieses Flag gab der spätere
+      // erfolgreiche Abgleich KEINE Entwarnung - die Meldung klebte, obwohl
+      // das Laufwerk längst wieder las (harte-43 stellt das nach). Das Flag
+      // muss NACH startPolling gesetzt werden, denn startPolling beginnt
+      // bewusst mit sauberem Warnzustand - hier ist der Start aber nicht
+      // sauber, und der nächste gelungene Abgleich soll aufräumen.
+      pollWarnungAktiv = true;
+      dispatchError("Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
+    }
     return { status: "connected", name: handle.name, mode: accessMode };
   }
 

@@ -462,7 +462,19 @@ auf denselben Dateien.
 
 ## Erledigt
 
-- [x] **OneDrive-Reste aus den Meldungen entfernt (Robertos Fund vom
+- [x] **Klebende Fehlermeldung nach Laufwerksabbruch behoben (Robertos
+      Fund vom 17.08., zweiter Teil):** „Gemeinsame Datei konnte nicht
+      gelesen werden (Laufwerk erreichbar?)" blieb stehen, obwohl das
+      Laufwerk längst wieder da war (das Programm erkannte gleichzeitig
+      die Aktualisierung vom selben Laufwerk). Ursache: Die Meldung kam
+      aus dem Wiederherstellen des gemerkten Zugriffs beim Start, und
+      dieser Pfad setzte das Heilungs-Flag des Abgleichs nicht - der
+      nächste erfolgreiche Abgleich gab deshalb nie Entwarnung.
+      Regelkonform mit Test belegt: **harte-43-entwarnung.js** stellt den
+      Ablauf im Programm-Modus nach (Neustart bei unlesbarem Laufwerk →
+      Meldung → Laufwerk zurück → Abgleich) und schlug OHNE die Änderung
+      fehl („Meldung klebt"); mit Änderung 7/7. Die Suite zählt jetzt
+      42 Härtetests (42/42 nach dem Fix). (Robertos Fund vom
       17.08.):** Die Warnung „Datei unvollständig" empfahl noch, auf den
       „nächsten OneDrive-Abgleich" zu warten - seit dem Umzug aufs
       Firmenlaufwerk ist die häufigste Ursache aber ein kurzer
