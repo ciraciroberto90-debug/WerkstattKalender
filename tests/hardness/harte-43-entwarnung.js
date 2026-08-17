@@ -171,6 +171,59 @@ const pruef = (n, c, zusatz) => {
   pruef("(4) Und heilt wieder, sobald das Laufwerk zurück ist",
         !/nicht erreichbar \(/.test(t4) && !/konnte nicht gelesen werden/.test(t4));
 
+  /* ---- (6) Robertos 17.08., 12:40: Die Datei selbst ist KAPUTT ----
+     Ein Abriss hat die Datei halb geschrieben hinterlassen. Auf dem
+     Firmenlaufwerk heilt das nie von allein, und vor der Änderung war
+     sogar der empfohlene Weg (Sicherung wiederherstellen) blockiert,
+     weil jedes Schreiben erst liest und das Lesen wirft - eine Sackgasse.
+     Robertos Ansage: "Die App muss selbständig heilen können."
+     Erwartung seit der Änderung: Nach der zweiten unvollständigen Lesung
+     birgt der Rechner die lesbaren Einträge aus dem Fragment, führt sie
+     mit dem örtlichen Stand zusammen und schreibt die Datei gesund neu -
+     ohne einen einzigen Klick. */
+  // Ausgangslage wie bei Roberto: normal gearbeitet (eigener Stand örtlich
+  // UND in der Datei), dazu ein Eintrag eines Kollegen, der NUR in der
+  // Datei steht - er muss die Heilung über die Bergung überleben.
+  await page.evaluate(async () => {
+    const roh = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
+    roh.push({ id: "vor-schaden", date: "2026-08-17", category: "NOTIZ", text: "Vor dem Schaden", updatedAt: new Date().toISOString() });
+    await window.storage.set("werkstatt-kalender-entries", JSON.stringify(roh));
+  });
+  await page.waitForTimeout(1500);
+  const gesundAufPlatte = JSON.parse(fs.readFileSync(dateiPfad, "utf8"));
+  gesundAufPlatte.entries.unshift({ id: "nur-in-datei", date: "2026-08-17", category: "NOTIZ", text: "Kollege, nur in der Datei", updatedAt: "2026-08-17T08:30:00.000Z" });
+  fs.writeFileSync(dateiPfad, JSON.stringify(gesundAufPlatte, null, 2));
+  // Und ein Eintrag, der NUR örtlich liegt (entstand "nach dem Abriss").
+  await page.evaluate(() => {
+    const roh = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
+    roh.push({ id: "nur-lokal", date: "2026-08-17", category: "NOTIZ", text: "Nach dem Abriss, nur örtlich", updatedAt: new Date().toISOString() });
+    localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(roh));
+  });
+  // Jetzt reißt die Datei ab: halb geschrieben, Ende fehlt.
+  const roher = fs.readFileSync(dateiPfad, "utf8");
+  fs.writeFileSync(dateiPfad, roher.slice(0, Math.floor(roher.length * 0.7)));
+  // Zwei Abgleiche: Der erste zählt nur (einzelner Lese-Abriss heilt sich
+  // sonst von selbst), der zweite löst die Selbstheilung aus.
+  for (let i = 0; i < 2; i++) { await page.clock.fastForward(31000); await page.waitForTimeout(600); }
+  await page.waitForTimeout(1200);
+  let plattenStand = null;
+  try { plattenStand = JSON.parse(fs.readFileSync(dateiPfad, "utf8")); } catch (e) { /* weiter kaputt */ }
+  const ids6 = new Set(plattenStand ? (plattenStand.entries || []).map((e) => e.id) : []);
+  pruef("(6a) Die App hat die kaputte Datei SELBST repariert",
+        !!plattenStand, plattenStand ? (plattenStand.entries || []).length + " Einträge" : "Datei weiter kaputt");
+  pruef("(6b) Der Kollegen-Eintrag aus dem Fragment wurde geborgen", ids6.has("nur-in-datei"));
+  pruef("(6c) Der nur örtlich vorhandene Eintrag wurde zusammengeführt", ids6.has("nur-lokal"));
+  pruef("(6d) Auch der eigene Bestand hat die Heilung überlebt", ids6.has("vor-schaden") && ids6.has("e1"));
+  const t6 = await page.locator("body").innerText();
+  pruef("(6e) Grüne Meldung erklärt die Reparatur, kein rotes Banner",
+        /automatisch repariert/.test(t6) && !/konnte nicht gelesen|nicht erreichbar \(/.test(t6),
+        (t6.match(/automatisch repariert[^\n]{0,40}/) || ["keine Meldung"])[0]);
+  await page.clock.fastForward(31000);
+  await page.waitForTimeout(800);
+  const t7 = await page.locator("body").innerText();
+  pruef("(6f) Der nächste Abgleich läuft wieder normal (keine rote Meldung)",
+        !/beschädigt|unvollständig|konnte nicht gelesen/.test(t7));
+
   pruef("(5) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
 
   await ctx.close();

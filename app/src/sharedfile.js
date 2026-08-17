@@ -705,17 +705,22 @@ function createSharedStore(cfg) {
       // ein kurzer Netzwerk-Aussetzer beim Lesen - nicht mehr der
       // OneDrive-Abgleich. Der Text nennt deshalb das Laufwerk zuerst;
       // Roberto stolperte am 17.08. über die alte OneDrive-Formulierung.
+      // Robertos 17.08.: Bleibt die Datei so liegen (Abriss MITTEN im
+      // Schreiben), heilt auf dem Firmenlaufwerk nichts von selbst - deshalb
+      // repariert die App das inzwischen automatisch (heileKaputteDatei).
+      // Der Text verspricht genau das; der Rohtext hängt am Fehler, damit
+      // die Reparatur die noch lesbaren Einträge bergen kann.
       const fehler = new Error(
         `Die gemeinsame Datei „${fileHandle ? fileHandle.name : ""}" ist unvollständig ` +
         `(${text.length} Zeichen gelesen, Ende fehlt). Das passiert, wenn die Verbindung zum ` +
-        `Laufwerk mitten im Lesen oder Schreiben abbricht – etwa bei einem kurzen ` +
-        `Netzwerk-Aussetzer oder weil ein Rechner ausgeschaltet wurde. ` +
-        `Es wurde nichts überschrieben, deine Arbeit ist lokal gesichert. ` +
-        `Meist genügt es, kurz zu warten, bis das Laufwerk wieder erreichbar ist, ` +
-        `und erneut zu speichern. Bleibt es dabei: ⚙ → Sicherungen.`,
+        `Laufwerk mitten im Schreiben abbricht. Es wurde nichts überschrieben, ` +
+        `deine Arbeit ist lokal gesichert. Ein Rechner mit Schreibrecht repariert ` +
+        `die Datei automatisch beim nächsten Abgleich (unter einer Minute). ` +
+        `Bleibt die Meldung länger stehen: ⚙ → Sicherungen.`,
       );
       fehler.name = "DateiUnvollstaendig";
       fehler.dateiKaputt = true;
+      fehler.rohtext = text;
       throw fehler;
     }
   }
@@ -937,7 +942,7 @@ function createSharedStore(cfg) {
 
     fileHandle = handle;
     accessMode = mode;
-    let leseFehlerBeimStart = false;
+    let leseFehlerBeimStart = null;
     try {
       await adoptCurrentFile(false);
     } catch (e) {
@@ -945,7 +950,7 @@ function createSharedStore(cfg) {
         fileHandle = null;
         return { status: "verweis-tot", name: handle.name, mode };
       }
-      leseFehlerBeimStart = true;
+      leseFehlerBeimStart = e;
     }
     startPolling();
     if (leseFehlerBeimStart) {
@@ -956,7 +961,12 @@ function createSharedStore(cfg) {
       // bewusst mit sauberem Warnzustand - hier ist der Start aber nicht
       // sauber, und der nächste gelungene Abgleich soll aufräumen.
       pollWarnungAktiv = true;
-      dispatchError("Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
+      // Bei einer KAPUTTEN Datei die verständliche Detailmeldung zeigen
+      // (nennt die Datei und die automatische Reparatur) - "Laufwerk
+      // erreichbar?" wäre hier die falsche Fährte (Robertos 17.08.).
+      dispatchError(leseFehlerBeimStart.dateiKaputt
+        ? leseFehlerBeimStart.message
+        : "Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
     }
     return { status: "connected", name: handle.name, mode: accessMode };
   }
@@ -1649,8 +1659,76 @@ function createSharedStore(cfg) {
     } catch (e) { return []; }
   }
 
+  /* ---------- Selbstheilung einer kaputt geschriebenen Datei ----------
+     Robertos 17.08.: Ein Abriss um 09:03 hinterließ die Hauptdatei halb
+     geschrieben auf dem Laufwerk. Ab da war ALLES blockiert: Jeder
+     Schreibweg liest erst (Überschreib-Schutz), das Lesen wirft - auch das
+     Wiederherstellen aus der Sicherung lief in dieselbe Sperre. Die
+     Werkstatt stand vor einer Meldung ohne Ausweg.
+     Deshalb heilt die App jetzt selbst: Liest ein Rechner mit Schreibrecht
+     die Datei ZWEIMAL in Folge als unvollständig (ein einzelner Lese-Abriss
+     zählt nicht - der nächste Abgleich liest sonst wieder sauber), birgt er
+     die noch lesbaren Einträge aus dem Fragment, führt sie eintragsweise
+     mit seinem örtlichen Stand zusammen und schreibt die Datei gesund neu.
+     Was dabei ehrlich verloren geht: die Lösch-Merkliste der kaputten Datei
+     (kürzlich Gelöschtes kann wieder auftauchen) - das steht so auch in der
+     Roll-out-Liste. Änderungen anderer Rechner seit dem Schaden liegen in
+     deren örtlichen Speichern und fließen bei deren nächstem Speichern ein. */
+  function bergeAusFragment(rohtext) {
+    if (typeof rohtext !== "string" || !rohtext.includes('"entries"')) return [];
+    // Stufe 1: Das entries-Array ist komplett (Abriss erst in deleted/config).
+    const arrayEnde = rohtext.indexOf("\n  ],");
+    if (arrayEnde > 0) {
+      try {
+        const d = JSON.parse(rohtext.slice(0, arrayEnde) + '\n  ],\n  "deleted": {},\n  "config": null\n}');
+        if (Array.isArray(d.entries)) return d.entries;
+      } catch (e) { /* weiter mit Stufe 2 */ }
+    }
+    // Stufe 2: Abriss mitten im Array - bis zum letzten vollständigen Eintrag
+    // schneiden (writeFileData schreibt mit 2er-Einrückung, ein Eintrag endet
+    // auf "\n    }").
+    const schnitt = rohtext.lastIndexOf("\n    }");
+    if (schnitt > 0) {
+      try {
+        const d = JSON.parse(rohtext.slice(0, schnitt + 6) + '\n  ],\n  "deleted": {},\n  "config": null\n}');
+        if (Array.isArray(d.entries)) return d.entries;
+      } catch (e) { /* nichts zu bergen */ }
+    }
+    return [];
+  }
+  let heilungLaeuft = false;
+  async function heileKaputteDatei(fehler) {
+    if (accessMode !== "readwrite" || !fileHandle) return false;
+    const geborgen = bergeAusFragment(fehler && fehler.rohtext);
+    let eigene = [];
+    try { eigene = JSON.parse(localStorage.getItem(ENTRIES_KEY) || "[]"); } catch (e) { /* ohne örtlichen Stand */ }
+    if (geborgen.length === 0 && eigene.length === 0) return false; // nichts, womit sich heilen ließe
+    // Unmittelbar vor dem Schreiben nochmal lesen: Hat ein anderer Rechner
+    // inzwischen geheilt (oder der Schreiber seinen Abriss selbst repariert),
+    // ist die Datei gesund - dann NICHT überschreiben, der normale Abgleich
+    // übernimmt.
+    try {
+      await readFileData();
+      return false;
+    } catch (e) {
+      if (!(e && e.dateiKaputt)) throw e;
+    }
+    const merged = pruneLogs(mergeEntries(geborgen, eigene, {}));
+    const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: {}, config: configAusEintraegen(merged) };
+    await writeFileData(out);
+    const kontrolle = await readFileData(); // muss jetzt wieder sauber lesbar sein
+    lastSavedAt = kontrolle.savedAt;
+    syncLocal(kontrolle);
+    dispatchUpdate(kontrolle);
+    await recordBackup(kontrolle.entries, kontrolle.config);
+    dispatchOk();
+    dispatchInfo(`Die beschädigte gemeinsame Datei wurde automatisch repariert – ${geborgen.length} Einträge aus der beschädigten Datei gerettet und mit dem örtlichen Stand zusammengeführt (${merged.length} gesamt). Kürzlich Gelöschtes kann dabei wieder auftauchen und muss ggf. erneut gelöscht werden.`);
+    return true;
+  }
+
   /* ---------- Änderungen der anderen abholen ---------- */
   let pollFehlerFolge = 0; // aufeinanderfolgende gescheiterte Poll-Versuche
+  let kaputtFolge = 0;     // davon: aufeinanderfolgende "Datei unvollständig"-Lesungen
   let pollWarnungAktiv = false;
   let lastSuccessfulSyncAt = null; // für die "zuletzt aktualisiert"-Anzeige
   function getLastSuccessfulSyncAt() { return lastSuccessfulSyncAt; }
@@ -1666,6 +1744,7 @@ function createSharedStore(cfg) {
         pollWarnungAktiv = false;
       }
       pollFehlerFolge = 0;
+      kaputtFolge = 0;
       if (data.savedAt && data.savedAt !== lastSavedAt) {
         lastSavedAt = data.savedAt;
         syncLocal(data);
@@ -1675,16 +1754,42 @@ function createSharedStore(cfg) {
       // Konflikt-Wächter: bei jedem Abgleich nach OneDrive-Konfliktkopien schauen
       sammleKonfliktkopien();
     } catch (e) {
+      // Kaputt geschriebene Datei? Nach der ZWEITEN unvollständigen Lesung in
+      // Folge repariert ein Rechner mit Schreibrecht sie selbst - ein
+      // einzelner Lese-Abriss heilt sich dagegen beim nächsten Abgleich von
+      // allein und braucht kein Eingreifen.
+      if (e && e.dateiKaputt) {
+        kaputtFolge++;
+        if (kaputtFolge >= 2 && !heilungLaeuft) {
+          heilungLaeuft = true;
+          try {
+            if (await heileKaputteDatei(e)) {
+              kaputtFolge = 0;
+              pollFehlerFolge = 0;
+              pollWarnungAktiv = false;
+              return;
+            }
+          } catch (e2) { /* der nächste Abgleich versucht es erneut */ }
+          finally { heilungLaeuft = false; }
+        }
+      } else {
+        kaputtFolge = 0;
+      }
       pollFehlerFolge++;
       if (pollFehlerFolge === POLL_FEHLER_SCHWELLE) {
         pollWarnungAktiv = true;
-        dispatchError(`Gemeinsame Datei ist seit ca. ${Math.round((POLL_FEHLER_SCHWELLE * POLL_MS) / 1000)} Sekunden nicht erreichbar (${e && e.name ? e.name : "Fehler"}). Deine Eingaben bleiben lokal gesichert - die App versucht automatisch weiter, es wieder zu verbinden.`);
+        // Zwei verschiedene Lagen, zwei ehrliche Meldungen: Eine KAPUTTE Datei
+        // ist kein Erreichbarkeits-Problem - das Laufwerk antwortet ja.
+        dispatchError(e && e.dateiKaputt
+          ? `Die gemeinsame Datei ist beschädigt (unvollständig geschrieben). Das Laufwerk ist erreichbar, aber die Datei heilt so nicht von selbst. Deine Eingaben bleiben lokal gesichert.${accessMode === "readwrite" ? " Die App versucht weiter, die Datei automatisch zu reparieren." : " Ein Rechner mit Schreibrecht repariert sie automatisch – sonst unter ⚙ → Sicherungen einen Stand wiederherstellen."}`
+          : `Gemeinsame Datei ist seit ca. ${Math.round((POLL_FEHLER_SCHWELLE * POLL_MS) / 1000)} Sekunden nicht erreichbar (${e && e.name ? e.name : "Fehler"}). Deine Eingaben bleiben lokal gesichert - die App versucht automatisch weiter, es wieder zu verbinden.`);
       }
     }
   }
   function startPolling() {
     stopPolling();
     pollFehlerFolge = 0;
+    kaputtFolge = 0;
     pollWarnungAktiv = false;
     lastSuccessfulSyncAt = nowISO();
     pollTimer = setInterval(pollNow, POLL_MS);

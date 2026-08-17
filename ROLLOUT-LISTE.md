@@ -460,23 +460,36 @@ auf denselben Dateien.
 
 ---
 
-- [ ] **Kaputte Hauptdatei braucht eine ehrliche Meldung + Wegweiser
-      (Befund 17.08., 12:40):** Der Abriss um 09:03 hat die Hauptdatei
-      halb geschrieben auf dem Laufwerk hinterlassen (880 KB, seither
-      eingefroren). Die App schützt korrekt (nichts überschreiben, lokal
-      weiterarbeiten), aber: (1) Die 90-Sekunden-Meldung sagt „nicht
-      erreichbar (DateiUnvollstaendig)" - das Laufwerk IST erreichbar,
-      die DATEI ist kaputt; bei dateiKaputt-Fehlern muss ein eigener
-      Text stehen samt Wegweiser „⚙ → Sicherungen → Wiederherstellen".
-      (2) Gemessen (Sonde 17.08.): Auf dem Firmenlaufwerk heilt eine
-      abgeschnittene Datei NIE von selbst (die alte OneDrive-Annahme
-      „nächster Abgleich richtet es" gilt nicht mehr) - alle Rechner
-      arbeiten dann stumm nur noch lokal. Zu prüfen: Angebot in der
-      Leiste, die Datei aus der letzten Sicherung wiederherzustellen.
-      Test dafür in harte-43 ergänzen (Datei bleibt abgeschnitten →
-      Meldung nennt die Datei, nicht das Laufwerk).
+- [ ] **Nach Robertos Rettung vom 17.08. prüfen:** Die umbenannte
+      Beweis-Datei `werkstatt-kalender-daten-KAPUTT-*.json` kann nach
+      ein paar ruhigen Tagen vom Laufwerk gelöscht werden; vorher kurz
+      kontrollieren, dass in den Tagen um den 17.08. nichts fehlt
+      (Lösch-Merkliste ging bei der Rettung verloren - kürzlich
+      Gelöschtes kann wieder aufgetaucht sein).
 
 ## Erledigt
+
+- [x] **Selbstheilung einer kaputt geschriebenen Hauptdatei (Robertos
+      Vorfall + Ansage vom 17.08.: „die App muss selbständig heilen
+      können"):** Der Abriss um 09:03 hinterließ die Hauptdatei halb
+      geschrieben (880 KB, eingefroren) - und ALLE Wege waren blockiert,
+      weil jedes Schreiben erst liest und das Lesen „unvollständig"
+      wirft; sogar das Wiederherstellen aus der Sicherung lief in diese
+      Sperre (Sackgasse, gemessen mit Sonde). Robertos Rettung an dem
+      Tag: kaputte Datei umbenennen + „Neue gemeinsame Datei anlegen"
+      mit altem Namen (vorher per Sonde verifiziert).
+      Jetzt eingebaut: Liest ein Rechner mit Schreibrecht die Datei
+      ZWEIMAL in Folge als unvollständig, birgt er die noch lesbaren
+      Einträge aus dem Fragment, führt sie eintragsweise mit dem
+      örtlichen Stand zusammen und schreibt die Datei gesund neu -
+      grüne Meldung statt roter Sackgasse, ohne einen Klick. Ehrlich
+      benannt: Die Lösch-Merkliste der kaputten Datei geht dabei
+      verloren (kürzlich Gelöschtes kann wieder auftauchen, steht in
+      der Meldung). Leser heilen nicht (kein Schreibrecht) - ihre
+      Meldung nennt jetzt die BESCHÄDIGTE DATEI statt fälschlich das
+      Laufwerk. harte-43 um den kompletten Fall erweitert (Bergung,
+      Merge, grüne Meldung; 5 Prüfungen ohne die Änderung rot, mit ihr
+      13/13).
 
 - [x] **Klebende Fehlermeldung nach Laufwerksabbruch behoben (Robertos
       Fund vom 17.08., zweiter Teil):** „Gemeinsame Datei konnte nicht
