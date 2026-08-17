@@ -1343,6 +1343,7 @@ function App() {
   const [leereDatei, setLeereDatei] = useState(null);
   // Druck-Auswahl in der Auswertung: erst fragen, was aufs Papier soll.
   const [druckWahlOffen, setDruckWahlOffen] = useState(false);
+  const [terminArchivOffen, setTerminArchivOffen] = useState(false); // Archiv der über eine Woche versäumten Termine
   const [druckUmfang, setDruckUmfang] = useState("ALLE");   // ALLE | TPM | RI
   const [druckOption, setDruckOption] = useState("");       // welche Vorlage im Dialog gewählt ist
   const [druckBereich, setDruckBereich] = useState("");     // aus welchem Reiter die Wahl stammt
@@ -3613,9 +3614,22 @@ function App() {
     return e ? e.status : null;
   };
   const heuteErledigtCount = kalenderEntries.filter((e) => e.date === todayKey && e.status === "done").length;
-  const ueberfaellige = kalenderEntries
+  /* Robertos Ansage vom 13.08.: Versäumte Termine bleiben höchstens EINE
+     Woche unter „Liegengeblieben" in der Übersicht - was älter ist, wandert
+     ins Termin-Archiv (nach TPM und R+I getrennt), statt die Übersicht
+     monatelang zu belegen. Am Bestand ändert das nichts: Die Einträge
+     bleiben offen, zählen im Prüfnachweis weiter als versäumt und lassen
+     sich aus dem Archiv genauso öffnen und abhaken. */
+  const terminArchivGrenze = (() => {
+    const d = new Date(todayKey + "T00:00:00");
+    d.setDate(d.getDate() - 7);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  })();
+  const alleUeberfaelligen = kalenderEntries
     .filter((e) => e.status === "open" && e.date < todayKey)
     .sort((a, b) => a.date.localeCompare(b.date));
+  const ueberfaellige = alleUeberfaelligen.filter((e) => e.date >= terminArchivGrenze);
+  const terminArchiv = alleUeberfaelligen.filter((e) => e.date < terminArchivGrenze);
   const quoteFuer = (list) => {
     const d = list.filter((e) => e.status === "done").length;
     const basis = list.filter((e) => e.status === "done" || e.status === "open").length;
@@ -6498,6 +6512,20 @@ function App() {
                   {ueberfaellige.length > 8 && <div className="text-xs text-slate-400">… und {ueberfaellige.length - 8} weitere (siehe TPM → Auswertung)</div>}
                 </>
               )}
+              {/* Was länger als eine Woche versäumt ist, liegt im Archiv -
+                  die Übersicht bleibt frei für das, was jetzt zählt. */}
+              {terminArchiv.length > 0 && (
+                <button
+                  onClick={() => setTerminArchivOffen(true)}
+                  className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mt-2 text-left"
+                  style={{ backgroundColor: "#F5F6F8", boxShadow: "inset 3px 0 0 0 #8A9099, var(--wk-schatten)" }}
+                  aria-label="Termin-Archiv öffnen"
+                >
+                  <span style={{ fontSize: "0.95rem" }}>🗄</span>
+                  <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", color: "#5B6572" }}>Termin-Archiv</strong>
+                  <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099" }}>{terminArchiv.length} über eine Woche versäumt</span>
+                </button>
+              )}
             </div>
 
             {/* Pinnwand */}
@@ -8445,6 +8473,59 @@ function App() {
                 style={{ fontSize: "0.85rem", padding: "8px 16px", backgroundColor: "#C0392B" }}
               >Meine Fassung speichern</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Termin-Archiv: versäumte TPM-/R+I-Termine, die älter als eine Woche
+          sind. Nur eine andere Sicht auf dieselben offenen Einträge - Klick
+          öffnet den Termin wie aus der Übersicht, dort wird erledigt oder
+          verschoben. */}
+      {terminArchivOffen && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setTerminArchivOffen(false)}
+        >
+          <div
+            role="dialog"
+            aria-label="Termin-Archiv"
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "22px", width: "680px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="font-bold text-sm">🗄 Termin-Archiv</div>
+              <button onClick={() => setTerminArchivOffen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+            <div className="text-xs mb-4" style={{ color: "#8A9099" }}>
+              Versäumte Termine, die älter als eine Woche sind. Sie bleiben offen und zählen im Prüfnachweis
+              weiter als versäumt – ein Klick öffnet den Termin zum Erledigen oder Verschieben.
+            </div>
+            {[["TPM", "TPM – Wartung"], ["RI", "R+I – Rundgang & Inspektion"]].map(([kat, titel]) => {
+              const liste = terminArchiv.filter((e) => e.category === kat);
+              return (
+                <div key={kat} className="mb-4">
+                  <div className="text-[11px] font-black uppercase tracking-wide mb-2" style={{ color: "#8A9099" }}>{titel} ({liste.length})</div>
+                  {liste.length === 0 && <div className="text-xs italic" style={{ color: "#B7BEC6" }}>nichts im Archiv</div>}
+                  {liste.map((e) => {
+                    const tage = Math.round((new Date(todayKey + "T00:00:00") - new Date(e.date + "T00:00:00")) / 86400000);
+                    return (
+                      <button
+                        key={e.id}
+                        onClick={() => { setTerminArchivOffen(false); openEditModal(e); }}
+                        className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
+                        style={{ backgroundColor: "#F9FAFB", boxShadow: "inset 3px 0 0 0 #8A9099, var(--wk-schatten)" }}
+                      >
+                        <span className={`wk-chip wk-chip-${String(e.category).toLowerCase()}`}>{CATS[e.category].label}</span>
+                        <strong className="flex-1" style={{ fontSize: "var(--wk-txt)" }}>{e.name}</strong>
+                        <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#B23A34" }}>{formatDateDE(e.date)}</span>
+                        <span style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099", whiteSpace: "nowrap" }}>vor {tage} Tagen</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

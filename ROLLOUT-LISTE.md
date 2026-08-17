@@ -462,6 +462,17 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Termin-Archiv für Versäumtes (Robertos Ansage vom 17.08.):**
+      Versäumte TPM-/R+I-Termine bleiben höchstens EINE Woche unter
+      „Liegengeblieben" in der Übersicht. Was älter ist, wandert in das
+      neue **Termin-Archiv** (Knopf unter der Liegengeblieben-Liste),
+      getrennt nach TPM und R+I, je Eintrag mit Datum und „vor X Tagen".
+      Wichtig: Das ist nur eine andere Sicht - die Einträge bleiben
+      offen, zählen im Prüfnachweis weiter als versäumt und öffnen sich
+      per Klick zum Erledigen oder Verschieben. Die Kachel „Überfällig"
+      zählt wie die Liste nur noch die frische Woche; der Archiv-Knopf
+      trägt seinen eigenen Zähler. Suite danach: 41/41.
+
 - [x] **Störungen: Liste, Vorschau, Schichtbericht (Robertos Ansagen vom
       13.08.):** (1) Die Tages-Gruppen im Schichtbuch sind beim Öffnen
       immer zugeklappt - erst nur die Tage untereinander, neuester oben.
