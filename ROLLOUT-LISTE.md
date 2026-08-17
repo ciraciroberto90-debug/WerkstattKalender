@@ -460,6 +460,22 @@ auf denselben Dateien.
 
 ---
 
+- [ ] **Kaputte Hauptdatei braucht eine ehrliche Meldung + Wegweiser
+      (Befund 17.08., 12:40):** Der Abriss um 09:03 hat die Hauptdatei
+      halb geschrieben auf dem Laufwerk hinterlassen (880 KB, seither
+      eingefroren). Die App schützt korrekt (nichts überschreiben, lokal
+      weiterarbeiten), aber: (1) Die 90-Sekunden-Meldung sagt „nicht
+      erreichbar (DateiUnvollstaendig)" - das Laufwerk IST erreichbar,
+      die DATEI ist kaputt; bei dateiKaputt-Fehlern muss ein eigener
+      Text stehen samt Wegweiser „⚙ → Sicherungen → Wiederherstellen".
+      (2) Gemessen (Sonde 17.08.): Auf dem Firmenlaufwerk heilt eine
+      abgeschnittene Datei NIE von selbst (die alte OneDrive-Annahme
+      „nächster Abgleich richtet es" gilt nicht mehr) - alle Rechner
+      arbeiten dann stumm nur noch lokal. Zu prüfen: Angebot in der
+      Leiste, die Datei aus der letzten Sicherung wiederherzustellen.
+      Test dafür in harte-43 ergänzen (Datei bleibt abgeschnitten →
+      Meldung nennt die Datei, nicht das Laufwerk).
+
 ## Erledigt
 
 - [x] **Klebende Fehlermeldung nach Laufwerksabbruch behoben (Robertos
