@@ -80,7 +80,7 @@ function grosserBestand() {
   // Druckausgabe: Sonderzeichen aus dem Backlog dürfen im HTML nicht als echtes Tag landen
   await page.getByRole('button', { name: 'TPM', exact: true }).click();
   await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Auswertung', exact: true }).click(); // Plan-Kalender lebt seit dem 18.08. in der Auswertung
+  await page.getByRole('button', { name: 'Plan', exact: true }).click(); // Reiter heißt seit dem 18.08. wieder "Plan"
   await page.waitForTimeout(300);
   // Seit dem Umbau fragt der Drucken-Knopf erst nach. Der Weg ist damit:
   // Knopf -> Dialog -> Drucken. Geprueft wird beides, die Vorschau im Dialog

@@ -249,7 +249,7 @@ const seedTeam = (personName) => {
     // Der Knopf gehoert in die Jahresansicht - dort ist das Jahr gewaehlt.
     await page.getByRole('button', { name: 'TPM', exact: true }).first().click();
     await page.waitForTimeout(400);
-    await page.getByRole('button', { name: 'Auswertung', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Plan', exact: true }).first().click();
     await page.waitForTimeout(500);
     const jahr = page.getByRole('button', { name: /^Jahr$/ });
     if (await jahr.count()) { await jahr.first().click(); await page.waitForTimeout(500); }
@@ -485,8 +485,8 @@ const seedTeam = (personName) => {
       [['Werkstatt', 'Schichtplan'], 'Schichtplan', true],
       [['Werkstatt', 'Planung'], 'Planung', true],
       [['TPM', null], 'TPM · Übersicht', true],
-      // Der Plan-Reiter ist seit dem 18.08. Teil der Auswertung
-      [['TPM', 'Auswertung'], 'TPM · Auswertung', true],
+      // Der verschmolzene Reiter heißt seit dem 18.08. wieder "Plan"
+      [['TPM', 'Plan'], 'TPM · Plan', true],
       [['Werkstatt', 'Übersicht'], 'Übersicht', false],
     ];
     const lagen = [];
@@ -541,7 +541,7 @@ const seedTeam = (personName) => {
     await page.waitForTimeout(250);
     await page.getByRole('button', { name: 'TPM', exact: true }).first().click();
     await page.waitForTimeout(400);
-    await page.getByRole('button', { name: 'Auswertung', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Plan', exact: true }).first().click();
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Drucken"]').click();
     await page.waitForTimeout(600);

@@ -469,6 +469,22 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Nachschärfung des verschmolzenen Reiters (Robertos Ansagen vom
+      18.08., zweiter Teil):** (1) Der Reiter heißt wieder **„Plan"** -
+      oben der Plan-Kalender samt Wartungsplan-Tabelle für den Alltag.
+      (2) Darunter sitzt die neue **Ausklappleiste „Auswertung"**
+      (Diagramm · Matrix · Druckvorlagen): Aufklappen zeigt die
+      Monats-Matrix und das Termintreue-Diagramm; in der Leiste sitzen
+      der Monat/Jahr-Umschalter, der Filter Alle/TPM/R+I und der Knopf
+      „Druckvorlagen …" (Jahreskalender A3, Monatsblatt, Wartungsplan,
+      Liste - jeweils mit Umfang-Wahl). In der Jahres-Sicht ist die
+      Leiste immer offen. (3) Leser: Versäumte Termine verschwinden für
+      sie nach spätestens einer Woche ganz - der Termin-Archiv-Knopf ist
+      nur noch für Bearbeiter/Verwalter sichtbar; nachvollziehbar bleibt
+      Versäumtes im TPM-Plan und im Archiv. Angepasste Suiten: harte-24
+      (Leser sehen die Auswertung jetzt nach Aufklappen), harte-33,
+      harte-44, rollout-test.
+
 - [x] **Plan-Reiter in die Auswertung verschmolzen (Robertos Ansagen vom
       18.08.):** (1) Die Werkstatt-Regel „nie zwei TPM-Wartungen am selben
       Tag" gilt auch beim Zusammenspiel von echten und errechneten

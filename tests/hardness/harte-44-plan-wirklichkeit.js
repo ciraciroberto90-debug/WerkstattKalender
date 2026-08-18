@@ -53,9 +53,10 @@ const config = {
     await p.waitForTimeout(800);
     await p.getByRole("button", { name: "TPM", exact: true }).click();
     await p.waitForTimeout(400);
-    // Seit dem 18.08. gibt es keinen eigenen Plan-Reiter mehr - der
-    // Plan-Kalender (samt Tabelle) steckt in der Monats-Auswertung.
-    await p.getByRole("button", { name: "Auswertung", exact: true }).click();
+    // Seit dem 18.08. heißt der verschmolzene Reiter wieder "Plan" -
+    // der Plan-Kalender samt Tabelle steht oben, die Auswertung ist
+    // eine Ausklappleiste darunter.
+    await p.getByRole("button", { name: "Plan", exact: true }).click();
     await p.waitForTimeout(1500);
     const text = await p.locator("body").innerText();
     await ctx.close();

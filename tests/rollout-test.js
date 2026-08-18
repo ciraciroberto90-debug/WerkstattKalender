@@ -307,10 +307,13 @@ const hole = (adresse, kopf = {}) => new Promise((fertig, schief) => {
     await p.waitForTimeout(1300);
     await p.getByRole("button", { name: "TPM", exact: true }).first().click();
     await p.waitForTimeout(400);
-    const hatAuswertung = (await p.getByRole("button", { name: "Auswertung", exact: true }).count()) > 0;
+    // Seit dem 18.08.: Reiter "Plan", die Auswertung ist eine Ausklappleiste.
+    const hatAuswertung = (await p.getByRole("button", { name: "Plan", exact: true }).count()) > 0;
     check("F: Es gibt eine Auswertung, um Erledigtes nachzuweisen", hatAuswertung);
     if (hatAuswertung) {
-      await p.getByRole("button", { name: "Auswertung", exact: true }).first().click();
+      await p.getByRole("button", { name: "Plan", exact: true }).first().click();
+      await p.waitForTimeout(500);
+      await p.getByRole("button", { name: /Auswertung.*Druckvorlagen/ }).first().click();
       await p.waitForTimeout(700);
       const t = await p.locator("body").innerText();
       check("F: Die Auswertung zeigt zurückliegende Zeiträume", /2026|2025|Jahr/.test(t));

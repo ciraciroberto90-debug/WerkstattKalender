@@ -27,7 +27,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   await page.getByRole('button', { name: 'TPM', exact: true }).click();
   await page.waitForTimeout(300);
   // Seit dem 18.08. steckt der Plan-Kalender in der Auswertung
-  await page.getByRole('button', { name: 'Auswertung', exact: true }).click();
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
   await page.waitForTimeout(400);
   const punkt = page.locator('button[title="Klicken zum Abhaken / Notiz"]').first();
   if (await punkt.count() > 0) {

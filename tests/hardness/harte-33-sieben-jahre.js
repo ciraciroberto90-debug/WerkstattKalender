@@ -212,7 +212,10 @@ async function verbindeHaupt(p) {
   await p.getByRole("button", { name: "TPM", exact: true }).first().click();
   await p.waitForTimeout(600);
   t0 = Date.now();
-  await p.getByRole("button", { name: "Auswertung", exact: true }).click();
+  // Seit dem 18.08.: Reiter "Plan", Auswertung als Ausklappleiste darunter.
+  await p.getByRole("button", { name: "Plan", exact: true }).click();
+  await p.waitForTimeout(600);
+  await p.getByRole("button", { name: /Auswertung.*Druckvorlagen/ }).first().click();
   await p.waitForTimeout(3000);
   const auswertung = await p.locator("body").innerText();
   pruef("(6) Auswertung rechnet über sieben Jahrgänge", /%/.test(auswertung) && Date.now() - t0 < 20000, (Date.now() - t0) + " ms");

@@ -1305,6 +1305,7 @@ function App() {
   // Start immer im Cockpit auf der Übersicht; Hauptreiter springen stets auf ihren ersten Unterpunkt
   const [view, setView] = useState("COCKPIT"); // 'COCKPIT' | 'TPMINFO' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (TPMINFO = Übersicht, MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
   const [tpmInfoOffen, setTpmInfoOffen] = useState(null); // welcher R+I-Punkt in der TPM-Übersicht aufgeklappt ist (id oder null)
+  const [auswertungOffen, setAuswertungOffen] = useState(false); // Ausklappleiste "Auswertung" unter dem Plan-Kalender (Diagramm, Matrix, Druckvorlagen)
   const [nachweisJahr, setNachweisJahr] = useState(() => new Date().getFullYear()); // Zeitraum für den Prüfnachweis
   const [archivHinweis, setArchivHinweis] = useState(null); // { jahre, groesseKB, aeltestesJahr } sobald der Bestand alt genug ist
   const [archivGrenze, setArchivGrenze] = useState(null); // bis einschließlich welchem Jahr ausgelagert wird
@@ -5297,8 +5298,8 @@ function App() {
                     steckt in der Auswertung (Robertos Ansage). Leser bekommen
                     dafür die Auswertung - sonst verlören sie den Plan ganz. */}
                 {(readerMode
-                  ? [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Auswertung"]]
-                  : [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]]
+                  ? [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Plan"]]
+                  : [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Plan"], ["REGISTER", "Register"]]
                 ).map(([v, label]) => {
                   const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
                   return (
@@ -5845,23 +5846,11 @@ function App() {
         </div>
       )}
 
-      {/* Filter + Legende + Stats */}
-      {view !== "COCKPIT" && view !== "TPMINFO" && (
+      {/* Filter-Leiste: Seit dem 18.08. nur noch fürs Register - im Plan-Reiter
+          sitzen Monat/Jahr und der Filter in der Auswertungs-Leiste unten
+          (Robertos Ansage: Plan oben, Auswertung als Ausklappleiste darunter). */}
+      {view === "REGISTER" && (
         <div className="no-print px-4 py-3 flex flex-wrap items-center gap-4 border-b bg-white" style={{ borderColor: "#D6D9DC" }}>
-          {(view === "MONAT" || view === "JAHR") && (
-            <div className="flex rounded overflow-hidden border" style={{ borderColor: "#D6D9DC" }}>
-              {[["MONAT", "Monat"], ["JAHR", "Jahr"]].map(([v, label]) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${view === v ? "text-white" : "bg-white text-slate-600"}`}
-                  style={view === v ? { backgroundColor: "#C97A2B" } : {}}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
           <div className="flex rounded overflow-hidden border" style={{ borderColor: "#D6D9DC" }}>
             {["ALL", "TPM", "RI"].map((f) => (
               <button
@@ -5874,7 +5863,6 @@ function App() {
               </button>
             ))}
           </div>
-
         </div>
       )}
 
@@ -6584,8 +6572,12 @@ function App() {
                 </>
               )}
               {/* Was länger als eine Woche versäumt ist, liegt im Archiv -
-                  die Übersicht bleibt frei für das, was jetzt zählt. */}
-              {terminArchiv.length > 0 && (
+                  die Übersicht bleibt frei für das, was jetzt zählt.
+                  Robertos Ansage vom 18.08.: Für LESER verschwindet
+                  Versäumtes nach der Woche ganz - kein Archiv-Knopf.
+                  Nachvollziehbar bleibt es für Bearbeiter im TPM-Plan
+                  und für Verwalter hier im Termin-Archiv. */}
+              {!readerMode && terminArchiv.length > 0 && (
                 <button
                   onClick={() => setTerminArchivOffen(true)}
                   className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mt-2 text-left"
@@ -10184,7 +10176,64 @@ function App() {
         </div>
       )}
 
+      {/* Ausklappleiste "Auswertung" (Robertos Ansage vom 18.08.): Der
+          Plan-Kalender steht oben für den Alltag; wer Diagramm, Matrix oder
+          die Druckvorlagen (TPM / R+I / Alle) braucht, klappt hier auf.
+          In der Jahres-Sicht ist sie immer offen - dort IST die Matrix
+          der Inhalt. */}
       {(view === "MONAT" || view === "JAHR") && (
+        <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+          <div className="cal-card rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
+            <button
+              onClick={() => { if (view === "JAHR") { setView("MONAT"); setAuswertungOffen(true); } else { setAuswertungOffen((o) => !o); } }}
+              aria-expanded={view === "JAHR" || auswertungOffen}
+              className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide"
+              style={{ color: "#22262B" }}
+            >
+              <span style={{ color: "#5B6572", fontSize: "0.7rem" }}>{view === "JAHR" || auswertungOffen ? "▾" : "▸"}</span>
+              Auswertung
+              <span className="normal-case font-normal text-xs" style={{ color: "#8A9099" }}>Diagramm · Matrix · Druckvorlagen</span>
+            </button>
+            {(view === "JAHR" || auswertungOffen) && (
+              <div className="flex flex-wrap items-center gap-3 ml-auto">
+                <div className="flex rounded overflow-hidden border" style={{ borderColor: "#D6D9DC" }}>
+                  {[["MONAT", "Monat"], ["JAHR", "Jahr"]].map(([v, label]) => (
+                    <button
+                      key={v}
+                      onClick={() => setView(v)}
+                      className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${view === v ? "text-white" : "bg-white text-slate-600"}`}
+                      style={view === v ? { backgroundColor: "#C97A2B" } : {}}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex rounded overflow-hidden border" style={{ borderColor: "#D6D9DC" }}>
+                  {["ALL", "TPM", "RI"].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${filter === f ? "text-white" : "bg-white text-slate-600"}`}
+                      style={filter === f ? { backgroundColor: f === "ALL" ? "#22262B" : CATS[f].color } : {}}
+                    >
+                      {f === "ALL" ? "Alle" : CATS[f].label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={oeffneDruckWahl}
+                  className="flex items-center gap-1.5 text-white px-3 py-1.5 rounded font-bold text-xs uppercase tracking-wide"
+                  style={{ backgroundColor: "#C97A2B" }}
+                >
+                  <Printer size={13} /> Druckvorlagen …
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {((view === "MONAT" && auswertungOffen) || view === "JAHR") && (
       <div className="print-bg p-4 max-w-5xl mx-auto">
         <div className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: "#22262B" }}>
           {view === "MONAT" ? `Monats-Matrix – ${MONTHS[month]} ${year}` : `Jahresübersicht ${year}`}
@@ -10204,8 +10253,9 @@ function App() {
       )}
 
       {/* Trend der Termintreue - beantwortet die Frage, die eine Momentaufnahme
-          nicht beantworten kann: Wird es besser oder schlechter? */}
-      {(view === "MONAT" || view === "JAHR") && heavyReady && <TermintreueTrend reihe={termintreueVerlauf} filter={filter} />}
+          nicht beantworten kann: Wird es besser oder schlechter? Das Diagramm
+          gehört zur Auswertungs-Leiste (Robertos Ansage: nicht vergessen!). */}
+      {((view === "MONAT" && auswertungOffen) || view === "JAHR") && heavyReady && <TermintreueTrend reihe={termintreueVerlauf} filter={filter} />}
 
       {/* Register: alle Anlagen & R+I-Punkte, anklickbar für die komplette Historie */}
       {view === "REGISTER" && (

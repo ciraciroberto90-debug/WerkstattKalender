@@ -111,8 +111,8 @@ const txt = async (page) => (await page.locator("body").innerText());
     const rk = page.getByText("Regalkontrolle", { exact: true }).first();
     if (await rk.count()) { await rk.click(); await page.waitForTimeout(300); ok("B: R+I-Punkt zeigt Rechtsgrundlage", (await txt(page)).includes("Rechtsgrundlage")); }
     else ok("B: Regalkontrolle vorhanden", false);
-    // Seit dem 18.08. lebt der Plan-Kalender in der Auswertung (kein eigener Reiter)
-    await klick(page, "Auswertung");
+    // Seit dem 18.08. heißt der verschmolzene Reiter wieder "Plan"
+    await klick(page, "Plan");
     ok("B: Plan-Kalender in der Auswertung", /plan-kalender/i.test(await txt(page)));
     ok("B: Auswertung (Matrix/Monat)", (await txt(page)).toLowerCase().includes("matrix") || /Monat|Jahr/.test(await txt(page)));
     await klick(page, "Register");
@@ -149,7 +149,7 @@ const txt = async (page) => (await page.locator("body").innerText());
     await klick(page, "TPM");
     ok("L: TPM-Übersicht auch für Leser", (await txt(page)).includes("Willkommen"));
     // Leser sehen den Plan seit dem 18.08. über die Auswertung (nur ansehen)
-    await klick(page, "Auswertung");
+    await klick(page, "Plan");
     ok("L: Plan-Kalender für Leser", /plan-kalender/i.test(await txt(page)));
     ok("L: KEINE JS-Fehler über den gesamten Durchlauf", errs.length === 0);
     if (errs.length) console.log("   Fehler:", errs.slice(0,5));

@@ -45,7 +45,11 @@ async function mach(browser, eintraege, uhr = "2026-12-15T10:00:00") {
   await page.waitForTimeout(1400);
   await page.getByRole("button", { name: "TPM", exact: true }).first().click();
   await page.waitForTimeout(400);
-  await page.getByRole("button", { name: "Auswertung", exact: true }).first().click();
+  // Seit dem 18.08.: Reiter heißt "Plan", die Auswertung (mit dem Trend)
+  // ist eine Ausklappleiste darunter.
+  await page.getByRole("button", { name: "Plan", exact: true }).first().click();
+  await page.waitForTimeout(400);
+  await page.getByRole("button", { name: /Auswertung.*Druckvorlagen/ }).first().click();
   await page.waitForTimeout(1100);
   return page;
 }
@@ -146,10 +150,21 @@ const text = (p) => p.locator("body").innerText();
     const vo = p.getByText("Vorhandene Datei öffnen …");
     if (await vo.count()) await vo.click();
     await p.waitForTimeout(1300);
-    check("(7) Leser haben gar keine Auswertung",
-      (await p.getByRole("button", { name: "Auswertung", exact: true }).count()) === 0);
-    check("(7) Und sehen folglich auch keinen Trend",
+    // Seit dem 18.08. dürfen Leser den Plan samt Auswertung SEHEN (sonst
+    // verlören sie mit dem verschmolzenen Reiter den Wartungsplan ganz).
+    // Der Trend erscheint erst nach dem Aufklappen der Auswertungs-Leiste.
+    await p.getByRole("button", { name: "TPM", exact: true }).first().click();
+    await p.waitForTimeout(500);
+    check("(7) Leser haben den Plan-Reiter",
+      (await p.getByRole("button", { name: "Plan", exact: true }).count()) > 0);
+    await p.getByRole("button", { name: "Plan", exact: true }).first().click();
+    await p.waitForTimeout(500);
+    check("(7) Ohne Aufklappen kein Trend",
       !/TERMINTREUE – LETZTE 12 MONATE/i.test(await text(p)));
+    await p.getByRole("button", { name: /Auswertung.*Druckvorlagen/ }).first().click();
+    await p.waitForTimeout(900);
+    check("(7) Nach dem Aufklappen sehen auch Leser den Trend (nur ansehen)",
+      /TERMINTREUE – LETZTE 12 MONATE/i.test(await text(p)));
     await p.close();
   }
 
