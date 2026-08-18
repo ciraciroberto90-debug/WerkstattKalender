@@ -2549,13 +2549,15 @@ function App() {
     );
   };
 
-  // Sicherheits-Klammer: solange (noch) Nur-Leser, ist ausschließlich Übersicht,
-  // Schichtplan, Planung oder TPM-Plan erlaubt - jede andere Ansicht wird sofort
+  // Sicherheits-Klammer: solange (noch) Nur-Leser, sind ausschließlich Übersicht,
+  // Schichtplan, Planung, TPM-Übersicht und die Auswertung erlaubt (der frühere
+  // Plan-Reiter lebt seit dem 18.08. in der Monats-Auswertung - Leser behalten
+  // damit ihren Blick auf den Wartungsplan). Jede andere Ansicht wird sofort
   // auf Übersicht zurückgesetzt (z. B. falls Schreibrechte während der Sitzung
   // wegfallen, oder direkt beim allerersten Laden, bevor überhaupt geprüft ist).
   useEffect(() => {
     if (!readerMode) return;
-    if (view !== "COCKPIT" && view !== "PLAN" && view !== "TPMINFO") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
+    if (view !== "COCKPIT" && view !== "TPMINFO" && view !== "MONAT" && view !== "JAHR") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
     // Störungen sind bewusst auch für Nur-Leser erlaubt (eigene, für alle
     // beschreibbare Datei) - daher hier mit aufgeführt.
     if (view === "COCKPIT" && !["UEBERSICHT", "SCHICHTPLAN", "PLANUNG", "STOERUNGEN"].includes(cockpitTab)) setCockpitTab("UEBERSICHT");
@@ -3622,17 +3624,48 @@ function App() {
       const k = `${e.date}|${e.name}`;
       if (belegt.has(k)) return; // denselben Termin nicht doppelt zeigen
       belegt.add(k);
-      errechnete.push({ day: Number(e.date.slice(8, 10)), date: e.date, anlage: e.name });
+      errechnete.push({ day: Number(e.date.slice(8, 10)), date: e.date, anlage: e.name, echt: true });
     });
-    const echteSkipped = skipped.filter((n) => !echteTpm.has(n));
+
+    /* ---- Robertos Regel: NIE zwei TPM-Wartungen am selben Tag ----
+       Belegt ein echter (verschobener) Eintrag den errechneten Tag einer
+       anderen Anlage, weicht der ERRECHNETE Termin auf den nächsten freien
+       Werktag aus (kein Feiertag, kein anderer TPM-Termin); findet sich
+       keiner mehr, setzt die Anlage diesen Monat aus. Echte Einträge stehen
+       fest - legt jemand von Hand zwei auf denselben Tag, zeigt der Plan
+       sie, wie sie sind, statt still einen zu verstecken. */
+    errechnete.sort((a, b) => a.day - b.day);
+    const tpmTage = new Set(errechnete.filter((a) => a.echt && !riNamen.has(a.anlage)).map((a) => a.date));
+    for (const a of errechnete) {
+      if (a.echt || riNamen.has(a.anlage)) continue;
+      if (!tpmTage.has(a.date)) { tpmTage.add(a.date); continue; }
+      let gefunden = false;
+      for (let d = a.day + 1; d <= dim; d++) {
+        const dow = new Date(py, pm, d).getDay();
+        if (dow === 0 || dow === 6) continue;
+        const key = dateKey(py, pm, d);
+        if (hol.get(key) || tpmTage.has(key)) continue;
+        a.day = d;
+        a.date = key;
+        tpmTage.add(key);
+        gefunden = true;
+        break;
+      }
+      if (!gefunden) a.entfaellt = true;
+    }
+    const bereinigt = errechnete.filter((a) => !a.entfaellt);
+    const entfallene = errechnete.filter((a) => a.entfaellt).map((a) => a.anlage);
+    const echteSkipped = [...skipped.filter((n) => !echteTpm.has(n)), ...entfallene];
 
     return {
-      assignments: errechnete.sort((a, b) => a.day - b.day),
+      assignments: bereinigt.sort((a, b) => a.day - b.day),
       skipped: echteSkipped,
     };
   };
 
-  const maintenancePlanResult = view === "PLAN" && heavyReady ? computeMaintenancePlan() : { assignments: [], skipped: [] };
+  // Auch bei JAHR berechnen: Der Wartungsplan-Druck ist aus beiden
+  // Auswertungs-Ansichten wählbar und braucht die Zuordnungen.
+  const maintenancePlanResult = (view === "MONAT" || view === "JAHR") && heavyReady ? computeMaintenancePlan() : { assignments: [], skipped: [] };
   const maintenancePlan = maintenancePlanResult.assignments;
   const planSkipped = maintenancePlanResult.skipped;
 
@@ -4414,15 +4447,20 @@ function App() {
     return html;
   };
 
-  const buildPrintDocument = () => {
+  /* alsPlan: Der frühere Plan-Reiter ist seit dem 18.08. Teil der Monats-
+     Auswertung - sein Druck (Kalender + Tabelle) bleibt als eigene Vorlage
+     erhalten und wird über diesen Schalter angefordert statt über die View. */
+  const buildPrintDocument = (alsPlan = false) => {
     const catsToShow = filter === "ALL" ? ["TPM", "RI"] : [filter];
+    const kopfTitel = alsPlan ? "Wartungsplan" : printPrefix;
+    const kopfZeile = alsPlan ? `${MONTHS[month]} ${year}` : printSuffix;
     let body = `<div style="text-align:center;margin-bottom:18px;">
-      <div style="font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:0.02em;">${escapeHtml(printPrefix)}</div>
-      <div style="font-family:monospace;font-size:13px;margin-top:2px;">${escapeHtml(printSuffix)}</div>
-      ${view !== "PLAN" ? `<div style="font-family:monospace;font-size:11px;margin-top:4px;">${doneCount} erledigt · ${openCount} offen${donePercent !== null ? ` · ${donePercent} %` : ""}</div>` : ""}
+      <div style="font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:0.02em;">${escapeHtml(kopfTitel)}</div>
+      <div style="font-family:monospace;font-size:13px;margin-top:2px;">${escapeHtml(kopfZeile)}</div>
+      ${!alsPlan ? `<div style="font-family:monospace;font-size:11px;margin-top:4px;">${doneCount} erledigt · ${openCount} offen${donePercent !== null ? ` · ${donePercent} %` : ""}</div>` : ""}
     </div>`;
 
-    if (view === "PLAN") {
+    if (alsPlan) {
       body += `<div style="margin-bottom:24px;">
         <div style="font-weight:700;font-size:13px;text-transform:uppercase;margin-bottom:5px;">Kalender – ${escapeHtml(MONTHS[month])} ${year}</div>
         ${buildPlanCalendarGridHTML()}
@@ -4431,7 +4469,7 @@ function App() {
         <div style="font-weight:700;font-size:13px;text-transform:uppercase;margin-bottom:8px;">Wartungsplan – Tabelle</div>
         ${buildPlanTableHTML()}
       </div>`;
-      return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(printPrefix)}</title>
+      return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(kopfTitel)}</title>
         <style>
           @page { size: A4 landscape; margin: 10mm; }
           @page notes { size: A4 portrait; margin: 15mm; }
@@ -5038,18 +5076,10 @@ function App() {
             erklaerung: "Alle zwölf Monate auf einem Bogen – A3 quer, fürs Board" },
           { id: "monatsblatt", text: "Einzelner Monat", monatsWahl: true,
             erklaerung: "Die Tage untereinander – A4 hoch, für den Schrank" },
+          { id: "wartungsplan-monat", text: `Wartungsplan ${MONTHS[month]} ${year}`,
+            erklaerung: "Der Plan-Kalender mit allen Terminen, dazu die Tabelle – der bisherige Plan-Druck" },
           { id: "liste", text: "Liste wie am Bildschirm",
             erklaerung: "Die Auswertung, so wie sie gerade dasteht" },
-        ],
-      };
-    }
-    if (view === "PLAN") {
-      return {
-        titel: "Wartungsplan drucken",
-        bereich: "wartungsplan",
-        optionen: [
-          { id: "liste", text: `Wartungsplan ${MONTHS[month]} ${year}`,
-            erklaerung: "Der Plan, so wie er am Bildschirm steht" },
         ],
       };
     }
@@ -5082,6 +5112,8 @@ function App() {
                  datei: `werkstatt-planung-kw${getISOWeek(planungMontag)}-${planungMontag.getFullYear()}.html` };
       case "nachweis":
         return { html: buildNachweisHTML(nachweisJahr), datei: `werkstatt-pruefnachweis-${nachweisJahr}.html` };
+      case "wartungsplan-monat":
+        return { html: buildPrintDocument(true), datei: `werkstatt-wartungsplan-${year}-${pad(month + 1)}.html` };
       case "stoer-schichtbericht":
         return { html: buildStoerSchichtberichtHTML(), datei: `werkstatt-schichtbericht-${todayKey}.html` };
       case "stoer-monat": {
@@ -5158,8 +5190,8 @@ function App() {
     return teile.join(" · ");
   };
 
-  const printPrefix = view === "PLAN" ? "Wartungsplan" : filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
-  const printSuffix = view === "JAHR" ? `Jahresübersicht ${year}` : view === "PLAN" ? `${MONTHS[month]} ${year}` : `Monatsübersicht ${MONTHS[month]} ${year}`;
+  const printPrefix = filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
+  const printSuffix = view === "JAHR" ? `Jahresübersicht ${year}` : `Monatsübersicht ${MONTHS[month]} ${year}`;
 
   if (loading) {
     return (
@@ -5261,9 +5293,12 @@ function App() {
               </div>
             ) : (
               <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
+                {/* Seit dem 18.08. ohne eigenen Plan-Reiter: Der Plan-Kalender
+                    steckt in der Auswertung (Robertos Ansage). Leser bekommen
+                    dafür die Auswertung - sonst verlören sie den Plan ganz. */}
                 {(readerMode
-                  ? [["TPMINFO", "Übersicht"], ["PLAN", "Plan"]]
-                  : [["TPMINFO", "Übersicht"], ["PLAN", "Plan"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]]
+                  ? [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Auswertung"]]
+                  : [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Auswertung"], ["REGISTER", "Register"]]
                 ).map(([v, label]) => {
                   const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
                   return (
@@ -5282,7 +5317,7 @@ function App() {
           </>
         </div>
         <div className="flex items-center gap-1 text-white">
-          {view === "MONAT" || view === "PLAN" ? (
+          {view === "MONAT" ? (
             <>
               <button onClick={() => changeMonth(-1)} className="p-1.5 rounded hover:opacity-75 transition-opacity" aria-label="Vorheriger Monat">
                 <ChevronLeft size={18} />
@@ -5811,7 +5846,7 @@ function App() {
       )}
 
       {/* Filter + Legende + Stats */}
-      {view !== "PLAN" && view !== "COCKPIT" && view !== "TPMINFO" && (
+      {view !== "COCKPIT" && view !== "TPMINFO" && (
         <div className="no-print px-4 py-3 flex flex-wrap items-center gap-4 border-b bg-white" style={{ borderColor: "#D6D9DC" }}>
           {(view === "MONAT" || view === "JAHR") && (
             <div className="flex rounded overflow-hidden border" style={{ borderColor: "#D6D9DC" }}>
@@ -5905,7 +5940,7 @@ function App() {
       <div className="print-only text-center py-2">
         <div className="font-black text-2xl uppercase tracking-tight">{printPrefix}</div>
         <div className="font-mono text-sm">{printSuffix}</div>
-        {view !== "PLAN" && <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen{donePercent !== null ? ` · ${donePercent} %` : ""}</div>}
+        <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen{donePercent !== null ? ` · ${donePercent} %` : ""}</div>
       </div>
 
       {/* Cockpit: Störungen (eigene, für alle beschreibbare Datei) */}
@@ -6672,78 +6707,10 @@ function App() {
         </div>
       )}
 
-      {/* Tages-Kalender (nur Monatsansicht, nur zur Eingabe, nicht im Druck) */}
-      {view === "MONAT" && (
-        <div className="no-print print-bg cal-card p-5 max-w-7xl mx-auto rounded-xl mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
-          <div className="flex gap-1.5 mb-1.5">
-            <div style={{ width: "30px", flexShrink: 0 }} />
-            <div className="grid grid-cols-7 gap-1.5 flex-1">
-              {WEEKDAYS.map((w, i) => (
-                <div key={w} className="text-center text-xs font-bold uppercase font-mono py-1" style={{ color: i >= 5 ? "#6D93B8" : "#64748b" }}>{w}</div>
-              ))}
-            </div>
-          </div>
-          {chunkIntoWeeks(cells).map((week, wi) => (
-            <div key={wi} className="flex gap-1.5 mb-1.5">
-              <div className="flex items-start justify-center pt-1.5" style={{ width: "30px", flexShrink: 0 }}>
-                <span className="font-mono text-xs font-bold" style={{ color: "#B7BEC6" }}>{weekLabel(week, year, month)}</span>
-              </div>
-              <div className="grid grid-cols-7 gap-1.5 flex-1">
-                {week.map((d, di) => {
-                  if (d === null) return <div key={`blank-${wi}-${di}`} />;
-                  const key = dateKey(year, month, d);
-                  const dayEntries = entriesForDay(key);
-                  const isToday = key === todayKey;
-                  const holName = holidays.get(key);
-                  const weekend = isWeekend(year, month, d);
-                  return (
-                    <div
-                      key={key}
-                      className="relative border rounded-md p-1.5 flex flex-col gap-1"
-                      style={{
-                        minHeight: "132px",
-                        backgroundColor: holName ? "#FBE9E7" : weekend ? "#E5F0F8" : "white",
-                        borderColor: isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#6B7280",
-                        borderWidth: isToday ? "2px" : "1.5px",
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs" style={{ color: holName ? "#B23A34" : weekend ? "#5B87AB" : "#5B6572", fontWeight: holName ? 700 : 400 }}>{d}</span>
-                        <button onClick={() => openAddModal(key)} className="text-slate-400 hover:text-slate-700 p-0.5" aria-label="Eintrag hinzufügen">
-                          <Plus size={15} />
-                        </button>
-                      </div>
-                      {holName && (
-                        <div style={{ fontSize: "9px", fontWeight: 700, color: "#B23A34", marginTop: "-4px" }}>{holName}</div>
-                      )}
-
-                      <div className="flex flex-col gap-1" style={{ maxHeight: "108px", overflowY: "auto", overflowX: "hidden" }}>
-                        {dayEntries.map((e) => (
-                          <button
-                            key={e.id}
-                            onClick={() => openEditModal(e)}
-                            className="flex items-center gap-1 rounded px-1.5 py-1 text-xs font-bold leading-tight text-left w-full"
-                            style={{
-                              backgroundColor: e.status === "done" ? "#E5F3EA" : "#FBE9E7",
-                              color: e.status === "done" ? "#2F7D4F" : "#B23A34",
-                              border: `1px solid ${e.status === "done" ? "#2F7D4F" : "#B23A34"}`,
-                            }}
-                          >
-                            <span className="uppercase" style={{ color: CATS[e.category].color }}>{CATS[e.category].label}</span>
-                            <span className="truncate flex-1">{e.name}</span>
-                            {e.note && e.note.trim() && <StickyNote size={11} />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          {legendeKlein}
-        </div>
-      )}
+      {/* Der frühere Eingabe-Tageskalender ist seit dem 18.08. mit dem
+          Plan-Kalender verschmolzen (ein Raster statt zwei): Der zeigt
+          Geplantes UND echte Einträge, und das + je Tag legt wie bisher
+          freie Einträge an. */}
 
       {/* Cockpit: Backlog (Arbeiten aus dem Arbeitsbuch) */}
       {view === "COCKPIT" && cockpitTab === "BACKLOG" && (
@@ -9949,28 +9916,8 @@ function App() {
       )}
 
       {/* Matrix: klar erkennbar was gemacht / nicht gemacht wurde (Monat) bzw. Jahresübersicht */}
-      {(view === "MONAT" || view === "JAHR") && (
-      <div className="print-bg p-4 max-w-5xl mx-auto">
-        <div className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: "#22262B" }}>
-          {view === "MONAT" ? `Monats-Matrix – ${MONTHS[month]} ${year}` : `Jahresübersicht ${year}`}
-        </div>
-        {!heavyReady ? (
-          <div className="no-print text-xs text-slate-400 py-4">Wird berechnet …</div>
-        ) : filter === "ALL" ? (
-          <div className="flex flex-col gap-6">
-            {renderCategoryBlock("TPM", false)}
-            {renderCategoryBlock("RI", true)}
-          </div>
-        ) : (
-          renderCategoryBlock(filter, false)
-        )}
-        {view === "JAHR" && legendeKlein}
-      </div>
-      )}
-
-      {/* Trend der Termintreue - beantwortet die Frage, die eine Momentaufnahme
-          nicht beantworten kann: Wird es besser oder schlechter? */}
-      {(view === "MONAT" || view === "JAHR") && heavyReady && <TermintreueTrend reihe={termintreueVerlauf} filter={filter} />}
+      {/* Matrix und Trend stehen seit dem 18.08. HINTER dem Plan-Kalender
+          (weiter unten im Baum): Erst der Blick nach vorn, dann die Historie. */}
 
       {/* TPM-Übersicht: Wissens- & Sensibilisierungs-Ort (öffnet zuerst beim Klick auf TPM) */}
       {view === "TPMINFO" && (
@@ -10098,11 +10045,15 @@ function App() {
       )}
 
       {/* Wartungsplan: fortlaufende Rotation für den gewählten Monat */}
-      {view === "PLAN" && (
+      {/* Der frühere Plan-Reiter lebt seit dem 18.08. HIER in der Monats-
+          Auswertung weiter (Robertos Ansage: "Plan und Auswertung sind im
+          Sinne der Sache dasselbe") - gleicher Kalender, gleiche Farben
+          (TPM orange, R+I blau), gleiches Abhaken per Klick. */}
+      {view === "MONAT" && (
         <div className="print-bg cal-card p-5 max-w-7xl mx-auto rounded-xl mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <div className="text-sm font-bold uppercase tracking-wide" style={{ color: "#22262B" }}>
-              Kalender – {MONTHS[month]} {year}
+              Plan-Kalender – {MONTHS[month]} {year}
             </div>
             {!readerMode && (
               <div className="no-print flex items-center gap-2">
@@ -10155,7 +10106,16 @@ function App() {
                           borderWidth: isToday ? "2px" : "1px",
                         }}
                       >
-                        <span className="font-mono text-xs" style={{ color: holName ? "#B23A34" : weekend ? "#5B87AB" : "#5B6572", fontWeight: holName ? 700 : 400 }}>{d}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs" style={{ color: holName ? "#B23A34" : weekend ? "#5B87AB" : "#5B6572", fontWeight: holName ? 700 : 400 }}>{d}</span>
+                          {/* Das + kam mit dem verschmolzenen Eingabe-Kalender
+                              hierher: freie Einträge an jedem Tag anlegen. */}
+                          {!readerMode && (
+                            <button onClick={() => openAddModal(key)} className="text-slate-400 hover:text-slate-700 p-0.5" aria-label="Eintrag hinzufügen">
+                              <Plus size={15} />
+                            </button>
+                          )}
+                        </div>
                         {holName && <div className="text-xs font-bold" style={{ color: "#B23A34", marginTop: "-4px" }}>{holName}</div>}
                         <div className="flex flex-col gap-1">
                           {dayPlans.map((p, pi) => {
@@ -10223,6 +10183,29 @@ function App() {
           </div>
         </div>
       )}
+
+      {(view === "MONAT" || view === "JAHR") && (
+      <div className="print-bg p-4 max-w-5xl mx-auto">
+        <div className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: "#22262B" }}>
+          {view === "MONAT" ? `Monats-Matrix – ${MONTHS[month]} ${year}` : `Jahresübersicht ${year}`}
+        </div>
+        {!heavyReady ? (
+          <div className="no-print text-xs text-slate-400 py-4">Wird berechnet …</div>
+        ) : filter === "ALL" ? (
+          <div className="flex flex-col gap-6">
+            {renderCategoryBlock("TPM", false)}
+            {renderCategoryBlock("RI", true)}
+          </div>
+        ) : (
+          renderCategoryBlock(filter, false)
+        )}
+        {view === "JAHR" && legendeKlein}
+      </div>
+      )}
+
+      {/* Trend der Termintreue - beantwortet die Frage, die eine Momentaufnahme
+          nicht beantworten kann: Wird es besser oder schlechter? */}
+      {(view === "MONAT" || view === "JAHR") && heavyReady && <TermintreueTrend reihe={termintreueVerlauf} filter={filter} />}
 
       {/* Register: alle Anlagen & R+I-Punkte, anklickbar für die komplette Historie */}
       {view === "REGISTER" && (
@@ -10316,7 +10299,7 @@ function App() {
       })()}
 
       {/* Notizen: eigene Seite, Hochformat, chronologisch */}
-      {view !== "PLAN" && view !== "TPMINFO" && notesList.length > 0 && (
+      {view !== "TPMINFO" && notesList.length > 0 && (
         <div className="notes-page print-bg p-4 max-w-4xl mx-auto" style={{ marginTop: "8px" }}>
           <div className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: "#22262B" }}>
             Notizen – {view === "JAHR" ? `Jahr ${year}` : `${MONTHS[month]} ${year}`}

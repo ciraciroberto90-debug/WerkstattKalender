@@ -469,6 +469,24 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Plan-Reiter in die Auswertung verschmolzen (Robertos Ansagen vom
+      18.08.):** (1) Die Werkstatt-Regel „nie zwei TPM-Wartungen am selben
+      Tag" gilt auch beim Zusammenspiel von echten und errechneten
+      Terminen: Belegt ein verschobener Eintrag den errechneten Tag einer
+      anderen Anlage, weicht der ERRECHNETE Termin auf den nächsten freien
+      Werktag aus (harte-44 Fall 6, vorher rot). (2) Der eigene
+      Plan-Reiter ist weg - „im Sinne der Sache sind Plan und Auswertung
+      dasselbe": Der Plan-Kalender (orange TPM, blau R+I, ✓ erledigt,
+      Abhaken per Klick, Wartungsplan-Tabelle) steht jetzt OBEN in der
+      Monats-Auswertung, darunter Monats-Matrix und Termintreue-Trend.
+      Der frühere Eingabe-Tageskalender der Auswertung ist mit ihm
+      verschmolzen (ein Raster statt zwei; das „+" je Tag für freie
+      Einträge lebt im Plan-Kalender weiter, nur für Bearbeiter).
+      (3) Leser dürfen jetzt in die Auswertung (sonst verlören sie den
+      Plan ganz) - nur ansehen, ohne „+", Register bleibt zu. Der
+      bisherige Plan-Druck (Kalender + Tabelle) heißt jetzt „Wartungsplan"
+      im Druck-Dialog der Auswertung. harte-44: 12/12.
+
 - [x] **Plan zeigt die Wirklichkeit, nicht nur die Rechnung (Robertos
       Fund vom 18.08.: „Plan und Auswertung zeigen teilweise verschiedene
       Termine am selben Tag - in der Auswertung passt es"):** Die

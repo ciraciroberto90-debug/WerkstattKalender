@@ -53,8 +53,10 @@ const config = {
     await p.waitForTimeout(800);
     await p.getByRole("button", { name: "TPM", exact: true }).click();
     await p.waitForTimeout(400);
-    await p.getByRole("button", { name: "Plan", exact: true }).click();
-    await p.waitForTimeout(1200);
+    // Seit dem 18.08. gibt es keinen eigenen Plan-Reiter mehr - der
+    // Plan-Kalender (samt Tabelle) steckt in der Monats-Auswertung.
+    await p.getByRole("button", { name: "Auswertung", exact: true }).click();
+    await p.waitForTimeout(1500);
     const text = await p.locator("body").innerText();
     await ctx.close();
     return { text, fehler };
@@ -104,8 +106,30 @@ const config = {
         erledigtTage.some((z) => z.startsWith("04.08.")), erledigtTage.join(" · ") || "gar nicht");
   pruef("(4) Auch hier kein zweiter, errechneter Termin daneben", erledigtTage.length === 1, erledigtTage.length + " Vorkommen");
 
-  pruef("(5) Keine Skriptfehler", leer.fehler.length === 0 && mitVerschobenem.fehler.length === 0 && mitRi.fehler.length === 0,
-        [...leer.fehler, ...mitVerschobenem.fehler, ...mitRi.fehler].slice(0, 2).join(" | "));
+  /* ---- (6) Robertos Regel vom 18.08.: NIE zwei TPM-Wartungen am selben Tag ----
+     Wird ein Termin auf den errechneten Tag einer ANDEREN Anlage verschoben,
+     darf der Plan dort nicht beide zeigen: Der echte Eintrag hat den Tag,
+     der errechnete Termin der anderen Anlage weicht auf den nächsten freien
+     Werktag aus. */
+  // Aus (1): 24.08. gehört rechnerisch TS320. TS480 wird GENAU dorthin verschoben.
+  const kollision = [{ id: "t3", date: "2026-08-24", category: "TPM", name: "TS480", status: "open", updatedAt: iso("2026-08-18T08:00:00") }];
+  const mitKollision = await planText(kollision);
+  const tageProTag = new Map();
+  (mitKollision.text.match(/(\d{2})\.08\.2026[^\n]*(TS200|TS320|TS480|VSM1|B\+T)/g) || []).forEach((z) => {
+    const tag = z.slice(0, 6);
+    tageProTag.set(tag, (tageProTag.get(tag) || 0) + 1);
+  });
+  const doppelTage = [...tageProTag.entries()].filter(([, n]) => n > 1).map(([t]) => t);
+  pruef("(6) Kein Tag trägt zwei TPM-Wartungen", doppelTage.length === 0, doppelTage.join(", ") || "alle einzeln");
+  const ts480Neu = (mitKollision.text.match(/(\d{2})\.08\.2026[^\n]*TS480/g) || []);
+  pruef("(6) Der verschobene Termin hält seinen Tag (24.08.)",
+        ts480Neu.length === 1 && ts480Neu[0].startsWith("24.08."), ts480Neu.join(" · "));
+  const ts320Neu = (mitKollision.text.match(/(\d{2})\.08\.2026[^\n]*TS320(?!0)/g) || []);
+  pruef("(6) Die verdrängte Anlage weicht aus, statt zu verschwinden",
+        ts320Neu.length === 1 && !ts320Neu[0].startsWith("24.08."), ts320Neu.join(" · ") || "verschwunden");
+
+  pruef("(5) Keine Skriptfehler", leer.fehler.length === 0 && mitVerschobenem.fehler.length === 0 && mitRi.fehler.length === 0 && mitKollision.fehler.length === 0,
+        [...leer.fehler, ...mitVerschobenem.fehler, ...mitRi.fehler, ...mitKollision.fehler].slice(0, 2).join(" | "));
 
   await b.close();
   console.log(`\nHärte 44 (Plan zeigt Wirklichkeit): ${ok}/${ok + fail}`);

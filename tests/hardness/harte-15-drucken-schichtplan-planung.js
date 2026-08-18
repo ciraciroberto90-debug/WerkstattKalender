@@ -485,7 +485,7 @@ const seedTeam = (personName) => {
       [['Werkstatt', 'Schichtplan'], 'Schichtplan', true],
       [['Werkstatt', 'Planung'], 'Planung', true],
       [['TPM', null], 'TPM · Übersicht', true],
-      [['TPM', 'Plan'], 'TPM · Plan', true],
+      // Der Plan-Reiter ist seit dem 18.08. Teil der Auswertung
       [['TPM', 'Auswertung'], 'TPM · Auswertung', true],
       [['Werkstatt', 'Übersicht'], 'Übersicht', false],
     ];
