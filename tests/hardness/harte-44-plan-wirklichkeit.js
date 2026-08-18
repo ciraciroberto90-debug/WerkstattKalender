@@ -54,11 +54,16 @@ const config = {
     await p.getByRole("button", { name: "TPM", exact: true }).click();
     await p.waitForTimeout(400);
     // Seit dem 18.08. heißt der verschmolzene Reiter wieder "Plan" -
-    // der Plan-Kalender samt Tabelle steht oben, die Auswertung ist
-    // eine Ausklappleiste darunter.
+    // der Plan-Kalender steht oben, die Auswertung ist eine Ausklapp-
+    // leiste darunter. Die frühere Tabelle unter dem Kalender ist weg
+    // (Robertos Ansage vom 18.08.); gelesen werden deshalb die Kacheln
+    // im Kalender selbst - jede trägt ihr Datum als data-plan-datum.
     await p.getByRole("button", { name: "Plan", exact: true }).click();
     await p.waitForTimeout(1500);
-    const text = await p.locator("body").innerText();
+    const text = (await p.$$eval("[data-plan-datum]", (els) => els.map((el) => {
+      const [j, m, t] = el.getAttribute("data-plan-datum").split("-");
+      return `${t}.${m}.${j} ${el.textContent}`;
+    }))).join("\n");
     await ctx.close();
     return { text, fehler };
   }

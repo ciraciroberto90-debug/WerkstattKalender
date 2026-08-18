@@ -243,6 +243,92 @@ function TermintreueTrend({ reihe, filter }) {
   );
 }
 
+// Monats-Auswertung als Diagramm (Robertos Ansage vom 18.08.): je Tag ein
+// Balken - unten grün das Erledigte, oben rot das Offene. Bewusst Balken statt
+// Linie: Im Monat zählt, WAS an welchem Tag steht, nicht die Richtung - die
+// liefert der Termintreue-Trend darunter.
+function MonatsDiagramm({ tage, monatName, jahr, erledigt, basis, prozent, filter, wochenende, feiertag }) {
+  const [aktiv, setAktiv] = React.useState(null);
+  const bereich = filter === "ALL" ? "Wartung & R+I" : filter === "TPM" ? "nur Wartung (TPM)" : "nur R+I";
+  const leer = tage.every((t) => t.erledigt + t.offen === 0);
+
+  const B = 720, H = 190, L = 28, R = 8, O = 16, U = 24;
+  const innenB = B - L - R, innenH = H - O - U;
+  const maxWert = Math.max(1, ...tage.map((t) => t.erledigt + t.offen));
+  const schritt = innenB / tage.length;
+  const balkenB = Math.max(6, Math.floor(schritt * 0.62));
+  const hoehe = (n) => (n / maxWert) * innenH;
+  // Bei vollen Monaten nicht jede Zwischenlinie beschriften - das würde kleben.
+  const linienSchritt = maxWert <= 6 ? 1 : Math.ceil(maxWert / 5);
+
+  return (
+    <div className="print-bg p-4 max-w-5xl mx-auto">
+      <div className="flex items-baseline gap-2 flex-wrap mb-1">
+        <div className="text-sm font-bold uppercase tracking-wide" style={{ color: "#22262B" }}>Monats-Diagramm – {monatName} {jahr}</div>
+        <span style={{ fontSize: "0.72rem", color: "#8A9099" }}>{bereich}</span>
+        <span className="ml-auto" style={{ fontSize: "0.78rem", fontWeight: 800, color: "#22262B" }}>
+          {erledigt} von {basis} erledigt{prozent !== null ? ` · ${prozent} %` : ""}
+        </span>
+      </div>
+      <div style={{ fontSize: "0.7rem", color: "#8A9099", marginBottom: "8px" }}>
+        Termine je Tag – grün erledigt, rot offen.
+      </div>
+      {leer ? (
+        <div className="rounded-xl" style={{ backgroundColor: "#fff", border: "1px solid #E2E4E7", padding: "14px", fontSize: "0.75rem", color: "#8A9099" }}>
+          Für {monatName} {jahr} ist nichts eingetragen.
+        </div>
+      ) : (
+        <div className="rounded-xl" style={{ backgroundColor: "#fff", border: "1px solid #E2E4E7", padding: "10px 8px 4px" }}>
+          <div style={{ overflowX: "auto" }}>
+            <svg viewBox={`0 0 ${B} ${H}`} style={{ width: "100%", minWidth: "460px", height: "auto", display: "block" }}
+                 role="img" aria-label={`Monats-Diagramm ${monatName} ${jahr}: ${erledigt} von ${basis} Terminen erledigt`}>
+              {Array.from({ length: maxWert + 1 }, (_, n) => n).filter((n) => n % linienSchritt === 0).map((n) => (
+                <g key={n}>
+                  <line x1={L} y1={O + innenH - hoehe(n)} x2={B - R} y2={O + innenH - hoehe(n)} stroke={n === 0 ? "#C3C7CB" : "#EDEFF2"} strokeWidth="1" />
+                  <text x={L - 5} y={O + innenH - hoehe(n) + 3} textAnchor="end" style={{ fontSize: "9px", fill: "#A6AEB6" }}>{n}</text>
+                </g>
+              ))}
+              {tage.map((t, i) => {
+                const xm = L + i * schritt + schritt / 2;
+                const hE = hoehe(t.erledigt), hO = hoehe(t.offen);
+                const summe = t.erledigt + t.offen;
+                const fei = feiertag(t.tag);
+                return (
+                  <g key={t.tag}
+                     onMouseEnter={() => setAktiv(t.tag)} onMouseLeave={() => setAktiv(null)}
+                     style={{ cursor: "default" }}>
+                    <rect x={L + i * schritt} y={O} width={schritt} height={innenH} fill="transparent" />
+                    {t.erledigt > 0 && <rect x={xm - balkenB / 2} y={O + innenH - hE} width={balkenB} height={hE} fill="#2F7D4F" rx="1" />}
+                    {t.offen > 0 && <rect x={xm - balkenB / 2} y={O + innenH - hE - hO} width={balkenB} height={hO} fill="#B23A34" rx="1" />}
+                    {summe > 0 && (
+                      <text x={xm} y={O + innenH - hE - hO - 4} textAnchor="middle" style={{ fontSize: "8.5px", fill: "#5B6572", fontWeight: 700 }}>{summe}</text>
+                    )}
+                    <text x={xm} y={H - 8} textAnchor="middle"
+                          style={{ fontSize: "8.5px", fontWeight: 700, fill: fei ? "#B23A34" : wochenende(t.tag) ? "#6D93B8" : "#5B6572" }}>{t.tag}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+          {aktiv !== null && (() => {
+            const t = tage.find((z) => z.tag === aktiv);
+            return (
+              <div className="no-print" style={{ fontSize: "0.72rem", color: "#22262B", padding: "4px 8px 6px", fontWeight: 600 }}>
+                {t.tag}. {monatName}: <strong style={{ color: "#24603D" }}>{t.erledigt} erledigt</strong> · <strong style={{ color: "#B23A34" }}>{t.offen} offen</strong>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+      <div className="no-print flex flex-wrap items-center gap-3 mt-2 px-1 text-slate-400" style={{ fontSize: "11px" }}>
+        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#2F7D4F" }} /> Erledigt</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#B23A34" }} /> Offen</span>
+        <span>Zahl über dem Balken = Termine an dem Tag · als A4 unter „Druckvorlagen …"</span>
+      </div>
+    </div>
+  );
+}
+
 function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false }) {
   const hatWert = prozent !== null && prozent !== undefined;
   const ziel = hatWert ? Math.min(100, Math.max(0, prozent)) : 0;
@@ -4427,30 +4513,10 @@ function App() {
       ${weekRows}`;
   };
 
-  const buildPlanTableHTML = () => {
-    let html = `<table style="border-collapse:collapse;font-size:13px;width:100%;"><thead><tr style="border-bottom:2px solid #22262B;">
-      <th style="text-align:left;padding:5px 10px;">Datum</th>
-      <th style="text-align:left;padding:5px 10px;">Wochentag</th>
-      <th style="text-align:left;padding:5px 10px;">Anlage</th>
-      <th style="text-align:left;padding:5px 10px;">Gruppe</th>
-    </tr></thead><tbody>`;
-    maintenancePlan.forEach((p) => {
-      const dt = new Date(year, month, p.day);
-      const wd = dt.toLocaleDateString("de-DE", { weekday: "long" });
-      html += `<tr style="border-bottom:1.5px solid #6B7280;">
-        <td style="padding:5px 10px;font-family:monospace;">${escapeHtml(formatDateDE(p.date))}</td>
-        <td style="padding:5px 10px;">${escapeHtml(wd)}</td>
-        <td style="padding:5px 10px;font-weight:700;">${escapeHtml(p.anlage)}</td>
-        <td style="padding:5px 10px;color:#8A9099;">${escapeHtml(planGroupLabel(p.anlage, tpmAnlagen, riItems))}</td>
-      </tr>`;
-    });
-    html += `</tbody></table>`;
-    return html;
-  };
-
   /* alsPlan: Der frühere Plan-Reiter ist seit dem 18.08. Teil der Monats-
-     Auswertung - sein Druck (Kalender + Tabelle) bleibt als eigene Vorlage
-     erhalten und wird über diesen Schalter angefordert statt über die View. */
+     Auswertung - sein Druck (der Plan-Kalender, seit Robertos Ansage vom
+     18.08. ohne die Tabellen-Seite) bleibt als eigene Vorlage erhalten und
+     wird über diesen Schalter angefordert statt über die View. */
   const buildPrintDocument = (alsPlan = false) => {
     const catsToShow = filter === "ALL" ? ["TPM", "RI"] : [filter];
     const kopfTitel = alsPlan ? "Wartungsplan" : printPrefix;
@@ -4458,7 +4524,7 @@ function App() {
     let body = `<div style="text-align:center;margin-bottom:18px;">
       <div style="font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:0.02em;">${escapeHtml(kopfTitel)}</div>
       <div style="font-family:monospace;font-size:13px;margin-top:2px;">${escapeHtml(kopfZeile)}</div>
-      ${!alsPlan ? `<div style="font-family:monospace;font-size:11px;margin-top:4px;">${doneCount} erledigt · ${openCount} offen${donePercent !== null ? ` · ${donePercent} %` : ""}</div>` : ""}
+      ${!alsPlan ? `<div style="font-size:14px;font-weight:800;margin-top:5px;">${doneCount} von ${quoteBasis} erledigt${donePercent !== null ? ` · ${donePercent} %` : ""}</div>` : ""}
     </div>`;
 
     if (alsPlan) {
@@ -4466,14 +4532,9 @@ function App() {
         <div style="font-weight:700;font-size:13px;text-transform:uppercase;margin-bottom:5px;">Kalender – ${escapeHtml(MONTHS[month])} ${year}</div>
         ${buildPlanCalendarGridHTML()}
       </div>`;
-      body += `<div style="break-before:page;page:notes;">
-        <div style="font-weight:700;font-size:13px;text-transform:uppercase;margin-bottom:8px;">Wartungsplan – Tabelle</div>
-        ${buildPlanTableHTML()}
-      </div>`;
       return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(kopfTitel)}</title>
         <style>
           @page { size: A4 landscape; margin: 10mm; }
-          @page notes { size: A4 portrait; margin: 15mm; }
           * { box-sizing: border-box; }
           body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 16px; }
           table { border-collapse: collapse; }
@@ -4924,7 +4985,11 @@ function App() {
       return `<tr>${zellen}</tr>`;
     }).join("");
 
-    const offen = relevant.filter((e) => e.status !== "done").length;
+    // Robertos Ansage vom 18.08.: Auf jeder Auswertungs-Vorlage steht die
+    // Quote leserlich oben - "X von Y erledigt · Z %", nicht als Kleingedrucktes.
+    const jkErledigt = relevant.filter((e) => e.status === "done").length;
+    const jkBasis = relevant.filter((e) => e.status === "done" || e.status === "open").length;
+    const jkProzent = jkBasis > 0 ? Math.round((jkErledigt / jkBasis) * 100) : null;
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${titel} Jahreskalender ${jahr}</title>
       <style>
         @page { size: A3 landscape; margin: 10mm; }
@@ -4935,7 +5000,7 @@ function App() {
     </head><body>
       <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px;">
         <div style="font-weight:900;font-size:21px;">Jahreskalender ${jahr} · ${titel}</div>
-        <div style="font-size:11px;color:#6B7480;">${relevant.length} Termine · ${relevant.length - offen} erledigt · ${offen} offen</div>
+        <div style="font-size:13px;font-weight:800;color:#22262B;">${jkErledigt} von ${jkBasis} erledigt${jkProzent !== null ? ` · ${jkProzent} %` : ""}</div>
       </div>
       <table>
         <colgroup>${MONTHS.map(() => "<col>").join("")}</colgroup>
@@ -4943,8 +5008,8 @@ function App() {
         <tbody>${zeilen}</tbody>
       </table>
       <div style="margin-top:8px;font-size:10px;color:#6B7480;">
-        <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">TPM</span>
-        &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#EFE7F5;color:#5B3579;border-left:4px solid #7A4E9B;">R+I</span>
+        <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">TPM offen</span>
+        &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#EFE7F5;color:#5B3579;border-left:4px solid #7A4E9B;">R+I offen</span>
         &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E2F0E7;color:#24603D;border-left:4px solid #2F7D4F;">erledigt</span>
         &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#F2F5F8;border:1px solid #C9D0D8;vertical-align:-2px;"></span> Wochenende
         &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#FDF0EE;border:1px solid #C9D0D8;vertical-align:-2px;"></span> Feiertag
@@ -4986,7 +5051,10 @@ function App() {
       </tr>`;
     }).join("");
 
-    const offen = relevant.filter((e) => e.status !== "done").length;
+    // Auch hier: die Quote leserlich oben (Robertos Ansage vom 18.08.).
+    const mkErledigt = relevant.filter((e) => e.status === "done").length;
+    const mkBasis = relevant.filter((e) => e.status === "done" || e.status === "open").length;
+    const mkProzent = mkBasis > 0 ? Math.round((mkErledigt / mkBasis) * 100) : null;
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${titel} ${MONTHS[monat]} ${jahr}</title>
       <style>
         @page { size: A4 portrait; margin: 10mm; }
@@ -4998,15 +5066,226 @@ function App() {
       <div id="blatt" style="width:702px;">
         <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:7px;">
           <div style="font-weight:900;font-size:17px;">${MONTHS[monat]} ${jahr} · ${titel}</div>
-          <div style="font-size:10px;color:#6B7480;">${relevant.length} Termine · ${relevant.length - offen} erledigt · ${offen} offen</div>
+          <div style="font-size:12px;font-weight:800;color:#22262B;">${mkErledigt} von ${mkBasis} erledigt${mkProzent !== null ? ` · ${mkProzent} %` : ""}</div>
         </div>
         <table><tbody>${zeilen}</tbody></table>
         <div style="margin-top:7px;font-size:10px;color:#6B7480;">
-          <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">TPM</span>
-          &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#EFE7F5;color:#5B3579;border-left:4px solid #7A4E9B;">R+I</span>
+          <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">TPM offen</span>
+          &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#EFE7F5;color:#5B3579;border-left:4px solid #7A4E9B;">R+I offen</span>
           &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E2F0E7;color:#24603D;border-left:4px solid #2F7D4F;">erledigt</span>
           ${relevant.length ? "" : `&nbsp;&nbsp;· Für ${MONTHS[monat]} ${jahr} ist nichts eingetragen.`}
         </div>
+      </div>
+      ${passtAufEinBlatt(702, 1031)}
+    </body></html>`;
+  };
+
+  /* ---- Monats-Diagramm (A4 hoch) ----
+     Robertos Ansage vom 18.08.: die Monats-Auswertung auch als Diagramm aufs
+     Papier. Je Tag ein Balken - unten grün das Erledigte, oben rot das
+     Offene - und die Quote leserlich oben. Darunter die Zahlen als Tabelle,
+     denn ein Balken ohne Zahl lässt sich am Schrank schlecht nachprüfen. */
+  const buildDiagrammMonatHTML = (jahr, monat, art = "ALLE") => {
+    const feiertage = getHolidays(jahr);
+    const relevant = entries.filter((e) =>
+      (e.category === "TPM" || e.category === "RI") &&
+      (art === "ALLE" || e.category === art) &&
+      String(e.date || "").startsWith(`${jahr}-${pad(monat + 1)}`));
+    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+    const tageImMonat = new Date(jahr, monat + 1, 0).getDate();
+    const tage = Array.from({ length: tageImMonat }, (_, i) => {
+      const amTag = relevant.filter((e) => e.date === dateKey(jahr, monat, i + 1));
+      return {
+        tag: i + 1,
+        erledigt: amTag.filter((e) => e.status === "done").length,
+        offen: amTag.filter((e) => e.status === "open").length,
+        eintraege: amTag,
+      };
+    });
+    const erledigt = relevant.filter((e) => e.status === "done").length;
+    const basis = relevant.filter((e) => e.status === "done" || e.status === "open").length;
+    const prozent = basis > 0 ? Math.round((erledigt / basis) * 100) : null;
+
+    // Feste Zeichenfläche; die Skala richtet sich nach dem vollsten Tag.
+    const B = 702, H = 230, L = 26, R = 6, O = 16, U = 22;
+    const innenB = B - L - R, innenH = H - O - U;
+    const maxWert = Math.max(1, ...tage.map((t) => t.erledigt + t.offen));
+    const schritt = innenB / tageImMonat;
+    const balkenB = Math.max(6, Math.floor(schritt * 0.62));
+    const hoehe = (n) => (n / maxWert) * innenH;
+
+    let balken = "";
+    tage.forEach((t, i) => {
+      const xm = L + i * schritt + schritt / 2;
+      const hE = hoehe(t.erledigt), hO = hoehe(t.offen);
+      if (t.erledigt > 0) balken += `<rect x="${(xm - balkenB / 2).toFixed(1)}" y="${(O + innenH - hE).toFixed(1)}" width="${balkenB}" height="${hE.toFixed(1)}" fill="#2F7D4F" rx="1"/>`;
+      if (t.offen > 0) balken += `<rect x="${(xm - balkenB / 2).toFixed(1)}" y="${(O + innenH - hE - hO).toFixed(1)}" width="${balkenB}" height="${hO.toFixed(1)}" fill="#B23A34" rx="1"/>`;
+      if (t.erledigt + t.offen > 0)
+        balken += `<text x="${xm.toFixed(1)}" y="${(O + innenH - hE - hO - 4).toFixed(1)}" text-anchor="middle" style="font-size:8.5px;fill:#5B6572;font-weight:700;">${t.erledigt + t.offen}</text>`;
+      const wochenende = isWeekend(jahr, monat, t.tag);
+      const feiertag = feiertage.get(dateKey(jahr, monat, t.tag));
+      balken += `<text x="${xm.toFixed(1)}" y="${H - 7}" text-anchor="middle" style="font-size:8.5px;font-weight:700;fill:${feiertag ? "#B23A34" : wochenende ? "#6D93B8" : "#5B6572"};">${t.tag}</text>`;
+    });
+    const linien = Array.from({ length: maxWert + 1 }, (_, n) =>
+      (maxWert <= 6 || n % Math.ceil(maxWert / 5) === 0)
+        ? `<line x1="${L}" y1="${(O + innenH - hoehe(n)).toFixed(1)}" x2="${B - R}" y2="${(O + innenH - hoehe(n)).toFixed(1)}" stroke="${n === 0 ? "#C3C7CB" : "#EDEFF2"}" stroke-width="1"/>
+           <text x="${L - 5}" y="${(O + innenH - hoehe(n) + 3).toFixed(1)}" text-anchor="end" style="font-size:8.5px;fill:#A6AEB6;">${n}</text>`
+        : "").join("");
+
+    const zeilen = tage.filter((t) => t.eintraege.length > 0).map((t) => {
+      const namen = t.eintraege.map((e) => {
+        const fertig = e.status === "done";
+        const farben = fertig ? "background:#E2F0E7;color:#24603D;border-left:3px solid #2F7D4F;"
+          : e.category === "TPM" ? "background:#E3EDF5;color:#1F4A6B;border-left:3px solid #2F6690;"
+          : "background:#EFE7F5;color:#5B3579;border-left:3px solid #7A4E9B;";
+        return `<span style="${farben}display:inline-block;font-size:10px;font-weight:700;border-radius:2px;padding:1px 6px;margin:1px 4px 1px 0;">${fertig ? "✓ " : ""}${escapeHtml(e.name)}</span>`;
+      }).join("");
+      return `<tr>
+        <td style="border:1px solid #DCE1E6;text-align:right;padding:2px 6px;font-size:11px;font-weight:800;width:34px;">${t.tag}</td>
+        <td style="border:1px solid #DCE1E6;padding:2px 6px;font-size:9px;font-weight:700;color:#98A1AA;width:30px;">${WEEKDAYS[(new Date(jahr, monat, t.tag).getDay() + 6) % 7]}</td>
+        <td style="border:1px solid #DCE1E6;text-align:right;padding:2px 8px;font-size:11px;color:#24603D;font-weight:700;width:60px;">${t.erledigt || ""}</td>
+        <td style="border:1px solid #DCE1E6;text-align:right;padding:2px 8px;font-size:11px;color:#B23A34;font-weight:700;width:60px;">${t.offen || ""}</td>
+        <td style="border:1px solid #DCE1E6;padding:1px 6px;">${namen}</td>
+      </tr>`;
+    }).join("");
+
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Monats-Diagramm ${MONTHS[monat]} ${jahr}</title>
+      <style>
+        @page { size: A4 portrait; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+      </style>
+    </head><body>
+      <div id="blatt" style="width:702px;">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:2px;">
+          <div style="font-weight:900;font-size:17px;">Monats-Diagramm · ${MONTHS[monat]} ${jahr} · ${titel}</div>
+          <div style="font-size:13px;font-weight:800;color:#22262B;">${erledigt} von ${basis} erledigt${prozent !== null ? ` · ${prozent} %` : ""}</div>
+        </div>
+        <div style="font-size:10px;color:#6B7480;margin-bottom:6px;">Termine je Tag – grün erledigt, rot offen.</div>
+        ${relevant.length === 0
+          ? `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:14px;font-size:12px;color:#6B7480;">Für ${MONTHS[monat]} ${jahr} ist nichts eingetragen.</div>`
+          : `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:8px 4px 2px;">
+              <svg viewBox="0 0 ${B} ${H}" width="${B - 16}" role="img" aria-label="Termine je Tag im ${MONTHS[monat]} ${jahr}">${linien}${balken}</svg>
+            </div>
+            <div style="margin-top:6px;font-size:10px;color:#6B7480;">
+              <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E2F0E7;color:#24603D;border-left:4px solid #2F7D4F;">erledigt</span>
+              &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#F7E5E3;color:#B23A34;border-left:4px solid #B23A34;">offen</span>
+              &nbsp;&nbsp;Zahl über dem Balken = Termine an dem Tag.
+            </div>
+            <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin:12px 0 5px;">Die Tage im Einzelnen</div>
+            <table><tbody>
+              <tr>
+                <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:2px 6px;font-size:9px;font-weight:800;color:#5B6572;width:34px;">Tag</td>
+                <td style="border:1px solid #DCE1E6;background:#FAFBFC;width:30px;"></td>
+                <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:2px 8px;font-size:9px;font-weight:800;color:#24603D;width:60px;">Erledigt</td>
+                <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:2px 8px;font-size:9px;font-weight:800;color:#B23A34;width:60px;">Offen</td>
+                <td style="border:1px solid #DCE1E6;background:#FAFBFC;padding:2px 6px;font-size:9px;font-weight:800;color:#5B6572;">Termine</td>
+              </tr>
+              ${zeilen}
+            </tbody></table>`}
+      </div>
+      ${passtAufEinBlatt(702, 1031)}
+    </body></html>`;
+  };
+
+  /* ---- Jahres-Diagramm (A4 hoch) ----
+     Die Termintreue-Linie vom Bildschirm als Aushang: je Kalendermonat die
+     Quote auf fester 0-100-Skala, darunter die Zahlen. Monate ohne Termine
+     bleiben leer statt fälschlich 0 % zu behaupten - wie am Bildschirm. */
+  const buildDiagrammJahrHTML = (jahr, art = "ALLE") => {
+    const relevant = entries.filter((e) =>
+      (e.category === "TPM" || e.category === "RI") &&
+      (art === "ALLE" || e.category === art) &&
+      String(e.date || "").startsWith(String(jahr)));
+    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+    const reihe = Array.from({ length: 12 }, (_, m) => {
+      const imMonat = relevant.filter((e) => String(e.date || "").startsWith(`${jahr}-${pad(m + 1)}`));
+      const mErledigt = imMonat.filter((e) => e.status === "done").length;
+      const mBasis = imMonat.filter((e) => e.status === "done" || e.status === "open").length;
+      return { monat: m, erledigt: mErledigt, basis: mBasis, quote: mBasis > 0 ? Math.round((mErledigt / mBasis) * 100) : null };
+    });
+    const erledigt = relevant.filter((e) => e.status === "done").length;
+    const basis = relevant.filter((e) => e.status === "done" || e.status === "open").length;
+    const prozent = basis > 0 ? Math.round((erledigt / basis) * 100) : null;
+    const mitWert = reihe.filter((r) => r.quote !== null);
+
+    const B = 702, H = 250, L = 32, R = 12, O = 18, U = 24;
+    const innenB = B - L - R, innenH = H - O - U;
+    const x = (m) => L + (m * innenB) / 11;
+    const y = (q) => O + innenH - (q / 100) * innenH;
+
+    // Lücken (Monate ohne Termine) trennen die Linie - wie am Bildschirm.
+    const abschnitte = [];
+    let lauf = [];
+    reihe.forEach((r) => {
+      if (r.quote === null) { if (lauf.length) abschnitte.push(lauf); lauf = []; }
+      else lauf.push(r);
+    });
+    if (lauf.length) abschnitte.push(lauf);
+    const schnitt = mitWert.length ? Math.round(mitWert.reduce((s, r) => s + r.quote, 0) / mitWert.length) : null;
+
+    let svg = [0, 25, 50, 75, 100].map((q) =>
+      `<line x1="${L}" y1="${y(q).toFixed(1)}" x2="${B - R}" y2="${y(q).toFixed(1)}" stroke="${q === 0 ? "#C3C7CB" : "#EDEFF2"}" stroke-width="1"/>
+       <text x="${L - 6}" y="${(y(q) + 3.5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#A6AEB6;">${q}</text>`).join("");
+    if (schnitt !== null) {
+      svg += `<line x1="${L}" y1="${y(schnitt).toFixed(1)}" x2="${B - R}" y2="${y(schnitt).toFixed(1)}" stroke="#8A9099" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="${B - R}" y="${(y(schnitt) - 5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#8A9099;font-weight:700;">⌀ ${schnitt}%</text>`;
+    }
+    abschnitte.forEach((abschnitt) => {
+      const pfad = abschnitt.map((r, k) => `${k === 0 ? "M" : "L"} ${x(r.monat).toFixed(1)} ${y(r.quote).toFixed(1)}`).join(" ");
+      if (abschnitt.length > 1) {
+        svg += `<path d="${pfad} L ${x(abschnitt[abschnitt.length - 1].monat).toFixed(1)} ${y(0).toFixed(1)} L ${x(abschnitt[0].monat).toFixed(1)} ${y(0).toFixed(1)} Z" fill="#2F6690" opacity="0.10"/>`;
+      }
+      svg += `<path d="${pfad}" fill="none" stroke="#2F6690" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    });
+    reihe.forEach((r) => {
+      if (r.quote !== null) {
+        // Rand-Beschriftungen nach innen ankern, damit Januar nicht in die
+        // Achsen-Zahlen und Dezember nicht aus dem Blatt läuft.
+        const anker = r.monat === 0 ? "start" : r.monat === 11 ? "end" : "middle";
+        svg += `<circle cx="${x(r.monat).toFixed(1)}" cy="${y(r.quote).toFixed(1)}" r="4" fill="#2F6690" stroke="#fff" stroke-width="2"/>
+          <text x="${x(r.monat).toFixed(1)}" y="${(y(r.quote) - 9).toFixed(1)}" text-anchor="${anker}" style="font-size:9.5px;fill:#22262B;font-weight:700;">${r.quote}%</text>`;
+      }
+      svg += `<text x="${x(r.monat).toFixed(1)}" y="${H - 8}" text-anchor="middle" style="font-size:9px;font-weight:700;fill:${r.quote === null ? "#C3C7CB" : "#5B6572"};">${MONTHS[r.monat].slice(0, 3)}</text>`;
+    });
+
+    const zeilen = reihe.map((r) => `<tr>
+      <td style="border:1px solid #DCE1E6;padding:3px 8px;font-size:11px;font-weight:700;">${MONTHS[r.monat]}</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;">${r.basis > 0 ? r.erledigt : "–"}</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;">${r.basis > 0 ? r.basis : "–"}</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;font-weight:700;color:${r.quote === null ? "#98A1AA" : "#22262B"};">${r.quote === null ? "keine Termine" : r.quote + " %"}</td>
+    </tr>`).join("");
+
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Jahres-Diagramm ${jahr}</title>
+      <style>
+        @page { size: A4 portrait; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
+        table { border-collapse: collapse; width: 100%; }
+      </style>
+    </head><body>
+      <div id="blatt" style="width:702px;">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:2px;">
+          <div style="font-weight:900;font-size:17px;">Jahres-Diagramm ${jahr} · ${titel}</div>
+          <div style="font-size:13px;font-weight:800;color:#22262B;">${erledigt} von ${basis} erledigt${prozent !== null ? ` · ${prozent} %` : ""}</div>
+        </div>
+        <div style="font-size:10px;color:#6B7480;margin-bottom:6px;">Anteil der erledigten an den geplanten Terminen je Monat. Monate ohne Termine bleiben leer.</div>
+        ${mitWert.length === 0
+          ? `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:14px;font-size:12px;color:#6B7480;">Für ${jahr} ist nichts eingetragen.</div>`
+          : `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:8px 4px 2px;">
+              <svg viewBox="0 0 ${B} ${H}" width="${B - 16}" role="img" aria-label="Termintreue je Monat im Jahr ${jahr}">${svg}</svg>
+            </div>`}
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin:12px 0 5px;">Die Monate im Einzelnen</div>
+        <table><tbody>
+          <tr>
+            <td style="border:1px solid #DCE1E6;background:#FAFBFC;padding:3px 8px;font-size:9px;font-weight:800;color:#5B6572;">Monat</td>
+            <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Erledigt</td>
+            <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Geplant</td>
+            <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Quote</td>
+          </tr>
+          ${zeilen}
+        </tbody></table>
       </div>
       ${passtAufEinBlatt(702, 1031)}
     </body></html>`;
@@ -5077,8 +5356,12 @@ function App() {
             erklaerung: "Alle zwölf Monate auf einem Bogen – A3 quer, fürs Board" },
           { id: "monatsblatt", text: "Einzelner Monat", monatsWahl: true,
             erklaerung: "Die Tage untereinander – A4 hoch, für den Schrank" },
+          { id: "diagramm-monat", text: "Monats-Diagramm", monatsWahl: true,
+            erklaerung: "Erledigt und Offen je Tag als Balken, mit Quote und Zahlen – A4 hoch" },
+          { id: "diagramm-jahr", text: `Jahres-Diagramm ${year}`,
+            erklaerung: "Die Termintreue je Monat als Linie, mit Quote und Zahlen – A4 hoch" },
           { id: "wartungsplan-monat", text: `Wartungsplan ${MONTHS[month]} ${year}`,
-            erklaerung: "Der Plan-Kalender mit allen Terminen, dazu die Tabelle – der bisherige Plan-Druck" },
+            erklaerung: "Der Plan-Kalender mit allen Terminen – der bisherige Plan-Druck" },
           { id: "liste", text: "Liste wie am Bildschirm",
             erklaerung: "Die Auswertung, so wie sie gerade dasteht" },
         ],
@@ -5128,6 +5411,12 @@ function App() {
       case "monatsblatt":
         return { html: buildMonatsKalenderHTML(year, druckMonat, druckUmfang),
                  datei: `werkstatt-monatskalender-${kurz}-${year}-${pad(druckMonat + 1)}.html` };
+      case "diagramm-monat":
+        return { html: buildDiagrammMonatHTML(year, druckMonat, druckUmfang),
+                 datei: `werkstatt-monatsdiagramm-${kurz}-${year}-${pad(druckMonat + 1)}.html` };
+      case "diagramm-jahr":
+        return { html: buildDiagrammJahrHTML(year, druckUmfang),
+                 datei: `werkstatt-jahresdiagramm-${kurz}-${year}.html` };
       default:
         return { html: buildPrintDocument(),
                  datei: `werkstatt-kalender-${view.toLowerCase()}-${year}${view === "MONAT" ? "-" + pad(month + 1) : ""}.html` };
@@ -10118,6 +10407,7 @@ function App() {
                                 key={pi}
                                 onClick={() => openPlanEntry(p)}
                                 disabled={readerMode}
+                                data-plan-datum={p.date}
                                 className="text-xs font-bold rounded px-1.5 py-1 text-left w-full"
                                 style={{ color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
                                 title={readerMode ? undefined : "Klicken zum Abhaken / Notiz"}
@@ -10141,35 +10431,8 @@ function App() {
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#2F7D4F" }} /> ✓ Erledigt</span>
           </div>
 
-          <div style={{ breakBefore: "page" }}>
-            <div className="text-sm font-bold uppercase tracking-wide mt-6 mb-3" style={{ color: "#22262B" }}>
-              Wartungsplan – Tabelle
-            </div>
-            <table style={{ borderCollapse: "collapse", fontSize: "13px", width: "100%" }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid #22262B" }}>
-                  <th style={{ textAlign: "left", padding: "5px 10px" }}>Datum</th>
-                  <th style={{ textAlign: "left", padding: "5px 10px" }}>Wochentag</th>
-                  <th style={{ textAlign: "left", padding: "5px 10px" }}>Anlage</th>
-                  <th style={{ textAlign: "left", padding: "5px 10px" }}>Gruppe</th>
-                </tr>
-              </thead>
-              <tbody>
-                {maintenancePlan.map((p) => {
-                  const dt = new Date(year, month, p.day);
-                  const wd = dt.toLocaleDateString("de-DE", { weekday: "long" });
-                  return (
-                    <tr key={p.date + p.anlage} style={{ borderBottom: "1px solid #E2E4E7" }}>
-                      <td style={{ padding: "5px 10px", fontFamily: "monospace" }}>{formatDateDE(p.date)}</td>
-                      <td style={{ padding: "5px 10px" }}>{wd}</td>
-                      <td style={{ padding: "5px 10px", fontWeight: 700 }}>{p.anlage}</td>
-                      <td style={{ padding: "5px 10px", color: "#8A9099" }}>{planGroupLabel(p.anlage, tpmAnlagen, riItems)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* Die frühere "Wartungsplan – Tabelle" ist weg (Robertos Ansage vom
+              18.08.): Sie wiederholte nur, was die Kacheln darüber zeigen. */}
           <div className="no-print text-xs text-slate-400 mt-3">
             Rotation läuft fortlaufend über Monatsgrenzen hinweg (Referenzpunkt 05.01.2026). Fällt ein Rotations-Montag auf einen Feiertag, entfällt der Slot diesen Zyklus.
           </div>
@@ -10250,6 +10513,30 @@ function App() {
         )}
         {view === "JAHR" && legendeKlein}
       </div>
+      )}
+
+      {/* Monats-Auswertung als Diagramm (Robertos Ansage vom 18.08.): je Tag
+          ein Balken, Erledigtes grün, Offenes rot - dieselbe Datenbasis wie
+          die Monats-Matrix darüber, nur auf einen Blick. */}
+      {view === "MONAT" && auswertungOffen && heavyReady && (
+        <MonatsDiagramm
+          tage={Array.from({ length: daysInMonth }, (_, i) => {
+            const amTag = entriesForDay(dateKey(year, month, i + 1));
+            return {
+              tag: i + 1,
+              erledigt: amTag.filter((e) => e.status === "done").length,
+              offen: amTag.filter((e) => e.status === "open").length,
+            };
+          })}
+          monatName={MONTHS[month]}
+          jahr={year}
+          erledigt={doneCount}
+          basis={quoteBasis}
+          prozent={donePercent}
+          filter={filter}
+          wochenende={(t) => isWeekend(year, month, t)}
+          feiertag={(t) => holidays.get(dateKey(year, month, t))}
+        />
       )}
 
       {/* Trend der Termintreue - beantwortet die Frage, die eine Momentaufnahme

@@ -469,6 +469,26 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Auswertung als Diagramm + Quote auf jeder Vorlage (Robertos Ansagen
+      vom 18.08., dritter Teil):** (1) Die **Monats-Auswertung gibt es auch
+      als Diagramm** am Bildschirm - in der Auswertungs-Ausklappleiste, je
+      Tag ein Balken (grün erledigt, rot offen), mit Quote im Kopf und
+      Tages-Zahlen beim Zeigen mit der Maus. (2) Zwei neue
+      **A4-Druckvorlagen**: „Monats-Diagramm" (Balken je Tag + Tages-Tabelle
+      mit den Terminen) und „Jahres-Diagramm" (Termintreue-Linie je
+      Kalendermonat auf fester 0-100-Skala + Zahlen-Tabelle; leere Monate
+      ehrlich „keine Termine" statt 0 %). (3) **Jede Auswertungs-Vorlage
+      trägt jetzt leserlich oben „X von Y erledigt · Z %"** - Jahreskalender
+      A3, Monatsblatt, Liste/Matrix und die beiden Diagramme; die Legenden
+      von Jahreskalender/Monatsblatt benennen die offenen Zustände („TPM
+      offen", „R+I offen"). Der Wartungsplan-Druck bleibt bewusst ohne
+      Quote - er wird am Monatsanfang ausgehängt, da wäre 0 % keine
+      Aussage. (4) Die **„Wartungsplan – Tabelle" ist weg** - am Bildschirm
+      unter dem Plan-Kalender wie als zweite Seite des Wartungsplan-Drucks;
+      sie wiederholte nur die Kacheln. harte-44 liest seine Prüfzeilen
+      seither aus den Kalender-Kacheln (data-plan-datum) statt aus der
+      Tabelle. Neuer Härtetest harte-45 (20/20) misst alles Obige.
+
 - [x] **Nachschärfung des verschmolzenen Reiters (Robertos Ansagen vom
       18.08., zweiter Teil):** (1) Der Reiter heißt wieder **„Plan"** -
       oben der Plan-Kalender samt Wartungsplan-Tabelle für den Alltag.
