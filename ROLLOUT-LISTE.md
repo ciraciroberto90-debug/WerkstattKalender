@@ -469,6 +469,22 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Plan zeigt die Wirklichkeit, nicht nur die Rechnung (Robertos
+      Fund vom 18.08.: „Plan und Auswertung zeigen teilweise verschiedene
+      Termine am selben Tag - in der Auswertung passt es"):** Die
+      Auswertung zeigt die echten Kalender-Einträge (auch verschobene und
+      von Hand angelegte); der Plan-Reiter rechnete den Rotations-Plan
+      aber stur neu und ignorierte diese Einträge. Jetzt gilt im Plan
+      (und damit auch in der Übersicht, die dieselbe Rechnung nutzt):
+      Ein echter TPM-/R+I-Eintrag ersetzt den errechneten Slot seiner
+      Anlage - TPM je Monat (jede Anlage hat in der Rotation genau einen
+      Wartungstermin), R+I je Woche (die laufen mehrfach). Errechnet
+      wird nur, wofür kein echter Eintrag existiert; der frei werdende
+      Tag bleibt frei (kein Nachrücken, sonst spränge der restliche
+      Plan). Neuer Härtetest harte-44 (Verschieben TPM + R+I,
+      Erledigt-Anzeige, keine Doppel): 4 Prüfungen ohne die Änderung
+      rot, mit ihr 9/9.
+
 - [x] **Selbstheilung einer kaputt geschriebenen Hauptdatei (Robertos
       Vorfall + Ansage vom 17.08.: „die App muss selbständig heilen
       können"):** Der Abriss um 09:03 hinterließ die Hauptdatei halb

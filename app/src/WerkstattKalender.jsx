@@ -3590,9 +3590,45 @@ function App() {
       anlage: r.name,
     }));
 
+    /* ---- Die Wirklichkeit schlägt die Rechnung (Robertos 18.08.) ----
+       Verschobene oder von Hand angelegte Termine stehen als ECHTE Einträge
+       im Kalender - die Auswertung zeigt sie richtig, der Plan rechnete
+       bisher stur weiter und zeigte am selben Tag teils andere Termine.
+       Jetzt gilt: Ein echter TPM-/R+I-Eintrag ersetzt den errechneten Slot
+       seiner Anlage (TPM: je Monat - jede Anlage hat in der Rotation genau
+       einen Wartungstermin; R+I: je Woche - die laufen mehrfach im Monat).
+       Errechnet wird nur, wofür kein echter Eintrag existiert. Der durch
+       das Ersetzen frei werdende Tag bleibt frei - kein Nachrücken, sonst
+       spränge der restliche Plan. */
+    const monatPrefix = `${py}-${pad(pm + 1)}-`;
+    const tpmNamen = new Set(tpmAnlagen.map((a) => a.name));
+    const riNamen = new Set(riItems.map((r) => r.name));
+    const echte = entries.filter((e) =>
+      (e.category === "TPM" || e.category === "RI") &&
+      typeof e.date === "string" && e.date.startsWith(monatPrefix) &&
+      (e.category === "TPM" ? tpmNamen.has(e.name) : riNamen.has(e.name)));
+    const echteTpm = new Set(echte.filter((e) => e.category === "TPM").map((e) => e.name));
+    const wocheVon = (d) => {
+      const dt = new Date(d + "T00:00:00");
+      return `${dt.getFullYear()}|${getISOWeek(dt)}`;
+    };
+    const echteRiWochen = new Set(echte.filter((e) => e.category === "RI").map((e) => `${e.name}|${wocheVon(e.date)}`));
+    const errechnete = [...mondayAssignments, ...weekdayAssignments, ...riAssignments].filter((a) =>
+      riNamen.has(a.anlage)
+        ? !echteRiWochen.has(`${a.anlage}|${wocheVon(a.date)}`)
+        : !echteTpm.has(a.anlage));
+    const belegt = new Set(errechnete.map((a) => `${a.date}|${a.anlage}`));
+    echte.forEach((e) => {
+      const k = `${e.date}|${e.name}`;
+      if (belegt.has(k)) return; // denselben Termin nicht doppelt zeigen
+      belegt.add(k);
+      errechnete.push({ day: Number(e.date.slice(8, 10)), date: e.date, anlage: e.name });
+    });
+    const echteSkipped = skipped.filter((n) => !echteTpm.has(n));
+
     return {
-      assignments: [...mondayAssignments, ...weekdayAssignments, ...riAssignments].sort((a, b) => a.day - b.day),
-      skipped,
+      assignments: errechnete.sort((a, b) => a.day - b.day),
+      skipped: echteSkipped,
     };
   };
 
