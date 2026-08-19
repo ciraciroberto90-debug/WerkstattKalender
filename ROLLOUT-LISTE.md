@@ -344,6 +344,26 @@ auf denselben Dateien.
 
 ## Offene Entscheidungen
 
+- [ ] **QoL-Vorschläge vom 19.08. (Vorlagen liegen Roberto vor, Auswahl
+      offen).** Am Code nachgemessen - nichts davon existiert bisher:
+      **Dringend (Sicherheitsnetz):**
+      (1) *Rückfrage vor dem Löschen eines Termins* - `deleteEntry` löscht
+      heute OHNE Nachfrage (Störungen fragen nach, Termine nicht). Kleinster
+      Eingriff. (2) *Papierkorb „Kürzlich gelöscht"* - heute gibt es nur das
+      Alles-oder-nichts der Sicherungen; einzelne gelöschte Einträge 30 Tage
+      in der gemeinsamen Datei aufheben und einzeln zurückholen. Greift in
+      Merge/Deleted-Logik → braucht nach Hausregel einen Test, der ohne die
+      Änderung fehlschlägt. (3) *Jahres-Archiv gegen die 5-MB-Grenze* - die
+      App WARNT ab drei Jahren Bestand, aber es gibt keinen Weg, alte Jahre
+      auszulagern („Jahresabschluss" → werkstatt-archiv-JAHR.json, Register
+      bleibt lesbar). Größter Brocken, gleiche Test-Pflicht.
+      **Komfort:** (4) *Ein-Klick-Abhaken* - grüner Haken direkt auf der
+      Plan-Kachel statt Kachel→Dialog→Gemacht→Schließen. (5) *„Heute"-Knopf*
+      neben der Monatsnavigation. (6) *Überfällig-Badge am TPM-Reiter* -
+      roter Zähler wie bei Störungen, damit Bearbeiter Liegengebliebenes
+      ohne Klick sehen. Bereits vorhanden und deshalb NICHT vorgeschlagen:
+      Störung→Planung übernehmen, Vollbild-Monitor, Störungs-Suche/-Badge.
+
 - [x] **Benutzergruppen mit Lese-/Schreibrecht - umgesetzt am 10.08.**
       Robertos Vorgaben: Benutzer legt er selbst im ⚙ an (z. B. RobertoCiraci
       = Verwalter, MWerkstatt = Leser), Abfrage beim ersten Start, einfache
