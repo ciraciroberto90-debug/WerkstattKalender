@@ -3409,6 +3409,11 @@ function App() {
   };
 
   const deleteEntry = async (id) => {
+    // Rückfrage wie bei Störungen (Robertos QoL-Auswahl vom 19.08.):
+    // vorher löschte ein Fehlklick den Termin sofort und ohne Warnung.
+    const eintrag = entries.find((e) => e.id === id);
+    const was = eintrag ? `${eintrag.name} am ${formatDateDE(eintrag.date)}` : "diesen Eintrag";
+    if (!window.confirm(`„${was}" wirklich löschen?`)) return;
     if (modal && modal.mode === "edit" && modal.id === id) closeModal();
     await persist(entries.filter((e) => e.id !== id));
   };
@@ -4133,6 +4138,25 @@ function App() {
       await persist([...entries, entry]);
     }
     openEditModal(entry);
+  };
+
+  // Ein-Klick-Abhaken (Robertos QoL-Auswahl vom 19.08.): der grüne Haken auf
+  // der Kachel erledigt den Termin sofort - vorher brauchte es Kachel →
+  // Dialog → "Gemacht" → Schließen. Der Dialog bleibt für Notiz und Löschen.
+  const hakePlanTerminAb = async (p) => {
+    if (readerMode) return;
+    const vorhanden = entries.find((e) => e.date === p.date && e.name === p.anlage);
+    if (vorhanden) {
+      if (vorhanden.status !== "done") {
+        await persist(entries.map((e) => (e.id === vorhanden.id ? { ...e, status: "done" } : e)));
+      }
+      return;
+    }
+    const category = riItems.some((r) => r.name === p.anlage) ? "RI" : "TPM";
+    await persist([...entries, {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      date: p.date, category, name: p.anlage, status: "done", note: "",
+    }]);
   };
 
   const applyPlanToCalendar = async () => {
@@ -5553,10 +5577,16 @@ function App() {
                       if (v === "COCKPIT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
                       else setView("TPMINFO");
                     }}
-                    className="px-3 py-1.5 text-xs font-black uppercase tracking-wide"
+                    className="px-3 py-1.5 text-xs font-black uppercase tracking-wide inline-flex items-center"
                     style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
                   >
                     {label}
+                    {/* Überfällig-Zähler (QoL 19.08.) - wie das Störungs-Badge.
+                        aria-hidden, damit der Knopf für Tests und Vorleser
+                        weiterhin schlicht "TPM" heißt. */}
+                    {v === "TPM" && ueberfaellige.length > 0 && (
+                      <span aria-hidden="true" title={`${ueberfaellige.length} Termin(e) überfällig`} className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{ueberfaellige.length}</span>
+                    )}
                   </button>
                 );
               })}
@@ -5616,6 +5646,17 @@ function App() {
               <button onClick={() => changeMonth(1)} className="p-1.5 rounded hover:opacity-75 transition-opacity" aria-label="Nächster Monat">
                 <ChevronRight size={18} />
               </button>
+              {/* Zurück zum Heute (QoL 19.08.): erscheint nur, wenn man
+                  weggeblättert hat - sonst wäre er ein toter Knopf. */}
+              {(month !== today.getMonth() || year !== today.getFullYear()) && (
+                <button
+                  onClick={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); }}
+                  className="ml-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide border"
+                  style={{ borderColor: "rgba(255,255,255,0.55)", backgroundColor: "rgba(255,255,255,0.12)", color: "#fff" }}
+                >
+                  Heute
+                </button>
+              )}
             </>
           ) : view === "JAHR" ? (
             <>
@@ -5626,6 +5667,15 @@ function App() {
               <button onClick={() => changeYear(1)} className="p-1.5 rounded hover:opacity-75 transition-opacity" aria-label="Nächstes Jahr">
                 <ChevronRight size={18} />
               </button>
+              {year !== today.getFullYear() && (
+                <button
+                  onClick={() => setYear(today.getFullYear())}
+                  className="ml-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide border"
+                  style={{ borderColor: "rgba(255,255,255,0.55)", backgroundColor: "rgba(255,255,255,0.12)", color: "#fff" }}
+                >
+                  Heute
+                </button>
+              )}
             </>
           ) : view === "REGISTER" ? (
             <div className="font-mono text-sm px-2">Alle Termine</div>
@@ -10403,17 +10453,32 @@ function App() {
                             const done = isPlanDone(p);
                             const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
                             return (
-                              <button
-                                key={pi}
-                                onClick={() => openPlanEntry(p)}
-                                disabled={readerMode}
-                                data-plan-datum={p.date}
-                                className="text-xs font-bold rounded px-1.5 py-1 text-left w-full"
-                                style={{ color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
-                                title={readerMode ? undefined : "Klicken zum Abhaken / Notiz"}
-                              >
-                                {done ? "✓ " : ""}{p.anlage}
-                              </button>
+                              <div key={pi} className="flex items-stretch gap-1">
+                                <button
+                                  onClick={() => openPlanEntry(p)}
+                                  disabled={readerMode}
+                                  data-plan-datum={p.date}
+                                  className="text-xs font-bold rounded px-1.5 py-1 text-left flex-1 min-w-0"
+                                  style={{ color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
+                                  title={readerMode ? undefined : "Öffnen für Notiz / Löschen"}
+                                >
+                                  {done ? "✓ " : ""}{p.anlage}
+                                </button>
+                                {/* Ein-Klick-Abhaken (QoL 19.08.): eigener kleiner
+                                    Knopf NEBEN der Kachel - ein Knopf im Knopf
+                                    wäre kein gültiges HTML. */}
+                                {!readerMode && !done && (
+                                  <button
+                                    onClick={() => hakePlanTerminAb(p)}
+                                    aria-label={`${p.anlage} am ${formatDateDE(p.date)} als erledigt abhaken`}
+                                    title="Mit einem Klick als erledigt abhaken"
+                                    className="shrink-0 rounded font-black inline-flex items-center justify-center"
+                                    style={{ width: "20px", border: "1.5px solid #2F7D4F", color: "#2F7D4F", backgroundColor: "#fff", fontSize: "11px" }}
+                                  >
+                                    ✓
+                                  </button>
+                                )}
+                              </div>
                             );
                           })}
                         </div>

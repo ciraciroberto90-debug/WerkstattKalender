@@ -344,8 +344,11 @@ auf denselben Dateien.
 
 ## Offene Entscheidungen
 
-- [ ] **QoL-Vorschläge vom 19.08. (Vorlagen liegen Roberto vor, Auswahl
-      offen).** Am Code nachgemessen - nichts davon existiert bisher:
+- [x] **QoL-Vorschläge vom 19.08. - Roberto hat entschieden:** (1), (4),
+      (5), (6) sind umgesetzt (harte-46, 19/19); (2) Papierkorb und
+      (3) Jahres-Archiv sind vorgemerkt in
+      [`UPDATE-VORMERKUNGEN.md`](UPDATE-VORMERKUNGEN.md). Ursprünglicher
+      Vorschlagstext: Am Code nachgemessen - nichts davon existiert bisher:
       **Dringend (Sicherheitsnetz):**
       (1) *Rückfrage vor dem Löschen eines Termins* - `deleteEntry` löscht
       heute OHNE Nachfrage (Störungen fragen nach, Termine nicht). Kleinster

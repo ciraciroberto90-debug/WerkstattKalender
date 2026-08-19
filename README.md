@@ -72,7 +72,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 44 Härtetests und acht weitere Suiten | Entwicklung |
+| `tests/` | 45 Härtetests und acht weitere Suiten | Entwicklung |
 | `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
@@ -82,6 +82,7 @@ Messwerte und Begründung stehen im
 | Datei | Wozu |
 |---|---|
 | [`ROLLOUT-LISTE.md`](ROLLOUT-LISTE.md) | **was noch zu tun ist** – offene Punkte, Entscheidungen, Erledigtes |
+| [`UPDATE-VORMERKUNGEN.md`](UPDATE-VORMERKUNGEN.md) | **vorgemerkte Updates** – besprochen und für gut befunden, aber noch nicht gebaut |
 | [`doku/Werkstatt-Cockpit-Einrichtung.pdf`](doku/Werkstatt-Cockpit-Einrichtung.pdf) | **Klickanleitung für die Kollegen** – eine Seite, an die E-Mail hängen |
 | [`doku/ANLEITUNG.md`](doku/ANLEITUNG.md) | vollständige Bedienungs- und Einrichtungsanleitung |
 | [`doku/Entscheidungsvorlage-Werkstatt-Cockpit.pdf`](doku/Entscheidungsvorlage-Werkstatt-Cockpit.pdf) | **Freigabe-Vorlage für die Geschäftsführung** – Nutzen, Kosten, Risiken, Auflagen |
@@ -117,7 +118,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 44 Härtetests
+bash tests/run-hardness-tests.sh           # 45 Härtetests
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
