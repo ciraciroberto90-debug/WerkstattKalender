@@ -78,7 +78,7 @@ if (-not $dateien) { Zeile "Gefunden" "KEINE JSON-Datei im Ordner" "schlecht" }
 
 $konflikte = @()
 foreach ($d in $dateien) {
-  # Konfliktkopien von OneDrive heissen "<Datenname>-RECHNERNAME.json" - also
+  # Sync-Konfliktkopien heissen "<Datenname>-RECHNERNAME.json" - also
   # der Name einer der beiden Datendateien, ein BINDESTRICH, dann der Rechner.
   # Genau diese Regel benutzt auch der Konflikt-Waechter in der App.
   #

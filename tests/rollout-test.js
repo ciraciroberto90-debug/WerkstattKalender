@@ -253,7 +253,7 @@ const hole = (adresse, kopf = {}) => new Promise((fertig, schief) => {
     });
     await p.waitForTimeout(800);
 
-    // Datei wird gelöscht (Kollege räumt OneDrive auf)
+    // Datei wird gelöscht (Kollege räumt den Ordner auf)
     drive["kalender-daten.json"] = "";
     await p.evaluate(() => window.__wkSharedTest.poll());
     await p.waitForTimeout(900);

@@ -75,7 +75,7 @@
             RUNDREISE:6, EXPLORER:7, NEULADEN:8, NACHHER:9, NACHFRAGE:10, FERTIG:11 };
   var SCHACHT = { 1:"a-onedrive", 2:"b-firma", 3:"c-lokal", 4:"d-ordner", 5:"e-schreib" };
   var NAMEN = {
-    "a-onedrive":"A Kalenderdatei (OneDrive)", "b-firma":"B Firmenlaufwerk",
+    "a-onedrive":"A Kalenderdatei (Datenordner)", "b-firma":"B Firmenlaufwerk",
     "c-lokal":"C Lokale Platte (C:)", "d-ordner":"D Ordner", "e-schreib":"E Schreibtest-Datei",
   };
   var SCHRITTE_GESAMT = 6;
@@ -438,9 +438,9 @@
     schrittText(""); fortschritt(7 / 12);
     zeichne(
       '<h2>Eine kurze Frage</h2>' +
-      '<p>Bitte im <b>Explorer</b> den OneDrive-Ordner öffnen und auf das kleine Symbol neben ' +
+      '<p>Bitte im <b>Explorer</b> den Datenordner öffnen und auf das kleine Symbol neben ' +
       '<code>werkstatt-kalender-daten.json</code> schauen.</p>' +
-      '<p>Liegt die Datei nur online, muss der Browser sie erst herunterladen – das kann alles erklären. ' +
+      '<p>Liegt die Datei in einem Cloud-Ordner nur online, muss der Browser sie erst herunterladen – das kann alles erklären. ' +
       'Auslesen kann ich das nicht, deshalb frage ich.</p>' +
       '<button class="haupt" id="wolke">☁ Wolke – nur online</button>' +
       '<button class="haupt" id="haken">✔ Grüner Haken – auf dem Gerät</button>' +
@@ -600,10 +600,10 @@
         text:"Die Antworten kommen – nur spät. Das lässt sich mit längeren Fristen und einem Wiederholversuch in der Anwendung auffangen. Kein Umzug nötig." };
     if (a === "still" && (b === "gut" || c === "gut"))
       return { art:"u-neutral", titel:"Es hängt am Speicherort, nicht am Browser",
-        text:"Die OneDrive-Datei schweigt, eine Datei anderswo antwortet. Die Lösung liegt bei OneDrive – „Immer auf diesem Gerät behalten“ oder die Daten aufs Firmenlaufwerk." };
+        text:"Die Kalenderdatei schweigt, eine Datei anderswo antwortet. Es liegt am Speicherort der Kalenderdatei – liegt sie noch in einem Cloud-Ordner, gehören die Daten aufs Firmenlaufwerk." };
     if (orte.length >= 2 && stille === orte.length)
       return { art:"u-schlecht", titel:"Alle Speicherorte betroffen",
-        text:"Auch eine Datei auf der lokalen Platte wird nicht mehr freigegeben. Damit liegt es weder an OneDrive noch am Netzlaufwerk, sondern daran, wie diese Seite geöffnet wird." };
+        text:"Auch eine Datei auf der lokalen Platte wird nicht mehr freigegeben. Damit liegt es an keinem Speicherort, sondern daran, wie diese Seite geöffnet wird." };
     if (gute === orte.length && orte.length)
       return { art:"u-gut", titel:"Alle gemerkten Verweise arbeiten",
         text:"In diesem Durchgang ist nichts ausgefallen. Bitte den Bericht trotzdem schicken." };
@@ -654,7 +654,7 @@
           "", false, P.FIRMA, false);
       case P.FIRMA:     return zeigeAuswahl(2, "Schritt 2: Eine Datei auf dem Firmenlaufwerk",
           "Die Cockpit-Datei selbst: <code>Werkstatt_Kalender_TPM … .html</code>",
-          "Sie liegt auf <code>\\\\scheudc1\\…</code> und damit außerhalb von OneDrive. Derselbe Rechner, anderer Speicherort – nur so lässt sich beides trennen.",
+          "Sie liegt auf <code>\\\\scheudc1\\…</code> – ein zweiter Speicherort neben der Kalenderdatei. Derselbe Rechner, anderer Ort – nur so lässt sich beides trennen.",
           false, P.LOKAL, true);
       case P.LOKAL:     return zeigeAuswahl(3, "Schritt 3: Eine Datei auf der lokalen Platte",
           "Irgendeine Datei unter <code>C:\\</code> – zum Beispiel auf dem Desktop.",

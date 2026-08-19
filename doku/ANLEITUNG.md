@@ -53,14 +53,14 @@ Die App ist **serverless / lokal-first**:
 
 | Teil | Was es ist | Wo es liegt |
 |------|-----------|-------------|
-| **App** | Oberfläche **und** die ganze Logik | `Werkstatt_Kalender_TPM.html` (Laufwerk oder OneDrive) |
-| **Daten** | die eigentlichen Einträge (Kalender, Schicht, Backlog …) | `werkstatt-kalender-daten.json` auf **OneDrive** |
-| **Störungen** | eigene, für alle beschreibbare Datei | `werkstatt-stoerungen.json` auf **OneDrive** |
-| **Sync** | verteilt die Dateien auf alle Geräte | **OneDrive** (Explorer-Synchronisation) |
+| **App** | Oberfläche **und** die ganze Logik | `Werkstatt_Kalender_TPM.html` auf dem **Firmenlaufwerk** |
+| **Daten** | die eigentlichen Einträge (Kalender, Schicht, Backlog …) | `werkstatt-kalender-daten.json` auf dem **Firmenlaufwerk** |
+| **Störungen** | eigene, für alle beschreibbare Datei | `werkstatt-stoerungen.json` auf dem **Firmenlaufwerk** |
+| **Sync** | alle greifen direkt auf denselben Ordner zu | das **Firmenlaufwerk** (`\\SCHEUDC1\…`) – kein Abgleich nötig |
 
 Es gibt **keinen Backend-Server**. Die JSON-Dateien sind der gemeinsame Datenspeicher
-(quasi eine einfache „Datenbank in Dateiform"), OneDrive ist der „Fileserver", der sie
-synchronisiert. Die gesamte Zusammenführungs- und Sicherheitslogik steckt in der App.
+(quasi eine einfache „Datenbank in Dateiform"), das Firmenlaufwerk ist der „Fileserver".
+Die gesamte Zusammenführungs- und Sicherheitslogik steckt in der App.
 
 > **Voraussetzung:** Die gemeinsame Nutzung braucht **Microsoft Edge oder Google Chrome**
 > (Desktop). In Firefox/Safari funktioniert die Datei-Anbindung nicht.
@@ -71,8 +71,8 @@ synchronisiert. Die gesamte Zusammenführungs- und Sicherheitslogik steckt in de
 
 ### 3.1 App-Datei bereitstellen (einmalig)
 
-Die `Werkstatt_Kalender_TPM.html` an einen Ort legen, den alle öffnen können – entweder
-im gemeinsamen OneDrive-Ordner oder auf dem Firmenlaufwerk. (Die HTML wird nur
+Die `Werkstatt_Kalender_TPM.html` an einen Ort legen, den alle öffnen können – den
+gemeinsamen Ordner auf dem Firmenlaufwerk. (Die HTML wird nur
 *geöffnet/gelesen*, nie beschrieben – deshalb ist das Laufwerk hier unproblematisch.)
 
 **Geöffnet wird sie nicht mehr direkt per Doppelklick, sondern über einen kleinen
@@ -104,7 +104,7 @@ Vollständige Beschreibung samt Fehlerbildern: `arbeitsplatz/Anleitung-Arbeitspl
 ### 3.2 Daten-Datei verbinden (einmalig pro Gerät)
 
 1. App öffnen → oben rechts das **Ordner-Symbol** → **„Vorhandene Datei öffnen …"**
-2. Die `werkstatt-kalender-daten.json` im gemeinsamen OneDrive-Ordner auswählen.
+2. Die `werkstatt-kalender-daten.json` im gemeinsamen Werkstatt-Ordner auf dem Laufwerk auswählen.
 3. Der Browser merkt sich die Datei. Nach einem Browser-Neustart einmal auf
    **„Jetzt verbinden"** klicken – ein Klick, fertig.
 
@@ -136,8 +136,8 @@ Die Störungen liegen **bewusst in einer eigenen Datei**, die **alle** bearbeite
 auch reine Leser der Hauptdaten.
 
 1. **Einmal anlegen (macht Roberto):** Reiter **Störungen** → **„neu anlegen …"** →
-   im **selben OneDrive-Ordner** als `werkstatt-stoerungen.json` speichern.
-2. **In OneDrive freigeben:** diese Datei **mit „Bearbeiten" an alle** teilen (auch an die,
+   im **selben Werkstatt-Ordner** als `werkstatt-stoerungen.json` speichern.
+2. **Rechte prüfen (IT-Freigabe):** diese Datei braucht **Schreibrecht für alle** (auch für die,
    die die Hauptdaten nur ansehen dürfen).
 3. **Auf jedem Gerät verbinden:** Reiter **Störungen** → **„Störungen-Datei öffnen …"** →
    die Datei auswählen. Wird danach dauerhaft gemerkt.
@@ -158,10 +158,11 @@ damit ist der Verlauf für diesen Arbeitsplatz wertlos. Zwei Minuten Aufwand pro
 
 ### 3.5 Konflikt-Wächter (optional, empfohlen)
 
-OneDrive legt bei zeitgleichen Änderungen manchmal „Konfliktkopien" an
-(`…-PCNAME.json`). Der **Konflikt-Wächter** sammelt solche Kopien automatisch ein und
-führt ihren Inhalt zusammen. Einrichtung: im Dialog **Gemeinsame Datei** den
-OneDrive-Ordner einmalig freigeben. Danach läuft es von selbst.
+Nur relevant, falls die Datei je in einem per Cloud synchronisierten Ordner liegt –
+auf dem Firmenlaufwerk entstehen keine Konfliktkopien. Sync-Programme legen bei
+zeitgleichen Änderungen Kopien an (`…-PCNAME.json`). Der **Konflikt-Wächter** sammelt
+solche Kopien automatisch ein und führt ihren Inhalt zusammen. Einrichtung: im Dialog
+**Gemeinsame Datei** den Ordner einmalig freigeben. Danach läuft es von selbst.
 
 ### 3.6 OEE aus einer Excel-Tabelle (optional)
 
@@ -237,7 +238,7 @@ oder Stückzahl je Zeile wäre jede Gewichtung erfunden.
 
 Es gibt **zwei Ebenen**, und beide müssen schreiben erlauben:
 
-**Ebene 1 – die Datei-Rechte** (OneDrive-Freigabe bzw. Laufwerksrechte der IT).
+**Ebene 1 – die Datei-Rechte** (Laufwerksrechte der IT).
 Wer die Daten-Datei nur ansehen darf, kann auch mit Tricks nichts speichern –
 das ist das echte Schloss.
 
@@ -267,7 +268,7 @@ Benutzer pflegen. **Abmelden:** der Knopf oben rechts (Tür-Symbol) – für all
 Angemeldeten, auch Leser. Danach lässt sich im Anmelde-Fenster ein anderer
 Benutzer eintragen oder über **„Gemeinsame Datei verbinden / wechseln …"**
 eine andere JSON-Datei anwählen. Der Sinn der Liste: Die Rechtevergabe hängt
-damit **nicht mehr an OneDrive-Freigaben** – alle bekommen dieselbe Datei, wer
+damit **nicht an den Datei-Freigaben des Laufwerks** – alle bekommen dieselbe Datei, wer
 was darf, steht in der App.
 
 > **Ehrlich gesagt:** Die Benutzerliste ist eine **Leitplanke gegen Versehen,
@@ -313,7 +314,7 @@ Störungen, nicht den Rest.
   im ⚙ unter **Dein Name (dieses Gerät)**.
 - **Schreibschutz, obwohl du Rechte hast?** Ein Schreibversuch kann auch
   fehlschlagen, weil die Datei gerade **belegt** ist – etwa weil das Cockpit
-  in einem zweiten Fenster offen ist oder OneDrive abgleicht. Die App meldet
+  in einem zweiten Fenster offen ist oder gerade kopiert wird. Die App meldet
   das, stuft aber nicht mehr dauerhaft auf „nur ansehen" zurück; das tut sie
   nur noch bei einer echten Ablehnung durch Browser oder Laufwerk.
 
@@ -557,7 +558,7 @@ Die App ersetzt einen Backend-Server durch mehrere Schutzmechanismen:
 - **Tombstones:** Absichtlich Gelöschtes wird nicht durch alte Kopien wiederbelebt.
   Die Lösch-Merkliste gilt 180 Tage und altert **nicht** nach der Uhr eines einzelnen
   Rechners – sonst könnte ein Gerät mit falschem Jahr sie für alle leeren.
-- **Konflikt-Wächter:** OneDrive-Konfliktkopien werden automatisch eingesammelt.
+- **Konflikt-Wächter:** Sync-Konfliktkopien werden automatisch eingesammelt.
   Erkannt wird nur, was wie ein Gerätename aussieht (`…-L-RCIRACI.json`).
   Selbst angelegte Sicherungen mit Datum im Namen (`…-2026-08-05.json`) oder mit
   Wörtern wie „Sicherung"/„Kopie" bleiben unangetastet – eine erkannte Kopie wird
@@ -567,7 +568,7 @@ Die App ersetzt einen Backend-Server durch mehrere Schutzmechanismen:
   Der Tagesspeicher ist wichtig, weil die 30 jüngsten Plätze an einem normalen
   Arbeitstag gemessen nur ~58 Minuten zurückreichen – ein Fehler, der erst am
   nächsten Morgen auffällt, hätte sonst kein Netz mehr.
-- **OneDrive-Versionsverlauf:** zusätzlicher Rettungsanker in OneDrive selbst.
+- **Sicherung des Firmenlaufwerks:** zusätzlicher Rettungsanker über die IT-Datensicherung des Laufwerks.
 - **Voller Zwischenspeicher wird ehrlich gemeldet:** Ist der lokale Speicher des Browsers
   voll, die gemeinsame Datei aber erreichbar, sagt die App ausdrücklich, dass die Änderung
   **in der gemeinsamen Datei steht und nicht verloren ist**. Ist gar nichts erreichbar,
@@ -582,7 +583,7 @@ Zwei getrennte Dateien (Hauptdaten + Störungen) nutzen **denselben** erprobten 
 Da alle **eine** App-Datei öffnen, ist ein Update denkbar einfach:
 
 1. Neue `Werkstatt_Kalender_TPM.html` an den bekannten Ort legen, „Ersetzen" bestätigen.
-2. Beim Laufwerk/OneDrive den Sync-Haken abwarten.
+2. Fertig – auf dem Laufwerk gibt es keinen Abgleich, die Datei ist sofort für alle da.
 3. Alle haben die neue Version beim nächsten Öffnen oder mit **F5**.
 
 Die Verbindungen zu den Daten-Dateien bleiben dabei erhalten – niemand muss etwas neu auswählen.
@@ -717,9 +718,9 @@ sie sind nachrüstbar.
 
 ## 12. Häufige Fragen
 
-**Brauche ich noch das Firmenlaufwerk?**
-Für den Kalender nicht – OneDrive übernimmt Teilen, Sync und Rechte. Das Laufwerk kann für
-die App-Datei genutzt werden (nur Lesen), muss aber nicht.
+**Brauche ich noch OneDrive?**
+Nein – seit dem 10.08.2026 liegt alles auf dem Firmenlaufwerk: App, Daten und
+Störungs-Datei. Teilen, Zugriff und Rechte regelt die IT-Freigabe des Ordners.
 
 **Muss ich die Störungen-Datei neu anlegen?**
 Nur **einmalig**, weil sie neu ist. Danach nie wieder – auch nicht bei App-Updates.
@@ -745,7 +746,7 @@ Nur der eigene Name muss neu eingetragen werden (3.4).
 **Ein Leser sieht die vollen Bearbeiter-Tabs nicht.**
 Richtig so – das ist der Schreibschutz. Störungen darf er trotzdem pflegen.
 
-**Es erscheinen `…-PCNAME.json`-Dateien in OneDrive.**
+**Es erscheinen `…-PCNAME.json`-Dateien im Datenordner.**
 Das sind Konfliktkopien. Mit eingerichtetem Konflikt-Wächter verschwinden sie automatisch.
 
 **Im Verlauf steht überall „Unbekannt".**

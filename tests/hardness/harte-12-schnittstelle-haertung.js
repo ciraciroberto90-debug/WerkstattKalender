@@ -1,4 +1,4 @@
-// Prüft die Härtungen der OneDrive/Firmenlaufwerk-Schnittstelle:
+// Prüft die Härtungen der Firmenlaufwerk-Schnittstelle:
 // 1) Ein vorübergehender Lesefehler beim Speichern darf NICHT den Bestand
 //    der anderen überschreiben (Retry statt "Datei ist leer"-Annahme)
 // 2) Merge mit gleicher Anzahl, aber geändertem Inhalt wird SOFORT sichtbar
@@ -37,7 +37,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
           getFileAufrufe++;
           // Der ALLERERSTE Lesevorgang während des Speicherns (2. Aufruf insgesamt,
           // da der 1. beim Verbinden passiert) schlägt fehl - simuliert einen
-          // kurzen OneDrive-Hänger.
+          // kurzen Laufwerks-Hänger.
           if (getFileAufrufe === 2) throw new Error('NetworkError: kurzzeitig nicht erreichbar');
           return new File([window.__mockFileContent], 'kalender-daten.json', { type: 'application/json' });
         },

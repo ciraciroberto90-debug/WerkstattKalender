@@ -27,14 +27,14 @@ Stand: 07.08.2026
 
 ## Vor der Mail an die Kollegen
 
-- [ ] **Ordnernamen prüfen:** In der Klickanleitung steht der geteilte
-      OneDrive-Ordner als **`Werkstatt`**. Heißt er anders, eine Zeile ändern
-      (`tools/klickanleitung.js`, Konstante `ORDNER`) und
+- [ ] **Ordnernamen prüfen:** In der Klickanleitung steht der gemeinsame
+      Ordner auf dem Firmenlaufwerk als **`Werkstatt`**. Heißt er anders, eine
+      Zeile ändern (`tools/klickanleitung.js`, Konstante `ORDNER`) und
       `node tools/klickanleitung.js` laufen lassen.
-- [ ] **Cockpit-Ordner in den geteilten OneDrive-Ordner legen** – dorthin, wo
-      `werkstatt-kalender-daten.json` liegt.
+- [ ] **Cockpit-Ordner in den gemeinsamen Werkstatt-Ordner auf dem
+      Firmenlaufwerk legen** – dorthin, wo `werkstatt-kalender-daten.json` liegt.
 - [ ] **Einmal auf dem eigenen Rechner durchspielen** mit dem Paket aus dem
-      OneDrive-Ordner, nicht mit dem lokalen. Dann erst die Mail.
+      Netzwerkordner, nicht mit dem lokalen. Dann erst die Mail.
 - [ ] **Mail verschicken** – Text steht in
       `arbeitsplatz/EMAIL-AN-KOLLEGEN.md`, PDF anhängen
       (`doku/Werkstatt-Cockpit-Einrichtung.pdf`).
@@ -468,6 +468,24 @@ auf denselben Dateien.
       Gelöschtes kann wieder aufgetaucht sein).
 
 ## Erledigt
+
+- [x] **OneDrive restlos aus allen lebenden Texten gemerzt (Robertos Ansage
+      vom 18.08.):** Die Anbindung gibt es seit dem Umzug aufs Firmenlaufwerk
+      (10.08.) nicht mehr - trotzdem sprachen App-Texte, Anleitung, E-Mail-
+      Vorlage und Klickanleitung noch von OneDrive, als wäre es der aktuelle
+      Weg. Bereinigt: App (Teilen-Dialog, Konflikt-Wächter-Beschreibung,
+      Einsammel-Meldung heißt jetzt „Sync-Konfliktkopie"), ANLEITUNG.md
+      (Speicherort-Tabelle, Einrichtung, FAQ - neue Antwort „Brauche ich noch
+      OneDrive? Nein"), EMAIL-AN-KOLLEGEN.md und Klickanleitung (Explorer-Weg
+      über das Firmenlaufwerk), Diagnose-Werkzeug (sichtbare Texte), README,
+      regelwerk, PowerShell-Skripte und alle Test-Kommentare. Bewusst NICHT
+      angefasst: datierte historische Dokumente (Entscheidungsvorlage GF,
+      IT-Anfrage, Rollout-Prüfbericht, Workshop-Folien, Erledigt-Einträge
+      dieser Liste) - sie beschreiben den damaligen Zustand und den Umzug;
+      sie umzuschreiben wäre Geschichtsfälschung. Ebenfalls unangetastet:
+      Chromium-eigene Sprachdateien im Programm-Ordner (`locales/*.pak`)
+      und interne Kennungen des Diagnose-Werkzeugs (alte Berichte blieben
+      sonst unlesbar).
 
 - [x] **Auswertung als Diagramm + Quote auf jeder Vorlage (Robertos Ansagen
       vom 18.08., dritter Teil):** (1) Die **Monats-Auswertung gibt es auch

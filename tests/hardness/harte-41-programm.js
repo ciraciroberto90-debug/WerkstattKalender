@@ -41,7 +41,7 @@ const pruef = (n, c, zusatz) => {
 };
 
 (async () => {
-  // Echtes Arbeitsverzeichnis auf der Platte - wie der OneDrive-Ordner
+  // Echtes Arbeitsverzeichnis auf der Platte - wie der Werkstatt-Ordner
   const ordner = fs.mkdtempSync(path.join(os.tmpdir(), "wk-programm-"));
   const dateiPfad = path.join(ordner, "werkstatt-kalender-daten.json");
   const jetzt = new Date().toISOString();

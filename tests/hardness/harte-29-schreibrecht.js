@@ -108,7 +108,7 @@ const gemerkterModus = (p) => p.evaluate(() => new Promise((fertig) => {
     await p.context().close(); }
 
   // (3) Echter Leser: Der Browser erlaubt es, aber das Laufwerk laesst kein
-  //     Schreiben zu (OneDrive nur zum Ansehen freigegeben). Dann ist der
+  //     Schreiben zu (Datei nur zum Ansehen freigegeben). Dann ist der
   //     Schreibschutz ein Urteil - kein Knopf soll das Gegenteil versprechen.
   { const {p} = await starte(b,{dialogDauer:300,ersteFrage:"ok",schreibenGeht:false});
     const t = await p.locator("body").innerText();

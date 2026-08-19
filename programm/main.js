@@ -261,7 +261,7 @@ ipcMain.handle("update-uebernehmen", async (ev) => {
   const neueste = await findeNeuesteHtml(ordner);
   if (!neueste) return { ok: false, grund: "Im Update-Ordner liegt keine App-HTML." };
 
-  // (1) Waechst die Datei noch? Dann kopiert OneDrive/der Explorer gerade.
+  // (1) Waechst die Datei noch? Dann kopiert der Explorer gerade.
   const vorher = await fs.stat(neueste.pfad);
   await new Promise((r) => setTimeout(r, 600));
   const nachher = await fs.stat(neueste.pfad);

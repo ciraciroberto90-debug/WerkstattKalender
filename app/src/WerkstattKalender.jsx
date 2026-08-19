@@ -670,7 +670,7 @@ const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
 
 /* ---------- Benutzergruppen (Robertos Wunsch vom 07.08.) ----------
    Eine Namensliste in der gemeinsamen Datei entscheidet, wer schreiben darf -
-   damit hängt die Rechtevergabe nicht mehr an OneDrive-Freigaben. Drei Rollen:
+   damit hängt die Rechtevergabe nicht an den Datei-Freigaben des Laufwerks. Drei Rollen:
    "verwalter" (schreiben + Benutzer pflegen), "bearbeiter" (schreiben),
    "leser" (nur ansehen). Solange die Liste LEER ist, verhält sich die App wie
    bisher - so kann niemand durch ein Update ausgesperrt werden, und Roberto
@@ -9014,7 +9014,7 @@ function App() {
               <div className="flex flex-col gap-3">
                 <div className="text-xs text-slate-500 leading-relaxed">
                   Alle Einträge werden in einer JSON-Datei gespeichert, die auf dem Firmenlaufwerk liegt
-                  (ein per Explorer synchronisierter OneDrive-Ordner ginge auch). <strong>Wer die Datei
+                  (jeder für alle erreichbare Ordner geht). <strong>Wer die Datei
                   bearbeiten darf, legen die Datei-Rechte auf dem Laufwerk fest</strong> (IT-Freigabe): Mit
                   Schreibrechten kann man Einträge ändern, ohne Schreibrechte zeigt die App automatisch nur den
                   aktuellen Stand an (Aktualisierung alle 30 Sekunden).
@@ -9062,13 +9062,13 @@ function App() {
                   </button>
                 )}
 
-                {/* Konflikt-Wächter: OneDrive-Konfliktkopien automatisch einsammeln */}
+                {/* Konflikt-Wächter: Sync-Konfliktkopien automatisch einsammeln */}
                 {shareState.status === "connected" && shareState.mode !== "read" && (
                   <div className="rounded px-3 py-2.5" style={{ border: "1.5px solid #6B7280", backgroundColor: "#F7F8F9" }}>
                     <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Konflikt-Wächter</div>
                     <div className="text-xs mb-2" style={{ color: "#8A9099", lineHeight: 1.5 }}>
-                      Nur relevant, falls die Datei je wieder in einem OneDrive-Ordner liegt – auf dem
-                      Firmenlaufwerk entstehen keine Konfliktkopien. OneDrive legt bei Sync-Konflikten Kopien wie
+                      Nur relevant, falls die Datei je in einem per Cloud synchronisierten Ordner liegt – auf dem
+                      Firmenlaufwerk entstehen keine Konfliktkopien. Sync-Programme legen bei Konflikten Kopien wie
                       „…-GERÄTENAME.json" an; mit einmaliger Ordner-Freigabe sammelt die App solche Kopien
                       automatisch ein und übernimmt den Inhalt sicher in die Hauptdatei.
                     </div>
@@ -9650,7 +9650,7 @@ function App() {
 
             {/* Benutzer & Rechte: sichtbar für Verwalter - und für alle,
                 solange noch KEINE Liste existiert (sonst könnte niemand die
-                erste anlegen). Die Rechte lösen die OneDrive-Freigaben ab:
+                erste anlegen). Die Rechte hängen nicht an den Datei-Freigaben:
                 Datei-Ebene gibt allen dieselbe Datei, die App entscheidet
                 nach Benutzername. */}
             {istVerwalter && (<>

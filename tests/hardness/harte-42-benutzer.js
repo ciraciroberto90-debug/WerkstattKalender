@@ -1,7 +1,7 @@
 // Härtetest: BENUTZERGRUPPEN (Robertos Wunsch vom 07.08.).
 //
 // Eine Namensliste in der gemeinsamen Datei entscheidet, wer schreiben darf -
-// die Rechtevergabe hängt damit nicht mehr an OneDrive-Freigaben. Geprüft wird:
+// die Rechtevergabe hängt damit nicht an den Datei-Freigaben. Geprüft wird:
 //   (1) Ohne Benutzerliste verhält sich die App wie bisher (keine Anmeldung)
 //   (2) Verwalter legt Benutzer über die Oberfläche an; Kennwörter stehen
 //       NIE im Klartext in der Datei

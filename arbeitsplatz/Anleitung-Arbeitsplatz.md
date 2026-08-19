@@ -220,7 +220,7 @@ Doppelklick auf **`Selbsttest.cmd`**. In zehn Sekunden steht da, woran es liegt:
 - Netzlaufwerk erreichbar?
 - Programmdatei vorhanden, wie alt, liegen ältere Fassungen daneben?
 - Beide Datendateien vollständig, wie viele Einträge, wann zuletzt geändert?
-- Liegen OneDrive-Konfliktkopien herum?
+- Liegen Sync-Konfliktkopien herum?
 - Wie viele Sicherungen gibt es, wie alt ist die neueste?
 - Läuft der Ausliefer-Dienst?
 - Welche Browser-Version ist installiert?

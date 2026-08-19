@@ -68,7 +68,7 @@ function Hash-Von($pfad) {
 # Den Ordner mit den Datendateien finden.
 #
 # In der Werkstatt liegen App und Daten NICHT im selben Ordner: die App auf dem
-# Firmenlaufwerk, die JSON-Dateien in OneDrive. Wer hier stur den uebergebenen
+# Firmenlaufwerk, die JSON-Dateien woanders. Wer hier stur den uebergebenen
 # Ordner nimmt, sichert einen Ordner ohne Daten - und merkt es nicht, weil
 # "0 gesichert" wie ein ruhiger Tag aussieht.
 #

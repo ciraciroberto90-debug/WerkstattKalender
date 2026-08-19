@@ -197,11 +197,12 @@ const html = `<!DOCTYPE html>
   <div class="nr">1</div>
   <div class="txt">
     <h2>Verknüpfung auf den Desktop holen</h2>
-    <p>Im Explorer links auf <b>OneDrive</b>, dort den geteilten Ordner <b>${ORDNER}</b>
-       öffnen – derselbe, in dem <code>werkstatt-kalender-daten.json</code> liegt. Darin
-       den Ordner <b>Cockpit</b> öffnen und <b>Verknuepfung anlegen</b> doppelklicken.</p>
-    <p class="klein">Steht <b>${ORDNER}</b> nicht in der Liste: in OneDrive links unter
-       <b>Geteilt</b> suchen und einmal auf <b>„Zu meinen Dateien hinzufügen“</b> klicken.</p>
+    <p>Im Explorer den gemeinsamen Ordner <b>${ORDNER}</b> auf dem
+       <b>Firmenlaufwerk</b> öffnen – derselbe, in dem <code>werkstatt-kalender-daten.json</code>
+       liegt. Darin den Ordner <b>Cockpit</b> öffnen und <b>Verknuepfung anlegen</b>
+       doppelklicken.</p>
+    <p class="klein">Findest du den Ordner nicht: den Pfad aus der E-Mail oben in die
+       Adresszeile des Explorers einfügen und Enter drücken.</p>
     <div class="wahl">
       <p>Gefragt wird: <b>Autostart einrichten? (ja/nein)</b> – <b>beides ist in Ordnung.</b></p>
       <p class="klein"><b>ja</b> = das Cockpit öffnet sich künftig beim Anmelden von allein.
@@ -229,7 +230,7 @@ ${bildBlock([{ datei: "app-kopf.png", ziele: kopfZiele }], 18, "oben")}
   <div class="txt">
     <h2>Kalender-Datei verbinden</h2>
     <p>Oben rechts auf das <b>Ordner-Symbol</b>, dann <b>„Vorhandene Datei öffnen …“</b>.
-       Im Auswahlfenster wieder in den <b>OneDrive-Ordner ${ORDNER}</b> gehen und dort
+       Im Auswahlfenster wieder in den <b>Ordner ${ORDNER}</b> auf dem Firmenlaufwerk gehen und dort
        <code>werkstatt-kalender-daten.json</code> aussuchen.</p>
   </div>
 </div>
@@ -256,7 +257,7 @@ ${bildBlock([
      Verlauf, wer etwas geändert hat.</p>
 </div>
 
-<p class="fuss">Werkstatt-Cockpit · Einrichtung am Arbeitsplatz · Stand 29.07.2026 · Fragen an Roberto</p>
+<p class="fuss">Werkstatt-Cockpit · Einrichtung am Arbeitsplatz · Stand 19.08.2026 · Fragen an Roberto</p>
 
 </body></html>`;
 

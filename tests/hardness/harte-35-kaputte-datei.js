@@ -1,7 +1,7 @@
 // Härtetest: HALB GESCHRIEBENE UND LEERE DATEI.
 //
-// Der gefährlichste denkbare Fall in dieser Werkstatt: OneDrive synchronisiert
-// mitten im Schreiben, ein Rechner wird hart ausgeschaltet, oder eine
+// Der gefährlichste denkbare Fall in dieser Werkstatt: Der Abgleich bricht
+// mitten im Schreiben ab, ein Rechner wird hart ausgeschaltet, oder eine
 // Konfliktkopie landet als Torso im Ordner. Die App liest dann eine Datei, die
 // kein vollständiges JSON mehr ist - oder eine, die plötzlich 0 Bytes hat.
 //
@@ -128,7 +128,7 @@ const schreibVersuch = (p, entries) => p.evaluate(async (e) => {
     pruef("(3) Vorbedingung: der gesunde Bestand ist lokal angekommen", vorher >= 3, vorher + " Einträge");
 
     // Die Datei wird auf 0 Bytes gesetzt - so sieht ein abgebrochener
-    // OneDrive-Abgleich aus.
+    // Kopiervorgang aus.
     platte["kalender-daten.json"] = "";
     const erg = await schreibVersuch(p, [
       ...GESUND.entries,

@@ -1,4 +1,4 @@
-// Konflikt-Wächter: OneDrive-Konfliktkopien werden automatisch eingesammelt.
+// Konflikt-Wächter: Sync-Konfliktkopien werden automatisch eingesammelt.
 // Prüft: (1) Einträge aus der Kopie landen in der Hauptdatei, (2) absichtlich
 // Gelöschtes wird NICHT wiederbelebt, (3) die Kopie wird danach gelöscht,
 // (4) eine grüne Info-Meldung erscheint, (5) fremde Dateien bleiben unangetastet,

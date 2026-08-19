@@ -1,5 +1,5 @@
 // Gemeinsamer Speicher über eine JSON-Datei auf dem Firmenlaufwerk oder in
-// einem synchronisierten OneDrive-Ordner. Genutzt wird die File-System-Access-
+// einem gemeinsam erreichbaren Ordner. Genutzt wird die File-System-Access-
 // Schnittstelle des Browsers (Edge/Chrome): Die Datei wird einmal ausgewählt,
 // der Zugriff gemerkt (IndexedDB) und danach automatisch gelesen/geschrieben.
 //
@@ -48,7 +48,7 @@ function nowISO() {
 // jeder andere - sie wird gemeldet, nicht abgewartet.
 const FRIST_FRAGE = 2500;    // Rechte abfragen: reine Auskunft, muss sofort kommen
 const FRIST_NACHFRAGE = 60000; // Rechte erfragen: hier darf ein Dialog auf einen Menschen warten
-const FRIST_LESEN = 15000;   // Datei lesen: Netzlaufwerk/OneDrive duerfen langsam sein
+const FRIST_LESEN = 15000;   // Datei lesen: Netzlaufwerke duerfen langsam sein
 const FRIST_PROBE = 6000;    // nur die Frage "lebt der gemerkte Verweis noch?" beim Start
 const FRIST_SCHREIBEN = 30000; // Datei schreiben: dito, mit Reserve
 
@@ -183,7 +183,7 @@ export function stampEntries(nextEntries, prevEntries) {
    Grund: Wer die Liste kürzt, kürzt sie für alle - sie steht in der
    gemeinsamen Datei. Ein Rechner, dessen Uhr weit vorgeht (falsches Jahr nach
    leerer Knopfzelle), hätte mit "jetzt minus 180 Tage" die ganze Merkliste
-   geleert, und die nächste alte Kopie oder OneDrive-Konfliktkopie hätte
+   geleert, und die nächste alte Kopie oder Sync-Konfliktkopie hätte
    längst Gelöschtes wieder auferstehen lassen.
    Bezugspunkt ist deshalb der FRÜHERE der beiden Werte: die eigene Uhr oder
    die jüngste Löschmarke in der Datei. Geht eine Uhr vor, gewinnt die Datei;
@@ -392,7 +392,7 @@ function createSharedStore(cfg) {
   // ueberlebt ein await, aber nicht beliebig lange. Wuerde reconnect() den
   // Verweis erst aus der IndexedDB holen, laege dazwischen zweimal ein
   // vollstaendiges Oeffnen der Datenbank. Auf einem frisch hochgefahrenen
-  // Rechner (kalte Platte, Virenscanner, OneDrive) dauert das laenger als
+  // Rechner (kalte Platte, Virenscanner, Sync-Programme) dauert das laenger als
   // die Aktivierung haelt, und der Browser antwortet mit
   // "Not allowed to request permissions in this context".
   let gemerkterHandle = null;
@@ -406,7 +406,7 @@ function createSharedStore(cfg) {
   let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt scheiterte
   let lastSavedAt = null;
   let pollTimer = null;
-  // Konflikt-Wächter: Ordner-Zugriff, um OneDrive-Konfliktkopien automatisch einzusammeln
+  // Konflikt-Wächter: Ordner-Zugriff, um Sync-Konfliktkopien automatisch einzusammeln
   let folderHandle = null;
   /* Kennkarte der verbundenen Datei. Der Browser gibt einen Pfad nicht heraus -
      ein Dateiverweis kennt nur getFile/createWritable/move, sonst nichts. Zwei
@@ -702,9 +702,9 @@ function createSharedStore(cfg) {
       // in dem Moment braucht der Bediener zwei Auskuenfte: Es ist nichts
       // kaputtgeschrieben, und was er tun soll.
       // Seit dem Umzug aufs Firmenlaufwerk (10.08.) ist die häufigste Ursache
-      // ein kurzer Netzwerk-Aussetzer beim Lesen - nicht mehr der
-      // OneDrive-Abgleich. Der Text nennt deshalb das Laufwerk zuerst;
-      // Roberto stolperte am 17.08. über die alte OneDrive-Formulierung.
+      // ein kurzer Netzwerk-Aussetzer beim Lesen - nicht mehr ein
+      // Cloud-Abgleich. Der Text nennt deshalb das Laufwerk zuerst;
+      // Roberto stolperte am 17.08. über die alte Cloud-Formulierung.
       // Robertos 17.08.: Bleibt die Datei so liegen (Abriss MITTEN im
       // Schreiben), heilt auf dem Firmenlaufwerk nichts von selbst - deshalb
       // repariert die App das inzwischen automatisch (heileKaputteDatei).
@@ -792,7 +792,7 @@ function createSharedStore(cfg) {
       let geschrieben = false;
       let letzterFehler = null;
       // Zwei Anläufe: Der erste kann an einer belegten Datei scheitern (zweites
-      // Fenster, OneDrive-Abgleich, Virenscanner). Erst wenn auch der zweite
+      // Fenster, Kopiervorgang, Virenscanner). Erst wenn auch der zweite
       // scheitert, fehlt das Recht wirklich.
       for (let versuch = 0; versuch < 2 && !geschrieben; versuch++) {
         if (versuch > 0) await new Promise((r) => setTimeout(r, ZWEITER_VERSUCH_MS));
@@ -1080,8 +1080,8 @@ function createSharedStore(cfg) {
     "kaputt", "defekt",
   ];
 
-  /* Ist das wirklich eine Konfliktkopie von OneDrive?
-     OneDrive hängt den GERÄTENAMEN an: "werkstatt-kalender-daten-L-RCIRACI".
+  /* Ist das wirklich eine Konfliktkopie eines Sync-Programms?
+     Solche Programme hängen den GERÄTENAMEN an: "werkstatt-kalender-daten-L-RCIRACI".
      Von Hand angelegte Sicherungen tragen dagegen ein Datum oder ein Wort wie
      "Sicherung": "werkstatt-kalender-daten-2026-08-05.json".
      Die Unterscheidung ist wichtig, weil eine erkannte Kopie nach dem
@@ -1102,8 +1102,8 @@ function createSharedStore(cfg) {
   }
 
   /* ---------- Konflikt-Wächter ---------- */
-  // OneDrive kann Konflikte bei JSON-Dateien nicht selbst zusammenführen - es
-  // legt Kopien wie "werkstatt-kalender-daten-GERAET.json" an. Mit einmaliger
+  // Sync-Programme können Konflikte bei JSON-Dateien nicht selbst zusammenführen - sie
+  // legen Kopien wie "werkstatt-kalender-daten-GERAET.json" an. Mit einmaliger
   // Ordner-Freigabe sammelt die App solche Kopien automatisch ein: Inhalt wird
   // Eintrag für Eintrag in die Hauptdatei gemerged (dieselbe Logik wie beim
   // gleichzeitigen Bearbeiten), danach wird die Kopie gelöscht.
@@ -1362,7 +1362,7 @@ function createSharedStore(cfg) {
           await recordBackup(kopie.entries, kopie.config);
           const uebernommen = await mergeKopieInDatei(kopie);
           await folderHandle.removeEntry(name);
-          dispatchInfo(`OneDrive-Konfliktkopie „${name}" automatisch eingesammelt${uebernommen > 0 ? ` – ${uebernommen} Änderung(en) übernommen` : " – sie enthielt nichts Neues"}. Die Kopie wurde gelöscht, eine lokale Sicherung liegt unter ⚙ → Sicherungen.`);
+          dispatchInfo(`Sync-Konfliktkopie „${name}" automatisch eingesammelt${uebernommen > 0 ? ` – ${uebernommen} Änderung(en) übernommen` : " – sie enthielt nichts Neues"}. Die Kopie wurde gelöscht, eine lokale Sicherung liegt unter ⚙ → Sicherungen.`);
         } catch (e) {
           // Merge nicht bestätigt -> Kopie NICHT löschen; der nächste Abgleich versucht es erneut.
         }
@@ -1756,7 +1756,7 @@ function createSharedStore(cfg) {
         dispatchUpdate(data);
         await recordBackup(data.entries, data.config);
       }
-      // Konflikt-Wächter: bei jedem Abgleich nach OneDrive-Konfliktkopien schauen
+      // Konflikt-Wächter: bei jedem Abgleich nach Sync-Konfliktkopien schauen
       sammleKonfliktkopien();
     } catch (e) {
       // Kaputt geschriebene Datei? Nach der ZWEITEN unvollständigen Lesung in
@@ -1895,7 +1895,7 @@ export const pollNow = main.pollNow;
 /* ==================================================================== */
 /* Instanz 2: Störungen (eigene, für alle beschreibbare Datei)           */
 /* ==================================================================== */
-// Getrennte Datei mit denselben Sicherheiten. Sie wird in OneDrive für ALLE
+// Getrennte Datei mit denselben Sicherheiten. Sie liegt im selben Ordner und ist für ALLE
 // (auch Nur-Leser der Hauptdatei) mit Bearbeiten-Recht freigegeben, damit jeder
 // Störungen melden/ändern/löschen kann, ohne die geschützten Hauptdaten anzurühren.
 export const stoer = createSharedStore({

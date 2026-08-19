@@ -1,4 +1,4 @@
-// Weitere Situationen für die Schnittstelle Daten (OneDrive/Laufwerk) <-> App,
+// Weitere Situationen für die Schnittstelle Daten (Laufwerk) <-> App,
 // zusätzlich zu harte-12 (Grundhärtung) und harte-13 (2 Bearbeiter, große Menge):
 // A) Drei Bearbeiter schreiben gleichzeitig (nicht nur zwei)
 // B) Löschen durch einen, gleichzeitig Bearbeiten durch einen anderen - die

@@ -1,17 +1,17 @@
 # E-Mail an die Kollegen
 
-Zwei Fassungen: eine für den geteilten OneDrive-Ordner (empfohlen, weil nichts
-heruntergeladen werden muss) und eine für den Fall, dass das Paket doch als
-Datei verschickt oder verlinkt wird.
+Zwei Fassungen: eine für den gemeinsamen Ordner auf dem Firmenlaufwerk
+(empfohlen, weil nichts heruntergeladen werden muss) und eine für den Fall,
+dass das Paket doch als Datei verschickt oder verlinkt wird.
 
 Vorher **einmal** von dir zu erledigen: den Ordner `Cockpit` aus
-`Werkstatt-Cockpit-Start.zip` entpacken und in den geteilten OneDrive-Ordner
-legen — dorthin, wo `werkstatt-kalender-daten.json` liegt. Ab dann
-synchronisiert OneDrive ihn auf alle Rechner.
+`Werkstatt-Cockpit-Start.zip` entpacken und in den gemeinsamen Werkstatt-Ordner
+auf dem Firmenlaufwerk legen — dorthin, wo `werkstatt-kalender-daten.json`
+liegt. Dort ist er sofort für alle Rechner erreichbar.
 
 ---
 
-## Fassung A — Paket liegt im geteilten OneDrive-Ordner
+## Fassung A — Paket liegt im gemeinsamen Ordner auf dem Firmenlaufwerk
 
 > **Betreff: Werkstatt-Cockpit – einmalig einrichten (3 Minuten)**
 >
@@ -31,11 +31,16 @@ synchronisiert OneDrive ihn auf alle Rechner.
 > die alte Variante; die kommt an die gemeinsamen Daten nicht mehr heran, und
 > Eingaben landen nur auf dem eigenen Rechner.
 >
-> **1.** Im Explorer links auf **OneDrive**, dort den geteilten Ordner
-> **`Werkstatt`** öffnen — denselben, in dem `werkstatt-kalender-daten.json`
+> **1.** Im Explorer den gemeinsamen Werkstatt-Ordner auf dem
+> **Firmenlaufwerk** öffnen — denselben, in dem `werkstatt-kalender-daten.json`
 > liegt. Dort gibt es jetzt einen Ordner **`Cockpit`**.
-> *(Steht `Werkstatt` nicht in der Liste: in OneDrive links unter **Geteilt**
-> suchen und einmal auf „Zu meinen Dateien hinzufügen" klicken.)*
+>
+> ```
+> \\SCHEUDC1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender
+> ```
+>
+> *(Findest du ihn nicht: diesen Pfad oben in die Adresszeile des Explorers
+> einfügen und Enter drücken.)*
 >
 > **2.** In diesem Ordner **`Verknuepfung anlegen.cmd`** doppelklicken.
 > Gefragt wird: **`Autostart einrichten? (ja/nein)`** – das dürft ihr euch
@@ -78,7 +83,7 @@ synchronisiert OneDrive ihn auf alle Rechner.
 
 ## Fassung B — Paket wird verschickt oder verlinkt
 
-Nur nötig, wenn der OneDrive-Weg nicht geht. Schritt 1 und 2 werden ersetzt:
+Nur nötig, wenn der Weg über das Laufwerk nicht geht. Schritt 1 und 2 werden ersetzt:
 
 > **1.** Die angehängte Datei **`Werkstatt-Cockpit-Start.zip`** speichern.
 >
@@ -93,7 +98,7 @@ Ab hier weiter wie in Fassung A ab Schritt 3.
 
 > **Achtung:** Viele Mailsysteme blockieren ZIP-Dateien, die Skripte enthalten.
 > Kommt die Mail nicht an oder fehlt der Anhang, ist genau das der Grund –
-> dann bleibt nur der OneDrive-Weg.
+> dann bleibt nur der Weg über das Laufwerk.
 
 ---
 
@@ -102,14 +107,14 @@ Ab hier weiter wie in Fassung A ab Schritt 3.
 | Anlass | Was die Kollegen tun müssen |
 |---|---|
 | Neue Programmversion | **nichts** – die App wird aus dem Netzwerkordner geladen |
-| Verbesserte Startskripte | **nichts** – OneDrive verteilt sie von allein |
+| Verbesserte Startskripte | **nichts** – sie liegen für alle im Netzwerkordner |
 | Rechner neu gestartet | einmal auf „Jetzt verbinden" klicken |
 | Neuer Rechner / neuer Kollege | diese E-Mail noch einmal schicken |
 
 ## Was du vorher selbst prüfen solltest
 
 Führ die drei Schritte **einmal auf deinem eigenen Rechner** durch, bevor die
-Mail rausgeht — mit dem Paket aus dem OneDrive-Ordner, nicht mit deinem
+Mail rausgeht — mit dem Paket aus dem Netzwerkordner, nicht mit deinem
 bisherigen lokalen. So merkst du sofort, ob die Verknüpfung dort richtig
 angelegt wird, und die Kollegen bekommen eine Anleitung, die nachweislich
 funktioniert hat.

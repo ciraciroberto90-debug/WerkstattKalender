@@ -95,7 +95,7 @@ Messwerte und Begründung stehen im
 
 ## Wie die gemeinsame Nutzung funktioniert
 
-Alle arbeiten auf **einer** Datei im OneDrive- oder Netzwerkordner. Wer
+Alle arbeiten auf **einer** Datei im gemeinsamen Netzwerkordner. Wer
 bearbeiten darf, bestimmen die Datei-Rechte des Laufwerks – ohne Schreibrecht
 schaltet die App von selbst auf „nur ansehen" um.
 

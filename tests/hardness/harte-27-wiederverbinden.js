@@ -5,7 +5,7 @@
 // Klicks noch gilt - gemessen rund 5 Sekunden. Sie ueberlebt ein await,
 // aber nicht beliebig lange. reconnect() liest vorher ZWEIMAL aus der
 // IndexedDB, und jedes Lesen oeffnet die Datenbank neu. Auf einem frisch
-// hochgefahrenen Rechner (kalte Platte, Virenscanner, OneDrive) dauert das.
+// hochgefahrenen Rechner (kalte Platte, Virenscanner, Kopiervorgang) dauert das.
 //
 // Der Test stellt genau das nach: langsame IndexedDB, echter Klick.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
