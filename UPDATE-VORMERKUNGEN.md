@@ -46,10 +46,47 @@ diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
 
 ---
 
-## Zur Auswahl (vorgeschlagen, noch nicht entschieden)
+## Zur Auswahl (vorgeschlagen am 19.08., noch nicht entschieden)
 
-*Wird gefüllt, sobald neue Vorschläge mit Vorlagen vorliegen und Roberto
-noch nicht ausgewählt hat.*
+Acht Kandidaten der zweiten QoL-Runde. Alle am Code nachgemessen (nichts
+davon existiert), Vorlagen liegen Roberto vor.
+
+**A. Termin verschieben im Dialog** – Datumsfeld + „Verschieben"-Knopf im
+Termin-Fenster. Heute geht Verschieben nur über Löschen und neu anlegen –
+obwohl der Archiv-Hinweis das Verschieben längst verspricht. Notiz wandert
+mit. *Kleiner Eingriff, hoher Alltagsnutzen.*
+
+**B. Notiz-Zeichen auf der Plan-Kachel** – kleiner Stift-Punkt an Kacheln
+mit Notiz, Notiztext beim Draufzeigen. Heute sieht man erst im Dialog, ob
+eine Notiz existiert (die Matrix zeigt es längst an). *Klein.*
+
+**C. Rückgängig-Leiste** – nach Abhaken oder Löschen unten kurz
+„✓ TS480 abgehakt · RÜCKGÄNGIG (8 s)". Fängt Fehlklicks ab, ergänzt die
+neue Lösch-Rückfrage. *Klein bis mittel.*
+
+**D. Nachtschicht-Modus** – dunkle Darstellung, Schalter im ⚙, Gerät merkt
+sich die Wahl. Für die Nachtschicht am Störungs-Bildschirm. Vorlage ist
+eine Näherung (Farbumkehr); die echte Umsetzung bekommt saubere Farben.
+*Mittel – jede Ansicht muss geprüft werden.*
+
+**E. Register-Suche** – Suchfeld über den Anlagen-/R+I-Listen mit
+Trefferzahl; Nicht-Treffer treten zurück. Lohnt, sobald die Listen länger
+werden. *Klein.*
+
+**F. „Seit deinem letzten Besuch"** – Leiste oben auf der Übersicht: was
+sich seit dem letzten Öffnen getan hat (aus dem Verlauf, der heute im ⚙
+versteckt ist). Wegklickbar. *Mittel.*
+
+**G. Tages-Sicherung im Datenordner** – einmal täglich legt die App eine
+Kopie in den Werkstatt-Ordner (nutzt die vorhandene Konflikt-Wächter-
+Freigabe); dort greift auch die IT-Datensicherung. Heute liegen die
+Sicherungen nur im Browser des einzelnen Rechners. *Mittel; berührt das
+Speichern → Test-Pflicht nach Hausregel.*
+
+**H. Feiertags-Hinweis beim Anlegen** – legt jemand einen Termin auf einen
+Feiertag, sagt der Dialog es sofort („15.08. ist Mariä Himmelfahrt –
+trotzdem anlegen?"). Passt zur Regel, dass der Plan Feiertage automatisch
+herausrechnet. *Klein.*
 
 ---
 
