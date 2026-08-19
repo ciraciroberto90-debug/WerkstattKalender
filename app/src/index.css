@@ -172,3 +172,12 @@ input[type="checkbox"]:disabled { background-color: #F4F6F8; border-color: #DDE1
 }
 .wk-chip-tpm { background: #FBF0E2; color: #8A5B1E; }
 .wk-chip-ri { background: #E9F0F6; color: #28587C; }
+
+/* Nachtschicht-Modus (QoL 19.08., Auge-Knopf oben rechts):
+   Leuchtdichte-Umkehr mit Farbdreher - Grün bleibt grün, Rot bleibt rot,
+   nur hell und dunkel tauschen. Bilder werden zurückgedreht, Ausdrucke
+   bleiben grundsätzlich unberührt (Druckvorlagen sind eigene Fenster,
+   und fürs direkte Drucken der Seite hebt @media print die Umkehr auf). */
+html.wk-nacht { filter: invert(0.92) hue-rotate(180deg); background: #101317; }
+html.wk-nacht img { filter: invert(1) hue-rotate(180deg); }
+@media print { html.wk-nacht { filter: none; background: #fff; } }

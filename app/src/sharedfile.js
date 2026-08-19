@@ -1731,6 +1731,57 @@ function createSharedStore(cfg) {
     return true;
   }
 
+  /* ---------- Tages-Sicherung im Datenordner (Robertos QoL-Auswahl 19.08.) ----------
+     Einmal am Tag wandert eine Kopie der gemeinsamen Datei in den Unterordner
+     "Sicherungen" des freigegebenen Datenordners - dort greift auch die
+     IT-Datensicherung des Laufwerks. Genutzt wird die ohnehin bestehende
+     Konflikt-Wächter-Freigabe; ohne Freigabe passiert schlicht nichts.
+     Der Dateiname enthält "sicherung" - eines der Schutzwörter, damit der
+     Konflikt-Wächter die Kopien nie als Konfliktkopien einsammelt.
+     Fehler hier brechen NIE das Speichern oder den Abgleich - nur still raus. */
+  const TAGES_SICHERUNGEN_BEHALTEN = 14;
+  function tagesSicherungStand() {
+    try { return JSON.parse(localStorage.getItem(DB_NAME + "-tagessicherung") || "null"); }
+    catch (e) { return null; }
+  }
+  async function tagesSicherung(data, erzwungen = false) {
+    try {
+      if (!folderHandle || folderPerm !== "ok" || accessMode !== "readwrite") return false;
+      if (!folderHandle.getDirectoryHandle) return false; // Programm-Brücke ohne Unterordner
+      const heute = nowISO().slice(0, 10);
+      const stand = tagesSicherungStand();
+      if (!erzwungen && stand && stand.tag === heute) return false;
+      const basis = String((fileHandle && fileHandle.name) || SUGGESTED_NAME).replace(/\.json$/i, "");
+      const dateiName = `${basis}-sicherung-${heute}.json`;
+      const ordner = await folderHandle.getDirectoryHandle("Sicherungen", { create: true });
+      const zielHandle = await ordner.getFileHandle(dateiName, { create: true });
+      const w = await zielHandle.createWritable();
+      await w.write(JSON.stringify(data, null, 2));
+      await w.close();
+      // Alte Stände dieses Datei-Namensstamms ausdünnen - Datum steckt im
+      // Namen, alphabetisch sortiert ist damit auch zeitlich sortiert.
+      try {
+        const alte = [];
+        for await (const [name] of ordner.entries()) {
+          if (name.startsWith(basis + "-sicherung-") && name.endsWith(".json")) alte.push(name);
+        }
+        alte.sort();
+        for (const name of alte.slice(0, Math.max(0, alte.length - TAGES_SICHERUNGEN_BEHALTEN))) {
+          await ordner.removeEntry(name);
+        }
+      } catch (e) { /* Ausdünnen ist Kür - eine Kopie mehr schadet nicht */ }
+      try { localStorage.setItem(DB_NAME + "-tagessicherung", JSON.stringify({ tag: heute, ts: nowISO(), datei: "Sicherungen/" + dateiName })); } catch (e) { /* Anzeige bleibt leer */ }
+      return true;
+    } catch (e) {
+      return false; // niemals das Speichern oder den Abgleich stören
+    }
+  }
+  // Von Hand anstoßen ("Jetzt sichern"): liest den aktuellen Datei-Stand.
+  async function tagesSicherungJetzt() {
+    const data = await readFileData();
+    return tagesSicherung(data, true);
+  }
+
   /* ---------- Änderungen der anderen abholen ---------- */
   let pollFehlerFolge = 0; // aufeinanderfolgende gescheiterte Poll-Versuche
   let kaputtFolge = 0;     // davon: aufeinanderfolgende "Datei unvollständig"-Lesungen
@@ -1758,6 +1809,9 @@ function createSharedStore(cfg) {
       }
       // Konflikt-Wächter: bei jedem Abgleich nach Sync-Konfliktkopien schauen
       sammleKonfliktkopien();
+      // Tages-Sicherung: höchstens einmal am Tag, bewusst ohne await -
+      // der Abgleich wartet nicht auf die Kür.
+      tagesSicherung(data);
     } catch (e) {
       // Kaputt geschriebene Datei? Nach der ZWEITEN unvollständigen Lesung in
       // Folge repariert ein Rechner mit Schreibrecht sie selbst - ein
@@ -1833,6 +1887,7 @@ function createSharedStore(cfg) {
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
+    tagesSicherungJetzt, tagesSicherungStand,
     leseAusOrdner, listeOrdnerDateien,
     pickQuellOrdner, reconnectQuellOrdner, vergissQuellOrdner, quellOrdnerStatus, quellOrdnerName, setzeQuellOrdnerPfad,
     saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
@@ -1875,6 +1930,8 @@ export const pickFolder = main.pickFolder;
 export const reconnectFolder = main.reconnectFolder;
 export const forgetFolder = main.forgetFolder;
 export const sammleKonfliktkopien = main.sammleKonfliktkopien;
+export const tagesSicherungJetzt = main.tagesSicherungJetzt;
+export const tagesSicherungStand = main.tagesSicherungStand;
 // Weitere Dateien im Datenordner mitlesen (OEE-Tabelle) - nur lesend
 export const leseAusOrdner = main.leseAusOrdner;
 export const listeOrdnerDateien = main.listeOrdnerDateien;

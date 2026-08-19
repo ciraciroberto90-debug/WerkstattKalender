@@ -492,6 +492,25 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **QoL-Runde 2 komplett umgesetzt (Robertos „setze ruhig alles um",
+      19.08.):** (A) Termin **verschieben** im Dialog - Datumsfeld +
+      Knopf, Notiz wandert mit, Rückgängig möglich (der Archiv-Hinweis
+      versprach das Verschieben längst). (B) **Notiz-Zeichen ✎** auf der
+      Plan-Kachel samt Notiztext beim Draufzeigen. (C) **Rückgängig-
+      Leiste** (8 s) nach Abhaken, Löschen und Verschieben - Löschen holt
+      unter neuer Kennung zurück, die alte trägt schon eine Löschmarke.
+      (D) **Nachtschicht-Modus** über den Auge-Knopf oben rechts
+      (Robertos Ansage) - Leuchtdichte-Umkehr per CSS, Wahl bleibt am
+      Gerät, Ausdrucke bleiben hell. (E) **Register-Suche** mit
+      Trefferzahl. (F) **„Seit deinem letzten Besuch"** auf der
+      Übersicht aus dem Verlauf, wegklickbar. (G) **Tages-Sicherung im
+      Datenordner**: einmal täglich eine Kopie nach „Sicherungen/"
+      über die Konflikt-Wächter-Freigabe, 14 Stände, „Jetzt sichern"-
+      Knopf; der Dateiname enthält das Schutzwort „sicherung", damit
+      der Wächter sie nie einsammelt. (H) **Feiertags-Hinweis** beim
+      Anlegen. Neuer Härtetest harte-47 (36/36) misst alles - samt
+      Einmal-am-Tag-Regel, 14er-Ausdünnung und Wächter-Verträglichkeit.
+
 - [x] **OneDrive restlos aus allen lebenden Texten gemerzt (Robertos Ansage
       vom 18.08.):** Die Anbindung gibt es seit dem Umzug aufs Firmenlaufwerk
       (10.08.) nicht mehr - trotzdem sprachen App-Texte, Anleitung, E-Mail-

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv, LogOut, LogIn } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv, LogOut, LogIn, Eye } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
 
@@ -1475,6 +1475,49 @@ function App() {
   const [neueSchichtName, setNeueSchichtName] = useState("");
   const [backups, setBackups] = useState([]); // lokale Sicherungen (Sicherheitsnetz), neueste zuerst
   const [verlauf, setVerlauf] = useState([]); // wer hat wann was geändert (aus der gemeinsamen Datei), neueste zuerst
+
+  /* ---- QoL-Runde 2 (Robertos Auswahl vom 19.08.) ---- */
+  // Immer der frische Bestand für Rückgängig-Aktionen - ein State-Schnappschuss
+  // im Klick-Verschluss wäre beim späteren Rückgängig längst veraltet.
+  const entriesRef = useRef([]);
+  useEffect(() => { entriesRef.current = entries; }, [entries]);
+  // Nachtschicht-Modus (Auge-Knopf oben rechts): Leuchtdichte-Umkehr per CSS,
+  // die Wahl bleibt am Gerät. Für die Nachtschicht am Störungs-Bildschirm.
+  const [nachtModus, setNachtModus] = useState(() => {
+    try { return localStorage.getItem("werkstatt-kalender-nachtmodus") === "1"; } catch (e) { return false; }
+  });
+  useEffect(() => {
+    document.documentElement.classList.toggle("wk-nacht", nachtModus);
+    try { localStorage.setItem("werkstatt-kalender-nachtmodus", nachtModus ? "1" : "0"); } catch (e) { /* Anzeige gilt trotzdem */ }
+  }, [nachtModus]);
+  // Rückgängig-Leiste: eine Aktion, acht Sekunden Zeit.
+  const [rueckgaengig, setRueckgaengig] = useState(null); // { text, mach }
+  const rueckgaengigTimer = useRef(null);
+  const zeigeRueckgaengig = (text, mach) => {
+    if (rueckgaengigTimer.current) clearTimeout(rueckgaengigTimer.current);
+    setRueckgaengig({ text, mach });
+    rueckgaengigTimer.current = setTimeout(() => setRueckgaengig(null), 8000);
+  };
+  // Termin verschieben im Dialog
+  const [verschiebeDatum, setVerschiebeDatum] = useState("");
+  // Register-Suche
+  const [registerSuche, setRegisterSuche] = useState("");
+  // "Seit deinem letzten Besuch": Vergleichszeitpunkt je Gerät. Der neue
+  // Zeitpunkt wird sofort gemerkt - beim nächsten Öffnen zählt dieses Öffnen.
+  const [letzterBesuch] = useState(() => {
+    try { return localStorage.getItem("werkstatt-kalender-letzter-besuch") || ""; } catch (e) { return ""; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("werkstatt-kalender-letzter-besuch", new Date().toISOString()); } catch (e) { /* dann eben beim nächsten Mal */ }
+  }, []);
+  const [neuigkeitenZu, setNeuigkeitenZu] = useState(false);
+  const [neuigkeitenAuf, setNeuigkeitenAuf] = useState(false);
+  const neuigkeiten = useMemo(
+    () => (letzterBesuch ? verlauf.filter((v) => String(v.ts || "") > letzterBesuch) : []),
+    [verlauf, letzterBesuch]
+  );
+  // Tages-Sicherung: kleiner Zähler, damit die Anzeige nach "Jetzt sichern" nachzieht.
+  const [sicherungTick, setSicherungTick] = useState(0);
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
@@ -3375,6 +3418,7 @@ function App() {
 
   const openEditModal = (entry) => {
     setNoteDraft(entry.note || "");
+    setVerschiebeDatum(entry.date || "");
     setModal({ mode: "edit", id: entry.id });
   };
 
@@ -3416,6 +3460,30 @@ function App() {
     if (!window.confirm(`„${was}" wirklich löschen?`)) return;
     if (modal && modal.mode === "edit" && modal.id === id) closeModal();
     await persist(entries.filter((e) => e.id !== id));
+    if (eintrag) {
+      // Rückholen legt den Termin unter NEUER Kennung wieder an - die alte
+      // trägt bereits eine Löschmarke, unter ihr käme er nicht zurück.
+      const { id: alteId, ...inhalt } = eintrag;
+      zeigeRueckgaengig(`„${was}" gelöscht`, async () => {
+        await persist([...entriesRef.current, { ...inhalt, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }]);
+      });
+    }
+  };
+
+  // Termin verschieben (QoL 19.08.): mitsamt Notiz auf den neuen Tag -
+  // vorher ging das nur über Löschen und neu anlegen, obwohl der
+  // Archiv-Hinweis das Verschieben längst versprach.
+  const verschiebeTermin = async (id) => {
+    const ziel = String(verschiebeDatum || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ziel)) return;
+    const eintrag = entries.find((e) => e.id === id);
+    if (!eintrag || eintrag.date === ziel) return;
+    const vorher = eintrag.date;
+    await persist(entries.map((e) => (e.id === id ? { ...e, date: ziel } : e)));
+    closeModal();
+    zeigeRueckgaengig(`${eintrag.name} auf ${formatDateDE(ziel)} verschoben`, async () => {
+      await persist(entriesRef.current.map((e) => (e.id === id ? { ...e, date: vorher } : e)));
+    });
   };
 
   const firstOfMonth = new Date(year, month, 1);
@@ -3438,6 +3506,21 @@ function App() {
     return map;
   }, [visibleEntries]);
   const entriesForDay = (key) => entriesByDate.get(key) || [];
+
+  // Notiz-Zeichen auf der Plan-Kachel (QoL 19.08.): welche Termine tragen
+  // eine Notiz? Einmal je Render als Karte, statt je Kachel zu suchen.
+  const notizJeTag = useMemo(() => {
+    const m = new Map();
+    entries.forEach((e) => {
+      if ((e.category === "TPM" || e.category === "RI") && e.note && e.note.trim()) m.set(e.date + "|" + e.name, e.note.trim());
+    });
+    return m;
+  }, [entries]);
+
+  // Register-Suche (QoL 19.08.)
+  const registerSuchwort = registerSuche.trim().toLowerCase();
+  const registerTpm = registerSuchwort ? tpmAnlagen.filter((a) => a.name.toLowerCase().includes(registerSuchwort)) : tpmAnlagen;
+  const registerRi = registerSuchwort ? riItems.filter((r) => r.name.toLowerCase().includes(registerSuchwort)) : riItems;
 
   const monthPrefix = `${year}-${pad(month + 1)}`;
   const yearPrefix = `${year}-`;
@@ -4148,15 +4231,23 @@ function App() {
     const vorhanden = entries.find((e) => e.date === p.date && e.name === p.anlage);
     if (vorhanden) {
       if (vorhanden.status !== "done") {
+        const vorherStatus = vorhanden.status;
         await persist(entries.map((e) => (e.id === vorhanden.id ? { ...e, status: "done" } : e)));
+        zeigeRueckgaengig(`✓ ${p.anlage} abgehakt`, async () => {
+          await persist(entriesRef.current.map((e) => (e.id === vorhanden.id ? { ...e, status: vorherStatus } : e)));
+        });
       }
       return;
     }
     const category = riItems.some((r) => r.name === p.anlage) ? "RI" : "TPM";
+    const neuId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     await persist([...entries, {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: neuId,
       date: p.date, category, name: p.anlage, status: "done", note: "",
     }]);
+    zeigeRueckgaengig(`✓ ${p.anlage} abgehakt`, async () => {
+      await persist(entriesRef.current.filter((e) => e.id !== neuId));
+    });
   };
 
   const applyPlanToCalendar = async () => {
@@ -5697,6 +5788,19 @@ function App() {
               <Printer size={16} /> Drucken
             </button>
           )}
+          {/* Nachtschicht-Modus (QoL 19.08., Robertos Ansage: über einen
+              Auge-Knopf oben rechts) - auch für Leser, die Wahl ist rein
+              örtlich am Gerät. */}
+          <button
+            onClick={() => setNachtModus((n) => !n)}
+            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: nachtModus ? "#C97A2B" : "#4B5259" }}
+            title={nachtModus ? "Nachtschicht-Modus ausschalten" : "Nachtschicht-Modus (dunkle Darstellung)"}
+            aria-label="Nachtschicht-Modus"
+            aria-pressed={nachtModus}
+          >
+            <Eye size={14} />
+          </button>
           {!readerMode && (
             <button
               onClick={openSettings}
@@ -6745,6 +6849,54 @@ function App() {
       )}
 
       {/* Cockpit: Übersicht (Kennzahlen + Tagesliste + Pinnwand) */}
+      {/* "Seit deinem letzten Besuch" (QoL 19.08.): was sich seit dem letzten
+          Öffnen getan hat - aus dem Verlauf der gemeinsamen Datei, der sonst
+          im ⚙ verborgen ist. Wegklickbar, je Sitzung einmal. */}
+      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && !neuigkeitenZu && neuigkeiten.length > 0 && (
+        <div className="no-print max-w-7xl mx-auto px-4 mt-3">
+          <div className="rounded-xl px-4 py-2.5" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderLeft: "4px solid #2F6690", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#2F6690" }}>Seit deinem letzten Besuch</span>
+              <span className="text-xs" style={{ color: "#3d4650" }}>
+                {(() => {
+                  let angelegt = 0, geaendert = 0, geloescht = 0, sonst = 0;
+                  neuigkeiten.forEach((v) => {
+                    const s = String(v.was || "");
+                    if (s.startsWith("angelegt")) angelegt++;
+                    else if (s.startsWith("geändert")) geaendert++;
+                    else if (s.startsWith("gelöscht")) geloescht++;
+                    else sonst++;
+                  });
+                  const teile = [];
+                  if (angelegt) teile.push(`${angelegt} angelegt`);
+                  if (geaendert) teile.push(`${geaendert} geändert`);
+                  if (geloescht) teile.push(`${geloescht} gelöscht`);
+                  if (sonst) teile.push(`${sonst} weitere`);
+                  return teile.join(" · ") || `${neuigkeiten.length} Änderung(en)`;
+                })()}
+              </span>
+              <button onClick={() => setNeuigkeitenAuf((o) => !o)} className="text-xs font-bold hover:underline" style={{ color: "#2F6690" }}>
+                {neuigkeitenAuf ? "weniger" : "Einzelheiten"}
+              </button>
+              <button onClick={() => setNeuigkeitenZu(true)} aria-label="Neuigkeiten schließen" className="ml-auto text-slate-400 hover:text-slate-600"><X size={14} /></button>
+            </div>
+            {neuigkeitenAuf && (
+              <div className="mt-2 flex flex-col gap-1">
+                {neuigkeiten.slice(0, 10).map((v) => (
+                  <div key={v.id} className="text-xs" style={{ color: "#5B6572" }}>
+                    <span className="font-mono" style={{ color: "#98A1AA" }}>
+                      {v.ts ? new Date(v.ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
+                    </span>{" "}
+                    <strong>{v.wer || "Unbekannt"}</strong>: {v.was}
+                  </div>
+                ))}
+                {neuigkeiten.length > 10 && <div className="text-xs text-slate-400">… und {neuigkeiten.length - 10} weitere (⚙ → Verlauf)</div>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
           {/* Kennzahlen-Kacheln (Farbakzent links, ohne Icon) */}
@@ -8347,6 +8499,26 @@ function App() {
         );
       })()}
 
+      {/* Rückgängig-Leiste (QoL 19.08.): fängt Fehlklicks beim Abhaken,
+          Löschen und Verschieben ab - acht Sekunden Zeit. */}
+      {rueckgaengig && (
+        <div className="no-print" style={{ position: "fixed", left: "50%", bottom: "26px", transform: "translateX(-50%)", zIndex: 60, backgroundColor: "#22262B", color: "#fff", borderRadius: "99px", padding: "9px 18px", fontSize: "13px", display: "flex", alignItems: "center", gap: "14px", boxShadow: "0 8px 30px rgba(0,0,0,0.35)" }}>
+          <span>{rueckgaengig.text}</span>
+          <button
+            onClick={async () => {
+              const mach = rueckgaengig.mach;
+              if (rueckgaengigTimer.current) clearTimeout(rueckgaengigTimer.current);
+              setRueckgaengig(null);
+              await mach();
+            }}
+            className="font-extrabold uppercase tracking-wide"
+            style={{ color: "#F0C230", fontSize: "12px" }}
+          >
+            Rückgängig
+          </button>
+        </div>
+      )}
+
       {/* Eintrag hinzufügen / bearbeiten: geräumiges Modal statt enger Zellen-Erweiterung */}
       {modal && (() => {
         const liveEntry = modal.mode === "edit" ? entries.find((e) => e.id === modal.id) : null;
@@ -8367,6 +8539,21 @@ function App() {
                     <div className="font-bold text-sm">Neuer Eintrag <span className="font-mono text-slate-400 font-normal">– {formatDateDE(modal.date)}</span></div>
                     <button onClick={closeModal} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
                   </div>
+
+                  {/* Feiertags-Hinweis (QoL 19.08.): der Plan rechnet Feiertage
+                      heraus - wer von Hand einen belegt, soll es wissen. */}
+                  {(() => {
+                    const feiertagName = getHolidays(Number(String(modal.date).slice(0, 4))).get(modal.date);
+                    return feiertagName ? (
+                      <div className="flex gap-2 items-start rounded px-3 py-2 text-xs mb-3" style={{ backgroundColor: "#FDF0EE", border: "1px solid #E8B4AE", color: "#B23A34" }}>
+                        <span aria-hidden="true">⚠</span>
+                        <span>
+                          <strong>{formatDateDE(modal.date)} ist {feiertagName} (Feiertag).</strong><br />
+                          <span style={{ color: "#8A5B57" }}>Termin trotzdem anlegen? Der Plan rechnet Feiertage sonst automatisch heraus.</span>
+                        </span>
+                      </div>
+                    ) : null;
+                  })()}
 
                   {!draftCat ? (
                     <div className="flex gap-2">
@@ -8522,6 +8709,29 @@ function App() {
                       >
                         ✕ Offen
                       </button>
+                    </div>
+                    {/* Verschieben (QoL 19.08.): mitsamt Notiz auf einen neuen
+                        Tag - vorher ging das nur über Löschen + neu anlegen. */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="text-xs font-bold uppercase tracking-wide" style={{ color: "#5B6572" }}>Verschieben auf</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={verschiebeDatum}
+                          onChange={(ev) => setVerschiebeDatum(ev.target.value)}
+                          aria-label="Neues Datum"
+                          className="text-sm border rounded px-3 py-2 flex-1 min-w-0"
+                          style={{ borderColor: "#D6D9DC" }}
+                        />
+                        <button
+                          disabled={!/^\d{4}-\d{2}-\d{2}$/.test(verschiebeDatum) || verschiebeDatum === liveEntry.date}
+                          onClick={() => verschiebeTermin(liveEntry.id)}
+                          className="text-sm font-bold px-4 py-2 rounded text-white disabled:opacity-40"
+                          style={{ backgroundColor: "#2F6690" }}
+                        >
+                          Verschieben
+                        </button>
+                      </div>
                     </div>
                     <textarea
                       spellCheck
@@ -9135,6 +9345,32 @@ function App() {
                         >
                           abschalten
                         </button>
+                        {/* Tages-Sicherung im Datenordner (QoL 19.08.): nutzt
+                            genau diese Freigabe - einmal am Tag eine Kopie in
+                            den Unterordner "Sicherungen", dort greift auch die
+                            IT-Datensicherung des Laufwerks. */}
+                        <div className="w-full flex items-center gap-2 flex-wrap mt-1.5 pt-1.5 border-t" style={{ borderColor: "#E2E4E7" }} data-tick={sicherungTick}>
+                          <span className="text-xs" style={{ color: "#5B6572" }}>
+                            <strong>Tages-Sicherung:</strong>{" "}
+                            {(() => {
+                              const st = sharedFile.tagesSicherungStand();
+                              return st
+                                ? `zuletzt ${new Date(st.ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · ${st.datei}`
+                                : "noch keine – läuft von selbst einmal am Tag";
+                            })()}
+                          </span>
+                          <button
+                            onClick={async () => {
+                              const ok = await sharedFile.tagesSicherungJetzt().catch(() => false);
+                              setSicherungTick((t) => t + 1);
+                              if (!ok) setErr("Tages-Sicherung hat nicht geklappt – Ordner-Freigabe und Schreibrecht prüfen.");
+                            }}
+                            className="text-xs font-bold px-2.5 py-1 rounded text-white"
+                            style={{ backgroundColor: "#2F6690" }}
+                          >
+                            Jetzt sichern
+                          </button>
+                        </div>
                       </div>
                     ) : sharedFile.folderStatus() === "needs-permission" ? (
                       <button
@@ -10452,6 +10688,7 @@ function App() {
                           {dayPlans.map((p, pi) => {
                             const done = isPlanDone(p);
                             const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
+                            const notiz = notizJeTag.get(p.date + "|" + p.anlage);
                             return (
                               <div key={pi} className="flex items-stretch gap-1">
                                 <button
@@ -10459,10 +10696,15 @@ function App() {
                                   disabled={readerMode}
                                   data-plan-datum={p.date}
                                   className="text-xs font-bold rounded px-1.5 py-1 text-left flex-1 min-w-0"
-                                  style={{ color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
-                                  title={readerMode ? undefined : "Öffnen für Notiz / Löschen"}
+                                  style={{ position: "relative", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
+                                  title={notiz ? `Notiz: ${notiz}` : readerMode ? undefined : "Öffnen für Notiz / Löschen"}
                                 >
                                   {done ? "✓ " : ""}{p.anlage}
+                                  {/* Notiz-Zeichen (QoL 19.08.): dass eine Notiz existiert,
+                                      war vorher erst im Dialog zu sehen. */}
+                                  {notiz && (
+                                    <span aria-hidden="true" style={{ position: "absolute", top: "-5px", right: "-5px", width: "15px", height: "15px", borderRadius: "99px", backgroundColor: "#C97A2B", color: "#fff", fontSize: "9px", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>✎</span>
+                                  )}
                                 </button>
                                 {/* Ein-Klick-Abhaken (QoL 19.08.): eigener kleiner
                                     Knopf NEBEN der Kachel - ein Knopf im Knopf
@@ -10612,11 +10854,28 @@ function App() {
       {/* Register: alle Anlagen & R+I-Punkte, anklickbar für die komplette Historie */}
       {view === "REGISTER" && (
         <div className="no-print cal-card p-5 max-w-7xl mx-auto rounded-xl mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
+          {/* Register-Suche (QoL 19.08.): lohnt, sobald die Listen wachsen. */}
+          <div className="flex items-center gap-3 mb-4">
+            <input
+              value={registerSuche}
+              onChange={(e) => setRegisterSuche(e.target.value)}
+              placeholder="Anlage oder Prüfpunkt suchen …"
+              aria-label="Register durchsuchen"
+              className="text-sm border rounded-lg px-3 py-2"
+              style={{ borderColor: "#D6D9DC", width: "320px", maxWidth: "100%" }}
+            />
+            {registerSuchwort && (
+              <span className="text-xs" style={{ color: "#8A9099" }}>{registerTpm.length + registerRi.length} Treffer</span>
+            )}
+          </div>
           <div className="grid gap-6" style={{ gridTemplateColumns: "1fr 1fr" }}>
             <div>
               <div className="text-sm font-bold uppercase tracking-wide mb-3" style={{ color: CATS.TPM.color }}>TPM-Anlagen</div>
               <div className="flex flex-col gap-1.5">
-                {tpmAnlagen.map((a) => {
+                {registerSuchwort && registerTpm.length === 0 && (
+                  <div className="text-xs text-slate-400 italic">keine Treffer</div>
+                )}
+                {registerTpm.map((a) => {
                   const stats = registerStats("TPM", a.name);
                   return (
                     <button
@@ -10635,7 +10894,10 @@ function App() {
             <div>
               <div className="text-sm font-bold uppercase tracking-wide mb-3" style={{ color: CATS.RI.color }}>R+I-Punkte</div>
               <div className="flex flex-col gap-1.5">
-                {riItems.map((r) => {
+                {registerSuchwort && registerRi.length === 0 && (
+                  <div className="text-xs text-slate-400 italic">keine Treffer</div>
+                )}
+                {registerRi.map((r) => {
                   const stats = registerStats("RI", r.name);
                   return (
                     <button
