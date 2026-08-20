@@ -61,7 +61,14 @@ nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
 
 ## Zur Auswahl (vorgeschlagen, noch nicht entschieden)
 
-*Zurzeit leer.*
+**Geburtstags-Erinnerung (Robertos Idee, 20.08.)** - Vorlagen liegen vor:
+ein freiwilliges Geburtstags-Feld je Team-Mitglied (⚙ → Team & Schichten,
+bewusst nur Tag + Monat; Jahr optional, dann steht am Tag das Alter).
+Am Tag selbst: dezente 🎂-Karte auf der Übersicht (wegklickbar) mit
+„demnächst"-Vorschau der nächsten 7 Tage, dazu ein kleiner 🎂 am Namen im
+Schichtplan und bei „Heute da". Kein Konfetti, keine Sperre. Liegt in den
+gemeinsamen Einstellungen - alle sehen die Erinnerung; leeres Feld =
+keine Erinnerung, kein Nachfragen. *Klein bis mittel.*
 
 ---
 
