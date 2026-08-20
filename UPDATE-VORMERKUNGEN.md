@@ -44,46 +44,24 @@ klein und schnell.
 wie beim Papierkorb. Nicht akut – es sind noch Jahre Luft –, aber ohne
 diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
 
+### 3. Foto zur Störung (von Roberto am 19.08. zurückgestellt)
+
+**Warum:** Ein Foto vom Schaden sagt der nächsten Schicht mehr als drei
+Sätze.
+
+**Wie:** Bilder als Dateien im Datenordner (`Stoerungsfotos/…`), in der
+Störung nur der Verweis – **bewusst nicht in der gemeinsamen JSON**, sonst
+wäre die 5-MB-Grenze in Wochen erreicht. Braucht die Ordner-Freigabe, die
+für den Konflikt-Wächter schon besteht. Vorlage liegt vor.
+
+**Aufwand/Vorsicht:** Mittel bis groß; berührt die Datei-Ablage → braucht
+nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
+
 ---
 
-## Zur Auswahl (Runde 3, vorgeschlagen am 19.08., noch nicht entschieden)
+## Zur Auswahl (vorgeschlagen, noch nicht entschieden)
 
-Acht Kandidaten, alle am Code nachgemessen (nichts davon existiert),
-Vorlagen liegen Roberto vor. Nicht mehr dabei: Urlaub/Krank im Schichtplan
-- gibt es längst.
-
-**1. Anlagen-Steckbrief im Register** - Hersteller, Typ/Baujahr, Serien-
-nummer, Standort, Wartungspartner, wichtige Ersatzteile; frei belegbare
-Felder, sichtbar auch im Störungs-Dialog. *Mittel.*
-
-**2. Wartungs-Checkliste je Anlage** - feste Prüfpunkte im Abhaken-Dialog
-("2 von 4"), gepflegt vom Verwalter im ⚙. Macht aus "Gemacht" ein
-nachvollziehbares Gemacht. *Mittel.*
-
-**3. Nachbestell-Übersicht** - alle Störungs-Ersatzteile mit "nachbestellt"
-gesammelt an einer Stelle, mit Wartedauer und "eingetroffen"-Haken. Die
-Felder existieren längst, nur die Sammel-Sicht fehlt. *Klein bis mittel.*
-
-**4. Schichtübergabe-Blatt** - eine Druckvorlage: offene Störungen (mit
-"was muss die nächste Schicht tun"), heutige Termine, Pinnwand - A4,
-Stand auf die Minute. *Klein bis mittel.*
-
-**5. Anlage außer Betrieb** - Zeitraum + Grund je Anlage; die Rotation
-lässt sie aus, der Plan zeigt den Grund, der Nachweis zählt die Zeit
-nicht als versäumt. *Mittel; berührt die Plan-Rechnung → Test-Pflicht.*
-
-**6. Störungs-Häufungs-Hinweis** - beim Erfassen: "3. Störung an TS320
-in 30 Tagen (Nr. ...)" - Blick auf die Ursache statt nur aufs Symptom.
-*Klein.*
-
-**7. CSV-Herausgabe für Excel** - Termine und Störungen als CSV; bisher
-gibt es nur JSON, und genau das mahnt der Rollout-Test seit jeher als
-HINWEIS an. *Klein.*
-
-**8. Foto zur Störung** - Bilder als Dateien im Datenordner
-(Stoerungsfotos/...), Verweis in der Störung; bewusst NICHT in der
-gemeinsamen JSON (5-MB-Grenze). Braucht die Konflikt-Wächter-Freigabe.
-*Mittel bis groß; berührt Datei-Ablage → Test-Pflicht.*
+*Zurzeit leer.*
 
 ---
 
@@ -100,3 +78,9 @@ gemeinsamen JSON (5-MB-Grenze). Braucht die Konflikt-Wächter-Freigabe.
   Datenordner (Unterordner „Sicherungen", 14 Stände, nutzt die
   Konflikt-Wächter-Freigabe), Feiertags-Hinweis beim Anlegen
   (harte-47, 36/36).
+- **19.08.2026 (Runde 3, Robertos „alles bis auf 8"):** Anlagen-Steckbrief
+  im Register (samt ℹ-Zeile im Störungs-Dialog), Wartungs-Checkliste je
+  Anlage im Termin-Dialog, Nachbestell-Übersicht mit „eingetroffen"-Haken,
+  Schichtübergabe-Blatt als Druckvorlage, Anlage außer Betrieb (Rotation
+  setzt aus, Plan nennt den Grund), Störungs-Häufungs-Hinweis (3. Störung
+  in 30 Tagen), CSV-Herausgabe für Excel (harte-48, 31/31).

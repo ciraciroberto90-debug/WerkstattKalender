@@ -211,9 +211,12 @@ const hole = (adresse, kopf = {}) => new Promise((fertig, schief) => {
     const knopf = p.locator('button[aria-label="Export"]');
     check("D: Es gibt einen Knopf zum Herausgeben der Daten", (await knopf.count()) === 1);
     if (await knopf.count()) {
+      // Seit der CSV-Herausgabe öffnet der Knopf erst ein Menü.
+      await knopf.click();
+      await p.waitForTimeout(300);
       const [ladung] = await Promise.all([
         p.waitForEvent("download", { timeout: 10000 }).catch(() => null),
-        knopf.click(),
+        p.getByRole("button", { name: /Alles als JSON/ }).click(),
       ]);
       check("D: Der Knopf gibt wirklich eine Datei heraus", ladung !== null,
         ladung ? ladung.suggestedFilename() : "keine Datei angekommen");

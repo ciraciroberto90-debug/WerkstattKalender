@@ -53,10 +53,13 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   const entries = await page.evaluate(() => JSON.parse(localStorage.getItem('werkstatt-kalender-entries') || '[]'));
   ok('TPM-Abhaken ist nach Neuladen noch da (localStorage)', entries.some((e) => e.status === 'done'));
 
-  // Export funktioniert weiterhin (ohne Gemeinsame Datei)
+  // Export funktioniert weiterhin (ohne Gemeinsame Datei). Seit der
+  // CSV-Herausgabe öffnet der Knopf erst ein kleines Menü.
+  await page.locator('button[aria-label="Export"]').click();
+  await page.waitForTimeout(300);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.locator('button[aria-label="Export"]').click(),
+    page.getByRole('button', { name: /Alles als JSON/ }).click(),
   ]);
   ok('Export erzeugt eine Download-Datei', !!download);
 

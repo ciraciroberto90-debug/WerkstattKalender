@@ -1518,6 +1518,12 @@ function App() {
   );
   // Tages-Sicherung: kleiner Zähler, damit die Anzeige nach "Jetzt sichern" nachzieht.
   const [sicherungTick, setSicherungTick] = useState(0);
+
+  /* ---- QoL-Runde 3 (Robertos "alles bis auf 8", 19.08.) ---- */
+  const [exportMenuOffen, setExportMenuOffen] = useState(false);   // Herausgabe: JSON oder CSV
+  const [nachbestellOffen, setNachbestellOffen] = useState(false); // Übersicht offener Nachbestellungen
+  const [registerTab, setRegisterTab] = useState("STECKBRIEF");    // Register-Dialog: Steckbrief | Historie
+  const [steckbriefDraft, setSteckbriefDraft] = useState(null);    // Bearbeitungsstand im Register-Dialog
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
@@ -2089,6 +2095,75 @@ function App() {
       idx--; if (idx < 0) { idx = 2; datum.setDate(datum.getDate() - 1); }
     }
     return slots; // [laufende Schicht, die davor, die davor]
+  };
+
+  /* ---- Schichtübergabe-Blatt (QoL Runde 3) ----
+     Ein Blatt für die Übergabe: offene Störungen (mit "was muss die nächste
+     Schicht tun"), die heutigen Termine und die veröffentlichten Pinnwand-
+     Zettel - Stand auf die Minute, A4 hoch. */
+  const buildUebergabeblattHTML = () => {
+    const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const jetzt = new Date();
+    const h = jetzt.getHours();
+    const laufende = h >= 6 && h < 14 ? "Früh" : h >= 14 && h < 22 ? "Spät" : "Nacht";
+    const naechste = { "Früh": "Spät", "Spät": "Nacht", "Nacht": "Früh" }[laufende];
+    const uebergabeUm = { "Früh": "14:00", "Spät": "22:00", "Nacht": "06:00" }[laufende];
+    const stand = jetzt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    const wochentag = jetzt.toLocaleDateString("de-DE", { weekday: "long" });
+
+    const offene = stoerungen
+      .filter((s) => s.offen)
+      .sort((a, b) => String(b.gemeldetAt || b.date).localeCompare(String(a.gemeldetAt || a.date)));
+    const heutigeTermine = entries
+      .filter((e) => (e.category === "TPM" || e.category === "RI") && e.date === todayKey)
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const zettelSichtbar = entries
+      .filter((e) => e.category === "NOTIZ" && e.veroeffentlicht)
+      .sort((a, b) => String(b.zeit || b.date).localeCompare(String(a.zeit || a.date)))
+      .slice(0, 6);
+
+    const stoerZeilen = offene.map((s) => `
+      <div style="border-left:3px solid #C0392B;padding:4px 10px;margin-bottom:4px;font-size:12px;color:#22262B;">
+        ${stoerNrLang(s) ? `<span style="font-family:monospace;font-weight:700;color:#2F6690;">${esc(stoerNrKurz(s))}</span> · ` : ""}
+        <b>${esc(s.anlage || "—")}${s.anlagenteil ? " " + esc(s.anlagenteil) : ""}</b> – ${esc(s.stoerung || "")}
+        ${s.nochZuTun && String(s.nochZuTun).trim() ? `<div style="color:#8A4B00;font-weight:600;">➜ ${esc(s.nochZuTun)}</div>` : ""}
+      </div>`).join("");
+
+    const terminZeilen = heutigeTermine.length
+      ? heutigeTermine.map((e) => `<span style="display:inline-block;margin:1px 10px 1px 0;font-size:12px;color:${e.status === "done" ? "#24603D" : "#B23A34"};font-weight:700;">${e.status === "done" ? "✓" : "✕"} ${esc(e.name)}</span>`).join("")
+      : `<span style="font-size:12px;color:#8A9099;font-style:italic;">Heute steht kein Termin an.</span>`;
+
+    const zettelZeilen = zettelSichtbar.length
+      ? zettelSichtbar.map((z) => `<div style="font-size:12px;color:#22262B;margin-bottom:3px;">„${esc(z.note || "")}" <span style="color:#8A9099;">(${esc(z.name || "")})</span></div>`).join("")
+      : `<div style="font-size:12px;color:#8A9099;font-style:italic;">Keine veröffentlichten Zettel.</div>`;
+
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Schichtübergabe ${formatDateDE(todayKey)}</title>
+      <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
+      </style>
+    </head><body>
+      <div id="blatt" style="width:702px;">
+        <div style="border-bottom:2.5px solid #22262B;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-end;">
+          <div>
+            <div style="font-weight:900;font-size:19px;">Schichtübergabe</div>
+            <div style="font-size:11px;color:#6B7480;">${esc(wochentag)}, ${formatDateDE(todayKey)} · Übergabe ${laufende} → ${naechste} um ${uebergabeUm} · Stand ${stand} Uhr</div>
+          </div>
+          <div style="font-size:24px;font-weight:800;">${uebergabeUm}</div>
+        </div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:#B23A34;margin-bottom:5px;">Offene Störungen (${offene.length})</div>
+        ${stoerZeilen || `<div style="font-size:12px;color:#1F7A3D;font-weight:700;margin-bottom:4px;">Keine offene Störung – gute Übergabe.</div>`}
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:#C97A2B;margin:14px 0 5px;">Heutige Termine</div>
+        <div>${terminZeilen}</div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:#2F6690;margin:14px 0 5px;">Pinnwand</div>
+        ${zettelZeilen}
+        <div style="margin-top:16px;padding-top:8px;border-top:1px solid #C3C7CB;font-size:10px;color:#6B7480;">
+          Erstellt aus dem Werkstatt-Cockpit · Stand ${formatDateDE(todayKey)}, ${stand} Uhr. Einzelheiten zu jeder Störung stehen im Störbericht (Nummer).
+        </div>
+      </div>
+      ${passtAufEinBlatt(702, 1010)}
+    </body></html>`;
   };
   /* Feste Farben der drei Bericht-Schichten für die Druckvorlagen. Robertos
      Wahl vom 13.08. (aus drei gezeigten Varianten): Tabellen-Protokoll in
@@ -3322,13 +3397,13 @@ function App() {
     await attempt(2);
   };
 
-  const exportData = () => {
+  const ladeHerunter = (inhalt, dateiname, typ) => {
     try {
-      const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+      const blob = new Blob([inhalt], { type: typ });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `werkstatt-kalender-export-${dateKey(today.getFullYear(), today.getMonth(), today.getDate())}.json`;
+      a.download = dateiname;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -3336,6 +3411,40 @@ function App() {
     } catch (e) {
       setErr("Export ist fehlgeschlagen.");
     }
+  };
+  const exportData = () => {
+    ladeHerunter(JSON.stringify(entries, null, 2),
+      `werkstatt-kalender-export-${dateKey(today.getFullYear(), today.getMonth(), today.getDate())}.json`,
+      "application/json");
+  };
+  /* CSV-Herausgabe für Excel (QoL 19.08., Runde 3) - der Rollout-Test mahnte
+     seit jeher an, dass es die Daten nur als JSON gibt. Semikolon als Trenner
+     und die BOM vorneweg, damit DEUTSCHES Excel die Datei per Doppelklick
+     richtig öffnet (Komma wäre dort der Dezimaltrenner, ohne BOM zerfallen
+     die Umlaute). */
+  const csvZelle = (v) => {
+    const s = String(v ?? "").replace(/\r?\n/g, " ");
+    return /[;"]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const exportTermineCsv = () => {
+    const zeilen = entries
+      .filter((e) => e.category === "TPM" || e.category === "RI")
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .map((e) => [formatDateDE(e.date), e.category === "TPM" ? "TPM" : "R+I", e.name,
+                   e.status === "done" ? "erledigt" : "offen", e.note || ""].map(csvZelle).join(";"));
+    ladeHerunter("\uFEFF" + ["Datum;Art;Anlage / Punkt;Status;Notiz", ...zeilen].join("\r\n"),
+      `werkstatt-termine-${todayKey}.csv`, "text/csv;charset=utf-8");
+  };
+  const exportStoerungenCsv = () => {
+    const zeilen = [...stoerungen]
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .map((s) => [stoerNrLang(s) || "", formatDateDE(s.date), s.schicht || "", s.anlage || "",
+                   s.anlagenteil || "", STOER_GEWERK[s.gewerk]?.label || "", s.stoerung || "", s.ursache || "",
+                   s.getan || "", s.offen ? (s.nochZuTun || "") : "", s.ersatzteile || "",
+                   s.nachbestellt ? "ja" : "", Math.round(Number(s.ausfallzeit) || 0) || "",
+                   s.offen ? "offen" : "behoben", s.melder || ""].map(csvZelle).join(";"));
+    ladeHerunter("\uFEFF" + ["Nr;Datum;Schicht;Anlage;Anlagenteil;Gewerk;Störung;Ursache;Was wurde unternommen;Nächste Schicht;Ersatzteile;Nachbestellt;Ausfall (min);Status;Melder", ...zeilen].join("\r\n"),
+      `werkstatt-stoerungen-${todayKey}.csv`, "text/csv;charset=utf-8");
   };
 
   const handleImportFile = async (e) => {
@@ -3521,6 +3630,73 @@ function App() {
   const registerSuchwort = registerSuche.trim().toLowerCase();
   const registerTpm = registerSuchwort ? tpmAnlagen.filter((a) => a.name.toLowerCase().includes(registerSuchwort)) : tpmAnlagen;
   const registerRi = registerSuchwort ? riItems.filter((r) => r.name.toLowerCase().includes(registerSuchwort)) : riItems;
+
+  /* ---- QoL-Runde 3: Helfer ---- */
+  // Steckbrief/Checkliste liegen am Anlagen- bzw. R+I-Eintrag der Verwaltung.
+  const registerEintragVon = (category, name) =>
+    (category === "TPM" ? tpmAnlagen : riItems).find((x) => x.name === name) || null;
+  // Außer Betrieb: gilt die Pause einer Anlage an diesem Tag?
+  const istPausiert = (a, dateStr) =>
+    !!(a && a.pause && a.pause.von && a.pause.von <= dateStr && (!a.pause.bis || dateStr <= a.pause.bis));
+  // Offene Nachbestellungen aus den Störungen (Felder gibt es längst -
+  // hier nur die Sammel-Sicht, älteste zuerst, denn die warten am längsten).
+  const offeneNachbestellungen = useMemo(
+    () => stoerungen
+      .filter((s) => String(s.ersatzteile || "").trim() && s.nachbestellt && !s.eingetroffenAt)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date))),
+    [stoerungen]
+  );
+  const nachbestellungEingetroffen = async (id) => {
+    await persistStoer(stoerungen.map((s) => (s.id === id ? { ...s, eingetroffenAt: new Date().toISOString() } : s)));
+  };
+  // Register-Dialog: beim Öffnen den Bearbeitungsstand aus der Verwaltung laden.
+  useEffect(() => {
+    if (!registerItem) { setSteckbriefDraft(null); return; }
+    const item = registerEintragVon(registerItem.category, registerItem.name);
+    setRegisterTab("STECKBRIEF");
+    setSteckbriefDraft({
+      hersteller: item?.steckbrief?.hersteller || "",
+      typ: item?.steckbrief?.typ || "",
+      seriennummer: item?.steckbrief?.seriennummer || "",
+      standort: item?.steckbrief?.standort || "",
+      partner: item?.steckbrief?.partner || "",
+      ersatzteile: item?.steckbrief?.ersatzteile || "",
+      checkliste: (item?.checkliste || []).join("\n"),
+      pauseVon: item?.pause?.von || "",
+      pauseBis: item?.pause?.bis || "",
+      pauseGrund: item?.pause?.grund || "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerItem]);
+  // Steckbrief, Checkliste und Außer-Betrieb-Zeitraum an den Verwaltungs-
+  // Eintrag schreiben. Leere Felder werden entfernt statt als leere Hüllen
+  // gespeichert - die gemeinsame Datei bleibt schlank.
+  const speichereSteckbrief = async () => {
+    if (!registerItem || !steckbriefDraft || readerMode) return;
+    const d = steckbriefDraft;
+    const steckbrief = {
+      hersteller: d.hersteller.trim(), typ: d.typ.trim(), seriennummer: d.seriennummer.trim(),
+      standort: d.standort.trim(), partner: d.partner.trim(), ersatzteile: d.ersatzteile.trim(),
+    };
+    const steckbriefLeer = Object.values(steckbrief).every((v) => !v);
+    const checkliste = d.checkliste.split("\n").map((z) => z.trim()).filter(Boolean);
+    const pause = /^\d{4}-\d{2}-\d{2}$/.test(d.pauseVon)
+      ? { von: d.pauseVon, bis: /^\d{4}-\d{2}-\d{2}$/.test(d.pauseBis) ? d.pauseBis : "", grund: d.pauseGrund.trim() }
+      : null;
+    const anpassen = (x) => {
+      if (x.name !== registerItem.name) return x;
+      const neu = { ...x };
+      if (steckbriefLeer) delete neu.steckbrief; else neu.steckbrief = steckbrief;
+      if (checkliste.length) neu.checkliste = checkliste; else delete neu.checkliste;
+      if (registerItem.category === "TPM") { if (pause) neu.pause = pause; else delete neu.pause; }
+      return neu;
+    };
+    await persistConfig(
+      registerItem.category === "TPM" ? tpmAnlagen.map(anpassen) : tpmAnlagen,
+      registerItem.category === "RI" ? riItems.map(anpassen) : riItems
+    );
+    setRegisterItem(null);
+  };
 
   const monthPrefix = `${year}-${pad(month + 1)}`;
   const yearPrefix = `${year}-`;
@@ -3827,6 +4003,17 @@ function App() {
         break;
       }
       if (!gefunden) a.entfaellt = true;
+    }
+    /* ---- Außer Betrieb (QoL Runde 3) ----
+       Errechnete Termine einer pausierten Anlage entfallen im Pausen-
+       zeitraum - die Rotation verteilt nichts auf eine Maschine, die
+       gerade umgebaut wird. ECHTE Einträge stehen, wie sie sind: Wer
+       trotz Pause von Hand etwas anlegt, meint es so. */
+    const pausen = new Map(tpmAnlagen.filter((a) => a.pause && a.pause.von).map((a) => [a.name, a.pause]));
+    for (const a of errechnete) {
+      if (a.echt) continue;
+      const pz = pausen.get(a.anlage);
+      if (pz && pz.von <= a.date && (!pz.bis || a.date <= pz.bis)) a.entfaellt = true;
     }
     const bereinigt = errechnete.filter((a) => !a.entfaellt);
     const entfallene = errechnete.filter((a) => a.entfaellt).map((a) => a.anlage);
@@ -5448,6 +5635,8 @@ function App() {
             erklaerung: "Alle Störungen der laufenden und der zwei vorigen Schichten, Stand jetzt – A4 quer, Zeilen in der Schichtfarbe" },
           { id: "stoer-monat", text: "Monats-Auswertung", monatsWahl: true,
             erklaerung: "Diagramm und Anlagen-Liste nach Anzahl der Störungen, darunter die Ausfälle mit Notizen – A4 hoch" },
+          { id: "uebergabe", text: "Schichtübergabe – Stand jetzt",
+            erklaerung: "Offene Störungen, heutige Termine und Pinnwand auf einem Blatt – A4 hoch, für die Übergabe" },
         ],
       };
     }
@@ -5515,6 +5704,8 @@ function App() {
         return { html: buildPrintDocument(true), datei: `werkstatt-wartungsplan-${year}-${pad(month + 1)}.html` };
       case "stoer-schichtbericht":
         return { html: buildStoerSchichtberichtHTML(), datei: `werkstatt-schichtbericht-${todayKey}.html` };
+      case "uebergabe":
+        return { html: buildUebergabeblattHTML(), datei: `werkstatt-uebergabe-${todayKey}.html` };
       case "stoer-monat": {
         // Jahr = laufendes Jahr; die Monats-Kacheln im Dialog wählen den Monat.
         const jahrHeute = Number(todayKey.slice(0, 4));
@@ -5834,15 +6025,41 @@ function App() {
               >
                 <Upload size={14} />
               </button>
-              <button
-                onClick={exportData}
-                className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: "#2F6690" }}
-                title="Alle Einträge als Datei sichern (Export)"
-                aria-label="Export"
-              >
-                <Download size={14} />
-              </button>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setExportMenuOffen((o) => !o)}
+                  className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: "#2F6690" }}
+                  title="Herausgabe: JSON-Sicherung oder CSV für Excel"
+                  aria-label="Export"
+                >
+                  <Download size={14} />
+                </button>
+                {/* Herausgabe-Menü (QoL 19.08., Runde 3): JSON wie bisher,
+                    dazu CSV für Excel - der Rollout-Test mahnte das an. */}
+                {exportMenuOffen && (
+                  <>
+                    <div style={{ position: "fixed", inset: 0, zIndex: 59 }} onClick={() => setExportMenuOffen(false)} />
+                    <div className="no-print" style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 60, backgroundColor: "white", borderRadius: "10px", padding: "10px", width: "310px", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", border: "1px solid #E2E4E7" }}>
+                      {[
+                        ["Alles als JSON", "vollständige Datensicherung – wie bisher", () => exportData(), "#22262B"],
+                        ["Termine als CSV", "Datum · Anlage · TPM/R+I · Status · Notiz – für Excel", () => exportTermineCsv(), "#1F7A3D"],
+                        ["Störungen als CSV", "Nr. · Anlage · Störung · Maßnahme · Ausfall · Melder", () => exportStoerungenCsv(), "#1F7A3D"],
+                      ].map(([titel, unter, mach, farbe]) => (
+                        <button
+                          key={titel}
+                          onClick={() => { setExportMenuOffen(false); mach(); }}
+                          className="w-full text-left rounded-lg px-3 py-2 mb-1 last:mb-0 border hover:bg-slate-50"
+                          style={{ borderColor: "#E2E4E7" }}
+                        >
+                          <span className="block text-sm font-extrabold" style={{ color: farbe }}>{titel}</span>
+                          <span className="block text-xs" style={{ color: "#8A9099" }}>{unter}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </>
           )}
           {/* Abmelden (Benutzergruppen, Robertos Wunsch vom 10.08.): sichtbar
@@ -6480,6 +6697,21 @@ function App() {
               </button>
             )}
           </div>
+
+          {/* Offene Nachbestellungen (QoL Runde 3): die Felder "Ersatzteile" +
+              "nachbestellt" gibt es je Störung längst - hier die Sammel-Sicht,
+              damit nichts still liegen bleibt. */}
+          {offeneNachbestellungen.length > 0 && (
+            <div className="flex items-center gap-2 mb-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#FBF3E6", border: "1px solid #E8D3AE" }}>
+              <span className="text-xs" style={{ color: "#7A5B22" }}>
+                🛒 <b>{offeneNachbestellungen.length}</b> {offeneNachbestellungen.length === 1 ? "Ersatzteil ist" : "Ersatzteile sind"} nachbestellt und noch nicht eingetroffen.
+              </span>
+              <button onClick={() => setNachbestellOffen(true)} className="ml-auto rounded font-bold shrink-0 border"
+                style={{ borderColor: "#C9A24B", color: "#7A5B22", backgroundColor: "#fff", padding: "4px 10px", fontSize: "0.72rem" }}>
+                Nachbestellungen ansehen
+              </button>
+            </div>
+          )}
 
           {/* Berichte aus der Zeit vor den Nummern. Der Hinweis steht nur da,
               solange es welche gibt, und trägt sie erst auf Klick nach - ein
@@ -8379,6 +8611,16 @@ function App() {
                       style={{ borderColor: "#D6D9DC" }}
                     />
                     <datalist id="stoer-anlagen">{anlagenVorschlaege.map((n) => <option key={n} value={n} />)}</datalist>
+                    {/* Steckbrief-Zeile (QoL Runde 3): Wartungspartner und
+                        Ersatzteile direkt neben der Anlage - wer nachts vor
+                        der Maschine steht, sucht nicht erst im Register. */}
+                    {(() => {
+                      const st = registerEintragVon("TPM", String(sDraft.anlage || "").trim())?.steckbrief;
+                      const teile = [st?.partner, st?.ersatzteile && `Ersatzteile: ${st.ersatzteile}`].filter(Boolean);
+                      return teile.length ? (
+                        <div className="text-xs mt-1" style={{ color: "#5B6572" }}>ℹ {teile.join(" · ")}</div>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="flex-1" style={{ minWidth: "200px" }}>
                     <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlagenteil</label>
@@ -8394,6 +8636,35 @@ function App() {
                     )}
                   </div>
                 </div>
+
+                {/* Häufungs-Hinweis (QoL Runde 3): Blick auf die Ursache statt
+                    nur aufs Symptom. Zählt Störungen derselben Anlage in den
+                    30 Tagen vor dem Berichts-Datum. */}
+                {(() => {
+                  const anlage = String(sDraft.anlage || "").trim();
+                  if (!anlage) return null;
+                  const basis = /^\d{4}-\d{2}-\d{2}$/.test(String(sDraft.date || "")) ? sDraft.date : todayKey;
+                  const g = new Date(basis + "T00:00:00");
+                  g.setDate(g.getDate() - 30);
+                  const grenze = dateKey(g.getFullYear(), g.getMonth(), g.getDate());
+                  const andere = stoerungen.filter((s) =>
+                    s.id !== sDraft.id &&
+                    String(s.anlage || "").trim().toLowerCase() === anlage.toLowerCase() &&
+                    String(s.date || "") >= grenze && String(s.date || "") <= basis);
+                  if (andere.length < 2) return null;
+                  const nummern = andere
+                    .map((s) => (stoerNrLang(s) ? stoerNrKurz(s) : formatDateDE(s.date)))
+                    .slice(0, 4).join(", ");
+                  return (
+                    <div className="flex gap-2 items-start rounded-lg px-3 py-2 text-xs" style={{ backgroundColor: "#FBF3E6", border: "1px solid #E8D3AE", color: "#8A5B00" }}>
+                      <span aria-hidden="true">⚠</span>
+                      <span>
+                        <strong>{andere.length + 1}. Störung an {anlage} innerhalb von 30 Tagen</strong> ({nummern}{andere.length > 4 ? ", …" : ""}).<br />
+                        <span style={{ color: "#A8853F" }}>Häufung – lohnt ein Blick auf die Ursache statt nur auf das Symptom?</span>
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Gewerk + Fehlerart */}
                 <div className="flex gap-3 flex-wrap">
@@ -8516,6 +8787,55 @@ function App() {
           >
             Rückgängig
           </button>
+        </div>
+      )}
+
+      {/* Offene Nachbestellungen (QoL Runde 3) */}
+      {nachbestellOffen && (
+        <div
+          className="no-print"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setNachbestellOffen(false)}
+        >
+          <div
+            role="dialog"
+            aria-label="Offene Nachbestellungen"
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "540px", maxWidth: "100%", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="font-bold text-sm">Offene Nachbestellungen <span style={{ color: "#C0392B" }}>({offeneNachbestellungen.length})</span></div>
+              <button onClick={() => setNachbestellOffen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+            <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
+              Aus den Störungen gesammelt – überall dort, wo „Ersatzteile" mit „nachbestellt" markiert ist.
+            </div>
+            {offeneNachbestellungen.length === 0 && (
+              <div className="text-xs italic text-slate-400 py-3">Nichts offen – alles eingetroffen.</div>
+            )}
+            {offeneNachbestellungen.map((s) => {
+              const tage = Math.max(0, Math.round((Date.parse(todayKey) - Date.parse(String(s.date))) / 86400000));
+              return (
+                <div key={s.id} className="flex items-center gap-3 border rounded-lg px-3 py-2 mb-2" style={{ borderColor: "#E2E4E7" }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold" style={{ color: "#22262B", wordBreak: "break-word" }}>{s.ersatzteile}</div>
+                    <div className="text-xs" style={{ color: "#8A9099" }}>
+                      {s.anlage || "—"}{stoerNrLang(s) ? ` · ${stoerNrKurz(s)}` : ""} · seit {formatDateDE(s.date)} ({tage === 0 ? "heute" : `${tage} Tag${tage === 1 ? "" : "e"}`}){tage >= 7 ? " ⚠" : ""}
+                    </div>
+                  </div>
+                  {stoerDarfSchreiben && (
+                    <button
+                      onClick={() => nachbestellungEingetroffen(s.id)}
+                      className="shrink-0 text-xs font-bold px-3 py-1.5 rounded border"
+                      style={{ borderColor: "#2F7D4F", color: "#2F7D4F", backgroundColor: "#fff" }}
+                    >
+                      ✓ eingetroffen
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -8733,6 +9053,41 @@ function App() {
                         </button>
                       </div>
                     </div>
+                    {/* Checkliste (QoL Runde 3): die Prüfpunkte der Anlage aus
+                        dem Register - macht aus "Gemacht" ein nachvollziehbares
+                        Gemacht. Bewusst ohne Zwang: Abhaken mit Lücke geht,
+                        die Lücke bleibt nur sichtbar. */}
+                    {(() => {
+                      const punkte = registerEintragVon(liveEntry.category, liveEntry.name)?.checkliste || [];
+                      if (!punkte.length) return null;
+                      const erledigt = new Set(Array.isArray(liveEntry.punkte) ? liveEntry.punkte : []);
+                      const zaehler = punkte.filter((pkt) => erledigt.has(pkt)).length;
+                      const togglePunkt = async (pkt) => {
+                        const neu = erledigt.has(pkt) ? [...erledigt].filter((x) => x !== pkt) : [...erledigt, pkt];
+                        await persist(entries.map((e) => (e.id === liveEntry.id ? { ...e, punkte: neu } : e)));
+                      };
+                      return (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="text-xs font-bold uppercase tracking-wide" style={{ color: "#5B6572" }}>
+                            Checkliste {liveEntry.name} <span className="font-normal normal-case" style={{ color: "#8A9099" }}>({zaehler} von {punkte.length})</span>
+                          </div>
+                          {punkte.map((pkt) => {
+                            const an = erledigt.has(pkt);
+                            return (
+                              <button
+                                key={pkt}
+                                onClick={() => togglePunkt(pkt)}
+                                className="flex items-center gap-2 text-sm rounded px-2.5 py-1.5 border text-left"
+                                style={{ borderColor: an ? "#BFDCC9" : "#E2E4E7", backgroundColor: an ? "#F2F9F4" : "#fff", color: an ? "#24603D" : "#22262B" }}
+                              >
+                                <span aria-hidden="true" className="inline-flex items-center justify-center rounded shrink-0" style={{ width: "16px", height: "16px", border: `1.5px solid ${an ? "#2F7D4F" : "#C3C7CB"}`, backgroundColor: an ? "#2F7D4F" : "#fff", color: "#fff", fontSize: "11px" }}>{an ? "✓" : ""}</span>
+                                {pkt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                     <textarea
                       spellCheck
                       lang="de"
@@ -10635,6 +10990,25 @@ function App() {
             )}
           </div>
 
+          {/* Außer Betrieb (QoL Runde 3): der Plan sagt, WARUM eine Anlage
+              in diesem Monat fehlt - sonst sähe es wie ein Rechenfehler aus. */}
+          {(() => {
+            const monatsAnfang = dateKey(year, month, 1);
+            const monatsEnde = dateKey(year, month, daysInMonth);
+            const pausierte = tpmAnlagen.filter((a) => a.pause && a.pause.von &&
+              a.pause.von <= monatsEnde && (!a.pause.bis || a.pause.bis >= monatsAnfang));
+            return pausierte.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 mb-3" style={{ backgroundColor: "#FBF3E6", border: "1px solid #E8D3AE" }}>
+                <span aria-hidden="true">⏸</span>
+                {pausierte.map((a) => (
+                  <span key={a.id} className="text-xs font-bold" style={{ color: "#7A5B22" }}>
+                    {a.name} – außer Betrieb {a.pause.bis ? `bis ${formatDateDE(a.pause.bis)}` : "bis auf Weiteres"}{a.pause.grund ? ` (${a.pause.grund})` : ""}
+                  </span>
+                ))}
+              </div>
+            ) : null;
+          })()}
+
           <div className="flex gap-1.5 mb-1.5">
             <div style={{ width: "30px", flexShrink: 0 }} />
             <div className="grid grid-cols-7 gap-1.5 flex-1">
@@ -10939,6 +11313,100 @@ function App() {
                 </div>
                 <button onClick={() => setRegisterItem(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
               </div>
+
+              {/* Steckbrief & Historie (QoL Runde 3): der Steckbrief macht aus
+                  dem Register die Anlagen-Akte - Wartungspartner und Ersatz-
+                  teile stehen dann auch im Störungs-Dialog. */}
+              <div className="flex gap-1.5 mb-3 mt-1">
+                {[["STECKBRIEF", "Steckbrief"], ["HISTORIE", "Historie"]].map(([t, label]) => (
+                  <button
+                    key={t}
+                    onClick={() => setRegisterTab(t)}
+                    className="text-xs font-extrabold px-3 py-1.5 rounded-full border"
+                    style={registerTab === t
+                      ? { backgroundColor: "#22262B", color: "#fff", borderColor: "#22262B" }
+                      : { backgroundColor: "#fff", color: "#5B6572", borderColor: "#D6D9DC" }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {registerTab === "STECKBRIEF" && steckbriefDraft && (
+                <div className="flex flex-col gap-2">
+                  {[["hersteller", "Hersteller"], ["typ", "Typ / Baujahr"], ["seriennummer", "Seriennummer"],
+                    ["standort", "Standort"], ["partner", "Wartungspartner"], ["ersatzteile", "Wichtige Ersatzteile"]].map(([feld, label]) => (
+                    <div key={feld} className="flex items-center gap-2">
+                      <span className="text-xs font-bold shrink-0" style={{ color: "#8A9099", width: "128px" }}>{label}</span>
+                      {readerMode ? (
+                        <span className="text-sm" style={{ color: "#22262B" }}>{steckbriefDraft[feld] || "—"}</span>
+                      ) : (
+                        <input
+                          value={steckbriefDraft[feld]}
+                          onChange={(ev) => setSteckbriefDraft({ ...steckbriefDraft, [feld]: ev.target.value })}
+                          aria-label={label}
+                          className="text-sm border rounded px-2.5 py-1.5 flex-1 min-w-0"
+                          style={{ borderColor: "#D6D9DC" }}
+                        />
+                      )}
+                    </div>
+                  ))}
+
+                  <div className="text-xs font-bold uppercase tracking-wide mt-2" style={{ color: "#5B6572" }}>Checkliste fürs Abhaken</div>
+                  {readerMode ? (
+                    <div className="text-sm" style={{ color: "#22262B", whiteSpace: "pre-line" }}>{steckbriefDraft.checkliste || "—"}</div>
+                  ) : (
+                    <>
+                      <textarea
+                        value={steckbriefDraft.checkliste}
+                        onChange={(ev) => setSteckbriefDraft({ ...steckbriefDraft, checkliste: ev.target.value })}
+                        rows={3}
+                        placeholder={"eine Zeile je Prüfpunkt, z. B.\nÖlstand prüfen\nKeilriemen sichten"}
+                        aria-label="Checkliste"
+                        className="text-sm border rounded px-2.5 py-1.5"
+                        style={{ borderColor: "#D6D9DC", resize: "vertical" }}
+                      />
+                      <div className="text-xs" style={{ color: "#8A9099" }}>Die Punkte erscheinen beim Abhaken im Termin-Fenster („x von y").</div>
+                    </>
+                  )}
+
+                  {registerItem.category === "TPM" && (
+                    <>
+                      <div className="text-xs font-bold uppercase tracking-wide mt-2" style={{ color: "#5B6572" }}>Außer Betrieb</div>
+                      {readerMode ? (
+                        <div className="text-sm" style={{ color: "#22262B" }}>
+                          {steckbriefDraft.pauseVon
+                            ? `${formatDateDE(steckbriefDraft.pauseVon)} – ${steckbriefDraft.pauseBis ? formatDateDE(steckbriefDraft.pauseBis) : "auf Weiteres"}${steckbriefDraft.pauseGrund ? ` (${steckbriefDraft.pauseGrund})` : ""}`
+                            : "—"}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex gap-2">
+                            <input type="date" value={steckbriefDraft.pauseVon} onChange={(ev) => setSteckbriefDraft({ ...steckbriefDraft, pauseVon: ev.target.value })} aria-label="Außer Betrieb von" className="text-sm border rounded px-2.5 py-1.5 flex-1 min-w-0" style={{ borderColor: "#D6D9DC" }} />
+                            <input type="date" value={steckbriefDraft.pauseBis} onChange={(ev) => setSteckbriefDraft({ ...steckbriefDraft, pauseBis: ev.target.value })} aria-label="Außer Betrieb bis" className="text-sm border rounded px-2.5 py-1.5 flex-1 min-w-0" style={{ borderColor: "#D6D9DC" }} />
+                          </div>
+                          <input value={steckbriefDraft.pauseGrund} onChange={(ev) => setSteckbriefDraft({ ...steckbriefDraft, pauseGrund: ev.target.value })} placeholder="Grund (z. B. Umbau Absaugung)" aria-label="Grund" className="text-sm border rounded px-2.5 py-1.5" style={{ borderColor: "#D6D9DC" }} />
+                          <div className="text-xs" style={{ color: "#8A9099" }}>
+                            Im Zeitraum verteilt die Rotation nichts auf diese Anlage; der Plan nennt den Grund.
+                            {steckbriefDraft.pauseVon && (
+                              <button onClick={() => setSteckbriefDraft({ ...steckbriefDraft, pauseVon: "", pauseBis: "", pauseGrund: "" })} className="ml-2 font-bold underline" style={{ color: "#2F6690" }}>aufheben</button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {!readerMode && (
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={speichereSteckbrief} className="flex-1 text-sm font-bold py-2 rounded text-white" style={{ backgroundColor: "#22262B" }}>Speichern</button>
+                      <button onClick={() => setRegisterItem(null)} className="flex-1 text-sm font-bold py-2 rounded bg-slate-100 text-slate-500">Abbrechen</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {registerTab === "HISTORIE" && (<>
               <div className="text-xs text-slate-400 mb-3">{historyEntries.length} Termin(e) insgesamt</div>
               {historyEntries.length === 0 ? (
                 <div className="text-xs italic text-slate-400 py-4">Noch keine Einträge für diesen Punkt.</div>
@@ -10957,6 +11425,7 @@ function App() {
                   ))}
                 </div>
               )}
+              </>)}
             </div>
           </div>
         );

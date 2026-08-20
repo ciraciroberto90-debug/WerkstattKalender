@@ -492,6 +492,27 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **QoL-Runde 3 umgesetzt - „alles bis auf 8" (Roberto, 19.08.):**
+      (1) **Anlagen-Steckbrief** im Register (Hersteller, Typ/Baujahr,
+      Seriennummer, Standort, Wartungspartner, Ersatzteile; Reiter
+      Steckbrief/Historie, ℹ-Zeile im Störungs-Dialog). (2) **Wartungs-
+      Checkliste** je Anlage/R+I-Punkt - gepflegt im Steckbrief, abgehakt
+      im Termin-Dialog („x von y"), die Haken stehen am Eintrag.
+      (3) **Nachbestell-Übersicht**: sammelt „nachbestellt", zeigt
+      Wartedauer (⚠ ab 7 Tagen), „eingetroffen" räumt ab. (4) **Schicht-
+      übergabe-Blatt** als Druckvorlage im Störungs-Dialog: offene
+      Störungen samt „was muss die nächste Schicht tun", heutige Termine,
+      nur VERÖFFENTLICHTE Zettel, Stand auf die Minute. (5) **Anlage
+      außer Betrieb**: Zeitraum + Grund im Steckbrief, die Rotation lässt
+      die Anlage aus, echte Einträge bleiben, der Plan nennt den Grund.
+      (6) **Störungs-Häufungs-Hinweis** ab der dritten Störung derselben
+      Anlage in 30 Tagen. (7) **CSV-Herausgabe** (Termine + Störungen,
+      BOM + Semikolon für deutsches Excel) im neuen Herausgabe-Menü -
+      der Rollout-Test mahnte das seit jeher als HINWEIS an. Punkt (8)
+      Foto zur Störung ist auf Robertos Ansage VORGEMERKT
+      (UPDATE-VORMERKUNGEN.md). Neuer Härtetest harte-48 (31/31);
+      harte-6 auf das Herausgabe-Menü umgestellt.
+
 - [x] **QoL-Runde 2 komplett umgesetzt (Robertos „setze ruhig alles um",
       19.08.):** (A) Termin **verschieben** im Dialog - Datumsfeld +
       Knopf, Notiz wandert mit, Rückgängig möglich (der Archiv-Hinweis
