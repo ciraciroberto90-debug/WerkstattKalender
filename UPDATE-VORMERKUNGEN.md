@@ -59,42 +59,9 @@ nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
 
 ---
 
-## Zur Auswahl (Kreativ-Runde „Gimmicks & Layout", 19.08., noch nicht entschieden)
+## Zur Auswahl (vorgeschlagen, noch nicht entschieden)
 
-Acht Ideen auf Robertos „sei kreativ" - Feinschliff statt Funktionen,
-Vorlagen liegen vor.
-
-**G1. Eigener Werkstatt-Name** - „Werkstatt Scheurich" statt
-„Werkstatt-Cockpit" in Kopfzeile UND auf allen Druckköpfen; frei
-einstellbar im ⚙. *Klein.*
-
-**G2. Voller Monat = kleines Fest** - hakt jemand den letzten Termin des
-Monats ab, gibt es einmal Konfetti und „Alle 14 Termine erledigt - 100 %".
-Danach Ruhe. *Klein.*
-
-**G3. Eigene Farbe je Anlage** - jede Anlage bekommt eine feste Kennfarbe
-(linke Kante an Kacheln, Matrix, Störungen). Man erkennt „seine" Maschine
-ohne zu lesen. *Klein bis mittel.*
-
-**G4. Heute-Spalte im Kalender** - der heutige Wochentag läuft als dezent
-getönte Spalte durch den Plan-Kalender. Das Auge findet „heute" sofort.
-*Klein.*
-
-**G5. Schicht-Fortschrittsbalken** - dünner Balken unter der Kopfleiste,
-füllt sich über die laufende Schicht; beim Draufzeigen „Frühschicht ·
-52 % · noch 3 h 48 min bis zur Übergabe". *Klein.*
-
-**G6. Störungs-Laufband im Vollbild-Monitor** - offene Störungen laufen
-unten als Band durch, von der anderen Hallenseite lesbar. *Klein bis
-mittel.*
-
-**G7. Tastatur-Kürzel** - N Nachtmodus, D Drucken, S Störbericht,
-H Heute; Taste ? zeigt den Spickzettel. Greift nie, wenn ein Eingabefeld
-den Fokus hat. *Klein.*
-
-**G8. Wochen-Rückblick** - freitags eine wegklickbare Karte auf der
-Übersicht: erledigte Termine, Termintreue, behobene Störungen, stärkster
-Tag, Sorgenkind der Woche. *Mittel.*
+*Zurzeit leer.*
 
 ---
 
@@ -117,3 +84,10 @@ Tag, Sorgenkind der Woche. *Mittel.*
   Schichtübergabe-Blatt als Druckvorlage, Anlage außer Betrieb (Rotation
   setzt aus, Plan nennt den Grund), Störungs-Häufungs-Hinweis (3. Störung
   in 30 Tagen), CSV-Herausgabe für Excel (harte-48, 31/31).
+- **19.08.2026 (Kreativ-Runde, Robertos „einführen"):** Eigener
+  Werkstatt-Name (⚙ → Team & Schichten; Kopfzeile + Druckköpfe),
+  Voller-Monat-Fest (einmal je Monat, sperrt nichts), Kennfarbe je
+  Anlage (Kachel-Kante + Register-Punkt), Heute-Spalte im Plan-Kalender,
+  Schicht-Fortschrittsbalken unter der Kopfleiste, Störungs-Laufband im
+  Vollbild-Monitor, Tastatur-Kürzel (N/D/S/H/W/T, ? = Spickzettel),
+  Wochen-Rückblick freitags ab 12 Uhr (harte-49, 27/27).

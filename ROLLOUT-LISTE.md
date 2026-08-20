@@ -492,6 +492,24 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Kreativ-Runde G1-G8 eingeführt (Roberto, 19.08.):**
+      (G1) **Eigener Werkstatt-Name** - im ⚙ (Team & Schichten) gesetzt,
+      erscheint in der Kopfzeile und auf den Druckköpfen (Schichtbericht,
+      Störungs-Monatsblatt, Prüfnachweis, Übergabeblatt); leer = weiterhin
+      „Werkstatt-Cockpit". Liegt in den GEMEINSAMEN Einstellungen.
+      (G2) **Voller Monat = kleines Fest** - Konfetti-Karte, einmal je
+      Monat und Gerät, sperrt bewusst nichts. (G3) **Kennfarbe je
+      Anlage** - fester, aus dem Namen abgeleiteter Farbton als linke
+      Kachel-Kante und Register-Punkt; die TPM/R+I-Grundfarben bleiben.
+      (G4) **Heute-Spalte** im Plan-Kalender (▾-Marke + dezente Tönung,
+      nur im laufenden Monat). (G5) **Schicht-Fortschrittsbalken** unter
+      der Kopfleiste (Früh gelb, Spät grün, Nacht blau; Titel nennt
+      Prozent und Restzeit). (G6) **Störungs-Laufband** im Vollbild-
+      Monitor - nur bei offenen Störungen. (G7) **Tastatur-Kürzel**
+      N/D/S/H/W/T und ?-Spickzettel; greifen nie in Eingabefeldern.
+      (G8) **Wochen-Rückblick** freitags ab 12 Uhr mit den Zahlen der
+      Woche, wegklickbar je Woche. Neuer Härtetest harte-49 (27/27).
+
 - [x] **QoL-Runde 3 umgesetzt - „alles bis auf 8" (Roberto, 19.08.):**
       (1) **Anlagen-Steckbrief** im Register (Hersteller, Typ/Baujahr,
       Seriennummer, Standort, Wartungspartner, Ersatzteile; Reiter

@@ -181,3 +181,28 @@ input[type="checkbox"]:disabled { background-color: #F4F6F8; border-color: #DDE1
 html.wk-nacht { filter: invert(0.92) hue-rotate(180deg); background: #101317; }
 html.wk-nacht img { filter: invert(1) hue-rotate(180deg); }
 @media print { html.wk-nacht { filter: none; background: #fff; } }
+
+/* G2: Konfetti fürs "Voller Monat"-Fest - fällt einmal durch die Karte. */
+.wk-konfetti {
+  position: absolute;
+  top: -14px;
+  width: 7px;
+  height: 11px;
+  border-radius: 2px;
+  opacity: 0.9;
+  animation: wk-konfetti-fall 2.6s ease-in infinite;
+}
+@keyframes wk-konfetti-fall {
+  from { transform: translateY(0) rotate(0deg); opacity: 0.95; }
+  to   { transform: translateY(190px) rotate(260deg); opacity: 0; }
+}
+
+/* G6: Störungs-Laufband im Vollbild-Monitor. */
+.wk-laufband {
+  display: inline-block;
+  padding-left: 100%;
+  animation: wk-laufband-zug 45s linear infinite;
+}
+@keyframes wk-laufband-zug {
+  to { transform: translateX(-100%); }
+}

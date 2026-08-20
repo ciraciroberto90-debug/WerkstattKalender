@@ -731,6 +731,17 @@ const SCHICHT_ABWESEND = new Set(["Krank", "Urlaub", "Schule"]);
 const STOER_SCHICHTEN = ["Früh", "Spät", "Nacht"];
 // Anlagenteile (pro Anlage) - werden im ⚙-Dialog gepflegt und in der Störungs-
 // Maske ausgewählt. Struktur: { id, anlage, name }.
+/* Kennfarbe je Anlage (Kreativ-Runde G3): fester, aus dem Namen abgeleiteter
+   Farbton als linke Kante an der Kachel und als Punkt im Register. Die
+   Grundfarben bleiben (TPM orange, R+I blau - Robertos Wahl vom 18.08.);
+   die Kennfarbe kommt nur DAZU, damit man "seine" Maschine ohne Lesen findet. */
+const KENN_FARBEN = ["#7A4E9B", "#B2542D", "#2F6690", "#1F7A3D", "#B23A34", "#8A6D1C", "#3E7C7B", "#5B5EA6", "#98572B", "#496A2E"];
+const anlagenKennfarbe = (name) => {
+  let h = 0;
+  for (const z of String(name || "")) h = (h * 31 + z.codePointAt(0)) % 9973;
+  return KENN_FARBEN[h % KENN_FARBEN.length];
+};
+
 const normalisiereAnlagenteile = (arr) => (Array.isArray(arr) ? arr : [])
   .filter((t) => t && typeof t.name === "string" && t.name.trim() && typeof t.anlage === "string")
   .map((t) => ({
@@ -1524,6 +1535,23 @@ function App() {
   const [nachbestellOffen, setNachbestellOffen] = useState(false); // Übersicht offener Nachbestellungen
   const [registerTab, setRegisterTab] = useState("STECKBRIEF");    // Register-Dialog: Steckbrief | Historie
   const [steckbriefDraft, setSteckbriefDraft] = useState(null);    // Bearbeitungsstand im Register-Dialog
+
+  /* ---- Kreativ-Runde G1-G8 (Robertos "einführen", 19.08.) ---- */
+  // G1: Eigener Werkstatt-Name - liegt in den gemeinsamen Einstellungen,
+  // damit ALLE denselben Namen sehen (Kopfzeile und Druckköpfe).
+  const [werkstattName, setWerkstattName] = useState("");
+  // G2: Voller Monat = kleines Fest (einmal je Monat und Gerät)
+  const [festOffen, setFestOffen] = useState(null); // { monatName, anzahl } | null
+  // G5: Schicht-Fortschrittsbalken - tickt im Minutentakt
+  const [minutenTick, setMinutenTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setMinutenTick((x) => x + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
+  // G7: Tastatur-Spickzettel
+  const [kuerzelOffen, setKuerzelOffen] = useState(false);
+  // G8: Wochen-Rückblick (freitags), wegklickbar je Woche und Gerät
+  const [rueckblickZu, setRueckblickZu] = useState(false);
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
@@ -1676,6 +1704,7 @@ function App() {
         // Auch eine LEERE Liste übernehmen: Löscht Roberto alle Benutzer,
         // muss die Anmeldepflicht überall wieder verschwinden.
         if (Array.isArray(d.config.benutzer)) setBenutzerListe(stabil(normalisiereBenutzer(d.config.benutzer)));
+        if (typeof d.config.werkstattName === "string") setWerkstattName((alt) => (alt === d.config.werkstattName ? alt : d.config.werkstattName));
       }
       });
     };
@@ -2159,7 +2188,7 @@ function App() {
         <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:#2F6690;margin:14px 0 5px;">Pinnwand</div>
         ${zettelZeilen}
         <div style="margin-top:16px;padding-top:8px;border-top:1px solid #C3C7CB;font-size:10px;color:#6B7480;">
-          Erstellt aus dem Werkstatt-Cockpit · Stand ${formatDateDE(todayKey)}, ${stand} Uhr. Einzelheiten zu jeder Störung stehen im Störbericht (Nummer).
+          Erstellt aus dem ${esc(appName)} · Stand ${formatDateDE(todayKey)}, ${stand} Uhr. Einzelheiten zu jeder Störung stehen im Störbericht (Nummer).
         </div>
       </div>
       ${passtAufEinBlatt(702, 1010)}
@@ -2249,7 +2278,7 @@ function App() {
         ? `<tr><td colspan="7" class="leer">keine Störungen</td></tr>`
         : slot.liste.map((s) => zeile(s, slot)).join(""))).join("")}
       </tbody></table>
-      <div class="fuss"><span>Werkstatt-Cockpit · Schichtbericht</span><span>gedruckt ${esc(stand)}</span></div>
+      <div class="fuss"><span>${esc(appName)} · Schichtbericht</span><span>gedruckt ${esc(stand)}</span></div>
       </body></html>`;
   };
 
@@ -2350,7 +2379,7 @@ function App() {
       ${notizen.length === 0 ? `<div class="leer">keine</div>` : `<table>
       <thead><tr><th style="width:14mm">Tag</th><th style="width:40mm">Anlage · Teil</th><th>Störung → Maßnahme</th><th style="width:16mm">Ausfall</th><th style="width:13mm">Status</th><th style="width:22mm">Melder</th></tr></thead>
       <tbody>${notizZeilen}</tbody></table>`}`}
-      <div class="fuss"><span>Werkstatt-Cockpit · Monats-Auswertung Störungen</span><span>gedruckt ${esc(stand)}</span></div>
+      <div class="fuss"><span>${esc(appName)} · Monats-Auswertung Störungen</span><span>gedruckt ${esc(stand)}</span></div>
       </body></html>`;
   };
 
@@ -2460,7 +2489,7 @@ function App() {
       </style></head><body>
       <div class="kopf">
         <div><h1>Nachweis wiederkehrender Prüfungen</h1>
-        <div class="unter">Rundgänge und Inspektionen (R+I) · Werkstatt-Cockpit</div></div>
+        <div class="unter">Rundgänge und Inspektionen (R+I) · ${esc(appName)}</div></div>
         <div class="jahr">${esc(jahr)}</div>
       </div>
       <div class="summe"><strong>${gesamtErledigt} von ${gesamtGeplant}</strong> bis heute fälligen Terminen erledigt${gesamtGeplant - gesamtErledigt > 0 ? ` · <strong style="color:#B23A34">${gesamtGeplant - gesamtErledigt} versäumt</strong>` : " · vollständig"}${gesamtKuenftig > 0 ? ` · ${gesamtKuenftig} im Zeitraum noch nicht fällig` : ""}</div>
@@ -2873,6 +2902,9 @@ function App() {
           if (Array.isArray(parsed.benutzer)) {
             setBenutzerListe(normalisiereBenutzer(parsed.benutzer));
           }
+          if (typeof parsed.werkstattName === "string") {
+            setWerkstattName(parsed.werkstattName);
+          }
         }
       } catch (e) {
         if (retriesLeft > 0) {
@@ -2893,7 +2925,7 @@ function App() {
   // Überleben fremder Rechteänderungen aber strukturell sicher (das Feld wird
   // von Links-/OEE-/Einstellungs-Speichern gar nicht mehr berührt), statt es
   // der Zusammenführung zu überlassen.
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -2903,11 +2935,12 @@ function App() {
     setLinks(nextLinks);
     setOeeQuelle(nextOee);
     if (nextBenutzer) setBenutzerListe(nextBenutzer);
+    setWerkstattName(nextWerkstattName);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}) }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}) }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -3760,6 +3793,67 @@ function App() {
   const changeYear = (delta) => setYear((y) => y + delta);
 
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+  /* ---- Kreativ-Runde G1-G8: Berechnungen ---- */
+  // G1: Der Name der Werkstatt - überall dort, wo bisher "Werkstatt-Cockpit" stand.
+  const appName = werkstattName.trim() || "Werkstatt-Cockpit";
+  // G2: Voller Monat = kleines Fest. Feuert einmal je Monat und Gerät, wenn
+  // der laufende Monat komplett erledigt ist - und verschwindet von selbst.
+  useEffect(() => {
+    const prefix = todayKey.slice(0, 7);
+    const basis = entries.filter((e) => (e.category === "TPM" || e.category === "RI")
+      && String(e.date || "").startsWith(prefix) && (e.status === "done" || e.status === "open"));
+    if (basis.length === 0 || !basis.every((e) => e.status === "done")) return undefined;
+    let marker = null;
+    try { marker = localStorage.getItem("werkstatt-kalender-fest"); } catch (e) { /* dann eben doppelt */ }
+    if (marker === prefix) return undefined;
+    try { localStorage.setItem("werkstatt-kalender-fest", prefix); } catch (e) { /* Anzeige gilt trotzdem */ }
+    setFestOffen({ monatName: MONTHS[Number(prefix.slice(5, 7)) - 1], anzahl: basis.length });
+    const t = setTimeout(() => setFestOffen(null), 7000);
+    return () => clearTimeout(t);
+  }, [entries, todayKey]);
+  // G5: Schicht-Fortschrittsbalken (Früh 06-14, Spät 14-22, Nacht 22-06).
+  const schichtBalken = (() => {
+    void minutenTick; // Minutentakt: nur damit die Breite regelmäßig nachzieht
+    const jetzt = new Date();
+    const minuten = jetzt.getHours() * 60 + jetzt.getMinutes();
+    let name, start, farben;
+    if (minuten >= 360 && minuten < 840) { name = "Frühschicht"; start = 360; farben = "linear-gradient(90deg,#F0C230,#C97A2B)"; }
+    else if (minuten >= 840 && minuten < 1320) { name = "Spätschicht"; start = 840; farben = "linear-gradient(90deg,#1F7A3D,#2F7D4F)"; }
+    else { name = "Nachtschicht"; start = minuten >= 1320 ? 1320 : -120; farben = "linear-gradient(90deg,#2F6690,#417597)"; }
+    const vergangen = minuten - start;
+    const prozent = Math.max(0, Math.min(100, Math.round((vergangen / 480) * 100)));
+    const rest = Math.max(0, 480 - vergangen);
+    const titel = `${name} · ${prozent} % · noch ${Math.floor(rest / 60)} h ${String(rest % 60).padStart(2, "0")} min bis zur Übergabe`;
+    return { prozent, farben, titel };
+  })();
+  // G8: Wochen-Rückblick - freitags ab 12 Uhr, je Woche einmal wegklickbar.
+  const wochenRueckblick = (() => {
+    const jetzt = new Date();
+    if (jetzt.getDay() !== 5 || jetzt.getHours() < 12) return null;
+    const wochenKennung = `${jetzt.getFullYear()}-KW${getISOWeek(jetzt)}`;
+    try { if (localStorage.getItem("werkstatt-kalender-rueckblick") === wochenKennung) return null; } catch (e) { /* dann eben zeigen */ }
+    if (rueckblickZu) return null;
+    const montag = new Date(jetzt);
+    montag.setDate(jetzt.getDate() - ((jetzt.getDay() + 6) % 7));
+    const von = dateKey(montag.getFullYear(), montag.getMonth(), montag.getDate());
+    const inWoche = (d) => String(d || "") >= von && String(d || "") <= todayKey;
+    const termine = entries.filter((e) => (e.category === "TPM" || e.category === "RI") && inWoche(e.date));
+    const erledigt = termine.filter((e) => e.status === "done");
+    const offen = termine.filter((e) => e.status === "open");
+    const quote = erledigt.length + offen.length > 0 ? Math.round((erledigt.length / (erledigt.length + offen.length)) * 100) : null;
+    const stoerWoche = stoerungen.filter((s) => inWoche(s.date));
+    const behoben = stoerWoche.filter((s) => !s.offen).length;
+    const stoerOffen = stoerWoche.filter((s) => s.offen).length;
+    if (termine.length === 0 && stoerWoche.length === 0) return null;
+    const jeTag = new Map();
+    erledigt.forEach((e) => { const w = new Date(e.date + "T00:00:00").toLocaleDateString("de-DE", { weekday: "long" }); jeTag.set(w, (jeTag.get(w) || 0) + 1); });
+    const staerksterTag = [...jeTag.entries()].sort((a, b) => b[1] - a[1])[0] || null;
+    const jeAnlage = new Map();
+    stoerWoche.forEach((s) => { const n = String(s.anlage || "").trim(); if (n) jeAnlage.set(n, (jeAnlage.get(n) || 0) + 1); });
+    const sorgenkind = [...jeAnlage.entries()].sort((a, b) => b[1] - a[1]).find(([, z]) => z >= 2) || null;
+    return { wochenKennung, kw: getISOWeek(jetzt), erledigt: erledigt.length, quote, behoben, stoerOffen, staerksterTag, sorgenkind };
+  })();
 
   // Der Zwischenspeicher des Browsers fasst nur etwa 5 MB. Bei einer Werkstatt
   // mit rund 15 Leuten sind das etwa sieben Jahre. Statt zu warten, bis nichts
@@ -5763,6 +5857,55 @@ function App() {
     w.focus();
   };
 
+  /* ---- Tastatur-Kürzel (Kreativ-Runde G7) ----
+     Greifen NIE, wenn ein Eingabefeld den Fokus hat oder ein Fenster offen
+     ist (außer ? und Esc für den Spickzettel) - Tippen bleibt Tippen. Der
+     Handler liest über eine Ref immer den frischen Stand, statt sich bei
+     jedem Render neu anzumelden. */
+  const tastenKontext = useRef({});
+  tastenKontext.current = {
+    dialogOffen: !!(modal || stoerModal || druckWahlOffen || registerItem || nachbestellOffen || kuerzelOffen),
+    nurKuerzel: kuerzelOffen,
+    nacht: () => setNachtModus((n) => !n),
+    drucken: () => { if (druckAngebot()) oeffneDruckWahl(); },
+    heute: () => {
+      if (view === "MONAT") { setMonth(today.getMonth()); setYear(today.getFullYear()); }
+      else if (view === "JAHR") setYear(today.getFullYear());
+    },
+    werkstatt: () => { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); },
+    tpm: () => setView("TPMINFO"),
+    stoerung: () => {
+      if (!stoerDarfSchreiben) return;
+      setView("COCKPIT");
+      setCockpitTab("STOERUNGEN");
+      setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "" });
+      setStoerModal({ mode: "add" });
+    },
+    spickzettel: () => setKuerzelOffen((o) => !o),
+    zu: () => setKuerzelOffen(false),
+  };
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const ziel = e.target;
+      const tag = ziel && ziel.tagName ? ziel.tagName.toUpperCase() : "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (ziel && ziel.isContentEditable)) return;
+      const k = tastenKontext.current;
+      if (e.key === "?") { e.preventDefault(); k.spickzettel(); return; }
+      if (e.key === "Escape") { k.zu(); return; }
+      if (k.dialogOffen) return;
+      const taste = String(e.key || "").toLowerCase();
+      if (taste === "n") k.nacht();
+      else if (taste === "d") k.drucken();
+      else if (taste === "h") k.heute();
+      else if (taste === "w") k.werkstatt();
+      else if (taste === "t") k.tpm();
+      else if (taste === "s") k.stoerung();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   /* Kennkarte der verbundenen Datei. Zwei Dateien gleichen Namens sind am
      Namen nicht zu unterscheiden - der Browser gibt keinen Pfad heraus. Was
      ihn ersetzt: Zahl der Einträge, Größe, letzte Änderung. Am 03.08. hätte
@@ -5842,7 +5985,8 @@ function App() {
               <path className="wk-z-blatt-l" d="M16 11.6 Q10.2 7.6 8.2 12.8 Q12.6 15.6 16 11.6 Z" fill="#4CA05E" />
               <path className="wk-z-blatt-r" d="M16 9 Q21.8 4.8 23.8 10 Q19.4 12.8 16 9 Z" fill="#58B36A" />
             </svg>
-            <div className="font-black text-lg tracking-tight uppercase text-white">Werkstatt-Cockpit</div>
+            {/* G1: Der Name gehört der Werkstatt - einstellbar im ⚙. */}
+            <div className="font-black text-lg tracking-tight uppercase text-white">{appName}</div>
           </div>
           {/* Hauptbereiche Cockpit / TPM - für Bearbeiter UND Leser gleich.
               Leser sehen im Untermenü nur die freigegebene, kleinere Auswahl
@@ -6112,6 +6256,13 @@ function App() {
           </>
           )}
         </div>
+      </div>
+
+      {/* Schicht-Fortschrittsbalken (Kreativ-Runde G5): füllt sich über die
+          laufende Schicht - beim Draufzeigen stehen Schicht, Prozent und
+          Restzeit bis zur Übergabe. */}
+      <div title={schichtBalken.titel} aria-label={schichtBalken.titel} style={{ height: "4px", backgroundColor: "#2b3036" }}>
+        <div style={{ width: `${schichtBalken.prozent}%`, height: "100%", background: schichtBalken.farben }} />
       </div>
 
       {/* Linkstreifen: eine Zeile unter der Menüleiste, und zwar NUR auf der
@@ -7123,6 +7274,43 @@ function App() {
                   </div>
                 ))}
                 {neuigkeiten.length > 10 && <div className="text-xs text-slate-400">… und {neuigkeiten.length - 10} weitere (⚙ → Verlauf)</div>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* G8: Wochen-Rückblick - freitags ab 12 Uhr, je Woche einmal. */}
+      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && wochenRueckblick && (
+        <div className="no-print max-w-7xl mx-auto px-4 mt-3">
+          <div className="rounded-xl px-4 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderLeft: "4px solid #1F7A3D", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
+            <div className="flex items-center gap-3 flex-wrap mb-2">
+              <span aria-hidden="true" style={{ fontSize: "18px" }}>🏁</span>
+              <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#1F5233" }}>Wochen-Rückblick · KW {wochenRueckblick.kw}</span>
+              <button
+                onClick={() => { setRueckblickZu(true); try { localStorage.setItem("werkstatt-kalender-rueckblick", wochenRueckblick.wochenKennung); } catch (e) { /* bleibt dann bis Freitagabend */ } }}
+                aria-label="Wochen-Rückblick schließen"
+                className="ml-auto text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {[[wochenRueckblick.erledigt, "Termine erledigt", "#2F7D4F"],
+                [wochenRueckblick.quote !== null ? `${wochenRueckblick.quote} %` : "–", "Termintreue", "#2F6690"],
+                [wochenRueckblick.behoben, "Störungen behoben", "#C97A2B"],
+                [wochenRueckblick.stoerOffen, "noch offen", wochenRueckblick.stoerOffen > 0 ? "#B23A34" : "#8A9099"]].map(([z, t, f]) => (
+                <div key={t} className="flex-1 text-center border rounded-lg px-2 py-2" style={{ borderColor: "#E2E4E7", minWidth: "110px" }}>
+                  <div style={{ fontSize: "20px", fontWeight: 900, color: f }}>{z}</div>
+                  <div className="text-[10px] font-bold uppercase" style={{ color: "#8A9099" }}>{t}</div>
+                </div>
+              ))}
+            </div>
+            {(wochenRueckblick.staerksterTag || wochenRueckblick.sorgenkind) && (
+              <div className="text-xs mt-2" style={{ color: "#3d4650" }}>
+                {wochenRueckblick.staerksterTag && <>Stärkster Tag: <strong>{wochenRueckblick.staerksterTag[0]}</strong> ({wochenRueckblick.staerksterTag[1]} erledigt)</>}
+                {wochenRueckblick.staerksterTag && wochenRueckblick.sorgenkind && " · "}
+                {wochenRueckblick.sorgenkind && <>Sorgenkind: <strong>{wochenRueckblick.sorgenkind[0]}</strong> ({wochenRueckblick.sorgenkind[1]} Störungen)</>}
               </div>
             )}
           </div>
@@ -8790,6 +8978,51 @@ function App() {
         </div>
       )}
 
+      {/* G2: Voller Monat = kleines Fest. Einmal je Monat und Gerät, dann
+          Ruhe. Bewusst OHNE Vollbild-Schleier: Die Karte feiert, sie sperrt
+          nicht - die Arbeit dahinter bleibt klickbar. */}
+      {festOffen && (
+        <div className="no-print" onClick={() => setFestOffen(null)}
+          style={{ position: "fixed", top: "84px", left: "50%", transform: "translateX(-50%)", zIndex: 65, cursor: "pointer" }}>
+          <div style={{ position: "relative", overflow: "hidden", borderRadius: "12px", background: "linear-gradient(135deg,#E5F3EA,#F2F9F4)", border: "1.5px solid #BFDCC9", padding: "22px 32px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)", textAlign: "center", maxWidth: "420px" }}>
+            {Array.from({ length: 24 }, (_, i) => (
+              <span key={i} aria-hidden="true" className="wk-konfetti" style={{
+                left: `${(i * 37) % 100}%`,
+                backgroundColor: ["#2F7D4F", "#C97A2B", "#2F6690", "#F0C230"][i % 4],
+                animationDelay: `${(i % 8) * 0.28}s`,
+              }} />
+            ))}
+            <div style={{ position: "relative" }}>
+              <div style={{ fontSize: "32px" }} aria-hidden="true">🎉</div>
+              <div style={{ fontWeight: 900, fontSize: "18px", color: "#1F5233" }}>{festOffen.monatName} komplett!</div>
+              <div style={{ fontSize: "13px", color: "#24603D", marginTop: "4px" }}>Alle <strong>{festOffen.anzahl} Termine</strong> erledigt – 100 % Termintreue.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* G7: Tastatur-Spickzettel (Taste ?) */}
+      {kuerzelOffen && (
+        <div className="no-print" onClick={() => setKuerzelOffen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,22,25,0.5)", padding: "16px" }}>
+          <div role="dialog" aria-label="Tastatur-Kürzel" onClick={(ev) => ev.stopPropagation()}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-sm">Tastatur-Kürzel</div>
+              <button onClick={() => setKuerzelOffen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+            {[["W / T", "Werkstatt ↔ TPM wechseln"], ["N", "Nachtschicht-Modus an/aus"], ["D", "Drucken-Dialog öffnen"],
+              ["S", "Störbericht erfassen"], ["H", "zurück zu Heute (Monat/Jahr)"], ["?", "diese Karte"], ["Esc", "Karte schließen"]].map(([k, t]) => (
+              <div key={k} className="flex items-center gap-3 mb-2">
+                <span className="text-center font-mono font-extrabold text-xs rounded px-2 py-1" style={{ minWidth: "58px", backgroundColor: "#F1F3F5", border: "1px solid #C9D0D8", borderBottomWidth: "2.5px", color: "#22262B" }}>{k}</span>
+                <span className="text-sm" style={{ color: "#3d4650" }}>{t}</span>
+              </div>
+            ))}
+            <div className="text-xs mt-2" style={{ color: "#8A9099" }}>Nur wenn kein Eingabefeld den Fokus hat – Tippen bleibt Tippen.</div>
+          </div>
+        </div>
+      )}
+
       {/* Offene Nachbestellungen (QoL Runde 3) */}
       {nachbestellOffen && (
         <div
@@ -10289,6 +10522,24 @@ function App() {
               style={{ borderColor: "#D7DCE1" }}
             />
 
+            {/* G1: Der Name der Werkstatt - Kopfzeile und Druckköpfe. Leer =
+                weiterhin "Werkstatt-Cockpit". Gespeichert beim Verlassen des
+                Feldes, für alle (gemeinsame Einstellungen). */}
+            {!readerMode && (
+              <>
+                <div className="text-xs font-bold uppercase mb-2" style={{ color: "#5B6572" }}>Name der Werkstatt (Kopfzeile &amp; Ausdrucke)</div>
+                <input
+                  value={werkstattName}
+                  onChange={(e) => setWerkstattName(e.target.value)}
+                  onBlur={() => persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName)}
+                  placeholder="z. B. Werkstatt Scheurich"
+                  aria-label="Name der Werkstatt"
+                  className="w-full text-sm px-2 py-1.5 rounded border mb-5"
+                  style={{ borderColor: "#D7DCE1" }}
+                />
+              </>
+            )}
+
             {/* Benutzer & Rechte: sichtbar für Verwalter - und für alle,
                 solange noch KEINE Liste existiert (sonst könnte niemand die
                 erste anlegen). Die Rechte hängen nicht an den Datei-Freigaben:
@@ -11012,9 +11263,14 @@ function App() {
           <div className="flex gap-1.5 mb-1.5">
             <div style={{ width: "30px", flexShrink: 0 }} />
             <div className="grid grid-cols-7 gap-1.5 flex-1">
-              {WEEKDAYS.map((w, i) => (
-                <div key={w} className="text-center text-xs font-bold uppercase font-mono py-1" style={{ color: i >= 5 ? "#6D93B8" : "#64748b" }}>{w}</div>
-              ))}
+              {WEEKDAYS.map((w, i) => {
+                {/* G4: der heutige Wochentag trägt eine Marke - aber nur im
+                    laufenden Monat, sonst zeigt sie auf den falschen Tag. */}
+                const heuteSpalte = year === today.getFullYear() && month === today.getMonth() && i === (today.getDay() + 6) % 7;
+                return (
+                  <div key={w} className="text-center text-xs font-bold uppercase font-mono py-1" style={{ color: heuteSpalte ? "#C97A2B" : i >= 5 ? "#6D93B8" : "#64748b" }}>{heuteSpalte ? "▾ " : ""}{w}</div>
+                );
+              })}
             </div>
           </div>
           {(() => {
@@ -11042,7 +11298,10 @@ function App() {
                         className="border rounded-md p-1.5 flex flex-col gap-1"
                         style={{
                           minHeight: "116px",
-                          backgroundColor: holName ? "#FBE9E7" : weekend ? "#E5F0F8" : "white",
+                          /* G4: die Heute-Spalte läuft dezent getönt durch den
+                             Monat - Feiertage und Wochenenden behalten Vorrang. */
+                          backgroundColor: holName ? "#FBE9E7" : weekend ? "#E5F0F8"
+                            : (year === today.getFullYear() && month === today.getMonth() && new Date(year, month, d).getDay() === today.getDay()) ? "#FFF8EE" : "white",
                           borderColor: isToday ? "#C97A2B" : holName ? "#E8B4AE" : weekend ? "#C8DDEE" : "#E2E4E7",
                           borderWidth: isToday ? "2px" : "1px",
                         }}
@@ -11070,7 +11329,7 @@ function App() {
                                   disabled={readerMode}
                                   data-plan-datum={p.date}
                                   className="text-xs font-bold rounded px-1.5 py-1 text-left flex-1 min-w-0"
-                                  style={{ position: "relative", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
+                                  style={{ position: "relative", color: c, border: `1px solid ${c}`, borderLeft: `4px solid ${anlagenKennfarbe(p.anlage)}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
                                   title={notiz ? `Notiz: ${notiz}` : readerMode ? undefined : "Öffnen für Notiz / Löschen"}
                                 >
                                   {done ? "✓ " : ""}{p.anlage}
@@ -11258,7 +11517,10 @@ function App() {
                       className="wk-hover flex items-center justify-between text-left px-3 py-2 rounded border"
                       style={{ borderColor: "#E2E4E7" }}
                     >
-                      <span className="text-sm font-bold">{a.name}</span>
+                      <span className="text-sm font-bold flex items-center gap-2">
+                        <span aria-hidden="true" className="inline-block rounded-full shrink-0" style={{ width: "9px", height: "9px", backgroundColor: anlagenKennfarbe(a.name) }} />
+                        {a.name}
+                      </span>
                       <span className="text-xs font-mono text-slate-400">{stats.done} ✓ · {stats.open} ✕</span>
                     </button>
                   );
@@ -11280,7 +11542,10 @@ function App() {
                       className="wk-hover flex items-center justify-between text-left px-3 py-2 rounded border"
                       style={{ borderColor: "#E2E4E7" }}
                     >
-                      <span className="text-sm font-bold">{r.name}</span>
+                      <span className="text-sm font-bold flex items-center gap-2">
+                        <span aria-hidden="true" className="inline-block rounded-full shrink-0" style={{ width: "9px", height: "9px", backgroundColor: anlagenKennfarbe(r.name) }} />
+                        {r.name}
+                      </span>
                       <span className="text-xs font-mono text-slate-400">{stats.done} ✓ · {stats.open} ✕</span>
                     </button>
                   );
@@ -11487,8 +11752,24 @@ function App() {
           <div
             id="werkstatt-monitor"
             className="no-print"
-            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#16181B", color: "#fff", padding: "28px 36px", display: "flex", flexDirection: "column", fontVariantNumeric: "tabular-nums" }}
+            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#16181B", color: "#fff", padding: "28px 36px", paddingBottom: stoerOffenCount > 0 ? "72px" : "28px", display: "flex", flexDirection: "column", fontVariantNumeric: "tabular-nums" }}
           >
+            {/* G6: Störungs-Laufband - offene Störungen ziehen unten durch,
+                von der anderen Hallenseite lesbar. Ohne offene: kein Band. */}
+            {stoerOffenCount > 0 && (
+              <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "48px", backgroundColor: "#1a1e23", borderTop: "2px solid #C0392B", display: "flex", alignItems: "center", overflow: "hidden" }}>
+                <span style={{ flexShrink: 0, backgroundColor: "#C0392B", color: "#fff", fontWeight: 900, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.06em", padding: "0 16px", lineHeight: "48px", zIndex: 1 }}>
+                  {stoerOffenCount} offen
+                </span>
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <div className="wk-laufband" style={{ whiteSpace: "nowrap", fontSize: "16px", color: "#E8EAED" }}>
+                    {stoerungenSortiert.filter((s) => s.offen).map((s) =>
+                      `🔧 ${stoerNrLang(s) ? stoerNrKurz(s) + " · " : ""}${s.anlage || "—"}${s.anlagenteil ? " " + s.anlagenteil : ""} – ${s.stoerung || ""}${s.nochZuTun && String(s.nochZuTun).trim() ? " → " + s.nochZuTun : ""}`
+                    ).join("   +++   ")}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-baseline gap-6" style={{ borderBottom: "2px solid #2E3238", paddingBottom: "16px", marginBottom: "22px" }}>
               <span style={{ fontSize: "4rem", fontWeight: 900, fontFamily: "ui-monospace,Consolas,monospace", lineHeight: 1 }}>
                 {monitorUhr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
