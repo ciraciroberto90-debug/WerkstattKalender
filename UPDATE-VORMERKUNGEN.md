@@ -69,7 +69,8 @@ nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
 
 - **19.08.2026 (Runde 1):** Lösch-Rückfrage im Termin-Dialog, Ein-Klick-
   Abhaken auf der Plan-Kachel, „Heute"-Knopf in Monats-/Jahresnavigation,
-  Überfällig-Badge am TPM-Reiter (harte-46, 19/19).
+  Überfällig-Badge am TPM-Reiter (harte-46, 19/19). *Das Badge wurde am
+  20.08. auf Robertos Wunsch wieder entfernt.*
 - **19.08.2026 (Runde 2, komplett auf Robertos „setze ruhig alles um"):**
   Termin verschieben im Dialog (mit Rückgängig), Notiz-Zeichen ✎ auf der
   Plan-Kachel, Rückgängig-Leiste nach Abhaken/Löschen/Verschieben,
@@ -88,6 +89,7 @@ nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
   Werkstatt-Name (⚙ → Team & Schichten; Kopfzeile + Druckköpfe),
   Voller-Monat-Fest (einmal je Monat, sperrt nichts), Kennfarbe je
   Anlage (Kachel-Kante + Register-Punkt), Heute-Spalte im Plan-Kalender,
-  Schicht-Fortschrittsbalken unter der Kopfleiste, Störungs-Laufband im
+  Schicht-Fortschrittsbalken unter der Kopfleiste *(am 20.08. auf
+  Robertos Wunsch wieder entfernt)*, Störungs-Laufband im
   Vollbild-Monitor, Tastatur-Kürzel (N/D/S/H/W/T, ? = Spickzettel),
   Wochen-Rückblick freitags ab 12 Uhr (harte-49, 27/27).

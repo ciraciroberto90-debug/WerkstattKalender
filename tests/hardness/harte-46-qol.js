@@ -175,28 +175,20 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     await ctx.close();
   }
 
-  /* ---- (6) Überfällig-Badge am TPM-Reiter ---- */
+  /* ---- (6) Überfällig-Badge am TPM-Reiter ----
+     Am 19.08. eingebaut, am 20.08. auf Robertos Wunsch WIEDER ENTFERNT.
+     Geprüft wird seither das Gegenteil: Der Reiter bleibt auch mit
+     Überfälligen ein schlichtes "TPM" - Liegengebliebenes steht in der
+     TPM-Übersicht und im Termin-Archiv. */
   {
-    // Drei überfällige (offen, innerhalb der letzten Woche) + ein künftiger.
     const { p, ctx } = await start(browser, [
       { id: "u1", date: "2026-08-12", category: "TPM", name: "TS480", status: "open" },
       { id: "u2", date: "2026-08-14", category: "RI", name: "Wasserrundgang", status: "open" },
       { id: "u3", date: "2026-08-17", category: "RI", name: "Wasserrundgang", status: "open" },
-      { id: "z1", date: "2026-08-25", category: "TPM", name: "TS480", status: "open" },
     ]);
     const tpmKnopf = p.getByRole("button", { name: "TPM", exact: true }).first();
-    pruef("(6) Der TPM-Reiter heißt trotz Badge weiterhin exakt 'TPM'",
-          (await tpmKnopf.count()) === 1);
-    pruef("(6) Das Badge zeigt die Zahl der Überfälligen (3, künftige zählen nicht)",
-          (await tpmKnopf.innerText()).replace(/\s+/g, " ").trim() === "TPM 3");
-    await ctx.close();
-  }
-  {
-    const { p, ctx } = await start(browser, [
-      { id: "e1", date: "2026-08-12", category: "TPM", name: "TS480", status: "done" },
-    ]);
-    pruef("(6) Ohne Überfällige kein Badge",
-          (await p.getByRole("button", { name: "TPM", exact: true }).first().innerText()).trim() === "TPM");
+    pruef("(6) Der TPM-Reiter trägt auch mit Überfälligen KEIN Badge (Robertos Wunsch vom 20.08.)",
+          (await tpmKnopf.count()) === 1 && (await tpmKnopf.innerText()).replace(/\s+/g, " ").trim() === "TPM");
     await ctx.close();
   }
 

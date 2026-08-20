@@ -1542,12 +1542,6 @@ function App() {
   const [werkstattName, setWerkstattName] = useState("");
   // G2: Voller Monat = kleines Fest (einmal je Monat und Gerät)
   const [festOffen, setFestOffen] = useState(null); // { monatName, anzahl } | null
-  // G5: Schicht-Fortschrittsbalken - tickt im Minutentakt
-  const [minutenTick, setMinutenTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setMinutenTick((x) => x + 1), 60000);
-    return () => clearInterval(t);
-  }, []);
   // G7: Tastatur-Spickzettel
   const [kuerzelOffen, setKuerzelOffen] = useState(false);
   // G8: Wochen-Rückblick (freitags), wegklickbar je Woche und Gerät
@@ -3812,21 +3806,8 @@ function App() {
     const t = setTimeout(() => setFestOffen(null), 7000);
     return () => clearTimeout(t);
   }, [entries, todayKey]);
-  // G5: Schicht-Fortschrittsbalken (Früh 06-14, Spät 14-22, Nacht 22-06).
-  const schichtBalken = (() => {
-    void minutenTick; // Minutentakt: nur damit die Breite regelmäßig nachzieht
-    const jetzt = new Date();
-    const minuten = jetzt.getHours() * 60 + jetzt.getMinutes();
-    let name, start, farben;
-    if (minuten >= 360 && minuten < 840) { name = "Frühschicht"; start = 360; farben = "linear-gradient(90deg,#F0C230,#C97A2B)"; }
-    else if (minuten >= 840 && minuten < 1320) { name = "Spätschicht"; start = 840; farben = "linear-gradient(90deg,#1F7A3D,#2F7D4F)"; }
-    else { name = "Nachtschicht"; start = minuten >= 1320 ? 1320 : -120; farben = "linear-gradient(90deg,#2F6690,#417597)"; }
-    const vergangen = minuten - start;
-    const prozent = Math.max(0, Math.min(100, Math.round((vergangen / 480) * 100)));
-    const rest = Math.max(0, 480 - vergangen);
-    const titel = `${name} · ${prozent} % · noch ${Math.floor(rest / 60)} h ${String(rest % 60).padStart(2, "0")} min bis zur Übergabe`;
-    return { prozent, farben, titel };
-  })();
+  // (Der Schicht-Fortschrittsbalken G5 lebte hier - auf Robertos Wunsch
+  //  vom 20.08. wieder entfernt: zu viel Deko in der Kopfzeile.)
   // G8: Wochen-Rückblick - freitags ab 12 Uhr, je Woche einmal wegklickbar.
   const wochenRueckblick = (() => {
     const jetzt = new Date();
@@ -6007,12 +5988,9 @@ function App() {
                     style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
                   >
                     {label}
-                    {/* Überfällig-Zähler (QoL 19.08.) - wie das Störungs-Badge.
-                        aria-hidden, damit der Knopf für Tests und Vorleser
-                        weiterhin schlicht "TPM" heißt. */}
-                    {v === "TPM" && ueberfaellige.length > 0 && (
-                      <span aria-hidden="true" title={`${ueberfaellige.length} Termin(e) überfällig`} className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{ueberfaellige.length}</span>
-                    )}
+                    {/* Das rote Überfällig-Badge stand hier - auf Robertos
+                        Wunsch vom 20.08. entfernt (Liegengebliebenes steht
+                        weiter in der TPM-Übersicht und im Termin-Archiv). */}
                   </button>
                 );
               })}
@@ -6256,13 +6234,6 @@ function App() {
           </>
           )}
         </div>
-      </div>
-
-      {/* Schicht-Fortschrittsbalken (Kreativ-Runde G5): füllt sich über die
-          laufende Schicht - beim Draufzeigen stehen Schicht, Prozent und
-          Restzeit bis zur Übergabe. */}
-      <div title={schichtBalken.titel} aria-label={schichtBalken.titel} style={{ height: "4px", backgroundColor: "#2b3036" }}>
-        <div style={{ width: `${schichtBalken.prozent}%`, height: "100%", background: schichtBalken.farben }} />
       </div>
 
       {/* Linkstreifen: eine Zeile unter der Menüleiste, und zwar NUR auf der

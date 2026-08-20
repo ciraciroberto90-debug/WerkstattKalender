@@ -492,6 +492,13 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Zwei Stücke auf Robertos Wunsch wieder ausgebaut (20.08.):** der
+      Schicht-Fortschrittsbalken (G5) und das rote Überfällig-Badge am
+      TPM-Reiter (Runde 1, Punkt 6). Liegengebliebenes bleibt in der
+      TPM-Übersicht („Liegengeblieben") und im Termin-Archiv sichtbar.
+      harte-46 und harte-49 prüfen seither das Gegenteil (kein Badge,
+      kein Balken).
+
 - [x] **Kreativ-Runde G1-G8 eingeführt (Roberto, 19.08.):**
       (G1) **Eigener Werkstatt-Name** - im ⚙ (Team & Schichten) gesetzt,
       erscheint in der Kopfzeile und auf den Druckköpfen (Schichtbericht,

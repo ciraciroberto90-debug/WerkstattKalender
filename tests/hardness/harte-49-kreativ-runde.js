@@ -150,19 +150,13 @@ const inPlan = async (p) => {
     await ctx.close();
   }
 
-  /* ---- (G5) Schicht-Fortschrittsbalken ---- */
+  /* ---- (G5) Schicht-Fortschrittsbalken ----
+     Am 19.08. eingebaut, am 20.08. auf Robertos Wunsch WIEDER ENTFERNT
+     (zu viel Deko in der Kopfzeile). Geprüft wird das Gegenteil. */
   {
-    const { p, ctx } = await start(browser, { uhr: "2026-08-18T10:00:00" }); // 10:00 = 50 % der Frühschicht
-    const balken = p.locator('div[aria-label*="Frühschicht"]');
-    pruef("(G5) Der Balken nennt Schicht, Prozent und Restzeit",
-          (await balken.count()) === 1 && /Frühschicht · 50 % · noch 4 h 00 min/.test(await balken.getAttribute("aria-label")),
-          await balken.getAttribute("aria-label").catch(() => "fehlt"));
-    await ctx.close();
-  }
-  {
-    const { p, ctx } = await start(browser, { uhr: "2026-08-18T23:00:00" });
-    pruef("(G5) Nachts zeigt er die Nachtschicht",
-          /Nachtschicht/.test((await p.locator('div[aria-label*="schicht ·"]').first().getAttribute("aria-label")) || ""));
+    const { p, ctx } = await start(browser, { uhr: "2026-08-18T10:00:00" });
+    pruef("(G5) Es gibt keinen Schicht-Fortschrittsbalken mehr (Robertos Wunsch vom 20.08.)",
+          (await p.locator('div[aria-label*="Frühschicht"]').count()) === 0);
     await ctx.close();
   }
 
