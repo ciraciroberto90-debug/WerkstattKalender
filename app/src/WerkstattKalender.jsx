@@ -663,10 +663,35 @@ const TEAM_ROLLEN = {
   azubi: { label: "Azubi", color: "#C97A2B" },
   "": { label: "ohne Gewerk", color: "#5B6572" },
 };
-// Alte Team-Einträge (reine Namen) in die neue Form {name, rolle} überführen
+// Alte Team-Einträge (reine Namen) in die neue Form {name, rolle} überführen.
+// geburtstag (seit 20.08., freiwillig) muss hier ausdrücklich mitgenommen
+// werden - diese Funktion läuft auf JEDEM Ladeweg, was sie nicht kennt, wäre
+// nach dem nächsten Öffnen verloren.
 const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
-  .map((t) => (typeof t === "string" ? { name: t, rolle: "" } : { name: String(t.name || ""), rolle: TEAM_ROLLEN[t.rolle] ? t.rolle : "" }))
+  .map((t) => (typeof t === "string"
+    ? { name: t, rolle: "", geburtstag: "" }
+    : { name: String(t.name || ""), rolle: TEAM_ROLLEN[t.rolle] ? t.rolle : "", geburtstag: typeof t.geburtstag === "string" ? t.geburtstag.trim() : "" }))
   .filter((t) => t.name.trim());
+
+/* ---------- Geburtstags-Erinnerung (Robertos Wahl "A" vom 20.08.) ----------
+   Frei getipptes Feld je Person: "24.12." oder "24.12.1988". Nur was eindeutig
+   lesbar ist, zählt - eine falsche Erinnerung wäre schlimmer als keine.
+   Leeres oder unlesbares Feld bleibt komplett stumm, kein Nachfragen. */
+const parseGeburtstag = (s) => {
+  const m = /^(\d{1,2})\.(\d{1,2})\.?\s*(\d{4})?$/.exec(String(s || "").trim());
+  if (!m) return null;
+  const tag = Number(m[1]);
+  const monat = Number(m[2]);
+  if (monat < 1 || monat > 12 || tag < 1 || tag > 31) return null;
+  return { tag, monat, jahr: m[3] ? Number(m[3]) : null };
+};
+// Der 29.02. wird in Nicht-Schaltjahren am 28.02. gefeiert - sonst bekäme
+// die Person nur alle vier Jahre eine Erinnerung.
+const geburtstagInJahr = (g, jahr) => {
+  const schaltjahr = (jahr % 4 === 0 && jahr % 100 !== 0) || jahr % 400 === 0;
+  if (g.monat === 2 && g.tag === 29 && !schaltjahr) return { tag: 28, monat: 2 };
+  return { tag: g.tag, monat: g.monat };
+};
 
 /* ---------- Benutzergruppen (Robertos Wunsch vom 07.08.) ----------
    Eine Namensliste in der gemeinsamen Datei entscheidet, wer schreiben darf -
@@ -1546,6 +1571,8 @@ function App() {
   const [kuerzelOffen, setKuerzelOffen] = useState(false);
   // G8: Wochen-Rückblick (freitags), wegklickbar je Woche und Gerät
   const [rueckblickZu, setRueckblickZu] = useState(false);
+  // Geburtstags-Karte (Variante A, 20.08.), wegklickbar je Tag und Gerät
+  const [geburtstagZu, setGeburtstagZu] = useState(false);
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
@@ -3269,7 +3296,7 @@ function App() {
     });
 
     const cleanTeam = settingsTeam
-      .map((t) => ({ name: t.name.trim(), rolle: t.rolle || "" }))
+      .map((t) => ({ name: t.name.trim(), rolle: t.rolle || "", geburtstag: (t.geburtstag || "").trim() }))
       .filter((t) => t.name);
     const teamRenames = new Map();
     settingsTeam.forEach((t) => {
@@ -3834,6 +3861,35 @@ function App() {
     stoerWoche.forEach((s) => { const n = String(s.anlage || "").trim(); if (n) jeAnlage.set(n, (jeAnlage.get(n) || 0) + 1); });
     const sorgenkind = [...jeAnlage.entries()].sort((a, b) => b[1] - a[1]).find(([, z]) => z >= 2) || null;
     return { wochenKennung, kw: getISOWeek(jetzt), erledigt: erledigt.length, quote, behoben, stoerOffen, staerksterTag, sorgenkind };
+  })();
+
+  // Geburtstags-Erinnerung (Variante A, Robertos Wahl vom 20.08.): dezente
+  // Karte auf der Übersicht - heute plus Vorschau der nächsten 7 Tage. Die
+  // Vorschau erscheint auch ohne heutigen Geburtstag, sonst sähe man sie
+  // praktisch nie und könnte nichts vorbereiten. Wegklickbar je Tag und
+  // Gerät; ohne eingetragene (lesbare) Geburtstage bleibt alles stumm.
+  const geburtstagsLage = (() => {
+    if (geburtstagZu) return null;
+    try { if (localStorage.getItem("werkstatt-kalender-geburtstag-zu") === todayKey) return null; } catch (e) { /* dann eben zeigen */ }
+    const heute = [];
+    const demnaechst = [];
+    team.forEach((t) => {
+      const g = parseGeburtstag(t.geburtstag);
+      if (!g) return;
+      // Nächstes Vorkommen in den kommenden 7 Tagen suchen (über den
+      // Jahreswechsel hinweg, darum je Kandidaten-Tag neu gerechnet).
+      for (let versatz = 0; versatz <= 7; versatz++) {
+        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + versatz);
+        const feier = geburtstagInJahr(g, d.getFullYear());
+        if (feier.tag !== d.getDate() || feier.monat !== d.getMonth() + 1) continue;
+        const alter = g.jahr ? d.getFullYear() - g.jahr : null;
+        (versatz === 0 ? heute : demnaechst).push({ name: t.name, inTagen: versatz, alter, datum: d });
+        break;
+      }
+    });
+    if (heute.length === 0 && demnaechst.length === 0) return null;
+    demnaechst.sort((a, b) => a.inTagen - b.inTagen || a.name.localeCompare(b.name, "de"));
+    return { heute, demnaechst };
   })();
 
   // Der Zwischenspeicher des Browsers fasst nur etwa 5 MB. Bei einer Werkstatt
@@ -7288,6 +7344,40 @@ function App() {
         </div>
       )}
 
+      {/* Geburtstags-Karte (Variante A, Robertos Wahl vom 20.08.): dezent,
+          wegklickbar je Tag und Gerät. Kein Konfetti, keine Sperre. */}
+      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && geburtstagsLage && (
+        <div className="no-print max-w-7xl mx-auto px-4 mt-3">
+          <div className="rounded-xl px-4 py-2.5 flex items-center gap-3 flex-wrap" style={{ background: "linear-gradient(135deg,#FFF8EE,#FDF3E3)", border: "1px solid #E8D3AE", borderLeft: "4px solid #C97A2B", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
+            <span aria-hidden="true" style={{ fontSize: "18px" }}>🎂</span>
+            {geburtstagsLage.heute.length > 0 && (
+              <span className="text-sm" style={{ color: "#22262B" }}>
+                <strong>
+                  Heute {geburtstagsLage.heute.length === 1 ? "hat" : "haben"}{" "}
+                  {geburtstagsLage.heute.map((p) => p.name + (p.alter !== null ? ` (wird ${p.alter})` : "")).join(" und ")}{" "}
+                  Geburtstag!
+                </strong>
+              </span>
+            )}
+            {geburtstagsLage.demnaechst.length > 0 && (
+              <span className="text-xs" style={{ color: "#8A6D1C" }}>
+                demnächst:{" "}
+                {geburtstagsLage.demnaechst.map((p) =>
+                  `${p.name} am ${p.datum.toLocaleDateString("de-DE", { weekday: "short" })}, ${String(p.datum.getDate()).padStart(2, "0")}.${String(p.datum.getMonth() + 1).padStart(2, "0")}. (${p.inTagen === 1 ? "morgen" : `in ${p.inTagen} Tagen`})${p.alter !== null ? ` – wird ${p.alter}` : ""}`
+                ).join(" · ")}
+              </span>
+            )}
+            <button
+              onClick={() => { setGeburtstagZu(true); try { localStorage.setItem("werkstatt-kalender-geburtstag-zu", todayKey); } catch (e) { /* dann eben je Sitzung */ } }}
+              aria-label="Geburtstags-Erinnerung schließen"
+              className="ml-auto text-slate-400 hover:text-slate-600"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
           {/* Kennzahlen-Kacheln (Farbakzent links, ohne Icon) */}
@@ -10340,6 +10430,20 @@ function App() {
                     <option value="azubi">Azubi</option>
                     <option value="">ohne Gewerk</option>
                   </select>
+                  {/* Geburtstag (freiwillig, 20.08.): frei getippt, TT.MM. oder
+                      TT.MM.JJJJ. Leer = keine Erinnerung, kein Nachfragen. */}
+                  <input
+                    value={t.geburtstag || ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSettingsTeam((prev) => prev.map((x, i) => (i === idx ? { ...x, geburtstag: v } : x)));
+                    }}
+                    placeholder="🎂 TT.MM."
+                    aria-label={`Geburtstag von ${t.name.trim() || `Person ${idx + 1}`}`}
+                    title="Geburtstag (freiwillig): TT.MM. oder TT.MM.JJJJ – mit Jahr steht am Tag auch das Alter. Leer lassen = keine Erinnerung."
+                    className="text-xs border rounded px-2 py-1.5"
+                    style={{ borderColor: "#D6D9DC", width: "96px", flexShrink: 0 }}
+                  />
                   <button
                     onClick={() => setSettingsTeam((prev) => { if (idx === 0) return prev; const n = [...prev]; [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]]; return n; })}
                     className="text-slate-400 hover:text-slate-700 p-1 font-bold"

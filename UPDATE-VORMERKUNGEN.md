@@ -61,14 +61,7 @@ nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
 
 ## Zur Auswahl (vorgeschlagen, noch nicht entschieden)
 
-**Geburtstags-Erinnerung (Robertos Idee, 20.08.)** - Vorlagen liegen vor:
-ein freiwilliges Geburtstags-Feld je Team-Mitglied (⚙ → Team & Schichten,
-bewusst nur Tag + Monat; Jahr optional, dann steht am Tag das Alter).
-Am Tag selbst: dezente 🎂-Karte auf der Übersicht (wegklickbar) mit
-„demnächst"-Vorschau der nächsten 7 Tage, dazu ein kleiner 🎂 am Namen im
-Schichtplan und bei „Heute da". Kein Konfetti, keine Sperre. Liegt in den
-gemeinsamen Einstellungen - alle sehen die Erinnerung; leeres Feld =
-keine Erinnerung, kein Nachfragen. *Klein bis mittel.*
+*Zurzeit nichts - neue Vorschläge landen hier.*
 
 ---
 
@@ -100,3 +93,11 @@ keine Erinnerung, kein Nachfragen. *Klein bis mittel.*
   Robertos Wunsch wieder entfernt)*, Störungs-Laufband im
   Vollbild-Monitor, Tastatur-Kürzel (N/D/S/H/W/T, ? = Spickzettel),
   Wochen-Rückblick freitags ab 12 Uhr (harte-49, 27/27).
+- **20.08.2026 (Robertos Wahl „A"):** Geburtstags-Erinnerung - freiwilliges
+  🎂-Feld je Person (⚙ → Team & Schichten, TT.MM. oder TT.MM.JJJJ; mit Jahr
+  steht am Tag das Alter). Am Tag selbst eine dezente 🎂-Karte auf der
+  Übersicht (wegklickbar je Tag und Gerät) mit „demnächst"-Vorschau der
+  nächsten 7 Tage; 29.02.-Geborene werden in Nicht-Schaltjahren am 28.02.
+  erinnert. Leeres oder unlesbares Feld bleibt komplett stumm. *Bewusst nur
+  Variante A gebaut - der 🎂-Kringel im Schichtplan und bei „Heute da"
+  (Variante C) blieb auf Robertos Wahl hin weg* (harte-50, 19/19).

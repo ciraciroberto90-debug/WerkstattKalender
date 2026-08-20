@@ -492,6 +492,17 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Geburtstags-Erinnerung eingeführt (Robertos Wahl „A", 20.08.):**
+      freiwilliges 🎂-Feld je Person im ⚙ unter „Team & Schichten"
+      (TT.MM. oder TT.MM.JJJJ; mit Jahr steht am Tag das Alter). Am Tag
+      selbst zeigt die Übersicht eine dezente, wegklickbare 🎂-Karte samt
+      „demnächst"-Vorschau der nächsten 7 Tage; 29.02.-Geborene werden in
+      Nicht-Schaltjahren am 28.02. erinnert. Leeres oder unlesbares Feld
+      bleibt stumm. Bewusst ohne den 🎂-Kringel im Schichtplan (Variante C
+      war Roberto zu viel). Härtetest harte-50: 19/19 - darunter der
+      29.02.-Fall in beide Richtungen und die Gegenprobe, dass Quatsch-
+      Eingaben („32.13.") nichts auslösen.
+
 - [x] **Zwei Stücke auf Robertos Wunsch wieder ausgebaut (20.08.):** der
       Schicht-Fortschrittsbalken (G5) und das rote Überfällig-Badge am
       TPM-Reiter (Runde 1, Punkt 6). Liegengebliebenes bleibt in der
