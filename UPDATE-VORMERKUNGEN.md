@@ -44,24 +44,6 @@ klein und schnell.
 wie beim Papierkorb. Nicht akut – es sind noch Jahre Luft –, aber ohne
 diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
 
-### 3. Foto zur Störung **und zur Backlog-Arbeit** (am 21.08. um den Backlog erweitert)
-
-**Warum:** Ein Foto vom Schaden sagt der nächsten Schicht mehr als drei
-Sätze. Gilt genauso für Backlog-Arbeiten – wer die Arbeit übernimmt, sieht
-sofort, worum es geht (Robertos Nachfrage vom 21.08.).
-
-**Wie:** Bilder als Dateien im Datenordner (`Fotos/…`), im Eintrag nur der
-Verweis – **bewusst nicht in der gemeinsamen JSON**, sonst
-wäre die 5-MB-Grenze in Wochen erreicht. Braucht die Ordner-Freigabe, die
-für den Konflikt-Wächter schon besteht. Störbericht und Arbeit-Dialog
-bekommen dasselbe Foto-Feld (gleicher Unterbau, eine Runde). Ausführliche
-Vorlagen vom 21.08. liegen vor: 📷-Kennzeichen in der Backlog-Zeile,
-Mini-Vorschau unter der Zeile, Foto-Bereich in beiden Dialogen,
-Großansicht mit Blättern und Löschen.
-
-**Aufwand/Vorsicht:** Mittel bis groß; berührt die Datei-Ablage → braucht
-nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
-
 ---
 
 ## Zur Auswahl (vorgeschlagen, noch nicht entschieden)
@@ -106,3 +88,15 @@ nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
   erinnert. Leeres oder unlesbares Feld bleibt komplett stumm. *Bewusst nur
   Variante A gebaut - der 🎂-Kringel im Schichtplan und bei „Heute da"
   (Variante C) blieb auf Robertos Wahl hin weg* (harte-50, 19/19).
+- **21.08.2026 (Robertos „bauen", war Vormerkung 3):** Fotos zu Störungen
+  und Backlog-Arbeiten. Die Bilder liegen als Dateien im Unterordner
+  `Fotos/` des Datenordners (Freigabe des Konflikt-Wächters), im Eintrag
+  steht nur der Verweis - die gemeinsame JSON bleibt klein. Handyfotos
+  werden vor dem Speichern auf höchstens 1600 px Kante eingedampft.
+  📷-Kennzeichen in der Backlog-Zeile mit aufklappbarer Vorschau,
+  Foto-Bereich in Arbeit- und Störbericht-Dialog (Kamera am Handy,
+  Dateiauswahl am Rechner), Großansicht mit Blättern (Pfeiltasten, Esc).
+  Abbrechen hinterlässt keine Waisen, Eintrag-Löschen räumt die Dateien
+  mit weg, ohne Ordner-Freigabe bleibt alles stumm (harte-51, 28/28,
+  inkl. Gegenprobe: gegen den Build ohne die Änderung schlägt der Test
+  fehl).

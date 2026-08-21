@@ -1782,6 +1782,52 @@ function createSharedStore(cfg) {
     return tagesSicherung(data, true);
   }
 
+  /* ---------- Fotos im Datenordner (Robertos Auftrag vom 21.08.) ----------
+     Fotos zu Störungen und Backlog-Arbeiten liegen als JPG-Dateien im
+     Unterordner "Fotos" des freigegebenen Datenordners - im Eintrag steht
+     nur der Dateiname. BEWUSST nicht in der gemeinsamen JSON: Ein einziges
+     Handyfoto wäre größer als Monate an Einträgen, die 5-MB-Grenze des
+     Browser-Zwischenspeichers wäre in Wochen erreicht.
+     Der Konflikt-Wächter fasst die Fotos nie an: Er sammelt nur .json im
+     Hauptordner ein, hier liegen .jpg in einem Unterordner.
+     Fehler beim Löschen brechen NIE das Speichern des Eintrags - eine
+     verwaiste Bilddatei ist ärgerlich, ein verlorener Eintrag wäre schlimm. */
+  const FOTO_ORDNER = "Fotos";
+  // Gibt es die Ordner-Freigabe samt Unterordner-Fähigkeit? (Die Programm-
+  // Brücke kann keine Unterordner anlegen - dann bleibt die Funktion still.)
+  function fotosVerfuegbar() {
+    return !!(folderHandle && folderPerm === "ok" && folderHandle.getDirectoryHandle);
+  }
+  async function fotoSpeichern(dateiName, blob) {
+    if (!fotosVerfuegbar()) throw new Error("Kein Datenordner freigegeben - Fotos brauchen die Ordner-Freigabe des Konflikt-Wächters.");
+    const ordner = await folderHandle.getDirectoryHandle(FOTO_ORDNER, { create: true });
+    const handle = await ordner.getFileHandle(dateiName, { create: true });
+    const w = await mitFrist(() => handle.createWritable(), FRIST_SCHREIBEN, "Das Anlegen der Fotodatei");
+    await w.write(blob);
+    await w.close();
+    return true;
+  }
+  async function fotoLesen(dateiName) {
+    if (!fotosVerfuegbar()) return null;
+    try {
+      const ordner = await folderHandle.getDirectoryHandle(FOTO_ORDNER);
+      const handle = await ordner.getFileHandle(dateiName);
+      return await mitFrist(() => handle.getFile(), FRIST_LESEN, "Das Lesen der Fotodatei");
+    } catch (e) {
+      return null; // Datei fehlt oder Ordner nicht lesbar - der Aufrufer zeigt einen Platzhalter
+    }
+  }
+  async function fotoLoeschen(dateiName) {
+    try {
+      if (!fotosVerfuegbar()) return false;
+      const ordner = await folderHandle.getDirectoryHandle(FOTO_ORDNER);
+      await ordner.removeEntry(dateiName);
+      return true;
+    } catch (e) {
+      return false; // niemals das Speichern oder Löschen des Eintrags stören
+    }
+  }
+
   /* ---------- Änderungen der anderen abholen ---------- */
   let pollFehlerFolge = 0; // aufeinanderfolgende gescheiterte Poll-Versuche
   let kaputtFolge = 0;     // davon: aufeinanderfolgende "Datei unvollständig"-Lesungen
@@ -1888,6 +1934,7 @@ function createSharedStore(cfg) {
     pickWritable, umgebung,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
     tagesSicherungJetzt, tagesSicherungStand,
+    fotosVerfuegbar, fotoSpeichern, fotoLesen, fotoLoeschen,
     leseAusOrdner, listeOrdnerDateien,
     pickQuellOrdner, reconnectQuellOrdner, vergissQuellOrdner, quellOrdnerStatus, quellOrdnerName, setzeQuellOrdnerPfad,
     saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
@@ -1932,6 +1979,13 @@ export const forgetFolder = main.forgetFolder;
 export const sammleKonfliktkopien = main.sammleKonfliktkopien;
 export const tagesSicherungJetzt = main.tagesSicherungJetzt;
 export const tagesSicherungStand = main.tagesSicherungStand;
+// Fotos zu Störungen und Backlog-Arbeiten - liegen als Dateien im Unter-
+// ordner "Fotos" des Datenordners (Freigabe der main-Instanz; die
+// Störungs-Datei wohnt im selben Ordner, darum reicht EIN Foto-Zugang).
+export const fotosVerfuegbar = main.fotosVerfuegbar;
+export const fotoSpeichern = main.fotoSpeichern;
+export const fotoLesen = main.fotoLesen;
+export const fotoLoeschen = main.fotoLoeschen;
 // Weitere Dateien im Datenordner mitlesen (OEE-Tabelle) - nur lesend
 export const leseAusOrdner = main.leseAusOrdner;
 export const listeOrdnerDateien = main.listeOrdnerDateien;

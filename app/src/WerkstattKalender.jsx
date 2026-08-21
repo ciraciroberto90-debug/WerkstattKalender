@@ -693,6 +693,34 @@ const geburtstagInJahr = (g, jahr) => {
   return { tag: g.tag, monat: g.monat };
 };
 
+/* ---------- Fotos zu Störungen und Backlog-Arbeiten (Robertos Auftrag 21.08.) ----------
+   Die Bilddateien liegen im Unterordner "Fotos" des Datenordners, im Eintrag
+   steht nur der Dateiname (sharedfile.js erklärt das Warum). */
+// Handyfotos haben 2-5 MB. Vor dem Speichern werden sie so weit eingedampft,
+// dass ein Schaden noch klar erkennbar ist (~200-400 kB) - sonst wächst der
+// Foto-Ordner auf dem Laufwerk unnötig schnell.
+const FOTO_MAX_KANTE = 1600;
+const fotoEindampfen = (quelle) => new Promise((resolve, reject) => {
+  const url = URL.createObjectURL(quelle);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const faktor = Math.min(1, FOTO_MAX_KANTE / Math.max(img.width || 1, img.height || 1));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.width * faktor));
+    c.height = Math.max(1, Math.round(img.height * faktor));
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob((b) => (b ? resolve(b) : reject(new Error("Bild nicht lesbar"))), "image/jpeg", 0.82);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Bild nicht lesbar")); };
+  img.src = url;
+});
+// Dateiname: Datum zum Wiederfinden von Hand im Ordner, Zufallsteil gegen
+// den Zusammenstoß zweier Geräte in derselben Sekunde.
+const neuerFotoName = (datum) => `foto-${datum}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.jpg`;
+// Verweise im Eintrag normalisieren - fremde/alte Stände dürfen nie crashen.
+const fotoListeVon = (e) => (Array.isArray(e && e.fotos) ? e.fotos.filter((f) => f && typeof f.datei === "string" && f.datei) : []);
+
 /* ---------- Benutzergruppen (Robertos Wunsch vom 07.08.) ----------
    Eine Namensliste in der gemeinsamen Datei entscheidet, wer schreiben darf -
    damit hängt die Rechtevergabe nicht an den Datei-Freigaben des Laufwerks. Drei Rollen:
@@ -1573,6 +1601,13 @@ function App() {
   const [rueckblickZu, setRueckblickZu] = useState(false);
   // Geburtstags-Karte (Variante A, 20.08.), wegklickbar je Tag und Gerät
   const [geburtstagZu, setGeburtstagZu] = useState(false);
+  // Fotos (21.08.): Objekt-URLs je Dateiname - einmal vom Laufwerk geladen,
+  // dann für die Sitzung gehalten. Der Tick stößt das Nachzeichnen an, wenn
+  // ein Bild fertig geladen ist.
+  const fotoUrlsRef = useRef(new Map());
+  const [, setFotoTick] = useState(0);
+  const [fotoGross, setFotoGross] = useState(null); // Großansicht {fotos, index, ausDraft}
+  const [blFotosAuf, setBlFotosAuf] = useState(null); // Backlog: Arbeit-id mit aufgeklappter Foto-Zeile
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
@@ -2011,6 +2046,9 @@ function App() {
       if (draft.behobenAt) { const d = new Date(draft.behobenAt); if (!isNaN(d)) return d.toISOString(); }
       return null;
     };
+    // Neue Fotos jetzt in den Datenordner schreiben - der Bericht speichert
+    // nur die Verweise. Vorgemerkt Gelöschtes kommt erst nach dem Speichern weg.
+    const fotos = await fotosVerarbeiten(draft);
     const gemeinsam = {
       date: datum, schicht: draft.schicht || "Früh",
       anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
@@ -2018,7 +2056,7 @@ function App() {
       stoerung: draft.stoerung, ursache: draft.ursache || "",
       getan: draft.getan || "", nochZuTun: offen ? (draft.nochZuTun || "") : "",
       ersatzteile: draft.ersatzteile || "", nachbestellt: !!draft.nachbestellt,
-      ausfallzeit, melder,
+      ausfallzeit, melder, fotos,
     };
     if (draft.id) {
       const vorher = stoerungen.find((s) => s.id === draft.id);
@@ -2045,6 +2083,7 @@ function App() {
         await persistStoer((nachher || []).map((x) => (x.id === s.id ? { ...x, nr: frei } : x)));
       }
     }
+    fotosAufraeumen(draft.fotosWeg);
     setStoerModal(null);
     setSDraft(null);
   };
@@ -2056,7 +2095,10 @@ function App() {
   };
   const loescheStoerung = async (id) => {
     if (!window.confirm("Diese Störung wirklich löschen?")) return;
+    const raus = stoerungen.find((s) => s.id === id);
     await persistStoer(stoerungen.filter((s) => s.id !== id));
+    // Zugehörige Fotodateien mit wegräumen - sonst füllt sich der Ordner mit Waisen.
+    if (raus) fotosAufraeumen(fotoListeVon(raus).map((f) => f.datei));
     setStoerModal(null);
     setSDraft(null);
   };
@@ -2737,7 +2779,7 @@ function App() {
   });
   // Detailansicht (Popout) einer Störung öffnen - zunächst nur lesend
   const oeffneStoerDetail = (s) => {
-    setSDraft({ id: s.id, date: s.date || todayKey, schicht: s.schicht || "", anlage: s.anlage || "", anlagenteil: s.anlagenteil || "", gewerk: s.gewerk || "", fehlerart: s.fehlerart || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", ersatzteile: s.ersatzteile || "", nachbestellt: !!s.nachbestellt, ausfallzeit: s.ausfallzeit ?? "", behobenAt: isoZuLocalInput(s.behobenAt), status: s.offen ? "offen" : "erledigt", melder: s.melder || "" });
+    setSDraft({ id: s.id, date: s.date || todayKey, schicht: s.schicht || "", anlage: s.anlage || "", anlagenteil: s.anlagenteil || "", gewerk: s.gewerk || "", fehlerart: s.fehlerart || "", stoerung: s.stoerung || "", ursache: s.ursache || "", getan: s.getan || "", nochZuTun: s.nochZuTun || "", ersatzteile: s.ersatzteile || "", nachbestellt: !!s.nachbestellt, ausfallzeit: s.ausfallzeit ?? "", behobenAt: isoZuLocalInput(s.behobenAt), status: s.offen ? "offen" : "erledigt", melder: s.melder || "", fotos: fotoListeVon(s), fotosNeu: [], fotosWeg: [] });
     setStoerModal({ mode: "view", id: s.id });
   };
 
@@ -4296,11 +4338,175 @@ function App() {
     return Array.from(s).filter(Boolean).sort((a, b) => a.localeCompare(b, "de"));
   }, [tpmAnlagen, entries]);
 
+  /* ---------- Fotos: Laden, Anhängen, Verarbeiten (21.08.) ----------
+     Ein Draft trägt drei Foto-Listen: fotos (gespeicherte Verweise),
+     fotosNeu (frisch gewählte, noch NUR im Speicher - erst "Speichern"
+     schreibt sie in den Datenordner, Abbrechen hinterlässt keine Waisen)
+     und fotosWeg (zum Löschen vorgemerkte Dateinamen - gelöscht wird erst
+     NACH dem erfolgreichen Speichern des Eintrags). */
+  const fotoUrl = (datei) => {
+    const m = fotoUrlsRef.current;
+    if (m.has(datei)) return m.get(datei);
+    m.set(datei, ""); // Ladeschutz: nicht doppelt anstoßen
+    sharedFile.fotoLesen(datei).then((file) => {
+      m.set(datei, file ? URL.createObjectURL(file) : null); // null = Datei fehlt
+      setFotoTick((t) => t + 1);
+    });
+    return "";
+  };
+  const fotoVergiss = (datei) => {
+    const u = fotoUrlsRef.current.get(datei);
+    if (u) { try { URL.revokeObjectURL(u); } catch (e) { /* egal */ } }
+    fotoUrlsRef.current.delete(datei);
+  };
+  // Datei-Auswahl (am Handy inkl. Kamera): eindampfen und in den Draft legen.
+  const fotoHinzufuegen = async (ev, setDraft) => {
+    const dateien = Array.from(ev.target.files || []);
+    ev.target.value = ""; // gleiche Datei nochmal wählbar
+    for (const datei of dateien) {
+      try {
+        const blob = await fotoEindampfen(datei);
+        const neu = {
+          neuId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          datei: neuerFotoName(todayKey), blob, url: URL.createObjectURL(blob),
+          wer: (localStorage.getItem("werkstatt-kalender-name") || "").trim(),
+          ts: new Date().toISOString(),
+        };
+        setDraft((d) => (d ? { ...d, fotosNeu: [...(d.fotosNeu || []), neu] } : d));
+      } catch (e) {
+        setErr(`„${datei.name}" ist kein lesbares Bild - übersprungen.`);
+      }
+    }
+  };
+  // Beim Speichern des Eintrags: neue Fotos in den Datenordner schreiben.
+  // Scheitert ein Foto, wird der Eintrag OHNE es gespeichert und eine
+  // Meldung gezeigt - ein verlorener Text wäre schlimmer als ein fehlendes Bild.
+  const fotosVerarbeiten = async (draft) => {
+    const verweise = [...(draft.fotos || [])];
+    let fehlgeschlagen = 0;
+    for (const neu of draft.fotosNeu || []) {
+      try {
+        await sharedFile.fotoSpeichern(neu.datei, neu.blob);
+        verweise.push({ datei: neu.datei, wer: neu.wer, ts: neu.ts });
+        try { URL.revokeObjectURL(neu.url); } catch (e) { /* egal */ }
+      } catch (e) { fehlgeschlagen++; }
+    }
+    if (fehlgeschlagen > 0) setErr(`${fehlgeschlagen} Foto(s) konnten nicht in den Datenordner geschrieben werden - der Eintrag wurde ohne sie gespeichert.`);
+    return verweise;
+  };
+  // NACH dem erfolgreichen Speichern/Löschen des Eintrags: vorgemerkte bzw.
+  // verwaiste Bilddateien wegräumen (bewusst ohne await - scheitert das
+  // Löschen, bleibt schlimmstenfalls eine Datei liegen, nie ein Fehler).
+  const fotosAufraeumen = (dateiNamen) => {
+    (dateiNamen || []).forEach((d) => { fotoVergiss(d); sharedFile.fotoLoeschen(d); });
+  };
+  // Anzeigeliste eines Drafts: gespeicherte + frisch angehängte Fotos.
+  const fotoAnzeigeliste = (draft) => [
+    ...(draft.fotos || []).map((f) => ({ datei: f.datei, wer: f.wer, ts: f.ts })),
+    ...(draft.fotosNeu || []).map((n) => ({ neuId: n.neuId, url: n.url, wer: n.wer, ts: n.ts })),
+  ];
+  // Ein Foto aus dem Draft nehmen (✕ an der Kachel oder in der Großansicht).
+  const fotoAusDraft = (setDraft, eintrag) => {
+    setDraft((d) => {
+      if (!d) return d;
+      if (eintrag.neuId) {
+        const raus = (d.fotosNeu || []).find((n) => n.neuId === eintrag.neuId);
+        if (raus) { try { URL.revokeObjectURL(raus.url); } catch (e) { /* egal */ } }
+        return { ...d, fotosNeu: (d.fotosNeu || []).filter((n) => n.neuId !== eintrag.neuId) };
+      }
+      return {
+        ...d,
+        fotos: (d.fotos || []).filter((f) => f.datei !== eintrag.datei),
+        fotosWeg: [...(d.fotosWeg || []), eintrag.datei],
+      };
+    });
+  };
+  // Der Foto-Bereich in den Dialogen. nurAnsehen: Ansichts-Modus der Störung.
+  const fotoFeld = (draft, setDraft, nurAnsehen = false) => {
+    const liste = fotoAnzeigeliste(draft);
+    const kannAnhaengen = !nurAnsehen && sharedFile.fotosVerfuegbar();
+    if (liste.length === 0 && !kannAnhaengen) return null; // nichts zu zeigen, nichts anzubieten
+    return (
+      <div style={{ borderTop: "1px solid #E2E4E7", paddingTop: "10px" }}>
+        <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: "#8A9099", letterSpacing: "0.6px" }}>
+          Fotos <span className="font-normal normal-case" style={{ letterSpacing: 0 }}>(freiwillig)</span>
+        </div>
+        <div className="flex gap-2 items-start flex-wrap">
+          {liste.map((f, i) => {
+            const url = f.neuId ? f.url : fotoUrl(f.datei);
+            return (
+              <div key={f.neuId || f.datei} className="relative">
+                <button
+                  onClick={() => setFotoGross({ fotos: liste, index: i, setDraft: nurAnsehen ? null : setDraft })}
+                  aria-label={`Foto ${i + 1} groß ansehen`}
+                  style={{ display: "block", width: "104px", height: "78px", borderRadius: "8px", border: "1px solid #D6D9DC", overflow: "hidden", backgroundColor: "#EDEFF2" }}
+                >
+                  {url
+                    ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <span className="text-xs" style={{ color: "#8A9099" }}>{url === null ? "📷 Datei fehlt" : "📷 lädt …"}</span>}
+                </button>
+                {!nurAnsehen && (
+                  <button
+                    onClick={() => fotoAusDraft(setDraft, f)}
+                    aria-label={`Foto ${i + 1} entfernen`}
+                    className="absolute text-white"
+                    style={{ top: "-6px", right: "-6px", width: "20px", height: "20px", borderRadius: "50%", backgroundColor: "#22262B", fontSize: "11px", lineHeight: 1 }}
+                  >✕</button>
+                )}
+              </div>
+            );
+          })}
+          {kannAnhaengen && (
+            <label
+              className="flex flex-col items-center justify-center text-xs font-bold cursor-pointer"
+              style={{ width: "104px", height: "78px", border: "2px dashed #C9CED4", borderRadius: "8px", backgroundColor: "#FAFBFC", color: "#5B6572", textAlign: "center" }}
+            >
+              📷<span>Foto<br />hinzufügen</span>
+              <input type="file" accept="image/*" multiple hidden onChange={(ev) => fotoHinzufuegen(ev, setDraft)} aria-label="Foto hinzufügen" />
+            </label>
+          )}
+        </div>
+        {kannAnhaengen && (
+          <div className="text-xs mt-1.5" style={{ color: "#8A9099" }}>
+            Vom Handy öffnet der Knopf die Kamera oder Galerie, am Rechner die Dateiauswahl. Die Fotos liegen im
+            Datenordner (<strong>Fotos/…</strong>), nicht in der gemeinsamen Datei - die bleibt klein.
+          </div>
+        )}
+        {!nurAnsehen && !kannAnhaengen && (
+          <div className="text-xs mt-1.5" style={{ color: "#A6AEB6" }}>
+            Fotos anhängen geht nur mit der Datenordner-Freigabe (⚙ → Gemeinsame Datei → Konflikt-Wächter).
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Abbrechen/Schließen des Arbeit-Dialogs: nicht gespeicherte Foto-
+  // Vorschauen freigeben, offene Großansicht mit schließen.
+  const arbeitDialogSchliessen = () => {
+    ((aDraft && aDraft.fotosNeu) || []).forEach((n) => { try { URL.revokeObjectURL(n.url); } catch (e) { /* egal */ } });
+    setFotoGross(null);
+    setArbeitModal(null);
+  };
+  // Großansicht: Esc schließt, Pfeiltasten blättern. capture + stopPropagation,
+  // damit Esc nicht zusätzlich den darunterliegenden Dialog schließt.
+  useEffect(() => {
+    if (!fotoGross) return undefined;
+    const h = (ev) => {
+      if (ev.key === "Escape") { ev.stopPropagation(); setFotoGross(null); }
+      else if (ev.key === "ArrowLeft") setFotoGross((g) => (g ? { ...g, index: (g.index + g.fotos.length - 1) % g.fotos.length } : g));
+      else if (ev.key === "ArrowRight") setFotoGross((g) => (g ? { ...g, index: (g.index + 1) % g.fotos.length } : g));
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [fotoGross]);
+
   const openArbeitNeu = (vorgabe = {}) => {
     setADraft({
       anlage: vorgabe.anlage || "", anlageCustom: "", note: vorgabe.note || "",
       prio: "ohne", art: vorgabe.art || "mech", azubi: false, stillstand: false,
       wer: "", geplant: "", melder: vorgabe.melder || "",
+      fotos: [], fotosNeu: [], fotosWeg: [],
     });
     setArbeitModal({ mode: "add", ausZettel: vorgabe.ausZettel || null });
   };
@@ -4310,6 +4516,7 @@ function App() {
       anlage: a.name, anlageCustom: "", note: a.note || "", prio: a.prio || "ohne",
       art: a.art ?? "", azubi: !!a.azubi, stillstand: !!a.stillstand,
       wer: a.wer || "", geplant: a.geplant || "", melder: a.melder || "",
+      fotos: fotoListeVon(a), fotosNeu: [], fotosWeg: [],
     });
     setArbeitModal({ mode: "edit", id: a.id });
   };
@@ -4329,12 +4536,17 @@ function App() {
     const anlage = saeubere(aDraft.anlage === OTHER_VALUE ? aDraft.anlageCustom : aDraft.anlage);
     const note = saeubere(aDraft.note);
     if (!anlage || !note) return;
+    // Erst die neuen Fotos in den Datenordner schreiben, dann den Eintrag
+    // mit den fertigen Verweisen speichern. Zum Löschen vorgemerkte Dateien
+    // kommen erst NACH dem erfolgreichen Speichern weg.
+    const fotos = await fotosVerarbeiten(aDraft);
     if (arbeitModal.mode === "add") {
       const a = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         date: todayKey, category: "ARBEIT", name: anlage, status: "open", note,
         prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand,
         wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined, melder: aDraft.melder || undefined,
+        ...(fotos.length > 0 ? { fotos } : {}),
         zeit: new Date().toISOString(),
       };
       // Kam die Arbeit von einem Pinnwand-Zettel, wird er in derselben Speicherung entfernt
@@ -4342,9 +4554,10 @@ function App() {
       await persist([...basis, a]);
     } else {
       await persist(entries.map((e) => e.id === arbeitModal.id
-        ? { ...e, name: anlage, note, prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand, wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined }
+        ? { ...e, name: anlage, note, prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand, wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined, fotos }
         : e));
     }
+    fotosAufraeumen(aDraft.fotosWeg);
     setArbeitModal(null);
   };
   const setArbeitStatus = async (id, status) => {
@@ -4504,7 +4717,10 @@ function App() {
 
   const deleteArbeit = async (id) => {
     if (!window.confirm("Diese Arbeit endgültig löschen?")) return;
+    const raus = entries.find((e) => e.id === id);
     await persist(entries.filter((e) => e.id !== id));
+    // Zugehörige Fotodateien mit wegräumen - sonst füllt sich der Ordner mit Waisen.
+    if (raus) fotosAufraeumen(fotoListeVon(raus).map((f) => f.datei));
     setArbeitModal(null);
   };
 
@@ -5915,7 +6131,7 @@ function App() {
       if (!stoerDarfSchreiben) return;
       setView("COCKPIT");
       setCockpitTab("STOERUNGEN");
-      setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "" });
+      setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "", fotos: [], fotosNeu: [], fotosWeg: [] });
       setStoerModal({ mode: "add" });
     },
     spickzettel: () => setKuerzelOffen((o) => !o),
@@ -6867,7 +7083,7 @@ function App() {
             {stoerModus === "liste" && stoerungen.length === 0 && <span className="ml-auto" />}
             {stoerDarfSchreiben && (
               <button
-                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "" }); setStoerModal({ mode: "add" }); }}
+                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "", fotos: [], fotosNeu: [], fotosWeg: [] }); setStoerModal({ mode: "add" }); }}
                 className="flex items-center gap-1.5 rounded-lg text-white font-bold shrink-0 ml-auto"
                 style={{ backgroundColor: "#C0392B", padding: "6px 12px", fontSize: "0.78rem" }}
               >
@@ -7822,9 +8038,10 @@ function App() {
                   {backlogListe.map((a) => {
                     const prio = ARBEIT_PRIO[a.prio ?? "ohne"] || ARBEIT_PRIO.ohne;
                     const art = ARBEIT_ART[a.art ?? ""] || ARBEIT_ART[""];
+                    const arbeitFotos = fotoListeVon(a);
                     return (
+                      <React.Fragment key={a.id}>
                       <tr
-                        key={a.id}
                         onClick={() => openArbeitEdit(a)}
                         className="wk-hover"
                         style={{ borderBottom: "1px solid #EEF0F2", cursor: "pointer", opacity: a.status === "done" ? 0.6 : 1 }}
@@ -7843,7 +8060,19 @@ function App() {
                             {a.name}
                           </button>
                         </td>
-                        <td style={{ padding: "3px 10px" }}>{a.note}</td>
+                        <td style={{ padding: "3px 10px" }}>
+                          {a.note}
+                          {/* 📷-Kennzeichen (21.08.): Klick klappt die Vorschau
+                              auf, ohne den Bearbeiten-Dialog zu öffnen. */}
+                          {arbeitFotos.length > 0 && (
+                            <button
+                              onClick={(ev) => { ev.stopPropagation(); setBlFotosAuf((o) => (o === a.id ? null : a.id)); }}
+                              aria-label={`${arbeitFotos.length} Foto(s) zu „${a.note}" zeigen`}
+                              className="inline-flex items-center gap-1 font-extrabold align-middle"
+                              style={{ fontSize: "11px", color: "#5B6572", backgroundColor: "#F1F3F5", border: "1px solid #E2E4E7", borderRadius: "999px", padding: "1px 8px", marginLeft: "8px" }}
+                            >📷 {arbeitFotos.length}</button>
+                          )}
+                        </td>
                         <td style={{ padding: "3px 10px" }}>
                           {a.art === "beide" ? (
                             <><span className="text-xs font-bold" style={{ color: ARBEIT_ART.mech.color }}>Mech</span> <span className="text-xs font-bold" style={{ color: ARBEIT_ART.elek.color }}>+ Elek</span></>
@@ -7866,6 +8095,32 @@ function App() {
                           {formatDateDE(blErledigte ? (a.erledigtAm || a.date) : a.date)}
                         </td>
                       </tr>
+                      {/* Aufgeklappte Foto-Vorschau unter der Zeile (21.08.) */}
+                      {blFotosAuf === a.id && arbeitFotos.length > 0 && (
+                        <tr>
+                          <td colSpan={7} style={{ padding: "6px 12px 10px 46px", backgroundColor: "#FAFBFC", borderBottom: "1px solid #EEF0F2" }}>
+                            <div className="flex gap-2 items-center flex-wrap">
+                              {arbeitFotos.map((f, i) => {
+                                const url = fotoUrl(f.datei);
+                                return (
+                                  <button
+                                    key={f.datei}
+                                    onClick={() => setFotoGross({ fotos: arbeitFotos, index: i, setDraft: null })}
+                                    aria-label={`Foto ${i + 1} groß ansehen`}
+                                    style={{ width: "74px", height: "56px", borderRadius: "6px", border: "1px solid #D6D9DC", overflow: "hidden", backgroundColor: "#EDEFF2" }}
+                                  >
+                                    {url
+                                      ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                      : <span style={{ fontSize: "0.6rem", color: "#8A9099" }}>{url === null ? "fehlt" : "lädt …"}</span>}
+                                  </button>
+                                );
+                              })}
+                              <span className="text-xs font-bold" style={{ color: "#8A9099" }}>Klick öffnet die Großansicht</span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
@@ -8565,7 +8820,7 @@ function App() {
           <div
             className="no-print"
             style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
-            onClick={() => setArbeitModal(null)}
+            onClick={arbeitDialogSchliessen}
           >
             <div
               style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "520px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
@@ -8576,7 +8831,7 @@ function App() {
                   {arbeitModal.mode === "add" ? "Neue Arbeit" : "Arbeit bearbeiten"}
                   {arbeitModal.ausZettel && aDraft.melder && <span className="font-normal text-slate-400"> – aus Notiz von {aDraft.melder}</span>}
                 </div>
-                <button onClick={() => setArbeitModal(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+                <button onClick={arbeitDialogSchliessen} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
               </div>
 
               <div className="flex flex-col gap-3">
@@ -8659,6 +8914,10 @@ function App() {
                   <div className="text-xs text-slate-400">📌 gemeldet von {aDraft.melder}</div>
                 )}
 
+                {/* Fotos zur Arbeit (21.08.): wer die Arbeit übernimmt, sieht
+                    sofort, worum es geht. */}
+                {fotoFeld(aDraft, setADraft)}
+
                 {arbeitModal.mode === "edit" && live && (
                   <div className="flex gap-2">
                     <button
@@ -8680,9 +8939,55 @@ function App() {
                   >
                     {arbeitModal.ausZettel ? "Speichern & Zettel entfernen" : "Speichern"}
                   </button>
-                  <button onClick={() => setArbeitModal(null)} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
+                  <button onClick={arbeitDialogSchliessen} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
                 </div>
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Foto-Großansicht (21.08.): über allem, Esc/Pfeiltasten siehe Effekt.
+          "Foto löschen" gibt es nur im Bearbeiten-Kontext (setDraft gesetzt) -
+          es wirkt auf den Entwurf, endgültig wird es erst mit "Speichern". */}
+      {fotoGross && (() => {
+        const f = fotoGross.fotos[fotoGross.index];
+        if (!f) return null;
+        const url = f.neuId ? f.url : fotoUrl(f.datei);
+        const blaettern = (schritt) => setFotoGross((g) => (g ? { ...g, index: (g.index + schritt + g.fotos.length) % g.fotos.length } : g));
+        return (
+          <div
+            className="no-print"
+            role="dialog"
+            aria-label="Foto-Großansicht"
+            style={{ position: "fixed", inset: 0, backgroundColor: "rgba(10,12,14,0.88)", zIndex: 80, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "14px", padding: "16px" }}
+            onClick={() => setFotoGross(null)}
+          >
+            <div style={{ color: "#C9CED4", fontSize: "13px" }} onClick={(ev) => ev.stopPropagation()}>
+              Foto {fotoGross.index + 1} von {fotoGross.fotos.length}
+              {f.ts ? ` · aufgenommen ${new Date(f.ts).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}
+              {f.wer ? ` · ${f.wer}` : ""}
+            </div>
+            {url
+              ? <img src={url} alt="" style={{ maxWidth: "86vw", maxHeight: "70vh", borderRadius: "10px", boxShadow: "0 18px 60px rgba(0,0,0,0.5)" }} onClick={(ev) => ev.stopPropagation()} />
+              : <div style={{ color: "#8A9099", fontSize: "14px", padding: "60px 80px", border: "1px dashed #4A525B", borderRadius: "10px" }} onClick={(ev) => ev.stopPropagation()}>
+                  {url === null ? "📷 Die Bilddatei fehlt im Datenordner." : "📷 Bild lädt …"}
+                </div>}
+            <div className="flex gap-2 flex-wrap justify-center" onClick={(ev) => ev.stopPropagation()}>
+              {fotoGross.fotos.length > 1 && (
+                <>
+                  <button onClick={() => blaettern(-1)} className="font-bold rounded-lg" style={{ fontSize: "13px", padding: "8px 18px", backgroundColor: "#fff", color: "#22262B" }}>‹ voriges</button>
+                  <button onClick={() => blaettern(1)} className="font-bold rounded-lg" style={{ fontSize: "13px", padding: "8px 18px", backgroundColor: "#fff", color: "#22262B" }}>nächstes ›</button>
+                </>
+              )}
+              {fotoGross.setDraft && (
+                <button
+                  onClick={() => { fotoAusDraft(fotoGross.setDraft, f); setFotoGross(null); }}
+                  className="font-bold rounded-lg text-white"
+                  style={{ fontSize: "13px", padding: "8px 18px", backgroundColor: "#B23A34" }}
+                >Foto löschen</button>
+              )}
+              <button onClick={() => setFotoGross(null)} className="font-bold rounded-lg text-white" style={{ fontSize: "13px", padding: "8px 18px", backgroundColor: "#3A424B" }}>Schließen (Esc)</button>
             </div>
           </div>
         );
@@ -8701,7 +9006,13 @@ function App() {
         ]));
         // Anlagenteile zur aktuell gewählten Anlage (von Roberto im ⚙-Dialog gepflegt)
         const teileZurAnlage = anlagenteile.filter((t) => t.anlage === String(sDraft.anlage || "").trim());
-        const schliessen = () => { setStoerModal(null); setSDraft(null); };
+        const schliessen = () => {
+          // Nicht gespeicherte Foto-Vorschauen freigeben (Abbrechen darf keine
+          // Speicherreste hinterlassen); eine offene Großansicht schließt mit.
+          ((sDraft && sDraft.fotosNeu) || []).forEach((n) => { try { URL.revokeObjectURL(n.url); } catch (e) { /* egal */ } });
+          setFotoGross(null);
+          setStoerModal(null); setSDraft(null);
+        };
 
         // ---- View-Modus: kompletter Bericht, zunächst NUR LESEND ----
         if (stoerModal.mode === "view") {
@@ -8740,6 +9051,8 @@ function App() {
                     )}
                   </div>
                   {feld("⚠ Störungs Beschreibung", sDraft.stoerung)}
+                  {/* Fotos: in der Ansicht nur zum Anschauen (Großansicht per Klick) */}
+                  {fotoFeld(sDraft, setSDraft, true)}
                   {feld("🔍 Störungs Ursache", sDraft.ursache)}
                   {feld("🔧 Sofort Maßnahme", sDraft.getan)}
                   {feld("🧩 Ersatzteile / Material", sDraft.ersatzteile ? sDraft.ersatzteile + (sDraft.nachbestellt ? "  ·  🛒 nachbestellt" : "") : "")}
@@ -8810,7 +9123,7 @@ function App() {
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="font-black text-base" style={{ color: "#22262B" }}>{stoerModal.mode === "add" ? "📝 Störbericht erfassen" : "Störbericht bearbeiten"}</div>
-                <button onClick={() => { setStoerModal(null); setSDraft(null); }} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+                <button onClick={schliessen} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
               </div>
 
               {/* Status-Umschalter (Pflicht, nicht vorausgewählt) */}
@@ -8962,6 +9275,9 @@ function App() {
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Störungs Beschreibung<span style={{ color: "#C0392B" }}> *</span></label>
                   <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Was funktioniert nicht?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
                 </div>
+                {/* Fotos zur Störung (21.08.): die nächste Schicht sieht den
+                    Schaden, nicht nur drei Sätze. */}
+                {fotoFeld(sDraft, setSDraft)}
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔍 Störungs Ursache</label>
                   <input value={sDraft.ursache} onChange={(ev) => setSDraft({ ...sDraft, ursache: ev.target.value })} placeholder="falls bekannt" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
@@ -9011,7 +9327,7 @@ function App() {
                   {stoerModal.mode === "edit" && (
                     <button onClick={() => loescheStoerung(stoerModal.id)} className="text-sm font-bold py-2.5 px-4 rounded-lg" style={{ backgroundColor: "#FBEAE8", color: "#C0392B" }}>Löschen</button>
                   )}
-                  <button onClick={() => { if (stoerModal.mode === "edit" && stoerModal.id) { setStoerModal({ mode: "view", id: stoerModal.id }); } else { setStoerModal(null); setSDraft(null); } }} className="text-sm font-bold py-2.5 px-4 rounded-lg bg-slate-100 text-slate-500">Abbrechen</button>
+                  <button onClick={() => { if (stoerModal.mode === "edit" && stoerModal.id) { setStoerModal({ mode: "view", id: stoerModal.id }); } else { schliessen(); } }} className="text-sm font-bold py-2.5 px-4 rounded-lg bg-slate-100 text-slate-500">Abbrechen</button>
                 </div>
               </div>
             </div>

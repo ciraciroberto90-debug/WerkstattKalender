@@ -492,6 +492,19 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Fotos zu Störungen und Backlog-Arbeiten eingeführt (Robertos
+      „bauen" vom 21.08., war Vormerkung 3):** Foto-Bereich im Arbeit- und
+      im Störbericht-Dialog (am Handy Kamera/Galerie, am Rechner
+      Dateiauswahl), 📷-Kennzeichen mit aufklappbarer Vorschau in der
+      Backlog-Zeile, Großansicht mit Blättern. Die Bilder liegen als
+      Dateien im Unterordner `Fotos/` des Datenordners - im Eintrag steht
+      nur der Verweis, die gemeinsame JSON bleibt klein. Handyfotos werden
+      auf höchstens 1600 px Kante eingedampft (gemessen: 226 kB → 51 kB).
+      Abbrechen hinterlässt keine Waisen, Eintrag-Löschen räumt die
+      Dateien mit weg, ohne Ordner-Freigabe bleibt alles stumm.
+      Härtetest harte-51: 28/28 - und die Pflicht-Gegenprobe der
+      Hausregel: gegen den Build ohne die Änderung schlägt er fehl.
+
 - [x] **Geburtstags-Erinnerung eingeführt (Robertos Wahl „A", 20.08.):**
       freiwilliges 🎂-Feld je Person im ⚙ unter „Team & Schichten"
       (TT.MM. oder TT.MM.JJJJ; mit Jahr steht am Tag das Alter). Am Tag
