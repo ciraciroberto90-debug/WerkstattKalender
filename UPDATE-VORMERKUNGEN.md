@@ -44,15 +44,20 @@ klein und schnell.
 wie beim Papierkorb. Nicht akut – es sind noch Jahre Luft –, aber ohne
 diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
 
-### 3. Foto zur Störung (von Roberto am 19.08. zurückgestellt)
+### 3. Foto zur Störung **und zur Backlog-Arbeit** (am 21.08. um den Backlog erweitert)
 
 **Warum:** Ein Foto vom Schaden sagt der nächsten Schicht mehr als drei
-Sätze.
+Sätze. Gilt genauso für Backlog-Arbeiten – wer die Arbeit übernimmt, sieht
+sofort, worum es geht (Robertos Nachfrage vom 21.08.).
 
-**Wie:** Bilder als Dateien im Datenordner (`Stoerungsfotos/…`), in der
-Störung nur der Verweis – **bewusst nicht in der gemeinsamen JSON**, sonst
+**Wie:** Bilder als Dateien im Datenordner (`Fotos/…`), im Eintrag nur der
+Verweis – **bewusst nicht in der gemeinsamen JSON**, sonst
 wäre die 5-MB-Grenze in Wochen erreicht. Braucht die Ordner-Freigabe, die
-für den Konflikt-Wächter schon besteht. Vorlage liegt vor.
+für den Konflikt-Wächter schon besteht. Störbericht und Arbeit-Dialog
+bekommen dasselbe Foto-Feld (gleicher Unterbau, eine Runde). Ausführliche
+Vorlagen vom 21.08. liegen vor: 📷-Kennzeichen in der Backlog-Zeile,
+Mini-Vorschau unter der Zeile, Foto-Bereich in beiden Dialogen,
+Großansicht mit Blättern und Löschen.
 
 **Aufwand/Vorsicht:** Mittel bis groß; berührt die Datei-Ablage → braucht
 nach Hausregel einen Test, der ohne die Änderung fehlschlägt.
