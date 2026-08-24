@@ -4632,14 +4632,44 @@ function App() {
             Datenordner (<strong>Fotos/…</strong>), nicht in der gemeinsamen Datei - die bleibt klein.
           </div>
         )}
-        {!nurAnsehen && !kannAnhaengen && (
-          <div className="text-xs mt-1.5" style={{ color: "#8A9099" }}>
-            📷 Fotos anhängen geht erst nach der <strong>Ordner-Freigabe</strong> auf diesem Gerät:
-            oben rechts das <strong>Ordner-Symbol</strong> (Gemeinsame Datei) →
-            „<strong>Werkstatt-Ordner freigeben …</strong>" und den Ordner mit der Daten-Datei wählen.
-            Dieselbe Freigabe nutzt auch der Konflikt-Wächter und die Tages-Sicherung.
-          </div>
-        )}
+        {!nurAnsehen && !kannAnhaengen && (() => {
+          // Der Grund steht dabei, die Abhilfe ist EIN Klick hier im Dialog -
+          // nicht "geh woanders hin" (Robertos Fall vom 24.08.).
+          const lage = sharedFile.fotoLage();
+          if (lage === "bruecke") {
+            return (
+              <div className="text-xs mt-1.5" style={{ color: "#8A9099" }}>
+                📷 In der Programm-Fassung stehen Fotos noch nicht zur Verfügung
+                (die Desktop-Brücke kann keine Unterordner anlegen).
+              </div>
+            );
+          }
+          const freigeben = async () => {
+            try {
+              if (lage === "frage") await sharedFile.reconnectFolder();
+              else await sharedFile.pickFolder();
+              setFotoTick((t) => t + 1); // Bereich neu bewerten - jetzt mit Foto-Knopf
+            } catch (e) {
+              if (!(e && e.name === "AbortError")) setErr("Ordner-Freigabe: " + (e && e.message ? e.message : "fehlgeschlagen."));
+            }
+          };
+          return (
+            <div className="text-xs mt-1.5 flex items-center gap-2 flex-wrap" style={{ color: "#8A9099" }}>
+              <span>
+                {lage === "frage"
+                  ? <>📷 Nach dem Browser-Neustart will der Browser die <strong>Ordner-Freigabe einmal bestätigt</strong> haben - ein Klick genügt:</>
+                  : <>📷 Fotos brauchen einmalig die <strong>Freigabe des Datenordners</strong> (dieselbe wie für Konflikt-Wächter und Tages-Sicherung):</>}
+              </span>
+              <button
+                onClick={freigeben}
+                className="font-bold rounded border px-2.5 py-1"
+                style={{ borderColor: "#2F6690", color: "#2F6690", backgroundColor: "#F2F7FB", fontSize: "11px" }}
+              >
+                {lage === "frage" ? "Freigabe jetzt bestätigen" : "Werkstatt-Ordner freigeben …"}
+              </button>
+            </div>
+          );
+        })()}
       </div>
     );
   };

@@ -288,9 +288,9 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     pruef("(G) Der vorhandene Verweis zeigt 'Datei fehlt' statt zu crashen",
           /Datei fehlt/.test(await p.locator('div[role="dialog"], .fixed').last().innerText().catch(() => "")) ||
           /Datei fehlt/.test(await p.locator("body").innerText()));
-    pruef("(G) Und ein Hinweis nennt die nötige Freigabe samt Klickweg",
-          /Ordner-Freigabe/.test(await p.locator("body").innerText()) &&
-          /Werkstatt-Ordner freigeben/.test(await p.locator("body").innerText()));
+    pruef("(G) Und ein Hinweis nennt die nötige Freigabe samt Freigabe-Knopf",
+          /Freigabe des Datenordners/.test(await p.locator("body").innerText()) &&
+          (await p.getByRole("button", { name: /Werkstatt-Ordner freigeben/ }).count()) === 1);
     pruef("(G) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await ctx.close();
   }
@@ -305,6 +305,26 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     const dlgText = await p.locator("body").innerText();
     pruef("(G) Auch ohne Fotos und ohne Freigabe ist der Bereich sichtbar und erklärt sich",
           /FOTOS/i.test(dlgText) && /Werkstatt-Ordner freigeben/.test(dlgText));
+    await ctx.close();
+  }
+  {
+    // Robertos ECHTER Fall vom 24.08. (zweiter Teil): Der Ordner ist gemerkt,
+    // aber nach dem Browser-Neustart noch nicht bestätigt. Der Dialog muss
+    // das sagen - und EIN Klick auf den Knopf holt die Freigabe und zeigt
+    // sofort den Foto-Knopf. Kein "geh woanders hin".
+    const { p, ctx, fehler } = await start(browser, { arbeiten: [arbeitZeile], mitOrdner: false });
+    await p.evaluate(() => window.__wkSharedTest.adoptFolder(window.__mockOrdnerHandle, "needs-permission"));
+    await inBacklog(p);
+    await p.getByText("Lagerschaden an der Umlenkrolle").first().click();
+    await p.waitForTimeout(500);
+    pruef("(G) Gemerkter, unbestätigter Ordner: der Dialog sagt es und bietet den Knopf",
+          /einmal bestätigt/.test(await p.locator("body").innerText()) &&
+          (await p.getByRole("button", { name: "Freigabe jetzt bestätigen" }).count()) === 1);
+    await p.getByRole("button", { name: "Freigabe jetzt bestätigen" }).click();
+    await p.waitForTimeout(600);
+    pruef("(G) Ein Klick bestätigt - der Foto-Knopf erscheint sofort",
+          (await p.locator('input[aria-label="Foto hinzufügen"]').count()) === 1);
+    pruef("(G) Keine Skriptfehler beim Bestätigen", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await ctx.close();
   }
   {

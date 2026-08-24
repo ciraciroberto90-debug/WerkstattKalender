@@ -1798,6 +1798,15 @@ function createSharedStore(cfg) {
   function fotosVerfuegbar() {
     return !!(folderHandle && folderPerm === "ok" && folderHandle.getDirectoryHandle);
   }
+  // WARUM (noch) keine Fotos? Für eine ehrliche Meldung samt passendem Knopf.
+  // Wichtig wegen Robertos Fall vom 24.08.: Nach einem Browser-Neustart steht
+  // der gemerkte Ordner-Verweis zwar da, aber der Browser will die Freigabe
+  // einmal bestätigt haben ("frage") - das sah vorher wie "gibt es nicht" aus.
+  function fotoLage() {
+    if (!folderHandle) return "kein-ordner"; // nie freigegeben auf diesem Gerät
+    if (!folderHandle.getDirectoryHandle) return "bruecke"; // Programm-Fassung ohne Unterordner
+    return folderPerm === "ok" ? "ok" : "frage"; // frage: einmal bestätigen genügt
+  }
   async function fotoSpeichern(dateiName, blob) {
     if (!fotosVerfuegbar()) throw new Error("Kein Datenordner freigegeben - Fotos brauchen die Ordner-Freigabe des Konflikt-Wächters.");
     const ordner = await folderHandle.getDirectoryHandle(FOTO_ORDNER, { create: true });
@@ -1918,9 +1927,9 @@ function createSharedStore(cfg) {
     canWrite, // nur lesende Statusabfrage - verleiht kein Recht
     save: saveEntries, // greift dieselbe Prüfung ab wie jeder andere Weg
     getLastSuccessfulSyncAt: () => lastSuccessfulSyncAt,
-    adoptFolder(handle) {
+    adoptFolder(handle, perm) {
       folderHandle = handle;
-      folderPerm = "ok";
+      folderPerm = perm || "ok";
     },
     sammle: sammleKonfliktkopien,
     adoptQuellOrdner(handle) { quellHandle = handle; quellPerm = "ok"; },
@@ -1934,7 +1943,7 @@ function createSharedStore(cfg) {
     pickWritable, umgebung,
     folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
     tagesSicherungJetzt, tagesSicherungStand,
-    fotosVerfuegbar, fotoSpeichern, fotoLesen, fotoLoeschen,
+    fotosVerfuegbar, fotoLage, fotoSpeichern, fotoLesen, fotoLoeschen,
     leseAusOrdner, listeOrdnerDateien,
     pickQuellOrdner, reconnectQuellOrdner, vergissQuellOrdner, quellOrdnerStatus, quellOrdnerName, setzeQuellOrdnerPfad,
     saveEntries, saveConfig, readLog, dispatchError, dispatchOk, pollNow, _test,
@@ -1983,6 +1992,7 @@ export const tagesSicherungStand = main.tagesSicherungStand;
 // ordner "Fotos" des Datenordners (Freigabe der main-Instanz; die
 // Störungs-Datei wohnt im selben Ordner, darum reicht EIN Foto-Zugang).
 export const fotosVerfuegbar = main.fotosVerfuegbar;
+export const fotoLage = main.fotoLage;
 export const fotoSpeichern = main.fotoSpeichern;
 export const fotoLesen = main.fotoLesen;
 export const fotoLoeschen = main.fotoLoeschen;

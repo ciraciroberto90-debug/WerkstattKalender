@@ -100,9 +100,11 @@ diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
   mit weg (harte-51, inkl. Gegenprobe: gegen den Build ohne die Änderung
   schlägt der Test fehl). *Nachtrag 24.08.: Ohne Ordner-Freigabe war der
   Foto-Bereich komplett unsichtbar - Roberto fand die Funktion nicht.
-  Jetzt zeigt der Bearbeiten-Dialog dort immer den Bereich, ohne
-  Freigabe mit dem Klickweg („Ordner-Symbol oben rechts →
-  Werkstatt-Ordner freigeben …"); harte-51 jetzt 29/29.*
+  Jetzt zeigt der Bearbeiten-Dialog dort immer den Bereich - und die
+  Freigabe ist EIN Klick direkt im Dialog: „Werkstatt-Ordner
+  freigeben …" (nie freigegeben) bzw. „Freigabe jetzt bestätigen"
+  (nach Browser-Neustart fragt der Browser einmal nach - dieser
+  Zustand sah vorher wie „gibt es nicht" aus); harte-51 jetzt 32/32.*
 - **24.08.2026 (Robertos Wünsche aus dem laufenden Betrieb):**
   Schwebe-Fenster (verschiebbar + Größe änderbar, Lage wird je Gerät
   gemerkt): 📅-Wartungskalender direkt auf der Übersicht und
