@@ -105,9 +105,15 @@ const inPlan = async (p) => {
     pruef("(G2) Die Karte sperrt nichts (Knöpfe bleiben klickbar)",
           await p.getByRole("button", { name: "TPM", exact: true }).first().isEnabled());
     await p.reload();
-    await p.waitForTimeout(1200);
+    // Unter Suite-Last kann eine feste Wartezeit die ALTE Seite erwischen
+    // (deren Karte verschwindet nie, weil die Test-Uhr die 7-s-Timer
+    // einfriert). Darum: erst warten, bis die NEUE App steht, dann messen -
+    // und zusätzlich den Marker selbst, nicht nur die Text-Abwesenheit.
+    await p.getByRole("button", { name: "TPM", exact: true }).first().waitFor({ timeout: 15000 });
+    await p.waitForTimeout(600);
     pruef("(G2) Im selben Monat wird nicht noch einmal gefeiert",
-          !/August komplett!/.test(await p.locator("body").innerText()));
+          !/August komplett!/.test(await p.locator("body").innerText()) &&
+          (await p.evaluate(() => localStorage.getItem("werkstatt-kalender-fest"))) === "2026-08");
     await ctx.close();
   }
   {
