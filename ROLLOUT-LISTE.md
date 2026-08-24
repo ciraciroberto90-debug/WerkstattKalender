@@ -492,6 +492,20 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Schwebe-Fenster + Planung per Ziehen (Robertos Wünsche vom 24.08.):**
+      (1) Das 📅 am Tageslisten-Kopf der Übersicht öffnet den TPM/R+I-
+      Monatskalender als kleines Fenster (blättern, Klick auf Termin →
+      Termin-Dialog) - ohne den Reiter zu wechseln. (2) In der Planung
+      öffnet „📋 Backlog" die offenen Arbeiten als Fenster neben dem
+      Wochenplan; eine Zeile auf eine Person-Tag-Zelle ziehen weist zu
+      (Person + Tag in einem Zug), ein Plan-Chip zurück ins Fenster plant
+      aus. (3) Arbeit-Chips im Plan lassen sich zum Umplanen direkt auf
+      eine andere Person / einen anderen Tag ziehen. Beide Fenster sind
+      an der Titelzeile verschiebbar und an der Ecke in der Größe
+      änderbar; Lage und Größe merkt sich das Gerät je Fenster über das
+      Neuladen hinweg. Leser sehen keinen Backlog-Knopf und können nicht
+      ziehen. Härtetest harte-52: 21/21.
+
 - [x] **Fotos zu Störungen und Backlog-Arbeiten eingeführt (Robertos
       „bauen" vom 21.08., war Vormerkung 3):** Foto-Bereich im Arbeit- und
       im Störbericht-Dialog (am Handy Kamera/Galerie, am Rechner

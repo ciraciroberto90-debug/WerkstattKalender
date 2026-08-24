@@ -243,6 +243,80 @@ function TermintreueTrend({ reihe, filter }) {
   );
 }
 
+// Frei bewegliches Fenster (Robertos Wunsch vom 24.08.): an der Titelzeile
+// ziehen, an der Ecke unten rechts die Größe ändern, ✕ schließt. Lage und
+// Größe merkt sich das Gerät je Fenster (localStorage) - so steht das
+// Backlog-Fenster morgen wieder da, wo man es gestern hingeschoben hat.
+// BEWUSST kein Vollbild-Schleier: Die Fenster schweben NEBEN der Bedienung,
+// damit man z. B. aus dem Backlog heraus in die Planung ziehen kann.
+function SchwebeFenster({ id, titel, onZu, breite = 380, hoehe = 440, minB = 280, minH = 200, zIndex = 55, children }) {
+  const [lage, setLage] = React.useState(() => {
+    try {
+      const g = JSON.parse(localStorage.getItem("wk-fenster-" + id) || "null");
+      if (g && g.w >= minB && g.h >= minH && Number.isFinite(g.x) && Number.isFinite(g.y)) return g;
+    } catch (e) { /* dann eben Standardlage */ }
+    return null;
+  });
+  const start = lage || {
+    x: Math.max(8, (window.innerWidth || 1200) - breite - 28),
+    y: 88, w: breite, h: hoehe,
+  };
+  const lageRef = React.useRef(start);
+  lageRef.current = lage || start;
+  const dragStart = (ev, modus) => {
+    // Nur die linke Maustaste / ein Finger zieht; Klicks auf Knöpfe in der
+    // Titelzeile (✕) sollen Knöpfe bleiben.
+    if (ev.button !== undefined && ev.button !== 0) return;
+    if (ev.target.closest("button")) return;
+    ev.preventDefault();
+    const beginn = { ...lageRef.current };
+    const x0 = ev.clientX, y0 = ev.clientY;
+    const move = (e) => {
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      const b = window.innerWidth || 1200, hoeheFenster = window.innerHeight || 800;
+      const neu = modus === "zieh"
+        // Klemmen: Die Titelzeile bleibt immer greifbar im Bild.
+        ? { ...beginn, x: Math.min(Math.max(60 - beginn.w, beginn.x + dx), b - 60), y: Math.min(Math.max(0, beginn.y + dy), hoeheFenster - 40) }
+        : { ...beginn, w: Math.max(minB, beginn.w + dx), h: Math.max(minH, beginn.h + dy) };
+      lageRef.current = neu;
+      setLage(neu);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      try { localStorage.setItem("wk-fenster-" + id, JSON.stringify(lageRef.current)); } catch (e) { /* dann eben nicht gemerkt */ }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const l = lage || start;
+  return (
+    <div
+      className="no-print"
+      role="dialog"
+      aria-label={titel}
+      style={{ position: "fixed", left: l.x, top: l.y, width: l.w, height: l.h, zIndex, backgroundColor: "white", border: "1px solid #C9CED4", borderRadius: "12px", boxShadow: "0 16px 48px rgba(20,22,25,0.28)", display: "flex", flexDirection: "column", overflow: "hidden" }}
+    >
+      <div
+        onPointerDown={(ev) => dragStart(ev, "zieh")}
+        className="flex items-center gap-2 px-3 py-2 select-none"
+        style={{ backgroundColor: "#22262B", color: "white", cursor: "move", flexShrink: 0, touchAction: "none" }}
+        title="Zum Verschieben ziehen"
+      >
+        <span className="text-xs font-extrabold uppercase tracking-wide" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{titel}</span>
+        <button onClick={onZu} aria-label={`${titel} schließen`} className="ml-auto text-slate-300 hover:text-white" style={{ lineHeight: 1 }}>✕</button>
+      </div>
+      <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>{children}</div>
+      <div
+        onPointerDown={(ev) => dragStart(ev, "groesse")}
+        aria-hidden="true"
+        style={{ position: "absolute", right: 0, bottom: 0, width: "18px", height: "18px", cursor: "nwse-resize", touchAction: "none", background: "linear-gradient(135deg, transparent 50%, #C9CED4 50%)", borderBottomRightRadius: "12px" }}
+        title="Größe ändern"
+      />
+    </div>
+  );
+}
+
 // Monats-Auswertung als Diagramm (Robertos Ansage vom 18.08.): je Tag ein
 // Balken - unten grün das Erledigte, oben rot das Offene. Bewusst Balken statt
 // Linie: Im Monat zählt, WAS an welchem Tag steht, nicht die Richtung - die
@@ -1608,6 +1682,12 @@ function App() {
   const [, setFotoTick] = useState(0);
   const [fotoGross, setFotoGross] = useState(null); // Großansicht {fotos, index, ausDraft}
   const [blFotosAuf, setBlFotosAuf] = useState(null); // Backlog: Arbeit-id mit aufgeklappter Foto-Zeile
+  // Schwebe-Fenster (24.08.): kleiner Wartungskalender von der Übersicht aus,
+  // Backlog-Fenster in der Planung zum direkten Zuweisen per Ziehen.
+  const [kalenderPopup, setKalenderPopup] = useState(null); // null | {jahr, monat}
+  const [backlogPopout, setBacklogPopout] = useState(false);
+  const [popoutSuche, setPopoutSuche] = useState("");
+  const [dropZiel, setDropZiel] = useState(null); // "person|tagKey" während des Ziehens
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
@@ -7713,8 +7793,17 @@ function App() {
           <div className="grid gap-4" style={{ gridTemplateColumns: "1.05fr 1fr" }}>
             {/* Tagesliste */}
             <div>
-              <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: "#22262B" }}>
+              <div className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B" }}>
                 Heute · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
+                {/* Kalender-Popup (24.08.): der TPM/R+I-Monatskalender als
+                    kleines Fenster, ohne den Reiter zu wechseln. */}
+                <button
+                  onClick={() => setKalenderPopup((o) => (o ? null : { jahr: today.getFullYear(), monat: today.getMonth() }))}
+                  aria-label="Wartungskalender als Fenster öffnen"
+                  title="TPM/R+I-Kalender in einem kleinen Fenster zeigen"
+                  className="rounded border px-1.5"
+                  style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px" }}
+                >📅</button>
               </div>
               {heutePlan.length === 0 && (
                 <div className="text-xs italic text-slate-400 mb-3">Heute steht laut Plan nichts an.</div>
@@ -8183,6 +8272,20 @@ function App() {
             <span className="font-mono text-sm font-bold ml-2">
               {planungMontag.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – {addDays(planungMontag, 6).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </span>
+            {/* Backlog-Fenster (24.08.): die offenen Arbeiten schweben neben
+                dem Plan und werden per Ziehen auf Person und Tag zugewiesen. */}
+            {!readerMode && (
+              <button
+                onClick={() => setBacklogPopout((o) => !o)}
+                className="px-3 py-1.5 rounded border text-xs font-bold ml-auto"
+                style={backlogPopout
+                  ? { backgroundColor: "#22262B", color: "white", borderColor: "#22262B" }
+                  : { backgroundColor: "white", color: "#22262B", borderColor: "#D6D9DC" }}
+                title="Offene Arbeiten als Fenster neben dem Plan - zuweisen per Ziehen"
+              >
+                📋 Backlog {arbeitenOffen.length > 0 ? `(${arbeitenOffen.length})` : ""}
+              </button>
+            )}
           </div>
 
           {team.length === 0 ? (
@@ -8280,18 +8383,42 @@ function App() {
                                       </button>
                                     </td>
                                     <td
+                                      data-planzelle={`${person}|${t.key}`}
                                       onClick={(ev) => {
                                         // Klick auf die leere Fläche der Zeile öffnet direkt den Notiz-Dialog
                                         if (readerMode || ev.target !== ev.currentTarget) return;
                                         setPlanNotiz({ person, datum: t.key, text: "" });
                                       }}
                                       title={readerMode ? undefined : "Klick auf freie Fläche: Notiz direkt eintragen"}
-                                      style={{ padding: "2px 10px", borderTop: "1px solid #E2E4E7", cursor: readerMode ? "default" : "pointer" }}
+                                      /* Umplanen per Ziehen (24.08.): Arbeit-Chips und Zeilen aus dem
+                                         Backlog-Fenster landen hier - setzt Person + Tag in einem Zug. */
+                                      onDragOver={(ev) => { if (readerMode || abwesend) return; ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }}
+                                      onDragEnter={() => { if (!readerMode && !abwesend) setDropZiel(`${person}|${t.key}`); }}
+                                      onDragLeave={(ev) => {
+                                        if (ev.relatedTarget && ev.currentTarget.contains(ev.relatedTarget)) return;
+                                        setDropZiel((z) => (z === `${person}|${t.key}` ? null : z));
+                                      }}
+                                      onDrop={(ev) => {
+                                        ev.preventDefault();
+                                        setDropZiel(null);
+                                        if (readerMode || abwesend) return;
+                                        const arbeitId = ev.dataTransfer.getData("text/wk-arbeit");
+                                        if (arbeitId) einplanen(arbeitId, person, t.key);
+                                      }}
+                                      style={{ padding: "2px 10px", borderTop: "1px solid #E2E4E7", cursor: readerMode ? "default" : "pointer", backgroundColor: dropZiel === `${person}|${t.key}` ? "#EAF3EC" : undefined, boxShadow: dropZiel === `${person}|${t.key}` ? "inset 0 0 0 2px #2F7D4F" : undefined }}
                                     >
                                       {geplantFuer(person, t.key).map((a) => {
                                         const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
                                         return (
-                                          <button key={a.id} onClick={() => openArbeitEdit(a)} className="rounded font-bold text-left" style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: `${c}14`, wordBreak: "break-word" }} title={a.note}>
+                                          <button
+                                            key={a.id}
+                                            onClick={() => openArbeitEdit(a)}
+                                            draggable={!readerMode}
+                                            onDragStart={(ev) => { ev.dataTransfer.setData("text/wk-arbeit", a.id); ev.dataTransfer.effectAllowed = "move"; }}
+                                            className="rounded font-bold text-left"
+                                            style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: `${c}14`, wordBreak: "break-word", cursor: readerMode ? "pointer" : "grab" }}
+                                            title={a.note + (readerMode ? "" : " – zum Umplanen auf eine andere Zeile ziehen")}
+                                          >
                                             {a.name}: {a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}
                                           </button>
                                         );
@@ -8946,6 +9073,134 @@ function App() {
           </div>
         );
       })()}
+
+      {/* Backlog-Fenster in der Planung (24.08.): offene Arbeiten schweben
+          neben dem Wochenplan und werden per Ziehen auf eine Person-Tag-Zeile
+          zugewiesen. Zieht man einen Plan-Chip HIERHER, wird die Arbeit
+          wieder ausgeplant (zurück in den offenen Vorrat). */}
+      {backlogPopout && view === "COCKPIT" && cockpitTab === "PLANUNG" && !readerMode && (
+        <SchwebeFenster id="planung-backlog" titel="Backlog – ziehen zum Zuweisen" onZu={() => setBacklogPopout(false)} breite={360} hoehe={480}>
+          <div
+            className="p-2 flex flex-col gap-1"
+            style={{ minHeight: "100%" }}
+            onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }}
+            onDrop={(ev) => {
+              ev.preventDefault();
+              const arbeitId = ev.dataTransfer.getData("text/wk-arbeit");
+              if (arbeitId) einplanen(arbeitId, undefined, undefined);
+            }}
+          >
+            <SuchFeld
+              type="search"
+              wert={popoutSuche}
+              onWert={setPopoutSuche}
+              placeholder="🔍 Suchen …"
+              className="text-xs border rounded px-2 py-1.5 mb-1"
+              style={{ borderColor: "#D6D9DC" }}
+            />
+            {(() => {
+              const s = popoutSuche.trim().toLowerCase();
+              const liste = arbeitenOffen
+                .filter((a) => !s || `${a.name} ${a.note}`.toLowerCase().includes(s))
+                .sort((a, b) => (PRIO_REIHENFOLGE[a.prio ?? "ohne"] ?? 3) - (PRIO_REIHENFOLGE[b.prio ?? "ohne"] ?? 3));
+              if (liste.length === 0) return <div className="text-xs italic text-slate-400 p-2">Keine offenen Arbeiten{s ? " zu dieser Suche" : ""}.</div>;
+              return liste.map((a) => {
+                const prio = ARBEIT_PRIO[a.prio ?? "ohne"] || ARBEIT_PRIO.ohne;
+                const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
+                return (
+                  <div
+                    key={a.id}
+                    draggable
+                    onDragStart={(ev) => { ev.dataTransfer.setData("text/wk-arbeit", a.id); ev.dataTransfer.effectAllowed = "move"; }}
+                    className="rounded border px-2 py-1.5"
+                    style={{ borderColor: "#E2E4E7", backgroundColor: "white", cursor: "grab" }}
+                    title={`${a.note} – auf eine Person-Tag-Zeile im Plan ziehen`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ width: "9px", height: "9px", borderRadius: "50%", backgroundColor: prio.color, flexShrink: 0 }} title={prio.label} />
+                      <span className="font-bold" style={{ fontSize: "0.72rem", color: "#22262B" }}>{a.name}</span>
+                      <span className="font-bold ml-auto" style={{ fontSize: "0.6rem", color: c }}>{(ARBEIT_ART[a.art ?? ""] || ARBEIT_ART[""]).kurz}</span>
+                      {a.azubi ? <span style={{ fontSize: "0.65rem" }}>🎓</span> : null}
+                      {a.stillstand ? <span style={{ fontSize: "0.65rem" }}>⛔</span> : null}
+                    </div>
+                    <div style={{ fontSize: "0.68rem", color: "#5B6572", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{a.note}</div>
+                    {a.wer && a.geplant && (
+                      <div style={{ fontSize: "0.6rem", color: "#2F6690", fontWeight: 700 }}>eingeplant: {a.wer} · {formatDateDE(a.geplant)}</div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+            <div className="text-xs mt-auto pt-2" style={{ color: "#A6AEB6" }}>
+              Ziehen: Zeile → Plan weist zu · Plan-Chip → hierher plant aus.
+            </div>
+          </div>
+        </SchwebeFenster>
+      )}
+
+      {/* Kalender-Fenster (24.08.): der TPM/R+I-Monatskalender kompakt als
+          Schwebe-Fenster - von der Übersicht aus, ohne den Reiter zu wechseln.
+          Klick auf einen Termin öffnet wie gewohnt den Termin-Dialog. */}
+      {kalenderPopup && (
+        <SchwebeFenster id="kalender" titel={`Wartungskalender · ${MONTHS[kalenderPopup.monat]} ${kalenderPopup.jahr}`} onZu={() => setKalenderPopup(null)} breite={470} hoehe={520}>
+          {(() => {
+            const { jahr, monat } = kalenderPopup;
+            const plan = computeMaintenancePlan(jahr, monat).assignments;
+            const jeTag = new Map();
+            plan.forEach((p) => { if (!jeTag.has(p.date)) jeTag.set(p.date, []); jeTag.get(p.date).push(p); });
+            const vorlauf = (new Date(jahr, monat, 1).getDay() + 6) % 7; // Montag zuerst
+            const tageImMonat = new Date(jahr, monat + 1, 0).getDate();
+            const feiertage = getHolidays(jahr);
+            const wechsel = (d) => { let m = monat + d, j = jahr; if (m < 0) { m = 11; j -= 1; } if (m > 11) { m = 0; j += 1; } setKalenderPopup({ jahr: j, monat: m }); };
+            return (
+              <div className="p-2">
+                <div className="flex items-center gap-1 mb-2">
+                  <button onClick={() => wechsel(-1)} aria-label="Voriger Monat (Fenster)" className="px-2 py-0.5 rounded border text-xs font-bold" style={{ borderColor: "#D6D9DC" }}>‹</button>
+                  <button onClick={() => wechsel(1)} aria-label="Nächster Monat (Fenster)" className="px-2 py-0.5 rounded border text-xs font-bold" style={{ borderColor: "#D6D9DC" }}>›</button>
+                  {(jahr !== today.getFullYear() || monat !== today.getMonth()) && (
+                    <button onClick={() => setKalenderPopup({ jahr: today.getFullYear(), monat: today.getMonth() })} className="px-2 py-0.5 rounded border text-xs font-bold" style={{ borderColor: "#D6D9DC" }}>Heute</button>
+                  )}
+                  <span className="ml-auto text-xs" style={{ color: "#8A9099" }}>{plan.length} Termine</span>
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" }}>
+                  {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((w, i) => (
+                    <div key={w} className="text-center font-mono font-bold uppercase" style={{ fontSize: "0.58rem", color: i >= 5 ? "#6D93B8" : "#8A9099" }}>{w}</div>
+                  ))}
+                  {Array.from({ length: vorlauf }).map((_, i) => <div key={"leer" + i} />)}
+                  {Array.from({ length: tageImMonat }).map((_, i) => {
+                    const t = i + 1;
+                    const key = dateKey(jahr, monat, t);
+                    const punkte = jeTag.get(key) || [];
+                    const istHeute = key === todayKey;
+                    const feiertag = feiertage.get(key);
+                    return (
+                      <div key={key} style={{ minHeight: "46px", borderRadius: "5px", border: `1px solid ${istHeute ? "#C97A2B" : "#EDEFF2"}`, backgroundColor: istHeute ? "#FFF8EE" : feiertag ? "#FBEAE8" : "white", padding: "2px 3px" }} title={feiertag || undefined}>
+                        <div className="font-mono" style={{ fontSize: "0.6rem", fontWeight: istHeute ? 900 : 600, color: istHeute ? "#C97A2B" : feiertag ? "#B23A34" : "#8A9099" }}>{t}</div>
+                        {punkte.slice(0, 3).map((p, pi) => {
+                          const done = isPlanDone(p);
+                          const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
+                          return (
+                            <button
+                              key={pi}
+                              onClick={() => openPlanEntry(p)}
+                              className="block w-full text-left rounded font-bold"
+                              style={{ fontSize: "0.56rem", lineHeight: "13px", padding: "0 3px", marginBottom: "1px", color: c, backgroundColor: done ? "#E5F3EA" : `${c}16`, border: `1px solid ${c}`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                              title={`${p.anlage}${done ? " – erledigt" : ""}`}
+                            >
+                              {done ? "✓ " : ""}{p.anlage}
+                            </button>
+                          );
+                        })}
+                        {punkte.length > 3 && <div style={{ fontSize: "0.54rem", color: "#8A9099" }}>+{punkte.length - 3}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+        </SchwebeFenster>
+      )}
 
       {/* Foto-Großansicht (21.08.): über allem, Esc/Pfeiltasten siehe Effekt.
           "Foto löschen" gibt es nur im Bearbeiten-Kontext (setDraft gesetzt) -
