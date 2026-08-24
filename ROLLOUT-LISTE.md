@@ -492,6 +492,18 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Alle klassischen Dialoge verschiebbar (Robertos „gehe es an" vom
+      24.08., war Vormerkung 0):** Alle 21 mittig liegenden Dialoge tragen
+      jetzt eine kleine ⠿-Lasche über dem Kopf (verschieben) und eine Ecke
+      unten rechts (Größe ändern). Sie öffnen bewusst weiterhin mittig -
+      keine gemerkte Lage, anders als die Schwebe-Fenster. Ein Umbau über
+      EINE gemeinsame Grundlage (ZiehbareKarte), die Dialog-Inhalte selbst
+      blieben unangetastet; die Lasche liegt außerhalb der Karte und
+      überdeckt keinen Knopf. Unterwegs gefunden und behoben: Der
+      Loslass-Klick nach dem Ziehen konnte aufs Overlay fallen und den
+      Dialog ungewollt schließen. Härtetest harte-53: 14/14; alle 52
+      Suiten, Smoke und Rollout danach grün.
+
 - [x] **Schwebe-Fenster + Planung per Ziehen (Robertos Wünsche vom 24.08.):**
       (1) Das 📅 am Tageslisten-Kopf der Übersicht öffnet den TPM/R+I-
       Monatskalender als kleines Fenster (blättern, Klick auf Termin →

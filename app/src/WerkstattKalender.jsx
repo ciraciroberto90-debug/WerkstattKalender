@@ -317,6 +317,82 @@ function SchwebeFenster({ id, titel, onZu, breite = 380, hoehe = 440, minB = 280
   );
 }
 
+// Verschiebbare Dialog-Karte (Rest von Robertos 24.08.-Wunsch, Vormerkung 0):
+// Jeder klassische Dialog öffnet wie gewohnt MITTIG, trägt aber eine kleine
+// ⠿-Lasche über dem Kopf - daran lässt er sich frei verschieben - und eine
+// Ecke unten rechts für die Größe. BEWUSST ohne Lage-Merken: Ein Dialog soll
+// beim nächsten Öffnen wieder mittig stehen, nicht dort, wo er letzte Woche
+// geparkt wurde (anders als die Schwebe-Fenster, die Werkzeuge sind).
+// Die Lasche liegt AUSSERHALB der Karte, damit sie keinen einzigen
+// bestehenden Knopf überdeckt - die Dialog-Inhalte bleiben unangetastet.
+function ZiehbareKarte({ onClick, style, className, children, ...rest }) {
+  const [versatz, setVersatz] = React.useState({ x: 0, y: 0 });
+  const [groesse, setGroesse] = React.useState(null); // erst nach erstem Größen-Zug gesetzt
+  const kartenRef = React.useRef(null);
+  const stand = React.useRef({ versatz: { x: 0, y: 0 }, groesse: null });
+  const start = (ev, modus) => {
+    if (ev.button !== undefined && ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation(); // nie als Klick aufs Overlay (= Schließen) enden
+    const x0 = ev.clientX, y0 = ev.clientY;
+    const beginnV = { ...stand.current.versatz };
+    const beginnG = stand.current.groesse
+      || (kartenRef.current ? { w: kartenRef.current.getBoundingClientRect().width, h: kartenRef.current.getBoundingClientRect().height } : { w: 560, h: 400 });
+    const move = (e) => {
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      if (modus === "zieh") {
+        const neu = { x: beginnV.x + dx, y: beginnV.y + dy };
+        stand.current.versatz = neu;
+        setVersatz(neu);
+      } else {
+        const neu = { w: Math.max(300, beginnG.w + dx), h: Math.max(180, beginnG.h + dy) };
+        stand.current.groesse = neu;
+        setGroesse(neu);
+      }
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      // Beim Loslassen entsteht noch ein Klick - je nach Endposition der Maus
+      // träfe er das Overlay und schlösse den Dialog mitten im Ziehen.
+      // Diesen EINEN Klick schlucken; der Zeitgeber räumt auf, falls gar
+      // keiner mehr kommt (Loslassen außerhalb des Fensters).
+      const schlucker = (e) => { e.stopPropagation(); };
+      window.addEventListener("click", schlucker, true);
+      setTimeout(() => window.removeEventListener("click", schlucker, true), 0);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  return (
+    <div
+      onClick={onClick}
+      style={{ position: "relative", transform: `translate(${versatz.x}px, ${versatz.y}px)`, maxWidth: "100%", maxHeight: "100%", display: "flex", flexShrink: 0 }}
+    >
+      <div
+        onPointerDown={(ev) => start(ev, "zieh")}
+        title="Dialog verschieben"
+        aria-hidden="true"
+        style={{ position: "absolute", top: "-15px", left: "50%", marginLeft: "-40px", width: "80px", height: "16px", borderRadius: "8px 8px 0 0", backgroundColor: "#22262B", color: "#B9C0C7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", letterSpacing: "2px", cursor: "move", touchAction: "none", userSelect: "none" }}
+      >⠿</div>
+      <div
+        ref={kartenRef}
+        className={className}
+        {...rest}
+        style={{ ...style, ...(groesse ? { width: groesse.w + "px", height: groesse.h + "px", maxWidth: "none", maxHeight: "none" } : {}) }}
+      >
+        {children}
+      </div>
+      <div
+        onPointerDown={(ev) => start(ev, "groesse")}
+        title="Größe ändern"
+        aria-hidden="true"
+        style={{ position: "absolute", right: "-2px", bottom: "-2px", width: "18px", height: "18px", cursor: "nwse-resize", touchAction: "none", background: "linear-gradient(135deg, transparent 55%, #8A9099 55%)", borderRadius: "0 0 10px 0", opacity: 0.85 }}
+      />
+    </div>
+  );
+}
+
 // Monats-Auswertung als Diagramm (Robertos Ansage vom 18.08.): je Tag ein
 // Balken - unten grün das Erledigte, oben rot das Offene. Bewusst Balken statt
 // Linie: Im Monat zählt, WAS an welchem Tag steht, nicht die Richtung - die
@@ -8689,7 +8765,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.35)", display: "flex", alignItems: "center", justifyContent: "flex-end", zIndex: 60, padding: "16px" }}
           onClick={() => setPlanungPicker(null)}
         >
-          <div
+          <ZiehbareKarte
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "560px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
@@ -8766,7 +8842,7 @@ function App() {
                 </div>
               );
             })()}
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -8777,7 +8853,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
           onClick={() => setSchichtPicker(null)}
         >
-          <div
+          <ZiehbareKarte
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
@@ -8823,7 +8899,7 @@ function App() {
             <div className="mt-3 text-xs text-slate-400">
               „Ganze Woche" setzt Mo–Fr dieser KW und räumt Tages-Ausnahmen auf. „Nur Tag" ändert nur diesen einen Tag (z. B. Mittwoch Mainsite, Rest Früh).
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -8834,7 +8910,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
           onClick={() => setPlanNotiz(null)}
         >
-          <div
+          <ZiehbareKarte
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
@@ -8867,7 +8943,7 @@ function App() {
               )}
               <button onClick={() => setPlanNotiz(null)} className="rounded px-3 py-2 text-sm font-bold" style={{ backgroundColor: "#F4F5F6", color: "#8A9099" }}>Abbrechen</button>
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -8878,7 +8954,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
           onClick={() => setAkteAnlage(null)}
         >
-          <div
+          <ZiehbareKarte
             style={{ backgroundColor: "white", borderRadius: "12px", padding: "20px 22px", width: "860px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 16px 50px rgba(0,0,0,0.35)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
@@ -8935,7 +9011,7 @@ function App() {
                 ))}
               </div>
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -8949,7 +9025,7 @@ function App() {
             style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
             onClick={arbeitDialogSchliessen}
           >
-            <div
+            <ZiehbareKarte
               style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "520px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
               onClick={(ev) => ev.stopPropagation()}
             >
@@ -9069,7 +9145,7 @@ function App() {
                   <button onClick={arbeitDialogSchliessen} className="flex-1 text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-500">Abbrechen</button>
                 </div>
               </div>
-            </div>
+            </ZiehbareKarte>
           </div>
         );
       })()}
@@ -9282,7 +9358,7 @@ function App() {
           ) : null;
           return (
             <div className="no-print" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }} onClick={schliessen}>
-              <div style={{ backgroundColor: "white", borderRadius: "12px", width: "560px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", overflow: "hidden" }} onClick={(ev) => ev.stopPropagation()}>
+              <ZiehbareKarte style={{ backgroundColor: "white", borderRadius: "12px", width: "560px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", overflow: "hidden" }} onClick={(ev) => ev.stopPropagation()}>
                 {/* Kopfband */}
                 <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ backgroundColor: offen ? "#FBEAE8" : "#EAF3EC", borderBottom: `1px solid ${offen ? "#E7B9B3" : "#BFE0C6"}` }}>
                   <span className="font-black" style={{ fontSize: "1.05rem", color: "#22262B" }}>Störbericht</span>
@@ -9361,7 +9437,7 @@ function App() {
                   )}
                   <button onClick={schliessen} className="rounded-lg font-bold" style={{ fontSize: "0.85rem", padding: "8px 14px", backgroundColor: "#EEF1F4", color: "#5B6572" }}>Schließen</button>
                 </div>
-              </div>
+              </ZiehbareKarte>
             </div>
           );
         }
@@ -9372,7 +9448,7 @@ function App() {
             style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
             onClick={schliessen}
           >
-            <div
+            <ZiehbareKarte
               style={{ backgroundColor: "white", borderRadius: "12px", padding: "20px", width: "540px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
               onClick={(ev) => ev.stopPropagation()}
             >
@@ -9585,7 +9661,7 @@ function App() {
                   <button onClick={() => { if (stoerModal.mode === "edit" && stoerModal.id) { setStoerModal({ mode: "view", id: stoerModal.id }); } else { schliessen(); } }} className="text-sm font-bold py-2.5 px-4 rounded-lg bg-slate-100 text-slate-500">Abbrechen</button>
                 </div>
               </div>
-            </div>
+            </ZiehbareKarte>
           </div>
         );
       })()}
@@ -9637,7 +9713,7 @@ function App() {
       {kuerzelOffen && (
         <div className="no-print" onClick={() => setKuerzelOffen(false)}
           style={{ position: "fixed", inset: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,22,25,0.5)", padding: "16px" }}>
-          <div role="dialog" aria-label="Tastatur-Kürzel" onClick={(ev) => ev.stopPropagation()}
+          <ZiehbareKarte role="dialog" aria-label="Tastatur-Kürzel" onClick={(ev) => ev.stopPropagation()}
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
             <div className="flex items-center justify-between mb-3">
               <div className="font-bold text-sm">Tastatur-Kürzel</div>
@@ -9651,7 +9727,7 @@ function App() {
               </div>
             ))}
             <div className="text-xs mt-2" style={{ color: "#8A9099" }}>Nur wenn kein Eingabefeld den Fokus hat – Tippen bleibt Tippen.</div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -9662,7 +9738,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
           onClick={() => setNachbestellOffen(false)}
         >
-          <div
+          <ZiehbareKarte
             role="dialog"
             aria-label="Offene Nachbestellungen"
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "540px", maxWidth: "100%", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
@@ -9700,7 +9776,7 @@ function App() {
                 </div>
               );
             })}
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -9714,7 +9790,7 @@ function App() {
             style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "16px" }}
             onClick={closeModal}
           >
-            <div
+            <ZiehbareKarte
               style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "400px", maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
               onClick={(ev) => ev.stopPropagation()}
             >
@@ -9981,7 +10057,7 @@ function App() {
                   </div>
                 </>
               )}
-            </div>
+            </ZiehbareKarte>
           </div>
         );
       })()}
@@ -10005,7 +10081,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "16px" }}
           onClick={() => setOeeUebersichtOffen(false)}
         >
-          <div
+          <ZiehbareKarte
             role="dialog"
             aria-label="OEE Anlagenübersicht"
             onClick={(e) => e.stopPropagation()}
@@ -10132,7 +10208,7 @@ function App() {
                 Quelle einrichten …
               </button>
             )}
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -10145,7 +10221,7 @@ function App() {
           className="no-print"
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "16px" }}
         >
-          <div
+          <ZiehbareKarte
             role="dialog"
             aria-label="Diese Datei enthält keine Einträge"
             style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden" }}
@@ -10182,7 +10258,7 @@ function App() {
                 style={{ fontSize: "0.85rem", padding: "8px 14px", backgroundColor: "#EEF1F4", color: "#5B6572" }}
               >Ist richtig so</button>
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -10191,7 +10267,7 @@ function App() {
           className="no-print"
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "16px" }}
         >
-          <div
+          <ZiehbareKarte
             role="dialog"
             aria-label="Bericht wurde inzwischen geändert"
             style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden" }}
@@ -10237,7 +10313,7 @@ function App() {
                 style={{ fontSize: "0.85rem", padding: "8px 16px", backgroundColor: "#C0392B" }}
               >Meine Fassung speichern</button>
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -10251,7 +10327,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
           onClick={() => setTerminArchivOffen(false)}
         >
-          <div
+          <ZiehbareKarte
             role="dialog"
             aria-label="Termin-Archiv"
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "22px", width: "680px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
@@ -10290,7 +10366,7 @@ function App() {
                 </div>
               );
             })}
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -10317,7 +10393,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
           onClick={() => setDruckWahlOffen(false)}
         >
-          <div
+          <ZiehbareKarte
             role="dialog"
             aria-label="Was soll gedruckt werden?"
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "22px", width: `${rahmenBreite + 560}px`, maxWidth: "100%", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
@@ -10455,7 +10531,7 @@ function App() {
                 style={{ backgroundColor: "#C97A2B" }}
               ><Printer size={14} /> Drucken</button>
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
 );
       })()}
@@ -10466,7 +10542,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
           onClick={() => setShareOpen(false)}
         >
-          <div
+          <ZiehbareKarte
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "480px", maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
@@ -10627,7 +10703,7 @@ function App() {
                 </div>
               </div>
             )}
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -10644,7 +10720,7 @@ function App() {
           className="no-print"
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 90, padding: "16px" }}
         >
-          <div role="dialog" aria-label="Anmelden" style={{ backgroundColor: "white", borderRadius: "var(--wk-eck)", width: "380px", maxWidth: "100%", padding: "20px 22px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)" }}>
+          <ZiehbareKarte role="dialog" aria-label="Anmelden" style={{ backgroundColor: "white", borderRadius: "var(--wk-eck)", width: "380px", maxWidth: "100%", padding: "20px 22px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)" }}>
             <div className="font-extrabold text-sm mb-1" style={{ color: "#22262B" }}>Anmelden</div>
             <div className="text-xs mb-3" style={{ color: "#5B6572" }}>
               Für diese Werkstatt ist eine Benutzerliste eingerichtet. Einmal
@@ -10707,7 +10783,7 @@ function App() {
               Benutzername unbekannt? Rechte und Benutzer pflegt der
               Werkstattleiter (Zahnrad → Team &amp; Schichten).
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -10718,7 +10794,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
           onClick={() => setSettingsOpen(false)}
         >
-          <div
+          <ZiehbareKarte
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "680px", maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
@@ -11623,7 +11699,7 @@ function App() {
               Version vom {new Date(__BUILD_ZEIT__).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })} Uhr
               {typeof window !== "undefined" && window.__werkstattDesktop ? " · Programm-Fassung" : " · Browser-Fassung"}
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -11635,7 +11711,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 75, padding: "16px" }}
           onClick={() => archivErinnerungVerschieben(30)}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#fff", borderRadius: "14px", maxWidth: "540px", width: "100%", padding: "22px", boxShadow: "0 18px 50px rgba(20,22,25,0.3)" }}>
+          <ZiehbareKarte onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#fff", borderRadius: "14px", maxWidth: "540px", width: "100%", padding: "22px", boxShadow: "0 18px 50px rgba(20,22,25,0.3)" }}>
             <div style={{ fontSize: "0.68rem", fontWeight: 800, letterSpacing: "1.4px", textTransform: "uppercase", color: "#C97A2B" }}>Aufräumen empfohlen</div>
             <div style={{ fontSize: "1.15rem", fontWeight: 800, margin: "5px 0 10px", color: "#22262B" }}>
               Dein Bestand reicht {archivHinweis.jahre} Jahre zurück
@@ -11698,7 +11774,7 @@ function App() {
                 Erst nächstes Jahr
               </button>
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -11708,7 +11784,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "16px" }}
           onClick={() => setRestoreConfirm(null)}
         >
-          <div
+          <ZiehbareKarte
             style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "420px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
@@ -11730,7 +11806,7 @@ function App() {
                 Abbrechen
               </button>
             </div>
-          </div>
+          </ZiehbareKarte>
         </div>
       )}
 
@@ -12213,7 +12289,7 @@ function App() {
             style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
             onClick={() => setRegisterItem(null)}
           >
-            <div
+            <ZiehbareKarte
               style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "460px", maxWidth: "100%", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
               onClick={(ev) => ev.stopPropagation()}
             >
@@ -12337,7 +12413,7 @@ function App() {
                 </div>
               )}
               </>)}
-            </div>
+            </ZiehbareKarte>
           </div>
         );
       })()}

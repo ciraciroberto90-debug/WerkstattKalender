@@ -13,19 +13,6 @@ Roberto sehen wollte, aber noch nicht ausgewählt hat, stehen unten unter
 
 ## Vorgemerkt
 
-### 0. Auch die klassischen Dialoge verschiebbar machen (Rest von Robertos 24.08.-Wunsch)
-
-**Warum:** Roberto wünscht „generell jedes Popout individuell verschiebbar,
-gern auch in der Größe änderbar". Die beiden neuen Schwebe-Fenster
-(Wartungskalender, Backlog in der Planung) können das seit dem 24.08. -
-die klassischen, mittig liegenden Dialoge (Termin, Arbeit, Störbericht,
-⚙ …) noch nicht.
-
-**Wie:** Die Dialoge schrittweise auf das SchwebeFenster-Muster heben
-oder ihnen eine greifbare Titelzeile geben. **Vorsicht:** Viele
-Härtetests klicken die Dialoge an festen Stellen; der Umbau gehört in
-eine eigene, ruhige Runde - Dialog für Dialog, nicht alle auf einmal.
-
 ### 1. Papierkorb „Kürzlich gelöscht"
 
 **Warum:** Heute gibt es bei einem versehentlich gelöschten Eintrag nur das
@@ -118,5 +105,14 @@ diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
   gemerkt): 📅-Wartungskalender direkt auf der Übersicht und
   „📋 Backlog" in der Planung - Arbeiten per Ziehen auf Person + Tag
   zuweisen, Chips im Plan zum Umplanen ziehen, zurück ins Fenster =
-  ausplanen (harte-52, 21/21). *Der Rest des Wunsches - auch die
-  klassischen Dialoge verschiebbar - steht oben als Vormerkung 0.*
+  ausplanen (harte-52, 21/21).
+- **24.08.2026 (Robertos „gehe es an", war Vormerkung 0):** ALLE 21
+  klassischen Dialoge (Termin, Arbeit, Störbericht, ⚙, Register,
+  Druckwahl, Nachbestellungen …) sind jetzt verschiebbar - über die
+  kleine ⠿-Lasche über dem Dialogkopf - und an der Ecke unten rechts in
+  der Größe änderbar. Sie öffnen bewusst weiterhin MITTIG (kein
+  Lage-Merken - anders als die Schwebe-Fenster, die Werkzeuge sind).
+  Die Lasche liegt außerhalb der Karte und überdeckt keinen einzigen
+  Knopf; Ziehen in Eingabefeldern bleibt Text-Markieren; der
+  Loslass-Klick nach dem Ziehen schließt den Dialog nicht versehentlich
+  (harte-53, 14/14).
