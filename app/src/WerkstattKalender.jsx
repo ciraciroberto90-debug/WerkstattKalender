@@ -4581,7 +4581,11 @@ function App() {
   const fotoFeld = (draft, setDraft, nurAnsehen = false) => {
     const liste = fotoAnzeigeliste(draft);
     const kannAnhaengen = !nurAnsehen && sharedFile.fotosVerfuegbar();
-    if (liste.length === 0 && !kannAnhaengen) return null; // nichts zu zeigen, nichts anzubieten
+    // In der Ansicht ohne Fotos: nichts zeigen. Im BEARBEITEN-Modus dagegen
+    // erscheint der Bereich IMMER - Roberto fand die Funktion am 24.08. nicht,
+    // weil sie ohne Ordner-Freigabe komplett unsichtbar war. Unsichtbar heißt
+    // für den Nutzer "gibt es nicht"; jetzt steht dort der Grund samt Abhilfe.
+    if (liste.length === 0 && nurAnsehen) return null;
     return (
       <div style={{ borderTop: "1px solid #E2E4E7", paddingTop: "10px" }}>
         <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: "#8A9099", letterSpacing: "0.6px" }}>
@@ -4629,8 +4633,11 @@ function App() {
           </div>
         )}
         {!nurAnsehen && !kannAnhaengen && (
-          <div className="text-xs mt-1.5" style={{ color: "#A6AEB6" }}>
-            Fotos anhängen geht nur mit der Datenordner-Freigabe (⚙ → Gemeinsame Datei → Konflikt-Wächter).
+          <div className="text-xs mt-1.5" style={{ color: "#8A9099" }}>
+            📷 Fotos anhängen geht erst nach der <strong>Ordner-Freigabe</strong> auf diesem Gerät:
+            oben rechts das <strong>Ordner-Symbol</strong> (Gemeinsame Datei) →
+            „<strong>Werkstatt-Ordner freigeben …</strong>" und den Ordner mit der Daten-Datei wählen.
+            Dieselbe Freigabe nutzt auch der Konflikt-Wächter und die Tages-Sicherung.
           </div>
         )}
       </div>

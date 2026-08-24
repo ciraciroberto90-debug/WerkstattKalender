@@ -18,8 +18,10 @@
 //      das Löschen der ganzen Arbeit räumt ihre Fotodateien mit weg.
 //  (F) STÖRBERICHT: Auch ein Störbericht nimmt Fotos an; die Ansicht
 //      zeigt sie (nur lesend, ohne ✕), die Datei liegt im selben Ordner.
-//  (G) OHNE FREIGABE: Ohne Datenordner-Freigabe bleibt alles stumm -
-//      kein Knopf, keine Fehler. Ein Eintrag MIT Foto-Verweis zeigt dann
+//  (G) OHNE FREIGABE: kein Foto-Knopf und keine Fehler - aber seit dem
+//      24.08. NICHT mehr unsichtbar: Der Bearbeiten-Dialog zeigt den
+//      Hinweis mit dem Klickweg zur Ordner-Freigabe (Roberto fand die
+//      Funktion sonst nicht). Ein Eintrag MIT Foto-Verweis zeigt
 //      "Datei fehlt" statt zu crashen; ebenso bei gelöschter Datei.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
@@ -286,9 +288,23 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     pruef("(G) Der vorhandene Verweis zeigt 'Datei fehlt' statt zu crashen",
           /Datei fehlt/.test(await p.locator('div[role="dialog"], .fixed').last().innerText().catch(() => "")) ||
           /Datei fehlt/.test(await p.locator("body").innerText()));
-    pruef("(G) Und ein Hinweis nennt die nötige Freigabe",
-          /Datenordner-Freigabe/.test(await p.locator("body").innerText()));
+    pruef("(G) Und ein Hinweis nennt die nötige Freigabe samt Klickweg",
+          /Ordner-Freigabe/.test(await p.locator("body").innerText()) &&
+          /Werkstatt-Ordner freigeben/.test(await p.locator("body").innerText()));
     pruef("(G) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+    await ctx.close();
+  }
+  {
+    // Robertos Fall vom 24.08.: KEINE Fotos am Eintrag und KEINE Freigabe.
+    // Früher war der Foto-Bereich dann komplett unsichtbar - "gibt es nicht".
+    // Jetzt steht im Bearbeiten-Dialog der Hinweis mit dem Klickweg.
+    const { p, ctx } = await start(browser, { arbeiten: [arbeitZeile], mitOrdner: false });
+    await inBacklog(p);
+    await p.getByText("Lagerschaden an der Umlenkrolle").first().click();
+    await p.waitForTimeout(600);
+    const dlgText = await p.locator("body").innerText();
+    pruef("(G) Auch ohne Fotos und ohne Freigabe ist der Bereich sichtbar und erklärt sich",
+          /FOTOS/i.test(dlgText) && /Werkstatt-Ordner freigeben/.test(dlgText));
     await ctx.close();
   }
   {
