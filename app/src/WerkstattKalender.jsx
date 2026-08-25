@@ -6136,8 +6136,9 @@ function App() {
   /* ---- Quartals-Übersicht: die letzten 3 Monate (A4 hoch) ----
      Robertos Wunsch vom 24.08.: ROLLIEREND der laufende Monat plus die zwei
      davor - nicht das Kalenderquartal, denn gefragt ist "wie lief es
-     zuletzt", egal an welchem Datum man druckt. Je Monat ein Quote-Balken
-     auf fester 0-100-Skala, darunter die Zahlen - und die Aufschlüsselung
+     zuletzt", egal an welchem Datum man druckt. Die Termintreue als
+     Punkt-Strich-Linie auf fester 0-100-Skala (wie beim Jahres-Diagramm,
+     Robertos Ansage vom 24.08.), darunter die Zahlen - und die Aufschlüsselung
      je Anlage, damit das Blatt in Besprechung und Audit für sich spricht. */
   const buildDiagrammQuartalHTML = (art = "ALLE") => {
     const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -6167,7 +6168,6 @@ function App() {
     const innenB = B - L - R, innenH = H - O - U;
     const y = (q) => O + innenH - (q / 100) * innenH;
     const xMitte = (i) => L + ((i + 0.5) * innenB) / 3;
-    const balkenB = 120;
     let svg = [0, 25, 50, 75, 100].map((q) =>
       `<line x1="${L}" y1="${y(q).toFixed(1)}" x2="${B - R}" y2="${y(q).toFixed(1)}" stroke="${q === 0 ? "#C3C7CB" : "#EDEFF2"}" stroke-width="1"/>
        <text x="${L - 6}" y="${(y(q) + 3.5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#A6AEB6;">${q}</text>`).join("");
@@ -6175,11 +6175,27 @@ function App() {
       svg += `<line x1="${L}" y1="${y(schnitt).toFixed(1)}" x2="${B - R}" y2="${y(schnitt).toFixed(1)}" stroke="#8A9099" stroke-width="1.5" stroke-dasharray="5 4"/>
         <text x="${B - R}" y="${(y(schnitt) - 5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#8A9099;font-weight:700;">⌀ ${schnitt}%</text>`;
     }
+    // Punkt-Strich wie beim Jahres-Diagramm (Robertos Ansage vom 24.08.):
+    // Punkte je Monat, verbunden durch die Linie. Monate ohne Termine
+    // unterbrechen die Linie, statt fälschlich 0 % zu behaupten.
+    const abschnitte = [];
+    let lauf = [];
+    reihe.forEach((r, i) => {
+      if (r.quote === null) { if (lauf.length) abschnitte.push(lauf); lauf = []; }
+      else lauf.push({ ...r, i });
+    });
+    if (lauf.length) abschnitte.push(lauf);
+    abschnitte.forEach((abschnitt) => {
+      const pfad = abschnitt.map((r, k) => `${k === 0 ? "M" : "L"} ${xMitte(r.i).toFixed(1)} ${y(r.quote).toFixed(1)}`).join(" ");
+      if (abschnitt.length > 1) {
+        svg += `<path d="${pfad} L ${xMitte(abschnitt[abschnitt.length - 1].i).toFixed(1)} ${y(0).toFixed(1)} L ${xMitte(abschnitt[0].i).toFixed(1)} ${y(0).toFixed(1)} Z" fill="#2F6690" opacity="0.10"/>`;
+      }
+      svg += `<path d="${pfad}" fill="none" stroke="#2F6690" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    });
     reihe.forEach((r, i) => {
       if (r.quote !== null) {
-        const hoehe = Math.max(1.5, (r.quote / 100) * innenH);
-        svg += `<rect x="${(xMitte(i) - balkenB / 2).toFixed(1)}" y="${y(r.quote).toFixed(1)}" width="${balkenB}" height="${hoehe.toFixed(1)}" rx="4" fill="#2F6690" opacity="0.9"/>
-          <text x="${xMitte(i).toFixed(1)}" y="${(y(r.quote) - 7).toFixed(1)}" text-anchor="middle" style="font-size:12px;fill:#22262B;font-weight:800;">${r.quote}%</text>`;
+        svg += `<circle cx="${xMitte(i).toFixed(1)}" cy="${y(r.quote).toFixed(1)}" r="5" fill="#2F6690" stroke="#fff" stroke-width="2"/>
+          <text x="${xMitte(i).toFixed(1)}" y="${Math.max(12, y(r.quote) - 11).toFixed(1)}" text-anchor="middle" style="font-size:12px;fill:#22262B;font-weight:800;">${r.quote}%</text>`;
       } else {
         svg += `<text x="${xMitte(i).toFixed(1)}" y="${y(50).toFixed(1)}" text-anchor="middle" style="font-size:10px;fill:#A6AEB6;">keine Termine</text>`;
       }
@@ -6328,7 +6344,7 @@ function App() {
           { id: "diagramm-jahr", text: `Jahres-Diagramm ${year}`,
             erklaerung: "Die Termintreue je Monat als Linie, mit Quote und Zahlen – A4 hoch" },
           { id: "diagramm-quartal", text: "Letzte 3 Monate",
-            erklaerung: "Quartals-Übersicht: Termintreue je Monat und je Anlage – A4 hoch" },
+            erklaerung: "Quartals-Übersicht: Termintreue als Punkt-Linie je Monat, dazu je Anlage – A4 hoch" },
           { id: "wartungsplan-monat", text: `Wartungsplan ${MONTHS[month]} ${year}`,
             erklaerung: "Der Plan-Kalender mit allen Terminen – der bisherige Plan-Druck" },
           { id: "liste", text: "Liste wie am Bildschirm",

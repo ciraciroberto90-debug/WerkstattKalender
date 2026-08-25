@@ -2,7 +2,7 @@
 //
 //  (Q1) Der Auswertungs-Druckdialog bietet "Letzte 3 Monate" an.
 //  (Q2) Das Blatt: A4 hoch, ROLLIEREND laufender Monat + 2 davor, mit
-//       Gesamt-Quote oben, Quote-Balken je Monat, Monats-Tabelle mit
+//       Gesamt-Quote oben, Punkt-Strich-Linie je Monat, Monats-Tabelle mit
 //       Gesamt-Zeile und der Aufschlüsselung je Anlage.
 //  (Q3) Die Zahlen stimmen mit dem Seed überein - nachgerechnet, nicht
 //       nur vorhanden.
@@ -96,8 +96,9 @@ async function quartalsBlatt(p, umfang) {
     const { html, text } = await quartalsBlatt(p);
     pruef("(Q2) Das Blatt ist A4 hoch", /@page[^}]*size:\s*A4 portrait/.test(html));
     pruef("(Q2) Rollierender Zeitraum steht im Kopf", /Jun 2026 – Aug 2026/.test(text), text.slice(0, 120));
-    pruef("(Q2) Quote-Balken je Monat als SVG",
-          (html.match(/<rect[^>]*fill="#2F6690"/g) || []).length === 3);
+    pruef("(Q2) Punkt-Strich: drei Punkte und die verbindende Linie als SVG",
+          (html.match(/<circle[^>]*fill="#2F6690"/g) || []).length === 3 &&
+          /<path d="M [\d. ]+L [\d. ]+L [\d. ]+" fill="none" stroke="#2F6690"/.test(html));
     pruef("(Q2) Monats-Tabelle mit Gesamt-Zeile", /Juni 2026/.test(text) && /Juli 2026/.test(text) && /August 2026/.test(text) && /Gesamt/.test(text));
     pruef("(Q2) Aufschlüsselung je Anlage vorhanden",
           /Je Anlage über die drei Monate/i.test(text) && /TS480/.test(text) && /Wasserrundgang/.test(text));
