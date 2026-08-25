@@ -492,6 +492,17 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Quartals-Übersicht „Letzte 3 Monate" als Druckblatt (Robertos
+      Wunsch vom 24.08.):** Der Auswertungs-Druckdialog bietet neben
+      Monats- und Jahres-Diagramm jetzt „Letzte 3 Monate" - ROLLIEREND
+      laufender Monat plus die zwei davor, auch über die Jahresgrenze.
+      A4 hoch: Gesamt-Quote oben, Quote-Balken je Monat mit ⌀-Linie,
+      Monats-Tabelle mit Gesamt-Zeile und Aufschlüsselung je Anlage
+      (wo hakt es über das Quartal). Umfang-Filter (Beide/TPM/R+I) wirkt
+      wie bei den anderen Blättern. Härtetest harte-54: 16/16 - inkl.
+      nachgerechneter Quoten, Jahreswechsel-Fall und ehrlicher
+      Leermeldung.
+
 - [x] **Alle klassischen Dialoge verschiebbar (Robertos „gehe es an" vom
       24.08., war Vormerkung 0):** Alle 21 mittig liegenden Dialoge tragen
       jetzt eine kleine ⠿-Lasche über dem Kopf (verschieben) und eine Ecke

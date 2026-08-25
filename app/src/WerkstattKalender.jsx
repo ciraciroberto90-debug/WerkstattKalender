@@ -6133,6 +6133,129 @@ function App() {
     </body></html>`;
   };
 
+  /* ---- Quartals-Übersicht: die letzten 3 Monate (A4 hoch) ----
+     Robertos Wunsch vom 24.08.: ROLLIEREND der laufende Monat plus die zwei
+     davor - nicht das Kalenderquartal, denn gefragt ist "wie lief es
+     zuletzt", egal an welchem Datum man druckt. Je Monat ein Quote-Balken
+     auf fester 0-100-Skala, darunter die Zahlen - und die Aufschlüsselung
+     je Anlage, damit das Blatt in Besprechung und Audit für sich spricht. */
+  const buildDiagrammQuartalHTML = (art = "ALLE") => {
+    const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const monate = [2, 1, 0].map((zurueck) => {
+      const d = new Date(today.getFullYear(), today.getMonth() - zurueck, 1);
+      return { jahr: d.getFullYear(), monat: d.getMonth(), schluessel: `${d.getFullYear()}-${pad(d.getMonth() + 1)}` };
+    });
+    const relevant = entries.filter((e) =>
+      (e.category === "TPM" || e.category === "RI") &&
+      (art === "ALLE" || e.category === art) &&
+      monate.some((m) => String(e.date || "").startsWith(m.schluessel)));
+    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+    const reihe = monate.map((m) => {
+      const imMonat = relevant.filter((e) => String(e.date || "").startsWith(m.schluessel));
+      const mErledigt = imMonat.filter((e) => e.status === "done").length;
+      const mBasis = imMonat.filter((e) => e.status === "done" || e.status === "open").length;
+      return { ...m, name: `${MONTHS[m.monat]} ${m.jahr}`, erledigt: mErledigt, basis: mBasis, quote: mBasis > 0 ? Math.round((mErledigt / mBasis) * 100) : null };
+    });
+    const erledigt = relevant.filter((e) => e.status === "done").length;
+    const basis = relevant.filter((e) => e.status === "done" || e.status === "open").length;
+    const prozent = basis > 0 ? Math.round((erledigt / basis) * 100) : null;
+    const zeitraum = `${MONTHS[monate[0].monat].slice(0, 3)} ${monate[0].jahr} – ${MONTHS[monate[2].monat].slice(0, 3)} ${monate[2].jahr}`;
+    const mitWert = reihe.filter((r) => r.quote !== null);
+    const schnitt = mitWert.length ? Math.round(mitWert.reduce((s, r) => s + r.quote, 0) / mitWert.length) : null;
+
+    const B = 702, H = 240, L = 32, R = 12, O = 18, U = 26;
+    const innenB = B - L - R, innenH = H - O - U;
+    const y = (q) => O + innenH - (q / 100) * innenH;
+    const xMitte = (i) => L + ((i + 0.5) * innenB) / 3;
+    const balkenB = 120;
+    let svg = [0, 25, 50, 75, 100].map((q) =>
+      `<line x1="${L}" y1="${y(q).toFixed(1)}" x2="${B - R}" y2="${y(q).toFixed(1)}" stroke="${q === 0 ? "#C3C7CB" : "#EDEFF2"}" stroke-width="1"/>
+       <text x="${L - 6}" y="${(y(q) + 3.5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#A6AEB6;">${q}</text>`).join("");
+    if (schnitt !== null) {
+      svg += `<line x1="${L}" y1="${y(schnitt).toFixed(1)}" x2="${B - R}" y2="${y(schnitt).toFixed(1)}" stroke="#8A9099" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="${B - R}" y="${(y(schnitt) - 5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#8A9099;font-weight:700;">⌀ ${schnitt}%</text>`;
+    }
+    reihe.forEach((r, i) => {
+      if (r.quote !== null) {
+        const hoehe = Math.max(1.5, (r.quote / 100) * innenH);
+        svg += `<rect x="${(xMitte(i) - balkenB / 2).toFixed(1)}" y="${y(r.quote).toFixed(1)}" width="${balkenB}" height="${hoehe.toFixed(1)}" rx="4" fill="#2F6690" opacity="0.9"/>
+          <text x="${xMitte(i).toFixed(1)}" y="${(y(r.quote) - 7).toFixed(1)}" text-anchor="middle" style="font-size:12px;fill:#22262B;font-weight:800;">${r.quote}%</text>`;
+      } else {
+        svg += `<text x="${xMitte(i).toFixed(1)}" y="${y(50).toFixed(1)}" text-anchor="middle" style="font-size:10px;fill:#A6AEB6;">keine Termine</text>`;
+      }
+      svg += `<text x="${xMitte(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" style="font-size:10px;font-weight:700;fill:${r.quote === null ? "#C3C7CB" : "#5B6572"};">${r.name}</text>`;
+    });
+
+    const monatZeilen = reihe.map((r) => `<tr>
+      <td style="border:1px solid #DCE1E6;padding:3px 8px;font-size:11px;font-weight:700;">${r.name}</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;">${r.basis > 0 ? r.erledigt : "–"}</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;">${r.basis > 0 ? r.basis : "–"}</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;font-weight:700;color:${r.quote === null ? "#98A1AA" : "#22262B"};">${r.quote === null ? "keine Termine" : r.quote + " %"}</td>
+    </tr>`).join("") + `<tr>
+      <td style="border:1px solid #DCE1E6;padding:3px 8px;font-size:11px;font-weight:900;background:#FAFBFC;">Gesamt</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;font-weight:900;background:#FAFBFC;">${basis > 0 ? erledigt : "–"}</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;font-weight:900;background:#FAFBFC;">${basis > 0 ? basis : "–"}</td>
+      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;font-weight:900;background:#FAFBFC;">${prozent === null ? "–" : prozent + " %"}</td>
+    </tr>`;
+
+    // Aufschlüsselung je Anlage - wo hakt es über das Quartal?
+    const jeAnlage = new Map();
+    relevant.forEach((e) => {
+      if (e.status !== "done" && e.status !== "open") return;
+      const n = String(e.name || "").trim() || "(ohne Namen)";
+      if (!jeAnlage.has(n)) jeAnlage.set(n, { erledigt: 0, basis: 0 });
+      const a = jeAnlage.get(n);
+      a.basis += 1;
+      if (e.status === "done") a.erledigt += 1;
+    });
+    const anlagenZeilen = [...jeAnlage.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], "de"))
+      .map(([name, v]) => {
+        const q = Math.round((v.erledigt / v.basis) * 100);
+        return `<tr>
+          <td style="border:1px solid #DCE1E6;padding:3px 8px;font-size:11px;font-weight:700;">${esc(name)}</td>
+          <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;">${v.erledigt}</td>
+          <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;">${v.basis}</td>
+          <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;font-weight:700;">${q} %</td>
+        </tr>`;
+      }).join("");
+
+    const kopfzeile = (erste) => `<tr>
+      <td style="border:1px solid #DCE1E6;background:#FAFBFC;padding:3px 8px;font-size:9px;font-weight:800;color:#5B6572;">${erste}</td>
+      <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Erledigt</td>
+      <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Geplant</td>
+      <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Quote</td>
+    </tr>`;
+
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Quartals-Übersicht ${zeitraum}</title>
+      <style>
+        @page { size: A4 portrait; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
+        table { border-collapse: collapse; width: 100%; }
+      </style>
+    </head><body>
+      <div id="blatt" style="width:702px;">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:2px;">
+          <div style="font-weight:900;font-size:17px;">Letzte 3 Monate · ${zeitraum} · ${titel}</div>
+          <div style="font-size:13px;font-weight:800;color:#22262B;">${erledigt} von ${basis} erledigt${prozent !== null ? ` · ${prozent} %` : ""}</div>
+        </div>
+        <div style="font-size:10px;color:#6B7480;margin-bottom:6px;">Anteil der erledigten an den geplanten Terminen, rollierend über die letzten drei Monate. Monate ohne Termine bleiben leer.</div>
+        ${mitWert.length === 0
+          ? `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:14px;font-size:12px;color:#6B7480;">Für ${zeitraum} ist nichts eingetragen.</div>`
+          : `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:8px 4px 2px;">
+              <svg viewBox="0 0 ${B} ${H}" width="${B - 16}" role="img" aria-label="Termintreue der letzten drei Monate (${zeitraum})">${svg}</svg>
+            </div>`}
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin:12px 0 5px;">Die Monate im Einzelnen</div>
+        <table><tbody>${kopfzeile("Monat")}${monatZeilen}</tbody></table>
+        ${jeAnlage.size > 0 ? `
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin:12px 0 5px;">Je Anlage über die drei Monate</div>
+        <table><tbody>${kopfzeile("Anlage / Rundgang")}${anlagenZeilen}</tbody></table>` : ""}
+      </div>
+      ${passtAufEinBlatt(702, 1031)}
+    </body></html>`;
+  };
+
 
   /* ================= Drucken: ein Knopf, ein Dialog, eine Vorschau =================
      Vorher lagen die Druck-Knöpfe verstreut: in der Kopfleiste, mitten in der
@@ -6204,6 +6327,8 @@ function App() {
             erklaerung: "Erledigt und Offen je Tag als Balken, mit Quote und Zahlen – A4 hoch" },
           { id: "diagramm-jahr", text: `Jahres-Diagramm ${year}`,
             erklaerung: "Die Termintreue je Monat als Linie, mit Quote und Zahlen – A4 hoch" },
+          { id: "diagramm-quartal", text: "Letzte 3 Monate",
+            erklaerung: "Quartals-Übersicht: Termintreue je Monat und je Anlage – A4 hoch" },
           { id: "wartungsplan-monat", text: `Wartungsplan ${MONTHS[month]} ${year}`,
             erklaerung: "Der Plan-Kalender mit allen Terminen – der bisherige Plan-Druck" },
           { id: "liste", text: "Liste wie am Bildschirm",
@@ -6263,6 +6388,10 @@ function App() {
       case "diagramm-jahr":
         return { html: buildDiagrammJahrHTML(year, druckUmfang),
                  datei: `werkstatt-jahresdiagramm-${kurz}-${year}.html` };
+      case "diagramm-quartal":
+        // Rollierend ab HEUTE, unabhängig vom angezeigten Kalender-Monat.
+        return { html: buildDiagrammQuartalHTML(druckUmfang),
+                 datei: `werkstatt-quartal-${kurz}-${todayKey.slice(0, 7)}.html` };
       default:
         return { html: buildPrintDocument(),
                  datei: `werkstatt-kalender-${view.toLowerCase()}-${year}${view === "MONAT" ? "-" + pad(month + 1) : ""}.html` };
