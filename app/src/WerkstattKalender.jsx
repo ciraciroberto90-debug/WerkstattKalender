@@ -7370,6 +7370,27 @@ function App() {
           Prüfnachweis ist so lange falsch. Bitte die Windows-Zeit prüfen lassen.
         </div>
       )}
+
+      {/* Veraltet-Wächter (26.08.): Ein Leser-Rechner lief wochenlang mit
+          einer alten Programm-Fassung - aktuelle Daten, alte Rechenregeln,
+          anderer Wartungsplan. Die gemeinsame Datei merkt sich die jüngste
+          Bau-Zeit aller schreibenden Fassungen; wer dahinter liegt, sieht es
+          hier unübersehbar - AUCH als Nur-Leser, gerade der. Bleibend und
+          nicht wegklickbar: Der Zustand vergeht nicht durch Ignorieren. */}
+      {sharedFile.fassungVeraltet() && (
+        <div className="no-print mx-4 mt-2 rounded px-3 py-2 text-xs"
+             style={{ backgroundColor: "#FDECEA", border: "1px solid #E8A9A3", color: "#B23A34" }}>
+          <strong>⚠ Diese App-Fassung ist VERALTET.</strong>{" "}
+          Hier läuft die Fassung vom{" "}
+          {new Date(__BUILD_ZEIT__).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })} Uhr,
+          an der gemeinsamen Datei arbeitet aber schon eine neuere (vom{" "}
+          {new Date(sharedFile.fassungVeraltet()).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })} Uhr).
+          Wartungsplan und Ansichten können deshalb anders aussehen als bei den Kollegen.{" "}
+          {typeof window !== "undefined" && window.__werkstattDesktop
+            ? "Im Programm: den grünen Balken „Neue Version verfügbar“ oben anklicken – fehlt er, ist der Update-Ordner nicht eingestellt (⚙ → Verlauf & Sicherung → Programm-Updates) oder die Programm-ZIP selbst zu alt (ZIP tauschen)."
+            : "Im Browser: einmal F5 drücken – hilft das nicht, wird eine alte HTML-Kopie geöffnet (Verknüpfung prüfen, alte Kopien löschen)."}
+        </div>
+      )}
       {err && <div className="no-print mx-4 mt-2 text-xs text-red-600">{err}</div>}
 
       {/* Programm-Update: Im Update-Ordner liegt eine neuere App-HTML. Ein

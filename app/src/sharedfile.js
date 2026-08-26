@@ -373,6 +373,15 @@ function desktopOrdnerHandle(pfad, { nurLesen = false } = {}) {
   };
 }
 
+/* Veraltet-Wächter (26.08.): Ein Leser-Rechner lief wochenlang mit einer
+   alten Programm-Fassung - aktuelle Daten, aber alte Rechenregeln, also ein
+   anderer Wartungsplan. Die Datei merkt sich deshalb die jüngste Bau-Zeit
+   aller schreibenden Fassungen (Feld bauStand); wer beim Lesen eine jüngere
+   findet als die eigene, ist veraltet und bekommt eine rote Leiste.
+   __BUILD_ZEIT__ trägt vite beim Bauen ein; im rohen Quelltext (Prüfungen
+   ohne Build) bleibt der Wächter stumm statt zu stürzen. */
+const BAU_ZEIT_APP = typeof __BUILD_ZEIT__ === "string" ? __BUILD_ZEIT__ : "";
+
 /* ==================================================================== */
 /* Fabrik: eine unabhängige Sync-Instanz je Datei                       */
 /* ==================================================================== */
@@ -415,6 +424,7 @@ function createSharedStore(cfg) {
      lässt: Größe, letzte Änderung, Zahl der Einträge - und, sofern der
      Werkstatt-Ordner freigegeben ist, der Weg innerhalb dieses Ordners. */
   let uhrVersatzMs = 0;      // wie weit die Zeitangaben in der Datei in der Zukunft liegen
+  let fremdeBauZeit = "";    // jüngste in der Datei gesehene Bau-Zeit einer anderen Fassung
   let dateiInfo = null;   // { groesse, geaendert, eintraege }
   let dateiPfad = "";     // z. B. "Werkstatt/werkstatt-kalender-daten.json"
   let folderPerm = "none"; // "ok" | "needs-permission" | "none"
@@ -646,7 +656,7 @@ function createSharedStore(cfg) {
 
   /* ---------- Dateiformat ---------- */
   function emptyData() {
-    return { format: FORMAT, savedAt: null, entries: [], deleted: {}, config: null };
+    return { format: FORMAT, savedAt: null, entries: [], deleted: {}, config: null, bauStand: null };
   }
   function normalizeData(d) {
     // Auch eine reine Export-Datei (Array von Einträgen) wird als Startbestand akzeptiert.
@@ -657,7 +667,21 @@ function createSharedStore(cfg) {
       entries: Array.isArray(d.entries) ? d.entries : [],
       deleted: d.deleted && typeof d.deleted === "object" ? d.deleted : {},
       config: d.config && typeof d.config === "object" ? d.config : null,
+      bauStand: typeof d.bauStand === "string" ? d.bauStand : null,
     };
+  }
+  // Beim Schreiben bleibt immer die JÜNGSTE bekannte Bau-Zeit in der Datei
+  // stehen - eine ältere Fassung darf den Vermerk einer neueren nie
+  // zurückdrehen, sonst wäre der Veraltet-Hinweis nach ihrem ersten
+  // Speichern wieder weg.
+  function bauStandFuer(vorher) {
+    const alt = String(vorher || "");
+    return BAU_ZEIT_APP > alt ? BAU_ZEIT_APP : (alt || null);
+  }
+  // Ist DIESE Fassung älter als die jüngste, die die Datei je beschrieben
+  // hat? Dann die fremde Bau-Zeit zurückgeben (für die rote Leiste), sonst "".
+  function fassungVeraltet() {
+    return BAU_ZEIT_APP && fremdeBauZeit > BAU_ZEIT_APP ? fremdeBauZeit : "";
   }
   /* Die Zeitstempel in der Datei kommen von den Uhren der beteiligten Rechner.
      Liegen sie deutlich in der Zukunft, stimmt eine dieser Uhren nicht - und
@@ -693,6 +717,7 @@ function createSharedStore(cfg) {
       const gelesen = normalizeData(JSON.parse(text));
       dateiInfo.eintraege = ohneSystemEntries(gelesen.entries).length;
       pruefeUhr(gelesen);
+      if (gelesen.bauStand && gelesen.bauStand > fremdeBauZeit) fremdeBauZeit = gelesen.bauStand;
       return gelesen;
     } catch (e) {
       // Gemessen, wie es ohne diese Stelle aussah: "Expected double-quoted
@@ -788,7 +813,7 @@ function createSharedStore(cfg) {
           merged.push({ id, date: "", value: quelle[key], updatedAt: nowISO() });
         });
       }
-      const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config };
+      const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config, bauStand: bauStandFuer(data.bauStand) };
       let geschrieben = false;
       let letzterFehler = null;
       // Zwei Anläufe: Der erste kann an einer belegten Datei scheitern (zweites
@@ -1305,7 +1330,7 @@ function createSharedStore(cfg) {
         if (kopie.config && (!config || String(kopie.config.updatedAt || "") > String(config.updatedAt || ""))) {
           config = kopie.config;
         }
-        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config };
+        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config, bauStand: bauStandFuer(fileData.bauStand) };
         const nochAktuell = await readFileData();
         if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
           throw new Error("Kollision: Datei wurde zwischenzeitlich geändert");
@@ -1437,7 +1462,7 @@ function createSharedStore(cfg) {
         pruneTombstones(deleted);
 
         merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), deleted));
-        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: configAusEintraegen(merged) || fileData.config };
+        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: configAusEintraegen(merged) || fileData.config, bauStand: bauStandFuer(fileData.bauStand) };
 
         // Optimistische Sperre: unmittelbar vor dem Schreiben nochmal ganz kurz
         // prüfen, ob die Datei seit unserem Lesen oben noch denselben Stand hat.
@@ -1506,7 +1531,7 @@ function createSharedStore(cfg) {
         });
         pruneTombstones(deleted);
         const merged = mergeEntries(data.entries, stamped, deleted);
-        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: data.config };
+        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: data.config, bauStand: bauStandFuer(data.bauStand) };
         await writeFileData(out);
         lastSavedAt = out.savedAt;
         const kontrolle = await readFileData();
@@ -1617,7 +1642,7 @@ function createSharedStore(cfg) {
         });
         const t = nowISO();
         const merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), fileData.deleted));
-        const out = { format: FORMAT, savedAt: t, entries: merged, deleted: fileData.deleted, config: configAusEintraegen(merged) || fileData.config };
+        const out = { format: FORMAT, savedAt: t, entries: merged, deleted: fileData.deleted, config: configAusEintraegen(merged) || fileData.config, bauStand: bauStandFuer(fileData.bauStand) };
 
         // Optimistische Sperre wie bei saveEntries: nicht auf Basis eines
         // veralteten Stands schreiben, sonst könnte eine zeitgleiche
@@ -1719,7 +1744,9 @@ function createSharedStore(cfg) {
       if (!(e && e.dateiKaputt)) throw e;
     }
     const merged = pruneLogs(mergeEntries(geborgen, eigene, {}));
-    const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: {}, config: configAusEintraegen(merged) };
+    // Nach einer Datei-Reparatur ist der alte bauStand nicht mehr lesbar -
+    // dann steht eben die eigene Bau-Zeit drin, der nächste Abgleich hebt an.
+    const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: {}, config: configAusEintraegen(merged), bauStand: bauStandFuer(null) };
     await writeFileData(out);
     const kontrolle = await readFileData(); // muss jetzt wieder sauber lesbar sein
     lastSavedAt = kontrolle.savedAt;
@@ -1937,7 +1964,7 @@ function createSharedStore(cfg) {
   };
 
   return {
-    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, getLastWriteError, getLastSuccessfulSyncAt,
+    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, fassungVeraltet, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
@@ -1969,6 +1996,7 @@ export const canWrite = main.canWrite;
 export const fileName = main.fileName;
 export const fileInfo = main.fileInfo;
 export const uhrVersatz = main.uhrVersatz;
+export const fassungVeraltet = main.fassungVeraltet;
 export const getLastWriteError = main.getLastWriteError;
 export const getLastSuccessfulSyncAt = main.getLastSuccessfulSyncAt;
 export const listBackups = main.listBackups;

@@ -14,6 +14,16 @@ Stand: 07.08.2026
 
 ## Auf den Rechnern einspielen
 
+- [ ] **Leser-Rechner mit alter Programm-Fassung (Fund vom 26.08.):** Dort
+      läuft eine alte ZIP („FertigFassung_1.0") - anderer Wartungsplan bei
+      aktuellen Daten. Einmalig: alle Cockpit-Fenster schließen, aktuelle
+      `Werkstatt-Cockpit-Programm-win64.zip` entpacken, alte Fassung samt
+      Desktop-Verknüpfung entsorgen, einmal als Bearbeiter anmelden und im
+      ⚙ → Verlauf & Sicherung → **Programm-Updates** den Netzwerkordner
+      einstellen. Kontrolle: ⚙ zeigt „Version vom 26.08.2026", unter dem
+      Plan steht keine „Wartungsplan – Tabelle" mehr. Ab der neuen HTML
+      warnt zusätzlich die rote Veraltet-Leiste von selbst.
+
 - [ ] **`cockpit-server.ps1` austauschen** – im Cockpit-Ordner. Bringt zwei
       Dinge: Dateien öffnen sich per Klick direkt (statt nur Pfad kopieren),
       und `127.0.0.1` wird auf `localhost` umgeleitet, damit der gemerkte
@@ -491,6 +501,25 @@ auf denselben Dateien.
       Gelöschtes kann wieder aufgetaucht sein).
 
 ## Erledigt
+
+- [x] **Veraltet-Wächter nach dem Fund vom 26.08.:** Ein Leser-Rechner lief
+      wochenlang mit einer alten Programm-Fassung („FertigFassung_1.0") -
+      aktuelle Daten aus der gemeinsamen JSON, aber alte Rechenregeln, also
+      ein anderer Wartungsplan und andere Termin-Ansichten. Niemand konnte
+      das sehen: Die Versionsangabe steckt im ⚙, wo ein Leser nie hinkommt,
+      und die aktuelle Pinnwand täuschte Aktualität vor (Daten aktuell ≠
+      Fassung aktuell). Jetzt merkt sich die gemeinsame Datei die jüngste
+      **Bau-Zeit** aller schreibenden Fassungen (Feld `bauStand`, beim
+      Speichern nie rückwärts); eine App, die beim Lesen eine jüngere
+      findet als die eigene, zeigt eine bleibende **rote Veraltet-Leiste**
+      mit beiden Ständen und dem passenden Klickweg (Programm: grüner
+      Update-Balken / Update-Ordner im ⚙; Browser: F5 bzw. alte Kopie
+      löschen) - auch und gerade für Nur-Leser. Der Wächter blockiert
+      keine Arbeit und schlägt bei Dateien von vor dem Einbau nicht an.
+      Härtetest harte-56: 15/15 - inkl. Gegenprobe der Hausregel (gegen
+      den Build ohne den Wächter: 6 FAIL). Am betroffenen Rechner bleibt
+      einmalig zu tun: aktuelle Programm-ZIP einspielen und den
+      Update-Ordner einstellen (siehe Chat vom 26.08.).
 
 - [x] **Regeltermine, Termin-Archiv für Leser und 30-Tage-Räumung (Robertos
       Wünsche vom 24.08.):** (1) Neue Kategorie **„Termin"** im Anlege-
