@@ -1308,6 +1308,10 @@ const ROTATION_ANCHOR = new Date(2026, 0, 5); // Montag 05.01.2026, Slot 0 = ers
 const CATS = {
   TPM: { label: "TPM", full: "Wartung (TPM)", color: "#C97A2B" },
   RI: { label: "R+I", full: "Rundgang & Inspektion", color: "#2F6690" },
+  // Regel-/Einzeltermine (Robertos Wunsch vom 24.08.): z. B. die
+  // Abteilungsversammlung. Sie informieren wie R+I (Tagesliste, Kalender),
+  // zählen aber BEWUSST in keine Wartungs-Quote und keine Rotation.
+  TERMIN: { label: "Termin", full: "Regel-/Einzeltermin", color: "#7C5CBF" },
 };
 
 const STATUS_COLORS = {
@@ -1671,6 +1675,10 @@ function App() {
   const [draftName, setDraftName] = useState("");
   const [draftCustom, setDraftCustom] = useState(false);
   const [draftStatus, setDraftStatus] = useState("done");
+  // Regeltermine (24.08.): Wiederholung + "bis" + Pinnwand-Zettel
+  const [draftWdh, setDraftWdh] = useState("einmal"); // einmal | woche | 2wochen | 4wochen
+  const [draftBis, setDraftBis] = useState("");
+  const [draftPinnwand, setDraftPinnwand] = useState(false);
   const [draftNote, setDraftNote] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -3787,22 +3795,67 @@ function App() {
     setDraftCat(c);
     setDraftName("");
     setDraftCustom(false);
+    // Regeltermin-Felder frisch je Anlage-Vorgang; "bis" schlägt 3 Monate vor.
+    setDraftWdh("einmal");
+    setDraftPinnwand(false);
+    if (c === "TERMIN" && modal && modal.date) {
+      const d = new Date(modal.date + "T00:00:00");
+      d.setMonth(d.getMonth() + 3);
+      setDraftBis(dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
+    }
   };
 
   const saveEntry = async () => {
     if (!modal || modal.mode !== "add" || !draftCat || !draftName.trim()) return;
     setSaving(true);
+    const neueId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const entry = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: neueId(),
       date: modal.date,
       category: draftCat,
       name: draftName.trim(),
-      status: draftStatus,
+      status: draftCat === "TERMIN" ? "open" : draftStatus,
       note: draftNote.trim(),
     };
-    await persist([...entries, entry]);
+    const neu = [entry];
+    // Regeltermin-Serie (24.08.): Die Wiederholung legt ECHTE Einträge an -
+    // keine eigene Rotations-Logik, nichts, das in Wartungs-Quoten einfließt.
+    // Eine gemeinsame serieId erlaubt später "ganze Serie löschen".
+    if (draftCat === "TERMIN" && draftWdh !== "einmal" && draftBis) {
+      const schritt = draftWdh === "woche" ? 7 : draftWdh === "2wochen" ? 14 : 28;
+      const serieId = entry.id;
+      entry.serieId = serieId;
+      const start = new Date(modal.date + "T00:00:00");
+      // Deckel bei 60 Folgeterminen - schützt vor einem Tippfehler im "bis"-Jahr.
+      for (let i = 1; i <= 60; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i * schritt);
+        const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+        if (key > draftBis) break;
+        neu.push({ ...entry, id: neueId(), date: key, serieId });
+      }
+    }
+    // "Auch an die Pinnwand": EIN veröffentlichter Zettel je Anlage-Vorgang,
+    // damit alle die Reihe sehen - nicht 20 Zettel für 20 Termine.
+    if (draftCat === "TERMIN" && draftPinnwand) {
+      const wer = (localStorage.getItem("werkstatt-kalender-name") || "").trim() || "Werkstatt";
+      const wdhText = draftWdh === "woche" ? " – wöchentlich" : draftWdh === "2wochen" ? " – alle 2 Wochen" : draftWdh === "4wochen" ? " – alle 4 Wochen" : "";
+      neu.push({
+        id: neueId(), date: todayKey, category: "NOTIZ", name: wer, status: "open",
+        note: `📅 ${entry.name} ab ${formatDateDE(modal.date)}${wdhText}${draftBis && draftWdh !== "einmal" ? ` (bis ${formatDateDE(draftBis)})` : ""}`,
+        zeit: new Date().toISOString(), farbe: "blau", monitor: false, veroeffentlicht: true,
+      });
+    }
+    await persist([...entries, ...neu]);
     setSaving(false);
     closeModal();
+  };
+  // Ganze Regeltermin-Serie löschen (aus dem Termin-Dialog).
+  const loescheSerie = async (serieId, name) => {
+    const treffer = entries.filter((e) => e.serieId === serieId);
+    if (!window.confirm(`Alle ${treffer.length} Termine der Reihe „${name}" löschen?`)) return;
+    closeModal();
+    await persist(entries.filter((e) => e.serieId !== serieId));
   };
 
   const setEntryStatus = async (id, status) => {
@@ -4365,6 +4418,19 @@ function App() {
     ? computeMaintenancePlan(today.getFullYear(), today.getMonth())
     : { assignments: [], skipped: [] };
   const kalenderEntries = entries.filter((e) => e.category === "TPM" || e.category === "RI");
+  // Regeltermine (24.08.): je Tag gruppiert für Tagesliste und Kalender.
+  // BEWUSST getrennt von kalenderEntries - sie zählen in keine Quote.
+  const termineJeTag = (() => {
+    const m = new Map();
+    entries.forEach((e) => {
+      if (e.category !== "TERMIN") return;
+      if (!m.has(e.date)) m.set(e.date, []);
+      m.get(e.date).push(e);
+    });
+    m.forEach((liste) => liste.sort((a, b) => a.name.localeCompare(b.name, "de")));
+    return m;
+  })();
+  const heuteTermine = termineJeTag.get(todayKey) || [];
   const zettelListe = entries
     .filter((e) => e.category === "NOTIZ")
     .sort((a, b) => (b.angeheftet ? 1 : 0) - (a.angeheftet ? 1 : 0) || String(b.zeit || b.date).localeCompare(String(a.zeit || a.date)));
@@ -4385,11 +4451,42 @@ function App() {
     d.setDate(d.getDate() - 7);
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   })();
+  // Nach 30 Tagen ist im Archiv Schluss (Robertos Ansage vom 24.08.):
+  // Was länger versäumt ist, verschwindet aus der Archiv-ANZEIGE - der
+  // Eintrag selbst bleibt im Bestand, denn "nachvollziehbar ist das ganze
+  // dann unter TPM" (Roberto) muss WAHR bleiben: Auswertung, Trend und
+  // Druckblätter zählen den versäumten Termin weiter. Vier Härtetests
+  // (15/24/33/54) haben gemessen, dass echtes Löschen die Quoten
+  // rückwirkend schönen würde - deshalb nur Anzeige-Filter.
+  const terminLoeschGrenze = (() => {
+    const d = new Date(todayKey + "T00:00:00");
+    d.setDate(d.getDate() - 30);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  })();
   const alleUeberfaelligen = kalenderEntries
     .filter((e) => e.status === "open" && e.date < todayKey)
     .sort((a, b) => a.date.localeCompare(b.date));
   const ueberfaellige = alleUeberfaelligen.filter((e) => e.date >= terminArchivGrenze);
-  const terminArchiv = alleUeberfaelligen.filter((e) => e.date < terminArchivGrenze);
+  const terminArchiv = alleUeberfaelligen.filter((e) => e.date < terminArchivGrenze && e.date >= terminLoeschGrenze);
+  // Selbst-Räumung (Robertos Ansage vom 24.08.): Über 30 Tage zurückliegende
+  // REGELTERMINE werden wirklich gelöscht - eine verpasste Versammlung holt
+  // niemand nach, und Regeltermine zählen in keine Auswertung, ihr Löschen
+  // verfälscht also nichts. Versäumte TPM/R+I werden bewusst NICHT gelöscht
+  // (nur aus der Archiv-Anzeige genommen, Filter oben) - sonst sähen
+  // rückwirkend gedruckte Quoten besser aus als der Monat lief.
+  // Einmal am Tag je Gerät, nur mit Schreibrecht.
+  useEffect(() => {
+    if (readerMode || !heavyReady || entries.length === 0) return;
+    let marker = null;
+    try { marker = localStorage.getItem("werkstatt-kalender-archiv-raeumung"); } catch (e) { /* dann eben prüfen */ }
+    if (marker === todayKey) return;
+    try { localStorage.setItem("werkstatt-kalender-archiv-raeumung", todayKey); } catch (e) { /* egal */ }
+    const rausIds = new Set(entries.filter((e) =>
+      e.category === "TERMIN" && typeof e.date === "string" && e.date && e.date < terminLoeschGrenze
+    ).map((e) => e.id));
+    if (rausIds.size === 0) return;
+    persist(entries.filter((e) => !rausIds.has(e.id)));
+  }, [entries, readerMode, todayKey, terminLoeschGrenze, heavyReady]);
   const quoteFuer = (list) => {
     const d = list.filter((e) => e.status === "done").length;
     const basis = list.filter((e) => e.status === "done" || e.status === "open").length;
@@ -8063,7 +8160,7 @@ function App() {
                   style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px" }}
                 >📅</button>
               </div>
-              {heutePlan.length === 0 && (
+              {heutePlan.length === 0 && heuteTermine.length === 0 && (
                 <div className="text-xs italic text-slate-400 mb-3">Heute steht laut Plan nichts an.</div>
               )}
               {heutePlan.map((p) => {
@@ -8087,6 +8184,23 @@ function App() {
                 );
               })}
 
+              {/* Regeltermine des Tages (24.08.): informieren wie R+I, aber
+                  eigene, lila Karte - keine Wartung, keine Quote. */}
+              {heuteTermine.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { if (!readerMode) openEditModal(t); }}
+                  disabled={readerMode}
+                  className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
+                  style={{ boxShadow: "inset 3px 0 0 0 #7C5CBF, var(--wk-schatten)", cursor: readerMode ? "default" : "pointer" }}
+                >
+                  <span style={{ fontSize: "0.95rem" }} aria-hidden="true">📅</span>
+                  <span className="wk-chip wk-chip-termin">Termin</span>
+                  <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", textDecoration: t.status === "done" ? "line-through" : "none", color: t.status === "done" ? "#8A9099" : "#22262B" }}>{t.name}</strong>
+                  {t.note && <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "180px" }}>{t.note}</span>}
+                </button>
+              ))}
+
               {ueberfaellige.length > 0 && (
                 <>
                   <div className="text-xs font-extrabold uppercase tracking-wide mt-4 mb-2" style={{ color: "#B23A34" }}>Liegengeblieben ({ueberfaellige.length})</div>
@@ -8108,11 +8222,11 @@ function App() {
               )}
               {/* Was länger als eine Woche versäumt ist, liegt im Archiv -
                   die Übersicht bleibt frei für das, was jetzt zählt.
-                  Robertos Ansage vom 18.08.: Für LESER verschwindet
-                  Versäumtes nach der Woche ganz - kein Archiv-Knopf.
-                  Nachvollziehbar bleibt es für Bearbeiter im TPM-Plan
-                  und für Verwalter hier im Termin-Archiv. */}
-              {!readerMode && terminArchiv.length > 0 && (
+                  Seit dem 24.08. sehen auch LESER das Archiv (nur ansehen) -
+                  Robertos Ansage aus dem Betrieb: sonst listet sich
+                  Versäumtes bei ihnen ohne Ausweg auf. Nach 30 Tagen
+                  räumt sich das Archiv von selbst. */}
+              {terminArchiv.length > 0 && (
                 <button
                   onClick={() => setTerminArchivOffen(true)}
                   className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mt-2 text-left"
@@ -9406,6 +9520,13 @@ function App() {
             const plan = computeMaintenancePlan(jahr, monat).assignments;
             const jeTag = new Map();
             plan.forEach((p) => { if (!jeTag.has(p.date)) jeTag.set(p.date, []); jeTag.get(p.date).push(p); });
+            // Regeltermine (24.08.) laufen im Fenster mit - lila, eigener Klickweg.
+            entries.forEach((e) => {
+              if (e.category !== "TERMIN") return;
+              if (!String(e.date || "").startsWith(`${jahr}-${pad(monat + 1)}`)) return;
+              if (!jeTag.has(e.date)) jeTag.set(e.date, []);
+              jeTag.get(e.date).push({ date: e.date, anlage: e.name, termin: e });
+            });
             const vorlauf = (new Date(jahr, monat, 1).getDay() + 6) % 7; // Montag zuerst
             const tageImMonat = new Date(jahr, monat + 1, 0).getDate();
             const feiertage = getHolidays(jahr);
@@ -9435,12 +9556,12 @@ function App() {
                       <div key={key} style={{ minHeight: "46px", borderRadius: "5px", border: `1px solid ${istHeute ? "#C97A2B" : "#EDEFF2"}`, backgroundColor: istHeute ? "#FFF8EE" : feiertag ? "#FBEAE8" : "white", padding: "2px 3px" }} title={feiertag || undefined}>
                         <div className="font-mono" style={{ fontSize: "0.6rem", fontWeight: istHeute ? 900 : 600, color: istHeute ? "#C97A2B" : feiertag ? "#B23A34" : "#8A9099" }}>{t}</div>
                         {punkte.slice(0, 3).map((p, pi) => {
-                          const done = isPlanDone(p);
-                          const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
+                          const done = p.termin ? p.termin.status === "done" : isPlanDone(p);
+                          const c = done ? "#2F7D4F" : p.termin ? "#7C5CBF" : planGroupColor(p.anlage, tpmAnlagen, riItems);
                           return (
                             <button
                               key={pi}
-                              onClick={() => openPlanEntry(p)}
+                              onClick={() => { if (p.termin) { if (!readerMode) openEditModal(p.termin); } else openPlanEntry(p); }}
                               className="block w-full text-left rounded font-bold"
                               style={{ fontSize: "0.56rem", lineHeight: "13px", padding: "0 3px", marginBottom: "1px", color: c, backgroundColor: done ? "#E5F3EA" : `${c}16`, border: `1px solid ${c}`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                               title={`${p.anlage}${done ? " – erledigt" : ""}`}
@@ -10000,7 +10121,7 @@ function App() {
 
                   {!draftCat ? (
                     <div className="flex gap-2">
-                      {["TPM", "RI"].map((c) => (
+                      {["TPM", "RI", "TERMIN"].map((c) => (
                         <button
                           key={c}
                           onClick={() => pickDraftCat(c)}
@@ -10086,7 +10207,58 @@ function App() {
                           </button>
                         </div>
                       )}
+                      {/* Regeltermin (24.08.): freier Titel, Wiederholung legt die
+                          Reihe als echte Einträge an, optional ein Pinnwand-Zettel. */}
+                      {draftCat === "TERMIN" && (
+                        <div className="flex flex-col gap-2.5">
+                          <input
+                            autoFocus
+                            value={draftName}
+                            onChange={(e) => setDraftName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") saveEntry(); }}
+                            placeholder="z. B. Abteilungsversammlung"
+                            aria-label="Termin-Titel"
+                            className="text-sm border rounded px-3 py-2"
+                            style={{ borderColor: "#D6D9DC" }}
+                          />
+                          <div className="flex gap-2 items-center flex-wrap">
+                            <select
+                              value={draftWdh}
+                              onChange={(e) => setDraftWdh(e.target.value)}
+                              aria-label="Wiederholung"
+                              className="text-sm border rounded px-2 py-2"
+                              style={{ borderColor: "#D6D9DC" }}
+                            >
+                              <option value="einmal">einmalig</option>
+                              <option value="woche">jede Woche</option>
+                              <option value="2wochen">alle 2 Wochen</option>
+                              <option value="4wochen">alle 4 Wochen</option>
+                            </select>
+                            {draftWdh !== "einmal" && (
+                              <label className="flex items-center gap-1.5 text-xs" style={{ color: "#5B6572" }}>
+                                bis
+                                <input
+                                  type="date"
+                                  value={draftBis}
+                                  onChange={(e) => setDraftBis(e.target.value)}
+                                  aria-label="Wiederholung bis"
+                                  className="text-sm border rounded px-2 py-1.5"
+                                  style={{ borderColor: "#D6D9DC" }}
+                                />
+                              </label>
+                            )}
+                          </div>
+                          <label className="flex items-center gap-2 text-xs" style={{ color: "#5B6572" }}>
+                            <input type="checkbox" checked={draftPinnwand} onChange={(e) => setDraftPinnwand(e.target.checked)} />
+                            📌 auch als Zettel an die Pinnwand (für alle sichtbar)
+                          </label>
+                          <div className="text-xs" style={{ color: "#A6AEB6" }}>
+                            Termine erscheinen in Tagesliste und Kalender, zählen aber nicht in die Wartungs-Auswertung.
+                          </div>
+                        </div>
+                      )}
 
+                      {draftCat !== "TERMIN" && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => setDraftStatus("done")}
@@ -10101,6 +10273,7 @@ function App() {
                           ✕ Offen
                         </button>
                       </div>
+                      )}
                       <textarea
                         spellCheck
                         lang="de"
@@ -10236,6 +10409,17 @@ function App() {
                         Löschen
                       </button>
                     </div>
+                    {/* Regeltermin-Reihe (24.08.): einzeln löschen bliebe bei
+                        z. B. 26 Wochen-Terminen eine Strafarbeit. */}
+                    {liveEntry.serieId && (
+                      <button
+                        onClick={() => loescheSerie(liveEntry.serieId, liveEntry.name)}
+                        className="w-full text-xs font-bold py-2 rounded mt-2"
+                        style={{ backgroundColor: "#FDF0EE", color: "#B23A34", border: "1px solid #E8B4AE" }}
+                      >
+                        Ganze Reihe löschen ({entries.filter((e) => e.serieId === liveEntry.serieId).length} Termine)
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -10521,7 +10705,9 @@ function App() {
             </div>
             <div className="text-xs mb-4" style={{ color: "#8A9099" }}>
               Versäumte Termine, die älter als eine Woche sind. Sie bleiben offen und zählen im Prüfnachweis
-              weiter als versäumt – ein Klick öffnet den Termin zum Erledigen oder Verschieben.
+              weiter als versäumt{readerMode ? "" : " – ein Klick öffnet den Termin zum Erledigen oder Verschieben"}.
+              Nach <strong>30 Tagen</strong> verschwinden sie aus diesem Archiv – nachvollziehbar bleiben sie
+              in der TPM-Auswertung und auf den gedruckten Blättern.
             </div>
             {[["TPM", "TPM – Wartung"], ["RI", "R+I – Rundgang & Inspektion"]].map(([kat, titel]) => {
               const liste = terminArchiv.filter((e) => e.category === kat);
@@ -10534,9 +10720,10 @@ function App() {
                     return (
                       <button
                         key={e.id}
-                        onClick={() => { setTerminArchivOffen(false); openEditModal(e); }}
+                        onClick={() => { if (readerMode) return; setTerminArchivOffen(false); openEditModal(e); }}
+                        disabled={readerMode}
                         className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
-                        style={{ backgroundColor: "#F9FAFB", boxShadow: "inset 3px 0 0 0 #8A9099, var(--wk-schatten)" }}
+                        style={{ backgroundColor: "#F9FAFB", boxShadow: "inset 3px 0 0 0 #8A9099, var(--wk-schatten)", cursor: readerMode ? "default" : "pointer" }}
                       >
                         <span className={`wk-chip wk-chip-${String(e.category).toLowerCase()}`}>{CATS[e.category].label}</span>
                         <strong className="flex-1" style={{ fontSize: "var(--wk-txt)" }}>{e.name}</strong>
@@ -12222,6 +12409,21 @@ function App() {
                         </div>
                         {holName && <div className="text-xs font-bold" style={{ color: "#B23A34", marginTop: "-4px" }}>{holName}</div>}
                         <div className="flex flex-col gap-1">
+                          {/* Regeltermine (24.08.): lila Kachel, Klick öffnet den
+                              Termin-Dialog - kein Teil des Wartungsplans. */}
+                          {(termineJeTag.get(key) || []).map((t) => (
+                            <button
+                              key={t.id}
+                              onClick={() => { if (!readerMode) openEditModal(t); }}
+                              disabled={readerMode}
+                              data-termin-datum={t.date}
+                              className="text-xs font-bold rounded px-1.5 py-1 text-left"
+                              style={{ color: t.status === "done" ? "#2F7D4F" : "#7C5CBF", border: `1px solid ${t.status === "done" ? "#2F7D4F" : "#7C5CBF"}`, backgroundColor: t.status === "done" ? "#E5F3EA" : "#7C5CBF18", wordBreak: "break-word", cursor: readerMode ? "default" : "pointer" }}
+                              title={readerMode ? undefined : "Termin öffnen"}
+                            >
+                              {t.status === "done" ? "✓ " : "📅 "}{t.name}
+                            </button>
+                          ))}
                           {dayPlans.map((p, pi) => {
                             const done = isPlanDone(p);
                             const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);

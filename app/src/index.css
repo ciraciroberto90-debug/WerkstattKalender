@@ -172,6 +172,7 @@ input[type="checkbox"]:disabled { background-color: #F4F6F8; border-color: #DDE1
 }
 .wk-chip-tpm { background: #FBF0E2; color: #8A5B1E; }
 .wk-chip-ri { background: #E9F0F6; color: #28587C; }
+.wk-chip-termin { background: #EFEAF8; color: #5E4396; }
 
 /* Nachtschicht-Modus (QoL 19.08., Auge-Knopf oben rechts):
    Leuchtdichte-Umkehr mit Farbdreher - Grün bleibt grün, Rot bleibt rot,

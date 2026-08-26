@@ -492,6 +492,34 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Regeltermine, Termin-Archiv für Leser und 30-Tage-Räumung (Robertos
+      Wünsche vom 24.08.):** (1) Neue Kategorie **„Termin"** im Anlege-
+      Dialog (lila) - für Abteilungsversammlung & Co.: freier Titel,
+      Wiederholung (einmalig / jede Woche / alle 2 / alle 4 Wochen) mit
+      „bis"-Datum (+3 Monate vorgeschlagen, Deckel 60 Folgetermine) und auf
+      Wunsch **ein** veröffentlichter Pinnwand-Zettel für die ganze Reihe.
+      Termine informieren wie R+I - lila Karte in der Tagesliste, Kachel im
+      Plan-Kalender und im Kalender-Fenster - **zählen aber in keine
+      Wartungs-Quote** (nachgerechnet am Druckblatt) und tauchen nie unter
+      „Liegengeblieben" auf (eine verpasste Versammlung holt niemand nach).
+      Im Termin-Dialog: „Ganze Reihe löschen (n Termine)". (2) Das
+      **Termin-Archiv sehen jetzt auch Leser** (nur ansehen) - Robertos
+      Ansage aus dem Betrieb, sonst listet sich Versäumtes bei ihnen ohne
+      Ausweg auf; das überschreibt die Ansage vom 18.08. (3) **Nach 30
+      Tagen ist im Archiv Schluss** - aber bewusst zweigeteilt: Vergangene
+      REGELTERMINE werden wirklich gelöscht (einmal täglich je Gerät, nur
+      mit Schreibrecht - sie zählen in keine Auswertung, ihr Löschen
+      verfälscht nichts). Versäumte TPM/R+I-Termine verschwinden dagegen
+      nur aus der Archiv-ANZEIGE und bleiben im Bestand - Robertos eigene
+      Begründung („Nachvollziehbar ist das ganze ja dann unter TPM") muss
+      wahr bleiben: Vier bestehende Härtetests (15/24/33/54) haben beim
+      ersten Wurf GEMESSEN, dass echtes Löschen die TPM-Auswertung, den
+      Trend und die gedruckten Quoten rückwirkend geschönt hätte - deshalb
+      der Umbau auf den Anzeige-Filter, danach alle Suiten grün.
+      Härtetest harte-55: 26/26 - inkl. Gegenprobe der Hausregel (gegen
+      den Build ohne die Änderung schlägt er fehl) und dem nachgemessenen
+      Druckblatt, das Versäumte weiter zählt.
+
 - [x] **Quartals-Übersicht „Letzte 3 Monate" als Druckblatt (Robertos
       Wunsch vom 24.08.):** Der Auswertungs-Druckdialog bietet neben
       Monats- und Jahres-Diagramm jetzt „Letzte 3 Monate" - ROLLIEREND

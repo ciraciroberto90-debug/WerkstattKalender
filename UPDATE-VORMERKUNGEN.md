@@ -121,3 +121,16 @@ diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
   Knopf; Ziehen in Eingabefeldern bleibt Text-Markieren; der
   Loslass-Klick nach dem Ziehen schließt den Dialog nicht versehentlich
   (harte-53, 14/14).
+- **24.08.2026 (Robertos Wünsche, zweite Runde):** Regeltermine als eigene
+  Kategorie „Termin" (lila) - freier Titel, Wiederholung wöchentlich /
+  2-wöchentlich / 4-wöchentlich mit „bis"-Datum, auf Wunsch ein
+  veröffentlichter Pinnwand-Zettel je Reihe. Sie informieren wie R+I
+  (Tagesliste, Plan-Kalender, Kalender-Fenster), zählen aber in KEINE
+  Wartungs-Quote; „Ganze Reihe löschen" im Termin-Dialog. Dazu: das
+  Termin-Archiv ist jetzt auch für LESER sichtbar (nur ansehen), und
+  nach 30 Tagen ist im Archiv Schluss - vergangene Regeltermine werden
+  wirklich gelöscht (einmal täglich, nur mit Schreibrecht), versäumte
+  TPM/R+I verschwinden nur aus der Archiv-Anzeige und zählen in
+  Auswertung, Trend und Druckblättern weiter als versäumt
+  („nachvollziehbar unter TPM", nachgemessen) (harte-55, 26/26, inkl.
+  Gegenprobe gegen den Build ohne die Änderung).
