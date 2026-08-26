@@ -22,7 +22,9 @@ Stand: 07.08.2026
       ⚙ → Verlauf & Sicherung → **Programm-Updates** den Netzwerkordner
       einstellen. Kontrolle: ⚙ zeigt „Version vom 26.08.2026", unter dem
       Plan steht keine „Wartungsplan – Tabelle" mehr. Ab der neuen HTML
-      warnt zusätzlich die rote Veraltet-Leiste von selbst.
+      warnt zusätzlich die rote Veraltet-Leiste von selbst. Die ZIP vom
+      26.08. bringt außerdem die Fotos ins Programm - der Tausch lohnt
+      also auf ALLEN Programm-Rechnern, nicht nur auf dem Leser-Rechner.
 
 - [ ] **`cockpit-server.ps1` austauschen** – im Cockpit-Ordner. Bringt zwei
       Dinge: Dateien öffnen sich per Klick direkt (statt nur Pfad kopieren),
@@ -501,6 +503,25 @@ auf denselben Dateien.
       Gelöschtes kann wieder aufgetaucht sein).
 
 ## Erledigt
+
+- [x] **Fotos auch in der Programm-Fassung (Robertos Frage vom 26.08.):**
+      Der Dialog sagte dort bisher ehrlich ab - die Desktop-Brücke konnte
+      keine Unterordner anlegen und keine Bilddateien schreiben. Der
+      Programm-Rahmen kann jetzt beides (zwei neue, weiterhin schmale
+      Handgriffe: `ordnerAnlegen`, `schreibeBytes` - atomar mit
+      Zieldatei-Endung, EPERM-Lehre vom 10.08. gilt für Bilder genauso),
+      und die Verweis-Übersetzung reicht es als getDirectoryHandle/
+      binäres createWritable durch - derselbe Foto-Weg wie im Browser
+      (Eindampfen, Fotos/-Unterordner, Verweis im Eintrag, Löschen räumt
+      mit weg). Die Ordner-Freigabe ist im Programm EIN Klick ohne
+      Rechte-Nachfragen und übersteht Neustarts. Eine ALTE Programm-ZIP
+      erkennt die App an den fehlenden Handgriffen und sagt es ehrlich:
+      „Programm-ZIP zu alt". ACHTUNG Rahmen-Änderung → einmal ZIP
+      tauschen; die Verteil-Teile in `programm/verteilung/` sind neu
+      gebaut (byte-identische Zusammensetzung nachgewiesen). Härtetest
+      harte-57: 12/12 (inkl. Gegenprobe: alter Build 1 FAIL + Abbruch);
+      pruefe-programm am ECHTEN Electron jetzt 24 Prüfungen - Foto über
+      das echte IPC auf die Platte, zurückgelesen, gelöscht.
 
 - [x] **Veraltet-Wächter nach dem Fund vom 26.08.:** Ein Leser-Rechner lief
       wochenlang mit einer alten Programm-Fassung („FertigFassung_1.0") -

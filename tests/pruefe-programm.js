@@ -157,6 +157,44 @@ const pruef = (n, c, zusatz) => {
     !fs.readdirSync(ordner).some((n) => n.includes(".schreibe-")),
     fs.readdirSync(ordner).join(", "));
 
+  /* ---- Fotos ueber die ECHTE Bruecke (26.08.) ----
+     Robertos Frage aus dem Programm: "wie sieht es mit den fotos aus?"
+     Gemessen wird der ganze Weg: mkdir + Bytes durch das echte IPC in den
+     Unterordner Fotos/ des Datenordners - mit atomarem Schreiben. */
+  await page.evaluate((ordnerPfad) => {
+    window.__wkSharedTest.adoptFolder(window.__wkDesktopTest.ordnerHandle(ordnerPfad), "ok");
+  }, ordner);
+  pruef("Fotos: Der Ordner-Verweis der Bruecke kann Unterordner (fotosVerfuegbar)",
+    await page.evaluate(() => window.__wkSharedTest.fotosVerfuegbar()));
+  await page.evaluate(async () => {
+    // Kleines Bild mit JPEG-Kennung - fotoSpeichern schreibt die Bytes 1:1.
+    const bytes = new Uint8Array(4096);
+    bytes[0] = 0xFF; bytes[1] = 0xD8; bytes[2] = 0xFF; bytes[3] = 0xE0;
+    for (let i = 4; i < bytes.length; i++) bytes[i] = (i * 31) % 251;
+    await window.__wkSharedTest.fotoSpeichern("pruef-foto.jpg", new Blob([bytes], { type: "image/jpeg" }));
+  });
+  const fotoPfad = path.join(ordner, "Fotos", "pruef-foto.jpg");
+  const fotoDa = fs.existsSync(fotoPfad);
+  pruef("Fotos: Die Bilddatei liegt WIRKLICH auf der Platte in Fotos/", fotoDa, fotoPfad);
+  if (fotoDa) {
+    const kopf = fs.readFileSync(fotoPfad);
+    pruef("Fotos: Bytes unversehrt (JPEG-Kennung, volle Groesse)",
+      kopf.length === 4096 && kopf[0] === 0xFF && kopf[1] === 0xD8, `${kopf.length} Bytes`);
+  }
+  pruef("Fotos: Auch hier keine Zwischendatei liegengeblieben",
+    fotoDa && !fs.readdirSync(path.join(ordner, "Fotos")).some((n) => n.includes(".schreibe-")));
+  pruef("Fotos: Zurueckgelesen kommt dieselbe Datei",
+    await page.evaluate(async () => {
+      const f = await window.__wkSharedTest.fotoLesen("pruef-foto.jpg");
+      return !!f && f.size === 4096;
+    }));
+  pruef("Fotos: Loeschen raeumt die Datei von der Platte",
+    (await page.evaluate(() => window.__wkSharedTest.fotoLoeschen("pruef-foto.jpg"))) === true &&
+    !fs.existsSync(fotoPfad));
+  // Den Ordner-Verweis wieder abhaengen - die Update-Pruefung unten laedt die
+  // Seite neu und soll den Zustand eines frischen Starts vorfinden.
+  await page.evaluate(() => window.__wkSharedTest.adoptFolder(null, "none"));
+
   /* ---- Programm-Update am echten Rahmen ---- */
   // Update-Ordner mit einer NEUEREN App-HTML (Marker eingebaut, damit die
   // Uebernahme nachweisbar ist), daneben eine halbe Datei als Falle.

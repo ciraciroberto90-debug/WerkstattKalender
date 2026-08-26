@@ -104,7 +104,11 @@ diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
   Freigabe ist EIN Klick direkt im Dialog: „Werkstatt-Ordner
   freigeben …" (nie freigegeben) bzw. „Freigabe jetzt bestätigen"
   (nach Browser-Neustart fragt der Browser einmal nach - dieser
-  Zustand sah vorher wie „gibt es nicht" aus); harte-51 jetzt 32/32.*
+  Zustand sah vorher wie „gibt es nicht" aus); harte-51 jetzt 32/32.
+  Nachtrag 26.08.: Fotos gehen jetzt auch in der PROGRAMM-Fassung - der
+  Rahmen kann Unterordner anlegen und Bilddateien schreiben (braucht die
+  ZIP vom 26.08.; ältere ZIPs sagen ehrlich „Programm-ZIP zu alt");
+  harte-57 12/12, pruefe-programm 24 Prüfungen am echten Electron.*
 - **24.08.2026 (Robertos Wünsche aus dem laufenden Betrieb):**
   Schwebe-Fenster (verschiebbar + Größe änderbar, Lage wird je Gerät
   gemerkt): 📅-Wartungskalender direkt auf der Übersicht und

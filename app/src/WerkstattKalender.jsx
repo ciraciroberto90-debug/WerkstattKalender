@@ -4734,10 +4734,14 @@ function App() {
           // nicht "geh woanders hin" (Robertos Fall vom 24.08.).
           const lage = sharedFile.fotoLage();
           if (lage === "bruecke") {
+            // Seit dem 26.08. KÖNNEN Programm-Fassungen Fotos - dieser Fall
+            // bleibt nur für alte Programm-ZIPs stehen, deren Rahmen die
+            // beiden neuen Handgriffe (Unterordner, Bilddateien) fehlen.
             return (
               <div className="text-xs mt-1.5" style={{ color: "#8A9099" }}>
-                📷 In der Programm-Fassung stehen Fotos noch nicht zur Verfügung
-                (die Desktop-Brücke kann keine Unterordner anlegen).
+                📷 Für Fotos ist diese <strong>Programm-ZIP zu alt</strong> - einmal die aktuelle
+                Programm-ZIP einspielen (der Rahmen kann hier noch keine Unterordner anlegen),
+                danach gibt es Fotos auch im Programm.
               </div>
             );
           }

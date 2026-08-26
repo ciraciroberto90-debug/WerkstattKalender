@@ -102,6 +102,36 @@ ipcMain.handle("schreibe", async (ev, pfad, text) => {
   return true;
 });
 
+/* Fotos (26.08.): Die App legt Bilddateien im Unterordner "Fotos" des
+   Datenordners ab. Dafür braucht die Brücke zwei Handgriffe, die es bisher
+   nicht gab - Ordner anlegen und Bytes schreiben. Beides bleibt so schmal
+   wie der Rest: benannte Pfade, kein allgemeiner Dateizugriff. */
+ipcMain.handle("ordner-anlegen", async (ev, pfad) => {
+  await fs.mkdir(String(pfad), { recursive: true });
+  return true;
+});
+
+ipcMain.handle("schreibe-bytes", async (ev, pfad, bytes) => {
+  // Gleicher atomarer Weg wie beim Text-Schreiben: Zwischendatei mit der
+  // ENDUNG DES ZIELS (.jpg), dann Umbenennen - die Dateityp-Filter des
+  // Laufwerks (EPERM-Lehre vom 10.08.) gelten für Bilder genauso.
+  const ziel = String(pfad);
+  const tmp = zwischenName(ziel, process.pid);
+  await fs.writeFile(tmp, Buffer.from(bytes));
+  try {
+    await fs.rename(tmp, ziel);
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 150));
+    try {
+      await fs.rename(tmp, ziel);
+    } catch (e2) {
+      try { await fs.unlink(tmp); } catch (e3) { /* Zwischendatei blieb liegen */ }
+      throw e2;
+    }
+  }
+  return true;
+});
+
 ipcMain.handle("liste", async (ev, ordnerPfad) => {
   const eintraege = await fs.readdir(String(ordnerPfad), { withFileTypes: true });
   return eintraege

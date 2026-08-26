@@ -315,13 +315,26 @@ function desktopDateiHandle(pfad) {
       return new File([r.bytes], name, { lastModified: r.geaendert });
     },
     async createWritable() {
-      let puffer = "";
+      let teile = [];
       return {
-        async write(teil) { puffer += teil; },
+        async write(teil) { teile.push(teil); },
         // Geschrieben wird erst beim Abschluss, und zwar in einem Zug über
         // eine Zwischendatei mit Umbenennen - halbe Dateien gibt es so nicht.
-        async close() { await d.schreibe(pfad, puffer); },
-        async abort() { puffer = ""; },
+        // Text (die JSON) geht den bewährten Weg; Bilddateien (Blobs, Fotos
+        // seit 26.08.) laufen als Bytes über die neue Brücken-Funktion -
+        // vorher wurde ein Blob still zu "[object Blob]" vertextet.
+        async close() {
+          if (teile.every((t) => typeof t === "string")) {
+            await d.schreibe(pfad, teile.join(""));
+            return;
+          }
+          if (!d.schreibeBytes) {
+            throw new Error("Diese Programm-Fassung kann keine Bilddateien schreiben - bitte einmal die aktuelle Programm-ZIP einspielen.");
+          }
+          const bytes = new Uint8Array(await new Blob(teile).arrayBuffer());
+          await d.schreibeBytes(pfad, bytes);
+        },
+        async abort() { teile = []; },
       };
     },
     // Rechtefragen stellt das Programm nicht - ob geschrieben werden darf,
@@ -331,9 +344,21 @@ function desktopDateiHandle(pfad) {
     async requestPermission() { return "granted"; },
   };
 }
+// Unterpfad bilden, ohne den Trenner-Stil des Bestands zu wechseln -
+// auf Robertos Laufwerk sind das Backslashes, im Prüfstand Schrägstriche.
+function pfadVerbinden(basis, name) {
+  const b = String(basis);
+  const trenner = b.includes("\\") ? "\\" : "/";
+  return (b.endsWith(trenner) ? b : b + trenner) + String(name);
+}
 function desktopOrdnerHandle(pfad, { nurLesen = false } = {}) {
   const d = desktopBruecke();
   const name = String(pfad).split(/[\\/]/).pop() || String(pfad);
+  // Unterordner (für die Fotos) können nur Programm-Rahmen ab dem 26.08. -
+  // ältere ZIPs haben die beiden Handgriffe nicht. Dann bleibt die Methode
+  // WEG, denn fotosVerfuegbar()/fotoLage() erkennen genau daran ehrlich,
+  // dass diese Programm-Fassung (noch) keine Fotos kann.
+  const kannUnterordner = !!(d && d.ordnerAnlegen && d.schreibeBytes);
   return {
     kind: "directory",
     name,
@@ -345,12 +370,27 @@ function desktopOrdnerHandle(pfad, { nurLesen = false } = {}) {
         yield [eintrag.name, desktopDateiHandle(eintrag.pfad)];
       }
     },
-    async getFileHandle(dateiName) {
+    async getFileHandle(dateiName, opts) {
       const liste = await d.liste(pfad);
       const treffer = (liste || []).find((e) => e.name === dateiName);
-      if (!treffer) { const e = new Error("NotFoundError"); e.name = "NotFoundError"; throw e; }
-      return desktopDateiHandle(treffer.pfad);
+      if (treffer) return desktopDateiHandle(treffer.pfad);
+      // create wie im Browser: Der Verweis entsteht sofort, die Datei erst
+      // beim Schreiben - so legt fotoSpeichern neue Bilddateien an.
+      if (opts && opts.create && !nurLesen) return desktopDateiHandle(pfadVerbinden(pfad, dateiName));
+      const e = new Error("NotFoundError"); e.name = "NotFoundError"; throw e;
     },
+    ...(kannUnterordner ? {
+      async getDirectoryHandle(unterName, opts) {
+        if (nurLesen) { const e = new Error("Dieser Ordner ist nur lesend verbunden."); e.name = "NotAllowedError"; throw e; }
+        const unterPfad = pfadVerbinden(pfad, unterName);
+        const info = await d.pfadInfo(unterPfad);
+        if (info !== "ordner") {
+          if (!(opts && opts.create)) { const e = new Error("NotFoundError"); e.name = "NotFoundError"; throw e; }
+          await d.ordnerAnlegen(unterPfad);
+        }
+        return desktopOrdnerHandle(unterPfad);
+      },
+    } : {}),
     async removeEntry(dateiName) {
       // Der OEE-Ordner auf dem Firmenlaufwerk ist ausdrücklich nur lesend -
       // das setzt hier die App durch, nicht erst das Laufwerk.
@@ -1820,8 +1860,9 @@ function createSharedStore(cfg) {
      Fehler beim Löschen brechen NIE das Speichern des Eintrags - eine
      verwaiste Bilddatei ist ärgerlich, ein verlorener Eintrag wäre schlimm. */
   const FOTO_ORDNER = "Fotos";
-  // Gibt es die Ordner-Freigabe samt Unterordner-Fähigkeit? (Die Programm-
-  // Brücke kann keine Unterordner anlegen - dann bleibt die Funktion still.)
+  // Gibt es die Ordner-Freigabe samt Unterordner-Fähigkeit? (Programm-Rahmen
+  // vor dem 26.08. können keine Unterordner anlegen - dort fehlt die Methode
+  // am Ordner-Verweis, und die Funktion bleibt ehrlich still.)
   function fotosVerfuegbar() {
     return !!(folderHandle && folderPerm === "ok" && folderHandle.getDirectoryHandle);
   }
@@ -1958,6 +1999,9 @@ function createSharedStore(cfg) {
       folderHandle = handle;
       folderPerm = perm || "ok";
     },
+    // Fotos auch fuer die Programm-Pruefung erreichbar (pruefe-programm.js
+    // misst den Weg ueber die ECHTE Bruecke: mkdir + Bytes durch das IPC).
+    fotosVerfuegbar, fotoLage, fotoSpeichern, fotoLesen, fotoLoeschen,
     sammle: sammleKonfliktkopien,
     adoptQuellOrdner(handle) { quellHandle = handle; quellPerm = "ok"; },
     fileInfo, // Kennkarte auch fuer Pruefungen ablesbar
