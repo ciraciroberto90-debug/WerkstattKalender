@@ -1,0 +1,17 @@
+{
+  "_was_ist_das": "Vorbelegung fuer neue Rechner: Diese Datei in standard-einstellungen.json umbenennen, die Pfade unten eintragen und NEBEN der Werkstatt-Cockpit.exe liegen lassen (also mit in den entpackten Ordner). Beim ersten Start uebernimmt das Programm die Eintraege - danach heisst ein neuer Rechner nur noch: entpacken, starten, fertig. Kein Zahnrad noetig, auch nicht fuer Leser-Rechner.",
+  "_wichtig": "Es werden NUR Schluessel uebernommen, die auf dem Rechner noch nie gesetzt wurden. Eine bewusste Wahl am Geraet (andere Datei, anderer Ordner) wird nie ueberschrieben. Zeilen mit fuehrendem _ sind reine Hinweise und werden ignoriert.",
+  "_schreibweise": "Backslashes in JSON doppelt schreiben: \\\\SCHEUDC1\\PSG_Gruppe\\... - oder einfach Schraegstriche verwenden (//SCHEUDC1/PSG_Gruppe/...), Windows versteht beide.",
+
+  "_zeile_1": "Ordner, in dem die neue Werkstatt_Kalender_TPM.html liegt (fuer den gruenen Update-Balken):",
+  "programm:update-ordner": "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender",
+
+  "_zeile_2": "Voller Pfad der gemeinsamen Datendatei (die App verbindet sich beim ersten Start von selbst) - BITTE PRUEFEN/ANPASSEN:",
+  "werkstatt-kalender-fs:handle": "",
+
+  "_zeile_3": "Der Datenordner (Konflikt-Waechter, Tages-Sicherung, Fotos) - meist der Ordner, in dem die Datendatei liegt:",
+  "werkstatt-kalender-fs:folder": "",
+
+  "_zeile_4": "Voller Pfad der Stoerungs-Datei (werkstatt-stoerungen.json im selben Ordner):",
+  "werkstatt-stoerungen-fs:handle": ""
+}

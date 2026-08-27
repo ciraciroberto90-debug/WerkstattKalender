@@ -38,6 +38,45 @@ async function schreibeEinstellungen(obj) {
   await fs.rename(tmp, ziel);
 }
 
+/* ---------- Vorbelegung fuer neue Rechner (26.08.) ----------
+   Robertos Roll-out-Problem: Jeder frische Rechner brauchte zwei Handgriffe
+   im Zahnrad (Update-Ordner, Datendatei) - und ein Nur-Leser kommt dort gar
+   nicht hin. Der Leser-Rechner lief deshalb wochenlang ohne Updates.
+   Loesung: Liegt NEBEN der EXE eine standard-einstellungen.json, werden
+   ihre Eintraege beim Start uebernommen - aber NUR fuer Schluessel, die auf
+   diesem Rechner noch nie gesetzt wurden. Eine bewusste Wahl am Geraet
+   (anderer Ordner, andere Datei) wird also nie ueberschrieben, und die
+   Vorgaben-Datei bleibt reine Starthilfe. Entpacken -> starten -> verbunden. */
+async function uebernehmeStandardEinstellungen() {
+  const kandidaten = [
+    // Portabel entpackt: die Datei liegt neben Werkstatt-Cockpit.exe
+    path.join(path.dirname(process.execPath), "standard-einstellungen.json"),
+    // Entwicklung/Pruefstand (electron .): neben main.js
+    path.join(__dirname, "standard-einstellungen.json"),
+  ];
+  let vorgaben = null;
+  for (const pfad of kandidaten) {
+    try {
+      vorgaben = JSON.parse(fssync.readFileSync(pfad, "utf8"));
+      break;
+    } catch (e) { /* Datei fehlt oder unlesbar - Vorgaben sind freiwillig */ }
+  }
+  if (!vorgaben || typeof vorgaben !== "object" || Array.isArray(vorgaben)) return;
+  const alle = leseEinstellungen();
+  let geaendert = false;
+  for (const [schluessel, wert] of Object.entries(vorgaben)) {
+    // Nur einfache Text-Werte (Pfade), nur unbesetzte Schluessel.
+    // Schluessel mit fuehrendem "_" sind Hinweise in der Vorgaben-Datei
+    // selbst (JSON kennt keine Kommentare) und werden nie uebernommen.
+    if (schluessel.startsWith("_")) continue;
+    if (typeof wert !== "string" || !wert.trim()) continue;
+    if (Object.prototype.hasOwnProperty.call(alle, schluessel)) continue;
+    alle[schluessel] = wert;
+    geaendert = true;
+  }
+  if (geaendert) await schreibeEinstellungen(alle);
+}
+
 /* ---------- Datei-Schnittstelle für die App ---------- */
 ipcMain.handle("datei-waehlen", async (ev) => {
   const fenster = BrowserWindow.fromWebContents(ev.sender);
@@ -367,7 +406,10 @@ if (!einzig) {
       fenster.focus();
     }
   });
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    // Vorgaben VOR dem Fenster uebernehmen - die App liest die gemerkten
+    // Pfade beim Laden, da muessen sie schon sitzen.
+    await uebernehmeStandardEinstellungen().catch(() => { /* Starthilfe, kein Muss */ });
     erstelleFenster();
     setInterval(() => pruefeUpdate(null), UPDATE_TAKT_MS);
     app.on("activate", () => {

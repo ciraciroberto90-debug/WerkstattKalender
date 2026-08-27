@@ -14,17 +14,20 @@ Stand: 07.08.2026
 
 ## Auf den Rechnern einspielen
 
-- [ ] **Leser-Rechner mit alter Programm-Fassung (Fund vom 26.08.):** Dort
-      läuft eine alte ZIP („FertigFassung_1.0") - anderer Wartungsplan bei
-      aktuellen Daten. Einmalig: alle Cockpit-Fenster schließen, aktuelle
-      `Werkstatt-Cockpit-Programm-win64.zip` entpacken, alte Fassung samt
-      Desktop-Verknüpfung entsorgen, einmal als Bearbeiter anmelden und im
-      ⚙ → Verlauf & Sicherung → **Programm-Updates** den Netzwerkordner
-      einstellen. Kontrolle: ⚙ zeigt „Version vom 26.08.2026", unter dem
-      Plan steht keine „Wartungsplan – Tabelle" mehr. Ab der neuen HTML
-      warnt zusätzlich die rote Veraltet-Leiste von selbst. Die ZIP vom
-      26.08. bringt außerdem die Fotos ins Programm - der Tausch lohnt
-      also auf ALLEN Programm-Rechnern, nicht nur auf dem Leser-Rechner.
+- [ ] **ZIP-Tausch auf allen Programm-Rechnern (26.08.):** Die neue
+      `Werkstatt-Cockpit-Programm-win64.zip` bringt Fotos, den
+      reparierten Update-Rahmen und die Vorbelegung - und erledigt damit
+      auch den Leser-Rechner mit der alten „FertigFassung_1.0" (anderer
+      Wartungsplan bei aktuellen Daten). Empfohlener Weg: ZIP einmal in
+      eine **Master-Kopie auf dem Laufwerk** entpacken, dort die
+      `standard-einstellungen.beispiel.json` in
+      `standard-einstellungen.json` umbenennen und die Pfade eintragen -
+      dann heißt jeder Rechner nur noch: alle Cockpit-Fenster schließen,
+      alten Ordner samt Verknüpfung entsorgen, Master-Kopie
+      herüberkopieren, starten. Update-Ordner und Verbindungen sitzen von
+      selbst, auch ohne ⚙ (wichtig für Leser-Rechner). Kontrolle: unter
+      dem Plan steht keine „Wartungsplan – Tabelle" mehr; ab der neuen
+      HTML warnt zusätzlich die rote Veraltet-Leiste von selbst.
 
 - [ ] **`cockpit-server.ps1` austauschen** – im Cockpit-Ordner. Bringt zwei
       Dinge: Dateien öffnen sich per Klick direkt (statt nur Pfad kopieren),
@@ -515,6 +518,24 @@ auf denselben Dateien.
       Gelöschtes kann wieder aufgetaucht sein).
 
 ## Erledigt
+
+- [x] **Vorbelegung für neue Rechner (26.08., direkt vor Robertos
+      ZIP-Tausch eingebaut):** Liegt neben der `Werkstatt-Cockpit.exe`
+      eine `standard-einstellungen.json`, übernimmt der Rahmen ihre
+      Einträge beim Start - aber NUR für Schlüssel, die am Gerät noch nie
+      gesetzt wurden (eine bewusste Wahl wird nie überschrieben; Zeilen
+      mit führendem `_` sind Hinweise und werden ignoriert). Damit heißt
+      ein neuer oder Leser-Rechner: entpacken, starten, fertig -
+      Update-Ordner, Datendatei, Datenordner (Fotos/Wächter) und
+      Störungs-Datei sitzen von selbst, ganz ohne ⚙ und ohne
+      Bearbeiter-Anmeldung. Eine Vorlage
+      (`standard-einstellungen.beispiel.json`) liegt mit im Paket: einmal
+      umbenennen, Pfade eintragen - am besten in der Master-Kopie auf dem
+      Laufwerk, dann wandert sie mit jedem Entpacken mit. Die ZIP trägt
+      selbst KEINE Pfade (bewusst, bleibt überall einsetzbar).
+      pruefe-programm am echten Electron: 28 Prüfungen, Gegenprobe der
+      Hausregel gegen den alten Rahmen: 3 FAIL. Rahmen-Änderung - in
+      derselben ZIP wie die Fotos, also derselbe eine Tausch.
 
 - [x] **Fotos auch in der Programm-Fassung (Robertos Frage vom 26.08.):**
       Der Dialog sagte dort bisher ehrlich ab - die Desktop-Brücke konnte

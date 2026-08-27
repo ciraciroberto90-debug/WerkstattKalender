@@ -67,6 +67,21 @@ const pruef = (n, c, zusatz) => {
   fs.rmSync(path.join(os.homedir(), ".config", "Werkstatt-Cockpit"), { recursive: true, force: true });
   fs.rmSync(path.join(os.homedir(), ".config", "werkstatt-cockpit"), { recursive: true, force: true });
 
+  /* ---- Vorbelegung fuer neue Rechner (26.08.) vorbereiten ----
+     Frisches Profil oben = "neuer Rechner". Die Vorgaben-Datei liegt im
+     Pruefstand neben main.js (der __dirname-Kandidat des Rahmens); beim
+     portablen Paket liegt sie neben der EXE. Der Update-Ordner entsteht
+     hier schon, damit er in den Vorgaben stehen kann - befuellt wird er
+     erst in der Update-Pruefung weiter unten. */
+  const updateOrdner = fs.mkdtempSync(path.join(os.tmpdir(), "wk-update-"));
+  const vorgabenPfad = path.join(wurzel, "programm", "standard-einstellungen.json");
+  fs.writeFileSync(vorgabenPfad, JSON.stringify({
+    "_hinweis": "Pruefstand-Vorgaben - der Test loescht diese Datei wieder",
+    "programm:update-ordner": updateOrdner,
+    "werkstatt-kalender-fs:handle": dateiPfad,
+    "werkstatt-kalender-fs:folder": ordner,
+  }, null, 2));
+
   // Electron unter virtuellem Bildschirm starten, Fernzugang auf Port 9223
   const port = 9223;
   const kind = spawn("xvfb-run", ["-a", elektronBin, ".", "--no-sandbox", `--remote-debugging-port=${port}`], {
@@ -126,6 +141,28 @@ const pruef = (n, c, zusatz) => {
     await page.evaluate(() => !!window.__werkstattDesktop));
   pruef("Die App erkennt die Programm-Umgebung",
     await page.evaluate(() => !!(window.__wkSharedTest && true)), "Test-Zugang vorhanden");
+
+  /* ---- Vorbelegung: entpacken -> starten -> verbunden ---- */
+  const vbStatus = await page.evaluate(() => window.__werkstattDesktop.updateStatus());
+  pruef("Vorbelegung: Der Update-Ordner sitzt ohne Zahnrad (aus standard-einstellungen.json)",
+    vbStatus.ordner === updateOrdner, vbStatus.ordner);
+  let vbVerbunden = false;
+  try {
+    await page.waitForFunction(() => window.__wkSharedTest.canWrite(), { timeout: 15000 });
+    vbVerbunden = true;
+  } catch (e) { /* unten als FAIL gemeldet */ }
+  pruef("Vorbelegung: Die Datendatei ist beim ERSTEN Start von selbst verbunden",
+    vbVerbunden && (await page.evaluate(() => window.__wkSharedTest.fileInfo().pfad)) === dateiPfad);
+  pruef("Vorbelegung: Der Datenordner (Fotos/Waechter) sitzt von selbst",
+    await page.evaluate(() => window.__wkSharedTest.fotosVerfuegbar()));
+  const profilEinstellungen = JSON.parse(fs.readFileSync(
+    path.join(os.homedir(), ".config", "Werkstatt-Cockpit", "einstellungen.json"), "utf8"));
+  pruef("Vorbelegung: Hinweis-Zeilen (_...) werden NICHT uebernommen",
+    !Object.keys(profilEinstellungen).some((k) => k.startsWith("_")),
+    Object.keys(profilEinstellungen).join(", "));
+  // Die Vorgaben-Datei hat ihren Dienst getan - weg damit, ehe sie in einen
+  // spaeteren Lauf oder gar einen Bau hineinreicht.
+  fs.unlinkSync(vorgabenPfad);
 
   // Verbinden über die ECHTE Brücke (echtes IPC, echtes fs im Hauptprozess)
   await page.evaluate(async (pfad) => {
@@ -198,7 +235,8 @@ const pruef = (n, c, zusatz) => {
   /* ---- Programm-Update am echten Rahmen ---- */
   // Update-Ordner mit einer NEUEREN App-HTML (Marker eingebaut, damit die
   // Uebernahme nachweisbar ist), daneben eine halbe Datei als Falle.
-  const updateOrdner = fs.mkdtempSync(path.join(os.tmpdir(), "wk-update-"));
+  // updateOrdner existiert seit der Vorbelegungs-Vorbereitung oben - jetzt
+  // bekommt er die neuere App-HTML.
   const originalHtml = fs.readFileSync(path.join(wurzel, "Werkstatt_Kalender_TPM.html"), "utf8");
   // Marker ans ENDE haengen - "</html>" kommt auch mitten im JS-Buendel vor
   // (Druckvorlagen), replace() haette den Marker dort vergraben.

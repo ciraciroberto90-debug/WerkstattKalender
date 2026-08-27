@@ -47,7 +47,10 @@ const AUSGABE = path.join(HIER, "ausgabe");
     // verteilung/ enthaelt die GitHub-Teilstuecke der fertigen ZIP - die
     // duerfen nicht wieder IN die naechste ZIP wandern (sonst verdoppelt
     // sich das Paket mit jedem Bau).
-    ignore: [/^\/ausgabe($|\/)/, /^\/bauen\.js$/, /^\/node_modules($|\/)/, /^\/verteilung($|\/)/],
+    // standard-einstellungen*.json bleiben draussen: Die Vorgaben-Datei
+    // gehoert NEBEN die EXE (je Einsatzort gepflegt), nicht fest ins Paket -
+    // sonst truege jede ZIP die Pfade des Bau-Rechners in sich.
+    ignore: [/^\/ausgabe($|\/)/, /^\/bauen\.js$/, /^\/node_modules($|\/)/, /^\/verteilung($|\/)/, /^\/standard-einstellungen[^/]*\.json$/],
     // Hinweis: Das Symbol IN der EXE-Datei (Explorer-Ansicht) braucht beim
     // Packen unter Linux Wine (rcedit) - hier nicht vorhanden. Das Fenster-
     // und Taskleisten-Symbol kommt aus main.js; fuer Verknuepfungen liegt
@@ -62,6 +65,11 @@ const AUSGABE = path.join(HIER, "ausgabe");
   // Anderes Symbol" muss sie im Explorer anwaehlbar sein - im app.asar
   // steckt sie unerreichbar.
   fs.copyFileSync(path.join(HIER, "symbol", "symbol.ico"), path.join(ordner, "symbol.ico"));
+
+  // Vorlage der Vorbelegung mit ins Paket legen (neben die EXE): einmal in
+  // standard-einstellungen.json umbenennen und Pfade eintragen - dann ist
+  // ein neuer Rechner nur noch "entpacken, starten, fertig".
+  fs.copyFileSync(path.join(HIER, "standard-einstellungen.beispiel.json"), path.join(ordner, "standard-einstellungen.beispiel.json"));
 
   // 3. ZIP daraus machen
   const zipPfad = path.join(AUSGABE, "Werkstatt-Cockpit-Programm-win64.zip");

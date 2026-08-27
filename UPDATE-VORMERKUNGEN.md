@@ -48,24 +48,12 @@ diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
 
 ## Zur Auswahl (vorgeschlagen, noch nicht entschieden)
 
-### Vorbelegung für neue Programm-Rechner
+*Zurzeit nichts - neue Vorschläge landen hier.*
 
-**Warum:** Ein frisch aufgesetzter Rechner braucht heute zwei Handgriffe im
-⚙ (Update-Ordner, ggf. Datenpfad) - genau das fehlte auf dem Leser-Rechner
-vom 26.08. wochenlang, ohne dass es jemand sah.
-
-**Wie:** Der Programm-Rahmen liest beim ersten Start eine kleine
-Standard-Einstellungsdatei NEBEN der EXE (liegt mit in der ZIP bzw. im
-entpackten Ordner auf dem Laufwerk). Damit wäre „neuer Rechner" nur noch:
-entpacken, starten, fertig - Update-Ordner und Pfade sitzen von selbst.
-
-**Aufwand/Vorsicht:** Klein, aber eine Rahmen-Änderung → einmal ZIP
-tauschen, plus Härtetest am echten Electron.
-
-**Dazu besprochen und entschieden (26.08.):** Ein echter Installer
-(Setup.exe, Benutzer-Variante ohne Adminrechte) wäre machbar, bringt aber
-nur Komfort - Roberto: „Zip reicht aktuell". Bei Bedarf später, dann am
-besten zusammen mit der IT-Signatur (SmartScreen).
+*(Besprochen und vorerst verworfen, 26.08.: Ein echter Installer -
+Setup.exe, Benutzer-Variante ohne Adminrechte - wäre machbar, bringt aber
+nur Komfort. Roberto: „Zip reicht aktuell". Bei Bedarf später, dann am
+besten zusammen mit der IT-Signatur gegen SmartScreen.)*
 
 ---
 
@@ -126,6 +114,15 @@ besten zusammen mit der IT-Signatur (SmartScreen).
   Rahmen kann Unterordner anlegen und Bilddateien schreiben (braucht die
   ZIP vom 26.08.; ältere ZIPs sagen ehrlich „Programm-ZIP zu alt");
   harte-57 12/12, pruefe-programm 24 Prüfungen am echten Electron.*
+- **26.08.2026 (in derselben ZIP wie die Fotos, war kurz „zur Auswahl"):**
+  Vorbelegung für neue Programm-Rechner - eine
+  `standard-einstellungen.json` neben der EXE belegt beim ersten Start
+  Update-Ordner, Datendatei, Datenordner und Störungs-Datei vor (nur nie
+  gesetzte Schlüssel, bewusste Gerätewahl bleibt unangetastet). Neuer
+  oder Leser-Rechner = entpacken, starten, fertig - ohne ⚙, ohne
+  Bearbeiter-Anmeldung. Vorlage liegt im Paket
+  (`standard-einstellungen.beispiel.json`); pruefe-programm 28 Prüfungen,
+  Gegenprobe gegen den alten Rahmen: 3 FAIL.
 - **24.08.2026 (Robertos Wünsche aus dem laufenden Betrieb):**
   Schwebe-Fenster (verschiebbar + Größe änderbar, Lage wird je Gerät
   gemerkt): 📅-Wartungskalender direkt auf der Übersicht und

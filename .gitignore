@@ -6,5 +6,8 @@ scratchpad/
 programm/node_modules/
 programm/ausgabe/
 programm/app/
+# Gefüllte Vorgaben-Datei (echte Pfade) bleibt lokal - im Repo liegt nur
+# die .beispiel-Fassung; der Prüfstand legt sie kurz an und löscht sie.
+programm/standard-einstellungen.json
 node_modules
 package-lock.json
