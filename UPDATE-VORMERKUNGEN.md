@@ -48,7 +48,24 @@ diesen Weg läuft die Werkstatt irgendwann gegen die Wand.
 
 ## Zur Auswahl (vorgeschlagen, noch nicht entschieden)
 
-*Zurzeit nichts - neue Vorschläge landen hier.*
+### Vorbelegung für neue Programm-Rechner
+
+**Warum:** Ein frisch aufgesetzter Rechner braucht heute zwei Handgriffe im
+⚙ (Update-Ordner, ggf. Datenpfad) - genau das fehlte auf dem Leser-Rechner
+vom 26.08. wochenlang, ohne dass es jemand sah.
+
+**Wie:** Der Programm-Rahmen liest beim ersten Start eine kleine
+Standard-Einstellungsdatei NEBEN der EXE (liegt mit in der ZIP bzw. im
+entpackten Ordner auf dem Laufwerk). Damit wäre „neuer Rechner" nur noch:
+entpacken, starten, fertig - Update-Ordner und Pfade sitzen von selbst.
+
+**Aufwand/Vorsicht:** Klein, aber eine Rahmen-Änderung → einmal ZIP
+tauschen, plus Härtetest am echten Electron.
+
+**Dazu besprochen und entschieden (26.08.):** Ein echter Installer
+(Setup.exe, Benutzer-Variante ohne Adminrechte) wäre machbar, bringt aber
+nur Komfort - Roberto: „Zip reicht aktuell". Bei Bedarf später, dann am
+besten zusammen mit der IT-Signatur (SmartScreen).
 
 ---
 
