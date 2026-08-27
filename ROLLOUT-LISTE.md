@@ -519,6 +519,20 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Bilder an der Pinnwand (Robertos Wunsch vom 26.08.):** Beim
+      Verfassen eines Zettels hängt „📷 Foto an den Zettel" ein oder
+      mehrere Bilder an - gleiche Mechanik wie bei Arbeit und Störung
+      (eingedampft in den Fotos/-Ordner, am Zettel nur der Verweis, die
+      JSON bleibt klein). Die Vorschau steht direkt auf dem Zettel, Klick
+      öffnet die Großansicht - auch für Leser bei veröffentlichten
+      Zetteln. „Zur Arbeit machen" nimmt die Fotos als Verweise mit (die
+      Dateien bleiben dieselben und werden beim Entfernen des Zettels
+      bewusst NICHT weggeräumt); Zettel löschen und Abbrechen räumen
+      dagegen sauber auf (keine Waisen). Das Übergabeblatt vermerkt
+      „📷 n Foto(s) in der App" am Zettel - drucken kann es die Bilder
+      nicht (sie liegen im Datenordner, nicht in der JSON). Härtetest
+      harte-58: 16/16 - inkl. Gegenprobe (alter Build: 1 FAIL + Abbruch).
+
 - [x] **Vorbelegung für neue Rechner (26.08., direkt vor Robertos
       ZIP-Tausch eingebaut):** Liegt neben der `Werkstatt-Cockpit.exe`
       eine `standard-einstellungen.json`, übernimmt der Rahmen ihre

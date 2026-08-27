@@ -28,7 +28,7 @@ function SyncAnzeige({ style }) {
    Tastendruck ~60 ms Vollzeichnung der ganzen Oberfläche - das war Robertos
    "Nachhängen beim Eintragen". Erst das Anpinnen reicht den fertigen Text
    nach oben. */
-function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen }) {
+function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen, fotoLeiste }) {
   const [text, setText] = useState("");
   const [name, setName] = useState(startName || "");
   return (
@@ -44,6 +44,10 @@ function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen }) {
         className="w-full text-sm border rounded px-3 py-2 mb-2"
         style={{ borderColor: "#D6D9DC", resize: "vertical" }}
       />
+      {/* Fotos am Zettel (26.08.): Die Leiste kommt fertig von außen - der
+          Verfasser bleibt eine Tipp-Insel, die Foto-Helfer leben im Haupt-
+          Bauteil (Eindampfen, Draft, Großansicht wie bei Arbeit/Störung). */}
+      {fotoLeiste}
       <div className="flex gap-2">
         <input
           value={name}
@@ -1810,6 +1814,9 @@ function App() {
   const [matrixPick, setMatrixPick] = useState(null); // {person, datum, links, oben} | null - Zellen-Dropdown
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
   const [zettelOpen, setZettelOpen] = useState(false);
+  // Fotos am neuen Zettel (26.08.): nur frisch angehängte - ein Zettel wird
+  // nie nachbearbeitet, deshalb reicht fotosNeu (kein fotos/fotosWeg-Draft).
+  const [zettelFotosNeu, setZettelFotosNeu] = useState([]);
   const [zettelSuche, setZettelSuche] = useState(""); // Mini-Suche in der Pinnwand
   const [zettelText, setZettelText] = useState("");
   const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
@@ -2390,7 +2397,7 @@ function App() {
       : `<span style="font-size:12px;color:#8A9099;font-style:italic;">Heute steht kein Termin an.</span>`;
 
     const zettelZeilen = zettelSichtbar.length
-      ? zettelSichtbar.map((z) => `<div style="font-size:12px;color:#22262B;margin-bottom:3px;">„${esc(z.note || "")}" <span style="color:#8A9099;">(${esc(z.name || "")})</span></div>`).join("")
+      ? zettelSichtbar.map((z) => `<div style="font-size:12px;color:#22262B;margin-bottom:3px;">„${esc(z.note || "")}" <span style="color:#8A9099;">(${esc(z.name || "")})</span>${fotoListeVon(z).length > 0 ? ` <span style="color:#8A9099;">· 📷 ${fotoListeVon(z).length} Foto(s) in der App</span>` : ""}</div>`).join("")
       : `<div style="font-size:12px;color:#8A9099;font-style:italic;">Keine veröffentlichten Zettel.</div>`;
 
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Schichtübergabe ${formatDateDE(todayKey)}</title>
@@ -4507,11 +4514,27 @@ function App() {
     if (wer === "AR" || wer === "ALEXANDERRADKE") return ZETTEL_FARBEN.gelb;
     return ZETTEL_FARBEN[z.farbe] || ZETTEL_FARBEN.gelb;
   };
+  // Draft-Adapter für die Foto-Helfer: Sie arbeiten auf {fotosNeu}-Drafts -
+  // so bleiben Eindampfen, Anhängen, Entfernen und Großansicht EIN Code für
+  // Arbeit, Störung und Pinnwand.
+  const zettelFotoSetter = (fn) => setZettelFotosNeu((prev) => {
+    const d = fn({ fotosNeu: prev });
+    return d && Array.isArray(d.fotosNeu) ? d.fotosNeu : prev;
+  });
+  // Verfasser zuklappen ohne Anpinnen: Vorschau-URLs freigeben, nichts speichern.
+  const zettelVerfasserZu = () => {
+    zettelFotosNeu.forEach((n) => { try { URL.revokeObjectURL(n.url); } catch (e) { /* egal */ } });
+    setZettelFotosNeu([]);
+    setZettelOpen(false);
+  };
   const addZettel = async (text, name) => {
     if (!String(text || "").trim() || !String(name || "").trim()) return;
     setZettelName(String(name).trim());
     localStorage.setItem("werkstatt-kalender-name", String(name).trim());
     const farben = Object.keys(ZETTEL_FARBEN);
+    // Erst die angehängten Fotos in den Datenordner schreiben - am Zettel
+    // steht wie bei Arbeit und Störung nur der Verweis, die JSON bleibt klein.
+    const fotos = await fotosVerarbeiten({ fotos: [], fotosNeu: zettelFotosNeu });
     const zettel = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       date: todayKey,
@@ -4522,13 +4545,18 @@ function App() {
       zeit: new Date().toISOString(),
       farbe: farben[zettelListe.length % farben.length],
       monitor: false,
+      ...(fotos.length > 0 ? { fotos } : {}),
     };
     await persist([...entries, zettel]);
+    setZettelFotosNeu([]);
     setZettelOpen(false);
   };
   const deleteZettel = async (id) => {
     if (!window.confirm("Diesen Zettel entfernen?")) return;
+    const raus = entries.find((e) => e.id === id);
     await persist(entries.filter((e) => e.id !== id));
+    // Bilddateien des Zettels mit wegräumen - wie beim Löschen einer Arbeit.
+    if (raus) fotosAufraeumen(fotoListeVon(raus).map((f) => f.datei));
   };
   const toggleZettelMonitor = async (id) => {
     await persist(entries.map((e) => (e.id === id ? { ...e, monitor: !e.monitor } : e)));
@@ -4800,7 +4828,7 @@ function App() {
       anlage: vorgabe.anlage || "", anlageCustom: "", note: vorgabe.note || "",
       prio: "ohne", art: vorgabe.art || "mech", azubi: false, stillstand: false,
       wer: "", geplant: "", melder: vorgabe.melder || "",
-      fotos: [], fotosNeu: [], fotosWeg: [],
+      fotos: vorgabe.fotos || [], fotosNeu: [], fotosWeg: [],
     });
     setArbeitModal({ mode: "add", ausZettel: vorgabe.ausZettel || null });
   };
@@ -4824,7 +4852,10 @@ function App() {
     return best;
   };
   const zettelZuArbeit = (z) => {
-    openArbeitNeu({ note: z.note, melder: z.name, ausZettel: z.id, anlage: rateAnlage(z.note) });
+    // Fotos wandern als VERWEISE mit zur Arbeit - die Dateien bleiben
+    // dieselben. Deshalb räumt das Entfernen des Zettels beim Speichern
+    // sie NICHT weg (saveArbeit filtert den Zettel nur heraus).
+    openArbeitNeu({ note: z.note, melder: z.name, ausZettel: z.id, anlage: rateAnlage(z.note), fotos: fotoListeVon(z) });
   };
   const saveArbeit = async () => {
     const anlage = saeubere(aDraft.anlage === OTHER_VALUE ? aDraft.anlageCustom : aDraft.anlage);
@@ -8292,7 +8323,41 @@ function App() {
               </div>
 
               {zettelOpen && (
-                <PinnwandVerfasser startName={zettelName} onAnpinnen={addZettel} onAbbrechen={() => setZettelOpen(false)} />
+                <PinnwandVerfasser
+                  startName={zettelName}
+                  onAnpinnen={addZettel}
+                  onAbbrechen={zettelVerfasserZu}
+                  fotoLeiste={(
+                    <div className="flex gap-2 items-center flex-wrap mb-2">
+                      {zettelFotosNeu.map((n, i) => (
+                        <div key={n.neuId} className="relative">
+                          <button
+                            onClick={() => setFotoGross({ fotos: zettelFotosNeu, index: i, setDraft: zettelFotoSetter })}
+                            aria-label={`Zettel-Foto ${i + 1} groß ansehen`}
+                            style={{ display: "block", width: "72px", height: "54px", borderRadius: "6px", border: "1px solid #D6D9DC", overflow: "hidden" }}
+                          >
+                            <img src={n.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          </button>
+                          <button
+                            onClick={() => fotoAusDraft(zettelFotoSetter, n)}
+                            aria-label={`Zettel-Foto ${i + 1} entfernen`}
+                            className="absolute text-white"
+                            style={{ top: "-6px", right: "-6px", width: "18px", height: "18px", borderRadius: "50%", backgroundColor: "#22262B", fontSize: "10px", lineHeight: 1 }}
+                          >✕</button>
+                        </div>
+                      ))}
+                      {sharedFile.fotosVerfuegbar() && (
+                        <label
+                          className="inline-flex items-center gap-1.5 text-xs font-bold cursor-pointer rounded border px-2.5 py-1.5"
+                          style={{ borderColor: "#C9CED4", color: "#5B6572", backgroundColor: "#FAFBFC" }}
+                        >
+                          📷 Foto an den Zettel
+                          <input type="file" accept="image/*" multiple hidden onChange={(ev) => fotoHinzufuegen(ev, zettelFotoSetter)} aria-label="Zettel-Foto hinzufügen" />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                />
               )}
 
               {zettelListe.length === 0 && !zettelOpen && (
@@ -8313,6 +8378,28 @@ function App() {
                 {sichtbar.map((z) => (
                   <div key={z.id} className="relative p-3" style={{ backgroundColor: zettelFarbeFuer(z), borderRadius: "4px 4px 12px 4px", boxShadow: "2px 3px 8px rgba(20,22,25,0.12)" }}>
                     <div className="text-sm" style={{ color: "#39414B", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{z.note}</div>
+                    {/* Fotos am Zettel (26.08.): kleine Vorschau direkt auf der
+                        Pinnwand, Klick öffnet die Großansicht - auch für Leser
+                        (nur ansehen, wie der Zettel selbst). */}
+                    {fotoListeVon(z).length > 0 && (
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        {fotoListeVon(z).map((f, i) => {
+                          const url = fotoUrl(f.datei);
+                          return (
+                            <button
+                              key={f.datei}
+                              onClick={() => setFotoGross({ fotos: fotoListeVon(z), index: i, setDraft: null })}
+                              aria-label={`Zettel-Foto ${i + 1} groß ansehen`}
+                              style={{ width: "72px", height: "54px", borderRadius: "6px", border: "1px solid rgba(0,0,0,0.15)", overflow: "hidden", backgroundColor: "rgba(255,255,255,0.55)" }}
+                            >
+                              {url
+                                ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                : <span style={{ fontSize: "0.6rem", color: "#8A9099" }}>{url === null ? "📷 fehlt" : "📷 …"}</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="text-right mt-1.5" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
                       {z.name} · {z.zeit ? new Date(z.zeit).toLocaleDateString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : formatDateDE(z.date)}
                     </div>

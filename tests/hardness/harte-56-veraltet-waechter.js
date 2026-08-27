@@ -126,8 +126,11 @@ async function eintragAnlegen(p) {
     const text = await p.locator("body").innerText();
     pruef("(V1) Die rote Veraltet-Leiste steht da - beim NUR-LESER",
           /Diese App-Fassung ist VERALTET/.test(text), text.slice(0, 80));
+    // Der eigene Bau-Tag kommt aus dem Stempel des Builds - NICHT fest
+    // verdrahtet, sonst kippt der Test mit jedem neuen Bau-Datum.
+    const eigenerTag = new Date(EIGENE_BAU_ZEIT).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
     pruef("(V1) Sie nennt beide Stände (eigener und fremder Bau-Tag)",
-          /01\.01\.2036/.test(text) && /26\.08\.2026/.test(text));
+          /01\.01\.2036/.test(text) && text.includes(eigenerTag), `erwartet ${eigenerTag}`);
     pruef("(V1) Und sagt dem Browser-Nutzer, was zu tun ist (F5 / alte Kopie)",
           /F5/.test(text) && /alte HTML-Kopie/.test(text));
     pruef("(V1) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
