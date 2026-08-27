@@ -4934,8 +4934,14 @@ function App() {
     const keys = new Set(planungTage.map((t) => t.key));
     return alle.filter((p) => keys.has(p.date));
   })();
+  // Erledigte bleiben in der Planung STEHEN (Robertos Ansage vom 27.08.):
+  // Der Wochenplan ist auch der Beleg, wer was an dem Tag gemacht hat -
+  // vorher verschwand eine Arbeit mit „Erledigt melden" aus der Zelle.
+  // Offene zuerst, Erledigte (grün, ✓) dahinter.
   const geplantFuer = (person, tagKey) =>
-    arbeitenOffen.filter((a) => a.wer === person && a.geplant === tagKey);
+    arbeiten
+      .filter((a) => a.wer === person && a.geplant === tagKey)
+      .sort((x, y) => (x.status === "done" ? 1 : 0) - (y.status === "done" ? 1 : 0));
   const einplanen = async (arbeitId, person, tagKey) => {
     await persist(entries.map((e) => (e.id === arbeitId ? { ...e, wer: person, geplant: tagKey } : e)));
     setPlanungPicker(null);
@@ -5744,7 +5750,9 @@ function App() {
         const abwesend = schicht && SCHICHT_ABWESEND.has(schicht);
         const farbe = schicht ? SCHICHTEN[schicht] : null;
         const arbeiten = abwesend ? "" : geplantFuer(person, t.key)
-          .map((a) => chip(`${escapeHtml(a.name)}: ${escapeHtml(a.note)}`, a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color, "white")).join("");
+          .map((a) => (a.status === "done"
+            ? chip(`✓ ${escapeHtml(a.name)}: ${escapeHtml(a.note)}`, "#2F7D4F", "#E5F3EA")
+            : chip(`${escapeHtml(a.name)}: ${escapeHtml(a.note)}`, a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color, "white"))).join("");
         const notizen = abwesend ? "" : notizenFuer(person, t.key)
           .map((n) => chip(`📝 ${escapeHtml(n.note)}`, "#8A7A1E", "#FEF9C3")).join("");
         const inhalt = abwesend
@@ -8892,18 +8900,19 @@ function App() {
                                       style={{ padding: "2px 10px", borderTop: "1px solid #E2E4E7", cursor: readerMode ? "default" : "pointer", backgroundColor: dropZiel === `${person}|${t.key}` ? "#EAF3EC" : undefined, boxShadow: dropZiel === `${person}|${t.key}` ? "inset 0 0 0 2px #2F7D4F" : undefined }}
                                     >
                                       {geplantFuer(person, t.key).map((a) => {
-                                        const c = a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
+                                        const done = a.status === "done";
+                                        const c = done ? "#2F7D4F" : a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
                                         return (
                                           <button
                                             key={a.id}
                                             onClick={() => openArbeitEdit(a)}
-                                            draggable={!readerMode}
-                                            onDragStart={(ev) => { ev.dataTransfer.setData("text/wk-arbeit", a.id); ev.dataTransfer.effectAllowed = "move"; }}
+                                            draggable={!readerMode && !done}
+                                            onDragStart={(ev) => { if (done) return; ev.dataTransfer.setData("text/wk-arbeit", a.id); ev.dataTransfer.effectAllowed = "move"; }}
                                             className="rounded font-bold text-left"
-                                            style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: `${c}14`, wordBreak: "break-word", cursor: readerMode ? "pointer" : "grab" }}
-                                            title={a.note + (readerMode ? "" : " – zum Umplanen auf eine andere Zeile ziehen")}
+                                            style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}14`, wordBreak: "break-word", cursor: readerMode || done ? "pointer" : "grab" }}
+                                            title={done ? `${a.note} – erledigt gemeldet` : a.note + (readerMode ? "" : " – zum Umplanen auf eine andere Zeile ziehen")}
                                           >
-                                            {a.name}: {a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}
+                                            {done ? "✓ " : ""}{a.name}: {a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}
                                           </button>
                                         );
                                       })}

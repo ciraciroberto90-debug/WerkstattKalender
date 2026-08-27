@@ -519,6 +519,17 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Erledigte Arbeiten bleiben in der Planung stehen (Robertos Ansage
+      vom 27.08.):** Vorher filterte die Wochenplan-Zelle auf OFFENE
+      Arbeiten - „Erledigt melden" ließ den Chip verschwinden, der Tag sah
+      aus wie nie geplant. Jetzt bleibt die Arbeit als grüner ✓-Chip in
+      der Zelle stehen (Beleg, wer was an dem Tag gemacht hat), hinter den
+      offenen einsortiert, nicht mehr ziehbar, Klick öffnet sie wie
+      gewohnt. Erledigte ohne Einplanung tauchen weiterhin nirgends auf.
+      Auch das Wochen-Druckblatt der Planung druckt sie mit Haken.
+      Härtetest harte-59: 8/8 - inkl. des Kernfalls („Erledigt melden" →
+      Chip bleibt) und Gegenprobe (alter Build: FAIL).
+
 - [x] **Bilder an der Pinnwand (Robertos Wunsch vom 26.08.):** Beim
       Verfassen eines Zettels hängt „📷 Foto an den Zettel" ein oder
       mehrere Bilder an - gleiche Mechanik wie bei Arbeit und Störung
