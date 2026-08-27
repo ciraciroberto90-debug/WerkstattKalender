@@ -36,6 +36,11 @@ Stand: 07.08.2026
       Linkstreifen auf der Übersicht (RC/AR), die Störberichte mit Nummer und
       Filterleiste sowie die neuen Ausdrucke (Schichtplan wochenweise quer,
       TPM/R+I-Jahreskalender A3). Kein Anwählen der JSON nötig, F5 genügt.
+      *Stand 26.08. (Robertos Ansage: es gibt keine Browser-Rechner mehr,
+      überall läuft das Programm): Der Weg bleibt derselbe Ordner, aber
+      statt F5 heißt es am Programm-Rechner: grüner Balken „Neue Version
+      verfügbar" → ein Klick. Voraussetzung je Rechner einmalig: der
+      Update-Ordner im ⚙ → Verlauf & Sicherung → Programm-Updates.*
 
 ## Vor der Mail an die Kollegen
 
@@ -142,12 +147,14 @@ Lesen klappt also schon. Zu klären, in dieser Reihenfolge:
       den OneDrive-Ausstieg ist frei; offen bleibt nur der Stichtag-Umzug
       (Pfad an alle verteilen, jedes Gerät wählt einmal neu an) und die
       `.crswap`-Probe für die Browser-Rechner (Punkt unten).
-- [ ] **Fürs Umziehen der BROWSER-Rechner aufs Laufwerk wichtig:** Chrome
-      legt beim Speichern eigene Zwischendateien mit der Endung `.crswap`
-      an – eine Dateityp-Prüfung des Servers würde auch die abweisen, und
-      daran können wir nichts ändern. Vor dem Umzug einmal im Zielordner
-      mit einem Browser-Rechner probespeichern; klemmt es, muss die IT
-      `.crswap` (und `.json`) im Ordner zulassen.
+- [x] **ENTFÄLLT (26.08., Robertos Ansage: keine Browser-Rechner mehr,
+      überall läuft das Programm):** ~~Fürs Umziehen der BROWSER-Rechner
+      aufs Laufwerk wichtig~~ - Chrome legt beim Speichern `.crswap`-
+      Zwischendateien an, die eine Dateityp-Prüfung des Servers abweisen
+      könnte. Das Programm schreibt stattdessen über seine eigene
+      Zwischendatei mit Ziel-Endung (am echten Laufwerk bewiesen, 10.08.).
+      Sollte je wieder ein Browser-Rechner dazukommen, gilt der Punkt
+      wieder - deshalb bleibt er hier stehen statt gelöscht zu werden.
 - [ ] **Nächster Schritt für Roberto:** neue ZIP einspielen (vorher alle
       Cockpit-Fenster schließen - der Zweitstart-Schutz holt sonst das
       alte Fenster nach vorn), Programm
@@ -350,9 +357,14 @@ auf denselben Dateien.
       Verteilung auf die Rechner, Update-Weg. Das ist der Punkt, an dem das
       Programm dem Browser überlegen wird – vorher ist es nur gleichwertig
       plus Komfort.
-- [ ] **Falls das Programm die Hauptfassung wird:** Ausliefer-Dienst und
-      localhost-Verknüpfungen abbauen, Anleitung umschreiben, Linkbereich
-      auf `oeffnePfad` der Brücke umstellen (Explorer direkt, ohne Dienst).
+- [ ] **Das Programm IST seit dem 26.08. die Hauptfassung** (Robertos
+      Ansage: kein Rechner geht mehr über den Browser hinein). Damit wird
+      der Aufräum-Punkt aktuell: Ausliefer-Dienst (`cockpit-server.ps1`,
+      localhost:8765) und localhost-Verknüpfungen abbauen, Anleitung auf
+      den Programm-Weg umschreiben, Linkbereich auf `oeffnePfad` der
+      Brücke umstellen (Explorer direkt, ohne Dienst). Auf Zuruf - der
+      Dienst stört nicht, solange er läuft, aber er ist jetzt totes
+      Gewicht und ein Pflege-Punkt mehr.
 
 ## Offene Entscheidungen
 
