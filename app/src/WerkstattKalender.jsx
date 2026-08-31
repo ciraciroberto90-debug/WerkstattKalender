@@ -383,7 +383,7 @@ function ZiehbareKarte({ onClick, style, className, children, ...rest }) {
         ref={kartenRef}
         className={className}
         {...rest}
-        style={{ ...style, ...(groesse ? { width: groesse.w + "px", height: groesse.h + "px", maxWidth: "none", maxHeight: "none" } : {}) }}
+        style={{ ...style, ...(groesse ? { width: groesse.w + "px", height: groesse.h + "px", maxWidth: "none", maxHeight: "none", overflowY: "auto" } : {}) }}
       >
         {children}
       </div>
@@ -9813,7 +9813,13 @@ function App() {
           ) : null;
           return (
             <div className="no-print" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }} onClick={schliessen}>
-              <ZiehbareKarte style={{ backgroundColor: "white", borderRadius: "12px", width: "560px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", overflow: "hidden" }} onClick={(ev) => ev.stopPropagation()}>
+              {/* NUR Langformen (overflowX/overflowY), NIE die Kurzform
+                  "overflow" mischen (31.08.): Beim Wechsel Ansicht->Bearbeiten
+                  recycelt React die Karte, entfernt das weggefallene
+                  overflow:hidden - und der Browser löscht dabei AUCH
+                  overflow-y. overflowY hielt React für unverändert und setzte
+                  es nie neu: Der Bearbeiten-Dialog lief ohne Scroll über. */}
+              <ZiehbareKarte style={{ backgroundColor: "white", borderRadius: "12px", width: "560px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", overflowX: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }} onClick={(ev) => ev.stopPropagation()}>
                 {/* Kopfband */}
                 <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ backgroundColor: offen ? "#FBEAE8" : "#EAF3EC", borderBottom: `1px solid ${offen ? "#E7B9B3" : "#BFE0C6"}` }}>
                   <span className="font-black" style={{ fontSize: "1.05rem", color: "#22262B" }}>Störbericht</span>

@@ -519,6 +519,21 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Störbericht-Dialog quoll unten aus der Karte (Robertos Bilder vom
+      31.08.):** Fehlerart, Ausfallzeit und „Behoben am" standen frei auf
+      dem Hintergrund. Gemessene Wurzel - ein React-Klassiker: Der
+      Ansichts-Dialog mischte die CSS-Kurzform `overflow:"hidden"` mit
+      der Langform `overflowY:"auto"`. Beim Wechsel Ansicht → Bearbeiten
+      recycelt React dieselbe Karte, entfernt das weggefallene
+      overflow:hidden (der Browser löscht dabei auch overflow-y) und
+      setzt overflowY nie neu, weil es in beiden Objekten „auto" heißt -
+      die Karte lief ganz ohne Scroll-Verhalten. Behoben: nur noch
+      Langformen im Störbericht-Stil, und die ZiehbareKarte erzwingt beim
+      Größenziehen jetzt grundsätzlich overflow-y:auto (Gürtel und
+      Hosenträger für alle 21 Dialoge). Härtetest harte-61: 5/5 - misst
+      den Recycle-Weg und das Kleiner-Ziehen; Gegenprobe am alten Build
+      zeigt exakt „visible" (2 FAIL).
+
 - [x] **Foto-Schreiben nur noch mit Beweis (Robertos Fund vom 31.08.:
       angepinnte Fotos waren nach dem Neustart weg - „Die Bilddatei fehlt
       im Datenordner"):** Am echten Electron ließ sich der Fall NICHT
