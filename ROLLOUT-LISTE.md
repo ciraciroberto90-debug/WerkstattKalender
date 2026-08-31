@@ -519,6 +519,20 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Notiz-Speichern mit Rückmeldung (Robertos Fund vom 31.08.: „der
+      speichern button geht nicht anständig, es passiert teilweise
+      nichts"):** Gemessen: Gespeichert wurde immer - aber der Knopf gab
+      keinerlei Rückmeldung und der Dialog blieb offen, Erfolg sah aus wie
+      Ausfall. Jetzt wird der Knopf kurz grün „✓ Gespeichert" und der
+      Dialog schließt von selbst; scheitert das Speichern wirklich, bleibt
+      er offen (rote Meldung). Dazu ein echter stiller Verlust behoben:
+      Wer eine Notiz tippte, dann „Gemacht" klickte und über ✕ schloss,
+      verlor die Notiz - die Status-Knöpfe im Termin-Dialog nehmen die
+      getippte Notiz jetzt mit (das Ein-Klick-Abhaken auf den Kacheln
+      bleibt unverändert). Härtetest harte-60: 7/7 - inkl. Kein-Fehlalarm-
+      Probe (bestehende Notiz bleibt bei „Gemacht" ohne Tipperei) und
+      Gegenprobe (alter Build: 2 FAIL + Abbruch).
+
 - [x] **Erledigte Arbeiten bleiben in der Planung stehen (Robertos Ansage
       vom 27.08.):** Vorher filterte die Wochenplan-Zelle auf OFFENE
       Arbeiten - „Erledigt melden" ließ den Chip verschwinden, der Tag sah

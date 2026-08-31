@@ -1685,6 +1685,7 @@ function App() {
   const [draftPinnwand, setDraftPinnwand] = useState(false);
   const [draftNote, setDraftNote] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
+  const [notizStand, setNotizStand] = useState(null); // null | "ok" - Rückmeldung des Notiz-Knopfs (31.08.)
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -3661,7 +3662,9 @@ function App() {
         return false;
       }
     };
-    await attempt(2);
+    // Erfolg zurückmelden (31.08.): Der Notiz-Knopf zeigt seither eine
+    // sichtbare Bestätigung - dafür muss er wissen, ob es geklappt hat.
+    return await attempt(2);
   };
 
   const ladeHerunter = (inhalt, dateiname, typ) => {
@@ -3785,6 +3788,7 @@ function App() {
     setModal(null);
     resetDraft();
     setNoteDraft("");
+    setNotizStand(null);
   };
 
   const openAddModal = (dateKey) => {
@@ -3869,8 +3873,24 @@ function App() {
     await persist(entries.map((e) => (e.id === id ? { ...e, status } : e)));
   };
 
+  // Im Termin-Dialog nimmt der Status-Klick die getippte Notiz MIT (31.08.):
+  // Vorher ging sie still verloren, wenn man nach dem Tippen erst „Gemacht"
+  // klickte und den Dialog dann über ✕ schloss. Nur für den Dialog - das
+  // Ein-Klick-Abhaken auf den Kacheln kennt keinen Notiz-Entwurf.
+  const statusUndNotiz = async (id, status) => {
+    await persist(entries.map((e) => (e.id === id ? { ...e, status, note: noteDraft.trim() } : e)));
+  };
+
+  // Robertos Fund vom 31.08.: „der speichern button geht nicht anständig,
+  // es passiert teilweise nichts." Gespeichert wurde immer - aber ohne jede
+  // Rückmeldung und bei offen bleibendem Dialog sah Erfolg aus wie Ausfall.
+  // Jetzt: kurz grün „✓ Gespeichert", dann schließt der Dialog von selbst.
+  // Scheitert das Speichern wirklich, bleibt er offen (rote Meldung oben).
   const saveNote = async (id) => {
-    await persist(entries.map((e) => (e.id === id ? { ...e, note: noteDraft.trim() } : e)));
+    const ok = await persist(entries.map((e) => (e.id === id ? { ...e, note: noteDraft.trim() } : e)));
+    if (ok === false) return;
+    setNotizStand("ok");
+    setTimeout(() => closeModal(), 650);
   };
 
   const deleteEntry = async (id) => {
@@ -10435,13 +10455,13 @@ function App() {
                   <div className="flex flex-col gap-3">
                     <div className="flex gap-2">
                       <button
-                        onClick={() => setEntryStatus(liveEntry.id, "done")}
+                        onClick={() => statusUndNotiz(liveEntry.id, "done")}
                         className={`flex-1 text-sm font-bold py-2 rounded ${liveEntry.status === "done" ? "bg-emerald-600 text-white" : "bg-white text-slate-500 border border-slate-300"}`}
                       >
                         ✓ Gemacht
                       </button>
                       <button
-                        onClick={() => setEntryStatus(liveEntry.id, "open")}
+                        onClick={() => statusUndNotiz(liveEntry.id, "open")}
                         className={`flex-1 text-sm font-bold py-2 rounded ${liveEntry.status === "open" ? "bg-red-600 text-white" : "bg-white text-slate-500 border border-slate-300"}`}
                       >
                         ✕ Offen
@@ -10518,10 +10538,11 @@ function App() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => saveNote(liveEntry.id)}
+                        disabled={notizStand === "ok"}
                         className="flex-1 text-sm font-bold py-2.5 rounded text-white"
-                        style={{ backgroundColor: "#22262B" }}
+                        style={{ backgroundColor: notizStand === "ok" ? "#2F7D4F" : "#22262B" }}
                       >
-                        Notiz speichern
+                        {notizStand === "ok" ? "✓ Gespeichert" : "Notiz speichern"}
                       </button>
                       <button
                         onClick={() => deleteEntry(liveEntry.id)}
