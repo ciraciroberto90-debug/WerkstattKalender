@@ -519,6 +519,29 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Foto-Schreiben nur noch mit Beweis (Robertos Fund vom 31.08.:
+      angepinnte Fotos waren nach dem Neustart weg - „Die Bilddatei fehlt
+      im Datenordner"):** Am echten Electron ließ sich der Fall NICHT
+      nachstellen (Foto überlebt den Neustart, jetzt fest in
+      pruefe-programm gemessen, 30 Prüfungen) - auf Robertos Laufwerk muss
+      das Schreiben still verschluckt worden sein. Drei Dichtungen:
+      (1) **Kontroll-Lesung** in fotoSpeichern - „gespeichert" zählt erst,
+      wenn die Datei nachweislich vollständig zurückkommt (dieselbe
+      Hausregel wie bei der JSON); scheitert sie, wird KEIN Verweis
+      gespeichert. (2) Ein dabei gefundener Melde-Bug: Die rote
+      „Foto konnte nicht geschrieben werden"-Warnung wurde vom
+      unmittelbar folgenden erfolgreichen Eintrag-Speichern sofort wieder
+      weggeräumt (setErr(null)) - niemand sah sie je; die Meldung kommt
+      jetzt NACH dem Speichern (Störung, Arbeit und Zettel). (3) Die
+      Kennkarte zeigt beim Konflikt-Wächter jetzt den VOLLEN Pfad des
+      überwachten Ordners - Robertos Wächter stand auf „Werkstatt", die
+      Daten liegen in „Werkstatt_Kalender"; am bloßen Namen sieht das
+      niemand. harte-58 jetzt 19/19 (Z7 stellt den verschluckenden
+      Ordner nach; Gegenprobe gegen den Build davor: exakt Robertos
+      Symptom, 3 FAIL). ZU KLÄREN am Laufwerk: Wo die heutigen
+      Zettel-Fotos hingeschrieben wurden (Explorer: Fotos/-Unterordner
+      der beiden Ordner ansehen) - siehe Chat vom 31.08.
+
 - [x] **Notiz-Speichern mit Rückmeldung (Robertos Fund vom 31.08.: „der
       speichern button geht nicht anständig, es passiert teilweise
       nichts"):** Gemessen: Gespeichert wurde immer - aber der Knopf gab

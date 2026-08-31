@@ -12,6 +12,9 @@
 //       Bilddatei bleibt ERHALTEN (der entfallende Zettel räumt sie nicht weg).
 //  (Z5) Zettel löschen räumt die Bilddatei mit weg.
 //  (Z6) Abbrechen im Verfasser hinterlässt keine Datei (keine Waisen).
+//  (Z7) KONTROLL-LESUNG (31.08.): Verschluckt der Ordner das Schreiben
+//       still (Robertos Fall: Verweis da, „Bilddatei fehlt im Datenordner"),
+//       fliegt das SOFORT auf - rote Meldung, KEIN Verweis ins Leere.
 //
 // Hausregel erfüllt: Gegen den Build ohne die Änderung schlägt (Z1) fehl -
 // dort gibt es den Anhänge-Knopf im Verfasser nicht.
@@ -29,15 +32,16 @@ const config = {
   riItems: [], team: [],
 };
 
-async function start(browser, { eintraege = [] } = {}) {
+async function start(browser, { eintraege = [], schluckend = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
   const p = await ctx.newPage();
   const fehler = [];
   p.on("pageerror", (e) => fehler.push(e.message));
   p.on("dialog", (d) => d.accept());
   await p.clock.setFixedTime(new Date("2026-08-26T10:00:00"));
-  await p.addInitScript(({ e, c }) => {
+  await p.addInitScript(({ e, c, schluckt }) => {
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
+    window.__schluckend = schluckt;
     localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(e));
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
     localStorage.setItem("werkstatt-kalender-name", "M. Weber");
@@ -60,7 +64,9 @@ async function start(browser, { eintraege = [] } = {}) {
           kind: "file", name,
           async createWritable() {
             const teile = [];
-            return { async write(x) { teile.push(x); }, async close() { knoten.files.set(name, new Blob(teile)); } };
+            // "schluckend" stellt Robertos Laufwerks-Fall nach: Der Ordner
+            // nimmt das Schreiben scheinbar an, die Datei bleibt aber leer.
+            return { async write(x) { teile.push(x); }, async close() { if (!window.__schluckend) knoten.files.set(name, new Blob(teile)); } };
           },
           async getFile() { return new File([knoten.files.get(name)], name, { type: "image/jpeg" }); },
         };
@@ -81,7 +87,7 @@ async function start(browser, { eintraege = [] } = {}) {
       const f = wurzel.dirs.get("Fotos");
       return f ? [...f.files.entries()].map(([n, b]) => ({ name: n, size: b.size })) : [];
     };
-  }, { e: eintraege, c: config });
+  }, { e: eintraege, c: config, schluckt: schluckend });
   await p.goto(APP);
   await p.waitForTimeout(1000);
   await p.evaluate(() => window.__wkSharedTest.adoptFolder(window.__mockOrdnerHandle));
@@ -210,6 +216,27 @@ const verfasserAuf = async (p) => {
     pruef("(Z6) Abbrechen: keine Datei im Ordner, kein Zettel im Bestand",
           (await p.evaluate(() => window.__fotoDateien())).length === 0 &&
           !(await gespeichert(p)).some((e) => e.category === "NOTIZ"));
+    await ctx.close();
+  }
+
+  /* ---- (Z7) Still verschlucktes Schreiben fliegt SOFORT auf ---- */
+  {
+    const { p, ctx } = await start(browser, { schluckend: true });
+    const foto = await handyFoto(p);
+    await verfasserAuf(p);
+    await p.locator('input[aria-label="Zettel-Foto hinzufügen"]').setInputFiles({ name: "s.jpg", mimeType: "image/jpeg", buffer: foto });
+    await p.waitForTimeout(1200);
+    await p.locator('textarea[placeholder^="Was sollen die anderen wissen"]').fill("Zettel am kaputten Ordner");
+    await p.getByRole("button", { name: "Anpinnen", exact: true }).click();
+    await p.waitForTimeout(900);
+    const zettel = (await gespeichert(p)).find((e) => e.category === "NOTIZ");
+    pruef("(Z7) Kein Verweis ins Leere: Der Zettel wird OHNE Foto gespeichert",
+          zettel && !Array.isArray(zettel.fotos),
+          JSON.stringify(zettel && zettel.fotos));
+    pruef("(Z7) Und die rote Meldung sagt es laut",
+          (await p.locator("body").innerText()).includes("konnten nicht in den Datenordner geschrieben"));
+    pruef("(Z7) Keine Foto-Kachel am Zettel (nichts täuscht ein Bild vor)",
+          (await p.getByRole("button", { name: "Zettel-Foto 1 groß ansehen" }).count()) === 0);
     await ctx.close();
   }
 

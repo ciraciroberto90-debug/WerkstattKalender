@@ -1866,6 +1866,13 @@ function createSharedStore(cfg) {
   function fotosVerfuegbar() {
     return !!(folderHandle && folderPerm === "ok" && folderHandle.getDirectoryHandle);
   }
+  // Voller Pfad des überwachten Ordners (nur die Programm-Fassung kennt ihn;
+  // im Browser gibt es keinen). Seit dem 31.08. zeigt ihn die Kennkarte:
+  // Robertos Wächter stand auf „Werkstatt", die Daten lagen in
+  // „Werkstatt_Kalender" - am bloßen NAMEN sieht das niemand.
+  function folderPfad() {
+    return folderHandle && folderHandle.pfad ? String(folderHandle.pfad) : "";
+  }
   // WARUM (noch) keine Fotos? Für eine ehrliche Meldung samt passendem Knopf.
   // Wichtig wegen Robertos Fall vom 24.08.: Nach einem Browser-Neustart steht
   // der gemerkte Ordner-Verweis zwar da, aber der Browser will die Freigabe
@@ -1882,6 +1889,20 @@ function createSharedStore(cfg) {
     const w = await mitFrist(() => handle.createWritable(), FRIST_SCHREIBEN, "Das Anlegen der Fotodatei");
     await w.write(blob);
     await w.close();
+    // Kontroll-Lesung (Robertos Fund vom 31.08.: Verweis am Zettel da, aber
+    // „Die Bilddatei fehlt im Datenordner"): „Gespeichert" zählt erst, wenn
+    // die Datei nachweislich lesbar und vollständig zurückkommt - dieselbe
+    // Hausregel wie bei der gemeinsamen JSON. Scheitert die Probe, wirft
+    // dieser Weg, der Verweis wird NICHT gespeichert und die rote Meldung
+    // nennt das Foto - statt eines stillen Verweises ins Leere.
+    let probe = null;
+    try {
+      const kontrolle = await ordner.getFileHandle(dateiName);
+      probe = await mitFrist(() => kontrolle.getFile(), FRIST_LESEN, "Die Kontroll-Lesung der Fotodatei");
+    } catch (e) { probe = null; }
+    if (!probe || probe.size !== blob.size) {
+      throw new Error(`Die Fotodatei „${dateiName}" ist nach dem Schreiben nicht vollständig lesbar (${probe ? probe.size : 0} von ${blob.size} Bytes) - Laufwerk oder Dateityp-Filter prüfen.`);
+    }
     return true;
   }
   async function fotoLesen(dateiName) {
@@ -2012,7 +2033,7 @@ function createSharedStore(cfg) {
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
-    folderStatus, folderName, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
+    folderStatus, folderName, folderPfad, pickFolder, reconnectFolder, forgetFolder, sammleKonfliktkopien,
     tagesSicherungJetzt, tagesSicherungStand,
     fotosVerfuegbar, fotoLage, fotoSpeichern, fotoLesen, fotoLoeschen,
     leseAusOrdner, listeOrdnerDateien,
@@ -2054,6 +2075,7 @@ export const umgebung = main.umgebung;
 export const disconnect = main.disconnect;
 export const folderStatus = main.folderStatus;
 export const folderName = main.folderName;
+export const folderPfad = main.folderPfad;
 export const pickFolder = main.pickFolder;
 export const reconnectFolder = main.reconnectFolder;
 export const forgetFolder = main.forgetFolder;

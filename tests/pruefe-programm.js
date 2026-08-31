@@ -225,12 +225,11 @@ const pruef = (n, c, zusatz) => {
       const f = await window.__wkSharedTest.fotoLesen("pruef-foto.jpg");
       return !!f && f.size === 4096;
     }));
-  pruef("Fotos: Loeschen raeumt die Datei von der Platte",
-    (await page.evaluate(() => window.__wkSharedTest.fotoLoeschen("pruef-foto.jpg"))) === true &&
-    !fs.existsSync(fotoPfad));
-  // Den Ordner-Verweis wieder abhaengen - die Update-Pruefung unten laedt die
-  // Seite neu und soll den Zustand eines frischen Starts vorfinden.
-  await page.evaluate(() => window.__wkSharedTest.adoptFolder(null, "none"));
+  // BEWUSST NICHT loeschen und den Ordner-Verweis NICHT abhaengen: Die
+  // Update-Pruefung unten laedt die Seite neu - danach wird gemessen, ob
+  // das Foto den NEUSTART uebersteht (Robertos Fund vom 31.08.: angepinnte
+  // Fotos waren nur bis zum Neustart sichtbar). Der Ordner kommt beim
+  // Neustart aus dem gemerkten Verweis (hier: die Vorbelegung oben).
 
   /* ---- Programm-Update am echten Rahmen ---- */
   // Update-Ordner mit einer NEUEREN App-HTML (Marker eingebaut, damit die
@@ -277,6 +276,21 @@ const pruef = (n, c, zusatz) => {
   } catch (e) { /* unten als FAIL gemeldet */ }
   pruef("Update: Und die Datei ist wieder von selbst verbunden", wiederVerbunden, "canWrite nach Update");
   fs.rmSync(updateOrdner, { recursive: true, force: true });
+
+  /* ---- Fotos ueberleben den NEUSTART (Robertos Fund vom 31.08.) ----
+     Die Seite wurde durch die Update-Uebernahme neu geladen - das ist der
+     "App neu oeffnen"-Fall. Der Ordner-Verweis kommt jetzt aus dem
+     gemerkten Profil (Vorbelegung), nicht mehr aus adoptFolder. */
+  pruef("Fotos nach Neustart: Der Datenordner ist von selbst wieder da (fotosVerfuegbar)",
+    await page.evaluate(() => window.__wkSharedTest.fotosVerfuegbar()));
+  pruef("Fotos nach Neustart: Die Bilddatei ist WEITER lesbar (kein Verschwinden)",
+    await page.evaluate(async () => {
+      const f = await window.__wkSharedTest.fotoLesen("pruef-foto.jpg");
+      return !!f && f.size === 4096;
+    }));
+  pruef("Fotos: Loeschen raeumt die Datei von der Platte",
+    (await page.evaluate(() => window.__wkSharedTest.fotoLoeschen("pruef-foto.jpg"))) === true &&
+    !fs.existsSync(fotoPfad));
 
   // Bildschirmfoto des echten Programmfensters
   const foto = path.join(os.tmpdir(), "werkstatt-programm.png");

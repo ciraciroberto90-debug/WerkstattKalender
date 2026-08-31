@@ -2220,7 +2220,7 @@ function App() {
     };
     // Neue Fotos jetzt in den Datenordner schreiben - der Bericht speichert
     // nur die Verweise. Vorgemerkt Gelöschtes kommt erst nach dem Speichern weg.
-    const fotos = await fotosVerarbeiten(draft);
+    const { verweise: fotos, fotoFehler } = await fotosVerarbeiten(draft);
     const gemeinsam = {
       date: datum, schicht: draft.schicht || "Früh",
       anlage: draft.anlage, anlagenteil: draft.anlagenteil || "",
@@ -2256,6 +2256,7 @@ function App() {
       }
     }
     fotosAufraeumen(draft.fotosWeg);
+    if (fotoFehler) setErr(fotoFehler); // nach dem persist, sonst räumt der Erfolg die Warnung weg
     setStoerModal(null);
     setSDraft(null);
   };
@@ -4554,7 +4555,7 @@ function App() {
     const farben = Object.keys(ZETTEL_FARBEN);
     // Erst die angehängten Fotos in den Datenordner schreiben - am Zettel
     // steht wie bei Arbeit und Störung nur der Verweis, die JSON bleibt klein.
-    const fotos = await fotosVerarbeiten({ fotos: [], fotosNeu: zettelFotosNeu });
+    const { verweise: fotos, fotoFehler } = await fotosVerarbeiten({ fotos: [], fotosNeu: zettelFotosNeu });
     const zettel = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       date: todayKey,
@@ -4568,6 +4569,7 @@ function App() {
       ...(fotos.length > 0 ? { fotos } : {}),
     };
     await persist([...entries, zettel]);
+    if (fotoFehler) setErr(fotoFehler); // nach dem persist, sonst räumt der Erfolg die Warnung weg
     setZettelFotosNeu([]);
     setZettelOpen(false);
   };
@@ -4692,8 +4694,16 @@ function App() {
         try { URL.revokeObjectURL(neu.url); } catch (e) { /* egal */ }
       } catch (e) { fehlgeschlagen++; }
     }
-    if (fehlgeschlagen > 0) setErr(`${fehlgeschlagen} Foto(s) konnten nicht in den Datenordner geschrieben werden - der Eintrag wurde ohne sie gespeichert.`);
-    return verweise;
+    // Die Fehlermeldung geht als TEXT mit zurück, der Aufrufer setzt sie
+    // NACH seinem persist (31.08.): Vorher setzte sie diese Stelle sofort -
+    // und das erfolgreiche Speichern des Eintrags räumte sie mit setErr(null)
+    // gleich wieder weg. Der Bediener sah nie, dass ein Foto fehlte.
+    return {
+      verweise,
+      fotoFehler: fehlgeschlagen > 0
+        ? `${fehlgeschlagen} Foto(s) konnten nicht in den Datenordner geschrieben werden - der Eintrag wurde ohne sie gespeichert.`
+        : null,
+    };
   };
   // NACH dem erfolgreichen Speichern/Löschen des Eintrags: vorgemerkte bzw.
   // verwaiste Bilddateien wegräumen (bewusst ohne await - scheitert das
@@ -4884,7 +4894,7 @@ function App() {
     // Erst die neuen Fotos in den Datenordner schreiben, dann den Eintrag
     // mit den fertigen Verweisen speichern. Zum Löschen vorgemerkte Dateien
     // kommen erst NACH dem erfolgreichen Speichern weg.
-    const fotos = await fotosVerarbeiten(aDraft);
+    const { verweise: fotos, fotoFehler } = await fotosVerarbeiten(aDraft);
     if (arbeitModal.mode === "add") {
       const a = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -4903,6 +4913,7 @@ function App() {
         : e));
     }
     fotosAufraeumen(aDraft.fotosWeg);
+    if (fotoFehler) setErr(fotoFehler); // nach dem persist, sonst räumt der Erfolg die Warnung weg
     setArbeitModal(null);
   };
   const setArbeitStatus = async (id, status) => {
@@ -11142,6 +11153,12 @@ function App() {
                     {sharedFile.folderStatus() === "ok" ? (
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold" style={{ color: "#2F7D4F" }}>✓ Aktiv – überwacht „{sharedFile.folderName()}"</span>
+                        {/* Voller Pfad (31.08.): Nur am Namen sieht niemand, ob
+                            der RICHTIGE Ordner überwacht wird - Fotos landen
+                            genau hier, im Unterordner Fotos/. */}
+                        {sharedFile.folderPfad() && (
+                          <span className="text-xs font-mono" style={{ color: "#8A9099", wordBreak: "break-all" }}>{sharedFile.folderPfad()}</span>
+                        )}
                         <button
                           onClick={async () => {
                             try { await sharedFile.forgetFolder(); } catch (e) { /* abgeschaltet wird trotzdem */ }
