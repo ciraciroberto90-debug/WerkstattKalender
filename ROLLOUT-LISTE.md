@@ -519,6 +519,26 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Uhr-/Zeitzonen-Härtung des Prüfstands (Robertos Auftrag vom 06.09.:
+      „Zur Uhr-Thematik check das nochmal ordentlich"):** Die komplette
+      Suite wurde unter drei verstellten Uhren gefahren - Ergebnis je
+      **61/61**: (A) Zeitzone Europe/Berlin statt UTC, (B) verstelltes
+      Systemdatum 15.01.2027 (per faketime bis in den Browser
+      durchgereicht, Durchgriff vorab gemessen), (C) der
+      Zeitumstellungs-Tag 25.10.2026 in Berlin-Zeit. Die **App selbst war
+      in allen Läufen fehlerfrei** - gefunden wurden zwei Test-Fehler:
+      harte-38 verglich gegen einen hart kodierten UTC-Zeitstempel und
+      kippte in Berlin-Zeit, obwohl die App exakt richtig stempelte
+      (jetzt zonenfest aus der lokalen Fixzeit abgeleitet); harte-15
+      Abschnitt 1 lief ohne feste Uhr und kippte beim Monatswechsel
+      (feste Uhr nachgetragen, bereits gepusht). Zusätzlich läuft die
+      Suite jetzt **standardmäßig in Europe/Berlin** (der Zone der
+      Werkstatt-Rechner), damit der Prüfstand dieselbe Wirklichkeit misst
+      wie der Betrieb; eine andere Zone bleibt per TZ-Variable wählbar.
+      Statische Durchsicht der 21 Tests ohne eigene Uhr-Stellung: alle
+      seeden feste 2026-Daten, keine Heute-Abhängigkeit. Keine
+      App-Änderung nötig, keine neue HTML. (06.09.)
+
 - [x] **Nachlese zur Kurzform-Falle (Robertos Auftrag vom 31.08.: „prüfe
       direkt weitere Bereiche"):** Alle 1140 Style-Objekte der App wurden
       maschinell auf das Störbericht-Muster durchkämmt (CSS-Kurzform und

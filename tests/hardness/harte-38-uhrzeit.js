@@ -90,8 +90,15 @@ const A = (id, name, status = "open") => ({ id, date: "2026-08-05", category: "A
       /Lager getauscht/.test(String(stand.name || "")), "in der Datei: " + String(stand.name || "—"));
     // Und sie trägt einen Stempel, der über dem der Fassung liegt, auf der sie
     // beruht - sonst würde sie beim nächsten Abgleich wieder verdrängt.
+    // Zonenfest (06.09.): Der Vorgänger-Stempel entsteht aus der LOKAL
+    // gesetzten Fixzeit 10:00 - im UTC-Prüfstand 10:00Z, unter
+    // Europe/Berlin 08:00Z. Der frühere hart kodierte UTC-String kippte
+    // im Berlin-Lauf, obwohl die App exakt richtig stempelte
+    // (Vorgänger + 1 ms).
+    const vorgaengerStempel = new Date("2026-08-05T10:00:00").toISOString();
     pruef("(1) Ihr Zeitstempel liegt über dem der Vorgänger-Fassung",
-      String(stand.updatedAt || "") > "2026-08-05T10:00:00.000Z", String(stand.updatedAt || "—"));
+      String(stand.updatedAt || "") > vorgaengerStempel,
+      `${String(stand.updatedAt || "—")} (Vorgänger ${vorgaengerStempel})`);
 
     const text = await falsch.locator("body").innerText();
     pruef("(2) Der Rechner mit der falschen Uhr wird darauf hingewiesen",
