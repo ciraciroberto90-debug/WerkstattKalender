@@ -519,6 +519,25 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Nachlese zur Kurzform-Falle (Robertos Auftrag vom 31.08.: „prüfe
+      direkt weitere Bereiche"):** Alle 1140 Style-Objekte der App wurden
+      maschinell auf das Störbericht-Muster durchkämmt (CSS-Kurzform und
+      Langform derselben Eigenschaft gemischt). Ein zweiter ECHTER
+      Treffer, gemessen und behoben: Die Plan-Kachel verlor beim
+      Ein-Klick-Abhaken ihre 4px-Kennfarben-Kante - die Kurzform
+      „border" wechselte auf grün und räumte die Langform border-left
+      mit ab (Bestand seit der Kennfarben-Einführung am 19.08., nie
+      gemeldet). Jetzt nur noch Langformen; die zwei Warn-Karten
+      (leere Datei / Bericht geändert) vorsorglich ebenso. Alle übrigen
+      Mischungen sind nachweislich harmlos (statisch oder es wechselt
+      nur die Langform). Härtetest harte-62: 6/6 - misst die Kachel
+      am Bildschirm UND wacht über die Quelle (keine variable
+      border-Kurzform neben Langform, kein overflow-Kurzform-Stil an
+      Dialog-Karten); Gegenprobe am alten Build: FAIL. Nebenbefund
+      beim Suiten-Lauf: harte-15 lief in einem Abschnitt ohne feste
+      Uhr und kippte mit dem Monatswechsel zum 01.09. - Uhr
+      nachgetragen (58/58), Gesamtbild 61/61.
+
 - [x] **Störbericht-Dialog quoll unten aus der Karte (Robertos Bilder vom
       31.08.):** Fehlerart, Ausfallzeit und „Behoben am" standen frei auf
       dem Hintergrund. Gemessene Wurzel - ein React-Klassiker: Der

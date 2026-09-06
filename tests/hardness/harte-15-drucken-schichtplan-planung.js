@@ -34,6 +34,11 @@ const seedTeam = (personName) => {
   {
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     page.on('pageerror', (e) => console.log('PAGEERROR (Schichtplan):', e.message));
+    // Feste Uhr wie in allen anderen Abschnitten (nachgetragen 06.09.):
+    // Ohne sie erwartete der Test den ECHTEN Systemmonat als "Monat August
+    // 2026" - er lief nur zufällig grün, solange wirklich August war, und
+    // kippte mit dem Monatswechsel.
+    await page.clock.setFixedTime(new Date('2026-08-04T09:00:00'));
     await page.addInitScript((name) => {
       delete window.showOpenFilePicker; delete window.showSaveFilePicker;
       localStorage.setItem('werkstatt-kalender-config', JSON.stringify({

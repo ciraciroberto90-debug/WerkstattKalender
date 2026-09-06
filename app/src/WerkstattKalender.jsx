@@ -10749,7 +10749,7 @@ function App() {
           <ZiehbareKarte
             role="dialog"
             aria-label="Diese Datei enthält keine Einträge"
-            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden" }}
+            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflowX: "hidden", overflowY: "hidden" }}
           >
             <div className="px-5 py-3" style={{ backgroundColor: "#FBEAE8", borderBottom: "1px solid #E7B9B3" }}>
               <span className="font-black" style={{ fontSize: "1.02rem", color: "#22262B" }}>⚠️ Diese Datei enthält keine Einträge</span>
@@ -10795,7 +10795,7 @@ function App() {
           <ZiehbareKarte
             role="dialog"
             aria-label="Bericht wurde inzwischen geändert"
-            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden" }}
+            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflowX: "hidden", overflowY: "hidden" }}
           >
             <div className="px-5 py-3" style={{ backgroundColor: "#FBF3DA", borderBottom: "1px solid #E7D9A8" }}>
               <span className="font-black" style={{ fontSize: "1.02rem", color: "#22262B" }}>⚠️ Dieser Bericht wurde inzwischen geändert</span>
@@ -12600,7 +12600,18 @@ function App() {
                                   disabled={readerMode}
                                   data-plan-datum={p.date}
                                   className="text-xs font-bold rounded px-1.5 py-1 text-left flex-1 min-w-0"
-                                  style={{ position: "relative", color: c, border: `1px solid ${c}`, borderLeft: `4px solid ${anlagenKennfarbe(p.anlage)}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer" }}
+                                  style={{
+                                    position: "relative", color: c,
+                                    /* Nur LANGFORMEN (31.08., gleiche Wurzel wie der Störbericht-
+                                       Überlauf): Die Kurzform "border" wechselte beim Abhaken die
+                                       Farbe - React setzt die geänderte Kurzform neu, der Browser
+                                       räumt border-left dabei mit ab, und die unveränderte
+                                       Kennfarben-Langform wird nie nachgesetzt. Gemessen: Nach dem
+                                       Ein-Klick-Haken war die 4px-Kennfarben-Kante weg. */
+                                    borderTop: `1px solid ${c}`, borderRight: `1px solid ${c}`, borderBottom: `1px solid ${c}`,
+                                    borderLeft: `4px solid ${anlagenKennfarbe(p.anlage)}`,
+                                    backgroundColor: done ? "#E5F3EA" : `${c}18`, wordBreak: "break-word", overflowWrap: "break-word", cursor: readerMode ? "default" : "pointer",
+                                  }}
                                   title={notiz ? `Notiz: ${notiz}` : readerMode ? undefined : "Öffnen für Notiz / Löschen"}
                                 >
                                   {done ? "✓ " : ""}{p.anlage}
