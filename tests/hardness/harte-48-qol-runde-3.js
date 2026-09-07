@@ -174,9 +174,9 @@ const stoerBericht = (nr, tage, anlage, extra = {}) => ({
     await zuStoerungen(p);
     await p.locator('button[aria-label="Drucken"]').click();
     await p.waitForTimeout(300);
-    pruef("(4) Der Druckdialog bietet die Schichtübergabe an",
-          (await p.getByRole("button", { name: /^Schichtübergabe/ }).count()) === 1);
-    await p.getByRole("button", { name: /^Schichtübergabe/ }).click();
+    pruef("(4) Der Druckdialog bietet die Schichtübergabe im Aufklappfeld an",
+          (await p.locator('select[aria-label="Blatt wählen"] option[value="uebergabe"]').count()) === 1);
+    await p.locator('select[aria-label="Blatt wählen"]').selectOption("uebergabe");
     await p.waitForTimeout(300);
     const [popup] = await Promise.all([
       p.waitForEvent("popup"),

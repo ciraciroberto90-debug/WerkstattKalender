@@ -10,11 +10,14 @@
 // Geprüft wird:
 //  (1) Das Monats-Diagramm erscheint nach dem Aufklappen der Auswertung
 //      und nennt die Quote im Format "X von Y erledigt · Z %".
-//  (2) Der Druckdialog bietet Monats- und Jahres-Diagramm an.
+//  (2) Der Druckdialog bietet das Monats-Diagramm an; das separate
+//      Jahres-Diagramm ist seit dem 07.09. auf Robertos Entscheidung
+//      entfallen (der freie Zeitraum Jan-Dez liefert dasselbe Blatt).
 //  (3) Die Monats-Diagramm-Vorlage: A4 hoch, Balken als SVG, Quote oben,
 //      Zahlen als Tabelle.
-//  (4) Die Jahres-Diagramm-Vorlage: Quote je Monat, leere Monate ehrlich
-//      als "keine Termine", Jahres-Quote oben.
+//  (4) Der Jahres-Blick über den freien Zeitraum Jan-Dez: Quote je Monat,
+//      leere Monate ehrlich als "keine Termine", Jahres-Quote oben -
+//      dieselben Zusicherungen wie beim alten Jahres-Diagramm.
 //  (5) Jahreskalender und Monatsblatt tragen die Quote ebenfalls oben.
 //  (6) Die "Wartungsplan – Tabelle" ist verschwunden - am Bildschirm wie
 //      im Wartungsplan-Druck.
@@ -80,12 +83,14 @@ const eintraege = [
   await p.waitForTimeout(300);
   const dialog = p.locator('div[role="dialog"][aria-label="Was soll gedruckt werden?"]');
   pruef("(2) Der Druckdialog fragt erst", (await dialog.count()) === 1);
-  pruef("(2) Monats-Diagramm und Jahres-Diagramm stehen zur Wahl",
-        (await p.getByRole("button", { name: /^Monats-Diagramm/ }).count()) === 1 &&
-        (await p.getByRole("button", { name: /^Jahres-Diagramm 2026/ }).count()) === 1);
+  const blattWahl = p.locator('select[aria-label="Blatt wählen"]');
+  pruef("(2) Das Monats-Diagramm steht im Aufklappfeld zur Wahl",
+        (await blattWahl.locator('option[value="diagramm-monat"]').count()) === 1);
+  pruef("(2) Das alte Jahres-Diagramm ist bewusst NICHT mehr im Angebot",
+        (await blattWahl.locator("option", { hasText: "Jahres-Diagramm" }).count()) === 0);
 
   /* ---- (3) Monats-Diagramm als A4-Vorlage ---- */
-  await p.getByRole("button", { name: /^Monats-Diagramm/ }).click();
+  await blattWahl.selectOption("diagramm-monat");
   await p.waitForTimeout(400);
   const [popupM] = await Promise.all([
     p.waitForEvent("popup"),
@@ -105,10 +110,14 @@ const eintraege = [
         /Die Tage im Einzelnen/i.test(textM) && textM.includes("TS480") && textM.includes("✓ TS200"));
   await popupM.close();
 
-  /* ---- (4) Jahres-Diagramm als A4-Vorlage ---- */
+  /* ---- (4) Jahres-Blick: freier Zeitraum Jan-Dez ---- */
   await p.locator('button[aria-label="Drucken"]').click();
   await p.waitForTimeout(300);
-  await p.getByRole("button", { name: /^Jahres-Diagramm 2026/ }).click();
+  await p.locator('select[aria-label="Blatt wählen"]').selectOption("diagramm-quartal");
+  await p.waitForTimeout(400);
+  await p.locator('select[aria-label="Zeitraum von"]').selectOption("2026-01");
+  await p.waitForTimeout(300);
+  await p.locator('select[aria-label="Zeitraum bis"]').selectOption("2026-12");
   await p.waitForTimeout(400);
   const [popupJ] = await Promise.all([
     p.waitForEvent("popup"),
@@ -118,20 +127,25 @@ const eintraege = [
   await popupJ.waitForTimeout(400);
   const htmlJ = await popupJ.content();
   const textJ = await popupJ.locator("body").innerText();
-  pruef("(4) Jahres-Diagramm: A4 hoch", /@page[^}]*size:\s*A4 portrait/.test(htmlJ));
+  pruef("(4) Jahres-Blick: A4 hoch", /@page[^}]*size:\s*A4 portrait/.test(htmlJ));
   // Jahr 2026 gesamt: 4 erledigt von 6 = 67 %
-  pruef("(4) Jahres-Diagramm: die Jahres-Quote steht leserlich oben",
+  pruef("(4) Jahres-Blick: die Jahres-Quote steht leserlich oben",
         /4 von 6 erledigt · 67 %/.test(textJ));
-  pruef("(4) Jahres-Diagramm: die Monats-Quoten stehen als Zahlen da",
+  pruef("(4) Jahres-Blick: die Monats-Quoten stehen als Zahlen da",
         /100 %/.test(textJ) && /60 %/.test(textJ));
-  pruef("(4) Jahres-Diagramm: leere Monate heißen ehrlich 'keine Termine', nicht 0 %",
-        (textJ.match(/keine Termine/g) || []).length === 10 && !/\b0 %/.test(textJ));
+  pruef("(4) Jahres-Blick: leere Monate heißen ehrlich 'keine Termine', nicht 0 %",
+        // Nur die MONATS-Zeilen zählen: In der Anlagen-Tabelle ist "0 %"
+        // ehrlich (0 von 1 erledigt) - beim alten Jahres-Diagramm gab es
+        // diese Tabelle nicht.
+        (textJ.match(/keine Termine/g) || []).length === 10 &&
+        textJ.split("\n").filter((z) => /^\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) 2026/.test(z) && /\b0 %/.test(z)).length === 0,
+        `${(textJ.match(/keine Termine/g) || []).length} mal "keine Termine"`);
   await popupJ.close();
 
   /* ---- (5) Auch Jahreskalender und Monatsblatt tragen die Quote ---- */
   await p.locator('button[aria-label="Drucken"]').click();
   await p.waitForTimeout(300);
-  await p.getByRole("button", { name: /^Jahreskalender 2026/ }).click();
+  await p.locator('select[aria-label="Blatt wählen"]').selectOption("jahreskalender");
   await p.waitForTimeout(300);
   const [popupK] = await Promise.all([
     p.waitForEvent("popup"),
@@ -145,7 +159,7 @@ const eintraege = [
 
   await p.locator('button[aria-label="Drucken"]').click();
   await p.waitForTimeout(300);
-  await p.getByRole("button", { name: /^Einzelner Monat/ }).click();
+  await p.locator('select[aria-label="Blatt wählen"]').selectOption("monatsblatt");
   await p.waitForTimeout(300);
   const [popupE] = await Promise.all([
     p.waitForEvent("popup"),
@@ -160,7 +174,7 @@ const eintraege = [
   /* ---- (6) Wartungsplan-Druck ohne Tabellen-Seite ---- */
   await p.locator('button[aria-label="Drucken"]').click();
   await p.waitForTimeout(300);
-  await p.getByRole("button", { name: /^Wartungsplan/ }).click();
+  await p.locator('select[aria-label="Blatt wählen"]').selectOption("wartungsplan-monat");
   await p.waitForTimeout(300);
   const [popupW] = await Promise.all([
     p.waitForEvent("popup"),

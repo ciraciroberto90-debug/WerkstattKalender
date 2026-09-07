@@ -519,6 +519,19 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Druckdialog aufgeräumt (Robertos Ansage vom 07.09.):** Zwei Dinge.
+      Erstens ist das separate **Jahres-Diagramm entfallen** - der freie
+      Zeitraum Jan-Dez liefert dasselbe Blatt plus die
+      Anlagen-Aufschlüsselung; harte-45 prüft jetzt ausdrücklich, dass es
+      nicht mehr im Angebot steht, und misst die alten Zusicherungen
+      (Jahres-Quote, Monats-Quoten, ehrliche Leermonate) am
+      Zeitraum-Blatt weiter. Zweitens wählt ab **drei Blättern ein
+      Aufklappfeld** statt des Knopf-Stapels (betrifft Auswertung und
+      Störungen; bei ein oder zwei Blättern bleiben die Knöpfe) - die
+      Erklärung des gewählten Blatts steht unter dem Feld, der Dialog
+      bleibt kurz. Fünf Suiten auf das Aufklappfeld umgestellt
+      (harte-15/45/48/54/55). (07.09.)
+
 - [x] **Auswertungs-Druck „Letzte 3 Monate": Monate frei wählbar (Robertos
       Wunsch vom 07.09.):** Im Druckdialog gibt es jetzt eine
       Von/Bis-Monatswahl (drei Jahre zurück bis ein Jahr voraus, höchstens

@@ -60,7 +60,8 @@ async function quartalsBlatt(p, umfang) {
     await p.getByRole("button", { name: umfang, exact: true }).click();
     await p.waitForTimeout(300);
   }
-  await p.getByRole("button", { name: /^Letzte 3 Monate/ }).click();
+  // Seit dem 07.09. wählt ein Aufklappfeld das Blatt (ab drei Vorlagen).
+  await p.locator('select[aria-label="Blatt wählen"]').selectOption("diagramm-quartal");
   await p.waitForTimeout(500);
   const [popup] = await Promise.all([
     p.waitForEvent("popup"),
@@ -95,8 +96,8 @@ async function quartalsBlatt(p, umfang) {
     await p.waitForTimeout(1200);
     await p.locator('button[aria-label="Drucken"]').click();
     await p.waitForTimeout(400);
-    pruef("(Q1) Der Druckdialog bietet „Letzte 3 Monate“ an",
-          (await p.getByRole("button", { name: /^Letzte 3 Monate/ }).count()) === 1);
+    pruef("(Q1) Der Druckdialog bietet „Letzte 3 Monate“ im Aufklappfeld an",
+          (await p.locator('select[aria-label="Blatt wählen"] option[value="diagramm-quartal"]').count()) === 1);
     await p.locator('button[aria-label="Schließen"]').last().click().catch(() => p.keyboard.press("Escape"));
     await p.waitForTimeout(300);
 
@@ -174,7 +175,7 @@ async function quartalsBlatt(p, umfang) {
     await p.waitForTimeout(1200);
     await p.locator('button[aria-label="Drucken"]').click();
     await p.waitForTimeout(400);
-    await p.getByRole("button", { name: "Letzte 3 Monate oder freier Zeitraum" }).click();
+    await p.locator('select[aria-label="Blatt wählen"]').selectOption("diagramm-quartal");
     await p.waitForTimeout(500);
 
     // Von/Bis wählen: Februar bis Mai 2026 - vier Monate.

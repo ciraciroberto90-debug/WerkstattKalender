@@ -268,10 +268,11 @@ const seedTeam = (personName) => {
       (await page.getByRole('button', { name: 'Beide (TPM & R+I)' }).count()) === 1 &&
       (await page.getByRole('button', { name: 'Nur TPM' }).count()) === 1 &&
       (await page.getByRole('button', { name: 'Nur R+I' }).count()) === 1);
+    // Seit dem 07.09. wählt ein Aufklappfeld das Blatt (ab drei Vorlagen).
     ok('Druck-Auswahl: Jahr, einzelner Monat und Bildschirmliste zur Wahl',
-      (await page.getByRole('button', { name: /^Jahreskalender 2026/ }).count()) === 1 &&
-      (await page.getByRole('button', { name: /^Einzelner Monat/ }).count()) === 1 &&
-      (await page.getByRole('button', { name: /^Liste wie am Bildschirm/ }).count()) === 1);
+      (await page.locator('select[aria-label="Blatt wählen"] option[value="jahreskalender"]').count()) === 1 &&
+      (await page.locator('select[aria-label="Blatt wählen"] option[value="monatsblatt"]').count()) === 1 &&
+      (await page.locator('select[aria-label="Blatt wählen"] option[value="liste"]').count()) === 1);
     // Die zwölf Monatsknoepfe erscheinen erst, wenn ein Monat gewaehlt werden soll -
     // sonst steht der Dialog voller Knoepfe, die niemand braucht.
     ok('Druck-Auswahl: die Monate erscheinen erst bei „Einzelner Monat"',
@@ -377,7 +378,7 @@ const seedTeam = (personName) => {
     await page.locator('button[aria-label="Drucken"]').click();
     await page.waitForTimeout(250);
     await page.getByRole('button', { name: 'Beide (TPM & R+I)' }).click();
-    await page.getByRole('button', { name: /^Einzelner Monat/ }).click();
+    await page.locator('select[aria-label="Blatt wählen"]').selectOption('monatsblatt');
     await page.waitForTimeout(200);
     ok('Monatsblatt: nach der Wahl stehen zwölf Monate bereit',
       (await page.getByRole('button', { name: 'März', exact: true }).count()) === 1);
@@ -551,8 +552,7 @@ const seedTeam = (personName) => {
     await page.locator('button[aria-label="Drucken"]').click();
     await page.waitForTimeout(600);
     ok('Druck-Dialog: nach dem Bereichswechsel steht die erste Vorlage bereit',
-      (await page.locator('div[role="dialog"] button[aria-pressed="true"]').nth(1).innerText()).includes('Jahreskalender')
-      || (await page.locator('div[role="dialog"] button[aria-pressed="true"]').first().innerText()).includes('Jahreskalender'));
+      (await page.locator('select[aria-label="Blatt wählen"]').inputValue()) === 'jahreskalender');
     await page.close();
   }
 

@@ -6206,108 +6206,6 @@ function App() {
     </body></html>`;
   };
 
-  /* ---- Jahres-Diagramm (A4 hoch) ----
-     Die Termintreue-Linie vom Bildschirm als Aushang: je Kalendermonat die
-     Quote auf fester 0-100-Skala, darunter die Zahlen. Monate ohne Termine
-     bleiben leer statt fälschlich 0 % zu behaupten - wie am Bildschirm. */
-  const buildDiagrammJahrHTML = (jahr, art = "ALLE") => {
-    const relevant = entries.filter((e) =>
-      (e.category === "TPM" || e.category === "RI") &&
-      (art === "ALLE" || e.category === art) &&
-      String(e.date || "").startsWith(String(jahr)));
-    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
-    const reihe = Array.from({ length: 12 }, (_, m) => {
-      const imMonat = relevant.filter((e) => String(e.date || "").startsWith(`${jahr}-${pad(m + 1)}`));
-      const mErledigt = imMonat.filter((e) => e.status === "done").length;
-      const mBasis = imMonat.filter((e) => e.status === "done" || e.status === "open").length;
-      return { monat: m, erledigt: mErledigt, basis: mBasis, quote: mBasis > 0 ? Math.round((mErledigt / mBasis) * 100) : null };
-    });
-    const erledigt = relevant.filter((e) => e.status === "done").length;
-    const basis = relevant.filter((e) => e.status === "done" || e.status === "open").length;
-    const prozent = basis > 0 ? Math.round((erledigt / basis) * 100) : null;
-    const mitWert = reihe.filter((r) => r.quote !== null);
-
-    const B = 702, H = 250, L = 32, R = 12, O = 18, U = 24;
-    const innenB = B - L - R, innenH = H - O - U;
-    const x = (m) => L + (m * innenB) / 11;
-    const y = (q) => O + innenH - (q / 100) * innenH;
-
-    // Lücken (Monate ohne Termine) trennen die Linie - wie am Bildschirm.
-    const abschnitte = [];
-    let lauf = [];
-    reihe.forEach((r) => {
-      if (r.quote === null) { if (lauf.length) abschnitte.push(lauf); lauf = []; }
-      else lauf.push(r);
-    });
-    if (lauf.length) abschnitte.push(lauf);
-    const schnitt = mitWert.length ? Math.round(mitWert.reduce((s, r) => s + r.quote, 0) / mitWert.length) : null;
-
-    let svg = [0, 25, 50, 75, 100].map((q) =>
-      `<line x1="${L}" y1="${y(q).toFixed(1)}" x2="${B - R}" y2="${y(q).toFixed(1)}" stroke="${q === 0 ? "#C3C7CB" : "#EDEFF2"}" stroke-width="1"/>
-       <text x="${L - 6}" y="${(y(q) + 3.5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#A6AEB6;">${q}</text>`).join("");
-    if (schnitt !== null) {
-      svg += `<line x1="${L}" y1="${y(schnitt).toFixed(1)}" x2="${B - R}" y2="${y(schnitt).toFixed(1)}" stroke="#8A9099" stroke-width="1.5" stroke-dasharray="5 4"/>
-        <text x="${B - R}" y="${(y(schnitt) - 5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#8A9099;font-weight:700;">⌀ ${schnitt}%</text>`;
-    }
-    abschnitte.forEach((abschnitt) => {
-      const pfad = abschnitt.map((r, k) => `${k === 0 ? "M" : "L"} ${x(r.monat).toFixed(1)} ${y(r.quote).toFixed(1)}`).join(" ");
-      if (abschnitt.length > 1) {
-        svg += `<path d="${pfad} L ${x(abschnitt[abschnitt.length - 1].monat).toFixed(1)} ${y(0).toFixed(1)} L ${x(abschnitt[0].monat).toFixed(1)} ${y(0).toFixed(1)} Z" fill="#2F6690" opacity="0.10"/>`;
-      }
-      svg += `<path d="${pfad}" fill="none" stroke="#2F6690" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    });
-    reihe.forEach((r) => {
-      if (r.quote !== null) {
-        // Rand-Beschriftungen nach innen ankern, damit Januar nicht in die
-        // Achsen-Zahlen und Dezember nicht aus dem Blatt läuft.
-        const anker = r.monat === 0 ? "start" : r.monat === 11 ? "end" : "middle";
-        svg += `<circle cx="${x(r.monat).toFixed(1)}" cy="${y(r.quote).toFixed(1)}" r="4" fill="#2F6690" stroke="#fff" stroke-width="2"/>
-          <text x="${x(r.monat).toFixed(1)}" y="${(y(r.quote) - 9).toFixed(1)}" text-anchor="${anker}" style="font-size:9.5px;fill:#22262B;font-weight:700;">${r.quote}%</text>`;
-      }
-      svg += `<text x="${x(r.monat).toFixed(1)}" y="${H - 8}" text-anchor="middle" style="font-size:9px;font-weight:700;fill:${r.quote === null ? "#C3C7CB" : "#5B6572"};">${MONTHS[r.monat].slice(0, 3)}</text>`;
-    });
-
-    const zeilen = reihe.map((r) => `<tr>
-      <td style="border:1px solid #DCE1E6;padding:3px 8px;font-size:11px;font-weight:700;">${MONTHS[r.monat]}</td>
-      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;">${r.basis > 0 ? r.erledigt : "–"}</td>
-      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;">${r.basis > 0 ? r.basis : "–"}</td>
-      <td style="border:1px solid #DCE1E6;text-align:right;padding:3px 10px;font-size:11px;font-weight:700;color:${r.quote === null ? "#98A1AA" : "#22262B"};">${r.quote === null ? "keine Termine" : r.quote + " %"}</td>
-    </tr>`).join("");
-
-    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Jahres-Diagramm ${jahr}</title>
-      <style>
-        @page { size: A4 portrait; margin: 10mm; }
-        * { box-sizing: border-box; }
-        body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
-        table { border-collapse: collapse; width: 100%; }
-      </style>
-    </head><body>
-      <div id="blatt" style="width:702px;">
-        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:2px;">
-          <div style="font-weight:900;font-size:17px;">Jahres-Diagramm ${jahr} · ${titel}</div>
-          <div style="font-size:13px;font-weight:800;color:#22262B;">${erledigt} von ${basis} erledigt${prozent !== null ? ` · ${prozent} %` : ""}</div>
-        </div>
-        <div style="font-size:10px;color:#6B7480;margin-bottom:6px;">Anteil der erledigten an den geplanten Terminen je Monat. Monate ohne Termine bleiben leer.</div>
-        ${mitWert.length === 0
-          ? `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:14px;font-size:12px;color:#6B7480;">Für ${jahr} ist nichts eingetragen.</div>`
-          : `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:8px 4px 2px;">
-              <svg viewBox="0 0 ${B} ${H}" width="${B - 16}" role="img" aria-label="Termintreue je Monat im Jahr ${jahr}">${svg}</svg>
-            </div>`}
-        <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin:12px 0 5px;">Die Monate im Einzelnen</div>
-        <table><tbody>
-          <tr>
-            <td style="border:1px solid #DCE1E6;background:#FAFBFC;padding:3px 8px;font-size:9px;font-weight:800;color:#5B6572;">Monat</td>
-            <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Erledigt</td>
-            <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Geplant</td>
-            <td style="border:1px solid #DCE1E6;background:#FAFBFC;text-align:right;padding:3px 10px;font-size:9px;font-weight:800;color:#5B6572;">Quote</td>
-          </tr>
-          ${zeilen}
-        </tbody></table>
-      </div>
-      ${passtAufEinBlatt(702, 1031)}
-    </body></html>`;
-  };
-
   /* ---- Quartals-Übersicht: die letzten 3 Monate (A4 hoch) ----
      Robertos Wunsch vom 24.08.: ROLLIEREND der laufende Monat plus die zwei
      davor - nicht das Kalenderquartal, denn gefragt ist "wie lief es
@@ -6540,8 +6438,9 @@ function App() {
             erklaerung: "Die Tage untereinander – A4 hoch, für den Schrank" },
           { id: "diagramm-monat", text: "Monats-Diagramm", monatsWahl: true,
             erklaerung: "Erledigt und Offen je Tag als Balken, mit Quote und Zahlen – A4 hoch" },
-          { id: "diagramm-jahr", text: `Jahres-Diagramm ${year}`,
-            erklaerung: "Die Termintreue je Monat als Linie, mit Quote und Zahlen – A4 hoch" },
+          // Das frühere "Jahres-Diagramm" ist am 07.09. auf Robertos
+          // Entscheidung entfallen: Der freie Zeitraum Jan-Dez liefert
+          // dasselbe Blatt plus die Anlagen-Aufschlüsselung.
           { id: "diagramm-quartal", text: "Letzte 3 Monate oder freier Zeitraum",
             erklaerung: "Termintreue als Punkt-Linie je Monat, dazu je Anlage – Monate frei wählbar, vorbelegt die letzten drei – A4 hoch" },
           { id: "wartungsplan-monat", text: `Wartungsplan ${MONTHS[month]} ${year}`,
@@ -6600,9 +6499,6 @@ function App() {
       case "diagramm-monat":
         return { html: buildDiagrammMonatHTML(year, druckMonat, druckUmfang),
                  datei: `werkstatt-monatsdiagramm-${kurz}-${year}-${pad(druckMonat + 1)}.html` };
-      case "diagramm-jahr":
-        return { html: buildDiagrammJahrHTML(year, druckUmfang),
-                 datei: `werkstatt-jahresdiagramm-${kurz}-${year}.html` };
       case "diagramm-quartal":
         // Rollierend ab HEUTE, unabhängig vom angezeigten Kalender-Monat -
         // oder der im Dialog frei gewählte Von/Bis-Zeitraum.
@@ -10985,6 +10881,23 @@ function App() {
                 )}
 
                 <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Blatt</div>
+                {angebot.optionen.length > 2 ? (
+                  /* Ab drei Blättern ein Aufklappfeld statt Knopf-Stapel
+                     (Robertos Wunsch vom 07.09.) - der Dialog bleibt kurz,
+                     die Erklärung des gewählten Blatts steht darunter. */
+                  <div className="mb-4">
+                    <select
+                      value={gewaehlt.id}
+                      onChange={(ev) => setDruckOption(ev.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-white text-xs font-bold"
+                      style={{ borderColor: "#C9D0D8", color: "#22262B" }}
+                      aria-label="Blatt wählen"
+                    >
+                      {angebot.optionen.map((o) => <option key={o.id} value={o.id}>{o.text}</option>)}
+                    </select>
+                    <div className="text-[11px] mt-1 px-1" style={{ color: "#8A9099" }}>{gewaehlt.erklaerung}</div>
+                  </div>
+                ) : (
                 <div className="flex flex-col gap-2 mb-4">
                   {angebot.optionen.map((o) => (
                     <button
@@ -11001,6 +10914,7 @@ function App() {
                     </button>
                   ))}
                 </div>
+                )}
 
                 {gewaehlt.monatsWahl && (
                   <div className="grid grid-cols-4 gap-1 mb-4">

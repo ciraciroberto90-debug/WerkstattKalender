@@ -133,7 +133,7 @@ const leseEintraege = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("w
     // (R4) Auswertung bleibt sauber: Das Druckblatt zählt nur die Wartung.
     await p.locator('button[aria-label="Drucken"]').click();
     await p.waitForTimeout(400);
-    await p.getByRole("button", { name: /^Letzte 3 Monate/ }).click();
+    await p.locator('select[aria-label="Blatt wählen"]').selectOption("diagramm-quartal");
     await p.waitForTimeout(500);
     const [popup] = await Promise.all([
       p.waitForEvent("popup"),
@@ -198,7 +198,7 @@ const leseEintraege = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("w
     await p.waitForTimeout(1200);
     await p.locator('button[aria-label="Drucken"]').click();
     await p.waitForTimeout(400);
-    await p.getByRole("button", { name: /^Letzte 3 Monate/ }).click();
+    await p.locator('select[aria-label="Blatt wählen"]').selectOption("diagramm-quartal");
     await p.waitForTimeout(500);
     const [popup] = await Promise.all([
       p.waitForEvent("popup"),
