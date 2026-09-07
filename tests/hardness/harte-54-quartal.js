@@ -10,6 +10,13 @@
 //  (Q5) Jahreswechsel: Im Januar heißen die drei Monate Nov, Dez, Januar -
 //       über die Jahresgrenze hinweg, ohne leere Falsch-Monate.
 //  (Q6) Ein leeres Quartal sagt ehrlich "nichts eingetragen".
+//  (Q7) Frei wählbarer Zeitraum (Robertos Wunsch 07.09.): Von/Bis im Dialog
+//       ändert Blatt, Kopf und Anlagen-Tabelle; ein einzelner Monat geht;
+//       der Standard-Knopf holt die rollierenden drei Monate zurück.
+//       Gegen den Build ohne die Wahl schlagen diese Prüfungen fehl -
+//       die Von/Bis-Felder gibt es dort nicht.
+//  (Q8) Mehr als 12 Monate lassen sich nicht wählen - die andere Seite
+//       rückt von selbst nach (mehr passt nicht lesbar auf ein Blatt).
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
 
@@ -146,6 +153,122 @@ async function quartalsBlatt(p, umfang) {
     pruef("(Q6) Ohne Termine im Zeitraum: ehrliche Leermeldung",
           /ist nichts eingetragen/.test(text), text.slice(0, 160));
     pruef("(Q6) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+    await ctx.close();
+  }
+
+  /* ---- (Q7) Frei wählbarer Zeitraum ---- */
+  {
+    // Feb-Mai haben Termine, der August auch - der gewählte Zeitraum
+    // Feb-Mai darf den August NICHT einrechnen (und andersherum zeigt der
+    // rollierende Standard den Februar nicht).
+    const { p, ctx, fehler } = await start(browser, [
+      { id: "f1", date: "2026-02-09", category: "TPM", name: "TS480", status: "done" },
+      { id: "m1", date: "2026-03-09", category: "TPM", name: "TS480", status: "done" },
+      { id: "a4", date: "2026-04-13", category: "TPM", name: "TS480", status: "open" },
+      { id: "m5", date: "2026-05-11", category: "RI", name: "Wasserrundgang", status: "done" },
+      { id: "au", date: "2026-08-10", category: "TPM", name: "TS480", status: "done" },
+    ], "2026-08-24T10:00:00");
+    await p.getByRole("button", { name: "TPM", exact: true }).first().click();
+    await p.waitForTimeout(400);
+    await p.getByRole("button", { name: "Plan", exact: true }).first().click();
+    await p.waitForTimeout(1200);
+    await p.locator('button[aria-label="Drucken"]').click();
+    await p.waitForTimeout(400);
+    await p.getByRole("button", { name: "Letzte 3 Monate oder freier Zeitraum" }).click();
+    await p.waitForTimeout(500);
+
+    // Von/Bis wählen: Februar bis Mai 2026 - vier Monate.
+    await p.locator('select[aria-label="Zeitraum von"]').selectOption("2026-02");
+    await p.waitForTimeout(300);
+    await p.locator('select[aria-label="Zeitraum bis"]').selectOption("2026-05");
+    await p.waitForTimeout(500);
+    {
+      const [popup] = await Promise.all([
+        p.waitForEvent("popup"),
+        p.locator('div[role="dialog"] button:has-text("Drucken")').last().click(),
+      ]);
+      await popup.waitForLoadState("domcontentloaded");
+      await popup.waitForTimeout(400);
+      const html = await popup.content();
+      const text = await popup.locator("body").innerText();
+      pruef("(Q7) Der gewählte Zeitraum steht im Kopf: Feb 2026 – Mai 2026",
+            /Zeitraum \(4 Monate\) · Feb 2026 – Mai 2026/.test(text), text.slice(0, 120));
+      pruef("(Q7) Vier Monats-Punkte im Diagramm",
+            (html.match(/<circle[^>]*fill="#2F6690"/g) || []).length === 4);
+      pruef("(Q7) Die Zahlen stimmen: 3 von 4 erledigt · 75 %",
+            /3 von 4 erledigt · 75 %/.test(text), text.slice(0, 160));
+      pruef("(Q7) Der August (außerhalb) fließt nicht ein", !/August/.test(text));
+      pruef("(Q7) Anlagen-Tabelle nennt den Zeitraum ehrlich",
+            /Je Anlage über die 4 Monate/i.test(text) && /Wasserrundgang/.test(text));
+      await popup.close();
+    }
+
+    // Ein einzelner Monat: Mai bis Mai. Nach dem Drucken hat sich der
+    // Dialog geschlossen - neu öffnen; die Wahl (Option UND Zeitraum)
+    // bleibt dabei stehen.
+    await p.locator('button[aria-label="Drucken"]').click();
+    await p.waitForTimeout(400);
+    await p.locator('select[aria-label="Zeitraum von"]').selectOption("2026-05");
+    await p.waitForTimeout(500);
+    {
+      const [popup] = await Promise.all([
+        p.waitForEvent("popup"),
+        p.locator('div[role="dialog"] button:has-text("Drucken")').last().click(),
+      ]);
+      await popup.waitForLoadState("domcontentloaded");
+      await popup.waitForTimeout(400);
+      const text = await popup.locator("body").innerText();
+      pruef("(Q7) Ein einzelner Monat geht: Monats-Übersicht · Mai 2026 · 1 von 1",
+            /Monats-Übersicht · Mai 2026/.test(text) && /1 von 1 erledigt · 100 %/.test(text), text.slice(0, 140));
+      await popup.close();
+    }
+
+    // Der Standard-Knopf holt die rollierenden drei Monate zurück.
+    await p.locator('button[aria-label="Drucken"]').click();
+    await p.waitForTimeout(400);
+    await p.getByRole("button", { name: "Letzte 3 Monate (Standard)" }).click();
+    await p.waitForTimeout(500);
+    {
+      const [popup] = await Promise.all([
+        p.waitForEvent("popup"),
+        p.locator('div[role="dialog"] button:has-text("Drucken")').last().click(),
+      ]);
+      await popup.waitForLoadState("domcontentloaded");
+      await popup.waitForTimeout(400);
+      const text = await popup.locator("body").innerText();
+      pruef("(Q7) Standard-Knopf: wieder rollierend Jun 2026 – Aug 2026",
+            /Letzte 3 Monate · Jun 2026 – Aug 2026/.test(text), text.slice(0, 120));
+      await popup.close();
+    }
+    pruef("(Q7) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+
+    /* ---- (Q8) Höchstens 12 Monate - die andere Seite rückt nach ---- */
+    await p.locator('button[aria-label="Drucken"]').click();
+    await p.waitForTimeout(400);
+    await p.locator('select[aria-label="Zeitraum von"]').selectOption("2025-01");
+    await p.waitForTimeout(300);
+    await p.locator('select[aria-label="Zeitraum bis"]').selectOption("2026-12");
+    await p.waitForTimeout(500);
+    const von = await p.locator('select[aria-label="Zeitraum von"]').inputValue();
+    const bis = await p.locator('select[aria-label="Zeitraum bis"]').inputValue();
+    pruef("(Q8) 24 Monate gewählt → auf 12 begrenzt (Von rückt nach)",
+          von === "2026-01" && bis === "2026-12", `von=${von} bis=${bis}`);
+    {
+      const [popup] = await Promise.all([
+        p.waitForEvent("popup"),
+        p.locator('div[role="dialog"] button:has-text("Drucken")').last().click(),
+      ]);
+      await popup.waitForLoadState("domcontentloaded");
+      await popup.waitForTimeout(400);
+      const html = await popup.content();
+      const text = await popup.locator("body").innerText();
+      pruef("(Q8) Das Blatt zeigt 12 Monate: Jan 2026 – Dez 2026",
+            /Zeitraum \(12 Monate\) · Jan 2026 – Dez 2026/.test(text), text.slice(0, 120));
+      pruef("(Q8) Alle 12 Monats-Zeilen stehen in der Tabelle",
+            /Januar 2026/.test(text) && /Dezember 2026/.test(text) && /Gesamt/.test(text));
+      pruef("(Q8) Eng beschriftet: kurze Monatsnamen im Diagramm", /Feb 26/.test(html));
+      await popup.close();
+    }
     await ctx.close();
   }
 

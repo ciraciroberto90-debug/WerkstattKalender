@@ -1658,6 +1658,10 @@ function App() {
   const [druckBereich, setDruckBereich] = useState("");     // aus welchem Reiter die Wahl stammt
   const [vorschauSeiten, setVorschauSeiten] = useState(1);  // wie viele Blätter die Vorlage ergibt
   const [druckMonat, setDruckMonat] = useState(new Date().getMonth());
+  // Zeitraum für die Quartals-Übersicht: null = rollierend die letzten 3
+  // Monate (der Standard), sonst { von, bis } als "JJJJ-MM" - Robertos
+  // Wunsch vom 07.09.: die Monate müssen frei wählbar sein.
+  const [druckZeitraum, setDruckZeitraum] = useState(null);
   const [linkInhaber, setLinkInhaber] = useState(() => {
     try { return (localStorage.getItem("werkstatt-links-inhaber") || "").toUpperCase(); } catch (e) { return ""; }
   });
@@ -6310,13 +6314,32 @@ function App() {
      zuletzt", egal an welchem Datum man druckt. Die Termintreue als
      Punkt-Strich-Linie auf fester 0-100-Skala (wie beim Jahres-Diagramm,
      Robertos Ansage vom 24.08.), darunter die Zahlen - und die Aufschlüsselung
-     je Anlage, damit das Blatt in Besprechung und Audit für sich spricht. */
-  const buildDiagrammQuartalHTML = (art = "ALLE") => {
+     je Anlage, damit das Blatt in Besprechung und Audit für sich spricht.
+     Seit dem 07.09. (Robertos Wunsch: "ich muss auswählen können welche
+     Monate angezeigt werden") ist der Zeitraum frei wählbar - Von/Bis im
+     Dialog, höchstens 12 Monate je Blatt. Ohne Wahl bleibt es beim
+     rollierenden Standard, damit sich das gewohnte Blatt nicht ändert. */
+  const buildDiagrammQuartalHTML = (art = "ALLE", zeitraumWahl = null) => {
     const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    const monate = [2, 1, 0].map((zurueck) => {
-      const d = new Date(today.getFullYear(), today.getMonth() - zurueck, 1);
-      return { jahr: d.getFullYear(), monat: d.getMonth(), schluessel: `${d.getFullYear()}-${pad(d.getMonth() + 1)}` };
-    });
+    // Monate als fortlaufende Zahl (Jahr*12+Monat) - so rechnet sich der
+    // Von/Bis-Bereich ohne Datums-Fallen über Jahresgrenzen hinweg.
+    const zuIdx = (s) => Number(String(s).slice(0, 4)) * 12 + Number(String(s).slice(5, 7)) - 1;
+    const rollierend = !(zeitraumWahl && zeitraumWahl.von && zeitraumWahl.bis);
+    let vonIdx, bisIdx;
+    if (rollierend) {
+      bisIdx = today.getFullYear() * 12 + today.getMonth();
+      vonIdx = bisIdx - 2;
+    } else {
+      vonIdx = zuIdx(zeitraumWahl.von); bisIdx = zuIdx(zeitraumWahl.bis);
+      if (bisIdx < vonIdx) { const t = vonIdx; vonIdx = bisIdx; bisIdx = t; }
+      // Mehr als 12 Monate passen nicht lesbar auf ein A4-Blatt.
+      bisIdx = Math.min(bisIdx, vonIdx + 11);
+    }
+    const monate = [];
+    for (let i = vonIdx; i <= bisIdx; i++) {
+      monate.push({ jahr: Math.floor(i / 12), monat: i % 12, schluessel: `${Math.floor(i / 12)}-${pad((i % 12) + 1)}` });
+    }
+    const n = monate.length;
     const relevant = entries.filter((e) =>
       (e.category === "TPM" || e.category === "RI") &&
       (art === "ALLE" || e.category === art) &&
@@ -6331,14 +6354,18 @@ function App() {
     const erledigt = relevant.filter((e) => e.status === "done").length;
     const basis = relevant.filter((e) => e.status === "done" || e.status === "open").length;
     const prozent = basis > 0 ? Math.round((erledigt / basis) * 100) : null;
-    const zeitraum = `${MONTHS[monate[0].monat].slice(0, 3)} ${monate[0].jahr} – ${MONTHS[monate[2].monat].slice(0, 3)} ${monate[2].jahr}`;
+    const zeitraum = n === 1
+      ? `${MONTHS[monate[0].monat].slice(0, 3)} ${monate[0].jahr}`
+      : `${MONTHS[monate[0].monat].slice(0, 3)} ${monate[0].jahr} – ${MONTHS[monate[n - 1].monat].slice(0, 3)} ${monate[n - 1].jahr}`;
     const mitWert = reihe.filter((r) => r.quote !== null);
     const schnitt = mitWert.length ? Math.round(mitWert.reduce((s, r) => s + r.quote, 0) / mitWert.length) : null;
 
     const B = 702, H = 240, L = 32, R = 12, O = 18, U = 26;
     const innenB = B - L - R, innenH = H - O - U;
     const y = (q) => O + innenH - (q / 100) * innenH;
-    const xMitte = (i) => L + ((i + 0.5) * innenB) / 3;
+    const xMitte = (i) => L + ((i + 0.5) * innenB) / n;
+    // Ab sieben Monaten wird es eng: kleinere Punkte, kurze Namen ("Sep 26").
+    const eng = n > 6;
     let svg = [0, 25, 50, 75, 100].map((q) =>
       `<line x1="${L}" y1="${y(q).toFixed(1)}" x2="${B - R}" y2="${y(q).toFixed(1)}" stroke="${q === 0 ? "#C3C7CB" : "#EDEFF2"}" stroke-width="1"/>
        <text x="${L - 6}" y="${(y(q) + 3.5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#A6AEB6;">${q}</text>`).join("");
@@ -6365,12 +6392,13 @@ function App() {
     });
     reihe.forEach((r, i) => {
       if (r.quote !== null) {
-        svg += `<circle cx="${xMitte(i).toFixed(1)}" cy="${y(r.quote).toFixed(1)}" r="5" fill="#2F6690" stroke="#fff" stroke-width="2"/>
-          <text x="${xMitte(i).toFixed(1)}" y="${Math.max(12, y(r.quote) - 11).toFixed(1)}" text-anchor="middle" style="font-size:12px;fill:#22262B;font-weight:800;">${r.quote}%</text>`;
+        svg += `<circle cx="${xMitte(i).toFixed(1)}" cy="${y(r.quote).toFixed(1)}" r="${eng ? 4 : 5}" fill="#2F6690" stroke="#fff" stroke-width="2"/>
+          <text x="${xMitte(i).toFixed(1)}" y="${Math.max(12, y(r.quote) - 11).toFixed(1)}" text-anchor="middle" style="font-size:${eng ? 9.5 : 12}px;fill:#22262B;font-weight:800;">${r.quote}%</text>`;
       } else {
-        svg += `<text x="${xMitte(i).toFixed(1)}" y="${y(50).toFixed(1)}" text-anchor="middle" style="font-size:10px;fill:#A6AEB6;">keine Termine</text>`;
+        // Eng nur ein Strich - "keine Termine" liefe in die Nachbarspalten.
+        svg += `<text x="${xMitte(i).toFixed(1)}" y="${y(50).toFixed(1)}" text-anchor="middle" style="font-size:10px;fill:#A6AEB6;">${eng ? "–" : "keine Termine"}</text>`;
       }
-      svg += `<text x="${xMitte(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" style="font-size:10px;font-weight:700;fill:${r.quote === null ? "#C3C7CB" : "#5B6572"};">${r.name}</text>`;
+      svg += `<text x="${xMitte(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" style="font-size:${eng ? 9 : 10}px;font-weight:700;fill:${r.quote === null ? "#C3C7CB" : "#5B6572"};">${eng ? `${MONTHS[r.monat].slice(0, 3)} ${String(r.jahr).slice(2)}` : r.name}</text>`;
     });
 
     const monatZeilen = reihe.map((r) => `<tr>
@@ -6424,19 +6452,19 @@ function App() {
     </head><body>
       <div id="blatt" style="width:702px;">
         <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:2px;">
-          <div style="font-weight:900;font-size:17px;">Letzte 3 Monate · ${zeitraum} · ${titel}</div>
+          <div style="font-weight:900;font-size:17px;">${rollierend ? "Letzte 3 Monate" : n === 1 ? "Monats-Übersicht" : `Zeitraum (${n} Monate)`} · ${zeitraum} · ${titel}</div>
           <div style="font-size:13px;font-weight:800;color:#22262B;">${erledigt} von ${basis} erledigt${prozent !== null ? ` · ${prozent} %` : ""}</div>
         </div>
-        <div style="font-size:10px;color:#6B7480;margin-bottom:6px;">Anteil der erledigten an den geplanten Terminen, rollierend über die letzten drei Monate. Monate ohne Termine bleiben leer.</div>
+        <div style="font-size:10px;color:#6B7480;margin-bottom:6px;">Anteil der erledigten an den geplanten Terminen${rollierend ? ", rollierend über die letzten drei Monate" : " im gewählten Zeitraum"}. Monate ohne Termine bleiben leer.</div>
         ${mitWert.length === 0
           ? `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:14px;font-size:12px;color:#6B7480;">Für ${zeitraum} ist nichts eingetragen.</div>`
           : `<div style="border:1px solid #DCE1E6;border-radius:6px;padding:8px 4px 2px;">
-              <svg viewBox="0 0 ${B} ${H}" width="${B - 16}" role="img" aria-label="Termintreue der letzten drei Monate (${zeitraum})">${svg}</svg>
+              <svg viewBox="0 0 ${B} ${H}" width="${B - 16}" role="img" aria-label="Termintreue ${rollierend ? "der letzten drei Monate" : "je Monat"} (${zeitraum})">${svg}</svg>
             </div>`}
         <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin:12px 0 5px;">Die Monate im Einzelnen</div>
         <table><tbody>${kopfzeile("Monat")}${monatZeilen}</tbody></table>
         ${jeAnlage.size > 0 ? `
-        <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin:12px 0 5px;">Je Anlage über die drei Monate</div>
+        <div style="font-weight:700;font-size:12px;text-transform:uppercase;margin:12px 0 5px;">${rollierend ? "Je Anlage über die drei Monate" : n === 1 ? "Je Anlage in dem Monat" : `Je Anlage über die ${n} Monate`}</div>
         <table><tbody>${kopfzeile("Anlage / Rundgang")}${anlagenZeilen}</tbody></table>` : ""}
       </div>
       ${passtAufEinBlatt(702, 1031)}
@@ -6514,8 +6542,8 @@ function App() {
             erklaerung: "Erledigt und Offen je Tag als Balken, mit Quote und Zahlen – A4 hoch" },
           { id: "diagramm-jahr", text: `Jahres-Diagramm ${year}`,
             erklaerung: "Die Termintreue je Monat als Linie, mit Quote und Zahlen – A4 hoch" },
-          { id: "diagramm-quartal", text: "Letzte 3 Monate",
-            erklaerung: "Quartals-Übersicht: Termintreue als Punkt-Linie je Monat, dazu je Anlage – A4 hoch" },
+          { id: "diagramm-quartal", text: "Letzte 3 Monate oder freier Zeitraum",
+            erklaerung: "Termintreue als Punkt-Linie je Monat, dazu je Anlage – Monate frei wählbar, vorbelegt die letzten drei – A4 hoch" },
           { id: "wartungsplan-monat", text: `Wartungsplan ${MONTHS[month]} ${year}`,
             erklaerung: "Der Plan-Kalender mit allen Terminen – der bisherige Plan-Druck" },
           { id: "liste", text: "Liste wie am Bildschirm",
@@ -6576,9 +6604,12 @@ function App() {
         return { html: buildDiagrammJahrHTML(year, druckUmfang),
                  datei: `werkstatt-jahresdiagramm-${kurz}-${year}.html` };
       case "diagramm-quartal":
-        // Rollierend ab HEUTE, unabhängig vom angezeigten Kalender-Monat.
-        return { html: buildDiagrammQuartalHTML(druckUmfang),
-                 datei: `werkstatt-quartal-${kurz}-${todayKey.slice(0, 7)}.html` };
+        // Rollierend ab HEUTE, unabhängig vom angezeigten Kalender-Monat -
+        // oder der im Dialog frei gewählte Von/Bis-Zeitraum.
+        return { html: buildDiagrammQuartalHTML(druckUmfang, druckZeitraum),
+                 datei: druckZeitraum
+                   ? `werkstatt-zeitraum-${kurz}-${druckZeitraum.von}-bis-${druckZeitraum.bis}.html`
+                   : `werkstatt-quartal-${kurz}-${todayKey.slice(0, 7)}.html` };
       default:
         return { html: buildPrintDocument(),
                  datei: `werkstatt-kalender-${view.toLowerCase()}-${year}${view === "MONAT" ? "-" + pad(month + 1) : ""}.html` };
@@ -10986,6 +11017,57 @@ function App() {
                     ))}
                   </div>
                 )}
+
+                {gewaehlt.id === "diagramm-quartal" && (() => {
+                  /* Von/Bis-Wahl für den Zeitraum (Robertos Wunsch 07.09.).
+                     Ohne Wahl bleibt der rollierende Standard "laufender
+                     Monat + zwei davor". Höchstens 12 Monate, weil mehr
+                     nicht lesbar auf ein A4-Blatt passt - die jeweils
+                     andere Seite rückt von selbst nach. */
+                  const zuIdx = (s) => Number(String(s).slice(0, 4)) * 12 + Number(String(s).slice(5, 7)) - 1;
+                  const zuSchluessel = (i) => `${Math.floor(i / 12)}-${pad((i % 12) + 1)}`;
+                  const basisIdx = today.getFullYear() * 12 + today.getMonth();
+                  const vonIdx = druckZeitraum ? zuIdx(druckZeitraum.von) : basisIdx - 2;
+                  const bisIdx = druckZeitraum ? zuIdx(druckZeitraum.bis) : basisIdx;
+                  // Wählbar: drei Jahre zurück bis ein Jahr voraus.
+                  const wahl = [];
+                  for (let i = (today.getFullYear() - 3) * 12; i <= (today.getFullYear() + 1) * 12 + 11; i++) wahl.push(i);
+                  const feld = (wert, beschriftung, aendern) => (
+                    <select
+                      value={zuSchluessel(wert)}
+                      onChange={(ev) => aendern(zuIdx(ev.target.value))}
+                      className="px-2 py-1.5 rounded border bg-white text-xs font-bold"
+                      style={{ borderColor: "#C9D0D8", color: "#5B6572" }}
+                      aria-label={beschriftung}
+                    >
+                      {wahl.map((i) => <option key={i} value={zuSchluessel(i)}>{MONTHS[i % 12]} {Math.floor(i / 12)}</option>)}
+                    </select>
+                  );
+                  return (
+                    <div className="mb-4">
+                      <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Zeitraum · höchstens 12 Monate</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {feld(vonIdx, "Zeitraum von", (v) => {
+                          const b = Math.min(Math.max(bisIdx, v), v + 11);
+                          setDruckZeitraum({ von: zuSchluessel(v), bis: zuSchluessel(b) });
+                        })}
+                        <span className="text-xs font-bold" style={{ color: "#5B6572" }}>bis</span>
+                        {feld(bisIdx, "Zeitraum bis", (b) => {
+                          const v = Math.max(Math.min(vonIdx, b), b - 11);
+                          setDruckZeitraum({ von: zuSchluessel(v), bis: zuSchluessel(b) });
+                        })}
+                        <button
+                          onClick={() => setDruckZeitraum(null)}
+                          aria-pressed={!druckZeitraum}
+                          className="px-3 py-1.5 rounded font-bold text-xs border"
+                          style={!druckZeitraum
+                            ? { backgroundColor: "#2F6690", borderColor: "#2F6690", color: "white" }
+                            : { backgroundColor: "white", borderColor: "#C9D0D8", color: "#5B6572" }}
+                        >Letzte 3 Monate (Standard)</button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {gewaehlt.id === "nachweis" && (
                   <div className="flex items-center gap-2 mb-4">

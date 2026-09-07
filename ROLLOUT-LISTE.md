@@ -519,6 +519,18 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Auswertungs-Druck „Letzte 3 Monate": Monate frei wählbar (Robertos
+      Wunsch vom 07.09.):** Im Druckdialog gibt es jetzt eine
+      Von/Bis-Monatswahl (drei Jahre zurück bis ein Jahr voraus, höchstens
+      12 Monate je Blatt - beim Überschreiten rückt die andere Seite von
+      selbst nach). Blatt-Kopf, Diagramm, Monats- und Anlagen-Tabelle
+      folgen dem gewählten Zeitraum; ab sieben Monaten rückt das Diagramm
+      auf kurze Monatsnamen zusammen, ein einzelner Monat geht auch. Ohne
+      Wahl bleibt alles beim gewohnten rollierenden „Letzte 3 Monate",
+      der Standard-Knopf holt es jederzeit zurück. Gemessen in harte-54
+      (jetzt 28 Prüfungen, neu Q7/Q8 - gegen den alten Build schlagen sie
+      fehl, dort gibt es die Wahl nicht). (07.09.)
+
 - [x] **Uhr-/Zeitzonen-Härtung des Prüfstands (Robertos Auftrag vom 06.09.:
       „Zur Uhr-Thematik check das nochmal ordentlich"):** Die komplette
       Suite wurde unter drei verstellten Uhren gefahren - Ergebnis je
