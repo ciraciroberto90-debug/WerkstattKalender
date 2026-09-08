@@ -519,6 +519,31 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Links-Panel wuchs unter den Bildschirmrand (Robertos Fund vom
+      08.09., „prüfe weitere Bereiche"):** Mit vielen Links plus dem
+      Symbolraster lag der Speichern-Knopf außerhalb des Fensters - und
+      weil das Panel absolut positioniert ist, gab es KEINEN Scrollraum.
+      Jetzt hat das Panel eine Höhen-Grenze mit eigenem Rollbalken.
+      Nachlese über die Quelle: Alle 21 Dialog-Karten geprüft; sechs ohne
+      Höhen-Grenze (Schicht setzen, Plan-Notiz, Tastatur-Spickzettel,
+      Anmelden, Archiv-Hinweis, Wiederherstellen-Bestätigung) und die
+      zwei Warn-Karten vorsorglich auf dieselbe Grenze (88vh + Rollbalken)
+      gezogen; das Export-Menü ist fix und harmlos. Gemessen in harte-61
+      (L): niedriges Fenster, 12 Links, Speichern erreichbar - vorher rot.
+      (08.09.)
+
+- [x] **Werkstatt-Monitor über das Zahnrad zusammenstellbar (Robertos
+      Wunsch vom 08.09.):** Neuer ⚙-Reiter „Monitor" mit einem Häkchen je
+      Baustein: Anwesenheit, Heute fällig + Überfällige, Backlog-Zahlen,
+      NEU der **Live-Score** (TPM-Quote Monat groß mit Ampel-Farbe +
+      Jahr) und NEU das **Termintreue-Diagramm der letzten 12 Monate**,
+      dazu Störungs-Laufband und Pinnwand-Laufschrift. Die Auswahl liegt
+      in der gemeinsamen Datei - einmal gesetzt, übernimmt jeder
+      Monitor-Rechner sie beim nächsten Abgleich von selbst. Standard:
+      alles an (Bestände von vorher zeigen unverändert alles); alles
+      abgewählt sagt der Monitor ehrlich samt Weg zurück. Gemessen im
+      neuen harte-64 (13 Prüfungen; Suite bei 63 Härtetests). (08.09.)
+
 - [x] **Begriffe gerade gerückt: die orange Kategorie heißt PitStop
       (Robertos Klarstellung vom 08.09.):** TPM ist das große Ganze
       (PitStops + R+I zusammen); die geplanten Wartungen heißen im Haus

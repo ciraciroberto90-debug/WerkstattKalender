@@ -1322,6 +1322,26 @@ const CATS = {
   TERMIN: { label: "Termin", full: "Regel-/Einzeltermin", color: "#7C5CBF" },
 };
 
+// Werkstatt-Monitor: die zuschaltbaren Bausteine (Robertos Wunsch 08.09.).
+// Die Auswahl liegt in der GEMEINSAMEN Datei - einmal im Zahnrad gesetzt,
+// übernimmt sie jeder Monitor-Rechner beim nächsten Abgleich von selbst.
+const MONITOR_BAUSTEINE = [
+  ["crew", "Jetzt in der Werkstatt (Anwesenheit)"],
+  ["heute", "Heute fällig + überfällige Wartungen"],
+  ["backlog", "Backlog-Zahlen (offene Arbeiten, Prioritäten)"],
+  ["score", "Live-Score: TPM-Quote Monat & Jahr"],
+  ["trend", "Diagramm: Termintreue der letzten 12 Monate"],
+  ["stoerband", "Störungs-Laufband am unteren Rand"],
+  ["zettel", "Pinnwand-Laufschrift (freigegebene Zettel)"],
+];
+// Nur ein ausdrückliches false schaltet ab - Bestände ohne den Schlüssel
+// (alle Dateien von vor dem 08.09.) zeigen weiter alles.
+function normalisiereMonitor(roh) {
+  const b = {};
+  MONITOR_BAUSTEINE.forEach(([k]) => { b[k] = !(roh && roh[k] === false); });
+  return b;
+}
+
 const STATUS_COLORS = {
   done: { bg: "#E5F3EA", fg: "#2F7D4F" },
   open: { bg: "#FBE9E7", fg: "#B23A34" },
@@ -1878,6 +1898,7 @@ function App() {
   const [stoerZeitraum, setStoerZeitraum] = useState("jahr"); // "monat" | "jahr" | "alle"
   const [stoerSuche, setStoerSuche] = useState(""); // Freitextsuche über alle Störberichte
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
+  const [monitorBausteine, setMonitorBausteine] = useState(() => normalisiereMonitor(null)); // was der Monitor zeigt (⚙, gemeinsame Datei)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
@@ -1942,6 +1963,7 @@ function App() {
         // muss die Anmeldepflicht überall wieder verschwinden.
         if (Array.isArray(d.config.benutzer)) setBenutzerListe(stabil(normalisiereBenutzer(d.config.benutzer)));
         if (typeof d.config.werkstattName === "string") setWerkstattName((alt) => (alt === d.config.werkstattName ? alt : d.config.werkstattName));
+        if (d.config.monitor) setMonitorBausteine(stabil(normalisiereMonitor(d.config.monitor)));
       }
       });
     };
@@ -3147,6 +3169,7 @@ function App() {
           if (Array.isArray(parsed.benutzer)) {
             setBenutzerListe(normalisiereBenutzer(parsed.benutzer));
           }
+          if (parsed.monitor) setMonitorBausteine(normalisiereMonitor(parsed.monitor));
           if (typeof parsed.werkstattName === "string") {
             setWerkstattName(parsed.werkstattName);
           }
@@ -3170,7 +3193,7 @@ function App() {
   // Überleben fremder Rechteänderungen aber strukturell sicher (das Feld wird
   // von Links-/OEE-/Einstellungs-Speichern gar nicht mehr berührt), statt es
   // der Zusammenführung zu überlassen.
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -3181,11 +3204,12 @@ function App() {
     setOeeQuelle(nextOee);
     if (nextBenutzer) setBenutzerListe(nextBenutzer);
     setWerkstattName(nextWerkstattName);
+    setMonitorBausteine(nextMonitor);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}) }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}) }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -7061,7 +7085,11 @@ function App() {
 
           {linksOffen && (
               <div className="px-4 pb-3" style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20 }}>
-                <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "white", border: "1px solid #E7EAEE", maxWidth: "660px", boxShadow: "0 10px 28px rgba(0,0,0,0.28)" }}>
+                {/* Robertos Fund vom 08.09.: Mit vielen Links plus Symbolraster
+                    wuchs das Panel unter den Bildschirmrand - der Speichern-
+                    Knopf war unerreichbar, scrollen ging nicht. Deshalb eine
+                    Höhen-Grenze mit eigenem Rollbalken (Langformen!). */}
+                <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "white", border: "1px solid #E7EAEE", maxWidth: "660px", maxHeight: "calc(100vh - 150px)", overflowY: "auto", overflowX: "hidden", boxShadow: "0 10px 28px rgba(0,0,0,0.28)" }}>
                 <div className="flex items-center gap-2 px-1 pb-1">
                   <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>Sammlung {linkInhaberAktiv}</span>
                   <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C97A2B", fontSize: "0.62rem" }}>{linkListe.length}</span>
@@ -9273,7 +9301,7 @@ function App() {
           onClick={() => setSchichtPicker(null)}
         >
           <ZiehbareKarte
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "440px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
@@ -9330,7 +9358,7 @@ function App() {
           onClick={() => setPlanNotiz(null)}
         >
           <ZiehbareKarte
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px", width: "440px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
@@ -10152,7 +10180,7 @@ function App() {
         <div className="no-print" onClick={() => setKuerzelOffen(false)}
           style={{ position: "fixed", inset: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,22,25,0.5)", padding: "16px" }}>
           <ZiehbareKarte role="dialog" aria-label="Tastatur-Kürzel" onClick={(ev) => ev.stopPropagation()}
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}>
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "440px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" , maxHeight: "88vh", overflowY: "auto"}}>
             <div className="flex items-center justify-between mb-3">
               <div className="font-bold text-sm">Tastatur-Kürzel</div>
               <button onClick={() => setKuerzelOffen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
@@ -10726,7 +10754,7 @@ function App() {
           <ZiehbareKarte
             role="dialog"
             aria-label="Diese Datei enthält keine Einträge"
-            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflowX: "hidden", overflowY: "hidden" }}
+            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflowX: "hidden", overflowY: "hidden" , maxHeight: "88vh"}}
           >
             <div className="px-5 py-3" style={{ backgroundColor: "#FBEAE8", borderBottom: "1px solid #E7B9B3" }}>
               <span className="font-black" style={{ fontSize: "1.02rem", color: "#22262B" }}>⚠️ Diese Datei enthält keine Einträge</span>
@@ -10772,7 +10800,7 @@ function App() {
           <ZiehbareKarte
             role="dialog"
             aria-label="Bericht wurde inzwischen geändert"
-            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflowX: "hidden", overflowY: "hidden" }}
+            style={{ backgroundColor: "white", borderRadius: "12px", width: "520px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflowX: "hidden", overflowY: "hidden" , maxHeight: "88vh"}}
           >
             <div className="px-5 py-3" style={{ backgroundColor: "#FBF3DA", borderBottom: "1px solid #E7D9A8" }}>
               <span className="font-black" style={{ fontSize: "1.02rem", color: "#22262B" }}>⚠️ Dieser Bericht wurde inzwischen geändert</span>
@@ -11300,7 +11328,7 @@ function App() {
           className="no-print"
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 90, padding: "16px" }}
         >
-          <ZiehbareKarte role="dialog" aria-label="Anmelden" style={{ backgroundColor: "white", borderRadius: "var(--wk-eck)", width: "380px", maxWidth: "100%", padding: "20px 22px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)" }}>
+          <ZiehbareKarte role="dialog" aria-label="Anmelden" style={{ backgroundColor: "white", borderRadius: "var(--wk-eck)", width: "380px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", padding: "20px 22px", boxShadow: "0 18px 60px rgba(0,0,0,0.35)" }}>
             <div className="font-extrabold text-sm mb-1" style={{ color: "#22262B" }}>Anmelden</div>
             <div className="text-xs mb-3" style={{ color: "#5B6572" }}>
               Für diese Werkstatt ist eine Benutzerliste eingerichtet. Einmal
@@ -11385,7 +11413,7 @@ function App() {
 
             {/* Reiterleiste: vier Themen statt einer langen Rolle */}
             <div className="flex gap-1 mb-4 pb-2 border-b" style={{ borderColor: "#E2E4E7" }}>
-              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"], ["oee", "OEE"], ["pflege", "Verlauf & Sicherung"]].map(([k, name]) => (
+              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"], ["oee", "OEE"], ["monitor", "Monitor"], ["pflege", "Verlauf & Sicherung"]].map(([k, name]) => (
                 <button
                   key={k}
                   onClick={() => setSettingsTab(k)}
@@ -12000,6 +12028,37 @@ function App() {
 
             </>)}
 
+            {settingsTab === "monitor" && (<>
+              <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Werkstatt-Monitor zusammenstellen</div>
+              <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
+                Häkchen = der Baustein läuft auf dem Monitor. Die Auswahl liegt in der gemeinsamen Datei –
+                jeder Monitor-Rechner übernimmt sie beim nächsten Abgleich von selbst. Uhr, Datum und Schicht
+                stehen immer im Kopf.
+              </div>
+              <div className="flex flex-col gap-1.5 mb-4">
+                {MONITOR_BAUSTEINE.map(([k, label]) => (
+                  <label key={k} className="flex items-center gap-2.5 px-2.5 py-2 rounded border cursor-pointer"
+                         style={{ borderColor: monitorBausteine[k] ? "#2F6690" : "#E2E4E7", backgroundColor: monitorBausteine[k] ? "#EEF3F8" : "white" }}>
+                    <input
+                      type="checkbox"
+                      checked={!!monitorBausteine[k]}
+                      onChange={(ev) => {
+                        const neu = { ...monitorBausteine, [k]: ev.target.checked };
+                        persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, neu);
+                      }}
+                      aria-label={label}
+                    />
+                    <span className="text-sm font-bold" style={{ color: "#22262B" }}>{label}</span>
+                  </label>
+                ))}
+              </div>
+              {Object.values(monitorBausteine).every((v) => !v) && (
+                <div className="text-xs mb-3 px-2.5 py-2 rounded" style={{ backgroundColor: "#FDF6EC", color: "#8A5A1B" }}>
+                  Alles abgewählt – der Monitor zeigt dann nur noch Uhr, Datum und Schicht.
+                </div>
+              )}
+            </>)}
+
             {settingsTab === "oee" && (<>
             {/* ---- OEE aus einer Excel-Tabelle ------------------------------
                 Die Tabelle liegt im Datenordner neben der gemeinsamen Datei.
@@ -12291,7 +12350,7 @@ function App() {
           style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 75, padding: "16px" }}
           onClick={() => archivErinnerungVerschieben(30)}
         >
-          <ZiehbareKarte onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#fff", borderRadius: "14px", maxWidth: "540px", width: "100%", padding: "22px", boxShadow: "0 18px 50px rgba(20,22,25,0.3)" }}>
+          <ZiehbareKarte onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#fff", borderRadius: "14px", maxWidth: "540px", width: "100%", maxHeight: "88vh", overflowY: "auto", padding: "22px", boxShadow: "0 18px 50px rgba(20,22,25,0.3)" }}>
             <div style={{ fontSize: "0.68rem", fontWeight: 800, letterSpacing: "1.4px", textTransform: "uppercase", color: "#C97A2B" }}>Aufräumen empfohlen</div>
             <div style={{ fontSize: "1.15rem", fontWeight: 800, margin: "5px 0 10px", color: "#22262B" }}>
               Dein Bestand reicht {archivHinweis.jahre} Jahre zurück
@@ -12365,7 +12424,7 @@ function App() {
           onClick={() => setRestoreConfirm(null)}
         >
           <ZiehbareKarte
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "420px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "420px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="font-bold text-sm mb-2">Sicherung wiederherstellen?</div>
@@ -13166,15 +13225,30 @@ function App() {
         const wocheGrenze = dateKey(addDays(monitorUhr, -7).getFullYear(), addDays(monitorUhr, -7).getMonth(), addDays(monitorUhr, -7).getDate());
         const erledigtWoche = arbeiten.filter((a) => a.status === "done" && a.erledigtAm && a.erledigtAm >= wocheGrenze).length;
         const monitorZettel = zettelListe.filter((z) => z.monitor);
+        // Was läuft, bestimmt das Zahnrad (Reiter "Monitor") - Robertos
+        // Wunsch vom 08.09. Standard: alles an.
+        const b = monitorBausteine;
+        const kartenZahl = [b.crew, b.heute, b.backlog, b.score, b.trend].filter(Boolean).length;
+        // Termintreue der letzten 12 Monate (rollierend bis heute) - dieselbe
+        // Rechnung wie in der Auswertung: erledigt / (erledigt + offen).
+        const trendReihe = Array.from({ length: 12 }, (_, i) => {
+          const d = new Date(monitorUhr.getFullYear(), monitorUhr.getMonth() - 11 + i, 1);
+          const schluessel = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+          const imMonat = entries.filter((e) => (e.category === "TPM" || e.category === "RI") && String(e.date || "").startsWith(schluessel));
+          const fertig = imMonat.filter((e) => e.status === "done").length;
+          const basis = imMonat.filter((e) => e.status === "done" || e.status === "open").length;
+          return { monat: d.getMonth(), quote: basis > 0 ? Math.round((fertig / basis) * 100) : null };
+        });
+        const scoreFarbe = (q) => (q == null ? "#6B7178" : q >= 90 ? "#7FD1A0" : q >= 70 ? "#F0B27A" : "#E8A0A0");
         return (
           <div
             id="werkstatt-monitor"
             className="no-print"
-            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#16181B", color: "#fff", padding: "28px 36px", paddingBottom: stoerOffenCount > 0 ? "72px" : "28px", display: "flex", flexDirection: "column", fontVariantNumeric: "tabular-nums" }}
+            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#16181B", color: "#fff", padding: "28px 36px", paddingBottom: b.stoerband && stoerOffenCount > 0 ? "72px" : "28px", display: "flex", flexDirection: "column", fontVariantNumeric: "tabular-nums" }}
           >
             {/* G6: Störungs-Laufband - offene Störungen ziehen unten durch,
                 von der anderen Hallenseite lesbar. Ohne offene: kein Band. */}
-            {stoerOffenCount > 0 && (
+            {b.stoerband && stoerOffenCount > 0 && (
               <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "48px", backgroundColor: "#1a1e23", borderTop: "2px solid #C0392B", display: "flex", alignItems: "center", overflow: "hidden" }}>
                 <span style={{ flexShrink: 0, backgroundColor: "#C0392B", color: "#fff", fontWeight: 900, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.06em", padding: "0 16px", lineHeight: "48px", zIndex: 1 }}>
                   {stoerOffenCount} offen
@@ -13204,8 +13278,13 @@ function App() {
                 × Beenden (ESC)
               </button>
             </div>
-            <div className="grid gap-6" style={{ gridTemplateColumns: "1.2fr 1fr 1fr", flex: 1, minHeight: 0 }}>
-              <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
+            <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${Math.max(kartenZahl, 1)}, minmax(0, 1fr))`, flex: 1, minHeight: 0 }}>
+              {kartenZahl === 0 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "#6B7178" }}>
+                  Alle Bausteine sind im ⚙ (Reiter „Monitor“) abgewählt.
+                </div>
+              )}
+              {b.crew && <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
                 <div style={{ fontSize: "0.95rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9AA0A6", marginBottom: "14px" }}>
                   Jetzt in der Werkstatt · {jetztCrew.length}
                 </div>
@@ -13218,8 +13297,8 @@ function App() {
                     ))}
                   </div>
                 )}
-              </div>
-              <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
+              </div>}
+              {b.heute && <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
                 <div style={{ fontSize: "0.95rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9AA0A6", marginBottom: "14px" }}>Heute fällig</div>
                 {heutePlan.length === 0 ? (
                   <div style={{ fontSize: "1.2rem", color: "#6B7178" }}>Heute steht laut Plan nichts an.</div>
@@ -13241,8 +13320,8 @@ function App() {
                     <span style={{ fontSize: "1.1rem", color: "#9AA0A6" }}>überfällige<br />Wartungen</span>
                   </div>
                 )}
-              </div>
-              <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
+              </div>}
+              {b.backlog && <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
                 <div style={{ fontSize: "0.95rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9AA0A6", marginBottom: "14px" }}>Backlog</div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}>
                   <span style={{ fontSize: "4.5rem", fontWeight: 900, fontFamily: "ui-monospace,Consolas,monospace", lineHeight: 1 }}>{arbeitenOffen.length}</span>
@@ -13251,9 +13330,50 @@ function App() {
                 {prioHoch > 0 && <div style={{ fontSize: "1.35rem", fontWeight: 800, marginTop: "14px", color: "#E8A0A0" }}>🔴 {prioHoch} × Prio 1</div>}
                 {prioMittel > 0 && <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#F0B27A" }}>🟠 {prioMittel} × Prio 2</div>}
                 <div style={{ fontSize: "1.2rem", marginTop: "14px", color: "#7FD1A0" }}>✓ {erledigtWoche} erledigt diese Woche</div>
-              </div>
+              </div>}
+              {b.score && <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "auto" }}>
+                <div style={{ fontSize: "0.95rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9AA0A6", marginBottom: "14px" }}>TPM-Score</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}>
+                  <span style={{ fontSize: "4.5rem", fontWeight: 900, fontFamily: "ui-monospace,Consolas,monospace", lineHeight: 1, color: scoreFarbe(quoteMonatHeute) }}>
+                    {quoteMonatHeute == null ? "–" : `${quoteMonatHeute}%`}
+                  </span>
+                  <span style={{ fontSize: "1.05rem", color: "#9AA0A6" }}>{MONTHS[monitorUhr.getMonth()].slice(0, 3)}.<br />PitStops<br />& R+I</span>
+                </div>
+                <div style={{ fontSize: "1.35rem", fontWeight: 800, marginTop: "16px", color: scoreFarbe(quoteJahrHeute) }}>
+                  Jahr {monitorUhr.getFullYear()}: {quoteJahrHeute == null ? "–" : `${quoteJahrHeute} %`}
+                </div>
+              </div>}
+              {b.trend && <div style={{ background: "#1F2226", border: "1px solid #2E3238", borderRadius: "14px", padding: "20px 22px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div style={{ fontSize: "0.95rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9AA0A6", marginBottom: "14px" }}>Termintreue · 12 Monate</div>
+                {(() => {
+                  const B = 340, H = 170, L = 30, R = 10, O = 12, U = 22;
+                  const x = (i) => L + (i * (B - L - R)) / 11;
+                  const y = (q) => O + (H - O - U) - (q / 100) * (H - O - U);
+                  let svg = [0, 50, 100].map((q) =>
+                    `<line x1="${L}" y1="${y(q).toFixed(1)}" x2="${B - R}" y2="${y(q).toFixed(1)}" stroke="#2E3238" stroke-width="1"/>` +
+                    `<text x="${L - 5}" y="${(y(q) + 3.5).toFixed(1)}" text-anchor="end" style="font-size:9px;fill:#6B7178;">${q}</text>`).join("");
+                  const abschnitte = [];
+                  let lauf = [];
+                  trendReihe.forEach((r, i) => {
+                    if (r.quote === null) { if (lauf.length) abschnitte.push(lauf); lauf = []; }
+                    else lauf.push({ ...r, i });
+                  });
+                  if (lauf.length) abschnitte.push(lauf);
+                  abschnitte.forEach((a) => {
+                    const pfad = a.map((r, k) => `${k === 0 ? "M" : "L"} ${x(r.i).toFixed(1)} ${y(r.quote).toFixed(1)}`).join(" ");
+                    svg += `<path d="${pfad}" fill="none" stroke="#6FA8DC" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+                  });
+                  trendReihe.forEach((r, i) => {
+                    if (r.quote !== null) svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(r.quote).toFixed(1)}" r="3.5" fill="#6FA8DC"/>`;
+                    if (i % 2 === 1) svg += `<text x="${x(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" style="font-size:9px;fill:#6B7178;">${MONTHS[r.monat].slice(0, 3)}</text>`;
+                  });
+                  const letzter = [...trendReihe].reverse().find((r) => r.quote !== null);
+                  if (letzter) svg += `<text x="${B - R}" y="${Math.max(11, y(letzter.quote) - 8).toFixed(1)}" text-anchor="end" style="font-size:14px;font-weight:800;fill:#E8EAED;">${letzter.quote}%</text>`;
+                  return <svg viewBox={`0 0 ${B} ${H}`} preserveAspectRatio="xMidYMin meet" style={{ width: "100%" }} role="img" aria-label="Termintreue der letzten 12 Monate" dangerouslySetInnerHTML={{ __html: svg }} />;
+                })()}
+              </div>}
             </div>
-            {monitorZettel.length > 0 && (() => {
+            {b.zettel && monitorZettel.length > 0 && (() => {
               const laufschriftText = monitorZettel.map((z) => `${z.note} (${z.name})`).join("   +++   ");
               const dauer = Math.max(15, laufschriftText.length * 0.13);
               return (
