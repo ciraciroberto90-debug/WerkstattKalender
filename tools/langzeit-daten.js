@@ -40,7 +40,11 @@ function streu(text) {
   return Math.abs(h);
 }
 
-function baueBestand({ von = "2019-07-01", bis = "2026-07-28" } = {}) {
+// jeJahr: Ziel-Rate je Kalenderjahr (Robertos Ansage vom 07.09.: 4.500).
+// jeJahr: 0 lässt die natürliche Dichte der Taktgeber stehen - für Suiten,
+// die gezielt UNTERHALB der 5-MB-Speichergrenze messen (harte-33); das
+// Verhalten OBERHALB der Grenze misst stress-15-jahre.js.
+function baueBestand({ von = "2019-07-01", bis = "2026-07-28", jeJahr = 4500 } = {}) {
   const entries = [];
   const stempel = (datum, stunde) => `${datum}T${String(stunde).padStart(2, "0")}:00:00.000Z`;
   let tagNr = 0;
@@ -106,11 +110,12 @@ function baueBestand({ von = "2019-07-01", bis = "2026-07-28" } = {}) {
   // Der Bestand wird deshalb je Kalenderjahr deterministisch mit kleinen
   // Zusatz-Arbeiten aufgefüllt, bis die Jahresrate erreicht ist. So misst
   // die nächste Stress-Messfahrt das echte Tempo (15 Jahrgänge ≈ 67.500).
-  const JE_JAHR = 4500;
-  const jeJahr = new Map();
+  const JE_JAHR = jeJahr;
+  if (!JE_JAHR) return { team: TEAM, entries };
+  const zaehler = new Map();
   entries.forEach((e) => {
     const j = String(e.date).slice(0, 4);
-    jeJahr.set(j, (jeJahr.get(j) || 0) + 1);
+    zaehler.set(j, (zaehler.get(j) || 0) + 1);
   });
   const tageJeJahr = new Map();
   for (const tag of werktage(von, bis)) {
@@ -123,7 +128,7 @@ function baueBestand({ von = "2019-07-01", bis = "2026-07-28" } = {}) {
   for (const [jahr, tage] of tageJeJahr) {
     const anteil = tage.length / 261; // 261 ≈ Werktage eines vollen Jahres
     const soll = Math.round(JE_JAHR * anteil);
-    let fehlt = soll - (jeJahr.get(jahr) || 0);
+    let fehlt = soll - (zaehler.get(jahr) || 0);
     for (let k = 0; fehlt > 0; k++, fehlt--) {
       const tag = tage[k % tage.length];
       const a = ANLAGEN[streu("extra" + tag + k) % ANLAGEN.length];

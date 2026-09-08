@@ -24,7 +24,11 @@ const pruef = (n, c, zusatz) => {
   c ? ok++ : fail++;
 };
 
-const { entries: BESTAND } = baueBestand();
+// jeJahr: 0 = natürliche Dichte OHNE die 4.500er-Auffüllung (07.09.):
+// Diese Suite misst gezielt das Verhalten UNTERHALB der 5-MB-Speichergrenze
+// (Zwischenspeicher passt, voller Bestand nach Neuladen). Das Verhalten
+// OBERHALB der Grenze - mit der echten Jahresrate - misst stress-15-jahre.js.
+const { entries: BESTAND } = baueBestand({ jeJahr: 0 });
 const STOERUNGEN = baueStoerungen();
 const CONFIG = { team: TEAM };
 

@@ -4653,13 +4653,48 @@ function App() {
      NACH dem erfolgreichen Speichern des Eintrags). */
   const fotoUrl = (datei) => {
     const m = fotoUrlsRef.current;
-    if (m.has(datei)) return m.get(datei);
+    const alt = m.get(datei);
+    if (typeof alt === "string" && alt !== "") return alt; // geladen
+    if (alt === null) return null;                         // endgültig: Datei fehlt
+    if (alt === "") return "";                             // Ladung läuft schon
+    // Robertos Fund vom 08.09.: Direkt nach einem App-Update rendert die
+    // Pinnwand, BEVOR der Foto-Ordner wieder verbunden ist. Der erste
+    // Lese-Versuch scheitert dann - und ein dauerhaft gecachtes "fehlt"
+    // ließ alle Bilder für immer verschwinden. Deshalb: Ein Fehlversuch
+    // ohne verbundene Ablage wird bis zu zehnmal im 3-Sekunden-Takt
+    // wiederholt; endgültig "fehlt" heißt es erst, wenn die Ablage
+    // erreichbar war und die Datei dort wirklich nicht liegt.
+    if (alt && typeof alt === "object" && Date.now() < alt.wartetBis) return "";
+    const versuche = alt && typeof alt === "object" ? alt.versuche : 0;
     m.set(datei, ""); // Ladeschutz: nicht doppelt anstoßen
-    sharedFile.fotoLesen(datei).then((file) => {
-      m.set(datei, file ? URL.createObjectURL(file) : null); // null = Datei fehlt
+    const spaeterNochmal = () => {
+      if (versuche >= 9) { m.set(datei, null); }
+      else {
+        m.set(datei, { wartetBis: Date.now() + 3000, versuche: versuche + 1 });
+        setTimeout(() => setFotoTick((t) => t + 1), 3200);
+      }
       setFotoTick((t) => t + 1);
-    });
+    };
+    sharedFile.fotoLesen(datei).then((file) => {
+      if (file) { m.set(datei, URL.createObjectURL(file)); setFotoTick((t) => t + 1); }
+      else if (sharedFile.fotosVerfuegbar()) { m.set(datei, null); setFotoTick((t) => t + 1); }
+      else spaeterNochmal();
+    }).catch(spaeterNochmal);
     return "";
+  };
+  // Der Platzhalter-Text sagt den GRUND: "fehlt" nur, wenn die Ablage
+  // erreichbar war und die Datei dort wirklich nicht liegt - sonst stünde
+  // an jedem Rechner mit alter Programm-ZIP oder ohne Ordner-Freigabe
+  // fälschlich "Datei fehlt", obwohl die Bilder sicher auf der Platte liegen.
+  const fotoFehltGrund = () => sharedFile.fotosVerfuegbar()
+    ? "Datei fehlt"
+    : sharedFile.fotoLage() === "bruecke" ? "ZIP zu alt" : "Ordner nicht verbunden";
+  // Nach dem (Wieder-)Verbinden der Foto-Ablage: alle Fehlversuche vergessen,
+  // damit die Kacheln sofort neu laden statt auf "fehlt" sitzen zu bleiben.
+  const fotoCacheAuffrischen = () => {
+    const m = fotoUrlsRef.current;
+    [...m.entries()].forEach(([k, v]) => { if (typeof v !== "string" || v === "") m.delete(k); });
+    setFotoTick((t) => t + 1);
   };
   const fotoVergiss = (datei) => {
     const u = fotoUrlsRef.current.get(datei);
@@ -4762,7 +4797,7 @@ function App() {
                 >
                   {url
                     ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : <span className="text-xs" style={{ color: "#8A9099" }}>{url === null ? "📷 Datei fehlt" : "📷 lädt …"}</span>}
+                    : <span className="text-xs" style={{ color: "#8A9099", textAlign: "center" }}>{url === null ? `📷 ${fotoFehltGrund()}` : "📷 lädt …"}</span>}
                 </button>
                 {!nurAnsehen && (
                   <button
@@ -4811,7 +4846,7 @@ function App() {
             try {
               if (lage === "frage") await sharedFile.reconnectFolder();
               else await sharedFile.pickFolder();
-              setFotoTick((t) => t + 1); // Bereich neu bewerten - jetzt mit Foto-Knopf
+              fotoCacheAuffrischen(); // Fehlversuche vergessen - Kacheln laden neu
             } catch (e) {
               if (!(e && e.name === "AbortError")) setErr("Ordner-Freigabe: " + (e && e.message ? e.message : "fehlgeschlagen."));
             }
@@ -8360,7 +8395,7 @@ function App() {
                             >
                               {url
                                 ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                : <span style={{ fontSize: "0.6rem", color: "#8A9099" }}>{url === null ? "📷 fehlt" : "📷 …"}</span>}
+                                : <span style={{ fontSize: "0.6rem", color: "#8A9099", textAlign: "center" }}>{url === null ? `📷 ${fotoFehltGrund()}` : "📷 lädt …"}</span>}
                             </button>
                           );
                         })}
@@ -8650,7 +8685,7 @@ function App() {
                                   >
                                     {url
                                       ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                      : <span style={{ fontSize: "0.6rem", color: "#8A9099" }}>{url === null ? "fehlt" : "lädt …"}</span>}
+                                      : <span style={{ fontSize: "0.6rem", color: "#8A9099", textAlign: "center" }}>{url === null ? fotoFehltGrund() : "lädt …"}</span>}
                                   </button>
                                 );
                               })}
@@ -9688,7 +9723,13 @@ function App() {
             {url
               ? <img src={url} alt="" style={{ maxWidth: "86vw", maxHeight: "70vh", borderRadius: "10px", boxShadow: "0 18px 60px rgba(0,0,0,0.5)" }} onClick={(ev) => ev.stopPropagation()} />
               : <div style={{ color: "#8A9099", fontSize: "14px", padding: "60px 80px", border: "1px dashed #4A525B", borderRadius: "10px" }} onClick={(ev) => ev.stopPropagation()}>
-                  {url === null ? "📷 Die Bilddatei fehlt im Datenordner." : "📷 Bild lädt …"}
+                  {url === null
+                    ? (sharedFile.fotosVerfuegbar()
+                      ? "📷 Die Bilddatei fehlt im Datenordner."
+                      : sharedFile.fotoLage() === "bruecke"
+                        ? "📷 Für Fotos ist die Programm-ZIP zu alt - einmal die aktuelle ZIP einspielen, die Bilder liegen sicher im Datenordner."
+                        : "📷 Der Foto-Ordner ist nicht verbunden - im Foto-Bereich eines Eintrags freigeben, dann erscheinen die Bilder.")
+                    : "📷 Bild lädt …"}
                 </div>}
             <div className="flex gap-2 flex-wrap justify-center" onClick={(ev) => ev.stopPropagation()}>
               {fotoGross.fotos.length > 1 && (
@@ -11205,7 +11246,7 @@ function App() {
                     ) : sharedFile.folderStatus() === "needs-permission" ? (
                       <button
                         onClick={async () => {
-                          try { await sharedFile.reconnectFolder(); setShareState({ ...shareState }); }
+                          try { await sharedFile.reconnectFolder(); fotoCacheAuffrischen(); setShareState({ ...shareState }); }
                           catch (e) { setErr("Konflikt-Wächter: " + (e && e.message ? e.message : "Freigabe fehlgeschlagen.")); }
                         }}
                         className="text-xs font-bold py-2 px-3 rounded text-white"
@@ -11216,7 +11257,7 @@ function App() {
                     ) : (
                       <button
                         onClick={async () => {
-                          try { await sharedFile.pickFolder(); setShareState({ ...shareState }); }
+                          try { await sharedFile.pickFolder(); fotoCacheAuffrischen(); setShareState({ ...shareState }); }
                           catch (e) { if (e && e.name !== "AbortError") setErr("Konflikt-Wächter: " + (e && e.message ? e.message : "Freigabe fehlgeschlagen.")); }
                         }}
                         className="text-xs font-bold py-2 px-3 rounded text-white"

@@ -88,6 +88,7 @@ Messwerte und Begründung stehen im
 | [`doku/Entscheidungsvorlage-Werkstatt-Cockpit.pdf`](doku/Entscheidungsvorlage-Werkstatt-Cockpit.pdf) | **Freigabe-Vorlage für die Geschäftsführung** – Nutzen, Kosten, Risiken, Auflagen |
 | [`doku/Werkstatt-Cockpit-Vorstellung.pptx`](doku/Werkstatt-Cockpit-Vorstellung.pptx) | **Vorstellung für die Betriebsleitung** – 15 Folien, Programm-Stand: Problem→Lösung, Bildschirmfotos, Kosten & Ersparnis, Zukunftssicherheit, Ausblick (Stand 07.09.) |
 | [`doku/Werkstatt-Cockpit-Programm-Aufsetzen.pdf`](doku/Werkstatt-Cockpit-Programm-Aufsetzen.pdf) | **Aufsetz-Anleitung fürs Programm** – bebildert, mit allen Download-Adressen (4 Seiten, Stand 07.09.) |
+| [`doku/Werkstatt-Cockpit-Programmier-Regeln.pdf`](doku/Werkstatt-Cockpit-Programmier-Regeln.pdf) | **unsere Programmier-Regeln** – alle 19 im Projekt vereinbarten Regeln mit Anlass (Stand 08.09.) |
 | [`doku/Werkstatt-Cockpit-Workshop.pptx`](doku/Werkstatt-Cockpit-Workshop.pptx) | **Foliensatz für den Workshop am 26.08.** – Einführung für alle: 13 Folien mit Bildschirmfotos, Fakten, Quellen und Sprechernotizen |
 | [`arbeitsplatz/Anleitung-Arbeitsplatz.md`](arbeitsplatz/Anleitung-Arbeitsplatz.md) | nur die Einrichtung eines Rechners, mit Fehlerbildern |
 | [`doku/ROLLOUT-PRUEFBERICHT.md`](doku/ROLLOUT-PRUEFBERICHT.md) | was geprüft wurde, mit Messwerten |

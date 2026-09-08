@@ -519,6 +519,24 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Pinnwand-Bilder verschwinden nach dem App-Update (Robertos
+      Meldung vom 08.09., „das darf nicht sein"):** Wurzel gemessen: Nach
+      einem Update rendert die Pinnwand, BEVOR der Foto-Ordner wieder
+      verbunden ist. Der erste Lese-Versuch scheitert - und das Ergebnis
+      wurde für immer gecacht: Alle Kacheln blieben dauerhaft „fehlt",
+      obwohl die Bilder sicher im Fotos-Ordner liegen. Fix: Fehlversuche
+      ohne verbundene Ablage werden bis zu zehnmal im 3-Sekunden-Takt
+      wiederholt; „fehlt" heißt es erst, wenn die Ablage erreichbar war
+      und die Datei dort wirklich nicht liegt. Beim manuellen
+      (Wieder-)Verbinden werden alle Fehlversuche verworfen, die Kacheln
+      laden sofort neu. Platzhalter nennen jetzt den GRUND („lädt …",
+      „Ordner nicht verbunden", „ZIP zu alt") statt fälschlich „fehlt".
+      Gegenprobe nach Hausregel: harte-58 (Z8) stellt das Update-Timing
+      nach - ohne den Fix bleibt das Bild für immer weg (rot gemessen),
+      mit Fix erscheint es von selbst (23/23). WICHTIG für Roberto: Die
+      Bilder der alten Zettel sind NICHT verloren - sie liegen im
+      Fotos-Ordner und erscheinen mit der neuen HTML wieder. (08.09.)
+
 - [x] **Planung übersteht Bestände ohne note-Feld (Fund vom 07.09. beim
       Bebildern der Präsentation):** EINE eingeplante Arbeit ohne
       note-Feld (möglich über Import oder fremde/alte Fassungen - die

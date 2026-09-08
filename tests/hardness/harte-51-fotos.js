@@ -22,7 +22,9 @@
 //      24.08. NICHT mehr unsichtbar: Der Bearbeiten-Dialog zeigt den
 //      Hinweis mit dem Klickweg zur Ordner-Freigabe (Roberto fand die
 //      Funktion sonst nicht). Ein Eintrag MIT Foto-Verweis zeigt
-//      "Datei fehlt" statt zu crashen; ebenso bei gelöschter Datei.
+//      einen ehrlichen Platzhalter statt zu crashen - seit dem 08.09.
+//      nennt er den GRUND ("Ordner nicht verbunden" / "lädt"), denn
+//      "Datei fehlt" wäre gelogen: Die Datei liegt ja im Ordner.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
 
@@ -285,9 +287,13 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     await p.waitForTimeout(600);
     pruef("(G) Ohne Ordner-Freigabe gibt es keinen Foto-hinzufügen-Knopf",
           (await p.locator('input[aria-label="Foto hinzufügen"]').count()) === 0);
-    pruef("(G) Der vorhandene Verweis zeigt 'Datei fehlt' statt zu crashen",
-          /Datei fehlt/.test(await p.locator('div[role="dialog"], .fixed').last().innerText().catch(() => "")) ||
-          /Datei fehlt/.test(await p.locator("body").innerText()));
+    // Robertos Fund vom 08.09.: "Datei fehlt" ohne verbundenen Ordner war
+    // gelogen (die Bilder liegen ja auf der Platte). Jetzt sagt der
+    // Platzhalter den Grund - und wiederholt den Lese-Versuch, sobald der
+    // Ordner da ist.
+    const gText = (await p.locator('div[role="dialog"], .fixed').last().innerText().catch(() => "")) + (await p.locator("body").innerText());
+    pruef("(G) Der vorhandene Verweis zeigt einen ehrlichen Platzhalter statt zu crashen",
+          /lädt|Ordner nicht verbunden/.test(gText) && !/Datei fehlt/.test(gText));
     pruef("(G) Und ein Hinweis nennt die nötige Freigabe samt Freigabe-Knopf",
           /Freigabe des Datenordners/.test(await p.locator("body").innerText()) &&
           (await p.getByRole("button", { name: /Werkstatt-Ordner freigeben/ }).count()) === 1);

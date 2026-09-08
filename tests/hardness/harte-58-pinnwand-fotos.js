@@ -309,6 +309,71 @@ const verfasserAuf = async (p) => {
     await ctx.close();
   }
 
+  /* ---- (Z8) App-Update-Neustart: Ordner verbindet erst NACH dem ersten
+     Rendern - die Bilder müssen trotzdem erscheinen.
+     Robertos Fund vom 08.09.: Nach dem Update über den grünen Balken waren
+     alle Pinnwand-Bilder dauerhaft "fehlt". Ursache: Die Pinnwand rendert
+     vor der Ordner-Wiederverbindung, der erste Lese-Versuch scheitert, und
+     das Ergebnis wurde für immer gecacht. Ohne den Fix bleibt (Z8) rot.
+     Bewusst OHNE feste Uhr: Der Wiederhol-Takt braucht eine echte Uhr. */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
+    const p = await ctx.newPage();
+    const fehler = [];
+    p.on("pageerror", (e) => fehler.push(e.message));
+    await p.addInitScript((c) => {
+      delete window.showOpenFilePicker; delete window.showSaveFilePicker;
+      localStorage.setItem("werkstatt-kalender-name", "M. Weber");
+      localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
+      localStorage.setItem("werkstatt-kalender-entries", JSON.stringify([
+        { id: "z1", date: "2026-09-08", category: "NOTIZ", name: "Roberto", status: "open", zeit: "2026-09-08T08:00:00.000Z", note: "Bild nach Update", farbe: "blau", veroeffentlicht: true, fotos: [{ datei: "update-bild.jpg", wer: "Roberto", ts: "2026-09-08T08:00:00.000Z" }] },
+      ]));
+      const bild = new Blob([new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 9, 9, 9, 9])], { type: "image/jpeg" });
+      window.__mockOrdnerHandle = {
+        kind: "directory", name: "Werkstatt_Kalender",
+        async getDirectoryHandle(name) {
+          if (name !== "Fotos") { const e = new Error("nicht da"); e.name = "NotFoundError"; throw e; }
+          return {
+            kind: "directory", name: "Fotos",
+            async getFileHandle(datei) {
+              if (datei !== "update-bild.jpg") { const e = new Error("nicht da"); e.name = "NotFoundError"; throw e; }
+              return { kind: "file", name: datei, async getFile() { return new File([bild], datei, { type: "image/jpeg" }); } };
+            },
+            async queryPermission() { return "granted"; },
+          };
+        },
+        async queryPermission() { return "granted"; },
+        async requestPermission() { return "granted"; },
+      };
+    }, config);
+    await p.goto(APP);
+    await p.waitForTimeout(1200);
+
+    // VOR der Verbindung: Platzhalter mit ehrlichem Grund, kein Bild.
+    const kachel = p.getByRole("button", { name: "Zettel-Foto 1 groß ansehen" });
+    pruef("(Z8) Vor der Ordner-Verbindung: kein Bild, Platzhalter steht",
+          (await kachel.count()) === 1 && (await kachel.locator("img").count()) === 0);
+    // textContent statt innerText: Die schmale Kachel schneidet den
+    // sichtbaren Text ab („lädt …“ → „…“).
+    const platzText = await kachel.evaluate((el) => el.textContent || "").catch(() => "");
+    pruef("(Z8) Der Platzhalter sagt „lädt“/den Grund - nicht fälschlich „fehlt“",
+          !/fehlt/.test(platzText) && /lädt|Ordner nicht verbunden/.test(platzText),
+          JSON.stringify(platzText));
+
+    // Jetzt verbindet sich der Ordner - wie beim echten Start kurz später.
+    await p.evaluate(() => window.__wkSharedTest.adoptFolder(window.__mockOrdnerHandle));
+    // Der Wiederhol-Takt liegt bei 3 Sekunden - großzügig warten.
+    let bildDa = false;
+    for (let i = 0; i < 20 && !bildDa; i++) {
+      await p.waitForTimeout(500);
+      bildDa = (await kachel.locator("img").count()) === 1;
+    }
+    pruef("(Z8) NACH der Verbindung erscheint das Bild von selbst - ohne Neustart",
+          bildDa);
+    pruef("(Z8) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+    await ctx.close();
+  }
+
   console.log(`\nHärte 58 (Pinnwand-Fotos): ${ok}/${ok + fail}`);
   await browser.close();
   process.exit(fail ? 1 : 0);
