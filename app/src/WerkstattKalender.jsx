@@ -763,7 +763,7 @@ const MONTHS = [
 ];
 const MONTHS_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
-// TPM-Anlagen: "role" steuert die Rotation, "name" ist frei änderbar in der Verwaltung.
+// PitStop-Anlagen (Daten-Schlüssel bleibt tpmAnlagen): "role" steuert die Rotation, "name" ist frei änderbar in der Verwaltung.
 // monday1..monday4 = Montags-Rotation (Reihenfolge!), takt = Taktstraße Rohlingsfertigung,
 // b1 = flexible Beschichtung unter der Woche, flexA/flexB = alle-2-Monate-Gruppen.
 const DEFAULT_TPM_ANLAGEN = [
@@ -1310,7 +1310,11 @@ const ROTATION_ANCHOR = new Date(2026, 0, 5); // Montag 05.01.2026, Slot 0 = ers
 
 
 const CATS = {
-  TPM: { label: "TPM", full: "Wartung (TPM)", color: "#C97A2B" },
+  // Robertos Begriffs-Klarstellung vom 08.09.: TPM ist das große Ganze
+  // (PitStops + R+I zusammen). Die orange Kategorie sind die geplanten
+  // Wartungen - im Haus heißen sie PitStops. Der DATEN-Schlüssel bleibt
+  // bewusst "TPM" (Bestandsdaten, Sync, Merkliste) - nur die Anzeige ändert sich.
+  TPM: { label: "PitStop", full: "PitStop (geplante Wartung)", color: "#C97A2B" },
   RI: { label: "R+I", full: "Rundgang & Inspektion", color: "#2F6690" },
   // Regel-/Einzeltermine (Robertos Wunsch vom 24.08.): z. B. die
   // Abteilungsversammlung. Sie informieren wie R+I (Tagesliste, Kalender),
@@ -3705,7 +3709,7 @@ function App() {
     const zeilen = entries
       .filter((e) => e.category === "TPM" || e.category === "RI")
       .sort((a, b) => String(a.date).localeCompare(String(b.date)))
-      .map((e) => [formatDateDE(e.date), e.category === "TPM" ? "TPM" : "R+I", e.name,
+      .map((e) => [formatDateDE(e.date), e.category === "TPM" ? "PitStop" : "R+I", e.name,
                    e.status === "done" ? "erledigt" : "offen", e.note || ""].map(csvZelle).join(";"));
     ladeHerunter("\uFEFF" + ["Datum;Art;Anlage / Punkt;Status;Notiz", ...zeilen].join("\r\n"),
       `werkstatt-termine-${todayKey}.csv`, "text/csv;charset=utf-8");
@@ -5987,7 +5991,7 @@ function App() {
       (e.category === "TPM" || e.category === "RI") &&
       (art === "ALLE" || e.category === art) &&
       String(e.date || "").startsWith(String(jahr)));
-    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+    const titel = art === "TPM" ? "PitStop" : art === "RI" ? "R+I" : "PitStop &amp; R+I";
 
     const amTag = (m, t) => relevant.filter((e) => e.date === dateKey(jahr, m, t));
 
@@ -5995,7 +5999,7 @@ function App() {
        stehen am 12. irgendwo drei Termine, braucht die ganze Zeile drei
        Kästchen Höhe. Bleibt das Blatt dadurch zu hoch für A3, werden die
        Kästchen flacher - lieber etwas kleiner als eine zweite Seite. Umgekehrt
-       wachsen sie, wenn Platz frei bleibt (ein Blatt „nur TPM" hat kaum
+       wachsen sie, wenn Platz frei bleibt (ein Blatt „nur PitStop" hat kaum
        Doppeltage), damit das Blatt die Seite auch wirklich ausfüllt.
        Die 960 px sind der Platz, der auf der bedruckbaren A3-Fläche (1047 px)
        nach Titel, Kopfzeile und Legende für die Zeilen übrig ist. */
@@ -6060,7 +6064,7 @@ function App() {
         <tbody>${zeilen}</tbody>
       </table>
       <div style="margin-top:8px;font-size:10px;color:#6B7480;">
-        <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">TPM offen</span>
+        <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">PitStop offen</span>
         &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#EFE7F5;color:#5B3579;border-left:4px solid #7A4E9B;">R+I offen</span>
         &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E2F0E7;color:#24603D;border-left:4px solid #2F7D4F;">erledigt</span>
         &nbsp;&nbsp;<span style="display:inline-block;width:12px;height:12px;background:#F2F5F8;border:1px solid #C9D0D8;vertical-align:-2px;"></span> Wochenende
@@ -6080,7 +6084,7 @@ function App() {
       (e.category === "TPM" || e.category === "RI") &&
       (art === "ALLE" || e.category === art) &&
       String(e.date || "").startsWith(`${jahr}-${pad(monat + 1)}`));
-    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+    const titel = art === "TPM" ? "PitStop" : art === "RI" ? "R+I" : "PitStop &amp; R+I";
 
     const zeilen = Array.from({ length: new Date(jahr, monat + 1, 0).getDate() }, (_, j) => {
       const t = j + 1;
@@ -6122,7 +6126,7 @@ function App() {
         </div>
         <table><tbody>${zeilen}</tbody></table>
         <div style="margin-top:7px;font-size:10px;color:#6B7480;">
-          <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">TPM offen</span>
+          <span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E3EDF5;color:#1F4A6B;border-left:4px solid #2F6690;">PitStop offen</span>
           &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#EFE7F5;color:#5B3579;border-left:4px solid #7A4E9B;">R+I offen</span>
           &nbsp;<span style="display:inline-block;border-radius:2px;padding:1px 9px;font-weight:800;background:#E2F0E7;color:#24603D;border-left:4px solid #2F7D4F;">erledigt</span>
           ${relevant.length ? "" : `&nbsp;&nbsp;· Für ${MONTHS[monat]} ${jahr} ist nichts eingetragen.`}
@@ -6143,7 +6147,7 @@ function App() {
       (e.category === "TPM" || e.category === "RI") &&
       (art === "ALLE" || e.category === art) &&
       String(e.date || "").startsWith(`${jahr}-${pad(monat + 1)}`));
-    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+    const titel = art === "TPM" ? "PitStop" : art === "RI" ? "R+I" : "PitStop &amp; R+I";
     const tageImMonat = new Date(jahr, monat + 1, 0).getDate();
     const tage = Array.from({ length: tageImMonat }, (_, i) => {
       const amTag = relevant.filter((e) => e.date === dateKey(jahr, monat, i + 1));
@@ -6277,7 +6281,7 @@ function App() {
       (e.category === "TPM" || e.category === "RI") &&
       (art === "ALLE" || e.category === art) &&
       monate.some((m) => String(e.date || "").startsWith(m.schluessel)));
-    const titel = art === "TPM" ? "TPM" : art === "RI" ? "R+I" : "TPM &amp; R+I";
+    const titel = art === "TPM" ? "PitStop" : art === "RI" ? "R+I" : "PitStop &amp; R+I";
     const reihe = monate.map((m) => {
       const imMonat = relevant.filter((e) => String(e.date || "").startsWith(m.schluessel));
       const mErledigt = imMonat.filter((e) => e.status === "done").length;
@@ -6908,7 +6912,7 @@ function App() {
                     <div className="no-print" style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 60, backgroundColor: "white", borderRadius: "10px", padding: "10px", width: "310px", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", border: "1px solid #E2E4E7" }}>
                       {[
                         ["Alles als JSON", "vollständige Datensicherung – wie bisher", () => exportData(), "#22262B"],
-                        ["Termine als CSV", "Datum · Anlage · TPM/R+I · Status · Notiz – für Excel", () => exportTermineCsv(), "#1F7A3D"],
+                        ["Termine als CSV", "Datum · Anlage · PitStop/R+I · Status · Notiz – für Excel", () => exportTermineCsv(), "#1F7A3D"],
                         ["Störungen als CSV", "Nr. · Anlage · Störung · Maßnahme · Ausfall · Melder", () => exportStoerungenCsv(), "#1F7A3D"],
                       ].map(([titel, unter, mach, farbe]) => (
                         <button
@@ -8108,7 +8112,7 @@ function App() {
                 <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{label}</div>
               </div>
             ))}
-            <HalbkreisQuote prozent={quoteMonatHeute} label="Wartung & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter Wartungs- und R+I-Punkte im Monat" />
+            <HalbkreisQuote prozent={quoteMonatHeute} label="TPM" sub={MONTHS[today.getMonth()]} titel="TPM-Quote: Anteil erledigter PitStops und R+I-Punkte im Monat" />
             {/* OEE kommt aus der Excel-Tabelle im Datenordner - eingerichtet wird
                 sie in ⚙, angezeigt wird sie hier, wo die Schicht sie sieht. */}
             <OeeKachel
@@ -9374,9 +9378,9 @@ function App() {
           >
             <div className="flex items-center gap-3 mb-3 flex-wrap">
               <span style={{ fontSize: "1.15rem", fontWeight: 900 }}>{akteAnlage}</span>
-              {akteDaten.tpmItem && <span className="b tpm text-xs font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: "#F7E8D8", color: "#C97A2B", border: "1px solid #C97A2B" }}>{planGroupLabel(akteAnlage, tpmAnlagen, riItems) || "TPM-Anlage"}</span>}
+              {akteDaten.tpmItem && <span className="b tpm text-xs font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: "#F7E8D8", color: "#C97A2B", border: "1px solid #C97A2B" }}>{planGroupLabel(akteAnlage, tpmAnlagen, riItems) || "PitStop-Anlage"}</span>}
               <span className="font-mono text-xs" style={{ color: "#8A9099" }}>
-                {akteDaten.quote !== null && <>TPM-Quote 12 Mon.: <strong style={{ color: "#2F7D4F" }}>{akteDaten.quote} %</strong> · </>}
+                {akteDaten.quote !== null && <>PitStop-Quote 12 Mon.: <strong style={{ color: "#2F7D4F" }}>{akteDaten.quote} %</strong> · </>}
                 {akteDaten.naechste ? <>nächste Wartung: <strong>{formatDateDE(akteDaten.naechste.date)}</strong></> : null}
               </span>
               <span className="ml-auto flex gap-2">
@@ -9413,7 +9417,7 @@ function App() {
                 ))}
               </div>
               <div>
-                <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: "#8A9099" }}>Wartungs-Historie (TPM &amp; R+I)</div>
+                <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: "#8A9099" }}>Wartungs-Historie (PitStops &amp; R+I)</div>
                 {akteDaten.historie.length === 0 && <div className="text-xs italic text-slate-400">Noch keine Wartungseinträge.</div>}
                 {akteDaten.historie.map((e) => (
                   <div key={e.id} className="flex items-center gap-2 px-2 py-1.5 rounded text-xs" style={{ backgroundColor: "#F7F8F9", marginBottom: "4px" }}>
@@ -10840,7 +10844,7 @@ function App() {
               Nach <strong>30 Tagen</strong> verschwinden sie aus diesem Archiv – nachvollziehbar bleiben sie
               in der TPM-Auswertung und auf den gedruckten Blättern.
             </div>
-            {[["TPM", "TPM – Wartung"], ["RI", "R+I – Rundgang & Inspektion"]].map(([kat, titel]) => {
+            {[["TPM", "PitStop – geplante Wartung"], ["RI", "R+I – Rundgang & Inspektion"]].map(([kat, titel]) => {
               const liste = terminArchiv.filter((e) => e.category === kat);
               return (
                 <div key={kat} className="mb-4">
@@ -10910,7 +10914,7 @@ function App() {
                   <>
                     <div className="text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#8A9099" }}>Umfang</div>
                     <div className="flex gap-2 mb-4 flex-wrap">
-                      {[["ALLE", "Beide (TPM & R+I)"], ["TPM", "Nur TPM"], ["RI", "Nur R+I"]].map(([wert, text]) => (
+                      {[["ALLE", "Beide (PitStop & R+I)"], ["TPM", "Nur PitStop"], ["RI", "Nur R+I"]].map(([wert, text]) => (
                         <button
                           key={wert}
                           onClick={() => setDruckUmfang(wert)}
@@ -11395,7 +11399,7 @@ function App() {
             </div>
 
             {settingsTab === "anlagen" && (<>
-            <div className="text-xs font-bold uppercase mb-2" style={{ color: CATS.TPM.color }}>TPM-Anlagen</div>
+            <div className="text-xs font-bold uppercase mb-2" style={{ color: CATS.TPM.color }}>PitStop-Anlagen</div>
             <div className="flex flex-col gap-1.5 mb-2">
               {settingsTpm.map((a, idx) => (
                 <div key={a.id} className="flex gap-1.5 items-center">
@@ -12416,8 +12420,8 @@ function App() {
                 {/* Monat und Jahr als Halbkreise nebeneinander - hier gehört der
                     Vergleich hin. Als bloße Prozentzahl ließ sich nicht erkennen,
                     ob der Monat über oder unter dem Jahresschnitt liegt. */}
-                <HalbkreisQuote dunkel prozent={quoteMonatHeute} label="Wartung & R+I" sub={MONTHS[today.getMonth()]} titel="Anteil erledigter Wartungs- und R+I-Punkte im laufenden Monat" />
-                <HalbkreisQuote dunkel prozent={quoteJahrHeute} label="Wartung & R+I" sub={String(today.getFullYear())} titel="Anteil erledigter Wartungs- und R+I-Punkte im laufenden Jahr" />
+                <HalbkreisQuote dunkel prozent={quoteMonatHeute} label="TPM" sub={MONTHS[today.getMonth()]} titel="TPM-Quote: Anteil erledigter PitStops und R+I-Punkte im laufenden Monat" />
+                <HalbkreisQuote dunkel prozent={quoteJahrHeute} label="TPM" sub={String(today.getFullYear())} titel="TPM-Quote: Anteil erledigter PitStops und R+I-Punkte im laufenden Jahr" />
               </div>
             </div>
 
@@ -12427,7 +12431,7 @@ function App() {
                 <span style={{ position: "absolute", top: "14px", right: "14px", fontSize: "0.68rem", fontWeight: 800, padding: "3px 10px", borderRadius: "20px", backgroundColor: "#fff", color: "#C97A2B", border: "1px solid #EAD3B4" }}>{tpmAnlagen.length} Anlagen</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "11px", marginBottom: "9px" }}>
                   <div style={{ width: "42px", height: "42px", borderRadius: "12px", display: "grid", placeItems: "center", color: "#fff", fontSize: "1.25rem", background: "linear-gradient(135deg,#E0A45B,#C97A2B)", boxShadow: "0 4px 10px rgba(0,0,0,0.13)" }}>🔧</div>
-                  <div style={{ fontWeight: 800, fontSize: "1rem" }}>TPM – Wartung<small style={{ display: "block", fontWeight: 600, fontSize: "0.7rem", color: "#5B6572" }}>Total Productive Maintenance</small></div>
+                  <div style={{ fontWeight: 800, fontSize: "1rem" }}>PitStop – Wartung<small style={{ display: "block", fontWeight: 600, fontSize: "0.7rem", color: "#5B6572" }}>geplante Anlagen-Wartung</small></div>
                 </div>
                 <p style={{ margin: 0, fontSize: "0.79rem", color: "#3d4650" }}>Anlagen werden per Rotation gewartet (Taktstraße, Montags-Rotation, flexible Gruppen). Ziel: keine ungeplanten Stillstände.</p>
               </div>
@@ -12689,7 +12693,7 @@ function App() {
           })()}
 
           <div className="mt-3 flex items-center gap-3 text-xs font-bold flex-wrap">
-            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#C97A2B" }} /> TPM</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#C97A2B" }} /> PitStop</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CATS.RI.color }} /> R+I</span>
             <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#2F7D4F" }} /> ✓ Erledigt</span>
           </div>
@@ -12826,7 +12830,7 @@ function App() {
           </div>
           <div className="grid gap-6" style={{ gridTemplateColumns: "1fr 1fr" }}>
             <div>
-              <div className="text-sm font-bold uppercase tracking-wide mb-3" style={{ color: CATS.TPM.color }}>TPM-Anlagen</div>
+              <div className="text-sm font-bold uppercase tracking-wide mb-3" style={{ color: CATS.TPM.color }}>PitStop-Anlagen</div>
               <div className="flex flex-col gap-1.5">
                 {registerSuchwort && registerTpm.length === 0 && (
                   <div className="text-xs text-slate-400 italic">keine Treffer</div>
@@ -12879,11 +12883,24 @@ function App() {
         </div>
       )}
 
-      {/* Historie-Fenster: alle Termine einer einzelnen Anlage/eines R+I-Punkts */}
+      {/* Historie-Fenster: alle Termine einer einzelnen Anlage/eines R+I-Punkts.
+          Robertos Wunsch vom 08.09.: Der Klick auf die Anlage soll ALLES
+          gefiltert zeigen - deshalb zusätzlich die Reiter "Arbeiten"
+          (Backlog + eingeplante) und "Störungen" (samt offener Restarbeit). */}
       {registerItem && (() => {
         const historyEntries = entries
           .filter((e) => e.category === registerItem.category && e.name === registerItem.name)
           .sort((a, b) => b.date.localeCompare(a.date));
+        // Offene zuerst, darin jeweils das Neueste oben - so steht das
+        // Dringende immer im sichtbaren Bereich des Fensters.
+        const registerArbeiten = entries
+          .filter((e) => e.category === "ARBEIT" && e.name === registerItem.name)
+          .sort((a, b) => (a.status === "done" ? 1 : 0) - (b.status === "done" ? 1 : 0) || String(b.date).localeCompare(String(a.date)));
+        const registerStoer = stoerungen
+          .filter((s) => (s.anlage || "") === registerItem.name)
+          .sort((a, b) => (a.offen ? 0 : 1) - (b.offen ? 0 : 1) || String(b.date).localeCompare(String(a.date)));
+        const arbeitenOffenZahl = registerArbeiten.filter((a) => a.status !== "done").length;
+        const stoerOffenZahl = registerStoer.filter((s) => s.offen).length;
         return (
           <div
             className="no-print"
@@ -12891,7 +12908,7 @@ function App() {
             onClick={() => setRegisterItem(null)}
           >
             <ZiehbareKarte
-              style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "460px", maxWidth: "100%", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+              style={{ backgroundColor: "white", borderRadius: "10px", padding: "20px", width: "540px", maxWidth: "100%", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
               onClick={(ev) => ev.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-1">
@@ -12905,8 +12922,10 @@ function App() {
               {/* Steckbrief & Historie (QoL Runde 3): der Steckbrief macht aus
                   dem Register die Anlagen-Akte - Wartungspartner und Ersatz-
                   teile stehen dann auch im Störungs-Dialog. */}
-              <div className="flex gap-1.5 mb-3 mt-1">
-                {[["STECKBRIEF", "Steckbrief"], ["HISTORIE", "Historie"]].map(([t, label]) => (
+              <div className="flex gap-1.5 mb-3 mt-1 flex-wrap">
+                {[["STECKBRIEF", "Steckbrief"], ["HISTORIE", "Historie"],
+                  ["ARBEITEN", `Arbeiten${arbeitenOffenZahl ? ` (${arbeitenOffenZahl})` : ""}`],
+                  ["STOERUNGEN", `Störungen${stoerOffenZahl ? ` (${stoerOffenZahl})` : ""}`]].map(([t, label]) => (
                   <button
                     key={t}
                     onClick={() => setRegisterTab(t)}
@@ -13014,6 +13033,57 @@ function App() {
                 </div>
               )}
               </>)}
+
+              {registerTab === "ARBEITEN" && (<>
+              <div className="text-xs text-slate-400 mb-3">{registerArbeiten.length} Arbeit(en) · {arbeitenOffenZahl} offen</div>
+              {registerArbeiten.length === 0 ? (
+                <div className="text-xs italic text-slate-400 py-4">Keine Arbeiten (Backlog oder eingeplant) zu dieser Anlage.</div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {registerArbeiten.map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => { if (!readerMode) openArbeitEdit(a); }}
+                      className="flex items-start gap-2 px-2.5 py-1.5 rounded text-left"
+                      style={{ backgroundColor: a.status === "done" ? "#E5F3EA" : "#FDF6EC", cursor: readerMode ? "default" : "pointer" }}
+                      title={readerMode ? undefined : "Arbeit öffnen"}
+                    >
+                      <span className="text-xs font-mono font-bold shrink-0" style={{ color: a.status === "done" ? "#2F7D4F" : "#C97A2B", minWidth: "78px" }}>{formatDateDE(a.date)}</span>
+                      <span className="text-xs font-bold shrink-0" style={{ color: a.status === "done" ? "#2F7D4F" : "#C97A2B", minWidth: "58px" }}>{a.status === "done" ? "✓ Fertig" : "● Offen"}</span>
+                      <span className="text-xs flex-1" style={{ color: "#22262B", wordBreak: "break-word" }}>
+                        {String(a.note || "") || "(ohne Beschreibung)"}
+                        {a.wer && a.geplant ? <span style={{ color: "#8A9099" }}> · {a.wer}, {formatDateDE(a.geplant)}</span> : null}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              </>)}
+
+              {registerTab === "STOERUNGEN" && (<>
+              <div className="text-xs text-slate-400 mb-3">{registerStoer.length} Störbericht(e) · {stoerOffenZahl} offen</div>
+              {registerStoer.length === 0 ? (
+                <div className="text-xs italic text-slate-400 py-4">Keine Störberichte zu dieser Anlage.</div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {registerStoer.map((s) => (
+                    <div key={s.id} className="px-2.5 py-1.5 rounded" style={{ backgroundColor: s.offen ? "#FBE9E7" : "#F5F7FA" }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold shrink-0" style={{ color: s.offen ? "#B23A34" : "#5B6572", minWidth: "78px" }}>{formatDateDE(s.date)}</span>
+                        {stoerNrLang(s) && <span className="text-xs font-mono shrink-0" style={{ color: "#8A9099" }}>{stoerNrLang(s)}</span>}
+                        <span className="text-xs font-bold shrink-0" style={{ color: s.offen ? "#B23A34" : "#2F7D4F" }}>{s.offen ? "● Offen" : "✓ Behoben"}</span>
+                        {s.ausfallzeit > 0 && <span className="text-xs shrink-0" style={{ color: "#8A9099" }}>{s.ausfallzeit} min</span>}
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: "#22262B", wordBreak: "break-word" }}>{s.stoerung || "(ohne Beschreibung)"}</div>
+                      {s.offen && String(s.nochZuTun || "").trim() && (
+                        <div className="text-xs mt-0.5 font-bold" style={{ color: "#B23A34" }}>📌 Zu tun: <span style={{ fontWeight: 600 }}>{s.nochZuTun}</span></div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="text-xs text-slate-400 mt-1">Bearbeiten und Details: Reiter „Störungen“ in der Werkstatt-Ansicht.</div>
+                </div>
+              )}
+              </>)}
             </ZiehbareKarte>
           </div>
         );
@@ -13054,7 +13124,7 @@ function App() {
 
       {view !== "COCKPIT" && view !== "TPMINFO" && (
       <div className="no-print max-w-5xl mx-auto px-4 pb-6 pt-3 text-xs text-slate-400">
-        Tipp: "Drucken" öffnet die Druckvorlage in einem neuen Tab (Pop-ups für diese Seite bitte erlauben) – bei der Monatsansicht zuerst als übersichtliche Kalenderseite, danach die Anlagen-Matrix. Falls der Browser Pop-ups blockiert, wird stattdessen automatisch eine Datei heruntergeladen. Filter oben auf "TPM" oder "R+I" stellen für den separaten Ausdruck je Kategorie. Am Jahresende einfach auf "Jahr" umschalten und drucken.
+        Tipp: "Drucken" öffnet die Druckvorlage in einem neuen Tab (Pop-ups für diese Seite bitte erlauben) – bei der Monatsansicht zuerst als übersichtliche Kalenderseite, danach die Anlagen-Matrix. Falls der Browser Pop-ups blockiert, wird stattdessen automatisch eine Datei heruntergeladen. Filter oben auf "PitStop" oder "R+I" stellen für den separaten Ausdruck je Kategorie. Am Jahresende einfach auf "Jahr" umschalten und drucken.
       </div>
       )}
 

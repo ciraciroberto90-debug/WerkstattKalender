@@ -265,8 +265,8 @@ const seedTeam = (personName) => {
     ok('Druck-Auswahl: der Drucken-Knopf fragt erst nach',
       (await page.locator('div[role="dialog"][aria-label="Was soll gedruckt werden?"]').count()) === 1);
     ok('Druck-Auswahl: drei Umfänge zur Wahl',
-      (await page.getByRole('button', { name: 'Beide (TPM & R+I)' }).count()) === 1 &&
-      (await page.getByRole('button', { name: 'Nur TPM' }).count()) === 1 &&
+      (await page.getByRole('button', { name: 'Beide (PitStop & R+I)' }).count()) === 1 &&
+      (await page.getByRole('button', { name: 'Nur PitStop' }).count()) === 1 &&
       (await page.getByRole('button', { name: 'Nur R+I' }).count()) === 1);
     // Seit dem 07.09. wählt ein Aufklappfeld das Blatt (ab drei Vorlagen).
     ok('Druck-Auswahl: Jahr, einzelner Monat und Bildschirmliste zur Wahl',
@@ -359,7 +359,7 @@ const seedTeam = (personName) => {
     await popup.close();
 
     // Die beiden Filter: was nicht gewaehlt ist, steht auch nicht auf dem Blatt.
-    for (const [knopf, drauf, weg] of [['Nur TPM', 'Presse 7', 'Regalprobe 9'], ['Nur R+I', 'Regalprobe 9', 'Presse 7']]) {
+    for (const [knopf, drauf, weg] of [['Nur PitStop', 'Presse 7', 'Regalprobe 9'], ['Nur R+I', 'Regalprobe 9', 'Presse 7']]) {
       await page.locator('button[aria-label="Drucken"]').click();
       await page.waitForTimeout(250);
       await page.getByRole('button', { name: knopf }).click();
@@ -377,7 +377,7 @@ const seedTeam = (personName) => {
     // ---- Einzelner Monat: A4 hoch, nur dieser Monat, eine Seite ----
     await page.locator('button[aria-label="Drucken"]').click();
     await page.waitForTimeout(250);
-    await page.getByRole('button', { name: 'Beide (TPM & R+I)' }).click();
+    await page.getByRole('button', { name: 'Beide (PitStop & R+I)' }).click();
     await page.locator('select[aria-label="Blatt wählen"]').selectOption('monatsblatt');
     await page.waitForTimeout(200);
     ok('Monatsblatt: nach der Wahl stehen zwölf Monate bereit',

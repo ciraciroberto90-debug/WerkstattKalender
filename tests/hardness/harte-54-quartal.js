@@ -6,7 +6,7 @@
 //       Gesamt-Zeile und der Aufschlüsselung je Anlage.
 //  (Q3) Die Zahlen stimmen mit dem Seed überein - nachgerechnet, nicht
 //       nur vorhanden.
-//  (Q4) "Nur TPM" filtert die R+I-Termine wirklich heraus.
+//  (Q4) "Nur PitStop" filtert die R+I-Termine wirklich heraus.
 //  (Q5) Jahreswechsel: Im Januar heißen die drei Monate Nov, Dez, Januar -
 //       über die Jahresgrenze hinweg, ohne leere Falsch-Monate.
 //  (Q6) Ein leeres Quartal sagt ehrlich "nichts eingetragen".
@@ -118,14 +118,14 @@ async function quartalsBlatt(p, umfang) {
     await ctx.close();
   }
 
-  /* ---- (Q4) "Nur TPM" filtert R+I heraus ---- */
+  /* ---- (Q4) "Nur PitStop" filtert R+I heraus ---- */
   {
     const { p, ctx } = await start(browser, [
       { id: "a1", date: "2026-08-10", category: "TPM", name: "TS480", status: "done" },
       { id: "a2", date: "2026-08-17", category: "RI", name: "Wasserrundgang", status: "open" },
     ], "2026-08-24T10:00:00");
-    const { text } = await quartalsBlatt(p, "Nur TPM");
-    pruef("(Q4) Nur TPM: 1 von 1 erledigt · 100 %, kein Wasserrundgang",
+    const { text } = await quartalsBlatt(p, "Nur PitStop");
+    pruef("(Q4) Nur PitStop: 1 von 1 erledigt · 100 %, kein Wasserrundgang",
           /1 von 1 erledigt · 100 %/.test(text) && !/Wasserrundgang/.test(text), text.slice(0, 160));
     await ctx.close();
   }

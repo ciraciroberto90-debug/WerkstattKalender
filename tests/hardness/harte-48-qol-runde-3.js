@@ -93,7 +93,7 @@ const stoerBericht = (nr, tage, anlage, extra = {}) => ({
     pruef("(7) BOM + Semikolon: deutsches Excel öffnet die Datei per Doppelklick",
           csvT.charCodeAt(0) === 0xFEFF && csvT.includes("Datum;Art;Anlage / Punkt;Status;Notiz"));
     pruef("(7) Die Zeile enthält den echten Termin, Strichpunkt im Text ist gekapselt",
-          csvT.includes('18.08.2026;TPM;TS480;offen;"Ölstand; prüfen"'), csvT.split("\r\n")[1]);
+          csvT.includes('18.08.2026;PitStop;TS480;offen;"Ölstand; prüfen"'), csvT.split("\r\n")[1]);
     await p.locator('button[aria-label="Export"]').click();
     await p.waitForTimeout(300);
     const [dlS] = await Promise.all([

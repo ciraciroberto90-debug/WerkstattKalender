@@ -519,6 +519,28 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Begriffe gerade gerückt: die orange Kategorie heißt PitStop
+      (Robertos Klarstellung vom 08.09.):** TPM ist das große Ganze
+      (PitStops + R+I zusammen); die geplanten Wartungen heißen im Haus
+      PitStops. Alle Bildschirm-Texte und Druckvorlagen umgestellt:
+      Kategorien-Etikett, Filter (Alle/PitStop/R+I), Plan-Legende,
+      Druck-Umfang („Nur PitStop", „Beide (PitStop & R+I)"), Blatt-Köpfe,
+      Anlege-Dialog, Verwalten („PitStop-Anlagen"), Anlagen-Akte,
+      CSV-Export, Übersichts-Quote (heißt jetzt ehrlich „TPM"-Quote, weil
+      sie PitStops UND R+I umfasst). Der DATEN-Schlüssel category:"TPM"
+      bleibt bewusst unverändert - Bestandsdaten, Sync und Merkliste
+      dürfen eine Umbenennung nie spüren. Bereich/Reiter „TPM" bleibt
+      (das große Ganze). Gemessen in harte-63. (08.09.)
+
+- [x] **Anlagen-Akte im Register: alles zur Anlage gefiltert (Robertos
+      Wunsch vom 08.09.):** Der Klick auf eine Anlage zeigt jetzt vier
+      Reiter - Steckbrief, Historie (Termine), NEU „Arbeiten" (Backlog
+      und eingeplante, offene zuerst, Klick öffnet die Arbeit) und NEU
+      „Störungen" (alle Berichte der Anlage mit Nummer, Ausfallzeit,
+      Status und der offenen Restarbeit als „Zu tun"). Die Reiter tragen
+      Offen-Zähler. Gemessen im neuen harte-63 (14 Prüfungen; Suite
+      damit bei 62 Härtetests). (08.09.)
+
 - [x] **Pinnwand-Bilder verschwinden nach dem App-Update (Robertos
       Meldung vom 08.09., „das darf nicht sein"):** Wurzel gemessen: Nach
       einem Update rendert die Pinnwand, BEVOR der Foto-Ordner wieder

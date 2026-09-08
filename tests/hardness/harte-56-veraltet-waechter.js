@@ -107,7 +107,7 @@ async function eintragAnlegen(p) {
   await p.waitForTimeout(1200);
   await p.locator('button[aria-label="Eintrag hinzufügen"]').first().click();
   await p.waitForTimeout(400);
-  await p.getByRole("button", { name: /^tpm$/i }).last().click();
+  await p.getByRole("button", { name: /^pitstop$/i }).last().click();
   await p.waitForTimeout(300);
   await p.locator("select").last().selectOption("TS480");
   await p.getByRole("button", { name: "Speichern", exact: true }).click();

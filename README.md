@@ -72,7 +72,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 61 Härtetests und acht weitere Suiten | Entwicklung |
+| `tests/` | 62 Härtetests und acht weitere Suiten | Entwicklung |
 | `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
@@ -86,7 +86,7 @@ Messwerte und Begründung stehen im
 | [`doku/Werkstatt-Cockpit-Einrichtung.pdf`](doku/Werkstatt-Cockpit-Einrichtung.pdf) | **Klickanleitung für die Kollegen** – eine Seite, an die E-Mail hängen |
 | [`doku/ANLEITUNG.md`](doku/ANLEITUNG.md) | vollständige Bedienungs- und Einrichtungsanleitung |
 | [`doku/Entscheidungsvorlage-Werkstatt-Cockpit.pdf`](doku/Entscheidungsvorlage-Werkstatt-Cockpit.pdf) | **Freigabe-Vorlage für die Geschäftsführung** – Nutzen, Kosten, Risiken, Auflagen |
-| [`doku/Werkstatt-Cockpit-Vorstellung.pptx`](doku/Werkstatt-Cockpit-Vorstellung.pptx) | **Vorstellung für die Betriebsleitung** – 15 Folien, Programm-Stand: Problem→Lösung, Bildschirmfotos, Kosten & Ersparnis, Zukunftssicherheit, Ausblick (Stand 07.09.) |
+| [`doku/Werkstatt-Cockpit-Vorstellung.pptx`](doku/Werkstatt-Cockpit-Vorstellung.pptx) | **Vorstellung für die Betriebsleitung** – 17 Folien, Programm-Stand: Agenda, Problem→Lösung, Bildschirmfotos, Kosten & Ersparnis, Kaufsoftware-Vergleich, Zukunftssicherheit, Ausblick (Stand 08.09.) |
 | [`doku/Werkstatt-Cockpit-Programm-Aufsetzen.pdf`](doku/Werkstatt-Cockpit-Programm-Aufsetzen.pdf) | **Aufsetz-Anleitung fürs Programm** – bebildert, mit allen Download-Adressen (4 Seiten, Stand 07.09.) |
 | [`doku/Werkstatt-Cockpit-Programmier-Regeln.pdf`](doku/Werkstatt-Cockpit-Programmier-Regeln.pdf) | **unsere Programmier-Regeln** – alle 19 im Projekt vereinbarten Regeln mit Anlass (Stand 08.09.) |
 | [`doku/Werkstatt-Cockpit-Workshop.pptx`](doku/Werkstatt-Cockpit-Workshop.pptx) | **Foliensatz für den Workshop am 26.08.** – Einführung für alle: 13 Folien mit Bildschirmfotos, Fakten, Quellen und Sprechernotizen |
@@ -121,12 +121,12 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 61 Härtetests
+bash tests/run-hardness-tests.sh           # 62 Härtetests
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/rollout-test.js                 # Verteilung: Paket, Dienst, Doku, Versionswechsel
-node tests/stress-15-jahre.js              # Messfahrt: 15 Jahrgänge, 36 000+ Einträge, 7 MB
+node tests/stress-15-jahre.js              # Messfahrt: 15 Jahrgänge à 4 500 Einträge (67 800+)
 node tests/veroeffentlichungs-test.js      # Veröffentlichung
 node tests/hardness/diagnose-ablauf.js     # die Diagnose-Seite selbst
 bash tests/pruefe-sicherung.sh             # Sicherungsskript (braucht PowerShell)
