@@ -538,8 +538,12 @@ auf denselben Dateien.
       und eingeplante, offene zuerst, Klick öffnet die Arbeit) und NEU
       „Störungen" (alle Berichte der Anlage mit Nummer, Ausfallzeit,
       Status und der offenen Restarbeit als „Zu tun"). Die Reiter tragen
-      Offen-Zähler. Gemessen im neuen harte-63 (14 Prüfungen; Suite
-      damit bei 62 Härtetests). (08.09.)
+      Offen-Zähler. DAZU (zweiter Wunsch am selben Tag) ein **Suchfeld in
+      der Akte**: filtert Historie, Arbeiten und Störungen über Text,
+      Datum, Nummer, Person und Status-Wort; Treffer-Zähler „X von Y",
+      ehrliche Kein-Treffer-Meldung, beim Öffnen einer anderen Akte
+      startet die Suche leer. Gemessen im neuen harte-63 (20 Prüfungen;
+      Suite damit bei 62 Härtetests). (08.09.)
 
 - [x] **Pinnwand-Bilder verschwinden nach dem App-Update (Robertos
       Meldung vom 08.09., „das darf nicht sein"):** Wurzel gemessen: Nach

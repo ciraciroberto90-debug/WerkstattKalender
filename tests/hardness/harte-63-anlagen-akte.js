@@ -122,7 +122,40 @@ async function start(browser, { leser = false } = {}) {
         /Zu tun:/.test(text) && /Dichtsatz bestellen und tauschen/.test(text));
   pruef("(A) Fremde Störungen (OF320) bleiben draußen", !/Gehört NICHT zur TS480/.test(text));
   pruef("(A) Ausfallzeit und Status stehen an der Zeile", /35 min/.test(text) && /Behoben/.test(text));
-  pruef("(B/A) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+
+  /* ---- (S) Die Suche in der Akte (Robertos Wunsch vom 08.09.) ---- */
+  const suche = p.locator('input[aria-label="In der Akte suchen"]');
+  pruef("(S) Das Suchfeld steht in der Akte", (await suche.count()) === 1);
+  await suche.fill("Dichtsatz");
+  await p.waitForTimeout(400);
+  text = await p.locator("body").innerText();
+  pruef("(S) „Dichtsatz“ lässt nur den offenen Bericht stehen",
+        /1 von 2 Störberichten/.test(text) && /2026-041/.test(text) && !/2026-033/.test(text));
+  await suche.fill("gibtsnicht-xyz");
+  await p.waitForTimeout(400);
+  pruef("(S) Kein Treffer wird ehrlich gemeldet",
+        /Nichts gefunden für „gibtsnicht-xyz“/.test(await p.locator("body").innerText()));
+  await suche.fill("");
+  await p.waitForTimeout(400);
+  pruef("(S) Leeres Feld zeigt wieder alles",
+        /2 Störbericht\(e\)/.test(await p.locator("body").innerText()));
+  // Das Suchwort filtert auch die Arbeiten - und wird beim Wechsel auf
+  // eine ANDERE Anlage verworfen (sonst filtert es unsichtbar weiter).
+  await suche.fill("Filter getauscht");
+  await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /^Arbeiten/ }).click();
+  await p.waitForTimeout(400);
+  text = await p.locator("body").innerText();
+  pruef("(S) Die Suche wirkt auch im Arbeiten-Reiter (1 von 2, nur die fertige)",
+        /1 von 2 Arbeiten/.test(text) && /Filter getauscht/.test(text) && !/Hydraulikaggregat prüfen/.test(text));
+  await p.locator('button[aria-label="Schließen"]').last().click();
+  await p.waitForTimeout(300);
+  await p.getByText("Wasserrundgang", { exact: true }).first().click();
+  await p.waitForTimeout(500);
+  pruef("(S) Beim Öffnen einer anderen Akte ist die Suche wieder leer",
+        (await p.locator('input[aria-label="In der Akte suchen"]').count()) === 0 ||
+        (await p.locator('input[aria-label="In der Akte suchen"]').inputValue().catch(() => "")) === "");
+  pruef("(B/A/S) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
   await ctx.close();
 
   console.log(`\nHärte 63 (Anlagen-Akte + PitStop-Begriffe): ${ok}/${ok + fail}`);

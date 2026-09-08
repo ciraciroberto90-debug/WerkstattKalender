@@ -1757,7 +1757,8 @@ function App() {
   /* ---- QoL-Runde 3 (Robertos "alles bis auf 8", 19.08.) ---- */
   const [exportMenuOffen, setExportMenuOffen] = useState(false);   // Herausgabe: JSON oder CSV
   const [nachbestellOffen, setNachbestellOffen] = useState(false); // Übersicht offener Nachbestellungen
-  const [registerTab, setRegisterTab] = useState("STECKBRIEF");    // Register-Dialog: Steckbrief | Historie
+  const [registerTab, setRegisterTab] = useState("STECKBRIEF");    // Register-Dialog: Steckbrief | Historie | Arbeiten | Störungen
+  const [akteSuche, setAkteSuche] = useState(""); // Suchwort in der Anlagen-Akte (Robertos Wunsch 08.09.)
   const [steckbriefDraft, setSteckbriefDraft] = useState(null);    // Bearbeitungsstand im Register-Dialog
 
   /* ---- Kreativ-Runde G1-G8 (Robertos "einführen", 19.08.) ---- */
@@ -5280,7 +5281,7 @@ function App() {
               <tr key={name}>
                 <td
                   style={{ padding: "2px 8px", fontWeight: 700, whiteSpace: "nowrap", borderRight: "1.5px solid #6B7280", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textDecorationColor: "#C3C7CB" }}
-                  onClick={() => setRegisterItem({ category, name })}
+                  onClick={() => { setAkteSuche(""); setRegisterItem({ category, name }); }}
                   title="Historie anzeigen"
                 >
                   {name}
@@ -5347,7 +5348,7 @@ function App() {
               <tr key={name}>
                 <td
                   style={{ padding: "3px 8px", fontWeight: 700, whiteSpace: "nowrap", borderRight: "1px solid #E2E4E7", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textDecorationColor: "#C3C7CB" }}
-                  onClick={() => setRegisterItem({ category, name })}
+                  onClick={() => { setAkteSuche(""); setRegisterItem({ category, name }); }}
                   title="Historie anzeigen"
                 >
                   {name}
@@ -12840,7 +12841,7 @@ function App() {
                   return (
                     <button
                       key={a.id}
-                      onClick={() => setRegisterItem({ category: "TPM", name: a.name })}
+                      onClick={() => { setAkteSuche(""); setRegisterItem({ category: "TPM", name: a.name }); }}
                       className="wk-hover flex items-center justify-between text-left px-3 py-2 rounded border"
                       style={{ borderColor: "#E2E4E7" }}
                     >
@@ -12865,7 +12866,7 @@ function App() {
                   return (
                     <button
                       key={r.id}
-                      onClick={() => setRegisterItem({ category: "RI", name: r.name })}
+                      onClick={() => { setAkteSuche(""); setRegisterItem({ category: "RI", name: r.name }); }}
                       className="wk-hover flex items-center justify-between text-left px-3 py-2 rounded border"
                       style={{ borderColor: "#E2E4E7" }}
                     >
@@ -12901,6 +12902,19 @@ function App() {
           .sort((a, b) => (a.offen ? 0 : 1) - (b.offen ? 0 : 1) || String(b.date).localeCompare(String(a.date)));
         const arbeitenOffenZahl = registerArbeiten.filter((a) => a.status !== "done").length;
         const stoerOffenZahl = registerStoer.filter((s) => s.offen).length;
+        // Die Suche filtert die drei Listen-Reiter über alle sichtbaren
+        // Felder - Datum, Text, Nummer, Person, Status-Wort.
+        const suchWort = akteSuche.trim().toLowerCase();
+        const trifft = (teile) => !suchWort || teile.join(" ").toLowerCase().includes(suchWort);
+        const historyGefiltert = historyEntries.filter((e) =>
+          trifft([formatDateDE(e.date), String(e.note || ""), e.status === "done" ? "gemacht" : "offen"]));
+        const arbeitenGefiltert = registerArbeiten.filter((a) =>
+          trifft([formatDateDE(a.date), String(a.note || ""), a.wer || "", a.status === "done" ? "fertig" : "offen"]));
+        const stoerGefiltert = registerStoer.filter((s) =>
+          trifft([formatDateDE(s.date), stoerNrLang(s), s.stoerung || "", s.nochZuTun || "", s.anlagenteil || "", s.getan || "", s.ursache || "", s.offen ? "offen" : "behoben"]));
+        const nichtsGefunden = (was) => (
+          <div className="text-xs italic text-slate-400 py-4">Nichts gefunden für „{akteSuche.trim()}“ – {was}.</div>
+        );
         return (
           <div
             className="no-print"
@@ -12938,6 +12952,17 @@ function App() {
                   </button>
                 ))}
               </div>
+
+              {registerTab !== "STECKBRIEF" && (
+                <input
+                  value={akteSuche}
+                  onChange={(ev) => setAkteSuche(ev.target.value)}
+                  placeholder="In der Akte suchen … (Text, Datum, Nummer, Person)"
+                  aria-label="In der Akte suchen"
+                  className="w-full text-sm border rounded px-2.5 py-1.5 mb-3"
+                  style={{ borderColor: "#D6D9DC" }}
+                />
+              )}
 
               {registerTab === "STECKBRIEF" && steckbriefDraft && (
                 <div className="flex flex-col gap-2">
@@ -13014,12 +13039,12 @@ function App() {
               )}
 
               {registerTab === "HISTORIE" && (<>
-              <div className="text-xs text-slate-400 mb-3">{historyEntries.length} Termin(e) insgesamt</div>
+              <div className="text-xs text-slate-400 mb-3">{suchWort ? `${historyGefiltert.length} von ${historyEntries.length} Terminen` : `${historyEntries.length} Termin(e) insgesamt`}</div>
               {historyEntries.length === 0 ? (
                 <div className="text-xs italic text-slate-400 py-4">Noch keine Einträge für diesen Punkt.</div>
-              ) : (
+              ) : historyGefiltert.length === 0 ? nichtsGefunden("kein Termin passt") : (
                 <div className="flex flex-col gap-1.5">
-                  {historyEntries.map((e) => (
+                  {historyGefiltert.map((e) => (
                     <div
                       key={e.id}
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded"
@@ -13035,12 +13060,12 @@ function App() {
               </>)}
 
               {registerTab === "ARBEITEN" && (<>
-              <div className="text-xs text-slate-400 mb-3">{registerArbeiten.length} Arbeit(en) · {arbeitenOffenZahl} offen</div>
+              <div className="text-xs text-slate-400 mb-3">{suchWort ? `${arbeitenGefiltert.length} von ${registerArbeiten.length} Arbeiten` : `${registerArbeiten.length} Arbeit(en) · ${arbeitenOffenZahl} offen`}</div>
               {registerArbeiten.length === 0 ? (
                 <div className="text-xs italic text-slate-400 py-4">Keine Arbeiten (Backlog oder eingeplant) zu dieser Anlage.</div>
-              ) : (
+              ) : arbeitenGefiltert.length === 0 ? nichtsGefunden("keine Arbeit passt") : (
                 <div className="flex flex-col gap-1.5">
-                  {registerArbeiten.map((a) => (
+                  {arbeitenGefiltert.map((a) => (
                     <button
                       key={a.id}
                       onClick={() => { if (!readerMode) openArbeitEdit(a); }}
@@ -13061,12 +13086,12 @@ function App() {
               </>)}
 
               {registerTab === "STOERUNGEN" && (<>
-              <div className="text-xs text-slate-400 mb-3">{registerStoer.length} Störbericht(e) · {stoerOffenZahl} offen</div>
+              <div className="text-xs text-slate-400 mb-3">{suchWort ? `${stoerGefiltert.length} von ${registerStoer.length} Störberichten` : `${registerStoer.length} Störbericht(e) · ${stoerOffenZahl} offen`}</div>
               {registerStoer.length === 0 ? (
                 <div className="text-xs italic text-slate-400 py-4">Keine Störberichte zu dieser Anlage.</div>
-              ) : (
+              ) : stoerGefiltert.length === 0 ? nichtsGefunden("kein Bericht passt") : (
                 <div className="flex flex-col gap-1.5">
-                  {registerStoer.map((s) => (
+                  {stoerGefiltert.map((s) => (
                     <div key={s.id} className="px-2.5 py-1.5 rounded" style={{ backgroundColor: s.offen ? "#FBE9E7" : "#F5F7FA" }}>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-mono font-bold shrink-0" style={{ color: s.offen ? "#B23A34" : "#5B6572", minWidth: "78px" }}>{formatDateDE(s.date)}</span>
