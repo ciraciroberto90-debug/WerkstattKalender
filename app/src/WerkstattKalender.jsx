@@ -5786,8 +5786,8 @@ function App() {
         const farbe = schicht ? SCHICHTEN[schicht] : null;
         const arbeiten = abwesend ? "" : geplantFuer(person, t.key)
           .map((a) => (a.status === "done"
-            ? chip(`✓ ${escapeHtml(a.name)}: ${escapeHtml(a.note)}`, "#2F7D4F", "#E5F3EA")
-            : chip(`${escapeHtml(a.name)}: ${escapeHtml(a.note)}`, a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color, "white"))).join("");
+            ? chip(`✓ ${escapeHtml(a.name)}: ${escapeHtml(a.note || "")}`, "#2F7D4F", "#E5F3EA")
+            : chip(`${escapeHtml(a.name)}: ${escapeHtml(a.note || "")}`, a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color, "white"))).join("");
         const notizen = abwesend ? "" : notizenFuer(person, t.key)
           .map((n) => chip(`📝 ${escapeHtml(n.note)}`, "#8A7A1E", "#FEF9C3")).join("");
         const inhalt = abwesend
@@ -8860,6 +8860,10 @@ function App() {
                                       {geplantFuer(person, t.key).map((a) => {
                                         const done = a.status === "done";
                                         const c = done ? "#2F7D4F" : a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
+                                        // Bestände von außen (Import, alte Fassungen) können ohne
+                                        // note kommen - EIN solcher Eintrag darf nicht die ganze
+                                        // Planung umreißen (gemessen am 07.09.: weiße Fehlerseite).
+                                        const notiz = String(a.note || "");
                                         return (
                                           <button
                                             key={a.id}
@@ -8868,9 +8872,9 @@ function App() {
                                             onDragStart={(ev) => { if (done) return; ev.dataTransfer.setData("text/wk-arbeit", a.id); ev.dataTransfer.effectAllowed = "move"; }}
                                             className="rounded font-bold text-left"
                                             style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}14`, wordBreak: "break-word", cursor: readerMode || done ? "pointer" : "grab" }}
-                                            title={done ? `${a.note} – erledigt gemeldet` : a.note + (readerMode ? "" : " – zum Umplanen auf eine andere Zeile ziehen")}
+                                            title={done ? `${notiz} – erledigt gemeldet` : notiz + (readerMode ? "" : " – zum Umplanen auf eine andere Zeile ziehen")}
                                           >
-                                            {done ? "✓ " : ""}{a.name}: {a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}
+                                            {done ? "✓ " : ""}{a.name}{notiz ? ": " : ""}{notiz.length > 60 ? notiz.slice(0, 60) + "…" : notiz}
                                           </button>
                                         );
                                       })}
@@ -8883,7 +8887,7 @@ function App() {
                                           style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: "#39414B", border: "1px solid #E5D77A", backgroundColor: "#FEF9C3", wordBreak: "break-word", cursor: readerMode ? "default" : "pointer" }}
                                           title={n.note}
                                         >
-                                          📝 {n.note.length > 60 ? n.note.slice(0, 60) + "…" : n.note}
+                                          📝 {String(n.note || "").length > 60 ? String(n.note || "").slice(0, 60) + "…" : String(n.note || "")}
                                         </button>
                                       ))}
                                       {!abwesend && !readerMode && (
@@ -9208,7 +9212,7 @@ function App() {
                         >
                           <span style={{ display: "inline-block", width: "9px", height: "9px", borderRadius: "50%", backgroundColor: prio.color, flexShrink: 0 }} />
                           <strong style={{ whiteSpace: "nowrap" }}>{a.name}</strong>
-                          <span className="flex-1" style={{ color: "#39414B" }}>{a.note.length > 60 ? a.note.slice(0, 60) + "…" : a.note}</span>
+                          <span className="flex-1" style={{ color: "#39414B" }}>{String(a.note || "").length > 60 ? String(a.note || "").slice(0, 60) + "…" : String(a.note || "")}</span>
                           {a.azubi ? <span title="Azubi-geeignet">🎓</span> : null}
                           {belegt && <span className="font-mono" style={{ fontSize: "0.62rem", color: "#B8791F" }} title="bereits eingeplant - wird umgeplant">{a.wer} · {formatDateDE(a.geplant)}</span>}
                         </button>

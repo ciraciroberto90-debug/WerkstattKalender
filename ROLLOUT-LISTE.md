@@ -519,6 +519,37 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Planung übersteht Bestände ohne note-Feld (Fund vom 07.09. beim
+      Bebildern der Präsentation):** EINE eingeplante Arbeit ohne
+      note-Feld (möglich über Import oder fremde/alte Fassungen - die
+      App selbst schreibt note immer als Text) ließ die komplette
+      Planung auf die Fehlerseite „Etwas ist schiefgelaufen" laufen;
+      dasselbe Muster steckte im Backlog-Fenster und im
+      Einplanen-Wähler. Alle Stellen abgesichert (leere Notiz statt
+      Absturz), Wochen-Druck zeigt statt „undefined" nichts.
+      Gegenprobe nach Hausregel: harte-52 (N) ist gegen den Build ohne
+      den Fix rot, mit Fix 24/24. (07.09.)
+
+- [x] **Vorstellung und Aufsetz-Anleitung neu (Robertos Auftrag vom
+      07.09.):** `doku/Werkstatt-Cockpit-Vorstellung.pptx` komplett auf
+      den Programm-Stand gebracht - 16 Folien: Agenda, Problemdarstellung
+      → Lösung (Transparenz, Zahlen/Diagramme, jeder Mitarbeiter wird
+      abgeholt), frische Bildschirmfotos (07.09., Demo-Daten), Kosten &
+      Ersparnis, ehrlicher Kaufsoftware-Vergleich (Licht und Schatten
+      beider Wege), Daten-Zukunftssicherheit als Hochrechnung auf
+      Robertos Jahresrate von 4.500 Einträgen (gemessene Messfahrt
+      36.000+ ≈ 8 Werkstatt-Jahre) mit zwei Gegensteuerungs-Beispielen,
+      Ausblick (Ersatzteile/Einkauf), Einstieg über die Master-Kopie;
+      Browser-Welt komplett raus. Der Langzeit-Generator
+      (tools/langzeit-daten.js) ist auf die 4.500er-Rate hochgestellt -
+      die NÄCHSTE Stress-Messfahrt spielt 67.811 Einträge durch (Rate
+      gemessen, Lauf auf Robertos Zuruf). NEU dazu
+      `doku/Werkstatt-Cockpit-Programm-Aufsetzen.pdf`: bebilderte
+      4-Seiten-Anleitung für Laien (Fall A: Master-Kopie in drei
+      Schritten; Fall B: Downloads mit kopierbaren Adressen - alle drei
+      Links am 07.09. Byte-genau gegen die Ablage gemessen -,
+      Zusammenfügen, Vorbelegung, Fehlertabelle). (07.09.)
+
 - [x] **Druckdialog aufgeräumt (Robertos Ansage vom 07.09.):** Zwei Dinge.
       Erstens ist das separate **Jahres-Diagramm entfallen** - der freie
       Zeitraum Jan-Dez liefert dasselbe Blatt plus die

@@ -220,6 +220,43 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     await ctx.close();
   }
 
+  /* ---- (N) Bestand ohne note-Feld reißt die Planung nicht um ----
+     Gemessen am 07.09. VOR dem Fix: EINE eingeplante Arbeit ohne note
+     (Import, alte oder fremde Fassung - die App selbst schreibt note
+     immer als Text) ließ die komplette Planung auf die Fehlerseite
+     "Etwas ist schiefgelaufen" laufen. Ohne den Fix ist (N) rot. */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
+    const p = await ctx.newPage();
+    const fehler = [];
+    p.on("pageerror", (e) => fehler.push(e.message));
+    await p.clock.setFixedTime(new Date("2026-08-24T10:00:00"));
+    await p.addInitScript(({ e, c }) => {
+      delete window.showOpenFilePicker; delete window.showSaveFilePicker;
+      localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(e));
+      localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
+    }, { e: [
+      // Bewusst OHNE note: eingeplant, im Backlog und als Plan-Notiz-Nachbar.
+      { id: "on-1", date: "2026-08-20", category: "ARBEIT", name: "TS480", status: "open", prio: "hoch", art: "mech", wer: "M. Weber", geplant: "2026-08-24" },
+      { id: "on-2", date: "2026-08-20", category: "ARBEIT", name: "OF320", status: "open", prio: "mittel", art: "elek" },
+    ], c: config });
+    await p.goto(APP);
+    await p.waitForTimeout(1000);
+    await p.getByRole("button", { name: "Planung", exact: true }).first().click();
+    await p.waitForTimeout(900);
+    pruef("(N) Eine eingeplante Arbeit OHNE note zeigt die Planung trotzdem",
+          (await p.locator("text=Etwas ist schiefgelaufen").count()) === 0 &&
+          /TS480/.test(await p.locator('td[data-planzelle="M. Weber|2026-08-24"]').innerText().catch(() => "")),
+          fehler.slice(0, 1).join(" | "));
+    await p.getByRole("button", { name: /📋 Backlog/ }).click();
+    await p.waitForTimeout(700);
+    pruef("(N) Auch das Backlog-Fenster übersteht den note-losen Eintrag",
+          (await p.locator("text=Etwas ist schiefgelaufen").count()) === 0 &&
+          /OF320/.test(await p.locator("body").innerText()));
+    pruef("(N) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+    await ctx.close();
+  }
+
   console.log(`\nHärte 52 (Schwebe-Fenster + Planung): ${ok}/${ok + fail}`);
   await browser.close();
   process.exit(fail ? 1 : 0);

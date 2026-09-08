@@ -101,6 +101,41 @@ function baueBestand({ von = "2019-07-01", bis = "2026-07-28" } = {}) {
     });
   });
 
+  // Robertos Ansage vom 07.09.2026: Ein volles Werkstatt-Jahr sind rund
+  // 4.500 Einträge - deutlich mehr, als die Taktgeber oben erzeugen.
+  // Der Bestand wird deshalb je Kalenderjahr deterministisch mit kleinen
+  // Zusatz-Arbeiten aufgefüllt, bis die Jahresrate erreicht ist. So misst
+  // die nächste Stress-Messfahrt das echte Tempo (15 Jahrgänge ≈ 67.500).
+  const JE_JAHR = 4500;
+  const jeJahr = new Map();
+  entries.forEach((e) => {
+    const j = String(e.date).slice(0, 4);
+    jeJahr.set(j, (jeJahr.get(j) || 0) + 1);
+  });
+  const tageJeJahr = new Map();
+  for (const tag of werktage(von, bis)) {
+    const j = tag.slice(0, 4);
+    if (!tageJeJahr.has(j)) tageJeJahr.set(j, []);
+    tageJeJahr.get(j).push(tag);
+  }
+  // Nur volle Jahrgänge auffüllen - ein angebrochenes Jahr (z. B. bis Juli)
+  // bekommt seinen Anteil, sonst wäre die Rate am Rand geschönt.
+  for (const [jahr, tage] of tageJeJahr) {
+    const anteil = tage.length / 261; // 261 ≈ Werktage eines vollen Jahres
+    const soll = Math.round(JE_JAHR * anteil);
+    let fehlt = soll - (jeJahr.get(jahr) || 0);
+    for (let k = 0; fehlt > 0; k++, fehlt--) {
+      const tag = tage[k % tage.length];
+      const a = ANLAGEN[streu("extra" + tag + k) % ANLAGEN.length];
+      entries.push({
+        id: `arbeit-extra|${tag}|${k}`, date: tag, category: "ARBEIT",
+        name: `${a}: ${TEILE[streu(tag + k) % TEILE.length]} nachgestellt`,
+        gewerk: GEWERKE[k % 2], status: k % 9 === 0 ? "open" : "done",
+        updatedAt: stempel(tag, 11),
+      });
+    }
+  }
+
   return { team: TEAM, entries };
 }
 
