@@ -263,7 +263,66 @@ const pruef = (n, c, zusatz) => {
         && (await p.locator('input[placeholder^="z. B. 2026-"]').inputValue()) === "2026-0002");
   await p.getByRole("button", { name: "Abbrechen", exact: true }).click();
 
-  pruef("(Z1-Z10) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+  /* ---- (Z12) ikom-Import über den Knopf im ⚙ (Verlauf & Sicherung) ----
+     Kein Node, keine Kommandozeile - Datei wählen, Bilanz lesen, übernehmen.
+     Und: dieselbe Datei ZWEIMAL einlesen darf keine Doppel erzeugen. */
+  const os = require("os");
+  const path = require("path");
+  const feld = (k, v) => `${k}:  ${v}\r\n`;
+  const doc1 = feld("VorgangsID", "TESTVID001") + feld("SDatum", "15.03.2026 08:30:00") + feld("Schicht", "Früh")
+    + feld("Maschine", "TS 480 ADL 2032002") + feld("ST_Code", "1052 Mechanische Reparatur")
+    + feld("ST_Beschreibung", "Drehkreuz nimmt keine Töpfe") + feld("ST_Ursache", "Schlauch ab")
+    + feld("SF_Maßnahme", "montiert") + feld("ST_Status", "OK") + feld("Bemerkung", "Balles")
+    + feld("LFDNR", "30001") + feld("Ausfallzeit", "20");
+  const doc2 = feld("VorgangsID", "TESTVID002") + feld("SDatum", "16.03.2026 14:10:00") + feld("Schicht", "Spät")
+    + feld("Maschine", "Masseaufbereitung 20306") + feld("ST_Code", "1051 Elektrische Reparatur")
+    + feld("ST_Beschreibung", "Waage flackert") + feld("ST_Status", "OK") + feld("Bemerkung", "Wiesner")
+    + feld("LFDNR", "30002") + feld("Ausfallzeit", "10")
+    + feld("zeArt", "Reparatur") + feld("zeDauer", "1,50") + feld("zeNotizen", "Kabel getauscht") + feld("Mitarbeiter", "Wiesner Jan");
+  const doc3 = feld("VorgangsID", "TESTVID003") + feld("SDatum", "17.03.2026 22:05:00") + feld("Schicht", "Nacht")
+    + feld("Maschine", "VSM2 20326") + feld("ST_Code", "5005 Sonstiges (bitte mit Erläuterung)")
+    + feld("ST_Beschreibung", "Band schief") + feld("ST_Status", "IBWB") + feld("Bemerkung", "Ott")
+    + feld("LFDNR", "30003");
+  const fixture = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ikom-")), "ikom-export.txt");
+  fs.writeFileSync(fixture, Buffer.from(doc1 + "\f" + doc2 + "\f" + doc3, "latin1"));
+
+  await p.locator('button[aria-label="Verwalten"]').click();
+  await p.waitForTimeout(500);
+  await p.getByRole("button", { name: "Verlauf & Sicherung", exact: true }).click();
+  await p.waitForTimeout(400);
+  await p.locator('input[aria-label="ikom-Export wählen"]').setInputFiles(fixture);
+  await p.waitForTimeout(500);
+  const bilanz1 = await p.getByText(/Dokumente gelesen/).textContent().catch(() => "");
+  pruef("(Z12) Die Bilanz vor dem Übernehmen stimmt (3 Berichte, 1 Zeit-Buchung)",
+        /3 Dokumente gelesen/.test(bilanz1) && /3.*neue Störberichte/.test(bilanz1) && /1.*neue Zeit-Buchungen/.test(bilanz1),
+        (bilanz1 || "keine Bilanz").trim().slice(0, 100));
+  p.once("dialog", (d) => d.accept());
+  await p.getByRole("button", { name: "Übernehmen", exact: true }).click();
+  await p.waitForTimeout(800);
+  const stoerNachher = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-stoerungen-entries")));
+  const zeitNachher = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-kalender-entries")));
+  const alt1 = stoerNachher.find((s) => s.id === "ikom-TESTVID001");
+  const altZeit = zeitNachher.find((e) => e.id === "ikom-zeit-TESTVID002");
+  const alt3 = stoerNachher.find((s) => s.id === "ikom-TESTVID003");
+  pruef("(Z12) Die Alt-Berichte stehen richtig in der Störungs-Datei (Umlaute, Gewerk, Status)",
+        !!alt1 && alt1.stoerung === "Drehkreuz nimmt keine Töpfe" && alt1.gewerk === "mech" && alt1.offen === false
+        && alt1.nr === "30001" && alt1.melder === "Balles" && !!alt3 && alt3.offen === true,
+        alt1 ? `${alt1.stoerung} | ${alt1.gewerk}` : "fehlt");
+  pruef("(Z12) Die Zeit-Buchung daraus trägt Kostenstelle samt Nummer",
+        !!altZeit && altZeit.name === "Wiesner Jan" && altZeit.ks === "Masseaufbereitung" && altZeit.ksNr === "20306"
+        && altZeit.stunden === 1.5 && altZeit.stoerNr === "30002",
+        altZeit ? `${altZeit.name} | ${altZeit.ks} (${altZeit.ksNr}) | ${altZeit.stunden}` : "fehlt");
+  // Dieselbe Datei nochmal: Bilanz muss "0 neue" zeigen, nichts wächst.
+  await p.locator('input[aria-label="ikom-Export wählen"]').setInputFiles(fixture);
+  await p.waitForTimeout(500);
+  const bilanz2 = await p.getByText(/Dokumente gelesen/).textContent().catch(() => "");
+  const stoerDanach = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-stoerungen-entries")));
+  pruef("(Z12) Zweimal einlesen erzeugt KEINE Doppel",
+        /0.*neue Störberichte/.test(bilanz2) && /0.*neue Zeit-Buchungen/.test(bilanz2)
+        && stoerDanach.length === stoerNachher.length,
+        (bilanz2 || "").trim().slice(0, 90));
+
+  pruef("(Z1-Z12) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
   console.log(`\nHärte 66 (Zeiterfassung): ${ok}/${ok + fail}`);
   await browser.close();
   process.exit(fail ? 1 : 0);

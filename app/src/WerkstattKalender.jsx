@@ -1429,6 +1429,109 @@ function normalisiereKostenstellen(roh) {
 // Anzeigename einer Kostenstelle - so steht sie in Auswahl, Liste und Export.
 const ksAnzeige = (k) => (k.nr ? `${k.name} (${k.nr})` : k.name);
 
+/* ---------- Einleser für die ALTE ikom-Datenbank (Lotus Notes) ----------
+   Robertos Wissensdatenbank: Der "Structured Text"-Export (Latin-1, ein
+   Formfeed trennt die Dokumente, jede Zeile "Feld:  Wert") wird verlustfrei
+   übernommen. Gemessen am echten Export vom 09.09. (2.787 Dokumente):
+   keine Fortsetzungszeilen, keine Doppelfelder, VorgangsID 100 % eindeutig.
+   Jedes Dokument wird ein EIGENER Störbericht - die alte LFDNR wurde dort
+   nachweislich wiederverwendet (dieselbe Nummer für verschiedene
+   Störungen), Zusammenlegen würde Wissen zerstören. Dokumente mit
+   Zeit-Feldern (zeDauer + Mitarbeiter) erzeugen ZUSÄTZLICH einen
+   Zeiterfassungs-Eintrag; die Kostenstelle steckt im Maschinen-Feld
+   ("B3 Be- und Entladeanlage 2036223" = Name + Nummer).
+   Dieselbe Logik liegt als Kommandozeilen-Werkzeug in tools/ikom-import.js. */
+function leseIkomExport(text) {
+  const datumISO = (s) => {
+    const m = String(s || "").match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?/);
+    if (!m) return null;
+    return { tag: `${m[3]}-${m[2]}-${m[1]}`, iso: `${m[3]}-${m[2]}-${m[1]}T${m[4] || "00"}:${m[5] || "00"}:${m[6] || "00"}.000Z` };
+  };
+  const maschineZerlegen = (s) => {
+    const m = String(s || "").trim().match(/^(.*?)\s+(\d{4,})$/);
+    return m ? { name: m[1].trim(), nr: m[2] } : { name: String(s || "").trim(), nr: "" };
+  };
+  const gewerkAus = (code) => {
+    const c = String(code || "").toLowerCase();
+    if (c.includes("elektrisch")) return "elek";
+    if (c.includes("mechanisch")) return "mech";
+    return "";
+  };
+  const fehlerartAus = (code) => {
+    const c = String(code || "").toLowerCase();
+    if (c.includes("elektrisch")) return "Elektrisch";
+    if (c.includes("mechanisch")) return "Mechanisch";
+    if (c.includes("steuerung") || c.includes("software")) return "Steuerung/Software";
+    return c ? "Sonstiges" : "";
+  };
+  const stundenZahl = (s) => {
+    const n = Number(String(s || "").replace(".", "").replace(",", "."));
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+  };
+  const letzterSessionStempel = (d) => {
+    const teile = String(d.SessionTimes || "").split(",").map((t) => datumISO(t.trim())).filter(Boolean);
+    return teile.length ? teile[teile.length - 1].iso : null;
+  };
+
+  const docs = [];
+  let unlesbar = 0;
+  String(text || "").split("\f").forEach((b) => {
+    const felder = {};
+    b.split(/\r?\n/).forEach((z) => {
+      const m = z.match(/^([A-Za-z_$][^:]*):\s\s?(.*)$/);
+      if (m) felder[m[1]] = m[2].trim();
+    });
+    if (Object.keys(felder).length > 3) docs.push(felder);
+    else if (b.trim()) unlesbar++;
+  });
+
+  const stoer = [], zeit = [], uebersprungen = [];
+  docs.forEach((d, i) => {
+    const sd = datumISO(d.SDatum) || datumISO(d.DocCreated);
+    if (!sd) { uebersprungen.push({ grund: "kein lesbares Datum", VorgangsID: d.VorgangsID || "?", block: i }); return; }
+    const kennung = d.VorgangsID || `ohne-vorgangsid-${i}`;
+    const masch = maschineZerlegen(d.Maschine);
+    const offen = String(d.ST_Status || "").toUpperCase() !== "OK";
+    const schicht = ["Früh", "Spät", "Nacht"].includes(d.Schicht) ? d.Schicht : "Früh";
+    stoer.push({
+      id: `ikom-${kennung}`,
+      nr: String(d.LFDNR || ""),
+      date: sd.tag, schicht,
+      anlage: masch.name, anlagenteil: String(d.zeAnlagenteil || ""),
+      gewerk: gewerkAus(d.ST_Code), fehlerart: fehlerartAus(d.ST_Code),
+      stoerung: String(d.ST_Beschreibung || ""),
+      ursache: String(d.ST_Ursache || ""),
+      getan: String(d["SF_Maßnahme"] || ""),
+      nochZuTun: offen ? String(d["ST_Maßnahme"] || "") : "",
+      ersatzteile: "", nachbestellt: false,
+      ausfallzeit: Math.max(0, Math.round(Number(d.Ausfallzeit) || 0)),
+      melder: String(d.Bemerkung || ""),
+      offen,
+      gemeldetAt: sd.iso,
+      behobenAt: offen ? null : (letzterSessionStempel(d) || sd.iso),
+      altSystem: { vorgangsId: d.VorgangsID || "", lfdnr: String(d.LFDNR || ""), stCode: String(d.ST_Code || ""), status: String(d.ST_Status || ""), anlageBereich: String(d.Anlage || ""), werk: String(d.Werk || "") },
+    });
+    const dauer = stundenZahl(d.zeDauer);
+    if (dauer && d.Mitarbeiter) {
+      zeit.push({
+        id: `ikom-zeit-${kennung}`,
+        category: "ZEIT", art: "arbeit",
+        date: sd.tag, schicht,
+        name: String(d.Mitarbeiter).trim(),
+        ks: masch.name, ksNr: masch.nr,
+        taetigkeit: [String(d.zeArt || "").trim(), String(d.zeNotizen || "").trim()].filter(Boolean).join(" – "),
+        stunden: dauer,
+        bemerkung: "",
+        stoerNr: String(d.LFDNR || ""),
+        altSystem: { vorgangsId: d.VorgangsID || "" },
+      });
+    } else if ((d.zeDauer && !dauer) || (dauer && !d.Mitarbeiter)) {
+      uebersprungen.push({ grund: "Zeit-Felder unvollständig - Störbericht übernommen, Zeit-Buchung nicht", VorgangsID: d.VorgangsID || "?" });
+    }
+  });
+  return { stoer, zeit, uebersprungen, gesamt: docs.length, unlesbar };
+}
+
 const STATUS_COLORS = {
   done: { bg: "#E5F3EA", fg: "#2F7D4F" },
   open: { bg: "#FBE9E7", fg: "#B23A34" },
@@ -1998,6 +2101,10 @@ function App() {
   const [zeitAnsicht, setZeitAnsicht] = useState("liste"); // "liste" | "summen" (Jahres-Summen je Kostenstelle)
   const [zeitJahr, setZeitJahr] = useState(() => new Date().getFullYear());
   const [zeitFehler, setZeitFehler] = useState(null);
+  // ikom-Import (⚙ -> Verlauf & Sicherung): Vorschau-Bilanz vor dem Übernehmen
+  const [ikomVorschau, setIkomVorschau] = useState(null); // null | {dateiname, gesamt, unlesbar, uebersprungen, neuStoer, neuZeit, schonDa}
+  const [ikomMeldung, setIkomMeldung] = useState(null);
+  const ikomInputRef = useRef(null);
 
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
   useEffect(() => {
@@ -3974,6 +4081,62 @@ function App() {
       .map(([k, stunden]) => { const [name, nr] = k.split("|"); return { name, nr, stunden: Math.round(stunden * 100) / 100 }; })
       .sort((a, b) => a.name.localeCompare(b.name, "de"));
   };
+  /* ---------- ikom-Alt-Daten einlesen (⚙ -> Verlauf & Sicherung) ----------
+     Kein Node, keine Kommandozeile - die Werkstatt wählt einfach die
+     Export-Datei. Erst kommt eine Vorschau-BILANZ (übernommen = im Export,
+     nichts verschwindet still), übernommen wird auf Klick. Zweimal dieselbe
+     Datei einlesen erzeugt KEINE Doppel: die ikom-VorgangsID steckt in der
+     Eintrags-Kennung, Vorhandenes wird erkannt und ausgelassen. */
+  const ikomDateiGewaehlt = async (ev) => {
+    const datei = ev.target.files && ev.target.files[0];
+    ev.target.value = ""; // dieselbe Datei darf gleich nochmal gewählt werden
+    if (!datei) return;
+    try {
+      // Latin-1: So schreibt Lotus Notes den Export (gemessen am 09.09.).
+      const text = new TextDecoder("latin1").decode(await datei.arrayBuffer());
+      const erg = leseIkomExport(text);
+      if (erg.gesamt === 0) {
+        setIkomVorschau(null);
+        setIkomMeldung(`„${datei.name}" enthält keine lesbaren ikom-Dokumente. Bitte den Structured-Text-Export wählen (nicht CSV - der enthält nur die Ansichts-Spalten).`);
+        return;
+      }
+      const stoerIds = new Set(stoerungen.map((s) => s.id));
+      const zeitIds = new Set(entries.map((x) => x.id));
+      const neuStoer = erg.stoer.filter((s) => !stoerIds.has(s.id));
+      const neuZeit = erg.zeit.filter((z) => !zeitIds.has(z.id));
+      setIkomVorschau({
+        dateiname: datei.name, gesamt: erg.gesamt, unlesbar: erg.unlesbar,
+        uebersprungen: erg.uebersprungen, neuStoer, neuZeit,
+        schonDa: (erg.stoer.length - neuStoer.length) + (erg.zeit.length - neuZeit.length),
+      });
+      setIkomMeldung(null);
+    } catch (e) {
+      setIkomVorschau(null);
+      setIkomMeldung("Die Datei ließ sich nicht lesen: " + String(e && e.message));
+    }
+  };
+  const ikomUebernehmen = async () => {
+    const v = ikomVorschau;
+    if (!v || (v.neuStoer.length === 0 && v.neuZeit.length === 0)) return;
+    if (!window.confirm(
+      `Aus „${v.dateiname}" werden übernommen:\n\n` +
+      `${v.neuStoer.length} Störberichte\n${v.neuZeit.length} Zeit-Buchungen\n\n` +
+      `Bereits Vorhandenes bleibt unangetastet. Fortfahren?`)) return;
+    let ok = true;
+    if (v.neuStoer.length > 0) {
+      // Alt vor Neu - die Liste sortiert ohnehin nach Datum.
+      const nach = await persistStoer([...v.neuStoer, ...stoerungen]);
+      ok = ok && Array.isArray(nach);
+    }
+    if (v.neuZeit.length > 0) {
+      ok = (await persist([...entries, ...v.neuZeit])) && ok;
+    }
+    setIkomMeldung(ok
+      ? `Übernommen aus „${v.dateiname}": ${v.neuStoer.length} Störberichte, ${v.neuZeit.length} Zeit-Buchungen.`
+      : "Übernahme unvollständig - bitte Meldungen oben beachten und die Datei später erneut einlesen (Vorhandenes wird dabei nicht doppelt).");
+    setIkomVorschau(null);
+  };
+
   const exportZeitCsv = (jahr) => {
     const summen = zeitSummen(jahr);
     const zeilen = summen.map((z) => [z.name, z.nr, zeitStundenText(z.stunden)].map(csvZelle).join(";"));
@@ -12862,6 +13025,49 @@ function App() {
             </>)}
 
             {settingsTab === "pflege" && (<>
+            {/* ikom-Alt-Daten (09.09.): Die alte Datenbank ist die
+                Wissensdatenbank der Werkstatt - Einlesen direkt in der App,
+                ohne Kommandozeile (Grundregel "Keine IT nötig"). */}
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Alte ikom-Datenbank einlesen (Störberichte &amp; Zeiterfassungen)</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Nimmt den <b>Structured-Text-Export</b> aus dem alten Programm (Ansicht aufklappen → Strg+A → Datei → Exportieren → Structured Text).
+              Vor dem Übernehmen kommt eine Bilanz; zweimal einlesen erzeugt keine Doppel.
+            </div>
+            {stoerDarfSchreiben && !readerMode ? (
+              <>
+                <input ref={ikomInputRef} type="file" accept=".txt,.text,text/plain" style={{ display: "none" }} aria-label="ikom-Export wählen" onChange={ikomDateiGewaehlt} />
+                <button onClick={() => { if (ikomInputRef.current) ikomInputRef.current.click(); }}
+                  className="text-xs font-bold text-white rounded px-3 py-2 mb-2" style={{ backgroundColor: "#2F6690" }}>
+                  ikom-Export einlesen …
+                </button>
+                {ikomVorschau && (
+                  <div className="rounded-lg px-3 py-2 mb-2" style={{ backgroundColor: "#EEF3F8", border: "1px solid #C9D8E4" }}>
+                    <div className="text-xs font-bold mb-1" style={{ color: "#22436B" }}>Bilanz für „{ikomVorschau.dateiname}"</div>
+                    <div className="text-xs" style={{ color: "#39414B" }}>
+                      {ikomVorschau.gesamt} Dokumente gelesen → <b>{ikomVorschau.neuStoer.length}</b> neue Störberichte, <b>{ikomVorschau.neuZeit.length}</b> neue Zeit-Buchungen.
+                      {ikomVorschau.schonDa > 0 && <> {ikomVorschau.schonDa} sind schon da und bleiben unangetastet.</>}
+                      {ikomVorschau.uebersprungen.length > 0 && <> <b style={{ color: "#B23A34" }}>{ikomVorschau.uebersprungen.length} übersprungen</b> ({ikomVorschau.uebersprungen[0].grund}).</>}
+                      {ikomVorschau.unlesbar > 0 && <> <b style={{ color: "#B23A34" }}>{ikomVorschau.unlesbar} unlesbare Blöcke!</b></>}
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={ikomUebernehmen}
+                        disabled={ikomVorschau.neuStoer.length === 0 && ikomVorschau.neuZeit.length === 0}
+                        className="text-xs font-bold text-white rounded px-3 py-1.5"
+                        style={{ backgroundColor: ikomVorschau.neuStoer.length || ikomVorschau.neuZeit.length ? "#1F7A3D" : "#B7BEC6" }}>
+                        Übernehmen
+                      </button>
+                      <button onClick={() => setIkomVorschau(null)} className="text-xs font-bold rounded px-3 py-1.5 bg-slate-100 text-slate-500">Verwerfen</button>
+                    </div>
+                  </div>
+                )}
+                {ikomMeldung && <div className="text-xs mb-2 font-semibold" style={{ color: "#2F6690" }}>{ikomMeldung}</div>}
+              </>
+            ) : (
+              <div className="text-xs italic mb-2" style={{ color: "#C3C7CB" }}>
+                Zum Einlesen braucht dieser Rechner Schreibrecht auf beide Datendateien.
+              </div>
+            )}
+
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Sicherungen (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Bei jedem Speichern wird der Stand hier zusätzlich lokal gesichert - falls doch mal etwas schiefgeht, kannst du eine frühere Version wiederherstellen.

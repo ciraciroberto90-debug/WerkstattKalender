@@ -519,21 +519,28 @@ auf denselben Dateien.
 
 ## Alt-Daten aus dem ikom-ZE übernehmen (Robertos Frage vom 09.09.)
 
-- [ ] **Import alter Störberichte und Zeiterfassungen bauen - wartet auf
-      Probedateien von Roberto.** Der alte Export-Dialog (Lotus Notes)
-      bietet .ics / Comma Separated Value / Structured Text / Tabular
-      Text. Wichtig zu wissen: **CSV exportiert nur die Spalten der
-      gerade offenen ANSICHT** (in „Nach Mitarbeiter" z. B. nur
-      Tag/Maschine/Art der Arbeit - Stunden und Kostenstellen-Nummern
-      könnten fehlen), **Structured Text exportiert die Dokument-Felder
-      mit Feldnamen** und ist vermutlich vollständiger. Deshalb: je eine
-      KLEINE Probedatei in beiden Formaten (eine Woche oder ein
-      Mitarbeiter genügt; vor dem Export alle gewünschten Dokumente in
-      der Ansicht markieren, Notes exportiert sonst nur Markiertes).
-      Danach wird der Importer als Werkzeug in tools/ gebaut - mit
-      Härtetest gegen die echten Probedateien, erst dann der
-      Massenimport. Nichts wird zugesagt, bevor es an echten Dateien
-      gemessen ist.
+- [ ] **Von Roberto: Structured-Text-Export der großen
+      Zeiterfassungs-Datenbank** (gleicher Weg wie beim
+      Störbericht-Export: Ansicht aufklappen → Strg+A → Datei →
+      Exportieren → Structured Text; bei der Menge gern jahresweise).
+      Der Einlese-Knopf in der App schluckt die Datei dann direkt.
+- [ ] **Von Roberto: Stichtag nennen** - seit wann werden Störungen NUR
+      noch im Cockpit erfasst? (Für den sauberen Schnitt gegen Doppel;
+      oder Ansage „alles übernehmen".) Danach: Störbericht-Export über
+      den neuen ⚙-Knopf einlesen.
+- [x] **Einlese-Knopf in der App gebaut (09.09.):** ⚙ → Verlauf &
+      Sicherung → „ikom-Export einlesen …" - nimmt den
+      Structured-Text-Export, zeigt erst eine Bilanz (gelesen / neu /
+      schon da / übersprungen mit Grund), übernimmt auf Klick und ist
+      doppelt-sicher (zweimal einlesen erzeugt keine Doppel; die
+      ikom-VorgangsID steckt in der Eintrags-Kennung). Gemessen am
+      echten Export: 2.787/2.787 Dokumente, 0 Fortsetzungszeilen,
+      0 Doppelfelder, Umlaute korrekt; 867 Zeit-Buchungen mit
+      Kostenstelle+Nummer aus dem Maschinen-Feld. Wache: harte-66
+      (Z12, jetzt 23 Prüfungen). Dieselbe Logik als Werkzeug in
+      tools/ikom-import.js. Die alte LFDNR bleibt als Nummer erhalten
+      (wurde im Altsystem wiederverwendet - deshalb hütet der
+      Doppel-Wächter nur noch den neuen Nummernkreis JJJJ-NNNN).
 
 ## Erledigt
 
