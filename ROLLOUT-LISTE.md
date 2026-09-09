@@ -519,6 +519,18 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Ausdrucke kamen teils ohne Farbe aus dem Drucker (Robertos Fund vom
+      09.09., aufgefallen im Schichtplan):** Die Druckereinstellung „Farbe"
+      war unschuldig - das Chromium-Druckwerk (dasselbe steckt im
+      Electron-Programm) lässt Hintergrundfarben beim Drucken standardmäßig
+      weg, nur Text und Ränder kommen aufs Papier. Gemessen am Schichtplan:
+      0 farbige Pixel im Ausdruck, die Spät-/Nacht-Kürzel dazu weiß auf
+      weiß. Jetzt steckt die Farbtreue-Anweisung (`print-color-adjust:
+      exact`) in ALLEN 15 Druckvorlagen - danach werden alle Schichtfarben
+      gedruckt. Wache: harte-65 (Quell-Wache über jede @page-Vorlage plus
+      echter Druck ohne Hintergrundgrafiken; ohne den Fix rot). Verteilung
+      wie immer nur über die HTML-Datei, kein ZIP-Tausch nötig. (09.09.)
+
 - [x] **Links-Panel wuchs unter den Bildschirmrand (Robertos Fund vom
       08.09., „prüfe weitere Bereiche"):** Mit vielen Links plus dem
       Symbolraster lag der Speichern-Knopf außerhalb des Fensters - und

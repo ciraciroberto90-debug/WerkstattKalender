@@ -910,6 +910,14 @@ const kennwortHashen = async (text) => {
 // ⚙-Verwalten-Dialog dazu und sind IMMER grau (Farbschema ist fix:
 // nur Früh/Spät/Nacht sind farbig).
 const SCHICHT_GRAU = "#8A9099";
+/* Warum diese Zeile in JEDER Druckvorlage steckt: Das Chromium-Druckwerk
+   (dasselbe arbeitet im Electron-Programm) lässt Hintergrundfarben beim
+   Drucken standardmäßig weg - deshalb kamen Schichtplan & Co. teils ohne
+   Farbe aus dem Drucker, obwohl am Drucker Farbdruck gewählt war (Robertos
+   Fund vom 09.09.). Gemessen: Ausdruck ohne die Zeile 0 farbige
+   Schicht-Pixel, mit der Zeile werden alle Farben gedruckt (harte-65). */
+const DRUCK_FARBTREUE = "* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }";
+
 const SCHICHTEN_BASIS = {
   "Früh": { color: "#F0C230", text: "#2B2200", kurz: "F" },
   "Spät": { color: "#1F7A3D", kurz: "S" },
@@ -2327,6 +2335,7 @@ function App() {
     const html = `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Störbericht – ${esc(s.anlage)}</title>
       <style>
         @page { size: A4 portrait; margin: 18mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; font-size: 12pt; }
         h1 { font-size: 18pt; margin: 0 0 2mm; }
@@ -2436,6 +2445,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Schichtübergabe ${formatDateDE(todayKey)}</title>
       <style>
         @page { size: A4 portrait; margin: 12mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
       </style>
@@ -2514,6 +2524,7 @@ function App() {
     return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Schichtbericht Störungen – Stand ${esc(stand)}</title>
       <style>
         @page { size: A4 landscape; margin: 10mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; margin: 0; }
         h1 { font-size: 15pt; margin: 0; }
@@ -2600,6 +2611,7 @@ function App() {
     return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Störungs-Auswertung ${esc(MONTHS[monatIdx])} ${jahr}</title>
       <style>
         @page { size: A4 portrait; margin: 11mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; margin: 0; }
         h1 { font-size: 14.5pt; margin: 0; }
@@ -2731,6 +2743,7 @@ function App() {
     const html = `<!doctype html><html lang="de"><head><meta charset="utf-8">
       <title>Nachweis wiederkehrender Prüfungen ${esc(jahr)}</title><style>
       @page { size: A4 portrait; margin: 15mm 14mm; }
+      ${DRUCK_FARBTREUE}
       body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #22262B; font-size: 10pt; margin: 0; }
       .kopf { border-bottom: 2.5px solid #22262B; padding-bottom: 9px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-end; }
       h1 { font-size: 15pt; margin: 0 0 2px; }
@@ -5614,6 +5627,7 @@ function App() {
       return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(kopfTitel)}</title>
         <style>
           @page { size: A4 landscape; margin: 10mm; }
+          ${DRUCK_FARBTREUE}
           * { box-sizing: border-box; }
           body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 16px; }
           table { border-collapse: collapse; }
@@ -5651,6 +5665,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${escapeHtml(printPrefix)}</title>
       <style>
         @page { size: A4 landscape; margin: 10mm; }
+        ${DRUCK_FARBTREUE}
         @page notes { size: A4 portrait; margin: 15mm; }
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 16px; }
@@ -5780,6 +5795,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Schichtplan ${escapeHtml(MONTHS[mm])} ${my}</title>
       <style>
         @page { size: A4 landscape; margin: 8mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 12px; }
         table { border-collapse: collapse; font-size: 9px; width: 100%; }
@@ -5898,6 +5914,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Planung KW ${kw}</title>
       <style>
         @page { size: A4 portrait; margin: 10mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
@@ -5991,6 +6008,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Schichtplan ${MONTHS[mm]} ${my} – wochenweise</title>
       <style>
         @page { size: A4 landscape; margin: 10mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 10px; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
@@ -6074,6 +6092,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${titel} Jahreskalender ${jahr}</title>
       <style>
         @page { size: A3 landscape; margin: 10mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
@@ -6139,6 +6158,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${titel} ${MONTHS[monat]} ${jahr}</title>
       <style>
         @page { size: A4 portrait; margin: 10mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
@@ -6233,6 +6253,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Monats-Diagramm ${MONTHS[monat]} ${jahr}</title>
       <style>
         @page { size: A4 portrait; margin: 10mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
@@ -6407,6 +6428,7 @@ function App() {
     return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Quartals-Übersicht ${zeitraum}</title>
       <style>
         @page { size: A4 portrait; margin: 10mm; }
+        ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; margin: 0; padding: 8px; }
         table { border-collapse: collapse; width: 100%; }
@@ -6703,6 +6725,7 @@ function App() {
         .wk-hover:hover { background-color: #E9ECEF !important; cursor: pointer; }
         @media print {
           @page { size: A4 landscape; margin: 10mm; }
+          ${DRUCK_FARBTREUE}
           @page notes { size: A4 portrait; margin: 15mm; }
           .notes-page { page: notes; break-before: page; }
           .no-print { display: none !important; }
