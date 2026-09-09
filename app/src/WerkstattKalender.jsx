@@ -13031,11 +13031,16 @@ function App() {
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Alte ikom-Datenbank einlesen (Störberichte &amp; Zeiterfassungen)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Nimmt den <b>Structured-Text-Export</b> aus dem alten Programm (Ansicht aufklappen → Strg+A → Datei → Exportieren → Structured Text).
-              Vor dem Übernehmen kommt eine Bilanz; zweimal einlesen erzeugt keine Doppel.
+              Die Datei darf auch ohne Endung sein. Vor dem Übernehmen kommt eine Bilanz; zweimal einlesen erzeugt keine Doppel.
             </div>
             {stoerDarfSchreiben && !readerMode ? (
               <>
-                <input ref={ikomInputRef} type="file" accept=".txt,.text,text/plain" style={{ display: "none" }} aria-label="ikom-Export wählen" onChange={ikomDateiGewaehlt} />
+                {/* BEWUSST ohne accept-Filter: Der Notes-Export kommt ohne
+                    Dateiendung ("neu 1", Dateityp "Datei") - mit .txt-Filter
+                    blendet der Windows-Dialog genau diese Datei aus (Robertos
+                    Fund vom 09.09.). Was brauchbar ist, entscheidet der
+                    Einleser am Inhalt und meldet Unbrauchbares mit Klartext. */}
+                <input ref={ikomInputRef} type="file" style={{ display: "none" }} aria-label="ikom-Export wählen" onChange={ikomDateiGewaehlt} />
                 <button onClick={() => { if (ikomInputRef.current) ikomInputRef.current.click(); }}
                   className="text-xs font-bold text-white rounded px-3 py-2 mb-2" style={{ backgroundColor: "#2F6690" }}>
                   ikom-Export einlesen …
