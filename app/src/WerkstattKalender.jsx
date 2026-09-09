@@ -2360,11 +2360,15 @@ function App() {
       ersatzteile: draft.ersatzteile || "", nachbestellt: !!draft.nachbestellt,
       ausfallzeit, melder, fotos,
     };
+    // Der gespeicherte Bericht wird zurückgegeben (mit endgültiger Nummer) -
+    // "Speichern + zur Zeiterfassung" braucht ihn zum Vorbefüllen.
+    let ergebnis = null;
     if (draft.id) {
       const vorher = stoerungen.find((s) => s.id === draft.id);
       const behobenAt = offen ? null : (behobenAusFeld() || (vorher && vorher.behobenAt) || jetzt);
       const next = stoerungen.map((s) => (s.id === draft.id ? { ...s, ...gemeinsam, offen, behobenAt } : s));
-      await persistStoer(next);
+      const nach = await persistStoer(next);
+      ergebnis = (nach || next).find((x) => x.id === draft.id) || null;
     } else {
       const jahr = String(datum).slice(0, 4);
       const s = {
@@ -2383,12 +2387,16 @@ function App() {
       if (meiner && nummerSchonVergeben(nachher, meiner)) {
         const frei = naechsteStoerNr(nachher, jahr);
         await persistStoer((nachher || []).map((x) => (x.id === s.id ? { ...x, nr: frei } : x)));
+        ergebnis = { ...meiner, nr: frei };
+      } else {
+        ergebnis = meiner || s;
       }
     }
     fotosAufraeumen(draft.fotosWeg);
     if (fotoFehler) setErr(fotoFehler); // nach dem persist, sonst räumt der Erfolg die Warnung weg
     setStoerModal(null);
     setSDraft(null);
+    return ergebnis;
   };
   const stoerStatusUmschalten = async (id) => {
     const jetzt = new Date().toISOString();
@@ -2402,6 +2410,31 @@ function App() {
     await persistStoer(stoerungen.filter((s) => s.id !== id));
     // Zugehörige Fotodateien mit wegräumen - sonst füllt sich der Ordner mit Waisen.
     if (raus) fotosAufraeumen(fotoListeVon(raus).map((f) => f.datei));
+    setStoerModal(null);
+    setSDraft(null);
+  };
+  /* Störbericht in eine Zeiterfassung übernehmen (Robertos Wunsch 09.09.):
+     Wer die Störung behoben hat, bucht die Stunden direkt dazu. Das
+     Zeiterfassungs-Formular öffnet vorbefüllt - Datum, Schicht und die
+     Berichts-Nummer als Verweis; die Kostenstelle wird nur dann vorgewählt,
+     wenn der Anlagen-Name GENAU EINE Kostenstelle trifft (raten wäre
+     schlimmer als leer lassen: falsch verbuchte Stunden fallen erst am
+     Jahresende auf). */
+  const stoerungZurZeiterfassung = (s) => {
+    if (readerMode) return; // Zeiterfassung liegt in der Hauptdatei - ohne Schreibrecht kein Formular
+    const anlage = String(s.anlage || "").trim().toLowerCase();
+    const treffer = anlage ? kostenstellen.filter((k) => k.name.toLowerCase().includes(anlage)) : [];
+    const melder = String(s.melder || "").trim().toLowerCase();
+    const wer = zeitBerechtigte.find((t) => t.name.toLowerCase() === melder)
+      || zeitBerechtigte.find((t) => t.name.toLowerCase() === String(angemeldet || "").toLowerCase())
+      || zeitBerechtigte[0];
+    setZeitFehler(null);
+    setZeitModal({
+      art: "arbeit", date: s.date || todayKey, schicht: s.schicht || "Früh",
+      wer: wer ? wer.name : "", ksWahl: treffer.length === 1 ? ksAnzeige(treffer[0]) : "",
+      taetigkeit: s.stoerung ? `Störung behoben: ${s.stoerung}` : "", stunden: "",
+      grund: ABWESENHEIT_GRUENDE[0], bemerkung: "", stoerNr: stoerNrLang(s),
+    });
     setStoerModal(null);
     setSDraft(null);
   };
@@ -2944,6 +2977,12 @@ function App() {
     stoerungen.forEach((s) => {
       const n = stoerNrLang(s);
       if (!n) return;
+      // Der Wächter hütet NUR den eigenen Nummernkreis (JJJJ-NNNN). Aus dem
+      // alten ikom-System übernommene Berichte tragen die alte LFDNR - und
+      // die wurde dort nachweislich wiederverwendet (dieselbe Nummer für
+      // verschiedene Störungen). Sie umzunummerieren würde die Verweise der
+      // importierten Zeiterfassungen (stoerNr) zerreißen - Wissensdatenbank!
+      if (!/^\d{4}-\d+$/.test(n)) return;
       if (!proNummer.has(n)) proNummer.set(n, []);
       proNummer.get(n).push(s);
     });
@@ -10361,6 +10400,9 @@ function App() {
                   {offen && !readerMode && sDraft.nochZuTun && String(sDraft.nochZuTun).trim() && (
                     <button onClick={() => stoerungZuBacklog(live)} className="rounded-lg font-bold inline-flex items-center gap-1" style={{ fontSize: "0.8rem", padding: "8px 12px", backgroundColor: "#EEF1F4", color: "#2F6690" }} title="Offene Maßnahme als Backlog-Aufgabe übernehmen">→ Backlog</button>
                   )}
+                  {!readerMode && (
+                    <button onClick={() => stoerungZurZeiterfassung(live)} className="rounded-lg font-bold inline-flex items-center gap-1" style={{ fontSize: "0.8rem", padding: "8px 12px", backgroundColor: "#EEF1F4", color: "#A25E14" }} title="Stunden zu diesem Störbericht in der Zeiterfassung buchen (Nummer wird als Verweis eingetragen)">→ Zeiterfassung</button>
+                  )}
                   <button onClick={() => druckeStoerbericht(live)} className="rounded-lg font-bold inline-flex items-center gap-1" style={{ fontSize: "0.8rem", padding: "8px 12px", backgroundColor: "#EEF1F4", color: "#5B6572" }} title="Störbericht als A4-Blatt drucken">🖨 Drucken</button>
                   {stoerDarfSchreiben ? (
                     <button onClick={() => setStoerModal({ mode: "edit", id: stoerModal.id })} className="rounded-lg font-bold text-white inline-flex items-center gap-1.5" style={{ fontSize: "0.85rem", padding: "8px 16px", backgroundColor: "#22262B" }}>
@@ -10581,6 +10623,20 @@ function App() {
                 )}
                 <div className="flex gap-2 items-center mt-1 flex-wrap">
                   <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#22262B" : "#B7BEC6", minWidth: "120px" }}>Speichern</button>
+                  {/* Robertos Wunsch 09.09.: direkt beim Erstellen des Berichts
+                      die eigenen Stunden buchen. Erst speichern (dann steht die
+                      Nummer fest), dann öffnet die Zeiterfassung vorbefüllt. */}
+                  {!readerMode && (
+                    <button
+                      onClick={async () => { const s = await speichereStoerung(sDraft); if (s) stoerungZurZeiterfassung(s); }}
+                      disabled={!kannSpeichern}
+                      className="text-sm font-bold py-2.5 px-3 rounded-lg"
+                      style={{ backgroundColor: kannSpeichern ? "#FDF0E2" : "#F4F5F6", color: kannSpeichern ? "#A25E14" : "#B7BEC6" }}
+                      title="Bericht speichern und die Stunden dazu gleich in der Zeiterfassung buchen"
+                    >
+                      Speichern + zur Zeiterfassung
+                    </button>
+                  )}
                   <button
                     disabled
                     title="Weiterleiten kommt in einer späteren Version"

@@ -225,7 +225,9 @@ const klappeAlles = async (p) => {
       // nicht um die Pflichtfelder.
       await p.getByRole("button", { name: "● Offen" }).click();
       await p.waitForTimeout(250);
-      await p.getByRole("button", { name: /^Speichern/ }).click();
+      // exact, denn seit dem 09.09. steht daneben "Speichern + zur
+      // Zeiterfassung" - ein unscharfes Muster träfe beide Knöpfe.
+      await p.getByRole("button", { name: "Speichern", exact: true }).click();
       await p.waitForTimeout(1600);
     };
     // Bewusst NACHEINANDER ausgeloest, aber beide Seiten haben denselben

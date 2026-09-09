@@ -19,6 +19,13 @@
 //  (Z7) ZE-Berechtigung je Team-Mitglied: nur Berechtigte stehen im
 //       Formular zur Wahl; der Haken im ⚙ schaltet ab.
 //  (Z8) Der Mitarbeiter-Filter über der Liste filtert wirklich.
+//  (Z9) Störbericht -> Zeiterfassung (Robertos Wunsch 09.09.): In der
+//       Berichts-Ansicht öffnet "→ Zeiterfassung" das Formular vorbefüllt
+//       (Berichts-Nummer als Verweis, Datum, Schicht, Melder; Kostenstelle
+//       nur bei EINDEUTIGEM Anlagen-Treffer) - und der gebuchte Eintrag
+//       trägt die Berichtsnummer.
+//  (Z10) Im Bearbeiten-Dialog gibt es "Speichern + zur Zeiterfassung":
+//       erst speichern (Nummer steht fest), dann Formular vorbefüllt.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const fs = require("fs");
 const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
@@ -51,9 +58,23 @@ const pruef = (n, c, zusatz) => {
     // bei zweien: Bestände von vor dem 09.09. müssen den Startbestand und die
     // Vollzähligkeit von selbst bekommen (Z6/Z7).
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify({
-      tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItems: [],
+      // Anlage "TS 480" trifft in den Kostenstellen GENAU "TS 480 ADL" -
+      // Grundlage für die Vorbelegung in (Z9).
+      tpmAnlagen: [{ id: "a1", name: "TS 480", role: "takt" }], riItems: [],
       team: [{ name: "K. Schmidt", rolle: "mech" }, { name: "P. Wagner", rolle: "elek" }, { name: "A. Helfer", rolle: "", zeiterfassung: false }],
     }));
+    localStorage.setItem("werkstatt-stoerungen-entries", JSON.stringify([
+      { id: "s1", nr: "2026-0002", date: "2026-09-08", schicht: "Spät", anlage: "TS 480", stoerung: "Riemen gerissen", gewerk: "mech", fehlerart: "Mechanisch", ausfallzeit: 45, offen: false, gemeldetAt: "2026-09-08T15:00:00.000Z", behobenAt: "2026-09-08T16:00:00.000Z", melder: "K. Schmidt", ursache: "Verschleiß", getan: "Riemen erneuert", ersatzteile: "" },
+      // Zwei ALT-Berichte (ikom-Import) mit derselben alten LFDNR - die alte
+      // Datenbank hat Nummern nachweislich wiederverwendet. Der Doppel-Wächter
+      // darf hier NICHT anschlagen (Z11): Umnummerieren würde die stoerNr-
+      // Verweise der importierten Zeiterfassungen zerreißen.
+      { id: "ikom-A1", nr: "31288", date: "2026-08-20", schicht: "Früh", anlage: "B3 Be- und Entladeanlage", stoerung: "Drehkreuz nimmt keine Töpfe", gewerk: "mech", fehlerart: "Mechanisch", ausfallzeit: 20, offen: false, gemeldetAt: "2026-08-20T08:00:00.000Z", behobenAt: "2026-08-20T09:00:00.000Z", melder: "Balles" },
+      { id: "ikom-B2", nr: "31288", date: "2026-08-21", schicht: "Früh", anlage: "Masseaufbereitung", stoerung: "Display der Waage flackert", gewerk: "elek", fehlerart: "Elektrisch", ausfallzeit: 10, offen: false, gemeldetAt: "2026-08-21T08:00:00.000Z", behobenAt: "2026-08-21T09:00:00.000Z", melder: "Wiesner" },
+      // Und ein ECHTES Doppel im neuen Nummernkreis - dafür muss der Wächter
+      // weiter anschlagen (Z11), sonst wäre er mit dem Import gestorben.
+      { id: "s4", nr: "2026-0002", date: "2026-08-22", schicht: "Früh", anlage: "TS 480", stoerung: "Sensor verschmutzt", gewerk: "mech", fehlerart: "Mechanisch", ausfallzeit: 5, offen: false, gemeldetAt: "2026-08-22T08:00:00.000Z", behobenAt: "2026-08-22T08:30:00.000Z", melder: "K. Schmidt" },
+    ]));
   });
   await p.goto(APP);
   await p.waitForTimeout(1200);
@@ -184,7 +205,65 @@ const pruef = (n, c, zusatz) => {
         optionen2.includes("K. Schmidt") && !optionen2.includes("P. Wagner"), optionen2.join(", "));
   await p.getByRole("button", { name: "Abbrechen", exact: true }).click();
 
-  pruef("(Z1-Z8) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+  /* ---- (Z11) Nummern-Wächter und Alt-Nummern aus dem ikom-Import ---- */
+  await p.getByRole("button", { name: /Störungen/ }).first().click();
+  await p.waitForTimeout(700);
+  const doppelHinweis = await p.getByText(/Nummer, die es schon gibt/).textContent().catch(() => "");
+  pruef("(Z11) Der Doppel-Wächter meldet NUR das Doppel im neuen Nummernkreis, nicht die alte LFDNR",
+        // Der Hinweis nennt die Kurzform "0002"; die alte LFDNR 31288 darf
+        // NICHT auftauchen (die alte Datenbank hat Nummern wiederverwendet).
+        /0002/.test(doppelHinweis || "") && !/31288/.test(doppelHinweis || ""),
+        (doppelHinweis || "kein Hinweis").trim().slice(0, 80));
+
+  /* ---- (Z9) Störbericht -> Zeiterfassung aus der Ansicht ---- */
+  await p.locator("tr", { hasText: /08\.09\.2026/ }).first().click();
+  await p.waitForTimeout(300);
+  await p.locator("tr", { hasText: /Spät/ }).last().click();
+  await p.waitForTimeout(300);
+  await p.locator("tr", { hasText: "0002" }).last().click().catch(() => {}); // tr-scoped: der Doppel-Hinweis oben enthält die Nummer auch
+  await p.waitForTimeout(400);
+  await p.getByRole("button", { name: "→ Zeiterfassung", exact: true }).click();
+  await p.waitForTimeout(400);
+  const vorbelegt = {
+    stoerNr: await p.locator('input[placeholder^="z. B. 2026-"]').inputValue(),
+    ks: await p.locator('input[aria-label="Kostenstelle"]').inputValue(),
+    taetigkeit: await p.locator('input[placeholder^="z. B. Lager"]').inputValue(),
+    wer: await p.locator('select[aria-label="Mitarbeiter wählen"]').inputValue(),
+  };
+  pruef("(Z9) Das Formular ist aus dem Bericht vorbefüllt (Nr, Kostenstelle, Melder)",
+        vorbelegt.stoerNr === "2026-0002" && vorbelegt.ks === "TS 480 ADL (2032002)"
+        && /Riemen gerissen/.test(vorbelegt.taetigkeit) && vorbelegt.wer === "K. Schmidt",
+        JSON.stringify(vorbelegt));
+  await p.locator('input[aria-label="Arbeitsdauer in Stunden"]').fill("2");
+  await p.getByRole("button", { name: "Speichern", exact: true }).click();
+  await p.waitForTimeout(600);
+  const bestand3 = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-kalender-entries")));
+  const gebucht = bestand3.find((e) => e.category === "ZEIT" && e.stoerNr === "2026-0002");
+  pruef("(Z9) Der gebuchte Eintrag trägt die Berichtsnummer als Verweis",
+        !!gebucht && gebucht.stunden === 2 && gebucht.date === "2026-09-08" && gebucht.schicht === "Spät",
+        gebucht ? `${gebucht.name} | ${gebucht.stunden} Std | ${gebucht.stoerNr}` : "fehlt");
+
+  /* ---- (Z10) "Speichern + zur Zeiterfassung" im Bearbeiten-Dialog ----
+     Die Gruppen stehen nach (Z9) noch aufgeklappt - ein erneuter Klick auf
+     die Schicht-Zeile würde sie ZUklappen. Deshalb erst nachsehen. */
+  if (!(await p.locator("tr", { hasText: "0002" }).last().isVisible().catch(() => false))) {
+    await p.locator("tr", { hasText: /08\.09\.2026/ }).first().click();
+    await p.waitForTimeout(300);
+    await p.locator("tr", { hasText: /Spät/ }).last().click();
+    await p.waitForTimeout(300);
+  }
+  await p.locator("tr", { hasText: "0002" }).last().click();
+  await p.waitForTimeout(400);
+  await p.getByRole("button", { name: /Bearbeiten/ }).first().click();
+  await p.waitForTimeout(400);
+  await p.getByRole("button", { name: "Speichern + zur Zeiterfassung", exact: true }).click();
+  await p.waitForTimeout(700);
+  pruef("(Z10) Nach dem Speichern öffnet die vorbefüllte Zeiterfassung",
+        (await p.getByText("Neue Zeiterfassung", { exact: true }).count()) >= 1
+        && (await p.locator('input[placeholder^="z. B. 2026-"]').inputValue()) === "2026-0002");
+  await p.getByRole("button", { name: "Abbrechen", exact: true }).click();
+
+  pruef("(Z1-Z10) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
   console.log(`\nHärte 66 (Zeiterfassung): ${ok}/${ok + fail}`);
   await browser.close();
   process.exit(fail ? 1 : 0);

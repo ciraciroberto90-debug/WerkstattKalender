@@ -517,7 +517,35 @@ auf denselben Dateien.
       (Lösch-Merkliste ging bei der Rettung verloren - kürzlich
       Gelöschtes kann wieder aufgetaucht sein).
 
+## Alt-Daten aus dem ikom-ZE übernehmen (Robertos Frage vom 09.09.)
+
+- [ ] **Import alter Störberichte und Zeiterfassungen bauen - wartet auf
+      Probedateien von Roberto.** Der alte Export-Dialog (Lotus Notes)
+      bietet .ics / Comma Separated Value / Structured Text / Tabular
+      Text. Wichtig zu wissen: **CSV exportiert nur die Spalten der
+      gerade offenen ANSICHT** (in „Nach Mitarbeiter" z. B. nur
+      Tag/Maschine/Art der Arbeit - Stunden und Kostenstellen-Nummern
+      könnten fehlen), **Structured Text exportiert die Dokument-Felder
+      mit Feldnamen** und ist vermutlich vollständiger. Deshalb: je eine
+      KLEINE Probedatei in beiden Formaten (eine Woche oder ein
+      Mitarbeiter genügt; vor dem Export alle gewünschten Dokumente in
+      der Ansicht markieren, Notes exportiert sonst nur Markiertes).
+      Danach wird der Importer als Werkzeug in tools/ gebaut - mit
+      Härtetest gegen die echten Probedateien, erst dann der
+      Massenimport. Nichts wird zugesagt, bevor es an echten Dateien
+      gemessen ist.
+
 ## Erledigt
+
+- [x] **Störbericht → Zeiterfassung (Robertos Wunsch vom 09.09.):** In der
+      Berichts-Ansicht gibt es „→ Zeiterfassung", im Anlegen/Bearbeiten
+      „Speichern + zur Zeiterfassung" (erst speichern, dann steht die
+      Nummer fest). Das Formular öffnet vorbefüllt: Berichtsnummer als
+      Verweis, Datum, Schicht, Melder als Mitarbeiter, Tätigkeit
+      „Störung behoben: …"; die Kostenstelle wird NUR bei eindeutigem
+      Anlagen-Treffer vorgewählt - raten wäre schlimmer als leer lassen,
+      falsch verbuchte Stunden fallen erst am Jahresende auf. Wache:
+      harte-66 (Z9/Z10, jetzt 18 Prüfungen). (09.09.)
 
 - [x] **Neuer Tab „Zeiterfassung / Schichtbericht" mit Kostenstellen
       (Robertos Auftrag vom 09.09., gebaut nach den Fotos des alten
