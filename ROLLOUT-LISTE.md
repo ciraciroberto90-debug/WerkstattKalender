@@ -517,6 +517,20 @@ auf denselben Dateien.
       (Lösch-Merkliste ging bei der Rettung verloren - kürzlich
       Gelöschtes kann wieder aufgetaucht sein).
 
+## Neuer Tab „Zeiterfassung / Schichtbericht" mit Kostenstellen (Robertos Auftrag vom 09.09.)
+
+- [ ] **Neuen Tab im Bereich Werkstatt bauen.** Zweck: Die Mitarbeiter
+      schreiben heute jeden Tag eine Art Zeiterfassung/Schichtbericht,
+      damit ihre Stunden auf **Kostenstellen** aufgeteilt werden
+      (Instandhaltung arbeitet nicht nur für die Werkstatt: Anlagen,
+      Gebäude, Werkstatt, Aufzug, neue Projekte usw. - die Liste wächst
+      über die Jahre und muss deshalb pflegbar sein wie die Anlagen im ⚙).
+      **Jahres-Auswertung:** Am Jahresende wird eine Excel-Datei verlangt:
+      Kostenstellen untereinander, rechts daneben die Summe der Stunden -
+      Mitarbeiter-Namen sind in dieser Datei unwichtig.
+      **Stand:** Roberto liefert noch Fotos/Screenshots der heutigen
+      Lösung als Bau-Vorlage - erst danach wird gebaut.
+
 ## Erledigt
 
 - [x] **Ausdrucke kamen teils ohne Farbe aus dem Drucker (Robertos Fund vom
