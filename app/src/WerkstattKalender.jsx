@@ -1491,7 +1491,6 @@ function leseIkomExport(text) {
     if (!sd) { uebersprungen.push({ grund: "kein lesbares Datum", VorgangsID: d.VorgangsID || "?", block: i }); return; }
     const kennung = d.VorgangsID || `ohne-vorgangsid-${i}`;
     const masch = maschineZerlegen(d.Maschine);
-    const offen = String(d.ST_Status || "").toUpperCase() !== "OK";
     const schicht = ["Früh", "Spät", "Nacht"].includes(d.Schicht) ? d.Schicht : "Früh";
     stoer.push({
       id: `ikom-${kennung}`,
@@ -1502,14 +1501,19 @@ function leseIkomExport(text) {
       stoerung: String(d.ST_Beschreibung || ""),
       ursache: String(d.ST_Ursache || ""),
       getan: String(d["SF_Maßnahme"] || ""),
-      nochZuTun: offen ? String(d["ST_Maßnahme"] || "") : "",
+      nochZuTun: "",
       ersatzteile: "", nachbestellt: false,
       ausfallzeit: Math.max(0, Math.round(Number(d.Ausfallzeit) || 0)),
       melder: String(d.Bemerkung || ""),
-      offen,
+      // Robertos Ansage vom 09.09.: ALLE Alt-Berichte kommen als erledigt an.
+      // Die alten Status NOK/IBWB/BETR hießen in der Praxis nicht "noch
+      // offen" - beim ersten Import standen dadurch ~270 längst abgearbeitete
+      // Störungen offen im Cockpit. Der Original-Status und die alte
+      // "noch zu tun"-Maßnahme bleiben in altSystem nachlesbar.
+      offen: false,
       gemeldetAt: sd.iso,
-      behobenAt: offen ? null : (letzterSessionStempel(d) || sd.iso),
-      altSystem: { vorgangsId: d.VorgangsID || "", lfdnr: String(d.LFDNR || ""), stCode: String(d.ST_Code || ""), status: String(d.ST_Status || ""), anlageBereich: String(d.Anlage || ""), werk: String(d.Werk || "") },
+      behobenAt: letzterSessionStempel(d) || sd.iso,
+      altSystem: { vorgangsId: d.VorgangsID || "", lfdnr: String(d.LFDNR || ""), stCode: String(d.ST_Code || ""), status: String(d.ST_Status || ""), stMassnahme: String(d["ST_Maßnahme"] || ""), anlageBereich: String(d.Anlage || ""), werk: String(d.Werk || "") },
     });
     const dauer = stundenZahl(d.zeDauer);
     if (dauer && d.Mitarbeiter) {
@@ -3193,6 +3197,24 @@ function App() {
       neue.set(s.id, `${jahr}-${String(n).padStart(4, "0")}`);
     }
     await persistStoer(stoerungen.map((s) => (neue.has(s.id) ? { ...s, nr: neue.get(s.id) } : s)));
+  };
+
+  /* Offene ALT-Berichte aus dem ikom-Import auf erledigt setzen (Robertos
+     Ansage 09.09.): Der erste Import nahm den alten Status wörtlich und ließ
+     ~270 längst abgearbeitete Störungen offen stehen - von Hand abhaken wäre
+     eine Strafarbeit. Der Knopf greift BEWUSST nur Berichte mit ikom-Kennung:
+     ein globales "Alle erledigt" würde auch echte offene Berichte der neuen
+     Erfassung abräumen. Behoben-am wird ehrlich auf den alten Melde-Stempel
+     gesetzt (genauer wissen wir es nicht mehr). */
+  const offeneAltBerichte = stoerungen.filter((s) => s.offen && String(s.id).startsWith("ikom-"));
+  const altBerichteErledigen = async () => {
+    if (!offeneAltBerichte.length) return;
+    if (!window.confirm(
+      `${offeneAltBerichte.length} offene Berichte stammen aus dem alten ikom-System und werden auf "erledigt" gesetzt.\n\n` +
+      `Als Behoben-Zeit wird ihr alter Melde-Zeitpunkt eingetragen. Offene Berichte der neuen Erfassung bleiben unberührt.\n\nFortfahren?`)) return;
+    await persistStoer(stoerungen.map((s) => (s.offen && String(s.id).startsWith("ikom-")
+      ? { ...s, offen: false, behobenAt: s.behobenAt || s.gemeldetAt || new Date().toISOString(), nochZuTun: "" }
+      : s)));
   };
 
   // Doppelte Nummern auflösen: Der älteste Bericht behält seine, die anderen
@@ -8314,6 +8336,21 @@ function App() {
               <button onClick={nummernNachtragen} className="ml-auto rounded font-bold text-white shrink-0"
                 style={{ backgroundColor: "#C97A2B", padding: "4px 10px", fontSize: "0.72rem" }}>
                 Nummern nachtragen
+              </button>
+            </div>
+          )}
+
+          {/* Offene Berichte aus dem ikom-Import: In der alten Datenbank hieß
+              der Status nicht "noch offen" - ein Klick setzt ALLE Alt-Berichte
+              auf erledigt, echte offene der neuen Erfassung bleiben stehen. */}
+          {stoerModus === "liste" && stoerDarfSchreiben && offeneAltBerichte.length > 0 && (
+            <div className="flex items-center gap-2 mb-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#FBF4E7", border: "1px solid #EAD9BC" }}>
+              <span className="text-xs" style={{ color: "#7A5B22" }}>
+                <b>{offeneAltBerichte.length}</b> offene {offeneAltBerichte.length === 1 ? "Bericht stammt" : "Berichte stammen"} aus dem alten ikom-System – dort waren sie längst abgearbeitet.
+              </span>
+              <button onClick={altBerichteErledigen} className="ml-auto rounded font-bold text-white shrink-0"
+                style={{ backgroundColor: "#1F7A3D", padding: "4px 10px", fontSize: "0.72rem" }}>
+                Alle Alt-Berichte auf erledigt setzen
               </button>
             </div>
           )}

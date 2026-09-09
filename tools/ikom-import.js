@@ -98,7 +98,6 @@ docs.forEach((d, i) => {
   const kennung = d.VorgangsID || `ohne-vorgangsid-${i}`;
   if (!d.VorgangsID) ohneVorgang.push(i);
   const masch = maschineZerlegen(d.Maschine);
-  const offen = String(d.ST_Status || "").toUpperCase() !== "OK";
   const schicht = ["Früh", "Spät", "Nacht"].includes(d.Schicht) ? d.Schicht : "Früh";
   stoerAlt.push({
     id: `ikom-${kennung}`,
@@ -109,16 +108,19 @@ docs.forEach((d, i) => {
     stoerung: String(d.ST_Beschreibung || ""),
     ursache: String(d.ST_Ursache || ""),
     getan: String(d["SF_Maßnahme"] || ""),
-    nochZuTun: offen ? String(d["ST_Maßnahme"] || "") : "",
+    nochZuTun: "",
     ersatzteile: "", nachbestellt: false,
     ausfallzeit: Math.max(0, Math.round(Number(d.Ausfallzeit) || 0)),
     melder: String(d.Bemerkung || ""),
-    offen,
+    // Robertos Ansage vom 09.09.: ALLE Alt-Berichte kommen als erledigt an -
+    // die alten Status NOK/IBWB/BETR hießen in der Praxis nicht "noch offen".
+    // Original-Status und alte "noch zu tun"-Maßnahme bleiben in altSystem.
+    offen: false,
     gemeldetAt: sd.iso,
-    behobenAt: offen ? null : (letzterSessionStempel(d) || sd.iso),
+    behobenAt: letzterSessionStempel(d) || sd.iso,
     // Herkunft bleibt nachvollziehbar - für die Wissensdatenbank und für
     // jeden späteren Abgleich mit dem alten System.
-    altSystem: { vorgangsId: d.VorgangsID || "", lfdnr: String(d.LFDNR || ""), stCode: String(d.ST_Code || ""), status: String(d.ST_Status || ""), anlageBereich: String(d.Anlage || ""), werk: String(d.Werk || "") },
+    altSystem: { vorgangsId: d.VorgangsID || "", lfdnr: String(d.LFDNR || ""), stCode: String(d.ST_Code || ""), status: String(d.ST_Status || ""), stMassnahme: String(d["ST_Maßnahme"] || ""), anlageBereich: String(d.Anlage || ""), werk: String(d.Werk || "") },
   });
   // Zeit-Buchung im selben Dokument?
   const dauer = stundenZahl(d.zeDauer);

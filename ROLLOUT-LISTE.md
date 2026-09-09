@@ -544,6 +544,20 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Alt-Berichte kommen als erledigt an + Ein-Klick-Aufräumer
+      (Robertos Ansage nach dem ersten echten Import, 09.09.):** Der
+      Einleser nahm den alten Status wörtlich - ~270 längst abgearbeitete
+      Störungen standen offen im Cockpit. Jetzt kommen ALLE Alt-Berichte
+      als erledigt an (Original-Status NOK/IBWB/BETR und die alte
+      „noch zu tun"-Maßnahme bleiben in altSystem nachlesbar). Für die
+      schon importierten zeigt die Störungs-Liste einen Hinweis-Balken
+      mit „Alle Alt-Berichte auf erledigt setzen" - EIN Klick statt
+      270 Handgriffe, greift bewusst NUR ikom-Berichte (ein globales
+      „Alle erledigt" würde echte offene Berichte der neuen Erfassung
+      abräumen; Behoben-Zeit = alter Melde-Stempel, ehrlich, genauer
+      wissen wir es nicht mehr). Wache: harte-66 (Z13, 26 Prüfungen).
+      (09.09.)
+
 - [x] **Störbericht → Zeiterfassung (Robertos Wunsch vom 09.09.):** In der
       Berichts-Ansicht gibt es „→ Zeiterfassung", im Anlegen/Bearbeiten
       „Speichern + zur Zeiterfassung" (erst speichern, dann steht die

@@ -70,10 +70,14 @@ const pruef = (n, c, zusatz) => {
       // darf hier NICHT anschlagen (Z11): Umnummerieren würde die stoerNr-
       // Verweise der importierten Zeiterfassungen zerreißen.
       { id: "ikom-A1", nr: "31288", date: "2026-08-20", schicht: "Früh", anlage: "B3 Be- und Entladeanlage", stoerung: "Drehkreuz nimmt keine Töpfe", gewerk: "mech", fehlerart: "Mechanisch", ausfallzeit: 20, offen: false, gemeldetAt: "2026-08-20T08:00:00.000Z", behobenAt: "2026-08-20T09:00:00.000Z", melder: "Balles" },
-      { id: "ikom-B2", nr: "31288", date: "2026-08-21", schicht: "Früh", anlage: "Masseaufbereitung", stoerung: "Display der Waage flackert", gewerk: "elek", fehlerart: "Elektrisch", ausfallzeit: 10, offen: false, gemeldetAt: "2026-08-21T08:00:00.000Z", behobenAt: "2026-08-21T09:00:00.000Z", melder: "Wiesner" },
+      // ikom-B2 steht OFFEN, obwohl längst abgearbeitet - genau die Lage nach
+      // dem ersten Import (alter Status wörtlich genommen). (Z13) räumt auf.
+      { id: "ikom-B2", nr: "31288", date: "2026-08-21", schicht: "Früh", anlage: "Masseaufbereitung", stoerung: "Display der Waage flackert", gewerk: "elek", fehlerart: "Elektrisch", ausfallzeit: 10, offen: true, gemeldetAt: "2026-08-21T08:00:00.000Z", behobenAt: null, melder: "Wiesner" },
       // Und ein ECHTES Doppel im neuen Nummernkreis - dafür muss der Wächter
       // weiter anschlagen (Z11), sonst wäre er mit dem Import gestorben.
-      { id: "s4", nr: "2026-0002", date: "2026-08-22", schicht: "Früh", anlage: "TS 480", stoerung: "Sensor verschmutzt", gewerk: "mech", fehlerart: "Mechanisch", ausfallzeit: 5, offen: false, gemeldetAt: "2026-08-22T08:00:00.000Z", behobenAt: "2026-08-22T08:30:00.000Z", melder: "K. Schmidt" },
+      // s4 ist ein ECHTER offener Bericht der neuen Erfassung - der
+      // Alt-Aufräumer (Z13) darf ihn NICHT anfassen.
+      { id: "s4", nr: "2026-0002", date: "2026-08-22", schicht: "Früh", anlage: "TS 480", stoerung: "Sensor verschmutzt", gewerk: "mech", fehlerart: "Mechanisch", ausfallzeit: 5, offen: true, nochZuTun: "Sensor tauschen", gemeldetAt: "2026-08-22T08:00:00.000Z", behobenAt: null, melder: "K. Schmidt" },
     ]));
   });
   await p.goto(APP);
@@ -215,6 +219,23 @@ const pruef = (n, c, zusatz) => {
         /0002/.test(doppelHinweis || "") && !/31288/.test(doppelHinweis || ""),
         (doppelHinweis || "kein Hinweis").trim().slice(0, 80));
 
+  /* ---- (Z13) Offene Alt-Berichte per Knopf auf erledigt setzen ----
+     Robertos Fund nach dem ersten echten Import: ~270 längst abgearbeitete
+     Berichte standen offen. Ein Klick räumt NUR die ikom-Berichte auf. */
+  const hinweisAlt = await p.getByText(/aus dem alten ikom-System/).count();
+  pruef("(Z13) Der Hinweis auf offene Alt-Berichte steht da", hinweisAlt === 1);
+  p.once("dialog", (d) => d.accept());
+  await p.getByRole("button", { name: "Alle Alt-Berichte auf erledigt setzen", exact: true }).click();
+  await p.waitForTimeout(700);
+  const nachAufraeumen = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-stoerungen-entries")));
+  const b2 = nachAufraeumen.find((s) => s.id === "ikom-B2");
+  const s4 = nachAufraeumen.find((s) => s.id === "s4");
+  pruef("(Z13) Der Alt-Bericht ist erledigt (Behoben-Zeit = alter Melde-Stempel), der echte offene bleibt offen",
+        !!b2 && b2.offen === false && b2.behobenAt === "2026-08-21T08:00:00.000Z" && !!s4 && s4.offen === true,
+        JSON.stringify({ b2: b2 && b2.offen, behobenAt: b2 && b2.behobenAt, s4: s4 && s4.offen }));
+  pruef("(Z13) Der Hinweis ist danach verschwunden",
+        (await p.getByText(/aus dem alten ikom-System/).count()) === 0);
+
   /* ---- (Z9) Störbericht -> Zeiterfassung aus der Ansicht ---- */
   await p.locator("tr", { hasText: /08\.09\.2026/ }).first().click();
   await p.waitForTimeout(300);
@@ -304,10 +325,13 @@ const pruef = (n, c, zusatz) => {
   const alt1 = stoerNachher.find((s) => s.id === "ikom-TESTVID001");
   const altZeit = zeitNachher.find((e) => e.id === "ikom-zeit-TESTVID002");
   const alt3 = stoerNachher.find((s) => s.id === "ikom-TESTVID003");
-  pruef("(Z12) Die Alt-Berichte stehen richtig in der Störungs-Datei (Umlaute, Gewerk, Status)",
+  pruef("(Z12) Die Alt-Berichte stehen richtig in der Störungs-Datei (Umlaute, Gewerk, ALLE erledigt)",
+        // Robertos Ansage: Alt-Berichte kommen IMMER erledigt an - auch die
+        // mit altem Status IBWB. Der Original-Status bleibt nachlesbar.
         !!alt1 && alt1.stoerung === "Drehkreuz nimmt keine Töpfe" && alt1.gewerk === "mech" && alt1.offen === false
-        && alt1.nr === "30001" && alt1.melder === "Balles" && !!alt3 && alt3.offen === true,
-        alt1 ? `${alt1.stoerung} | ${alt1.gewerk}` : "fehlt");
+        && alt1.nr === "30001" && alt1.melder === "Balles"
+        && !!alt3 && alt3.offen === false && alt3.altSystem && alt3.altSystem.status === "IBWB",
+        alt1 ? `${alt1.stoerung} | ${alt1.gewerk} | alt3: ${alt3 && alt3.altSystem && alt3.altSystem.status}` : "fehlt");
   pruef("(Z12) Die Zeit-Buchung daraus trägt Kostenstelle samt Nummer",
         !!altZeit && altZeit.name === "Wiesner Jan" && altZeit.ks === "Masseaufbereitung" && altZeit.ksNr === "20306"
         && altZeit.stunden === 1.5 && altZeit.stoerNr === "30002",
