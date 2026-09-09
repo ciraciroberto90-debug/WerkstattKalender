@@ -823,8 +823,11 @@ const TEAM_ROLLEN = {
 // nach dem nächsten Öffnen verloren.
 const normalisiereTeam = (arr) => (Array.isArray(arr) ? arr : [])
   .map((t) => (typeof t === "string"
-    ? { name: t, rolle: "", geburtstag: "" }
-    : { name: String(t.name || ""), rolle: TEAM_ROLLEN[t.rolle] ? t.rolle : "", geburtstag: typeof t.geburtstag === "string" ? t.geburtstag.trim() : "" }))
+    ? { name: t, rolle: "", geburtstag: "", zeiterfassung: true }
+    // zeiterfassung: Nur ein ausdrückliches false nimmt jemanden aus der
+    // Zeiterfassungs-Auswahl - Bestände ohne den Schlüssel (vor dem 09.09.)
+    // bleiben vollzählig wählbar.
+    : { name: String(t.name || ""), rolle: TEAM_ROLLEN[t.rolle] ? t.rolle : "", geburtstag: typeof t.geburtstag === "string" ? t.geburtstag.trim() : "", zeiterfassung: t.zeiterfassung !== false }))
   .filter((t) => t.name.trim());
 
 /* ---------- Geburtstags-Erinnerung (Robertos Wahl "A" vom 20.08.) ----------
@@ -1350,6 +1353,82 @@ function normalisiereMonitor(roh) {
   return b;
 }
 
+/* ---------- Zeiterfassung / Schichtbericht (Robertos Auftrag vom 09.09.) ----------
+   Ersatz für das alte ikom-ZE: Jeder berechtigte Mitarbeiter schreibt täglich
+   seine Stunden auf Kostenstellen, damit sie im Betrieb sauber aufgeteilt
+   werden. Abwesenheiten werden mit erfasst (wie im alten Formular), laufen
+   aber in KEINE Kostenstelle und fehlen deshalb bewusst im Jahres-Export. */
+const ABWESENHEIT_GRUENDE = ["Krank", "Urlaub", "Zeitausgleich", "Dienstreise", "Schule", "Feiertag", "Kurzarbeit", "-sonstiges-"];
+
+// Kostenstellen-Startbestand: Robertos Liste vom 09.09. aus dem alten System,
+// Schreibweisen bewusst UNVERÄNDERT übernommen (so stehen sie in der
+// Buchhaltung). Die Liste ist im ⚙ (Reiter "Kostenstellen") pflegbar und
+// wächst über die Jahre - hier steht nur die Erstbefüllung.
+const KOSTENSTELLEN_START = [
+  ["2040801", "Azubi E-Werkstatt"], ["2040901", "Azubi M-Werkstatt"], ["900001", "Azubi Kosten Verwaltung"],
+  ["2037101", "Automatisches Ableeren HRO"], ["20108", "Be- Entlüftung"], ["20362", "Beschichtung allgemein"],
+  ["2036201", "B1 Beschichtungsanlage"], ["2036202", "B2 Beschichtungsanlage"], ["2036203", "B3 Beschichtungsanlage"],
+  ["2036221", "B1 Entladeanlage"], ["2036222", "B2 Entladeanlage"], ["2036223", "B3 Be- und Entladeanlage"],
+  ["20111", "Blockheizkraftwerk"], ["2032108", "Bohreinrichtung für Ü-Töpfe"], ["2040221", "Brandmeldeanlage"],
+  ["20323", "BTS Bechertaktstraße"], ["2032003", "B+T Speicher und Transporteinrichtung"], ["2036212", "BVM Schrumpfmasch. + PCA Absetzanlage"],
+  ["A7075", "AEO-S Kameras '23"], ["A7026", "BDE Beschichtung"], ["A6669", "PSG-Entwicklung Enwicklung Stanze '21"],
+  ["A6911", "PV-Anlage auf TEKA-Dach '22"], ["A6671", "Photovoltaik alte Deponie '22"], ["A7024", "AEO-S Toranlage"],
+  ["A7033", "Klebevorrichtung fuer Untersetzer"], ["A7140", "Erweiterung Brandmeldeanlage"], ["A7159", "HRO ÜG1 Ersatz durch Riemenfoerderer"],
+  ["A7165", "Ergonomieverbesserung B2 Aufsetzen"], ["A7177", "neue Presse TS200"], ["A7201", "Erneuerung Mittelspannung"],
+  ["A7282", "Umbau BG2 RRO"], ["A7316", "Optimierung Depalettieren B3"], ["A7548", "Umbau Werkstattbereich"],
+  ["A7491", "HRO Umbau Brennergruppe 5"], ["A7547", "Automatisierung B2 Aufsetzen"], ["A7558", "Energiedatenerfassung"],
+  ["A7559", "LTA 1 Steuerungsumbau auf S7"],
+  ["BA201184", "TPM-Kosten allgemein"], ["BA201185", "TPM-Kosten ADL"], ["BA201186", "TPM-Kosten BTS"],
+  ["BA201187", "TPM-Kosten VSM1"], ["BA201188", "TPM-Kosten VSM2"], ["BA201189", "TPM Beschichtung allg."],
+  ["BA201190", "TPM B1"], ["BA201191", "TPM B2"], ["BA201192", "TPM B3"],
+  ["10104", "Design (Marketing)"], ["2030102", "Drehformenbau"], ["20105", "Druckluft allgemein"],
+  ["2040802", "EDV Einrichtungen E-Werkstatt"], ["2032101", "E1 Eindrehmaschine"], ["2032104", "E4 Eindrehmaschine"],
+  ["20408", "E-Werkstatt"], ["20410", "Eigene technische Entwicklung"], ["20106", "Entstaubungsanlage"],
+  ["20107", "Entsorgung"], ["2030104", "Epiloxraum"], ["20301", "Formenbau allg."],
+  ["2036213", "Förderanlage HNH B3"], ["20104", "Gasversorgung"], ["20402", "Gebäude"],
+  ["2030101", "Gießformenbau"], ["20307", "Glasurenaufbereitung"], ["20371", "Heimsoth Rollenofen"],
+  ["2030604", "Hubelstapelgerät Dreh- /Pressmasse"], ["1060100", "IT Allgemein"], ["2036003", "Kaltfarbe spritzen (Rundtisch)"],
+  ["2036210", "Kartonverpackung Beschicht./Sortiererei"], ["20407", "Kommissionierung"], ["2032006", "KUKA II Pal-Robober mit Förderanlage"],
+  ["2032007", "KUKA I Pal-Robober"], ["20312", "K+S"], ["900050", "Pkw-Ladestation"],
+  ["20406", "Lager Fertigwaren"], ["2040604", "Log-Zugang HAWA"], ["20311", "LGA Lippert Gießanlage"],
+  ["2036601", "Linieranlage Quer"], ["2036602", "Linieranlage senkrecht"], ["2010903", "Lean Management"],
+  ["20392", "LTA1 Lippert Transportanlage"], ["20412", "LTA2 Lippert Transportanlage"], ["10106", "Marketing allgemein"],
+  ["20306", "Masseaufbereitung"], ["20305", "Masseaufbereitung Gießmasse"], ["10108", "Messe- und Ladenbau"],
+  ["100084", "Messe IVG Medientag Garten"], ["", "Messe Gafa 2026"], ["", "Messe Vertriebsmesse"],
+  ["800032", "Messe Zeus Hannover OM"], ["800045", "Messe Zeus Herbstmesse Göttingen"], ["800080", "Messe Gartenevent Kassel"],
+  ["800261", "Messe Metro Musterungen"], ["800365", "Messe Glee Fair UK"], ["800396", "Messe AVEVE-Belgien"],
+  ["800397", "Messe JDC Frankreich"], ["800433", "Messe Eurobaustoffe Köln"], ["800398", "Messe My Plant&Garden Milano / PK"],
+  ["8074", "Messe US"], ["800441", "Messe VM-INB Homebase/Bunnings Expo"], ["8049", "Messe Baumärkte"],
+  ["", "Messe IPM 2026"], ["10103", "Modellbau"], ["100072", "Musterfläche Outdoor"],
+  ["10105", "Musterstelle"], ["20409", "M-Werkstatt"], ["20395", "Nebenarbeiten Dreherei"],
+  ["2010901", "Öko – Audit"], ["20373", "ORO Olivastri Forni Rollenofen"], ["20328", "OF320 Taktstraße"],
+  ["2040701", "Paletten-Schrumpfanlage"], ["100071", "Photo-Studio"], ["20357", "Polyprintanlage"],
+  ["2030103", "Pressformenbau"], ["20340", "RAM 1"], ["20340", "RAM 2"],
+  ["2030605", "Recyklingmasse Dreh- /Pressmasse"], ["2041101", "Reopack Wickelautomat"], ["2032005", "Riedhammer Rollenofen"],
+  ["2032109", "Schneidemaschine für Ü-Töpfe"], ["2010501", "Schraubenkompressoren"], ["20355", "Schrühlager"],
+  ["2030601", "Silo- /Wiege- /Förderanl."], ["20110", "Sonderbohrm. Dreherei / Presserei"], ["201535", "Sonderaufgaben-PP"],
+  ["201536", "Sonderaufgaben-Werk5000"], ["20380", "Sortieren Handverpacken"], ["10401", "Soziale Einrichtung"],
+  ["2040220", "Sprinkler Feuerlöschanlagen"], ["20103", "Stromversorgung"], ["100070", "Studio (Musterzimmer)"],
+  ["2030602", "Teka-Mischer Dreh- /Pressmasse"], ["20109", "Technische Verwaltung allg."], ["20313", "TGA"],
+  ["20391", "Transportgeräte allgemein"], ["2036211", "Trayaufrichter Beschichtung"], ["20381", "Trayschrumpfmaschine V2"],
+  ["20390", "Trapo Förderanlage"], ["20327", "TS 200"], ["2032001", "TS 320 ADL"],
+  ["2032002", "TS 480 ADL"], ["20325", "VSM1"], ["20326", "VSM2"],
+  ["2030603", "Vakuumpresse Dreh- /Pressmasse"], ["20411", "Versand"], ["10402", "Verwaltung kaufm. Allgemein"],
+  ["20102", "Warmwasserbereitung / -versorgung"], ["20101", "Wasservers. / -aufbereitung / -entsorgung"], ["2032004", "Weißtrockner ADL"],
+  ["10501", "Wohngebäude"], ["2040301", "Zugangskontrolle"],
+].map(([nr, name], i) => ({ id: "ks-start-" + i, nr, name }));
+
+// Bestände ohne den Schlüssel (vor dem 09.09.) bekommen den Startbestand -
+// dieselbe Regel wie beim Monitor: fehlend heißt Vorgabe, nie leer.
+function normalisiereKostenstellen(roh) {
+  if (!Array.isArray(roh)) return KOSTENSTELLEN_START.map((k) => ({ ...k }));
+  return roh
+    .map((k, i) => ({ id: String((k && k.id) || "ks-" + i), nr: String((k && k.nr) || "").trim(), name: String((k && k.name) || "").trim() }))
+    .filter((k) => k.name);
+}
+// Anzeigename einer Kostenstelle - so steht sie in Auswahl, Liste und Export.
+const ksAnzeige = (k) => (k.nr ? `${k.name} (${k.nr})` : k.name);
+
 const STATUS_COLORS = {
   done: { bg: "#E5F3EA", fg: "#2F7D4F" },
   open: { bg: "#FBE9E7", fg: "#B23A34" },
@@ -1733,6 +1812,8 @@ function App() {
   const [settingsBenutzer, setSettingsBenutzer] = useState([]); // Benutzer & Rechte im ⚙-Dialog (nur Verwalter)
   const [settingsSchichten, setSettingsSchichten] = useState([]); // eigene Schichtarten im ⚙-Dialog
   const [settingsAnlagenteile, setSettingsAnlagenteile] = useState([]); // Anlagenteile im ⚙-Dialog
+  const [settingsKostenstellen, setSettingsKostenstellen] = useState([]); // Kostenstellen im ⚙-Dialog (Entwurf)
+  const [ksSuche, setKsSuche] = useState(""); // Suchfeld über der ⚙-Kostenstellen-Liste (150+ Einträge)
   const [neuesTeilAnlage, setNeuesTeilAnlage] = useState(""); // Auswahl beim Anlegen eines Anlagenteils
   const [neuesTeilName, setNeuesTeilName] = useState("");
   const [neueSchichtName, setNeueSchichtName] = useState("");
@@ -1909,6 +1990,15 @@ function App() {
   const [monitorBausteine, setMonitorBausteine] = useState(() => normalisiereMonitor(null)); // was der Monitor zeigt (⚙, gemeinsame Datei)
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
+  /* ---------- Zeiterfassung / Schichtbericht (09.09.) ---------- */
+  const [kostenstellen, setKostenstellen] = useState(() => normalisiereKostenstellen(null)); // pflegbare Liste (⚙, gemeinsame Datei)
+  const [zeitModal, setZeitModal] = useState(null); // null | Entwurf {id?, art, date, schicht, wer, ksWahl, taetigkeit, stunden, grund, bemerkung, stoerNr}
+  const [zeitCursor, setZeitCursor] = useState(() => new Date()); // Monat der Eintragsliste
+  const [zeitFilterWer, setZeitFilterWer] = useState("ALLE");
+  const [zeitAnsicht, setZeitAnsicht] = useState("liste"); // "liste" | "summen" (Jahres-Summen je Kostenstelle)
+  const [zeitJahr, setZeitJahr] = useState(() => new Date().getFullYear());
+  const [zeitFehler, setZeitFehler] = useState(null);
+
   // Gemeinsame Datei: beim Start wiederverbinden und auf Änderungen der anderen hören
   useEffect(() => {
     let cancelled = false;
@@ -1972,6 +2062,7 @@ function App() {
         if (Array.isArray(d.config.benutzer)) setBenutzerListe(stabil(normalisiereBenutzer(d.config.benutzer)));
         if (typeof d.config.werkstattName === "string") setWerkstattName((alt) => (alt === d.config.werkstattName ? alt : d.config.werkstattName));
         if (d.config.monitor) setMonitorBausteine(stabil(normalisiereMonitor(d.config.monitor)));
+        if (d.config.kostenstellen) setKostenstellen(stabil(normalisiereKostenstellen(d.config.kostenstellen)));
       }
       });
     };
@@ -3183,6 +3274,7 @@ function App() {
             setBenutzerListe(normalisiereBenutzer(parsed.benutzer));
           }
           if (parsed.monitor) setMonitorBausteine(normalisiereMonitor(parsed.monitor));
+          if (parsed.kostenstellen) setKostenstellen(normalisiereKostenstellen(parsed.kostenstellen));
           if (typeof parsed.werkstattName === "string") {
             setWerkstattName(parsed.werkstattName);
           }
@@ -3206,7 +3298,7 @@ function App() {
   // Überleben fremder Rechteänderungen aber strukturell sicher (das Feld wird
   // von Links-/OEE-/Einstellungs-Speichern gar nicht mehr berührt), statt es
   // der Zusammenführung zu überlassen.
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -3218,11 +3310,12 @@ function App() {
     if (nextBenutzer) setBenutzerListe(nextBenutzer);
     setWerkstattName(nextWerkstattName);
     setMonitorBausteine(nextMonitor);
+    setKostenstellen(nextKostenstellen);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}) }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}) }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -3452,6 +3545,8 @@ function App() {
     setSettingsBenutzer(benutzerListe.map((b) => ({ ...b, kennwortNeu: "" })));
     setSettingsSchichten(extraSchichten.map((s) => ({ ...s })));
     setSettingsAnlagenteile(anlagenteile.map((t) => ({ ...t })));
+    setSettingsKostenstellen(kostenstellen.map((k) => ({ ...k })));
+    setKsSuche("");
     setNeueSchichtName("");
     setNeuesTeilAnlage("");
     setNeuesTeilName("");
@@ -3557,7 +3652,7 @@ function App() {
     });
 
     const cleanTeam = settingsTeam
-      .map((t) => ({ name: t.name.trim(), rolle: t.rolle || "", geburtstag: (t.geburtstag || "").trim() }))
+      .map((t) => ({ name: t.name.trim(), rolle: t.rolle || "", geburtstag: (t.geburtstag || "").trim(), zeiterfassung: t.zeiterfassung !== false }))
       .filter((t) => t.name);
     const teamRenames = new Map();
     settingsTeam.forEach((t) => {
@@ -3572,7 +3667,7 @@ function App() {
         if (e.category === "TPM" && tpmRenames.has(e.name)) return { ...e, name: tpmRenames.get(e.name) };
         if (e.category === "RI" && riRenames.has(e.name)) return { ...e, name: riRenames.get(e.name) };
         if (e.category === "ARBEIT" && e.wer && teamRenames.has(e.wer)) return { ...e, wer: teamRenames.get(e.wer) };
-        if ((e.category === "SCHICHT" || e.category === "PLANNOTIZ") && teamRenames.has(e.name)) return { ...e, name: teamRenames.get(e.name) };
+        if ((e.category === "SCHICHT" || e.category === "PLANNOTIZ" || e.category === "ZEIT") && teamRenames.has(e.name)) return { ...e, name: teamRenames.get(e.name) };
         return e;
       });
     }
@@ -3604,7 +3699,7 @@ function App() {
       }
     }
 
-    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten), normalisiereAnlagenteile(teileMitRename), links, oeeQuelle, nextBenutzer);
+    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten), normalisiereAnlagenteile(teileMitRename), links, oeeQuelle, nextBenutzer, werkstattName, monitorBausteine, normalisiereKostenstellen(settingsKostenstellen));
     if (nextEntries !== entries) await persist(nextEntries);
     setSettingsOpen(false);
   };
@@ -3762,6 +3857,90 @@ function App() {
                    s.offen ? "offen" : "behoben", s.melder || ""].map(csvZelle).join(";"));
     ladeHerunter("\uFEFF" + ["Nr;Datum;Schicht;Anlage;Anlagenteil;Gewerk;Störung;Ursache;Was wurde unternommen;Nächste Schicht;Ersatzteile;Nachbestellt;Ausfall (min);Status;Melder", ...zeilen].join("\r\n"),
       `werkstatt-stoerungen-${todayKey}.csv`, "text/csv;charset=utf-8");
+  };
+
+  /* ---------- Zeiterfassung / Schichtbericht (Robertos Auftrag 09.09.) ----------
+     Jeder berechtigte Mitarbeiter schreibt täglich seine Stunden auf
+     Kostenstellen. Die Einträge liegen als Kategorie "ZEIT" in der GEMEINSAMEN
+     Datei - Zusammenführen, Lösch-Merkliste und Uhr-Wächter greifen damit
+     unverändert, ohne eigenen Speicherweg. */
+  const zeitEintraege = useMemo(() => entries.filter((e) => e.category === "ZEIT"), [entries]);
+  const zeitBerechtigte = useMemo(() => team.filter((t) => t.zeiterfassung !== false), [team]);
+  // Stunden kommen getippt mit Komma ODER Punkt - beides zählt gleich.
+  const zeitStundenZahl = (v) => {
+    const n = Number(String(v ?? "").trim().replace(",", "."));
+    return Number.isFinite(n) ? n : NaN;
+  };
+  const zeitStundenText = (n) => String(Math.round(Number(n) * 100) / 100).replace(".", ",");
+  const zeitNeu = () => {
+    const h = new Date().getHours();
+    const schicht = h >= 6 && h < 14 ? "Früh" : h >= 14 && h < 22 ? "Spät" : "Nacht";
+    // Angemeldeter Benutzer als Vorgabe, wenn er in der Berechtigten-Liste steht
+    const ich = zeitBerechtigte.find((t) => t.name.toLowerCase() === String(angemeldet || "").toLowerCase());
+    setZeitFehler(null);
+    setZeitModal({ art: "arbeit", date: todayKey, schicht, wer: ich ? ich.name : (zeitBerechtigte[0]?.name || ""), ksWahl: "", taetigkeit: "", stunden: "", grund: ABWESENHEIT_GRUENDE[0], bemerkung: "", stoerNr: "" });
+  };
+  const zeitBearbeiten = (e) => {
+    setZeitFehler(null);
+    setZeitModal({ id: e.id, art: e.art === "abwesenheit" ? "abwesenheit" : "arbeit", date: e.date, schicht: e.schicht || "Früh",
+      wer: e.name || "", ksWahl: e.ks ? (e.ksNr ? `${e.ks} (${e.ksNr})` : e.ks) : "", taetigkeit: e.taetigkeit || "",
+      stunden: zeitStundenText(e.stunden || 0), grund: e.grund || ABWESENHEIT_GRUENDE[0], bemerkung: e.bemerkung || "", stoerNr: e.stoerNr || "" });
+  };
+  const zeitSpeichern = async () => {
+    const m = zeitModal;
+    if (!m) return;
+    const stunden = zeitStundenZahl(m.stunden);
+    if (!m.wer) { setZeitFehler("Bitte einen Mitarbeiter wählen."); return; }
+    if (!m.date) { setZeitFehler("Bitte ein Datum wählen."); return; }
+    if (!Number.isFinite(stunden) || stunden <= 0 || stunden > 24) { setZeitFehler("Bitte die Arbeitsdauer in Stunden angeben (z. B. 1,5)."); return; }
+    let ks = null;
+    if (m.art === "arbeit") {
+      // Nur Kostenstellen AUS DER LISTE zählen - frei Getipptes würde in der
+      // Jahres-Summe als eigene Zeile landen und die Aufteilung verfälschen.
+      const wahl = String(m.ksWahl || "").trim();
+      ks = kostenstellen.find((k) => ksAnzeige(k) === wahl) || kostenstellen.find((k) => k.name === wahl);
+      if (!ks) { setZeitFehler("Bitte eine Kostenstelle aus der Liste wählen (ins Feld tippen zeigt Vorschläge)."); return; }
+    }
+    const eintrag = {
+      // Der Mitarbeiter steht im Pflichtfeld "name" (wie bei SCHICHT-Einträgen):
+      // der Start-Lader verwirft Einträge ohne name, und Team-Umbenennungen
+      // ziehen so automatisch mit.
+      id: m.id || `zeit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      category: "ZEIT", date: m.date, schicht: m.schicht, name: m.wer,
+      stunden: Math.round(stunden * 100) / 100, bemerkung: String(m.bemerkung || "").trim(),
+      ...(m.art === "arbeit"
+        ? { art: "arbeit", ks: ks.name, ksNr: ks.nr, taetigkeit: String(m.taetigkeit || "").trim(), stoerNr: String(m.stoerNr || "").trim() }
+        : { art: "abwesenheit", grund: m.grund }),
+    };
+    const ok = await persist(m.id ? entries.map((e) => (e.id === m.id ? eintrag : e)) : [...entries, eintrag]);
+    if (ok) { setZeitModal(null); setZeitFehler(null); }
+  };
+  const zeitLoeschen = async () => {
+    if (!zeitModal || !zeitModal.id) return;
+    if (!window.confirm("Diesen Zeiterfassungs-Eintrag wirklich löschen?")) return;
+    const ok = await persist(entries.filter((e) => e.id !== zeitModal.id));
+    if (ok) setZeitModal(null);
+  };
+  // Jahres-Summen je Kostenstelle: NUR Arbeitsstunden - Abwesenheiten laufen
+  // in keine Kostenstelle (Robertos Ansage) und fehlen hier bewusst.
+  const zeitSummen = (jahr) => {
+    const summe = new Map();
+    zeitEintraege.forEach((e) => {
+      if (e.art === "abwesenheit") return;
+      if (String(e.date || "").slice(0, 4) !== String(jahr)) return;
+      const schluessel = `${e.ks || "?"}|${e.ksNr || ""}`;
+      summe.set(schluessel, (summe.get(schluessel) || 0) + (Number(e.stunden) || 0));
+    });
+    return [...summe.entries()]
+      .map(([k, stunden]) => { const [name, nr] = k.split("|"); return { name, nr, stunden: Math.round(stunden * 100) / 100 }; })
+      .sort((a, b) => a.name.localeCompare(b.name, "de"));
+  };
+  const exportZeitCsv = (jahr) => {
+    const summen = zeitSummen(jahr);
+    const zeilen = summen.map((z) => [z.name, z.nr, zeitStundenText(z.stunden)].map(csvZelle).join(";"));
+    const gesamt = summen.reduce((a, z) => a + z.stunden, 0);
+    ladeHerunter("\uFEFF" + [`Kostenstelle;Nummer;Stunden ${jahr}`, ...zeilen, `Gesamt;;${zeitStundenText(gesamt)}`].join("\r\n"),
+      `werkstatt-zeiterfassung-kostenstellen-${jahr}.csv`, "text/csv;charset=utf-8");
   };
 
   const handleImportFile = async (e) => {
@@ -6794,8 +6973,8 @@ function App() {
             {view === "COCKPIT" ? (
               <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
                 {(readerMode
-                  ? [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["STOERUNGEN", "Störungen"]]
-                  : [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"], ["STOERUNGEN", "Störungen"]]
+                  ? [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["STOERUNGEN", "Störungen"], ["ZEIT", "Zeiterfassung"]]
+                  : [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"], ["STOERUNGEN", "Störungen"], ["ZEIT", "Zeiterfassung"]]
                 ).map(([v, label]) => (
                   <button
                     key={v}
@@ -7534,6 +7713,272 @@ function App() {
       </div>
 
       {/* Cockpit: Störungen (eigene, für alle beschreibbare Datei) */}
+      {/* ================= Zeiterfassung / Schichtbericht (09.09.) =================
+          Ersatz für das alte ikom-ZE: Stunden je Mitarbeiter auf Kostenstellen,
+          Abwesenheiten wie früher mit dabei. Aufteilung wie im alten System:
+          Eintragsliste (nach Tag) und die Jahres-Summen je Kostenstelle, die am
+          Jahresende als CSV für Excel herausgegeben werden. */}
+      {view === "COCKPIT" && cockpitTab === "ZEIT" && (() => {
+        const mj = zeitCursor.getFullYear(), mi = zeitCursor.getMonth();
+        const imMonat = zeitEintraege.filter((e) => {
+          const d = String(e.date || "");
+          if (d.slice(0, 4) !== String(mj) || Number(d.slice(5, 7)) !== mi + 1) return false;
+          return zeitFilterWer === "ALLE" || e.name === zeitFilterWer;
+        });
+        // Ein Block je Tag, jüngster zuerst - so liest sich die Liste wie das
+        // alte Schichtbuch von heute rückwärts.
+        const tage = [...new Set(imMonat.map((e) => e.date))].sort().reverse()
+          .map((d) => ({ datum: d, liste: imMonat.filter((e) => e.date === d).sort((a, b) => String(a.name).localeCompare(String(b.name), "de")) }));
+        // Für den Mitarbeiter-Filter zählen auch Namen aus ALTEN Einträgen -
+        // wer das Team verlässt, bleibt in seinen Jahrgängen auffindbar.
+        const filterNamen = [...new Set([...zeitBerechtigte.map((t) => t.name), ...zeitEintraege.map((e) => e.name).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "de"));
+        const jahresListe = zeitSummen(zeitJahr);
+        const jahresGesamt = jahresListe.reduce((a, z) => a + z.stunden, 0);
+        const schichtFarbe = (name) => (SCHICHTEN[name] ? SCHICHTEN[name] : { color: "#8A9099", kurz: "?" });
+        return (
+        <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <div className="font-black text-sm uppercase tracking-wide" style={{ color: "#22262B" }}>Zeiterfassung / Schichtbericht</div>
+            <div className="flex rounded overflow-hidden border ml-2" style={{ borderColor: "#D6D9DC" }}>
+              {[["liste", "Einträge"], ["summen", "Jahres-Summen"]].map(([k, label]) => (
+                <button key={k} onClick={() => setZeitAnsicht(k)} className="px-2.5 py-1 text-xs font-bold"
+                  style={zeitAnsicht === k ? { backgroundColor: "#22262B", color: "white" } : { backgroundColor: "white", color: "#5B6572" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {zeitAnsicht === "liste" && (
+              <>
+                <div className="flex items-center gap-1 ml-1">
+                  <button onClick={() => setZeitCursor(new Date(mj, mi - 1, 1))} className="p-1 rounded hover:bg-slate-200" aria-label="Voriger Monat"><ChevronLeft size={16} /></button>
+                  <div className="font-mono text-sm w-36 text-center">{MONTHS[mi]} {mj}</div>
+                  <button onClick={() => setZeitCursor(new Date(mj, mi + 1, 1))} className="p-1 rounded hover:bg-slate-200" aria-label="Nächster Monat"><ChevronRight size={16} /></button>
+                </div>
+                <select value={zeitFilterWer} onChange={(e) => setZeitFilterWer(e.target.value)} aria-label="Mitarbeiter filtern"
+                  className="text-xs border rounded px-2 py-1.5 font-bold" style={{ borderColor: "#D6D9DC", color: "#39414B" }}>
+                  <option value="ALLE">Alle Mitarbeiter</option>
+                  {filterNamen.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </>
+            )}
+            {zeitAnsicht === "summen" && (
+              <div className="flex items-center gap-1 ml-1">
+                <button onClick={() => setZeitJahr((j) => j - 1)} className="p-1 rounded hover:bg-slate-200" aria-label="Voriges Jahr"><ChevronLeft size={16} /></button>
+                <div className="font-mono text-sm w-16 text-center">{zeitJahr}</div>
+                <button onClick={() => setZeitJahr((j) => j + 1)} className="p-1 rounded hover:bg-slate-200" aria-label="Nächstes Jahr"><ChevronRight size={16} /></button>
+              </div>
+            )}
+            {!readerMode && (
+              <button onClick={zeitNeu} className="ml-auto text-white px-3 py-1.5 rounded font-bold text-sm hover:opacity-90"
+                style={{ backgroundColor: "#22262B" }}>
+                ＋ Neue Zeiterfassung
+              </button>
+            )}
+          </div>
+
+          {zeitAnsicht === "liste" && (tage.length === 0 ? (
+            <div className="wk-karte p-6 text-sm" style={{ border: "1px solid #E2E4E7", color: "#8A9099" }}>
+              Für {MONTHS[mi]} {mj}{zeitFilterWer !== "ALLE" ? ` und ${zeitFilterWer}` : ""} ist noch nichts erfasst.
+              {!readerMode && " Oben rechts geht der erste Eintrag an: „＋ Neue Zeiterfassung“."}
+            </div>
+          ) : (
+            tage.map((t) => {
+              const tagesSumme = t.liste.reduce((a, e) => a + (Number(e.stunden) || 0), 0);
+              return (
+                <div key={t.datum} className="wk-karte mb-3 overflow-hidden" style={{ border: "1px solid #E2E4E7" }}>
+                  <div className="flex items-center px-3 py-2" style={{ backgroundColor: "#F7F8F9", borderBottom: "1px solid #EEF0F2" }}>
+                    <div className="font-extrabold text-xs uppercase tracking-wide" style={{ color: "#22262B" }}>
+                      {WEEKDAYS[(new Date(t.datum + "T00:00:00").getDay() + 6) % 7]}, {formatDateDE(t.datum)}
+                    </div>
+                    <div className="ml-auto font-mono text-xs font-bold" style={{ color: "#5B6572" }}>{zeitStundenText(tagesSumme)} Std</div>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table className="w-full" style={{ fontSize: "0.78rem", borderCollapse: "collapse" }}>
+                      <tbody>
+                        {t.liste.map((e) => {
+                          const s = schichtFarbe(e.schicht);
+                          const abw = e.art === "abwesenheit";
+                          return (
+                            <tr key={e.id}
+                              onClick={() => { if (!readerMode) zeitBearbeiten(e); }}
+                              title={readerMode ? undefined : "Klick zum Bearbeiten"}
+                              style={{ borderBottom: "1px solid #F2F3F4", cursor: readerMode ? "default" : "pointer", backgroundColor: abw ? "#FAFAFB" : "white" }}>
+                              <td style={{ padding: "6px 10px", width: "52px" }}>
+                                <span className="rounded font-black uppercase" style={{ fontSize: "0.58rem", padding: "2px 6px", color: s.text || "white", backgroundColor: s.color }}>{s.kurz || e.schicht}</span>
+                              </td>
+                              <td style={{ padding: "6px 8px", fontWeight: 700, whiteSpace: "nowrap", color: "#22262B" }}>{e.name}</td>
+                              <td style={{ padding: "6px 8px", color: abw ? "#8A9099" : "#39414B" }}>
+                                {abw
+                                  ? <>Abwesenheit: <strong>{e.grund}</strong></>
+                                  : <>{e.ks}{e.ksNr ? <span className="font-mono" style={{ color: "#97A0A9" }}> ({e.ksNr})</span> : null}</>}
+                              </td>
+                              <td style={{ padding: "6px 8px", color: "#5B6572" }}>
+                                {!abw && e.taetigkeit}
+                                {!abw && e.stoerNr ? <span className="ml-1 rounded font-mono" style={{ fontSize: "0.62rem", padding: "1px 5px", backgroundColor: "#FDF0E2", color: "#A25E14" }}>Störbericht {e.stoerNr}</span> : null}
+                                {e.bemerkung ? <span style={{ color: "#97A0A9" }}>{!abw && (e.taetigkeit || e.stoerNr) ? " · " : ""}{e.bemerkung}</span> : null}
+                              </td>
+                              <td className="font-mono" style={{ padding: "6px 10px", textAlign: "right", fontWeight: 800, whiteSpace: "nowrap", color: abw ? "#8A9099" : "#22262B", width: "80px" }}>{zeitStundenText(e.stunden)} Std</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })
+          ))}
+
+          {zeitAnsicht === "summen" && (
+            <div className="wk-karte overflow-hidden" style={{ border: "1px solid #E2E4E7", maxWidth: "760px" }}>
+              <div className="flex items-center px-3 py-2" style={{ backgroundColor: "#F7F8F9", borderBottom: "1px solid #EEF0F2" }}>
+                <div className="font-extrabold text-xs uppercase tracking-wide" style={{ color: "#22262B" }}>Stunden je Kostenstelle – {zeitJahr}</div>
+                <button onClick={() => exportZeitCsv(zeitJahr)} className="ml-auto text-white px-2.5 py-1 rounded font-bold text-xs hover:opacity-90" style={{ backgroundColor: "#1F7A3D" }}>
+                  Für Excel herunterladen (CSV)
+                </button>
+              </div>
+              {jahresListe.length === 0 ? (
+                <div className="p-5 text-sm" style={{ color: "#8A9099" }}>Für {zeitJahr} sind noch keine Arbeitsstunden erfasst.</div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="w-full" style={{ fontSize: "0.78rem", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "#FBFBFC", borderBottom: "1px solid #EEF0F2" }}>
+                        <th style={{ padding: "6px 10px", textAlign: "left", fontSize: "0.62rem", textTransform: "uppercase", color: "#8A9099" }}>Kostenstelle</th>
+                        <th style={{ padding: "6px 10px", textAlign: "left", fontSize: "0.62rem", textTransform: "uppercase", color: "#8A9099" }}>Nummer</th>
+                        <th style={{ padding: "6px 10px", textAlign: "right", fontSize: "0.62rem", textTransform: "uppercase", color: "#8A9099" }}>Stunden</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {jahresListe.map((z) => (
+                        <tr key={z.name + z.nr} style={{ borderBottom: "1px solid #F2F3F4" }}>
+                          <td style={{ padding: "5px 10px", fontWeight: 600, color: "#39414B" }}>{z.name}</td>
+                          <td className="font-mono" style={{ padding: "5px 10px", color: "#97A0A9" }}>{z.nr}</td>
+                          <td className="font-mono" style={{ padding: "5px 10px", textAlign: "right", fontWeight: 800, color: "#22262B" }}>{zeitStundenText(z.stunden)}</td>
+                        </tr>
+                      ))}
+                      <tr style={{ backgroundColor: "#F7F8F9" }}>
+                        <td style={{ padding: "6px 10px", fontWeight: 800, textTransform: "uppercase", fontSize: "0.68rem", color: "#22262B" }}>Gesamt</td>
+                        <td />
+                        <td className="font-mono" style={{ padding: "6px 10px", textAlign: "right", fontWeight: 900, color: "#22262B" }}>{zeitStundenText(jahresGesamt)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="px-3 py-2 text-xs" style={{ color: "#97A0A9", borderTop: "1px solid #EEF0F2" }}>
+                Abwesenheiten (Krank, Urlaub …) laufen in keine Kostenstelle und sind hier bewusst nicht enthalten.
+              </div>
+            </div>
+          )}
+        </div>
+        );
+      })()}
+
+      {/* Zeiterfassung: Anlegen / Bearbeiten - Aufbau wie das alte ikom-Formular,
+          damit niemand umlernen muss (Zeiterfassung/Abwesenheit, Datum, Schicht,
+          Mitarbeiter, Kostenstelle, Art der Arbeit, Arbeitsdauer, Bemerkung). */}
+      {zeitModal && !readerMode && (
+        <div className="no-print" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setZeitModal(null)}>
+          <ZiehbareKarte role="dialog" aria-label={zeitModal.id ? "Zeiterfassung bearbeiten" : "Neue Zeiterfassung"}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px 20px", width: "520px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-sm">{zeitModal.id ? "Zeiterfassung bearbeiten" : "Neue Zeiterfassung"}</div>
+              <button onClick={() => setZeitModal(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+            <div className="flex items-center gap-4 mb-3">
+              {[["arbeit", "Zeiterfassung"], ["abwesenheit", "Abwesenheit"]].map(([k, label]) => (
+                <label key={k} className="inline-flex items-center gap-1.5 text-sm font-bold cursor-pointer" style={{ color: zeitModal.art === k ? "#22262B" : "#8A9099" }}>
+                  <input type="radio" name="zeit-art" checked={zeitModal.art === k} onChange={() => setZeitModal((m) => ({ ...m, art: k }))} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Datum
+                <input type="date" value={zeitModal.date} onChange={(e) => setZeitModal((m) => ({ ...m, date: e.target.value }))}
+                  className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+              </label>
+              <div className="text-xs font-bold" style={{ color: "#5B6572" }}>Schicht
+                <div className="flex gap-3 mt-2.5">
+                  {["Früh", "Spät", "Nacht"].map((s) => (
+                    <label key={s} className="inline-flex items-center gap-1 text-sm font-semibold cursor-pointer" style={{ color: "#39414B" }}>
+                      <input type="radio" name="zeit-schicht" checked={zeitModal.schicht === s} onChange={() => setZeitModal((m) => ({ ...m, schicht: s }))} />
+                      {s}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <label className="block text-xs font-bold mb-2" style={{ color: "#5B6572" }}>Mitarbeiter
+              <select value={zeitModal.wer} onChange={(e) => setZeitModal((m) => ({ ...m, wer: e.target.value }))} aria-label="Mitarbeiter wählen"
+                className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }}>
+                {zeitBerechtigte.length === 0 && <option value="">– im ⚙ niemanden berechtigt –</option>}
+                {/* Ein alter Eintrag von jemandem, der inzwischen nicht mehr
+                    berechtigt ist, bleibt beim Bearbeiten wählbar. */}
+                {zeitModal.wer && !zeitBerechtigte.some((t) => t.name === zeitModal.wer) && <option value={zeitModal.wer}>{zeitModal.wer}</option>}
+                {zeitBerechtigte.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+              </select>
+            </label>
+            {zeitModal.art === "arbeit" ? (
+              <>
+                <label className="block text-xs font-bold mb-2" style={{ color: "#5B6572" }}>Kostenstelle (Maschine / Bereich / Projekt)
+                  <input list="zeit-kostenstellen" value={zeitModal.ksWahl} onChange={(e) => setZeitModal((m) => ({ ...m, ksWahl: e.target.value }))}
+                    placeholder="Tippen zeigt Vorschläge, z. B. TS 480 …" aria-label="Kostenstelle"
+                    className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+                  {/* datalist = eingebaute Vorschlagsliste des Browsers: tippt man
+                      "TS", bleiben nur die TS-Kostenstellen übrig - bei 150
+                      Einträgen wäre ein einfaches Dropdown eine Sucherei. */}
+                  <datalist id="zeit-kostenstellen">
+                    {kostenstellen.map((k) => <option key={k.id} value={ksAnzeige(k)} />)}
+                  </datalist>
+                </label>
+                <label className="block text-xs font-bold mb-2" style={{ color: "#5B6572" }}>Art der Arbeit
+                  <input value={zeitModal.taetigkeit} onChange={(e) => setZeitModal((m) => ({ ...m, taetigkeit: e.target.value }))}
+                    placeholder="z. B. Lager getauscht, Wartung, Störung behoben …"
+                    className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+                </label>
+              </>
+            ) : (
+              <label className="block text-xs font-bold mb-2" style={{ color: "#5B6572" }}>Abwesenheitsgrund
+                <select value={zeitModal.grund} onChange={(e) => setZeitModal((m) => ({ ...m, grund: e.target.value }))} aria-label="Abwesenheitsgrund"
+                  className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }}>
+                  {ABWESENHEIT_GRUENDE.map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </label>
+            )}
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Arbeitsdauer in Stunden
+                <input value={zeitModal.stunden} onChange={(e) => setZeitModal((m) => ({ ...m, stunden: e.target.value }))}
+                  placeholder="z. B. 1,5" inputMode="decimal" aria-label="Arbeitsdauer in Stunden"
+                  className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+              </label>
+              {zeitModal.art === "arbeit" && (
+                <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Referenz-Nr. Störbericht (freiwillig)
+                  <input value={zeitModal.stoerNr} onChange={(e) => setZeitModal((m) => ({ ...m, stoerNr: e.target.value }))}
+                    placeholder="z. B. 2026-0042"
+                    className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal font-mono" style={{ borderColor: "#D6D9DC" }} />
+                </label>
+              )}
+            </div>
+            <label className="block text-xs font-bold mb-3" style={{ color: "#5B6572" }}>Bemerkung (freiwillig)
+              <input value={zeitModal.bemerkung} onChange={(e) => setZeitModal((m) => ({ ...m, bemerkung: e.target.value }))}
+                className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+            </label>
+            {zeitFehler && <div className="text-xs font-bold mb-2" style={{ color: "#B23A34" }}>{zeitFehler}</div>}
+            <div className="flex gap-2">
+              <button onClick={zeitSpeichern} className="flex-1 text-sm font-bold py-2 rounded text-white" style={{ backgroundColor: "#22262B" }}>Speichern</button>
+              {zeitModal.id && (
+                <button onClick={zeitLoeschen} className="text-sm font-bold py-2 px-3 rounded" style={{ backgroundColor: "#FDECEA", color: "#B23A34" }}>Löschen</button>
+              )}
+              <button onClick={() => setZeitModal(null)} className="flex-1 text-sm font-bold py-2 rounded bg-slate-100 text-slate-500">Abbrechen</button>
+            </div>
+          </ZiehbareKarte>
+        </div>
+      )}
+
       {view === "COCKPIT" && cockpitTab === "STOERUNGEN" && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
         <div className="flex gap-3 items-start">
@@ -11436,7 +11881,7 @@ function App() {
 
             {/* Reiterleiste: vier Themen statt einer langen Rolle */}
             <div className="flex gap-1 mb-4 pb-2 border-b" style={{ borderColor: "#E2E4E7" }}>
-              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"], ["oee", "OEE"], ["monitor", "Monitor"], ["pflege", "Verlauf & Sicherung"]].map(([k, name]) => (
+              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"], ["kostenstellen", "Kostenstellen"], ["oee", "OEE"], ["monitor", "Monitor"], ["pflege", "Verlauf & Sicherung"]].map(([k, name]) => (
                 <button
                   key={k}
                   onClick={() => setSettingsTab(k)}
@@ -11722,6 +12167,19 @@ function App() {
                     className="text-xs border rounded px-2 py-1.5"
                     style={{ borderColor: "#D6D9DC", width: "96px", flexShrink: 0 }}
                   />
+                  {/* Berechtigung Zeiterfassung (09.09.): Nicht jeder schreibt
+                      Schichtberichte - der Haken bestimmt, wer im
+                      Zeiterfassungs-Formular wählbar ist. */}
+                  <label className="inline-flex items-center gap-1 text-xs font-bold cursor-pointer" style={{ color: t.zeiterfassung !== false ? "#2F6690" : "#C3C7CB", flexShrink: 0 }}
+                    title="Berechtigt für Zeiterfassung / Schichtbericht">
+                    <input type="checkbox" checked={t.zeiterfassung !== false}
+                      aria-label={`Zeiterfassung für ${t.name.trim() || `Person ${idx + 1}`}`}
+                      onChange={(e) => {
+                        const v = e.target.checked;
+                        setSettingsTeam((prev) => prev.map((x, i) => (i === idx ? { ...x, zeiterfassung: v } : x)));
+                      }} />
+                    ZE
+                  </label>
                   <button
                     onClick={() => setSettingsTeam((prev) => { if (idx === 0) return prev; const n = [...prev]; [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]]; return n; })}
                     className="text-slate-400 hover:text-slate-700 p-1 font-bold"
@@ -12049,6 +12507,48 @@ function App() {
               </>
             )}
 
+            </>)}
+
+            {/* Kostenstellen-Pflege (09.09.): Die Liste wächst über die Jahre
+                (neue Anlagen, neue Projekte) - deshalb pflegbar statt fest.
+                Bereits erfasste Stunden behalten Name+Nummer IM EINTRAG und
+                bleiben deshalb auch nach Umbenennen/Löschen auswertbar. */}
+            {settingsTab === "kostenstellen" && (<>
+              <div className="text-xs font-bold uppercase mb-1" style={{ color: "#22262B" }}>Kostenstellen für die Zeiterfassung</div>
+              <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
+                Auf diese Kostenstellen buchen die Mitarbeiter ihre Stunden. Die Liste liegt in der gemeinsamen
+                Datei – Änderungen gelten nach dem Speichern für alle. {settingsKostenstellen.length} Einträge.
+              </div>
+              <input value={ksSuche} onChange={(e) => setKsSuche(e.target.value)} type="search"
+                placeholder="🔍 In den Kostenstellen suchen (Name oder Nummer) …" aria-label="Kostenstellen durchsuchen"
+                className="w-full text-sm border rounded px-2 py-1.5 mb-2" style={{ borderColor: "#D6D9DC" }} />
+              <div className="flex flex-col gap-1 mb-2" style={{ maxHeight: "46vh", overflowY: "auto" }}>
+                {settingsKostenstellen.map((k, idx) => {
+                  const q = ksSuche.trim().toLowerCase();
+                  if (q && !(`${k.name} ${k.nr}`.toLowerCase().includes(q))) return null;
+                  return (
+                    <div key={k.id} className="flex gap-1.5 items-center">
+                      <input value={k.name}
+                        onChange={(e) => { const v = e.target.value; setSettingsKostenstellen((prev) => prev.map((x, i) => (i === idx ? { ...x, name: v } : x))); }}
+                        placeholder="Bezeichnung" aria-label={`Kostenstelle ${idx + 1} Name`}
+                        className="flex-1 text-sm border rounded px-2 py-1" style={{ borderColor: "#D6D9DC" }} />
+                      <input value={k.nr}
+                        onChange={(e) => { const v = e.target.value; setSettingsKostenstellen((prev) => prev.map((x, i) => (i === idx ? { ...x, nr: v } : x))); }}
+                        placeholder="Nummer" aria-label={`Kostenstelle ${idx + 1} Nummer`}
+                        className="text-sm border rounded px-2 py-1 font-mono" style={{ borderColor: "#D6D9DC", width: "110px", flexShrink: 0 }} />
+                      <button onClick={() => setSettingsKostenstellen((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-red-600 p-1" aria-label={`Kostenstelle ${k.name || idx + 1} entfernen`}
+                        title="Entfernen – bereits erfasste Stunden behalten ihre Kostenstelle">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={() => { setKsSuche(""); setSettingsKostenstellen((prev) => [...prev, { id: `ks-${Date.now()}-${prev.length}`, nr: "", name: "" }]); }}
+                className="text-xs font-bold mb-4" style={{ color: "#22262B" }}>
+                + Kostenstelle hinzufügen
+              </button>
             </>)}
 
             {settingsTab === "monitor" && (<>

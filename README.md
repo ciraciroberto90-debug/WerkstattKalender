@@ -1,6 +1,7 @@
 # Werkstatt-Cockpit
 
-Instandhaltungsplanung, Schichtbuch und Störungserfassung für die Werkstatt.
+Instandhaltungsplanung, Schichtbuch, Störungserfassung und Zeiterfassung
+mit Kostenstellen für die Werkstatt.
 Eine einzige HTML-Datei, kein Server, keine Datenbank, keine Installation.
 Die Daten liegen in zwei JSON-Dateien im gemeinsamen Ordner.
 
@@ -72,7 +73,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 64 Härtetests und acht weitere Suiten | Entwicklung |
+| `tests/` | 65 Härtetests und acht weitere Suiten | Entwicklung |
 | `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
@@ -121,7 +122,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 64 Härtetests
+bash tests/run-hardness-tests.sh           # 65 Härtetests
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren

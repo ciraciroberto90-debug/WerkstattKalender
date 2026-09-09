@@ -517,21 +517,26 @@ auf denselben Dateien.
       (Lösch-Merkliste ging bei der Rettung verloren - kürzlich
       Gelöschtes kann wieder aufgetaucht sein).
 
-## Neuer Tab „Zeiterfassung / Schichtbericht" mit Kostenstellen (Robertos Auftrag vom 09.09.)
-
-- [ ] **Neuen Tab im Bereich Werkstatt bauen.** Zweck: Die Mitarbeiter
-      schreiben heute jeden Tag eine Art Zeiterfassung/Schichtbericht,
-      damit ihre Stunden auf **Kostenstellen** aufgeteilt werden
-      (Instandhaltung arbeitet nicht nur für die Werkstatt: Anlagen,
-      Gebäude, Werkstatt, Aufzug, neue Projekte usw. - die Liste wächst
-      über die Jahre und muss deshalb pflegbar sein wie die Anlagen im ⚙).
-      **Jahres-Auswertung:** Am Jahresende wird eine Excel-Datei verlangt:
-      Kostenstellen untereinander, rechts daneben die Summe der Stunden -
-      Mitarbeiter-Namen sind in dieser Datei unwichtig.
-      **Stand:** Roberto liefert noch Fotos/Screenshots der heutigen
-      Lösung als Bau-Vorlage - erst danach wird gebaut.
-
 ## Erledigt
+
+- [x] **Neuer Tab „Zeiterfassung / Schichtbericht" mit Kostenstellen
+      (Robertos Auftrag vom 09.09., gebaut nach den Fotos des alten
+      ikom-ZE):** Im Bereich Werkstatt erfasst jeder berechtigte
+      Mitarbeiter täglich seine Stunden auf Kostenstellen - Aufbau wie das
+      alte Formular (Zeiterfassung/Abwesenheit, Datum, Schicht, Mitarbeiter,
+      Kostenstelle, Art der Arbeit, Arbeitsdauer, Bemerkung, freiwillige
+      Störbericht-Nr.). Abwesenheiten (Krank, Urlaub, Zeitausgleich,
+      Dienstreise, Schule, Feiertag, Kurzarbeit, -sonstiges-) laufen in
+      keine Kostenstelle. Die 150 Kostenstellen aus Robertos Liste sind
+      Startbestand und im ⚙ (Reiter „Kostenstellen") durchsuchbar
+      pflegbar; je Team-Mitglied gibt es den ZE-Haken „Berechtigt für
+      Zeiterfassung". Jahres-Summen je Kostenstelle mit Gesamtzeile stehen
+      im Reiter und gehen als CSV für Excel heraus
+      (Kostenstelle;Nummer;Stunden, deutsches Komma). Die Einträge liegen
+      als Kategorie ZEIT in der gemeinsamen Datei - Zusammenführen,
+      Lösch-Merkliste und Uhr-Wächter greifen unverändert. Wache: harte-66
+      (15 Prüfungen, inkl. Neustart-Beständigkeit - der erste Wurf hätte
+      Einträge beim Neustart verloren, der Test hält das fest). (09.09.)
 
 - [x] **Ausdrucke kamen teils ohne Farbe aus dem Drucker (Robertos Fund vom
       09.09., aufgefallen im Schichtplan):** Die Druckereinstellung „Farbe"
