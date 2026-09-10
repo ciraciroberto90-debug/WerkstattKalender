@@ -554,10 +554,13 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Zeiterfassung ziehen dafür aus der Werkstatt-Reiterleiste um.
       **Leser sehen am Ende NUR Übersicht + Berichte.** (Der
       Übersichts-Bereich wird später separat überarbeitet.)
-      Offene Fragen an Roberto: (1) Was genau sind „To-do-Punkte" -
-      die offenen Maßnahmen aus Störungen, eine neue freie
-      To-do-Liste, oder etwas Drittes? To-do UND Backlog stehen beide
-      als Kacheln in seiner Aufzählung. (2) Bleiben Schichtplan +
+      Robertos Klärung vom 10.09.: Ein To-do-Punkt ist eine GANZ
+      NORMALE erteilte Aufgabe ohne Störungs-/Zeitbezug (neue freie
+      Liste: erteilen, zuweisen, Frist, abhaken); Backlog versteht er
+      als „Punkte, die längst abgeschlossen sein sollten".
+      Vorlagen-Strecke (Start / Berichte-Kacheln / To-do-Liste) am
+      10.09. im Chat geliefert - Roberto entscheidet über das Aussehen
+      später, erst die Struktur. Noch offen: (2) Bleiben Schichtplan +
       Planung für Bearbeiter im Bereich Werkstatt wie bisher?
 - [ ] **Zwei-Standort-Betrieb** (zweiter Keramik-Standort, gleicher
       Grundaufbau, KOMPLETT getrennte Daten: eigenes Team, eigene
@@ -568,11 +571,16 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       örtlicher Zwischenspeicher - KEINE zweite HTML-Kopie und kein
       separater Launcher (doppelte Updates wären der Preis; eine Datei
       heißt: jeder Fix erreicht beide Standorte gleichzeitig).
-      Offene Fragen an Roberto: (3) Echte Namen/Orte der beiden
-      Standorte? (4) Hat Standort 2 ein eigenes Firmenlaufwerk, und
-      wer richtet dort den gemeinsamen Ordner ein? (5) Sollen einzelne
-      Rechner (z. B. Robertos) zwischen beiden Standorten umschalten
-      können - Kollegen-Rechner bleiben fest auf ihrem Standort?
+      Robertos Antworten vom 10.09.: Firmengruppe = Plant Style Group
+      (Logo vorhanden - Datei bitte noch in den Chat), Standort 1 =
+      Scheurich (Kleinheubach), Standort 2 = Soendgen Keramik
+      (soendgen.de); ALLE Standorte nutzen DASSELBE Firmenlaufwerk -
+      also eine Baumstruktur (ein Ordner je Standort) unter dem
+      bestehenden App-Ordner. Entscheidung Struktur-Umbau statt
+      Neuaufbau ist begründet (Chat 10.09.): Testnetz + gehärteter
+      Sync-Kern bleiben erhalten. Noch offen: (5) Sollen alle Rechner
+      den Standort wechseln dürfen oder fest je Standort (nur z. B.
+      Robertos schaltet um)?
 
 ## Erledigt
 
