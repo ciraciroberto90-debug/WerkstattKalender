@@ -10535,6 +10535,12 @@ function App() {
                 {/* Kopfband */}
                 <div className="px-5 py-3 flex items-center gap-2 flex-wrap" style={{ backgroundColor: offen ? "#FBEAE8" : "#EAF3EC", borderBottom: `1px solid ${offen ? "#E7B9B3" : "#BFE0C6"}` }}>
                   <span className="font-black" style={{ fontSize: "1.05rem", color: "#22262B" }}>Störbericht</span>
+                  {/* Die Nummer gehört in den Kopf (Robertos Design-Runde
+                      10.09.) - sie ist DIE Referenz im Werkstatt-Gespräch
+                      und im Zeiterfassungs-Verweis. */}
+                  {stoerNrLang(live) && (
+                    <span className="font-mono font-extrabold" style={{ fontSize: "1rem", color: offen ? "#C0392B" : "#1F7A3D" }}>{stoerNrLang(live)}</span>
+                  )}
                   <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.3px", padding: "3px 9px", backgroundColor: "#fff", color: offen ? "#C0392B" : "#1F7A3D" }}>{offen ? "offen" : "✓ behoben"}</span>
                   <span className="ml-auto" />
                   <button onClick={schliessen} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
@@ -10628,8 +10634,13 @@ function App() {
               style={{ backgroundColor: "white", borderRadius: "12px", padding: "20px", width: "540px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
               onClick={(ev) => ev.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2 mb-1">
                 <div className="font-black text-base" style={{ color: "#22262B" }}>{stoerModal.mode === "add" ? "📝 Störbericht erfassen" : "Störbericht bearbeiten"}</div>
+                {/* Die Nummer steht am gespeicherten Bericht, nicht im Entwurf */}
+                {stoerModal.mode === "edit" && stoerNrLang(stoerungen.find((x) => x.id === stoerModal.id) || {}) && (
+                  <span className="font-mono font-extrabold" style={{ fontSize: "0.95rem", color: "#8A9099" }}>{stoerNrLang(stoerungen.find((x) => x.id === stoerModal.id) || {})}</span>
+                )}
+                <span className="ml-auto" />
                 <button onClick={schliessen} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
               </div>
 
@@ -10640,30 +10651,30 @@ function App() {
                   <button onClick={() => setSDraft({ ...sDraft, status: "offen" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: sDraft.status === "offen" ? "#C0392B" : "transparent", color: sDraft.status === "offen" ? "#fff" : "#5B6572" }}>● Offen</button>
                   <button onClick={() => setSDraft({ ...sDraft, status: "erledigt" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: sDraft.status === "erledigt" ? "#1F7A3D" : "transparent", color: sDraft.status === "erledigt" ? "#fff" : "#5B6572" }}>● Erledigt</button>
                 </div>
+                {/* Datum in derselben Zeile (Design-Runde 10.09.): Status und
+                    Datum sind beide klein - untereinander verschenkten sie
+                    zwei Zeilen und die Maske wurde zur Bildlauf-Wurst. */}
+                <span className="ml-auto" />
+                <label className="text-xs font-extrabold uppercase" style={{ color: "#5B6572" }}>Datum</label>
+                <input type="date" value={sDraft.date || ""} onChange={(ev) => setSDraft({ ...sDraft, date: ev.target.value })} aria-label="Datum" className="text-sm border rounded-lg px-3 py-1.5" style={{ borderColor: "#D6D9DC" }} />
               </div>
 
               <div className="flex flex-col gap-3">
-                {/* Datum + Schicht (Pflicht, wie im Schichtbuch) */}
-                <div className="flex gap-3 flex-wrap">
-                  <div>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Datum</label>
-                    <input type="date" value={sDraft.date || ""} onChange={(ev) => setSDraft({ ...sDraft, date: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
-                  </div>
-                  <div className="flex-1" style={{ minWidth: "220px" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Schicht<span style={{ color: "#C0392B" }}> *</span></label>
-                    <div className="flex gap-2">
-                      {STOER_SCHICHTEN.map((sch) => {
-                        const aktiv = sDraft.schicht === sch;
-                        const farbe = SCHICHTEN[sch] || {};
-                        return (
-                          <button key={sch} onClick={() => setSDraft({ ...sDraft, schicht: sch })}
-                            className="flex-1 rounded-lg font-bold text-center"
-                            style={{ padding: "8px 6px", fontSize: "0.82rem", border: `2px solid ${aktiv ? (farbe.color || "#22262B") : "#E2E4E7"}`, backgroundColor: aktiv ? (farbe.color || "#22262B") : "transparent", color: aktiv ? (farbe.text || "#fff") : "#5B6572" }}>
-                            {sch}
-                          </button>
-                        );
-                      })}
-                    </div>
+                {/* Schicht (Pflicht, wie im Schichtbuch) - volle Breite, große Knöpfe */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Schicht<span style={{ color: "#C0392B" }}> *</span></label>
+                  <div className="flex gap-2">
+                    {STOER_SCHICHTEN.map((sch) => {
+                      const aktiv = sDraft.schicht === sch;
+                      const farbe = SCHICHTEN[sch] || {};
+                      return (
+                        <button key={sch} onClick={() => setSDraft({ ...sDraft, schicht: sch })}
+                          className="flex-1 rounded-lg font-bold text-center"
+                          style={{ padding: "8px 6px", fontSize: "0.82rem", border: `2px solid ${aktiv ? (farbe.color || "#22262B") : "#E2E4E7"}`, backgroundColor: aktiv ? (farbe.color || "#22262B") : "transparent", color: aktiv ? (farbe.text || "#fff") : "#5B6572" }}>
+                          {sch}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -10735,25 +10746,26 @@ function App() {
                   );
                 })()}
 
-                {/* Gewerk + Fehlerart */}
-                <div className="flex gap-3 flex-wrap">
-                  {/* Mindestmaß muss zu den drei Knöpfen darin passen (3 x 90 px + Abstände),
-                      sonst quellen sie über, statt dass die Zeile umbricht. */}
-                  <div className="flex-1" style={{ minWidth: "290px" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Gewerk</label>
-                    <div className="flex gap-2 flex-wrap">
-                      {Object.entries(STOER_GEWERK).map(([key, g]) => {
-                        const aktiv = sDraft.gewerk === key;
-                        return (
-                          <button key={key} onClick={() => setSDraft({ ...sDraft, gewerk: aktiv ? "" : key })}
-                            className="flex-1 rounded-lg font-bold text-center"
-                            style={{ minWidth: "90px", padding: "8px 6px", fontSize: "0.78rem", border: `2px solid ${aktiv ? g.color : "#E2E4E7"}`, backgroundColor: aktiv ? g.bg : "transparent", color: aktiv ? g.color : "#5B6572" }}>
-                            {g.kurz}
-                          </button>
-                        );
-                      })}
-                    </div>
+                {/* Einordnung in EINER Ecke (Design-Runde 10.09.): Gewerk als
+                    breite Knopfreihe, darunter Fehlerart, Ausfallzeit und
+                    Behoben-am nebeneinander - vorher stand jeder Kasten allein
+                    in seiner Zeile und die Maske wurde unnötig lang. */}
+                <div>
+                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Gewerk</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {Object.entries(STOER_GEWERK).map(([key, g]) => {
+                      const aktiv = sDraft.gewerk === key;
+                      return (
+                        <button key={key} onClick={() => setSDraft({ ...sDraft, gewerk: aktiv ? "" : key })}
+                          className="flex-1 rounded-lg font-bold text-center"
+                          style={{ minWidth: "90px", padding: "8px 6px", fontSize: "0.78rem", border: `2px solid ${aktiv ? g.color : "#E2E4E7"}`, backgroundColor: aktiv ? g.bg : "transparent", color: aktiv ? g.color : "#5B6572" }}>
+                          {g.kurz}
+                        </button>
+                      );
+                    })}
                   </div>
+                </div>
+                <div className="flex gap-3 flex-wrap items-end">
                   <div>
                     <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Fehlerart</label>
                     <select value={sDraft.fehlerart || ""} onChange={(ev) => setSDraft({ ...sDraft, fehlerart: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", minWidth: "180px" }}>
@@ -10761,30 +10773,27 @@ function App() {
                       {STOER_FEHLERARTEN.map((f) => <option key={f} value={f}>{f}</option>)}
                     </select>
                   </div>
-                </div>
-
-                {/* Ausfallzeit (orange hervorgehoben) + Behoben-am bei Erledigt */}
-                <div className="flex gap-3 flex-wrap items-start">
-                  <div className="rounded-lg p-3" style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7CF8F" }}>
+                  <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7CF8F" }}>
                     <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#9A6B00" }}>⏱ Ausfallzeit (Minuten)</label>
-                    <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#E7CF8F", width: "130px", backgroundColor: "#fff" }} />
+                    <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" className="text-sm border rounded-lg px-3 py-1.5" style={{ borderColor: "#E7CF8F", width: "110px", backgroundColor: "#fff" }} />
                   </div>
                   {sDraft.status === "erledigt" && (
-                    <div className="rounded-lg p-3" style={{ backgroundColor: "#EAF3EC", border: "1px solid #BFE0C6" }}>
-                      <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#1F7A3D" }}>✓ Behoben am</label>
-                      <input type="datetime-local" value={sDraft.behobenAt || ""} onChange={(ev) => setSDraft({ ...sDraft, behobenAt: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#BFE0C6", backgroundColor: "#fff" }} />
-                      <div className="text-xs mt-1" style={{ color: "#6B9576" }}>leer = jetzt</div>
+                    <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "#EAF3EC", border: "1px solid #BFE0C6" }}>
+                      <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#1F7A3D" }}>✓ Behoben am <span className="normal-case font-normal" style={{ color: "#6B9576" }}>(leer = jetzt)</span></label>
+                      <input type="datetime-local" value={sDraft.behobenAt || ""} onChange={(ev) => setSDraft({ ...sDraft, behobenAt: ev.target.value })} className="text-sm border rounded-lg px-3 py-1.5" style={{ borderColor: "#BFE0C6", backgroundColor: "#fff" }} />
                     </div>
                   )}
                 </div>
 
+                {/* Der eigentliche Bericht - Beschreibung, Ursache, Maßnahme
+                    stehen jetzt UNUNTERBROCHEN untereinander (die Fotos sind
+                    ans Ende gerückt, ihr Freigabe-Hinweis riss vorher die
+                    Erzähl-Reihenfolge mitten auseinander). */}
+                <div style={{ borderTop: "1px solid #EFF1F3", marginTop: "2px" }} />
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Störungs Beschreibung<span style={{ color: "#C0392B" }}> *</span></label>
                   <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Was funktioniert nicht?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
                 </div>
-                {/* Fotos zur Störung (21.08.): die nächste Schicht sieht den
-                    Schaden, nicht nur drei Sätze. */}
-                {fotoFeld(sDraft, setSDraft)}
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔍 Störungs Ursache</label>
                   <input value={sDraft.ursache} onChange={(ev) => setSDraft({ ...sDraft, ursache: ev.target.value })} placeholder="falls bekannt" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
@@ -10810,9 +10819,18 @@ function App() {
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Bearbeiter (Kürzel)</label>
-                  <input value={sDraft.melder} onChange={(ev) => setSDraft({ ...sDraft, melder: ev.target.value })} placeholder="z. B. RC" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", maxWidth: "160px" }} />
+                {/* Fotos zur Störung (21.08.): die nächste Schicht sieht den
+                    Schaden, nicht nur drei Sätze. Seit dem 10.09. am ENDE des
+                    Berichts - der Freigabe-Hinweis stand vorher mitten
+                    zwischen Beschreibung und Ursache. */}
+                <div style={{ borderTop: "1px solid #EFF1F3", marginTop: "2px" }} />
+                {fotoFeld(sDraft, setSDraft)}
+
+                <div className="flex gap-3 items-end">
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Bearbeiter (Kürzel)</label>
+                    <input value={sDraft.melder} onChange={(ev) => setSDraft({ ...sDraft, melder: ev.target.value })} placeholder="z. B. RC" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", maxWidth: "160px" }} />
+                  </div>
                 </div>
 
                 {!kannSpeichern && (

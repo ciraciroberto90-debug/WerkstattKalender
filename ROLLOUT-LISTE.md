@@ -544,6 +544,19 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Störbericht-Dialoge aufgeräumt (Robertos Design-Ansage vom
+      10.09.):** Die Berichtsnummer steht jetzt groß im Kopf von Ansicht
+      UND Bearbeiten-Maske (sie ist die Referenz im Werkstatt-Gespräch).
+      Die Bearbeiten-Maske war eine Einspalten-Wurst: Status und Datum
+      teilen sich jetzt eine Zeile, Fehlerart + Ausfallzeit (+ Behoben-am)
+      stehen nebeneinander, der Bericht (Beschreibung → Ursache →
+      Sofortmaßnahme → Ersatzteile → zu planende Maßnahme) läuft
+      ununterbrochen durch, und die Fotos samt Freigabe-Hinweis sind ans
+      Ende gerückt - vorher rissen sie die Erzähl-Reihenfolge mitten
+      auseinander. Trennlinien gliedern die Blöcke. Alle Beschriftungen,
+      Platzhalter und Knopfnamen blieben unverändert (Testanker) -
+      harte-17/37/61 grün nachgemessen. (10.09.)
+
 - [x] **Anlagen-Akte: neuer Reiter „Ersatzteile" + „Historie" heißt jetzt
       „Termine" (Robertos Auftrag vom 10.09.):** Die Akte zeigt jetzt
       fünf Reiter (Steckbrief / Termine / Arbeiten / Störungen /
