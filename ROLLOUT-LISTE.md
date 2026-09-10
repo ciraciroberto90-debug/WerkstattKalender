@@ -551,8 +551,9 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
 - [ ] **Neuer Programmname: „BTA-Cockpit"** (Betriebstechnische
       Abteilung) - Robertos Ansage vom 10.09. Gilt für Titelleiste,
       Standort-Wahl, Ausdrucke und Doku; darunter die Gruppe
-      Plant Style Group (Logo folgt von Roberto). Der Name je Werkstatt
-      bleibt wie gehabt im ⚙ einstellbar.
+      **Scheurich-Group** (Robertos Korrektur vom 10.09. - NICHT
+      „Plant Style Group"; die Logos liegen jetzt in doku/logos/).
+      Der Name je Werkstatt bleibt wie gehabt im ⚙ einstellbar.
 
 - [x] **Etappe 1 GEBAUT (10.09.): Hauptbereich „Berichte" + To-do-Liste.**
       Hauptleiste jetzt Übersicht | Berichte | Werkstatt | TPM; im
@@ -596,9 +597,9 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       örtlicher Zwischenspeicher - KEINE zweite HTML-Kopie und kein
       separater Launcher (doppelte Updates wären der Preis; eine Datei
       heißt: jeder Fix erreicht beide Standorte gleichzeitig).
-      Robertos Antworten vom 10.09.: Firmengruppe = Plant Style Group
-      (Logo vorhanden - Datei bitte noch in den Chat), Standort 1 =
-      Scheurich (Kleinheubach), Standort 2 = Soendgen Keramik
+      Robertos Antworten vom 10.09.: Firmengruppe = Scheurich-Group
+      (Logos geliefert und freigestellt, liegen in doku/logos/),
+      Standort 1 = Scheurich (Kleinheubach), Standort 2 = Soendgen Keramik
       (soendgen.de); ALLE Standorte nutzen DASSELBE Firmenlaufwerk -
       also eine Baumstruktur (ein Ordner je Standort) unter dem
       bestehenden App-Ordner. Entscheidung Struktur-Umbau statt
@@ -606,6 +607,21 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Sync-Kern bleiben erhalten. Noch offen: (5) Sollen alle Rechner
       den Standort wechseln dürfen oder fest je Standort (nur z. B.
       Robertos schaltet um)?
+
+- [ ] **Handy-Fassung der App (Robertos Wunsch vom 10.09.).** Klickbare
+      HTML-Vorlage am 10.09. in den Chat geliefert (alle Bereiche als
+      Handy-Bild: Hauptbereiche unten als Daumen-Leiste, Berichte-Kacheln,
+      To-do, Störungen zum Aufklappen, Schichtplan, TPM-Plan; ＋-Knopf
+      zum Melden/Erfassen; Planung/Backlog auf dem Handy nur ansehen,
+      eingeplant wird am PC). Roberto entscheidet nach der Vorlage, ob
+      und was gebaut wird. VOR dem Bau zu klären (ungemessen, aber
+      absehbar): Wie kommt ein Handy an die Daten? Der heutige Weg
+      (Dateizugriff auf das Firmenlaufwerk per showOpenFilePicker) steht
+      auf Handy-Browsern nicht zur Verfügung - realistisch wäre eine
+      Leser-Fassung, die die JSON über den vorhandenen Ausliefer-Dienst
+      (cockpit-server) bezieht, oder WLAN/VPN-Fragen mit der IT (kollidiert
+      mit der Grundregel „keine IT nötig" - deshalb zuerst die Frage, WAS
+      das Handy können muss: nur nachschauen, oder auch melden?).
 
 ## Erledigt
 
