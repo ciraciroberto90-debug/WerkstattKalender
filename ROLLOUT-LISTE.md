@@ -609,7 +609,11 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Robertos schaltet um)?
 
 - [ ] **Handy-Fassung der App (Robertos Wunsch vom 10.09.).** Klickbare
-      HTML-Vorlage am 10.09. in den Chat geliefert (alle Bereiche als
+      HTML-Vorlage am 10.09. in den Chat geliefert, auf Robertos Ansage
+      nachgebessert: Start mit Werkstatt-Wahl (Scheurich/Soendgen mit
+      echten Logos, wie die BTA-Startseiten-Vorlage), Kopfzeile
+      „BTA-COCKPIT" mit gewählter Werkstatt (antippen = wechseln), alle
+      Icons als Strich-Grafiken statt Emojis (alle Bereiche als
       Handy-Bild: Hauptbereiche unten als Daumen-Leiste, Berichte-Kacheln,
       To-do, Störungen zum Aufklappen, Schichtplan, TPM-Plan; ＋-Knopf
       zum Melden/Erfassen; Planung/Backlog auf dem Handy nur ansehen,
