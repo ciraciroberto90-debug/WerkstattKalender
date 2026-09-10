@@ -560,14 +560,21 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Zeiterfassung ziehen dafür aus der Werkstatt-Reiterleiste um.
       **Leser sehen am Ende NUR Übersicht + Berichte.** (Der
       Übersichts-Bereich wird später separat überarbeitet.)
+      (3) vom 10.09.: Soendgen ist erstmal NICHT öffentlich aktiviert -
+      die Standort-Technik wird vorbereitet, aber Firma 2 bleibt
+      verborgen, bis Roberto sie freischaltet; die Wechsel-Frage
+      entscheidet er danach. Das Logo schickt Roberto in den Chat.
       Robertos Klärung vom 10.09.: Ein To-do-Punkt ist eine GANZ
       NORMALE erteilte Aufgabe ohne Störungs-/Zeitbezug (neue freie
       Liste: erteilen, zuweisen, Frist, abhaken); Backlog versteht er
       als „Punkte, die längst abgeschlossen sein sollten".
       Vorlagen-Strecke (Start / Berichte-Kacheln / To-do-Liste) am
       10.09. im Chat geliefert - Roberto entscheidet über das Aussehen
-      später, erst die Struktur. Noch offen: (2) Bleiben Schichtplan +
-      Planung für Bearbeiter im Bereich Werkstatt wie bisher?
+      später, erst die Struktur. (2) beantwortet: Schichtplan + Planung
+      bleiben im Bereich Werkstatt - bei Soendgen eben blanko. (4) Die
+      Backlog-Deutung (Arbeitsvorrat vs. Überfällig-Sammelsicht) ist
+      noch offen - die Kachel verlinkt vorerst den bestehenden
+      Arbeitsvorrat.
 - [ ] **Zwei-Standort-Betrieb** (zweiter Keramik-Standort, gleicher
       Grundaufbau, KOMPLETT getrennte Daten: eigenes Team, eigene
       Anlagen/Rundgänge/Wartungen, eigene JSON-Datendateien - keine
