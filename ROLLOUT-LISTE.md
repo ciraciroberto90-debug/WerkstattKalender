@@ -542,6 +542,38 @@ auf denselben Dateien.
       (wurde im Altsystem wiederverwendet - deshalb hütet der
       Doppel-Wächter nur noch den neuen Nummernkreis JJJJ-NNNN).
 
+## Der nächste große Bau: Bereich „Berichte" + Zwei-Standort-Betrieb (Meeting vom 10.09.)
+
+Der Geschäftsführung gefällt die App - jetzt kommt die Umstrukturierung,
+danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
+10.09. im Chat), gebaut wird nach seiner Freigabe.
+
+- [ ] **Neuer Hauptbereich „Berichte"** mit großen Kacheln: To-do,
+      Störungen, Backlog, Zeiterfassung (Letztere in Klammern - noch in
+      Klärung, wie sie gehandhabt wird). Störungen, Backlog und
+      Zeiterfassung ziehen dafür aus der Werkstatt-Reiterleiste um.
+      **Leser sehen am Ende NUR Übersicht + Berichte.** (Der
+      Übersichts-Bereich wird später separat überarbeitet.)
+      Offene Fragen an Roberto: (1) Was genau sind „To-do-Punkte" -
+      die offenen Maßnahmen aus Störungen, eine neue freie
+      To-do-Liste, oder etwas Drittes? To-do UND Backlog stehen beide
+      als Kacheln in seiner Aufzählung. (2) Bleiben Schichtplan +
+      Planung für Bearbeiter im Bereich Werkstatt wie bisher?
+- [ ] **Zwei-Standort-Betrieb** (zweiter Keramik-Standort, gleicher
+      Grundaufbau, KOMPLETT getrennte Daten: eigenes Team, eigene
+      Anlagen/Rundgänge/Wartungen, eigene JSON-Datendateien - keine
+      Vermischung). Empfehlung (siehe Chat vom 10.09.): EINE HTML mit
+      eingebauter Standort-Wahl beim ersten Start (am Rechner gemerkt,
+      im ⚙ wechselbar), je Standort eigene Datendateien und eigener
+      örtlicher Zwischenspeicher - KEINE zweite HTML-Kopie und kein
+      separater Launcher (doppelte Updates wären der Preis; eine Datei
+      heißt: jeder Fix erreicht beide Standorte gleichzeitig).
+      Offene Fragen an Roberto: (3) Echte Namen/Orte der beiden
+      Standorte? (4) Hat Standort 2 ein eigenes Firmenlaufwerk, und
+      wer richtet dort den gemeinsamen Ordner ein? (5) Sollen einzelne
+      Rechner (z. B. Robertos) zwischen beiden Standorten umschalten
+      können - Kollegen-Rechner bleiben fest auf ihrem Standort?
+
 ## Erledigt
 
 - [x] **Störbericht-Dialoge aufgeräumt (Robertos Design-Ansage vom
