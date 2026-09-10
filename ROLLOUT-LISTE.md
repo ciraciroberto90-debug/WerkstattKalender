@@ -548,6 +548,12 @@ Der Geschäftsführung gefällt die App - jetzt kommt die Umstrukturierung,
 danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
 10.09. im Chat), gebaut wird nach seiner Freigabe.
 
+- [ ] **Neuer Programmname: „BTA-Cockpit"** (Betriebstechnische
+      Abteilung) - Robertos Ansage vom 10.09. Gilt für Titelleiste,
+      Standort-Wahl, Ausdrucke und Doku; darunter die Gruppe
+      Plant Style Group (Logo folgt von Roberto). Der Name je Werkstatt
+      bleibt wie gehabt im ⚙ einstellbar.
+
 - [ ] **Neuer Hauptbereich „Berichte"** mit großen Kacheln: To-do,
       Störungen, Backlog, Zeiterfassung (Letztere in Klammern - noch in
       Klärung, wie sie gehandhabt wird). Störungen, Backlog und
