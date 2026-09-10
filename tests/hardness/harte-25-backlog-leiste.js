@@ -34,7 +34,7 @@ await p.addInitScript((d)=>{delete window.showOpenFilePicker;delete window.showS
   localStorage.setItem("werkstatt-kalender-config",JSON.stringify(d.CONFIG));
   localStorage.setItem("werkstatt-kalender-entries",JSON.stringify(d.ENTRIES));},{CONFIG,ENTRIES});
 await p.goto(APP);await p.waitForTimeout(1500);
-await p.getByRole("button",{name:"Backlog",exact:true}).click();await p.waitForTimeout(700);
+await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: "Backlog", exact: true }).first().click());await p.waitForTimeout(700);
 
 const zeilen=()=>p.locator("tbody tr").count();
 pruef("Start: 5 offene Arbeiten", await zeilen()===5);
@@ -91,7 +91,7 @@ pruef("zurück auf offene", await zeilen()===5);
 // 8) Mech/Elek-Umschaltung bleibt draußen erreichbar
 await p.getByRole("button",{name:/^Elek/}).click(); await p.waitForTimeout(400);
 pruef("Elek filtert auf 2 Zeilen", await zeilen()===2);
-await p.getByRole("button",{name:/^Alle/}).click(); await p.waitForTimeout(400);
+await p.getByRole("button",{name:/^Alle/}).last().click() /* .last(): das Berichte-Untermenü trägt seit dem 10.09. auch "Alle Berichte" */; await p.waitForTimeout(400);
 
 // 9) Suche
 await p.locator('input[type="search"]').fill("hydraulik"); await p.waitForTimeout(500);

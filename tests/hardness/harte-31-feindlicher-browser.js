@@ -70,7 +70,10 @@ async function seite(browser) {
   await p.getByRole("button", { name: /Mit Schreibrecht verbinden/ }).first().click(); await p.waitForTimeout(2500);
   t = await p.locator("body").innerText();
   pruef("(2) Danach besteht Schreibzugriff", !/Schreibschutz/.test(t) && !/nicht erteilt/.test(t));
-  pruef("(2) Bearbeiter-Ansicht ist da (Backlog)", /BACKLOG/.test(t));
+  // Seit dem Umbau (10.09.) wohnt der Backlog im Bereich Berichte.
+  await p.getByRole("button", { name: /^Berichte/ }).first().click(); await p.waitForTimeout(400);
+  t = await p.locator("body").innerText();
+  pruef("(2) Bearbeiter-Ansicht ist da (Backlog im Bereich Berichte)", /BACKLOG/i.test(t));
   pruef("(3) Der alte Datei-Inhalt lebt noch", /alt-haupt/.test(await p.evaluate(() => window.__dateien["kalender-daten.json"])));
 
   // (5) Wirklich speichern - ueber den echten Speicherweg der App, nicht ueber
@@ -88,7 +91,7 @@ async function seite(browser) {
 
   // ---------- Störungen-Datei ----------
   await p.evaluate(() => { window.__naechsteDatei = "werkstatt-stoerungen.json"; });
-  await p.getByRole("button", { name: /Störungen/ }).first().click(); await p.waitForTimeout(700);
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click()); await p.waitForTimeout(700);
   const oeffnen = p.getByRole("button", { name: /Störungen-Datei öffnen/ }).first();
   if (await oeffnen.count()) { await oeffnen.click(); await p.waitForTimeout(2500); }
   t = await p.locator("body").innerText();

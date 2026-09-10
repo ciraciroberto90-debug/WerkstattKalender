@@ -172,10 +172,10 @@ const seedTeam = (personName) => {
     await page.getByText('Vorhandene Datei öffnen …').click();
     await page.waitForTimeout(1000);
 
-    await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
-    await page.waitForTimeout(400);
-    const druckKnopf = page.locator('button[aria-label="Drucken"]');
-    ok('Leser: Drucken-Knopf im Schichtplan ist trotzdem sichtbar', await druckKnopf.count() === 1);
+    // Seit dem 10.09. sehen Leser den Schichtplan GAR NICHT mehr
+    // (Robertos Ansage: nur Übersicht + Berichte).
+    ok('Leser: Schichtplan ist NICHT mehr sichtbar (neue Leser-Regel)', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 0);
+    ok('Leser: der Bereich Berichte bleibt erreichbar', await page.getByRole('button', { name: /^Berichte/ }).count() >= 1);
 
     await page.close();
   }

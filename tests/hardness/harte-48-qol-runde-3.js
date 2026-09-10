@@ -55,7 +55,8 @@ const inPlan = async (p) => {
   await p.waitForTimeout(1200);
 };
 const zuStoerungen = async (p) => {
-  await p.getByRole("button", { name: "Werkstatt", exact: true }).first().click();
+  // Störungen wohnen seit dem 10.09. im Bereich Berichte.
+  await p.getByRole("button", { name: /^Berichte/ }).first().click();
   await p.waitForTimeout(300);
   await p.getByRole("button", { name: /^Störungen/ }).first().click();
   await p.waitForTimeout(600);

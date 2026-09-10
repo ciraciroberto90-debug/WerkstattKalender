@@ -2007,6 +2007,14 @@ function App() {
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
   // Cockpit: Untermenü + Backlog-Filter + Arbeit-Dialog
   const [cockpitTab, setCockpitTab] = useState("UEBERSICHT"); // UEBERSICHT | BACKLOG
+  /* Bereich "Berichte" (großer Umbau, Robertos Meeting vom 10.09.):
+     eigener Hauptbereich mit Kacheln - To-do, Störungen, Backlog,
+     Zeiterfassung (Letztere "in Klärung"). Leser sehen künftig nur noch
+     Übersicht + Berichte. */
+  const [berichtTab, setBerichtTab] = useState("START"); // START | TODO | STOERUNGEN | BACKLOG | ZEIT
+  const [todoModal, setTodoModal] = useState(null); // null | Entwurf {id?, titel, wer, bis, prio, bemerkung}
+  const [todoFilter, setTodoFilter] = useState("ALLE"); // ALLE | MEINE | ERLEDIGT
+  const [todoFehler, setTodoFehler] = useState(null);
   const [blArt, setBlArt] = useState("ALLE"); // ALLE | mech | elek
   const [blPrio, setBlPrio] = useState("ALLE"); // ALLE | hoch | mittel | niedrig | ohne
   const [blAnlage, setBlAnlage] = useState("ALLE");
@@ -2380,6 +2388,12 @@ function App() {
   const anmeldungOffen = benutzerAktiv && meinBenutzer == null && !anmeldungZu;
   const vollzugriff = shareChecked && (shareState.status === "unsupported" || (shareState.status === "connected" && shareState.mode === "readwrite")) && benutzerDarfSchreiben;
   const readerMode = !vollzugriff;
+  // Fürs AUSBLENDEN der Navigation (Leser sehen seit dem 10.09. nur Übersicht
+  // + Berichte) gilt: erst NACH der Rechte-Prüfung ausblenden. In der kurzen
+  // Start-Phase ist JEDER "noch Leser" - würde da schon versteckt, rast jeder
+  // Start durch einen Leer-Zustand (und die Prüf-Suiten in einen Wettlauf).
+  // Die Sicherheits-Klammer schützt die heiklen Ansichten davon unabhängig.
+  const leserAnzeige = readerMode && shareChecked;
   // Enger gefasst als readerMode: nur wer TATSÄCHLICH schon verbunden UND
   // bestätigt Nur-Lesen ist. Wichtig für den "Gemeinsame Datei"-Knopf selbst -
   // der muss sichtbar bleiben, bevor überhaupt verbunden wurde (sonst könnte
@@ -3322,19 +3336,29 @@ function App() {
     );
   };
 
-  // Sicherheits-Klammer: solange (noch) Nur-Leser, sind ausschließlich Übersicht,
-  // Schichtplan, Planung, TPM-Übersicht und die Auswertung erlaubt (der frühere
-  // Plan-Reiter lebt seit dem 18.08. in der Monats-Auswertung - Leser behalten
-  // damit ihren Blick auf den Wartungsplan). Jede andere Ansicht wird sofort
-  // auf Übersicht zurückgesetzt (z. B. falls Schreibrechte während der Sitzung
-  // wegfallen, oder direkt beim allerersten Laden, bevor überhaupt geprüft ist).
+  // Sicherheits-Klammer: solange (noch) Nur-Leser, sind seit dem großen
+  // Umbau (Robertos Ansage aus dem Meeting vom 10.09.) NUR noch Übersicht
+  // und der Bereich Berichte erlaubt - ohne die Backlog-Kachel (die war für
+  // Leser schon immer tabu). Jede andere Ansicht wird sofort auf Übersicht
+  // zurückgesetzt (z. B. falls Schreibrechte während der Sitzung wegfallen,
+  // oder direkt beim allerersten Laden, bevor überhaupt geprüft ist).
   useEffect(() => {
     if (!readerMode) return;
-    if (view !== "COCKPIT" && view !== "TPMINFO" && view !== "MONAT" && view !== "JAHR") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
-    // Störungen sind bewusst auch für Nur-Leser erlaubt (eigene, für alle
-    // beschreibbare Datei) - daher hier mit aufgeführt.
-    if (view === "COCKPIT" && !["UEBERSICHT", "SCHICHTPLAN", "PLANUNG", "STOERUNGEN"].includes(cockpitTab)) setCockpitTab("UEBERSICHT");
-  }, [readerMode, view, cockpitTab]);
+    // Backlog und Register sind wie eh und je STRENG gesperrt - auch in der
+    // unentschiedenen Start-Phase, bevor die Rechte geprüft sind.
+    if (view === "BERICHTE" && berichtTab === "BACKLOG") setBerichtTab("START");
+    if (leserAnzeige) {
+      // Rechte-Prüfung abgeschlossen, wirklich Nur-Leser: nur noch
+      // Übersicht + Berichte (Robertos Ansage vom 10.09.).
+      if (view !== "COCKPIT" && view !== "BERICHTE") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
+      if (view === "COCKPIT" && cockpitTab !== "UEBERSICHT") setCockpitTab("UEBERSICHT");
+    } else {
+      // Start-Phase: die alten (milderen) Leser-Regeln, damit ein Bearbeiter
+      // beim Laden nicht von seiner Ansicht geworfen wird.
+      if (view !== "COCKPIT" && view !== "BERICHTE" && view !== "TPMINFO" && view !== "MONAT" && view !== "JAHR") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
+      if (view === "COCKPIT" && !["UEBERSICHT", "SCHICHTPLAN", "PLANUNG"].includes(cockpitTab)) setCockpitTab("UEBERSICHT");
+    }
+  }, [readerMode, leserAnzeige, view, cockpitTab, berichtTab]);
 
   // ...html?monitor=1 kennzeichnet ein dediziertes Kiosk-Gerät (Bildschirm in der
   // Werkstatt ohne eigenen Arbeitsplatz). NUR dort ist der Werkstatt-Monitor auch
@@ -3834,7 +3858,7 @@ function App() {
       nextEntries = entries.map((e) => {
         if (e.category === "TPM" && tpmRenames.has(e.name)) return { ...e, name: tpmRenames.get(e.name) };
         if (e.category === "RI" && riRenames.has(e.name)) return { ...e, name: riRenames.get(e.name) };
-        if (e.category === "ARBEIT" && e.wer && teamRenames.has(e.wer)) return { ...e, wer: teamRenames.get(e.wer) };
+        if ((e.category === "ARBEIT" || e.category === "TODO") && e.wer && teamRenames.has(e.wer)) return { ...e, wer: teamRenames.get(e.wer) };
         if ((e.category === "SCHICHT" || e.category === "PLANNOTIZ" || e.category === "ZEIT") && teamRenames.has(e.name)) return { ...e, name: teamRenames.get(e.name) };
         return e;
       });
@@ -4157,6 +4181,63 @@ function App() {
       ? `Übernommen aus „${v.dateiname}": ${v.neuStoer.length} Störberichte, ${v.neuZeit.length} Zeit-Buchungen.`
       : "Übernahme unvollständig - bitte Meldungen oben beachten und die Datei später erneut einlesen (Vorhandenes wird dabei nicht doppelt).");
     setIkomVorschau(null);
+  };
+
+  /* ---------- To-do-Punkte (Bereich Berichte, Robertos Meeting 10.09.) ----------
+     Ein To-do ist eine GANZ NORMALE erteilte Aufgabe - ohne Störungs- und
+     ohne Zeitbezug (Robertos Klarstellung). Erteilen, zuweisen, Frist,
+     Priorität, abhaken. Liegt als Kategorie "TODO" in der gemeinsamen
+     Datei; der Titel steht im Pflichtfeld "name" (Start-Lader-Regel),
+     die zugewiesene Person in "wer" (wie bei ARBEIT - Umbenennungen im
+     Team ziehen mit). */
+  const todos = useMemo(() => entries.filter((e) => e.category === "TODO"), [entries]);
+  // BEWUSST ohne todayKey: das wird erst weiter unten im Rumpf deklariert,
+  // und diese Filter laufen schon beim Aufbau - ein Zugriff davor wäre der
+  // "before initialization"-Absturz, der beim ersten Wurf jede Seite mit
+  // einem To-do im Bestand auf die Fehlerseite riss.
+  const todoHeute = new Date();
+  const todoHeuteKey = dateKey(todoHeute.getFullYear(), todoHeute.getMonth(), todoHeute.getDate());
+  const todoIstUeberfaellig = (t) => t.status !== "done" && t.bis && String(t.bis) < todoHeuteKey;
+  const todoOffene = todos.filter((t) => t.status !== "done");
+  const todoUeberfaellige = todoOffene.filter(todoIstUeberfaellig);
+  const todoNeu = () => {
+    setTodoFehler(null);
+    setTodoModal({ titel: "", wer: "", bis: "", prio: "", bemerkung: "" });
+  };
+  const todoBearbeiten = (t) => {
+    setTodoFehler(null);
+    setTodoModal({ id: t.id, titel: t.name || "", wer: t.wer || "", bis: t.bis || "", prio: t.prio || "", bemerkung: t.bemerkung || "" });
+  };
+  const todoSpeichern = async () => {
+    const m = todoModal;
+    if (!m) return;
+    if (!String(m.titel || "").trim()) { setTodoFehler("Bitte aufschreiben, WAS zu tun ist."); return; }
+    const alt = m.id ? todos.find((t) => t.id === m.id) : null;
+    const eintrag = {
+      ...(alt || {}),
+      id: m.id || `todo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      category: "TODO", name: String(m.titel).trim(),
+      date: alt ? alt.date : todayKey, // erteilt am
+      wer: String(m.wer || "").trim(), bis: m.bis || "", prio: m.prio || "",
+      bemerkung: String(m.bemerkung || "").trim(),
+      erteiltVon: alt ? (alt.erteiltVon || "") : (angemeldet || ""),
+      status: alt ? alt.status : "offen",
+    };
+    const ok = await persist(m.id ? entries.map((e) => (e.id === m.id ? eintrag : e)) : [...entries, eintrag]);
+    if (ok) { setTodoModal(null); setTodoFehler(null); }
+  };
+  const todoLoeschen = async () => {
+    if (!todoModal || !todoModal.id) return;
+    if (!window.confirm("Dieses To-do wirklich löschen?")) return;
+    const ok = await persist(entries.filter((e) => e.id !== todoModal.id));
+    if (ok) setTodoModal(null);
+  };
+  const todoHaken = async (t) => {
+    if (readerMode) return;
+    const fertig = t.status !== "done";
+    await persist(entries.map((e) => (e.id === t.id
+      ? { ...e, status: fertig ? "done" : "offen", erledigtAm: fertig ? new Date().toISOString() : "", erledigtVon: fertig ? (angemeldet || "") : "" }
+      : e)));
   };
 
   const exportZeitCsv = (jahr) => {
@@ -6890,7 +6971,7 @@ function App() {
         ],
       };
     }
-    if (view === "COCKPIT" && cockpitTab === "STOERUNGEN") {
+    if (((view === "COCKPIT" && cockpitTab === "STOERUNGEN") || (view === "BERICHTE" && berichtTab === "STOERUNGEN"))) {
       return {
         titel: "Störungen drucken",
         bereich: "stoerungen",
@@ -7172,34 +7253,70 @@ function App() {
               (kein Backlog / keine Auswertung / kein Register). Die Sicherheits-
               Klammer (useEffect oben) setzt unerlaubte Ansichten ohnehin zurück. */}
           <>
+            {/* Hauptbereiche seit dem großen Umbau (Robertos Meeting 10.09.):
+                Übersicht | Berichte | Werkstatt | TPM. Leser sehen NUR
+                Übersicht + Berichte - Ansage der Geschäftsführung; die
+                Sicherheits-Klammer setzt alles andere zurück. */}
             <div className="flex rounded overflow-hidden border border-white/20 shrink-0">
-              {[["COCKPIT", "Werkstatt"], ["TPM", "TPM"]].map(([v, label]) => {
-                const active = v === "COCKPIT" ? view === "COCKPIT" : view !== "COCKPIT";
+              {(leserAnzeige
+                ? [["UEBERSICHT", "Übersicht"], ["BERICHTE", "Berichte"]]
+                : [["UEBERSICHT", "Übersicht"], ["BERICHTE", "Berichte"], ["WERKSTATT", "Werkstatt"], ["TPM", "TPM"]]
+              ).map(([v, label]) => {
+                const active =
+                  v === "UEBERSICHT" ? (view === "COCKPIT" && cockpitTab === "UEBERSICHT")
+                  : v === "BERICHTE" ? view === "BERICHTE"
+                  : v === "WERKSTATT" ? (view === "COCKPIT" && cockpitTab !== "UEBERSICHT")
+                  : (view !== "COCKPIT" && view !== "BERICHTE");
+                const badge = v === "BERICHTE" ? stoerOffenCount + todoUeberfaellige.length : 0;
                 return (
                   <button
                     key={v}
                     onClick={() => {
-                      if (v === "COCKPIT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
+                      if (v === "UEBERSICHT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
+                      else if (v === "BERICHTE") { setView("BERICHTE"); setBerichtTab("START"); }
+                      else if (v === "WERKSTATT") { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }
                       else setView("TPMINFO");
                     }}
                     className="px-3 py-1.5 text-xs font-black uppercase tracking-wide inline-flex items-center"
                     style={{ backgroundColor: active ? "#C97A2B" : "transparent", color: "white" }}
                   >
                     {label}
-                    {/* Das rote Überfällig-Badge stand hier - auf Robertos
-                        Wunsch vom 20.08. entfernt (Liegengebliebenes steht
-                        weiter in der TPM-Übersicht und im Termin-Archiv). */}
+                    {badge > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{badge}</span>
+                    )}
                   </button>
                 );
               })}
             </div>
             {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
-            {view === "COCKPIT" ? (
+            {view === "BERICHTE" ? (
               <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
-                {(readerMode
-                  ? [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["STOERUNGEN", "Störungen"], ["ZEIT", "Zeiterfassung"]]
-                  : [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"], ["BACKLOG", "Backlog"], ["STOERUNGEN", "Störungen"], ["ZEIT", "Zeiterfassung"]]
-                ).map(([v, label]) => (
+                {[["START", "Alle Berichte"], ["TODO", "To-do"], ["STOERUNGEN", "Störungen"],
+                  ...(leserAnzeige ? [] : [["BACKLOG", "Backlog"]]), ["ZEIT", "Zeiterfassung"]].map(([v, label]) => (
+                  <button
+                    key={v}
+                    onClick={() => setBerichtTab(v)}
+                    className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center shrink-0 whitespace-nowrap"
+                    style={{ backgroundColor: berichtTab === v ? "#4B5259" : "transparent", color: berichtTab === v ? "#fff" : "#B7BEC6" }}
+                  >
+                    {label}
+                    {v === "STOERUNGEN" && stoerOffenCount > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{stoerOffenCount}</span>
+                    )}
+                    {v === "TODO" && todoUeberfaellige.length > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{todoUeberfaellige.length}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : view === "COCKPIT" ? (leserAnzeige ? null : (
+              <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
+                {/* Störungen, Backlog und Zeiterfassung leben seit dem 10.09.
+                    im Bereich Berichte - hier bleibt die eigentliche
+                    Werkstatt-Planung (bei Soendgen später eben blanko).
+                    Schichtplan/Planung stehen auch auf der Übersicht schon in
+                    der Leiste - ein Klick weniger für die tägliche Arbeit. */}
+                {[["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"]].map(([v, label]) => (
                   <button
                     key={v}
                     onClick={() => setCockpitTab(v)}
@@ -7207,13 +7324,10 @@ function App() {
                     style={{ backgroundColor: cockpitTab === v ? "#4B5259" : "transparent", color: cockpitTab === v ? "#fff" : "#B7BEC6" }}
                   >
                     {label}
-                    {v === "STOERUNGEN" && stoerOffenCount > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{stoerOffenCount}</span>
-                    )}
                   </button>
                 ))}
               </div>
-            ) : (
+            )) : (
               <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
                 {/* Seit dem 18.08. ohne eigenen Plan-Reiter: Der Plan-Kalender
                     steckt in der Auswertung (Robertos Ansage). Leser bekommen
@@ -7937,12 +8051,198 @@ function App() {
       </div>
 
       {/* Cockpit: Störungen (eigene, für alle beschreibbare Datei) */}
+      {/* ================= Bereich BERICHTE: Kachel-Start (Meeting 10.09.) ===========
+          Der Einstieg für alle - und für Leser (zusammen mit der Übersicht)
+          der EINZIGE Bereich. Große Kacheln statt Reiter-Suche: To-do,
+          Störungen, Backlog (nur Bearbeiter), Zeiterfassung (in Klärung). */}
+      {view === "BERICHTE" && berichtTab === "START" && (() => {
+        const prioHochZahl = arbeitenOffen.filter((a) => a.prio === "hoch").length;
+        const kachel = (ziel, zeichen, zeichenBg, name, info, zahl, zahlFarbe, pillen) => (
+          <button onClick={() => setBerichtTab(ziel)} className="text-left rounded-2xl border bg-white p-5 hover:border-orange-300 w-full"
+            style={{ borderColor: "#E2E4E7", boxShadow: "0 2px 10px rgba(20,22,25,0.05)" }}>
+            <div className="flex items-center gap-3.5">
+              <span className="flex items-center justify-center rounded-xl shrink-0" style={{ width: "54px", height: "54px", fontSize: "1.7rem", backgroundColor: zeichenBg }}>{zeichen}</span>
+              <span>
+                <span className="block font-black" style={{ fontSize: "1.05rem", color: "#22262B" }}>{name}</span>
+                <span className="block text-xs" style={{ color: "#8A9099", marginTop: "2px" }}>{info}</span>
+              </span>
+              {zahl !== null && <span className="ml-auto font-mono font-black" style={{ fontSize: "1.7rem", color: zahlFarbe }}>{zahl}</span>}
+            </div>
+            {pillen.length > 0 && (
+              <div className="flex gap-1.5 mt-3 flex-wrap">
+                {pillen.map(([txt, bg, fg]) => (
+                  <span key={txt} className="rounded-full font-bold" style={{ fontSize: "0.66rem", padding: "3px 9px", backgroundColor: bg, color: fg }}>{txt}</span>
+                ))}
+              </div>
+            )}
+          </button>
+        );
+        return (
+          <div className="no-print max-w-5xl mx-auto px-4 mt-5">
+            <div className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#5B6572" }}>Berichte – was liegt an?</div>
+            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+              {kachel("TODO", "📋", "#EEF3F8", "To-do", "Aufgaben – erteilt, ohne Störungs-Bezug", todoOffene.length, "#2F6690",
+                todoUeberfaellige.length ? [[`${todoUeberfaellige.length} überfällig`, "#FBEAE8", "#C0392B"]] : [])}
+              {kachel("STOERUNGEN", "⚠️", "#FBEAE8", "Störungen", "Berichte ansehen & neue Störung melden", stoerOffenCount, "#C0392B",
+                offeneNachbestellungen.length ? [[`${offeneNachbestellungen.length} Ersatzteil(e) nachbestellt`, "#FBF3DA", "#9A6B00"]] : [])}
+              {!leserAnzeige && kachel("BACKLOG", "🧰", "#FDF0E2", "Backlog", "Arbeiten zum Einplanen", arbeitenOffen.length, "#C97A2B",
+                prioHochZahl ? [[`${prioHochZahl} hohe Prio`, "#FBEAE8", "#C0392B"]] : [])}
+              {kachel("ZEIT", "⏱️", "#F0F2F5", "Zeiterfassung", "Stunden auf Kostenstellen buchen", null, "#8A9099",
+                [["in Klärung – bleibt erreichbar", "#FBF3DA", "#9A6B00"]])}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ================= Bereich BERICHTE: To-do-Liste (Meeting 10.09.) ===========
+          Robertos Klarstellung: Ein To-do ist eine ganz normale erteilte
+          Aufgabe - ohne Störungs- und ohne Zeitbezug. Gruppiert nach
+          Überfällig / Offen / Zuletzt erledigt. */}
+      {view === "BERICHTE" && berichtTab === "TODO" && (() => {
+        const meinName = String(angemeldet || "").toLowerCase();
+        const passtFilter = (t) => todoFilter === "ALLE" || (todoFilter === "MEINE" && String(t.wer || "").toLowerCase() === meinName);
+        const offene = todoOffene.filter(passtFilter).sort((a, b) => String(a.bis || "9999").localeCompare(String(b.bis || "9999")));
+        const ueberfaellig = offene.filter(todoIstUeberfaellig);
+        const normalOffen = offene.filter((t) => !todoIstUeberfaellig(t));
+        const erledigte = todos.filter((t) => t.status === "done").sort((a, b) => String(b.erledigtAm || "").localeCompare(String(a.erledigtAm || "")));
+        const initialen = (n) => String(n || "").trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+        const zeile = (t) => (
+          <div key={t.id} className="flex items-center gap-3 bg-white rounded-xl border px-3.5 py-2.5 mb-2"
+            style={{ borderColor: "#E2E4E7", borderLeft: todoIstUeberfaellig(t) ? "4px solid #C0392B" : "1px solid #E2E4E7", opacity: t.status === "done" ? 0.6 : 1 }}>
+            <button
+              onClick={() => todoHaken(t)}
+              disabled={readerMode}
+              aria-label={t.status === "done" ? `To-do ${t.name} wieder öffnen` : `To-do ${t.name} abhaken`}
+              className="shrink-0 flex items-center justify-center rounded-lg font-black"
+              style={{ width: "26px", height: "26px", border: `2px solid ${t.status === "done" ? "#1F7A3D" : "#C3C7CB"}`, backgroundColor: t.status === "done" ? "#1F7A3D" : "#fff", color: "#fff", cursor: readerMode ? "default" : "pointer" }}>
+              {t.status === "done" ? "✓" : ""}
+            </button>
+            <button onClick={() => { if (!readerMode) todoBearbeiten(t); }} className="text-left flex-1 min-w-0" style={{ cursor: readerMode ? "default" : "pointer" }} title={readerMode ? undefined : "Klick zum Bearbeiten"}>
+              <div className="font-bold text-sm" style={{ color: "#22262B", textDecoration: t.status === "done" ? "line-through" : "none", wordBreak: "break-word" }}>{t.name}</div>
+              <div className="text-xs" style={{ color: "#8A9099", marginTop: "1px" }}>
+                {t.erteiltVon ? `erteilt von ${t.erteiltVon} · ` : "erteilt "}{formatDateDE(t.date)}
+                {t.status === "done" && t.erledigtAm ? ` · erledigt${t.erledigtVon ? ` von ${t.erledigtVon}` : ""} am ${new Date(t.erledigtAm).toLocaleDateString("de-DE")}` : ""}
+                {t.bemerkung ? ` · ${t.bemerkung}` : ""}
+              </div>
+            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {t.prio && (
+                <span className="rounded-full font-black uppercase" style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: t.prio === "hoch" ? "#FBEAE8" : "#FBF3DA", color: t.prio === "hoch" ? "#C0392B" : "#9A6B00" }}>{t.prio}</span>
+              )}
+              {t.bis && <span className="font-mono text-xs font-bold" style={{ color: todoIstUeberfaellig(t) ? "#C0392B" : "#5B6572" }}>bis {formatDateDE(t.bis)}</span>}
+              {t.wer && (
+                <span className="flex items-center justify-center rounded-full text-white font-black" style={{ width: "28px", height: "28px", fontSize: "0.62rem", backgroundColor: "#2F6690" }} title={t.wer}>{initialen(t.wer)}</span>
+              )}
+            </div>
+          </div>
+        );
+        return (
+          <div className="no-print max-w-5xl mx-auto px-4 mt-4">
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              <div className="font-black text-sm uppercase tracking-wide" style={{ color: "#22262B" }}>📋 To-do</div>
+              <div className="flex rounded overflow-hidden border ml-2" style={{ borderColor: "#D6D9DC" }}>
+                {[["ALLE", "Alle"], ["MEINE", "Meine"], ["ERLEDIGT", "Erledigte"]].map(([k, label]) => (
+                  <button key={k} onClick={() => setTodoFilter(k)} className="px-2.5 py-1 text-xs font-bold"
+                    style={todoFilter === k ? { backgroundColor: "#22262B", color: "white" } : { backgroundColor: "white", color: "#5B6572" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {!readerMode && (
+                <button onClick={todoNeu} className="ml-auto text-white px-3 py-1.5 rounded font-bold text-sm hover:opacity-90" style={{ backgroundColor: "#22262B" }}>
+                  ＋ To-do erteilen
+                </button>
+              )}
+            </div>
+            {todoFilter === "ERLEDIGT" ? (
+              erledigte.length === 0
+                ? <div className="wk-karte p-6 text-sm" style={{ border: "1px solid #E2E4E7", color: "#8A9099" }}>Noch nichts erledigt.</div>
+                : <>{erledigte.slice(0, 50).map(zeile)}</>
+            ) : (
+              <>
+                {ueberfaellig.length > 0 && (<>
+                  <div className="text-xs font-black uppercase tracking-wide mb-2" style={{ color: "#C0392B" }}>Überfällig ({ueberfaellig.length})</div>
+                  {ueberfaellig.map(zeile)}
+                </>)}
+                <div className="text-xs font-black uppercase tracking-wide mb-2 mt-3" style={{ color: "#2F6690" }}>Offen ({normalOffen.length})</div>
+                {normalOffen.length === 0
+                  ? <div className="text-xs italic mb-3" style={{ color: "#A6AEB6" }}>Nichts offen{todoFilter === "MEINE" ? " für dich" : ""}.{!readerMode && " Oben rechts: „＋ To-do erteilen“."}</div>
+                  : normalOffen.map(zeile)}
+                {erledigte.length > 0 && (<>
+                  <div className="text-xs font-black uppercase tracking-wide mb-2 mt-3" style={{ color: "#8A9099" }}>Zuletzt erledigt</div>
+                  {erledigte.slice(0, 5).map(zeile)}
+                </>)}
+              </>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* To-do erteilen / bearbeiten */}
+      {todoModal && !readerMode && (
+        <div className="no-print" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
+          onClick={() => setTodoModal(null)}>
+          <ZiehbareKarte role="dialog" aria-label={todoModal.id ? "To-do bearbeiten" : "To-do erteilen"}
+            style={{ backgroundColor: "white", borderRadius: "10px", padding: "18px 20px", width: "480px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+            onClick={(ev) => ev.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-sm">{todoModal.id ? "To-do bearbeiten" : "To-do erteilen"}</div>
+              <button onClick={() => setTodoModal(null)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+            </div>
+            <label className="block text-xs font-bold mb-2" style={{ color: "#5B6572" }}>Was ist zu tun?<span style={{ color: "#C0392B" }}> *</span>
+              <input value={todoModal.titel} onChange={(e) => setTodoModal((m) => ({ ...m, titel: e.target.value }))}
+                placeholder="z. B. Ölauffangwanne unter Kompressor 2 stellen" aria-label="Aufgabe"
+                className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+            </label>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Für wen
+                <select value={todoModal.wer} onChange={(e) => setTodoModal((m) => ({ ...m, wer: e.target.value }))} aria-label="Für wen"
+                  className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }}>
+                  <option value="">– noch offen –</option>
+                  {todoModal.wer && !team.some((t) => t.name === todoModal.wer) && <option value={todoModal.wer}>{todoModal.wer}</option>}
+                  {team.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+                </select>
+              </label>
+              <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Bis wann
+                <input type="date" value={todoModal.bis} onChange={(e) => setTodoModal((m) => ({ ...m, bis: e.target.value }))} aria-label="Bis wann"
+                  className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+              </label>
+            </div>
+            <div className="text-xs font-bold mb-2" style={{ color: "#5B6572" }}>Priorität
+              <div className="flex gap-2 mt-1">
+                {[["", "normal"], ["mittel", "mittel"], ["hoch", "hoch"]].map(([wert, label]) => (
+                  <button key={label} onClick={() => setTodoModal((m) => ({ ...m, prio: wert }))}
+                    className="flex-1 rounded-lg font-bold text-sm py-1.5"
+                    style={{ border: `2px solid ${todoModal.prio === wert ? (wert === "hoch" ? "#C0392B" : wert === "mittel" ? "#C9A24B" : "#5B6572") : "#E2E4E7"}`,
+                             color: todoModal.prio === wert ? (wert === "hoch" ? "#C0392B" : wert === "mittel" ? "#9A6B00" : "#22262B") : "#8A9099",
+                             backgroundColor: todoModal.prio === wert ? (wert === "hoch" ? "#FBEAE8" : wert === "mittel" ? "#FBF3DA" : "#F0F2F5") : "white" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="block text-xs font-bold mb-3" style={{ color: "#5B6572" }}>Bemerkung (freiwillig)
+              <input value={todoModal.bemerkung} onChange={(e) => setTodoModal((m) => ({ ...m, bemerkung: e.target.value }))}
+                className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+            </label>
+            {todoFehler && <div className="text-xs font-bold mb-2" style={{ color: "#B23A34" }}>{todoFehler}</div>}
+            <div className="flex gap-2">
+              <button onClick={todoSpeichern} className="flex-1 text-sm font-bold py-2 rounded text-white" style={{ backgroundColor: "#22262B" }}>Speichern</button>
+              {todoModal.id && (
+                <button onClick={todoLoeschen} className="text-sm font-bold py-2 px-3 rounded" style={{ backgroundColor: "#FDECEA", color: "#B23A34" }}>Löschen</button>
+              )}
+              <button onClick={() => setTodoModal(null)} className="flex-1 text-sm font-bold py-2 rounded bg-slate-100 text-slate-500">Abbrechen</button>
+            </div>
+          </ZiehbareKarte>
+        </div>
+      )}
+
       {/* ================= Zeiterfassung / Schichtbericht (09.09.) =================
           Ersatz für das alte ikom-ZE: Stunden je Mitarbeiter auf Kostenstellen,
           Abwesenheiten wie früher mit dabei. Aufteilung wie im alten System:
           Eintragsliste (nach Tag) und die Jahres-Summen je Kostenstelle, die am
           Jahresende als CSV für Excel herausgegeben werden. */}
-      {view === "COCKPIT" && cockpitTab === "ZEIT" && (() => {
+      {((view === "COCKPIT" && cockpitTab === "ZEIT") || (view === "BERICHTE" && berichtTab === "ZEIT")) && (() => {
         const mj = zeitCursor.getFullYear(), mi = zeitCursor.getMonth();
         const imMonat = zeitEintraege.filter((e) => {
           const d = String(e.date || "");
@@ -8203,7 +8503,7 @@ function App() {
         </div>
       )}
 
-      {view === "COCKPIT" && cockpitTab === "STOERUNGEN" && (
+      {((view === "COCKPIT" && cockpitTab === "STOERUNGEN") || (view === "BERICHTE" && berichtTab === "STOERUNGEN")) && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
         <div className="flex gap-3 items-start">
           {/* ---- Filterleiste links ---------------------------------------
@@ -9207,7 +9507,7 @@ function App() {
           freie Einträge an. */}
 
       {/* Cockpit: Backlog (Arbeiten aus dem Arbeitsbuch) */}
-      {view === "COCKPIT" && cockpitTab === "BACKLOG" && (
+      {((view === "COCKPIT" && cockpitTab === "BACKLOG") || (view === "BERICHTE" && berichtTab === "BACKLOG" && !readerMode)) && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
           {/* ---- Werkzeugzeile ----------------------------------------------
               Vorher standen hier elf Bedienelemente in zwei Reihen (109 Pixel),
@@ -14062,7 +14362,7 @@ function App() {
       })()}
 
       {/* Notizen: eigene Seite, Hochformat, chronologisch */}
-      {view !== "TPMINFO" && notesList.length > 0 && (
+      {view !== "TPMINFO" && view !== "BERICHTE" && notesList.length > 0 && (
         <div className="notes-page print-bg p-4 max-w-4xl mx-auto" style={{ marginTop: "8px" }}>
           <div className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: "#22262B" }}>
             Notizen – {view === "JAHR" ? `Jahr ${year}` : `${MONTHS[month]} ${year}`}
@@ -14094,7 +14394,7 @@ function App() {
         </div>
       )}
 
-      {view !== "COCKPIT" && view !== "TPMINFO" && (
+      {view !== "COCKPIT" && view !== "TPMINFO" && view !== "BERICHTE" && (
       <div className="no-print max-w-5xl mx-auto px-4 pb-6 pt-3 text-xs text-slate-400">
         Tipp: "Drucken" öffnet die Druckvorlage in einem neuen Tab (Pop-ups für diese Seite bitte erlauben) – bei der Monatsansicht zuerst als übersichtliche Kalenderseite, danach die Anlagen-Matrix. Falls der Browser Pop-ups blockiert, wird stattdessen automatisch eine Datei heruntergeladen. Filter oben auf "PitStop" oder "R+I" stellen für den separaten Ausdruck je Kategorie. Am Jahresende einfach auf "Jahr" umschalten und drucken.
       </div>

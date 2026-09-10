@@ -73,7 +73,7 @@ async function seite(browser, platte, { uhr = "2026-08-03T16:00:00" } = {}) {
   await p.waitForTimeout(1100);
   await p.evaluate(async () => await window.__wkStoerTest.adopt(window.__mk("stoer.json"), "readwrite"));
   await p.waitForTimeout(800);
-  await p.getByRole("button", { name: "Störungen" }).first().click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
   await p.waitForTimeout(700);
   return p;
 }

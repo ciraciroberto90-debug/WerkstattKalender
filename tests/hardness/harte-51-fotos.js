@@ -117,7 +117,7 @@ async function handyFoto(p) {
 
 const arbeitZeile = { id: "b1", date: "2026-08-20", category: "ARBEIT", name: "TS480", status: "open", note: "Lagerschaden an der Umlenkrolle", prio: "hoch", art: "mech", zeit: "2026-08-20T09:41:00.000Z" };
 const inBacklog = async (p) => {
-  await p.getByRole("button", { name: "Backlog", exact: true }).first().click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: "Backlog", exact: true }).first().click()));
   await p.waitForTimeout(600);
 };
 const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]"));
@@ -236,7 +236,7 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
   {
     const { p, ctx, fehler } = await start(browser, {});
     const foto = await handyFoto(p);
-    await p.getByRole("button", { name: /^Störungen/ }).first().click();
+    await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
     await p.waitForTimeout(500);
     await p.getByRole("button", { name: "📝 Störbericht erfassen" }).first().click();
     await p.waitForTimeout(500);

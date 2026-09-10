@@ -51,13 +51,15 @@ function grosserBestand() {
   ok('Kein JS-Fehler beim Laden', errors.length === 0);
 
   const t1 = Date.now();
-  await page.getByRole('button', { name: 'Backlog', exact: true }).click();
+  await page.getByRole("button", { name: /^Berichte/ }).first().click().then(() => page.waitForTimeout(350)).then(() => page.getByRole("button", { name: "Backlog", exact: true }).first().click());
   await page.waitForTimeout(600);
   ok('Backlog mit 400 Arbeiten öffnet zügig (< 5s)', Date.now() - t1 < 5000);
   ok('Backlog zeigt Einträge', (await page.locator('body').innerText()).includes('Testarbeit Nummer'));
 
   const t2 = Date.now();
-  await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
+  // Aus dem Bereich Berichte heraus: erst zurück in den Bereich Werkstatt
+  // (der Hauptknopf landet direkt auf dem Schichtplan).
+  await page.getByRole("button", { name: "Werkstatt", exact: true }).click();
   await page.waitForTimeout(600);
   ok('Schichtplan-Matrix mit 60 Zeilen öffnet zügig (< 5s)', Date.now() - t2 < 5000);
   // 45 mit Gewerk direkt sichtbar + 1 "Sonstige"-Aufklapp-Zeile (15 ohne Gewerk sind zunächst eingeklappt)

@@ -85,9 +85,11 @@ const gemerkterModus = (p) => p.evaluate(() => new Promise((fertig) => {
 
   // (1) alles glatt
   { const {p,fehler} = await starte(b,{dialogDauer:300,ersteFrage:"ok",schreibenGeht:true});
+    // Der Backlog wohnt seit dem 10.09. im Bereich Berichte.
+    await p.getByRole("button", { name: /^Berichte/ }).first().click(); await p.waitForTimeout(400);
     const t = await p.locator("body").innerText();
     pruef("(1) Zuegiger Dialog: KEIN Schreibschutz", !/Schreibschutz/.test(t));
-    pruef("(1) Backlog sichtbar (Bearbeiter)", /BACKLOG/.test(t));
+    pruef("(1) Backlog sichtbar (Bearbeiter)", /BACKLOG/i.test(t));
     pruef("(1) Keine Skriptfehler", fehler.length===0);
     await p.context().close(); }
 
@@ -100,10 +102,11 @@ const gemerkterModus = (p) => p.evaluate(() => new Promise((fertig) => {
     pruef("(2) Knopf 'Schreibzugriff erlauben' ist da", (await p.getByRole("button",{name:/Schreibzugriff erlauben/}).count())>0);
     await p.getByRole("button",{name:/Schreibzugriff erlauben/}).first().click();
     await p.waitForTimeout(2500);
+    await p.getByRole("button", { name: /^Berichte/ }).first().click(); await p.waitForTimeout(400);
     t = await p.locator("body").innerText();
     pruef("(2) Ein Klick genuegt - Hinweis weg", !/Schreibzugriff auf die Datei nicht erteilt/.test(t));
     pruef("(2) Danach kein Schreibschutz mehr", !/Schreibschutz/.test(t));
-    pruef("(2) Backlog jetzt sichtbar", /BACKLOG/.test(t));
+    pruef("(2) Backlog jetzt sichtbar", /BACKLOG/i.test(t));
     pruef("(2) Keine Skriptfehler", fehler.length===0);
     await p.context().close(); }
 
@@ -131,6 +134,8 @@ const gemerkterModus = (p) => p.evaluate(() => new Promise((fertig) => {
      Rechteentzug festgeschrieben werden. */
   { const {p} = await starte(b,{dialogDauer:300,ersteFrage:"ok",schreibenGeht:false,
       schreibFehler:"NoModificationAllowedError", nurErsterVersuch:true});
+    // Der Backlog wohnt seit dem 10.09. im Bereich Berichte - erst hinklicken.
+    await p.getByRole("button", { name: /^Berichte/ }).first().click(); await p.waitForTimeout(400);
     const t = await p.locator("body").innerText();
     pruef("(5) Belegte Datei fuehrt NICHT in den Schreibschutz", !/Schreibschutz/.test(t));
     // Der zweite Anlauf hat geklappt - dann gibt es auch nichts zu melden.
@@ -140,7 +145,7 @@ const gemerkterModus = (p) => p.evaluate(() => new Promise((fertig) => {
       (await p.evaluate(() => window.__schreibVersuche || 0)) >= 2);
     pruef("(5) Und nichts Falsches gemerkt - der Modus bleibt schreibend",
       (await gemerkterModus(p)) !== "read");
-    pruef("(5) Bearbeiten ist weiterhin moeglich", /BACKLOG/.test(t));
+    pruef("(5) Bearbeiten ist weiterhin moeglich", /BACKLOG/i.test(t));
     await p.context().close(); }
 
   // (4) Ausdrueckliche Ablehnung im Browser-Dialog: gar keine Verbindung,

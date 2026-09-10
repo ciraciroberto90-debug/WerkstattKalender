@@ -46,7 +46,7 @@ const pruef = (n, c, zusatz) => {
   });
   await p.goto(APP);
   await p.waitForTimeout(1100);
-  await p.getByRole("button", { name: /Störungen/ }).first().click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
   await p.waitForTimeout(700);
   // Bericht zweistufig aufklappen, Ansicht öffnen, dann Bearbeiten - genau
   // der Weg, auf dem React die Karte recycelt.

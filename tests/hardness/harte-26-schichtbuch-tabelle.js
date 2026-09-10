@@ -28,7 +28,7 @@ const pruef = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++
     localStorage.setItem("werkstatt-stoerungen-entries", JSON.stringify(d.STOER));
   }, { CONFIG, STOER });
   await p.goto(APP); await p.waitForTimeout(1500);
-  await p.getByRole("button", { name: /Störungen/ }).first().click(); await p.waitForTimeout(900);
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click()); await p.waitForTimeout(900);
 
   // ---- Aufbau ----
   const spalten = await p.locator("thead th").allInnerTexts();

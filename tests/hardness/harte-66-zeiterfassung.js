@@ -82,7 +82,7 @@ const pruef = (n, c, zusatz) => {
   });
   await p.goto(APP);
   await p.waitForTimeout(1200);
-  await p.getByRole("button", { name: "Zeiterfassung", exact: true }).click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Zeiterfassung/ }).first().click());
   await p.waitForTimeout(500);
 
   /* ---- (Z2) Frei getippte Kostenstelle wird abgewiesen ---- */
@@ -109,7 +109,7 @@ const pruef = (n, c, zusatz) => {
   pruef("(Z1) Der UI-Eintrag trägt Kostenstelle, Nummer, Stunden und Mitarbeiter",
         !!neu && neu.ks === "TS 480 ADL" && neu.ksNr === "2032002" && neu.stunden === 1.5 && neu.name === "K. Schmidt" && neu.date === "2026-09-09",
         neu ? `${neu.name} | ${neu.ks} | ${neu.stunden}` : "fehlt");
-  await p.getByRole("button", { name: "Zeiterfassung", exact: true }).click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Zeiterfassung/ }).first().click());
   await p.waitForTimeout(500);
   pruef("(Z1) Nach dem Neustart steht der Eintrag noch in der Liste",
         (await p.getByText("Riemen getauscht").count()) >= 1);
@@ -210,7 +210,7 @@ const pruef = (n, c, zusatz) => {
   await p.getByRole("button", { name: "Abbrechen", exact: true }).click();
 
   /* ---- (Z11) Nummern-Wächter und Alt-Nummern aus dem ikom-Import ---- */
-  await p.getByRole("button", { name: /Störungen/ }).first().click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
   await p.waitForTimeout(700);
   const doppelHinweis = await p.getByText(/Nummer, die es schon gibt/).textContent().catch(() => "");
   pruef("(Z11) Der Doppel-Wächter meldet NUR das Doppel im neuen Nummernkreis, nicht die alte LFDNR",

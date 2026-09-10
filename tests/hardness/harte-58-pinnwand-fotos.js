@@ -174,7 +174,7 @@ const verfasserAuf = async (p) => {
 
     // (Z5) Arbeit wieder löschen räumt die Datei weg (Bestandsverhalten,
     // hier als Gegenstück: die Datei gehört jetzt der Arbeit).
-    await p.getByRole("button", { name: "Backlog", exact: true }).first().click();
+    await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: "Backlog", exact: true }).first().click());
     await p.waitForTimeout(600);
     await p.getByText("Regal B ist umgeräumt").first().click();
     await p.waitForTimeout(500);
@@ -292,8 +292,8 @@ const verfasserAuf = async (p) => {
     await p.getByText("Vorhandene Datei öffnen …").click();
     await p.waitForTimeout(1200);
     await p.evaluate(() => window.__wkSharedTest.adoptFolder(window.__mockOrdnerHandle));
-    await p.getByRole("button", { name: "Werkstatt", exact: true }).click();
-    await p.waitForTimeout(300);
+    // Leser landen seit dem 10.09. direkt auf der Übersicht - den
+    // Werkstatt-Hauptreiter gibt es für sie nicht mehr.
     const uebersicht = p.getByRole("button", { name: "Übersicht", exact: true });
     if (await uebersicht.count()) { await uebersicht.first().click(); await p.waitForTimeout(600); }
 

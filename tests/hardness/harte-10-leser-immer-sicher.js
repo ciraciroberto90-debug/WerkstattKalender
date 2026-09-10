@@ -30,11 +30,13 @@ const mockHandle = (mode) => ({
     await page.waitForTimeout(700);
 
     ok('S1: "Übersicht"-Tab sichtbar (Nur-Lesen-Standard)', await page.getByRole('button', { name: 'Übersicht', exact: true }).count() === 1);
-    ok('S1: "Schichtplan"-Tab sichtbar', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 1);
-    ok('S1: "Planung"-Tab sichtbar (erlaubt, nur ansehen)', await page.getByRole('button', { name: 'Planung', exact: true }).count() === 1);
-    ok('S1: "TPM"-Hauptreiter sichtbar (führt zur TPM-Übersicht/Plan)', await page.getByRole('button', { name: 'TPM', exact: true }).count() === 1);
+    // Seit dem 10.09. sehen Leser NUR Übersicht + Berichte (Ansage der
+    // Geschäftsführung) - Werkstatt und TPM sind für sie ganz verschwunden.
+    ok('S1: "Berichte"-Tab sichtbar (Leser-Standard)', await page.getByRole('button', { name: /^Berichte/ }).count() >= 1);
+    ok('S1: "Schichtplan"-Tab NICHT sichtbar (Leser sehen nur Übersicht + Berichte)', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 0);
+    ok('S1: "TPM"-Hauptreiter NICHT sichtbar (Leser sehen nur Übersicht + Berichte)', await page.getByRole('button', { name: 'TPM', exact: true }).count() === 0);
     ok('S1: "Backlog"-Tab NICHT sichtbar (noch nicht verbunden = sicherer Standard)', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
-    ok('S1: "Cockpit"-Hauptreiter sichtbar (gleiche Hauptreiter wie Bearbeiter)', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1);
+    ok('S1: "Werkstatt"-Hauptreiter NICHT sichtbar (Leser sehen nur Übersicht + Berichte)', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 0);
     ok('S1: "Gemeinsame Datei"-Knopf IST sichtbar (sonst könnte sich niemand verbinden!)', await page.locator('button[aria-label="Gemeinsame Datei"]').count() === 1);
     await page.close();
   }
@@ -86,7 +88,10 @@ const mockHandle = (mode) => ({
     await page.waitForTimeout(800);
 
     ok('S3: Nach Verbinden als Bearbeiter - "Cockpit"-Hauptreiter sichtbar', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1);
-    ok('S3: "Backlog" (im Cockpit-Untermenü) erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
+    // Backlog wohnt seit dem 10.09. im Bereich Berichte
+    await page.getByRole('button', { name: /^Berichte/ }).first().click();
+    await page.waitForTimeout(400);
+    ok('S3: "Backlog" (im Bereich Berichte) erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
     ok('S3: "Gemeinsame Datei"-Knopf sichtbar (Bearbeiter darf verwalten)', await page.locator('button[aria-label="Gemeinsame Datei"]').count() === 1);
     await page.close();
   }
@@ -100,7 +105,9 @@ const mockHandle = (mode) => ({
     await page.waitForTimeout(700);
 
     ok('S4: Solo-Browser (kein FS-Access) - volle App nutzbar ("Cockpit" sichtbar)', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1);
-    ok('S4: "Backlog" erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
+    await page.getByRole('button', { name: /^Berichte/ }).first().click();
+    await page.waitForTimeout(400);
+    ok('S4: "Backlog" (im Bereich Berichte) erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
     await page.close();
   }
 
@@ -124,22 +131,13 @@ const mockHandle = (mode) => ({
     await page.getByText('Vorhandene Datei öffnen …').click();
     await page.waitForTimeout(800);
 
-    await page.getByRole('button', { name: 'Planung', exact: true }).click();
-    await page.waitForTimeout(400);
-
-    // Schicht-Kürzel-Knopf ("?") für die Person muss deaktiviert sein (kein Klick möglich)
-    const schichtBtn = page.locator('button[aria-label^="Schicht Leser Test"]').first();
-    ok('S5: Schicht-Knopf in der Planung ist deaktiviert (disabled)', await schichtBtn.isDisabled().catch(() => false));
-
-    // "+"-Knopf (Arbeit/Notiz eintragen) darf gar nicht erst existieren
-    const plusBtn = page.getByRole('button', { name: 'Arbeit oder Notiz eintragen' });
-    ok('S5: "+"-Knopf (Arbeit/Notiz eintragen) ist NICHT vorhanden', await plusBtn.count() === 0);
-
-    // Klick auf den (deaktivierten) Schicht-Knopf darf keinen Picker öffnen
-    await schichtBtn.click({ force: true }).catch(() => {});
-    await page.waitForTimeout(300);
-    const pickerOffen = await page.locator('text=Schicht – Leser Test').count();
-    ok('S5: Klick auf Schicht-Knopf öffnet KEINEN Bearbeiten-Picker', pickerOffen === 0);
+    // Seit dem großen Umbau (Robertos Ansage vom 10.09.) sehen Leser die
+    // Planung GAR NICHT mehr - nur noch Übersicht + Berichte. Die alten
+    // Nur-Ansehen-Wächter in der Planung bleiben im Code, sind für Leser
+    // aber unerreichbar; die Sicherheits-Klammer wirft sie zurück.
+    ok('S5: "Planung" ist für den Leser NICHT mehr sichtbar', await page.getByRole('button', { name: 'Planung', exact: true }).count() === 0);
+    ok('S5: "Werkstatt"-Hauptbereich ist für den Leser NICHT sichtbar', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 0);
+    ok('S5: Der Bereich Berichte bleibt dem Leser erhalten', await page.getByRole('button', { name: /^Berichte/ }).count() >= 1);
 
     await page.close();
   }

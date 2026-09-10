@@ -150,21 +150,16 @@ const text = (p) => p.locator("body").innerText();
     const vo = p.getByText("Vorhandene Datei öffnen …");
     if (await vo.count()) await vo.click();
     await p.waitForTimeout(1300);
-    // Seit dem 18.08. dürfen Leser den Plan samt Auswertung SEHEN (sonst
-    // verlören sie mit dem verschmolzenen Reiter den Wartungsplan ganz).
-    // Der Trend erscheint erst nach dem Aufklappen der Auswertungs-Leiste.
-    await p.getByRole("button", { name: "TPM", exact: true }).first().click();
-    await p.waitForTimeout(500);
-    check("(7) Leser haben den Plan-Reiter",
-      (await p.getByRole("button", { name: "Plan", exact: true }).count()) > 0);
-    await p.getByRole("button", { name: "Plan", exact: true }).first().click();
-    await p.waitForTimeout(500);
-    check("(7) Ohne Aufklappen kein Trend",
+    // Seit dem 10.09. sehen Leser den TPM-Bereich GAR NICHT mehr
+    // (Robertos Ansage: nur Übersicht + Berichte). Der Trend bleibt
+    // damit den Bearbeitern vorbehalten.
+    check("(7) Leser haben KEINEN TPM-Bereich mehr",
+      (await p.getByRole("button", { name: "TPM", exact: true }).count()) === 0);
+    check("(7) Leser behalten Übersicht und Berichte",
+      (await p.getByRole("button", { name: "Übersicht", exact: true }).count()) >= 1 &&
+      (await p.getByRole("button", { name: /^Berichte/ }).count()) >= 1);
+    check("(7) Kein Trend im Leser-Bildschirm",
       !/TERMINTREUE – LETZTE 12 MONATE/i.test(await text(p)));
-    await p.getByRole("button", { name: /Auswertung.*Druckvorlagen/ }).first().click();
-    await p.waitForTimeout(900);
-    check("(7) Nach dem Aufklappen sehen auch Leser den Trend (nur ansehen)",
-      /TERMINTREUE – LETZTE 12 MONATE/i.test(await text(p)));
     await p.close();
   }
 

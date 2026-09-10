@@ -61,9 +61,11 @@ let ok=0,fail=0; const pruef=(n,c)=>{console.log((c?"PASS | ":"FAIL | ")+n);c?ok
 
   // Weg 2 muss wirklich helfen
   await p.getByRole("button",{name:/Mit Schreibrecht verbinden/}).first().click(); await p.waitForTimeout(2500);
+  // Der Backlog wohnt seit dem 10.09. im Bereich Berichte.
+  await p.getByRole("button", { name: /^Berichte/ }).first().click(); await p.waitForTimeout(400);
   t = await p.locator("body").innerText();
   pruef("Danach kein Schreibschutz mehr", !/Schreibschutz/.test(t) && !/nicht erteilt/.test(t));
-  pruef("Backlog sichtbar (Bearbeiter)", /BACKLOG/.test(t));
+  pruef("Backlog sichtbar (Bearbeiter)", /BACKLOG/i.test(t));
 
   const inhalt = await p.evaluate(()=>window.__datei.inhalt);
   pruef("Der vorhandene Datei-Inhalt ist NICHT verlorengegangen", /vorhanden-1/.test(inhalt));

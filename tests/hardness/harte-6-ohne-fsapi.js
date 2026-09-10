@@ -40,7 +40,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // Backlog-Arbeit anlegen
   await page.getByRole('button', { name: 'Werkstatt', exact: true }).click();
   await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Backlog', exact: true }).click();
+  await page.getByRole("button", { name: /^Berichte/ }).first().click().then(() => page.waitForTimeout(350)).then(() => page.getByRole("button", { name: "Backlog", exact: true }).first().click());
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: '+ Neue Arbeit' }).click().catch(async () => {
     await page.getByRole('button', { name: /Arbeit/ }).first().click();

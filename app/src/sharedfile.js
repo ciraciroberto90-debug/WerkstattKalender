@@ -259,7 +259,7 @@ function pruneLogs(entries) {
 // Kurzbeschreibung eines Eintrags für den Verlauf ("Wartung BTS am 13.07.2026").
 function benenneEintrag(e) {
   if (!e) return "Eintrag";
-  const art = { TPM: "Wartung", RI: "R+I", ARBEIT: "Arbeit", SCHICHT: "Schicht", NOTIZ: "Notiz", ZETTEL: "Zettel", ZEIT: "Zeiterfassung" }[e.category] || e.category || "Eintrag";
+  const art = { TPM: "Wartung", RI: "R+I", ARBEIT: "Arbeit", SCHICHT: "Schicht", NOTIZ: "Notiz", ZETTEL: "Zettel", ZEIT: "Zeiterfassung", TODO: "To-do" }[e.category] || e.category || "Eintrag";
   const name = e.name || e.anlage || e.stoerung || "";
   const datum = e.date ? " am " + String(e.date).split("-").reverse().join(".") : "";
   return (name ? `${art} ${name}` : art) + datum;

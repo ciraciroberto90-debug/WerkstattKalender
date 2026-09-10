@@ -226,7 +226,12 @@ async function legeAn(p, name, ziel) {
     // die Reiter darunter verdecken.
     await kopfzeile(p3).click();
     await p3.waitForTimeout(350);
+    // Seit dem Umbau (10.09.) liegen Störungen und Backlog im Bereich
+    // Berichte, Schichtplan und Planung im Bereich Werkstatt - erst der
+    // Hauptbereich, dann der Reiter.
+    const hauptFuer = { "Störungen": /^Berichte/, "Backlog": /^Berichte/, "Schichtplan": /^Werkstatt/, "Planung": /^Werkstatt/ };
     for (const reiter of ["Störungen", "Schichtplan", "Planung", "Backlog", "TPM"]) {
+      if (hauptFuer[reiter]) { await p3.getByRole("button", { name: hauptFuer[reiter] }).first().click(); await p3.waitForTimeout(300); }
       await p3.getByRole("button", { name: new RegExp("^" + reiter) }).first().click();
       await p3.waitForTimeout(350);
       const da = await kopfzeile(p3).count() > 0;

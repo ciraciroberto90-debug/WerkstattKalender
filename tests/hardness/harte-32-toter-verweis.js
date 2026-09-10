@@ -164,7 +164,7 @@ async function seite(browser) {
   await p2.addInitScript(() => { window.__naechsteDatei = "werkstatt-stoerungen.json"; });
   await p2.goto(APP);
   await p2.waitForTimeout(9000); // Frist des Probelaufs abwarten
-  await p2.getByRole("button", { name: /Störungen/ }).first().click();
+  await p2.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p2.waitForTimeout(350)).then(() => p2.getByRole("button", { name: /^Störungen/ }).first().click());
   await p2.waitForTimeout(800);
   let t2 = await p2.locator("body").innerText();
   pruef("(6) Auch die Störungen-Datei meldet den toten Verweis", /nicht mehr frei/.test(t2));

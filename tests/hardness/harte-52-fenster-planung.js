@@ -210,13 +210,13 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     const vo = p.getByText("Vorhandene Datei öffnen …");
     if (await vo.count()) await vo.click();
     await p.waitForTimeout(1300);
-    await p.getByRole("button", { name: "Planung", exact: true }).first().click();
-    await p.waitForTimeout(800);
+    // Seit dem 10.09. sehen Leser die Planung GAR NICHT mehr - nur Übersicht
+    // und Berichte. Damit ist auch das Backlog-Fenster samt Ziehen unerreichbar.
+    pruef("(L) Leser sehen die Planung gar nicht mehr (nur Übersicht + Berichte)",
+          (await p.getByRole("button", { name: "Planung", exact: true }).count()) === 0 &&
+          (await p.getByRole("button", { name: /^Berichte/ }).count()) >= 1);
     pruef("(L) Leser sehen keinen Backlog-Fenster-Knopf",
           (await p.getByRole("button", { name: /📋 Backlog/ }).count()) === 0);
-    pruef("(L) Der eingeplante Chip ist für Leser nicht ziehbar",
-          (await p.locator('td[data-planzelle="M. Weber|2026-08-24"] button[draggable="true"]').count()) === 0 &&
-          /TS480:/.test(await p.locator('td[data-planzelle="M. Weber|2026-08-24"]').innerText()));
     await ctx.close();
   }
 

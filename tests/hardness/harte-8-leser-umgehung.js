@@ -39,16 +39,20 @@ const check = (n, c) => { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok
   check('Direkt nach Verbinden: Leser im Plan, Backlog-Reiter nicht sichtbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
   check('Leser-Hinweis "nur ansehen" o.ä. ist erkennbar', (await page.locator('body').innerText()).length > 0);
 
-  // Neu: Der "Cockpit"-Hauptreiter ist jetzt bewusst auch für Leser sichtbar
-  // (gleiche zwei Hauptreiter Cockpit/TPM wie beim Bearbeiter). Die Sperre liegt
-  // im Untermenü: Backlog/Auswertung/Register erscheinen für Leser gar nicht,
-  // und die Sicherheits-Klammer setzt unerlaubte Ansichten zurück.
-  const cockpitReiterDa = await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1;
-  check('"Cockpit"-Hauptreiter ist für den Leser sichtbar (gleiche Hauptreiter wie Bearbeiter)', cockpitReiterDa);
-  if (cockpitReiterDa) {
-    await page.getByRole('button', { name: 'Werkstatt', exact: true }).click();
+  // Großer Umbau (Robertos Ansage aus dem Meeting vom 10.09.): Leser sehen
+  // NUR noch Übersicht + Berichte - Werkstatt und TPM sind für sie ganz weg.
+  // Die Backlog-Kachel im Bereich Berichte erscheint für Leser nicht, und
+  // die Sicherheits-Klammer setzt unerlaubte Ansichten zurück.
+  const leserLeisteRichtig =
+    (await page.getByRole('button', { name: 'Übersicht', exact: true }).count()) >= 1 &&
+    (await page.getByRole('button', { name: /^Berichte/ }).count()) >= 1 &&
+    (await page.getByRole('button', { name: 'Werkstatt', exact: true }).count()) === 0 &&
+    (await page.getByRole('button', { name: 'TPM', exact: true }).count()) === 0;
+  check('Leser-Hauptleiste zeigt NUR Übersicht + Berichte (kein Werkstatt/TPM)', leserLeisteRichtig);
+  if (leserLeisteRichtig) {
+    await page.getByRole('button', { name: /^Berichte/ }).first().click();
     await page.waitForTimeout(400);
-    check('Auch nach Klick auf Cockpit: KEIN Backlog-Reiter im Leser-Untermenü', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
+    check('Auch im Bereich Berichte: KEIN Backlog für den Leser', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0 && !(await page.locator('body').innerText()).includes('Arbeiten zum Einplanen'));
     const text = await page.locator('body').innerText();
     check('Auch nach Klick auf Cockpit: geheimer Backlog-Eintrag bleibt verborgen', !text.includes('GEHEIME-ANLAGE'));
   }

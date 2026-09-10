@@ -185,7 +185,7 @@ async function verbindeHaupt(p) {
   await p2.context().close();
 
   await p.evaluate(() => { window.__welche = "werkstatt-stoerungen.json"; });
-  await p.getByRole("button", { name: /Störungen/ }).first().click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
   await p.waitForTimeout(600);
   const stoerKnopf = p.getByRole("button", { name: /Störungen-Datei öffnen/ });
   if (await stoerKnopf.count()) {
@@ -224,7 +224,9 @@ async function verbindeHaupt(p) {
   const auswertung = await p.locator("body").innerText();
   pruef("(6) Auswertung rechnet über sieben Jahrgänge", /%/.test(auswertung) && Date.now() - t0 < 20000, (Date.now() - t0) + " ms");
 
-  await p.getByRole("button", { name: "Übersicht", exact: true }).click();
+  // .last(): seit dem Umbau gibt es "Übersicht" zweimal (Hauptleiste und
+  // TPM-Untermenü) - gemeint ist hier die TPM-Übersicht mit dem Nachweis.
+  await p.getByRole("button", { name: "Übersicht", exact: true }).last().click();
   await p.waitForTimeout(1200);
   let nachweisOk = false, nachweisKopf = "";
   try {

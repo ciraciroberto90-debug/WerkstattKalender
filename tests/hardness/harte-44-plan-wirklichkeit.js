@@ -46,6 +46,9 @@ const config = {
     p.on("pageerror", (e) => fehler.push(e.message));
     await p.clock.setFixedTime(new Date("2026-08-18T09:15:00"));
     await p.addInitScript(({ e, c }) => {
+      // Solo-Bearbeiter statt unverbundenem Leser: Leser haben seit dem
+      // 10.09. keinen TPM-Bereich mehr - gemessen wird hier aber der Plan.
+      delete window.showOpenFilePicker; delete window.showSaveFilePicker;
       localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(e));
       localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
     }, { e: entries, c: config });

@@ -91,7 +91,7 @@ async function verbinde(p, wartezeit) {
   // (D) Störungen-Datei über denselben Weg
   {
     const { p, fehler } = await starte(b, { dialogDauer: 7000, erlaubnis: "granted", antwort: "echt" });
-    await p.getByRole("button", { name: /Störungen/ }).first().click();
+    await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
     await p.waitForTimeout(600);
     const knopf = p.getByRole("button", { name: /Störungen-Datei öffnen/ }).first();
     if (await knopf.count()) {

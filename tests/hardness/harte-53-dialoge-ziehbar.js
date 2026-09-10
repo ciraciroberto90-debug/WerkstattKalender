@@ -144,7 +144,7 @@ const oeffneTermin = async (p) => {
   {
     const { p, ctx, fehler } = await start(browser);
     // Arbeit-Dialog
-    await p.getByRole("button", { name: "Backlog", exact: true }).first().click();
+    await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: "Backlog", exact: true }).first().click()));
     await p.waitForTimeout(600);
     await p.getByText("Lagerschaden an der Umlenkrolle").first().click();
     await p.waitForTimeout(500);
@@ -152,7 +152,7 @@ const oeffneTermin = async (p) => {
     await p.getByRole("button", { name: "Abbrechen", exact: true }).click();
     await p.waitForTimeout(300);
     // Störbericht
-    await p.getByRole("button", { name: /^Störungen/ }).first().click();
+    await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
     await p.waitForTimeout(500);
     await p.getByRole("button", { name: "📝 Störbericht erfassen" }).first().click();
     await p.waitForTimeout(500);

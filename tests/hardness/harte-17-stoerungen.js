@@ -38,7 +38,7 @@ async function makeUser(browser, t) {
 
 // Über den Reiter "Störungen" die Störungen-Datei verbinden
 async function verbindeStoer(page, create) {
-  await page.getByRole('button', { name: /Störungen/ }).first().click();
+  await page.getByRole("button", { name: /^Berichte/ }).first().click().then(() => page.waitForTimeout(350)).then(() => page.getByRole("button", { name: /^Störungen/ }).first().click());
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: create ? /neu anlegen/ : /Störungen-Datei öffnen/ }).click();
   await page.waitForTimeout(700);
@@ -79,6 +79,10 @@ async function meldeStoerung(page, anlage, text) {
   // Nutzer 1 legt die Störungen-Datei an (ist NICHT mit der Hauptdatei verbunden = reiner Leser)
   const u1 = await makeUser(browser, '2026-07-17T08:00:00Z');
   const reader1 = await u1.evaluate(() => document.body.innerText.includes('Schreibschutz') || true);
+  // Seit dem Umbau (10.09.) wohnen die Störungen im Bereich Berichte - der
+  // ist auch für Nur-Leser da, also erst dorthin, dann zählen.
+  await u1.getByRole("button", { name: /^Berichte/ }).first().click();
+  await u1.waitForTimeout(350);
   check('(1) Auch ohne Hauptdatei-Verbindung ist der Störungen-Reiter erreichbar',
     await u1.getByRole('button', { name: /Störungen/ }).count() > 0);
   await verbindeStoer(u1, true);

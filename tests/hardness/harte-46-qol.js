@@ -132,12 +132,11 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     const vo = p.getByText("Vorhandene Datei öffnen …");
     if (await vo.count()) await vo.click();
     await p.waitForTimeout(1300);
-    await p.getByRole("button", { name: "TPM", exact: true }).first().click();
-    await p.waitForTimeout(400);
-    await p.getByRole("button", { name: "Plan", exact: true }).first().click();
-    await p.waitForTimeout(1200);
-    pruef("(4b) Leser sehen die Kachel, aber keinen Abhak-Knopf",
-          (await p.locator('[data-plan-datum="2026-08-18"]').count()) > 0 &&
+    // Seit dem 10.09. sehen Leser den TPM-Bereich (und damit den Plan
+    // samt Abhak-Knöpfen) GAR NICHT mehr - nur Übersicht + Berichte.
+    pruef("(4b) Leser sehen den TPM-Bereich nicht mehr - abhaken unmöglich",
+          (await p.getByRole("button", { name: "TPM", exact: true }).count()) === 0 &&
+          (await p.getByRole("button", { name: /^Berichte/ }).count()) >= 1 &&
           (await p.getByRole("button", { name: /als erledigt abhaken/ }).count()) === 0);
     await ctx.close();
   }

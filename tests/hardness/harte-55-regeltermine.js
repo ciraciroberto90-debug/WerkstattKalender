@@ -246,8 +246,8 @@ const leseEintraege = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("w
     await p.locator('button[aria-label="Gemeinsame Datei"]').click();
     await p.getByText("Vorhandene Datei öffnen …").click();
     await p.waitForTimeout(1200);
-    await p.getByRole("button", { name: "Werkstatt", exact: true }).click();
-    await p.waitForTimeout(300);
+    // Leser landen seit dem 10.09. direkt auf der Übersicht - den
+    // Werkstatt-Hauptreiter gibt es für sie nicht mehr.
     const uebersicht = p.getByRole("button", { name: "Übersicht", exact: true });
     if (await uebersicht.count()) { await uebersicht.first().click(); await p.waitForTimeout(500); }
 

@@ -554,12 +554,24 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Plant Style Group (Logo folgt von Roberto). Der Name je Werkstatt
       bleibt wie gehabt im ⚙ einstellbar.
 
-- [ ] **Neuer Hauptbereich „Berichte"** mit großen Kacheln: To-do,
-      Störungen, Backlog, Zeiterfassung (Letztere in Klammern - noch in
-      Klärung, wie sie gehandhabt wird). Störungen, Backlog und
-      Zeiterfassung ziehen dafür aus der Werkstatt-Reiterleiste um.
-      **Leser sehen am Ende NUR Übersicht + Berichte.** (Der
-      Übersichts-Bereich wird später separat überarbeitet.)
+- [x] **Etappe 1 GEBAUT (10.09.): Hauptbereich „Berichte" + To-do-Liste.**
+      Hauptleiste jetzt Übersicht | Berichte | Werkstatt | TPM; im
+      Bereich Berichte die Kacheln To-do / Störungen / Backlog (nur
+      Bearbeiter) / Zeiterfassung („in Klärung", bleibt erreichbar) mit
+      Zählern und Überfällig-Badge. Neue To-do-Liste nach Robertos
+      Klarstellung: normale erteilte Aufgaben (Titel, Person, Frist,
+      Priorität, „erteilt von", Abhaken mit Stempel), gruppiert
+      Überfällig/Offen/Zuletzt erledigt, Filter Alle/Meine/Erledigte;
+      Kategorie TODO in der gemeinsamen Datei, Team-Umbenennung zieht
+      mit. **Leser sehen NUR noch Übersicht + Berichte** (Werkstatt- und
+      TPM-Bereiche für Leser weg - Ansage der GF; die Backlog-Kachel
+      bleibt ihnen wie bisher verborgen). Schichtplan + Planung wohnen
+      für Bearbeiter im Bereich Werkstatt. 13 Suiten auf den neuen
+      Navigations-Weg umgestellt; neue Wache harte-67 (13 Prüfungen).
+      Selbst gefundener Fehler: der erste Wurf riss mit einem To-do im
+      Bestand die ganze App auf die Fehlerseite (Zugriff auf todayKey
+      vor der Deklaration) - behoben, harte-67 lädt mit To-do-Bestand.
+      (Der Übersichts-Bereich wird später separat überarbeitet.)
       (3) vom 10.09.: Soendgen ist erstmal NICHT öffentlich aktiviert -
       die Standort-Technik wird vorbereitet, aber Firma 2 bleibt
       verborgen, bis Roberto sie freischaltet; die Wechsel-Frage

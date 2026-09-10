@@ -116,7 +116,7 @@ async function handyFoto(p) {
 }
 
 const inArbeit = async (p) => {
-  await p.getByRole("button", { name: "Backlog", exact: true }).first().click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: "Backlog", exact: true }).first().click());
   await p.waitForTimeout(600);
   await p.getByText("Lagerschaden an der Umlenkrolle").first().click();
   await p.waitForTimeout(500);
