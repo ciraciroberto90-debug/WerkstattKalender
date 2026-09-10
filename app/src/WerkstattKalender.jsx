@@ -5722,7 +5722,7 @@ function App() {
                 <td
                   style={{ padding: "2px 8px", fontWeight: 700, whiteSpace: "nowrap", borderRight: "1.5px solid #6B7280", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textDecorationColor: "#C3C7CB" }}
                   onClick={() => { setAkteSuche(""); setRegisterItem({ category, name }); }}
-                  title="Historie anzeigen"
+                  title="Anlagen-Akte öffnen"
                 >
                   {name}
                 </td>
@@ -5789,7 +5789,7 @@ function App() {
                 <td
                   style={{ padding: "3px 8px", fontWeight: 700, whiteSpace: "nowrap", borderRight: "1px solid #E2E4E7", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textDecorationColor: "#C3C7CB" }}
                   onClick={() => { setAkteSuche(""); setRegisterItem({ category, name }); }}
-                  title="Historie anzeigen"
+                  title="Anlagen-Akte öffnen"
                 >
                   {name}
                 </td>
@@ -13798,6 +13798,14 @@ function App() {
           trifft([formatDateDE(a.date), String(a.note || ""), a.wer || "", a.status === "done" ? "fertig" : "offen"]));
         const stoerGefiltert = registerStoer.filter((s) =>
           trifft([formatDateDE(s.date), stoerNrLang(s), s.stoerung || "", s.nochZuTun || "", s.anlagenteil || "", s.getan || "", s.ursache || "", s.offen ? "offen" : "behoben"]));
+        // Ersatzteile (Robertos Wunsch 10.09.): alles, was in Störberichten
+        // dieser Anlage je an Ersatzteilen/Material eingetragen wurde - die
+        // Akte wird damit zur Teile-Historie der Anlage.
+        const registerErsatzteile = registerStoer.filter((s) => String(s.ersatzteile || "").trim());
+        const ersatzteileNachbestellt = registerErsatzteile.filter((s) => s.nachbestellt && !s.eingetroffenAt).length;
+        const ersatzteileGefiltert = registerErsatzteile.filter((s) =>
+          trifft([formatDateDE(s.date), stoerNrLang(s), s.ersatzteile || "", s.stoerung || "",
+                  s.nachbestellt && !s.eingetroffenAt ? "nachbestellt" : "", s.eingetroffenAt ? "eingetroffen" : ""]));
         const nichtsGefunden = (was) => (
           <div className="text-xs italic text-slate-400 py-4">Nichts gefunden für „{akteSuche.trim()}“ – {was}.</div>
         );
@@ -13823,9 +13831,12 @@ function App() {
                   dem Register die Anlagen-Akte - Wartungspartner und Ersatz-
                   teile stehen dann auch im Störungs-Dialog. */}
               <div className="flex gap-1.5 mb-3 mt-1 flex-wrap">
-                {[["STECKBRIEF", "Steckbrief"], ["HISTORIE", "Historie"],
+                {/* "Termine" statt "Historie" (Robertos Ansage 10.09.) - der
+                    Reiter-Schlüssel bleibt HISTORIE, nur die Anzeige ändert sich. */}
+                {[["STECKBRIEF", "Steckbrief"], ["HISTORIE", "Termine"],
                   ["ARBEITEN", `Arbeiten${arbeitenOffenZahl ? ` (${arbeitenOffenZahl})` : ""}`],
-                  ["STOERUNGEN", `Störungen${stoerOffenZahl ? ` (${stoerOffenZahl})` : ""}`]].map(([t, label]) => (
+                  ["STOERUNGEN", `Störungen${stoerOffenZahl ? ` (${stoerOffenZahl})` : ""}`],
+                  ["ERSATZTEILE", `Ersatzteile${ersatzteileNachbestellt ? ` (${ersatzteileNachbestellt})` : ""}`]].map(([t, label]) => (
                   <button
                     key={t}
                     onClick={() => setRegisterTab(t)}
@@ -13992,6 +14003,38 @@ function App() {
                     </div>
                   ))}
                   <div className="text-xs text-slate-400 mt-1">Bearbeiten und Details: Reiter „Störungen“ in der Werkstatt-Ansicht.</div>
+                </div>
+              )}
+              </>)}
+
+              {/* Ersatzteile (10.09.): Teile-Historie der Anlage aus den
+                  Störberichten, plus die "wichtigen Ersatzteile" des
+                  Steckbriefs als Kopfzeile - eine Stelle für die Frage
+                  "was wurde hier schon verbaut / was gehört hierher?". */}
+              {registerTab === "ERSATZTEILE" && (<>
+              {steckbriefDraft && String(steckbriefDraft.ersatzteile || "").trim() && (
+                <div className="text-xs mb-3 rounded px-2.5 py-1.5" style={{ backgroundColor: "#EEF3F8", color: "#22436B" }}>
+                  <b>Wichtige Ersatzteile (Steckbrief):</b> {steckbriefDraft.ersatzteile}
+                </div>
+              )}
+              <div className="text-xs text-slate-400 mb-3">{suchWort ? `${ersatzteileGefiltert.length} von ${registerErsatzteile.length} Einträgen` : `${registerErsatzteile.length} Eintrag/Einträge aus Störberichten${ersatzteileNachbestellt ? ` · ${ersatzteileNachbestellt} nachbestellt` : ""}`}</div>
+              {registerErsatzteile.length === 0 ? (
+                <div className="text-xs italic text-slate-400 py-4">In den Störberichten dieser Anlage sind noch keine Ersatzteile eingetragen.</div>
+              ) : ersatzteileGefiltert.length === 0 ? nichtsGefunden("kein Ersatzteil passt") : (
+                <div className="flex flex-col gap-1.5">
+                  {ersatzteileGefiltert.map((s) => (
+                    <div key={s.id} className="px-2.5 py-1.5 rounded" style={{ backgroundColor: s.nachbestellt && !s.eingetroffenAt ? "#FBF3E6" : "#F5F7FA" }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold shrink-0" style={{ color: "#5B6572", minWidth: "78px" }}>{formatDateDE(s.date)}</span>
+                        {stoerNrLang(s) && <span className="text-xs font-mono shrink-0" style={{ color: "#8A9099" }}>{stoerNrLang(s)}</span>}
+                        {s.nachbestellt && !s.eingetroffenAt && <span className="text-xs font-bold shrink-0" style={{ color: "#A25E14" }}>🛒 nachbestellt</span>}
+                        {s.eingetroffenAt && <span className="text-xs font-bold shrink-0" style={{ color: "#2F7D4F" }}>✓ eingetroffen</span>}
+                      </div>
+                      <div className="text-xs mt-0.5 font-semibold" style={{ color: "#22262B", wordBreak: "break-word" }}>{s.ersatzteile}</div>
+                      {s.stoerung && <div className="text-xs mt-0.5" style={{ color: "#8A9099", wordBreak: "break-word" }}>zu: {s.stoerung}</div>}
+                    </div>
+                  ))}
+                  <div className="text-xs text-slate-400 mt-1">Quelle: Feld „Ersatzteile / Material“ der Störberichte dieser Anlage.</div>
                 </div>
               )}
               </>)}

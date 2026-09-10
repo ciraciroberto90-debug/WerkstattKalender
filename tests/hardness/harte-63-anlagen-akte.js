@@ -37,10 +37,12 @@ const eintraege = [
 const stoer = [
   { id: "s1", date: "2026-09-05", nr: "2026-041", schicht: "Früh", anlage: "TS480", anlagenteil: "Hydraulik",
     gewerk: "Mechanik", fehlerart: "Leckage", stoerung: "Hydraulikleitung undicht", ursache: "", getan: "",
-    nochZuTun: "Dichtsatz bestellen und tauschen", ausfallzeit: 35, offen: true, gemeldetAt: "2026-09-05T07:10:00" },
+    nochZuTun: "Dichtsatz bestellen und tauschen", ausfallzeit: 35, offen: true, gemeldetAt: "2026-09-05T07:10:00",
+    ersatzteile: "Dichtsatz DN25", nachbestellt: true },
   { id: "s2", date: "2026-08-12", nr: "2026-033", schicht: "Spät", anlage: "TS480", anlagenteil: "Antrieb",
     gewerk: "Elektrik", fehlerart: "Störmeldung", stoerung: "FU-Fehler F0022", ursache: "Überhitzung",
-    getan: "Lüfter gereinigt", nochZuTun: "", ausfallzeit: 20, offen: false, gemeldetAt: "2026-08-12T15:00:00", behobenAt: "2026-08-12T15:20:00" },
+    getan: "Lüfter gereinigt", nochZuTun: "", ausfallzeit: 20, offen: false, gemeldetAt: "2026-08-12T15:00:00", behobenAt: "2026-08-12T15:20:00",
+    ersatzteile: "Lüfterrad 80mm", nachbestellt: true, eingetroffenAt: "2026-08-14T09:00:00" },
   { id: "s3", date: "2026-09-03", nr: "2026-040", schicht: "Früh", anlage: "OF320", anlagenteil: "Brenner",
     gewerk: "Elektrik", fehlerart: "Störmeldung", stoerung: "Gehört NICHT zur TS480", ursache: "", getan: "",
     nochZuTun: "", ausfallzeit: 5, offen: false, gemeldetAt: "2026-09-03T08:00:00", behobenAt: "2026-09-03T08:05:00" },
@@ -94,11 +96,15 @@ async function start(browser, { leser = false } = {}) {
   await p.getByText("TS480", { exact: true }).first().click();
   await p.waitForTimeout(600);
   const akte = p.locator("div").filter({ has: p.getByRole("button", { name: "Steckbrief" }) }).last();
-  pruef("(A) Die Akte öffnet mit den vier Reitern",
+  // Fünf Reiter seit dem 10.09.: "Termine" statt "Historie" (Robertos
+  // Ansage) und neu "Ersatzteile" - mit Zähler für offene Nachbestellungen.
+  pruef("(A) Die Akte öffnet mit den fünf Reitern (Termine statt Historie, neu Ersatzteile)",
         (await p.getByRole("button", { name: "Steckbrief" }).count()) === 1 &&
-        (await p.getByRole("button", { name: "Historie" }).count()) === 1 &&
+        (await p.getByRole("button", { name: "Termine" }).count()) === 1 &&
+        (await p.getByRole("button", { name: "Historie" }).count()) === 0 &&
         (await p.getByRole("button", { name: /^Arbeiten/ }).count()) === 1 &&
-        (await p.getByRole("button", { name: /^Störungen \(/ }).count()) === 1);
+        (await p.getByRole("button", { name: /^Störungen \(/ }).count()) === 1 &&
+        (await p.getByRole("button", { name: /^Ersatzteile/ }).count()) === 1);
   pruef("(A) Die Reiter tragen die Offen-Zähler: Arbeiten (1), Störungen (1)",
         (await p.getByRole("button", { name: "Arbeiten (1)" }).count()) === 1 &&
         (await p.getByRole("button", { name: "Störungen (1)" }).count()) === 1);
@@ -122,6 +128,20 @@ async function start(browser, { leser = false } = {}) {
         /Zu tun:/.test(text) && /Dichtsatz bestellen und tauschen/.test(text));
   pruef("(A) Fremde Störungen (OF320) bleiben draußen", !/Gehört NICHT zur TS480/.test(text));
   pruef("(A) Ausfallzeit und Status stehen an der Zeile", /35 min/.test(text) && /Behoben/.test(text));
+
+  /* ---- (E) Der Ersatzteile-Reiter (Robertos Wunsch vom 10.09.) ---- */
+  await p.getByRole("button", { name: "Ersatzteile (1)" }).click();
+  await p.waitForTimeout(400);
+  text = await p.locator("body").innerText();
+  pruef("(E) Beide Teile der TS480 stehen da - mit Nachbestellt- und Eingetroffen-Stand",
+        /Dichtsatz DN25/.test(text) && /nachbestellt/.test(text) &&
+        /Lüfterrad 80mm/.test(text) && /eingetroffen/.test(text));
+  pruef("(E) Der Reiter zählt die offene Nachbestellung",
+        (await p.getByRole("button", { name: "Ersatzteile (1)" }).count()) === 1);
+  pruef("(E) Die Quelle (Störung) steht an jedem Teil", /zu: Hydraulikleitung undicht/.test(text));
+  // Zurück auf den Störungs-Reiter - die (S)-Suche misst dort weiter.
+  await p.getByRole("button", { name: "Störungen (1)" }).click();
+  await p.waitForTimeout(300);
 
   /* ---- (S) Die Suche in der Akte (Robertos Wunsch vom 08.09.) ---- */
   const suche = p.locator('input[aria-label="In der Akte suchen"]');

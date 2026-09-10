@@ -544,6 +544,17 @@ auf denselben Dateien.
 
 ## Erledigt
 
+- [x] **Anlagen-Akte: neuer Reiter „Ersatzteile" + „Historie" heißt jetzt
+      „Termine" (Robertos Auftrag vom 10.09.):** Die Akte zeigt jetzt
+      fünf Reiter (Steckbrief / Termine / Arbeiten / Störungen /
+      Ersatzteile). Der Ersatzteile-Reiter ist die Teile-Historie der
+      Anlage aus dem Feld „Ersatzteile / Material" ihrer Störberichte -
+      je Eintrag Datum, Berichtsnummer, Teil, Stand (🛒 nachbestellt /
+      ✓ eingetroffen) und die zugehörige Störung; der Reiter zählt
+      offene Nachbestellungen, die Akte-Suche filtert mit, und die
+      „wichtigen Ersatzteile" aus dem Steckbrief stehen als Kopfzeile.
+      Wache: harte-63 (E, jetzt 23 Prüfungen). (10.09.)
+
 - [x] **Alt-Berichte kommen als erledigt an + Ein-Klick-Aufräumer
       (Robertos Ansage nach dem ersten echten Import, 09.09.):** Der
       Einleser nahm den alten Status wörtlich - ~270 längst abgearbeitete
