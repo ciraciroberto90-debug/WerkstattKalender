@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>BTA-Cockpit – Unsere Programmier-Regeln</title>
+<!-- Quelle der doku/Werkstatt-Cockpit-Programmier-Regeln.pdf.
+     Neu erzeugen: node tools/render-programmier-regeln.js
+     (nicht parallel zu einer laufenden Test-Suite - Regel 9!). -->
+<style>
+  @page { size: A4 portrait; margin: 16mm 15mm 16mm 15mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #22262B; font-size: 10pt; line-height: 1.5; }
+  .titel { background: linear-gradient(135deg,#22262B,#3A424B); color: #fff; padding: 22px; border-radius: 12px; margin-bottom: 16px; }
+  .titel .k { font-size: 8pt; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #E0A45B; }
+  .titel h1 { margin: 4px 0; font-size: 20pt; }
+  .titel p { margin: 0; font-size: 9pt; color: #C7CDD4; }
+  h2 { font-size: 12pt; margin: 15px 0 8px; padding: 6px 11px; border-radius: 7px; color: #fff; break-after: avoid; }
+  .grund { background: #4B5259; }
+  .beweis { background: #1F7A3D; }
+  .daten { background: #2F6690; }
+  .codes { background: #C97A2B; }
+  .orga { background: #7A5C8A; }
+  .regel { break-inside: avoid; margin: 0 0 9px; padding: 8px 11px; border: 1px solid #E2E4E7; border-radius: 9px; }
+  .regel .kopf { font-weight: 800; font-size: 10.5pt; }
+  .regel .kopf .nr { display: inline-block; min-width: 20px; color: #C97A2B; }
+  .regel .neu { display: inline-block; font-size: 7.5pt; font-weight: 800; letter-spacing: 1px; color: #fff; background: #B23A34; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
+  .regel p { margin: 3px 0 0; }
+  .anlass { font-size: 8.5pt; color: #6B7480; font-style: italic; margin-top: 3px; }
+  .fuss { margin-top: 14px; padding-top: 8px; border-top: 1px solid #E2E4E7; font-size: 9.5pt; color: #4B5259; font-weight: 700; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 8.5pt; background: #F1F3F5; padding: 0 3px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="titel">
+  <div class="k">BTA-Cockpit · vormals Werkstatt-Cockpit</div>
+  <h1>Unsere Programmier-Regeln</h1>
+  <p>Stand 11.09.2026 · Alles, was im Lauf des Projekts als feste Regel vereinbart wurde – mit dem Anlass,
+     aus dem jede Regel entstanden ist. Die Regeln stehen auch im Projekt (Datei <code>CLAUDE.md</code>) und gelten für jede Änderung.</p>
+</div>
+
+<h2 class="grund">A · Grundregeln (von Anfang an)</h2>
+
+<div class="regel"><div class="kopf"><span class="nr">1</span> Keine IT nötig.</div>
+<p>Alles muss ohne Adminrechte, ohne Installation und ohne eine Anfrage an die IT laufen. Das Programm ist ein Ordner zum Kopieren, die Daten liegen auf dem vorhandenen Firmenlaufwerk.</p>
+<div class="anlass">Grundregel seit Projektstart – sie hat die gesamte Bauweise bestimmt (eine HTML-Datei, keine Server, kein Installer).</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">2</span> Alles bleibt im Haus.</div>
+<p>Keine Cloud, keine fremden Server: Programm und Daten liegen ausschließlich auf dem Firmenlaufwerk. Die Daten sind lesbarer Klartext (JSON) und jederzeit exportierbar – sie gehören der Werkstatt, nicht einem Hersteller.</p>
+<div class="anlass">Folgt aus Regel 1 und aus dem Anspruch, jederzeit wechseln zu können. Seit dem 10.08. ist auch OneDrive Geschichte.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">3</span> Deutsch – im Programm und im Code.</div>
+<p>Die Oberfläche und alle Code-Kommentare sind auf Deutsch. Kommentare erklären das <b>Warum</b>, nicht das Was – der nächste Leser soll die Entscheidung verstehen, nicht die Zeile nacherzählt bekommen.</p>
+<div class="anlass">Festgelegt, damit jeder in der Werkstatt (und jeder spätere Betreuer) den Code nachvollziehen kann.</div></div>
+
+<h2 class="beweis">B · Beweis-Regeln: Messen statt behaupten</h2>
+
+<div class="regel"><div class="kopf"><span class="nr">4</span> Messen statt behaupten.</div>
+<p>Jede Aussage über Verhalten (Browser, Dateien, Zeiten, Größen) wird nachgewiesen, nicht geschätzt. Was nicht gemessen wurde, wird ausdrücklich als ungemessen gekennzeichnet.</p>
+<div class="anlass">Robertos Kernregel – gilt für jede Diagnose, jede Zahl in Folien, Anleitungen und im Prüfbericht (z. B. nennt die 70.000er-Messfahrt ausdrücklich, dass die Netz-Geschwindigkeit des Laufwerks NICHT mitgemessen ist).</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">5</span> Sync- und Verbindungsfehler sind ein absolutes No-Go.</div>
+<p>Jede Änderung am Zusammenführen, Speichern oder an der Dateiverbindung braucht einen Test, der ohne die Änderung fehlschlägt (die „Gegenprobe“). Erst rot ohne Fix messen, dann grün mit Fix.</p>
+<div class="anlass">Die Hausregel schlechthin – entstanden nach dem Uhr-Fehler vom 05.08. (40 Minuten Versatz ließen eine Änderung spurlos verschwinden). Zuletzt gelebt am 11.09.: Standort-Trennung (harte-68 ohne Trennung 13/20 rot) und Notbremse (harte-69 ohne Bremse 5/8 rot).</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">6</span> Prüfen vor dem Push – nichts geht ungeprüft aufs Laufwerk.</div>
+<p>Vor jeder Auslieferung: <code>cd app &amp;&amp; npm run build</code> und die volle Härtetest-Suite (<code>bash tests/run-hardness-tests.sh</code>, aktuell 68 Suiten). Bei Änderungen am Speicher-Unterbau zusätzlich Sync-Fokus- und Smoke-Test. Nach Änderungen in <code>arbeitsplatz/</code>: Startpaket neu bauen.</p>
+<div class="anlass">Steht in CLAUDE.md und README; eine neue Version geht nur komplett grün geprüft in den Update-Ordner.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">7</span> Tests sind wiederholbar – ohne Zufall, mit fester Uhr, zonenfest.</div>
+<p>Testdaten sind deterministisch (gleicher Aufruf, gleicher Bestand), Prüfungen stellen sich die Uhr selbst und hängen nie am „Heute“ des Prüfrechners. Keine hart kodierten Datums- oder Zeitzonen-Strings – Vergleichswerte werden aus der gestellten Fixzeit abgeleitet.</p>
+<div class="anlass">Gelernt aus zwei stillen Test-Kippern: harte-15 kippte beim Monatswechsel, harte-38 in Berlin-Zeit (06.09.). Seitdem läuft die Suite standardmäßig in Europe/Berlin – der Zone der Werkstatt-Rechner.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">8</span> Testdaten sind ehrlich – nie geschönt.</div>
+<p>Demo- und Testbestände enthalten absichtlich Lücken und Versäumtes: Ein Nachweis ohne eine einzige Lücke sähe geschönt aus, und die Auswertung muss auch Versäumtes zeigen können.</p>
+<div class="anlass">Fest verankert in den Testdaten-Erzeugern (z. B. bleibt jede 17. R+I offen).</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">9</span> Suiten laufen nacheinander, nie parallel.</div>
+<p>Während eine Test-Suite läuft, werden keine eigenen Browser- oder Node-Prozesse daneben gestartet – sonst verfälschen sich die Messungen gegenseitig. Auch gebaut wird nicht, während eine Suite läuft.</p>
+<div class="anlass">Arbeitsregel aus den Messläufen; am 10.09. erneut bestätigt (zwei parallele Läufe erzeugten 23 Schein-Fehlschläge).</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">10</span> Auffälligkeiten werden sofort und eigenständig ausgebessert.</div>
+<p>Wer beim Testen oder Bebildern einen echten Fehler findet, baut ihn nicht um den Test herum, sondern behebt ihn – mit Gegenprobe. Test-Fehler werden als Test-Fehler benannt, App-Fehler als App-Fehler.</p>
+<div class="anlass">Robertos Ansage; zuletzt angewandt beim Massenlöschungs-Fund der 70.000er-Messfahrt (11.09.) – gefunden und am selben Tag behoben.</div></div>
+
+<h2 class="daten">C · Daten-Regeln</h2>
+
+<div class="regel"><div class="kopf"><span class="nr">11</span> In die OEE-Excel wird niemals geschrieben.</div>
+<p>Die Excel-Tabelle der Produktion wird ausschließlich gelesen. Ein Härtetest beweist bei jedem Lauf, dass kein einziges Schreiben stattfand.</p>
+<div class="anlass">Festgelegt bei der OEE-Anbindung – fremde Dateien werden nicht angefasst.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">12</span> Große Brocken bleiben aus der Datendatei draußen.</div>
+<p>Fotos liegen als einzelne Bilddateien im <code>Fotos/</code>-Ordner neben der Datendatei – nie in ihr. Die gemeinsame Datei bleibt klein und schnell, egal wie viele Bilder dazukommen.</p>
+<div class="anlass">Festgelegt mit der Foto-Anbindung (26.08.).</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">13</span> Gelöscht wird über die Merkliste, nicht durch Vergessen.</div>
+<p>Löschungen wandern in eine Merkliste (180 Tage), damit lange abgemeldete Geräte Gelöschtes nicht wieder einschleppen. Vergangene Regeltermine räumt die App nach 30 Tagen selbst – versäumte Wartung bleibt dagegen im Bestand, sonst wären die Quoten rückwirkend geschönt.</p>
+<div class="anlass">Merkliste seit dem Sync-Unterbau; die 30-Tage-Regel und die Quoten-Ehrlichkeit sind Robertos Festlegungen (05.09.).</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">14</span> Fehlermeldungen sagen die Wahrheit – und den Grund.</div>
+<p>Kein „Datei fehlt“, wenn in Wirklichkeit der Ordner nicht verbunden ist; kein stilles Verschlucken. Wo etwas nicht geht, steht der Grund und die Abhilfe direkt daneben – ein Klick, nicht „geh woanders hin“.</p>
+<div class="anlass">Mehrfach geschärft: Foto-Freigabe (24.08.), Foto-Warnung nach dem Speichern (31.08.), Platzhalter-Gründe (08.09.), Standort-Wächter und Sicherheits-Stopp (11.09.).</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">15</span> Eine riesige Löschmenge ist kein Wille. <span class="neu">NEU 11.09.</span></div>
+<p>Würde ein Speichervorgang über 1.000 Einträge auf einen Schlag als gelöscht markieren und dabei selbst fast nichts behalten, ist das ein kaputter Vergleichsstand (voller Browser-Zwischenspeicher), kein Löschwille: Die Notbremse verwirft die Löschungen, der Bestand bleibt, eine laute Meldung erklärt es. Die gewollte Jahres-Archiv-Räumung (viele weg, tausende bleiben) läuft unverändert.</p>
+<div class="anlass">Fund der 70.000er-Messfahrt: Ohne die Bremse verlor die Datei gemessen 68.360 von 68.380 Einträgen. Wache harte-69, Rot-Nachweis erbracht.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">16</span> Offenes wird nie archiviert. <span class="neu">NEU 11.09.</span></div>
+<p>Offene Backlog-Arbeiten, offene To-dos und unerledigte Termine bleiben beim Jahres-Archiv im laufenden Bestand – egal wie alt. Nichts Unerledigtes darf in Vergessenheit geraten; erst erledigt (oder bewusst gelöscht), dann archivierbar. Die Auslagern-Karte zeigt an, wie viele Offene zurückbleiben.</p>
+<div class="anlass">Robertos Ansage vom 11.09. („dürfen nicht in Vergessenheit geraten“). Wache harte-22 (I); Rot-Nachweis: ohne den Schutz wanderten offene Arbeit und offenes To-do mit ins Archiv.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">17</span> Standorte sind hart getrennt. <span class="neu">NEU 11.09.</span></div>
+<p>Jede Werkstatt (Scheurich, Soendgen Keramik) hat ihren eigenen Namensraum: eigener Browser-Zwischenspeicher, eigene gemerkte Dateiverbindungen, eigene Sicherungen, eigene Datendateien. Die Dateien tragen eine Standort-Kennung; der Wächter weist die Datei der falschen Werkstatt mit klarer Meldung ab. Ein Standort sieht den Bestand des anderen nie.</p>
+<div class="anlass">Zwei-Standort-Betrieb seit dem 11.09. Wache harte-68; Rot-Nachweis: ohne Trennung 13/20 rot (Bestände liefen ineinander).</div></div>
+
+<h2 class="codes">D · Code-Regeln</h2>
+
+<div class="regel"><div class="kopf"><span class="nr">18</span> CSS: bei veränderlichen Werten nur Langformen.</div>
+<p>Mischt ein Style die Kurzform (<code>border</code>, <code>overflow</code>) mit einer Langform derselben Eigenschaft und ändert sich die Kurzform bei einem Update, räumt der Browser die Langform mit ab. Deshalb: bei dynamischen Werten ausschließlich Langformen – ein Härtetest wacht über die Quelle.</p>
+<div class="anlass">Zweimal real gemessen (Störbericht-Überlauf und Plan-Kachel-Kante, 31.08.); harte-62 verhindert Rückfälle.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">19</span> Ein Build, eine Codebasis – niemals zwei Kopien des Codes.</div>
+<p>Es gibt genau eine App-HTML, die für alle gilt. Unterschiede (auch je Standort) kommen aus Daten und Einstellungen, nie aus abweichenden Code-Ständen.</p>
+<div class="anlass">Leitplanke aus der Roll-out-Liste – die Grundlage für den Update-Weg über den grünen Balken. Seit dem 11.09. gelebt: EINE HTML mit Werkstatt-Wahl statt zweier Kopien.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">20</span> Robustheit gegen fremde Bestände.</div>
+<p>Die App selbst schreibt saubere Einträge – aber Importe, alte oder fremde Fassungen dürfen sie trotzdem nie umreißen. Ein einzelner unerwarteter Eintrag darf höchstens eine Kachel kosten, nie eine ganze Ansicht.</p>
+<div class="anlass">Festgeschrieben nach dem Planungs-Absturz durch einen note-losen Eintrag (07.09.).</div></div>
+
+<h2 class="orga">E · Arbeitsorganisation</h2>
+
+<div class="regel"><div class="kopf"><span class="nr">21</span> Die Roll-out-Liste ist das Gedächtnis.</div>
+<p>Offene Aufgaben stehen in <code>ROLLOUT-LISTE.md</code>, nicht im Kopf einer Sitzung. Kommt eine neue Aufgabe auf, die nicht sofort erledigt wird, gehört sie in derselben Sitzung in die Datei und in denselben Push. Erledigtes wandert nach unten in „Erledigt“ – es wird nie gelöscht.</p>
+<div class="anlass">Robertos Arbeitsweise-Regel aus CLAUDE.md; die Vormerkliste (<code>UPDATE-VORMERKUNGEN.md</code>) ergänzt sie für besprochene, noch nicht gebaute Ideen.</div></div>
+
+<div class="regel"><div class="kopf"><span class="nr">22</span> Jede erledigte Runde hinterlässt ihre Spur.</div>
+<p>Commit-Botschaften und Erledigt-Einträge nennen Anlass (wer hat es gewollt, was war der Fund), Messweg und Ergebnis – so lässt sich jede Entscheidung Jahre später nachvollziehen. Prüf- und Messergebnisse stehen zum Nachlesen im Git (<code>doku/ROLLOUT-PRUEFBERICHT.md</code>).</p>
+<div class="anlass">Gelebte Praxis des Projekts; sie macht Audits und Übergaben möglich.</div></div>
+
+<div class="fuss">Der rote Faden hinter allen Regeln: Nichts wird behauptet, alles wird gemessen – und nichts erreicht die Werkstatt, was nicht vorher komplett grün durch die Härtetests gegangen ist.</div>
+
+</body>
+</html>

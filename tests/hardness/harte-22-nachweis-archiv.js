@@ -9,7 +9,7 @@
 //  (F) Archiv: nach dem Auslagern sind alte Jahrgänge weg, neuere unberührt.
 //  (G) "Später erinnern" hält die Meldung tatsächlich zurück.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
 
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
@@ -187,6 +187,59 @@ const RI = (id, datum, name, status) => ({ id, date: datum, category: "RI", name
       /aufräumen empfohlen/i.test(t) && /Auslagern bis einschließlich Jahr/i.test(t));
     check("(H) Entfernen bleibt gesperrt, bis heruntergeladen wurde",
       await page.getByRole("button", { name: /Aus dem Bestand entfernen/ }).isDisabled());
+    await page.close();
+  }
+
+  /* (I) OFFENES WIRD NIE ARCHIVIERT (Robertos Ansage vom 11.09.): Eine
+     offene Backlog-Arbeit oder ein offenes To-do aus einem alten Jahrgang
+     darf beim Auslagern NICHT verschwinden - sonst gerät es in
+     Vergessenheit. Erledigtes aus denselben Jahrgängen geht normal ins
+     Archiv. (Ohne den Schutz ist dieser Abschnitt ROT - gemessen am Bau
+     vom 11.09. vor der Änderung: die offene Arbeit und das offene To-do
+     wurden mit ausgelagert.) */
+  {
+    const { page } = await mach(browser, "2026-09-11T10:00:00", [
+      { id: "i-alt-done", date: "2021-05-10", category: "TPM", name: "TS480", status: "done", updatedAt: "2021-05-10T08:00:00.000Z" },
+      { id: "i-alt-arbeit", date: "2021-06-01", category: "ARBEIT", name: "B1: Getriebe tauschen", status: "open", gewerk: "Mechanik", updatedAt: "2021-06-01T08:00:00.000Z" },
+      { id: "i-alt-todo", date: "2022-03-01", category: "TODO", name: "Uralt-Aufgabe", wer: "M. Weber", bis: "2022-03-05", prio: "hoch", erteiltVon: "R. Ciraci", status: "offen", updatedAt: "2022-03-01T08:00:00.000Z" },
+      { id: "i-neu", date: "2026-09-01", category: "TPM", name: "TS480", status: "done", updatedAt: "2026-09-01T08:00:00.000Z" },
+    ]);
+    page.on("dialog", (d) => d.accept());
+    // Bei fünf Jahrgängen erscheint die Erinnerung von selbst und läge über
+    // dem ⚙ - wegklicken und bewusst den Hand-Weg nehmen (der muss auch die
+    // „Später erinnern"-Frist übersteuern).
+    const spaeter = page.getByRole("button", { name: /Später erinnern/ });
+    if (await spaeter.count()) { await spaeter.click(); await page.waitForTimeout(400); }
+    await page.locator('button[aria-label="Verwalten"]').click();
+    await page.waitForTimeout(500);
+    await page.getByRole("button", { name: /Verlauf & Sicherung/ }).first().click();
+    await page.waitForTimeout(400);
+    await page.getByRole("button", { name: "Jahres-Archiv öffnen …" }).click();
+    await page.waitForTimeout(500);
+    check("(I) Die Karte sagt an, dass Offenes zurückbleibt",
+      /bleiben im laufenden\s*Bestand/i.test(await page.locator("body").innerText()));
+    // Stichjahr 2024 wählen (Vorschlag steht ohnehin auf 2024) und auslagern.
+    const [datei] = await Promise.all([
+      page.waitForEvent("download").catch(() => null),
+      page.getByRole("button", { name: /Archivdatei herunterladen/ }).click(),
+    ]);
+    check("(I) Die Archivdatei enthält Offenes NICHT",
+      datei ? await (async () => {
+        const fs = require("fs");
+        const pfad = await datei.path();
+        const inhalt = JSON.parse(fs.readFileSync(pfad, "utf8"));
+        const ids = new Set(inhalt.entries.map((e) => e.id));
+        return ids.has("i-alt-done") && !ids.has("i-alt-arbeit") && !ids.has("i-alt-todo");
+      })() : false);
+    await page.waitForTimeout(300);
+    await page.getByRole("button", { name: /Aus dem Bestand entfernen/ }).click();
+    await page.waitForTimeout(800);
+    const bestand = await page.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]"));
+    const ids = new Set(bestand.map((e) => e.id));
+    check("(I) Die offene Arbeit ist NOCH im laufenden Bestand", ids.has("i-alt-arbeit"));
+    check("(I) Das offene To-do ist NOCH im laufenden Bestand", ids.has("i-alt-todo"));
+    check("(I) Das erledigte Alte ist ausgelagert", !ids.has("i-alt-done"));
+    check("(I) Das Neue ist unberührt", ids.has("i-neu"));
     await page.close();
   }
 

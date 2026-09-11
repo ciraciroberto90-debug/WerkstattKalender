@@ -4776,10 +4776,18 @@ function App() {
     setArchivHinweis({ jahre, groesseKB, aeltestesJahr: aeltestes });
   };
 
+  // OFFENES WIRD NIE ARCHIVIERT (Robertos Ansage vom 11.09.): Eine offene
+  // Backlog-Arbeit, ein offenes To-do oder ein unerledigter Termin darf
+  // nicht per Jahres-Archiv aus dem laufenden Bestand verschwinden und in
+  // Vergessenheit geraten - egal wie alt. Offenes bleibt drin, bis es
+  // erledigt oder bewusst gelöscht wird; erst DANN darf es ins Archiv.
+  const archivIstOffen = (e) => e && (e.status === "open" || e.status === "offen");
+  const archivAuswahl = (grenze) => entries.filter((e) => String(e.date || "").slice(0, 4) <= String(grenze) && !archivIstOffen(e));
+
   // Schritt 1: Die auszulagernden Jahrgänge als Datei herunterladen. Erst wenn
   // das nachweislich geschehen ist, darf Schritt 2 sie aus dem Bestand nehmen.
   const archivHerunterladen = () => {
-    const alt = entries.filter((e) => String(e.date || "").slice(0, 4) <= String(archivGrenze));
+    const alt = archivAuswahl(archivGrenze);
     try {
       const inhalt = { format: "werkstatt-kalender-archiv-v1", erstelltAm: new Date().toISOString(), bisJahr: archivGrenze, entries: alt };
       const blob = new Blob([JSON.stringify(inhalt, null, 2)], { type: "application/json" });
@@ -4800,14 +4808,15 @@ function App() {
   // Schritt 2: Erst jetzt aus dem laufenden Bestand nehmen. Das wirkt über die
   // gemeinsame Datei auf alle Arbeitsplätze - deshalb ausdrücklich bestätigen.
   const archivAuslagern = async () => {
-    const alt = entries.filter((e) => String(e.date || "").slice(0, 4) <= String(archivGrenze));
+    const alt = archivAuswahl(archivGrenze);
     if (alt.length === 0) { setArchivHinweis(null); return; }
     if (!window.confirm(
       `${alt.length} Einträge bis einschließlich ${archivGrenze} werden jetzt aus dem laufenden Bestand entfernt.\n\n` +
       `Das gilt für ALLE Arbeitsplätze. Die heruntergeladene Archivdatei ist dann der einzige Nachweis dieser Jahrgänge - ` +
-      `lege sie an einen sicheren Ort, bevor du fortfährst.\n\nJetzt entfernen?`
+      `lege sie an einen sicheren Ort, bevor du fortfährst.\n\nOffene Arbeiten, To-dos und Termine bleiben im laufenden Bestand.\n\nJetzt entfernen?`
     )) return;
-    await persist(entries.filter((e) => String(e.date || "").slice(0, 4) > String(archivGrenze)));
+    const raus = new Set(alt.map((e) => e.id));
+    await persist(entries.filter((e) => !raus.has(e.id)));
     try { localStorage.removeItem(nsKey("wk-archiv-erinnerung")); } catch (e) { /* egal */ }
     setArchivHinweis(null);
   };
@@ -13642,12 +13651,23 @@ function App() {
                     .map((j) => <option key={j} value={j}>{j}</option>)}
                 </select>
                 <span style={{ fontSize: "0.78rem", color: "#6B7480" }}>
-                  betrifft {entries.filter((e) => String(e.date || "").slice(0, 4) <= String(archivGrenze)).length} Einträge
+                  betrifft {archivAuswahl(archivGrenze).length} Einträge
                 </span>
               </div>
               <div style={{ fontSize: "0.75rem", color: "#6B7480", marginTop: "9px", lineHeight: 1.5 }}>
                 Erst herunterladen, dann entfernen. Die Archivdatei kannst du jederzeit über „Daten einlesen" wieder öffnen.
               </div>
+              {(() => {
+                // Sichtbar machen, was der Schutz zurückhält - sonst wundert
+                // sich jemand, warum die Zahl kleiner ist als der Jahrgang.
+                const offen = entries.filter((e) => String(e.date || "").slice(0, 4) <= String(archivGrenze) && archivIstOffen(e)).length;
+                return offen > 0 ? (
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#B8741A", marginTop: "6px", lineHeight: 1.5 }}>
+                    {offen} OFFENE Arbeiten/To-dos/Termine aus diesen Jahrgängen bleiben im laufenden
+                    Bestand - Offenes wird nie archiviert, damit nichts in Vergessenheit gerät.
+                  </div>
+                ) : null;
+              })()}
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button
                   onClick={archivHerunterladen}

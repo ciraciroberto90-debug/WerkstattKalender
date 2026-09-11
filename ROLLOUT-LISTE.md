@@ -477,8 +477,14 @@ auf denselben Dateien.
       Erinnerung, auch unter der Drei-Jahre-Schwelle - für Robertos
       Richtwert „ab 5-8 MB Altbestand gezielt auslagern". Der
       Zwei-Schritt-Schutz bleibt (Entfernen gesperrt, bis die
-      Archivdatei heruntergeladen ist). Wache: harte-22 um Abschnitt (H)
-      erweitert (28 Prüfungen).
+      Archivdatei heruntergeladen ist). DAZU (Robertos Nachschlag vom
+      11.09., „nichts darf in Vergessenheit geraten"): OFFENES WIRD NIE
+      ARCHIVIERT - offene Backlog-Arbeiten, offene To-dos und unerledigte
+      Termine bleiben beim Auslagern im laufenden Bestand, egal wie alt;
+      die Karte zeigt an, wie viele Offene zurückbleiben. Wache: harte-22
+      um (H) und (I) erweitert (34 Prüfungen); Rot-Nachweis gemessen:
+      ohne den Schutz wanderten offene Arbeit und offenes To-do mit ins
+      Archiv (4 Prüfungen rot).
 
 ## Der nächste große Bau: Bereich „Berichte" + Zwei-Standort-Betrieb (Meeting vom 10.09.)
 

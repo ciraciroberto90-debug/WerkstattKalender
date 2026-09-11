@@ -111,8 +111,14 @@ Kein Eintrag ging bei irgendeinem dieser Vorgänge verloren; Stichproben von
   der App: die letzten zwei vollen Jahre behalten), lädt ZUERST die
   Archivdatei herunter, erst danach werden die ausgewählten alten
   Einträge aus dem laufenden Bestand entfernt – nichts geht verloren,
-  das Archiv bleibt als Datei lesbar. (Seit dem 11.09. auch von Hand aufrufbar: ⚙ → Verlauf & Sicherung →
-  „Jahres-Archiv öffnen …" - der Zwei-Schritt-Schutz gilt dort genauso.)
+  das Archiv bleibt als Datei lesbar. Seit dem 11.09. auch von Hand
+  aufrufbar (⚙ → Verlauf & Sicherung → „Jahres-Archiv öffnen …") -
+  der Zwei-Schritt-Schutz gilt dort genauso. **Und: OFFENES wird nie
+  archiviert.** Offene Backlog-Arbeiten, offene To-dos und unerledigte
+  Termine bleiben im laufenden Bestand, egal wie alt - nichts gerät in
+  Vergessenheit (Robertos Ansage vom 11.09.; Wache harte-22 Abschnitt I,
+  gemessen: ohne den Schutz wurden offene Arbeit und offenes To-do mit
+  ausgelagert - 4 Prüfungen rot, mit Schutz 34/34).
 - **Oberhalb von ~5 MB passt der Bestand nicht mehr in den örtlichen
   Browser-Zwischenspeicher.** Die Datei auf dem Laufwerk bleibt der
   maßgebliche Bestand (dafür ist sie gebaut); es wird nur das Neuladen
