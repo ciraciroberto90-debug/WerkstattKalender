@@ -31,6 +31,9 @@ async function makeUser(browser, drive, uhrzeit) {
     };
     window.showOpenFilePicker = async () => [handle];
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(500);
   return page;
@@ -121,6 +124,9 @@ const setzeSchicht = async (page, person, schicht) => {
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -174,6 +180,9 @@ const setzeSchicht = async (page, person, schicht) => {
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();

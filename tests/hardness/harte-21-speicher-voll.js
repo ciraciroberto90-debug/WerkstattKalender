@@ -51,6 +51,9 @@ const EINTRAG = (id, name) => ({ id, date: "2026-07-20", category: "ARBEIT", nam
       });
       delete window.showOpenFilePicker; delete window.showSaveFilePicker;
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(1000);
     await page.evaluate(async () => await window.__wkSharedTest.adopt(window.__mk("kalender-daten.json"), "readwrite"));
@@ -95,6 +98,9 @@ const EINTRAG = (id, name) => ({ id, date: "2026-07-20", category: "ARBEIT", nam
     page.on("pageerror", (e) => console.log("PAGEERROR:", e.message));
     await page.addInitScript(SPEICHER_BREMSE);
     await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker; });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(1000);
 

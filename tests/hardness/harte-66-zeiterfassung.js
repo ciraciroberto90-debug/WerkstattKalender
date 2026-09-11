@@ -80,6 +80,9 @@ const pruef = (n, c, zusatz) => {
       { id: "s4", nr: "2026-0002", date: "2026-08-22", schicht: "Früh", anlage: "TS 480", stoerung: "Sensor verschmutzt", gewerk: "mech", fehlerart: "Mechanisch", ausfallzeit: 5, offen: true, nochZuTun: "Sensor tauschen", gemeldetAt: "2026-08-22T08:00:00.000Z", behobenAt: null, melder: "K. Schmidt" },
     ]));
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1200);
   await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Zeiterfassung/ }).first().click());

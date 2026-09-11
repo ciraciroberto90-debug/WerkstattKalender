@@ -88,6 +88,9 @@ async function start(browser, { eintraege = [], schluckend = false } = {}) {
       return f ? [...f.files.entries()].map(([n, b]) => ({ name: n, size: b.size })) : [];
     };
   }, { e: eintraege, c: config, schluckt: schluckend });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1000);
   await p.evaluate(() => window.__wkSharedTest.adoptFolder(window.__mockOrdnerHandle));
@@ -286,6 +289,9 @@ const verfasserAuf = async (p) => {
         async requestPermission() { return "granted"; },
       };
     }, config);
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(800);
     await p.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -346,6 +352,9 @@ const verfasserAuf = async (p) => {
         async requestPermission() { return "granted"; },
       };
     }, config);
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(1200);
 

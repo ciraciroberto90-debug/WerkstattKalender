@@ -31,6 +31,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
     window.showOpenFilePicker = async () => [handle];
   });
 
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(500);
   await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -113,6 +116,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
     };
     window.showOpenFilePicker = async () => [window.__handle];
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await seite2.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await seite2.goto(APP);
   await seite2.waitForTimeout(300);
   await seite2.evaluate(async () => { await window.__wkSharedTest.adopt(window.__handle, 'readwrite'); });

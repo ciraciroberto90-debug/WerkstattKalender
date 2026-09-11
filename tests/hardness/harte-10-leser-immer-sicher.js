@@ -26,6 +26,9 @@ const mockHandle = (mode) => ({
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     page.on('pageerror', (e) => console.log('PAGEERROR (S1):', e.message));
     await page.evaluate(() => localStorage.clear()).catch(() => {});
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(700);
 
@@ -55,6 +58,9 @@ const mockHandle = (mode) => ({
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -81,6 +87,9 @@ const mockHandle = (mode) => ({
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -101,6 +110,9 @@ const mockHandle = (mode) => ({
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     page.on('pageerror', (e) => console.log('PAGEERROR (S4):', e.message));
     await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker; });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(700);
 
@@ -125,6 +137,9 @@ const mockHandle = (mode) => ({
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -156,6 +171,9 @@ const mockHandle = (mode) => ({
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -200,6 +218,9 @@ const mockHandle = (mode) => ({
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP + '?verwalten=1');
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();

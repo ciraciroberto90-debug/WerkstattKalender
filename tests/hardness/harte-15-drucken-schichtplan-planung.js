@@ -45,6 +45,9 @@ const seedTeam = (personName) => {
         tpmAnlagen: [], riItems: [], team: [{ name, rolle: 'mech' }],
       }));
     }, 'Testperson Schicht');
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(600);
 
@@ -81,6 +84,9 @@ const seedTeam = (personName) => {
         tpmAnlagen: [], riItems: [], team: [{ name, rolle: 'elek' }],
       }));
     }, 'Testperson Planung');
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(600);
 
@@ -126,6 +132,9 @@ const seedTeam = (personName) => {
       // Popup-Blocker simulieren: window.open liefert null zurück.
       window.open = () => null;
     }, 'Testperson Fallback');
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(600);
     await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
@@ -166,6 +175,9 @@ const seedTeam = (personName) => {
       };
       window.showOpenFilePicker = async () => [handle];
     }, 'Testperson Leser');
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -199,6 +211,9 @@ const seedTeam = (personName) => {
         tpmAnlagen: [], riItems: [], team: [{ name: 'Testperson Woche', rolle: 'mech' }],
       }));
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(900);
     await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
@@ -249,6 +264,9 @@ const seedTeam = (personName) => {
         ], team: [],
       }));
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(900);
     // Der Knopf gehoert in die Jahresansicht - dort ist das Jahr gewaehlt.
@@ -429,6 +447,9 @@ const seedTeam = (personName) => {
       }
       localStorage.setItem('werkstatt-kalender-entries', JSON.stringify(eintraege));
     }, namen);
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(900);
     await page.getByRole('button', { name: 'Planung', exact: true }).click();
@@ -477,6 +498,9 @@ const seedTeam = (personName) => {
         tpmAnlagen: [], riItems: [], team: [{ name: 'Testperson Druck', rolle: 'mech' }],
       }));
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(900);
 

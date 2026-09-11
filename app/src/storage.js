@@ -4,9 +4,11 @@
 // eingepflegt – Eintrag für Eintrag zusammengeführt, damit sich zwei
 // Bearbeiter nicht gegenseitig überschreiben.
 import * as shared from "./sharedfile.js";
+import { nsKey } from "./standort.js";
 
-const ENTRIES_KEY = "werkstatt-kalender-entries";
-const CONFIG_KEY = "werkstatt-kalender-config";
+// Je Standort ein eigener Namensraum (Scheurich = Alt-Schlüssel) - siehe standort.js.
+const ENTRIES_KEY = nsKey("werkstatt-kalender-entries");
+const CONFIG_KEY = nsKey("werkstatt-kalender-config");
 
 /* Der zuletzt von DIESEM Fenster geschriebene Stand.
    Warum nicht einfach der localStorage? Weil ihn sich alle Fenster derselben
@@ -26,7 +28,7 @@ const eigenerStand = new Map();
 ["werkstatt-shared-update", "werkstatt-stoer-update"].forEach((ev) => {
   window.addEventListener(ev, (e) => {
     if (e && e.detail && Array.isArray(e.detail.entries)) {
-      eigenerStand.set(ev.startsWith("werkstatt-shared") ? ENTRIES_KEY : "werkstatt-stoerungen-entries",
+      eigenerStand.set(ev.startsWith("werkstatt-shared") ? ENTRIES_KEY : nsKey("werkstatt-stoerungen-entries"),
         JSON.stringify(e.detail.entries));
     }
   });

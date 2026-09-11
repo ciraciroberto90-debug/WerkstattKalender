@@ -53,6 +53,9 @@ const fachlich = () => (datei().entries || [])
 
   const oeffne = async () => {
     const p = await ctx.newPage();
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(900);
     await p.evaluate(async () => await window.__wkSharedTest.adopt(window.__mk("kalender-daten.json"), "readwrite"));

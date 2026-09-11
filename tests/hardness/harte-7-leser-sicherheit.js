@@ -12,6 +12,9 @@ const check = (n, c) => { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   page.on('dialog', (d) => d.accept());
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto('file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
   await page.waitForTimeout(500);
   await page.evaluate(() => {

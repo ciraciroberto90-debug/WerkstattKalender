@@ -1,7 +1,11 @@
-# Werkstatt-Cockpit
+# BTA-Cockpit (vormals Werkstatt-Cockpit)
 
 Instandhaltungsplanung, Schichtbuch, Störungserfassung und Zeiterfassung
-mit Kostenstellen für die Werkstatt.
+mit Kostenstellen für die Betriebstechnische Abteilung (BTA) der
+Scheurich-Group - ein Programm, mehrere Werkstätten: Beim ersten Start
+wählt der Rechner seine Werkstatt (Scheurich Kleinheubach oder Soendgen
+Keramik Adendorf); jede Werkstatt hat einen komplett getrennten
+Datenbestand.
 Eine einzige HTML-Datei, kein Server, keine Datenbank, keine Installation.
 Die Daten liegen in zwei JSON-Dateien im gemeinsamen Ordner.
 
@@ -73,7 +77,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 66 Härtetests und acht weitere Suiten | Entwicklung |
+| `tests/` | 67 Härtetests und acht weitere Suiten | Entwicklung |
 | `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
@@ -122,7 +126,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 66 Härtetests
+bash tests/run-hardness-tests.sh           # 67 Härtetests
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren

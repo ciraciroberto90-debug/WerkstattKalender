@@ -37,6 +37,9 @@ async function start(browser, team, zeit) {
     localStorage.setItem("werkstatt-kalender-entries", JSON.stringify([]));
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
   }, { c: { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItems: [], team } });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1000);
   return { p, ctx, fehler };

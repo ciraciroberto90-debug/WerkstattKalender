@@ -33,6 +33,9 @@ await p.clock.setFixedTime(new Date("2026-07-23T10:00:00"));
 await p.addInitScript((d)=>{delete window.showOpenFilePicker;delete window.showSaveFilePicker;
   localStorage.setItem("werkstatt-kalender-config",JSON.stringify(d.CONFIG));
   localStorage.setItem("werkstatt-kalender-entries",JSON.stringify(d.ENTRIES));},{CONFIG,ENTRIES});
+// Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+// Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
 await p.goto(APP);await p.waitForTimeout(1500);
 await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: "Backlog", exact: true }).first().click());await p.waitForTimeout(700);
 

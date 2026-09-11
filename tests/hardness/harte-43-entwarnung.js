@@ -119,6 +119,9 @@ const pruef = (n, c, zusatz) => {
   /* ---- Erst normal verbinden, wie am Stichtag ---- */
   let page = await ctx.newPage();
   await verdrahte(page);
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(800);
   await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -135,6 +138,9 @@ const pruef = (n, c, zusatz) => {
   page = await ctx.newPage();
   await verdrahte(page);
   await page.clock.install({ time: new Date("2026-08-17T09:00:00") });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(2500);
   const t1 = await page.locator("body").innerText();

@@ -74,6 +74,9 @@ const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
 
   const fehler = [];
   p.on("pageerror", e => fehler.push(e.message));
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1800);
 

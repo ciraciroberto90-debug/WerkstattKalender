@@ -115,6 +115,9 @@ async function seite(browser) {
   const p = await seite(b);
   const fehler = []; p.on("pageerror", (e) => fehler.push(e.message));
   const start = Date.now();
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
 
   // (1) Kommt die App ueberhaupt hoch? Frueher blieb sie hier haengen.
@@ -162,6 +165,9 @@ async function seite(browser) {
   /* ---------------- Störungen-Datei ---------------- */
   const p2 = await seite(b);
   await p2.addInitScript(() => { window.__naechsteDatei = "werkstatt-stoerungen.json"; });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p2.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p2.goto(APP);
   await p2.waitForTimeout(9000); // Frist des Probelaufs abwarten
   await p2.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p2.waitForTimeout(350)).then(() => p2.getByRole("button", { name: /^Störungen/ }).first().click());
@@ -193,6 +199,9 @@ async function seite(browser) {
     window.showOpenFilePicker = async () => [h];
     window.showSaveFilePicker = async () => h;
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p3.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p3.goto(APP); await p3.waitForTimeout(1200);
   await p3.getByRole("button", { name: /Gemeinsame Datei/ }).first().click(); await p3.waitForTimeout(400);
   const t0 = Date.now();

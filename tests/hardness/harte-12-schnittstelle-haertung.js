@@ -47,6 +47,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -100,6 +103,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -149,6 +155,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -197,6 +206,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await page.goto(APP);
     await page.waitForTimeout(500);
     await page.locator('button[aria-label="Gemeinsame Datei"]').click();

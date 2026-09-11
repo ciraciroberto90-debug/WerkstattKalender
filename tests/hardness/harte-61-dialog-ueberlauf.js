@@ -44,6 +44,9 @@ const pruef = (n, c, zusatz) => {
       { id: "s1", nr: "2026-0002", date: "2026-08-28", schicht: "Spät", anlage: "Wikler", stoerung: "Test", gewerk: "mech", fehlerart: "Mechanisch", ausfallzeit: 85, offen: false, gemeldetAt: "2026-08-28T11:37:00.000Z", behobenAt: "2026-08-28T13:00:00.000Z", melder: "RC", ersatzteile: "lager" },
     ]));
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1100);
   await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
@@ -119,6 +122,9 @@ const pruef = (n, c, zusatz) => {
         links: { inhaber: ["RC", "AR"], eintraege: Array.from({ length: 12 }, (_, i) => ({ id: "l" + i, inhaber: "RC", name: "Unterlage " + (i + 1), ziel: "\\\\server\\ordner\\datei" + i + ".pdf", symbol: "🔗" })) },
       }));
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p2.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p2.goto(APP);
     await p2.waitForTimeout(1200);
     await p2.locator('button[aria-label="Links & Dokumente"]').click();

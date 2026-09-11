@@ -54,6 +54,9 @@ const ok = (n, c, zusatz) => {
       };
       window.showOpenFilePicker = async () => [handle];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(500);
     return p;

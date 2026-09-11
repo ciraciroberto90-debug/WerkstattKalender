@@ -23,6 +23,9 @@ async function mach(browser, uhr, eintraege) {
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
     localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(d));
   }, eintraege || []);
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(1400);
   return { page, ctx };

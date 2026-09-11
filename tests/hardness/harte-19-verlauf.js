@@ -35,6 +35,9 @@ async function makeUser(browser, uhr, name) {
     });
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
   }, name || "");
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(900);
   return page;

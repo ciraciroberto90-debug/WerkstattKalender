@@ -46,6 +46,9 @@ async function start(browser) {
     localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(e));
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
   }, { e: eintraege, c: config });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1000);
   return { p, ctx, fehler };
@@ -204,6 +207,9 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
       };
       window.showOpenFilePicker = async () => [h];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(1200);
     await p.locator('button[aria-label="Gemeinsame Datei"]').click().catch(() => {});
@@ -240,6 +246,9 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
       { id: "on-1", date: "2026-08-20", category: "ARBEIT", name: "TS480", status: "open", prio: "hoch", art: "mech", wer: "M. Weber", geplant: "2026-08-24" },
       { id: "on-2", date: "2026-08-20", category: "ARBEIT", name: "OF320", status: "open", prio: "mittel", art: "elek" },
     ], c: config });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(1000);
     await p.getByRole("button", { name: "Planung", exact: true }).first().click();

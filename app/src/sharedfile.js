@@ -15,6 +15,8 @@
 // IndexedDB-Datenbank, eigene localStorage-Schlüssel, ein eigenes Dateiformat
 // und einen eigenen Ereignis-Präfix.
 
+import { STANDORT, nsKey, nsDb } from "./standort.js";
+
 const IDB_STORE = "handles";
 const IDB_BACKUP_STORE = "backups";
 const BACKUP_MAX_COUNT = 30; // lokale Sicherungen (pro Gerät) - Sicherheitsnetz gegen Datenverlust
@@ -432,6 +434,8 @@ function createSharedStore(cfg) {
   const CONFIG_KEY = cfg.configKey;
   const SUGGESTED_NAME = cfg.suggestedName;
   const EV = cfg.evPrefix; // z. B. "werkstatt-shared" -> Ereignis "werkstatt-shared-update"
+  // Standort-Kennung dieser Instanz: Dateien ohne Kennung sind Scheurich-Erbe.
+  const STANDORT_DATEI = cfg.standort || "scheurich";
 
   let fileHandle = null;
   // Beim Start gemerkter Verweis auf die zuletzt benutzte Datei.
@@ -696,13 +700,17 @@ function createSharedStore(cfg) {
 
   /* ---------- Dateiformat ---------- */
   function emptyData() {
-    return { format: FORMAT, savedAt: null, entries: [], deleted: {}, config: null, bauStand: null };
+    return { format: FORMAT, standort: STANDORT_DATEI, savedAt: null, entries: [], deleted: {}, config: null, bauStand: null };
   }
   function normalizeData(d) {
     // Auch eine reine Export-Datei (Array von Einträgen) wird als Startbestand akzeptiert.
     if (Array.isArray(d)) return { ...emptyData(), entries: d };
     return {
       format: FORMAT,
+      // Die Standort-Kennung der Datei bleibt erhalten - sie ist die Grundlage
+      // des Wächters unten; Dateien ohne Kennung stammen aus der Zeit vor der
+      // Standort-Wahl und gelten als Scheurich.
+      standort: typeof d.standort === "string" ? d.standort : null,
       savedAt: typeof d.savedAt === "string" ? d.savedAt : null,
       entries: Array.isArray(d.entries) ? d.entries : [],
       deleted: d.deleted && typeof d.deleted === "object" ? d.deleted : {},
@@ -755,11 +763,32 @@ function createSharedStore(cfg) {
     if (!text.trim()) { dateiInfo.eintraege = 0; return emptyData(); }
     try {
       const gelesen = normalizeData(JSON.parse(text));
+      // Standort-Wächter: Eine Datei des ANDEREN Standorts darf hier nie
+      // gelesen oder zusammengeführt werden - sonst vermischen sich zwei
+      // Werkstatt-Bestände unbemerkt (harte-68 misst genau das). Der Fehler
+      // stoppt Verbinden UND jedes Speichern, denn vor jedem Schreiben wird
+      // zuerst gelesen.
+      const dateiStandort = gelesen.standort || "scheurich";
+      if (dateiStandort !== STANDORT_DATEI) {
+        const namen = { scheurich: "Scheurich", soendgen: "Soendgen Keramik" };
+        const fehler = new Error(
+          `Diese Datei gehört zur Werkstatt „${namen[dateiStandort] || dateiStandort}", ` +
+          `dieser Rechner arbeitet aber als „${namen[STANDORT_DATEI] || STANDORT_DATEI}". ` +
+          `Zusammenführen würde zwei Werkstatt-Bestände vermischen - bitte die ` +
+          `Datendatei aus dem Ordner der richtigen Werkstatt verbinden.`,
+        );
+        fehler.name = "StandortKonflikt";
+        throw fehler;
+      }
       dateiInfo.eintraege = ohneSystemEntries(gelesen.entries).length;
       pruefeUhr(gelesen);
       if (gelesen.bauStand && gelesen.bauStand > fremdeBauZeit) fremdeBauZeit = gelesen.bauStand;
       return gelesen;
     } catch (e) {
+      // Der Standort-Wächter ist KEIN Dateischaden - seine Meldung muss
+      // unverändert durchschlagen, statt als "unvollständige Datei" mit
+      // Reparaturversprechen verkleidet zu werden.
+      if (e && e.name === "StandortKonflikt") throw e;
       // Gemessen, wie es ohne diese Stelle aussah: "Expected double-quoted
       // property name in JSON at position 182 (line 9 column 2)". Das ist der
       // rohe Text des JavaScript-Lesers - fuer die Werkstatt unbrauchbar.
@@ -853,7 +882,7 @@ function createSharedStore(cfg) {
           merged.push({ id, date: "", value: quelle[key], updatedAt: nowISO() });
         });
       }
-      const candidate = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config, bauStand: bauStandFuer(data.bauStand) };
+      const candidate = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config, bauStand: bauStandFuer(data.bauStand) };
       let geschrieben = false;
       let letzterFehler = null;
       // Zwei Anläufe: Der erste kann an einer belegten Datei scheitern (zweites
@@ -1370,7 +1399,7 @@ function createSharedStore(cfg) {
         if (kopie.config && (!config || String(kopie.config.updatedAt || "") > String(config.updatedAt || ""))) {
           config = kopie.config;
         }
-        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config, bauStand: bauStandFuer(fileData.bauStand) };
+        const out = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted, config, bauStand: bauStandFuer(fileData.bauStand) };
         const nochAktuell = await readFileData();
         if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
           throw new Error("Kollision: Datei wurde zwischenzeitlich geändert");
@@ -1502,7 +1531,7 @@ function createSharedStore(cfg) {
         pruneTombstones(deleted);
 
         merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), deleted));
-        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: configAusEintraegen(merged) || fileData.config, bauStand: bauStandFuer(fileData.bauStand) };
+        const out = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted, config: configAusEintraegen(merged) || fileData.config, bauStand: bauStandFuer(fileData.bauStand) };
 
         // Optimistische Sperre: unmittelbar vor dem Schreiben nochmal ganz kurz
         // prüfen, ob die Datei seit unserem Lesen oben noch denselben Stand hat.
@@ -1571,7 +1600,7 @@ function createSharedStore(cfg) {
         });
         pruneTombstones(deleted);
         const merged = mergeEntries(data.entries, stamped, deleted);
-        const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted, config: data.config, bauStand: bauStandFuer(data.bauStand) };
+        const out = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted, config: data.config, bauStand: bauStandFuer(data.bauStand) };
         await writeFileData(out);
         lastSavedAt = out.savedAt;
         const kontrolle = await readFileData();
@@ -1786,7 +1815,7 @@ function createSharedStore(cfg) {
     const merged = pruneLogs(mergeEntries(geborgen, eigene, {}));
     // Nach einer Datei-Reparatur ist der alte bauStand nicht mehr lesbar -
     // dann steht eben die eigene Bau-Zeit drin, der nächste Abgleich hebt an.
-    const out = { format: FORMAT, savedAt: nowISO(), entries: merged, deleted: {}, config: configAusEintraegen(merged), bauStand: bauStandFuer(null) };
+    const out = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted: {}, config: configAusEintraegen(merged), bauStand: bauStandFuer(null) };
     await writeFileData(out);
     const kontrolle = await readFileData(); // muss jetzt wieder sauber lesbar sein
     lastSavedAt = kontrolle.savedAt;
@@ -2045,12 +2074,17 @@ function createSharedStore(cfg) {
 /* ==================================================================== */
 /* Instanz 1: Hauptdaten (Kalender, Team, Backlog, Planung ...)          */
 /* ==================================================================== */
+/* Standort-Namensräume (Meeting 10.09./11.09.): Scheurich behält Datenbank-
+   und Schlüsselnamen unverändert (Bestandsschutz für alle laufenden Rechner);
+   jeder weitere Standort bekommt über nsDb/nsKey eigene Namen und damit
+   eigene gemerkte Dateien, eigene Sicherungen, eigenen Zwischenspeicher. */
 const main = createSharedStore({
-  dbName: "werkstatt-kalender-fs",
+  dbName: nsDb("werkstatt-kalender-fs"),
   format: "werkstatt-kalender-v1",
-  entriesKey: "werkstatt-kalender-entries",
-  configKey: "werkstatt-kalender-config",
-  suggestedName: "werkstatt-kalender-daten.json",
+  standort: STANDORT.id,
+  entriesKey: nsKey("werkstatt-kalender-entries"),
+  configKey: nsKey("werkstatt-kalender-config"),
+  suggestedName: STANDORT.id === "scheurich" ? "werkstatt-kalender-daten.json" : `${STANDORT.id}-kalender-daten.json`,
   evPrefix: "werkstatt-shared",
 });
 
@@ -2114,11 +2148,12 @@ export const pollNow = main.pollNow;
 // (auch Nur-Leser der Hauptdatei) mit Bearbeiten-Recht freigegeben, damit jeder
 // Störungen melden/ändern/löschen kann, ohne die geschützten Hauptdaten anzurühren.
 export const stoer = createSharedStore({
-  dbName: "werkstatt-stoerungen-fs",
+  dbName: nsDb("werkstatt-stoerungen-fs"),
   format: "werkstatt-stoerungen-v1",
-  entriesKey: "werkstatt-stoerungen-entries",
-  configKey: "werkstatt-stoerungen-config",
-  suggestedName: "werkstatt-stoerungen.json",
+  standort: STANDORT.id,
+  entriesKey: nsKey("werkstatt-stoerungen-entries"),
+  configKey: nsKey("werkstatt-stoerungen-config"),
+  suggestedName: STANDORT.id === "scheurich" ? "werkstatt-stoerungen.json" : `${STANDORT.id}-stoerungen.json`,
   evPrefix: "werkstatt-stoer",
 });
 

@@ -28,6 +28,9 @@ async function makeUser(browser) {
     window.showOpenFilePicker = async () => [handle];
     window.showSaveFilePicker = async () => handle;
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto('file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
   await page.waitForTimeout(800);
   return page;

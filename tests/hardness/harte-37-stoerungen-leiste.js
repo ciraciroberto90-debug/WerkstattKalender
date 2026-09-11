@@ -69,6 +69,9 @@ async function seite(browser, platte, { uhr = "2026-08-03T16:00:00" } = {}) {
     });
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1100);
   await p.evaluate(async () => await window.__wkStoerTest.adopt(window.__mk("stoer.json"), "readwrite"));

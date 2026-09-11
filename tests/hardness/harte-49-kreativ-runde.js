@@ -1,7 +1,7 @@
 // Härtetest: KREATIV-RUNDE G1-G8 VOM 19.08. (Robertos "einführen").
 //
 //  (G1) EIGENER WERKSTATT-NAME: im ⚙ gesetzt, erscheint in Kopfzeile und
-//       auf dem Druckkopf (Prüfnachweis); leer = "Werkstatt-Cockpit".
+//       auf dem Druckkopf (Prüfnachweis); leer = "BTA-Cockpit".
 //  (G2) VOLLER MONAT = KLEINES FEST: erscheint einmal, sperrt nichts,
 //       kommt im selben Monat nicht wieder; unvollständiger Monat = still.
 //  (G3) KENNFARBE JE ANLAGE: linke Kante an der Kachel, stabil über
@@ -41,6 +41,9 @@ async function start(browser, { eintraege = [], config = basisConfig, stoer = []
     localStorage.setItem("werkstatt-stoerungen-entries", JSON.stringify(s));
   }, { e: eintraege, c: config, s: stoer });
   if (extraInit) await p.addInitScript(extraInit);
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1000);
   return { p, ctx, fehler };
@@ -58,8 +61,9 @@ const inPlan = async (p) => {
   /* ---- (G1) Eigener Werkstatt-Name ---- */
   {
     const { p, ctx } = await start(browser, {});
-    pruef("(G1) Ohne Einstellung heißt es Werkstatt-Cockpit",
-          /WERKSTATT-COCKPIT/i.test(await p.locator("body").innerText()));
+    // Seit dem 11.09. heißt das Programm BTA-Cockpit (Betriebstechnische Abteilung).
+    pruef("(G1) Ohne Einstellung heißt es BTA-Cockpit",
+          /BTA-COCKPIT/i.test(await p.locator("body").innerText()));
     await p.locator('button[aria-label="Verwalten"]').click();
     await p.waitForTimeout(500);
     // Das Feld wohnt im Reiter "Team & Schichten" (bei "Dein Name").

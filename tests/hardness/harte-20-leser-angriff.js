@@ -43,6 +43,9 @@ async function macheLeser(browser) {
     window.showOpenFilePicker = async () => [window.__mk("kalender-daten.json")];
     window.showSaveFilePicker = async () => window.__mk("kalender-daten.json");
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(900);
   return page;
@@ -145,6 +148,9 @@ async function macheLeser(browser) {
     });
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p2.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p2.goto(APP);
   await p2.waitForTimeout(900);
   await p2.evaluate(async () => await window.__wkSharedTest.adopt(window.__mk("kalender-daten.json"), "readwrite"));
@@ -187,6 +193,9 @@ async function macheLeser(browser) {
       });
       delete window.showOpenFilePicker; delete window.showSaveFilePicker;
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p3.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p3.goto(APP);
     await p3.waitForTimeout(900);
     await p3.evaluate(async () => await window.__wkSharedTest.adopt(window.__mk("kalender-daten.json"), "readwrite"));

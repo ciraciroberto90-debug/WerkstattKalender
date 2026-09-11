@@ -604,9 +604,66 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       also eine Baumstruktur (ein Ordner je Standort) unter dem
       bestehenden App-Ordner. Entscheidung Struktur-Umbau statt
       Neuaufbau ist begründet (Chat 10.09.): Testnetz + gehärteter
-      Sync-Kern bleiben erhalten. Noch offen: (5) Sollen alle Rechner
-      den Standort wechseln dürfen oder fest je Standort (nur z. B.
-      Robertos schaltet um)?
+      Sync-Kern bleiben erhalten. Zu (5): aktuell darf JEDER Rechner
+      über ⚙ → Verlauf & Sicherung wechseln (mit Rückfrage); eine
+      Sperre je Rechner ist leicht nachrüstbar, wenn Roberto sie will.
+
+- [x] **Etappe 2 GEBAUT (11.09.): Standort-Technik + BTA-Cockpit.**
+      Robertos Freigabe vom 11.09. („mach es richtig … Startseite ist
+      super … zweiter Standort = App als Blanko"). Umfang:
+      Werkstatt-Wahl beim ersten Start (Scheurich-Group-Hauptlogo,
+      „In welcher Werkstatt arbeitest du?", beide Firmen mit Logo;
+      Logos eingebettet, App bleibt EINE Datei, jetzt ~906 kB);
+      Programm heißt überall BTA-Cockpit (Kopfzeile mit Standort-Zeile
+      „Scheurich · Kleinheubach" bzw. „Soendgen Keramik · Adendorf",
+      Fenstertitel, Druckköpfe; der eigene Werkstattname im ⚙ sticht
+      weiterhin). KOMPLETTE Datentrennung über Namensräume:
+      Scheurich behält alle alten Schlüssel/Datenbanknamen
+      (Bestandsschutz - laufende Rechner bekommen KEINE Frage, dank
+      Altbestands-Erkennung, und verlieren weder Daten noch gemerkte
+      Dateiverbindungen), Soendgen bekommt eigene localStorage-Schlüssel
+      („bta-soendgen:…"), eigene IndexedDB (gemerkte Dateien +
+      Sicherungen getrennt!) und eigene Datei-Vorschlagsnamen
+      (soendgen-kalender-daten.json / soendgen-stoerungen.json).
+      Soendgen startet BLANKO: keine Scheurich-Anlagen, -R+I-Punkte,
+      -Kostenstellen, -Link-Kürzel (neutral „BTA"). Die Datendateien
+      tragen jetzt eine Standort-Kennung; ein **Standort-Wächter** in
+      der Dateischicht weist die Datei der falschen Werkstatt mit
+      klarer Meldung ab (Dateien ohne Kennung = Scheurich-Erbe,
+      verbinden normal). Feiertage folgen dem Bundesland des Standorts
+      (Scheurich = Bayern, Soendgen = NRW ohne Heilige Drei Könige /
+      Mariä Himmelfahrt - der alte Blocker „Feiertage für Standort 2"
+      ist damit für NRW gelöst; frei pflegbare Feiertage bleiben als
+      Ausbau). Wechseln im ⚙ → Verlauf & Sicherung (mit Rückfrage,
+      App lädt neu). NEUE WACHE harte-68 (20 Prüfungen): Frage nur auf
+      frischen Rechnern, Blanko-Start, Namensraum-Trennung in beide
+      Richtungen, Datei-Wächter samt Gegenprobe Alt-Datei, Feiertage.
+      Pflicht-Nachweis der Hausregel erbracht und GEMESSEN: gegen einen
+      Bau ohne Trennung ist harte-68 rot (13/20, alle 7 Trennungs- und
+      Wächter-Prüfungen schlagen fehl).
+
+- [ ] **⚙-Vollständigkeit: „App einfach übergeben" (Robertos Maßstab vom
+      11.09.).** Der Werkstattmeister soll ALLES selbst einpflegen
+      können. Gemessener Stand (Code-Durchsicht 11.09.):
+      SCHON PFLEGBAR im ⚙: PitStop-/TPM-Anlagen samt Rotations-Rolle
+      (Montags-Rotation 1-4, Taktstraße, B1-flexibel, 2-Monats-Gruppen
+      A/B), R+I-Punkte mit Rhythmus (wöchentlich, 14-tägig, Monatstag,
+      alle n Monate, jährlich, ohne Rhythmus), Team (Namen, Gewerk,
+      Zeiterfassungs-Berechtigung), eigene Schichtarten (Name+Kürzel),
+      Anlagenteile, Kostenstellen, Links, OEE-Quelle, Werkstattname,
+      Monitor-Bausteine, Benutzerliste.
+      NOCH FEST IM CODE (Kandidaten für Etappe 3, Reihenfolge mit
+      Roberto): (a) Schichtzeiten (Früh 06-14, Spät 14-22, Nacht 22-06)
+      an mehreren Stellen fest; (b) die GRUND-Schichtarten samt Farben;
+      (c) Schicht-Auswahl im Störbericht fest auf Früh/Spät/Nacht;
+      (d) der Rotations-Anker (Montag 05.01.2026 = Slot 1 der
+      Montags-Rotation) fest - je Standort einstellbar wäre nötig,
+      sobald Soendgen eine eigene Rotation fährt; (e) Feiertage nur
+      als Bundesland-Automatik (BY/NW), nicht frei pflegbar;
+      (f) eine AUTOMATISCHE Schichtrotation des Teams (wer rollt wann
+      durch Früh/Spät/Nacht) gibt es noch gar nicht - der Schichtplan
+      wird von Hand geführt; Robertos Wunschliste vom 11.09. nennt
+      „Schichtrotationen" ausdrücklich.
 
 - [ ] **Handy-Fassung der App (Robertos Wunsch vom 10.09.).** Klickbare
       HTML-Vorlage am 10.09. in den Chat geliefert, auf Robertos Ansage

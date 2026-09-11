@@ -52,6 +52,9 @@ async function seite(browser, platte, nurLesen) {
     window.showOpenFilePicker = async () => [h];
     window.showSaveFilePicker = async () => h;
   }, !!nurLesen);
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1000);
   return p;
@@ -393,6 +396,8 @@ async function legeAn(p, name, ziel) {
       window.showOpenFilePicker = async () => [h];
       window.showSaveFilePicker = async () => h;
     });
+    // Standort festnageln - auch auf dem http-Ursprung (eigener localStorage!).
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto("http://localhost:" + hafen + "/");
     await p.waitForTimeout(1000);
     await verbinde(p);

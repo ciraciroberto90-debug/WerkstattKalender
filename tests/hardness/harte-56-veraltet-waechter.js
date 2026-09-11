@@ -62,6 +62,9 @@ async function leser(browser, inhalt) {
     };
     window.showOpenFilePicker = async () => [handle];
   }, { t: inhalt, c: config });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(800);
   await p.locator('button[aria-label="Gemeinsame Datei"]').click();
@@ -91,6 +94,9 @@ async function bearbeiter(browser, inhalt) {
     };
     window.showOpenFilePicker = async () => [handle];
   }, config);
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(800);
   await p.locator('button[aria-label="Gemeinsame Datei"]').click();

@@ -85,6 +85,9 @@ async function verbindeHaupt(p) {
   p.on("pageerror", (e) => fehler.push(e.message));
 
   let t0 = Date.now();
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.locator('button[aria-label="Gemeinsame Datei"]').waitFor({ timeout: 30000 });
   const startDauer = Date.now() - t0;
@@ -145,6 +148,9 @@ async function verbindeHaupt(p) {
   const p2 = await seite(b);
   const fehler2 = [];
   p2.on("pageerror", (e) => fehler2.push(e.message));
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p2.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p2.goto(APP);
   await p2.locator('button[aria-label="Gemeinsame Datei"]').waitFor({ timeout: 30000 });
   await verbindeHaupt(p2);

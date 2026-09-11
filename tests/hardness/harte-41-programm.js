@@ -143,6 +143,9 @@ const pruef = (n, c, zusatz) => {
   /* ---- (1)(2)(3) Erstes Verbinden ---- */
   let page = await ctx.newPage();
   await verdrahte(page);
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(600);
 
@@ -213,6 +216,9 @@ const pruef = (n, c, zusatz) => {
   /* ---- (5)(6) Neustart: von selbst wieder verbunden, ohne Dialog ---- */
   page = await ctx.newPage();
   await verdrahte(page);
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(1200);
 
@@ -329,6 +335,9 @@ const pruef = (n, c, zusatz) => {
     schreibSperre = true; // das "Laufwerk" verweigert jedes Schreiben
     const p12 = await ctx.newPage();
     await verdrahte(p12);
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p12.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p12.goto(APP);
     await p12.waitForTimeout(600);
     await p12.locator('button[aria-label="Gemeinsame Datei"]').click();

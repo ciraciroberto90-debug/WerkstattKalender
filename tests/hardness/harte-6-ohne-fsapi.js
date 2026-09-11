@@ -17,6 +17,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   await page.clock.setFixedTime(new Date('2026-07-08T09:00:00')); // Mittwoch, hat TPM-Punkte
   // showOpenFilePicker entfernen -> genau das Verhalten in Firefox/Safari
   await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker; });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(700);
 

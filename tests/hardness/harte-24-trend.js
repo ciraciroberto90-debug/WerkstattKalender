@@ -41,6 +41,9 @@ async function mach(browser, eintraege, uhr = "2026-12-15T10:00:00") {
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
     localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(d));
   }, eintraege);
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.waitForTimeout(1400);
   await page.getByRole("button", { name: "TPM", exact: true }).first().click();
@@ -144,6 +147,9 @@ const text = (p) => p.locator("body").innerText();
       };
       window.showOpenFilePicker = async () => [h];
     });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(1300);
     await p.locator('button[aria-label="Gemeinsame Datei"]').click().catch(() => {});

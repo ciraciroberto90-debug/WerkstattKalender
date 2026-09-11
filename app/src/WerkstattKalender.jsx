@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv, LogOut, LogIn, Eye } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
+import { STANDORT, STANDORTE, STANDORT_GEWAEHLT, standortWaehlen, nsKey } from "./standort.js";
+import { LOGO_GRUPPE, LOGO_SCHEURICH, LOGO_SOENDGEN } from "./logos.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -256,7 +258,7 @@ function TermintreueTrend({ reihe, filter }) {
 function SchwebeFenster({ id, titel, onZu, breite = 380, hoehe = 440, minB = 280, minH = 200, zIndex = 55, children }) {
   const [lage, setLage] = React.useState(() => {
     try {
-      const g = JSON.parse(localStorage.getItem("wk-fenster-" + id) || "null");
+      const g = JSON.parse(localStorage.getItem(nsKey("wk-fenster-" + id)) || "null");
       if (g && g.w >= minB && g.h >= minH && Number.isFinite(g.x) && Number.isFinite(g.y)) return g;
     } catch (e) { /* dann eben Standardlage */ }
     return null;
@@ -288,7 +290,7 @@ function SchwebeFenster({ id, titel, onZu, breite = 380, hoehe = 440, minB = 280
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      try { localStorage.setItem("wk-fenster-" + id, JSON.stringify(lageRef.current)); } catch (e) { /* dann eben nicht gemerkt */ }
+      try { localStorage.setItem(nsKey("wk-fenster-" + id), JSON.stringify(lageRef.current)); } catch (e) { /* dann eben nicht gemerkt */ }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -1008,7 +1010,10 @@ const naechsteStoerNr = (liste, jahr) => {
 const nummerSchonVergeben = (liste, eigener) =>
   (liste || []).some((x) => x.id !== eigener.id && stoerNrLang(x) && stoerNrLang(x) === stoerNrLang(eigener));
 
-const LINK_INHABER_VORGABE = ["RC", "AR"];
+const LINK_INHABER_VORGABE_SCHEURICH = ["RC", "AR"];
+// Blanko-Standort: neutrales Kürzel statt Scheurich-Initialen - die Leiste
+// braucht mindestens einen Inhaber, sonst gäbe es keinen Platz für Links.
+const LINK_INHABER_VORGABE = STANDORT.blanko ? ["BTA"] : LINK_INHABER_VORGABE_SCHEURICH;
 // Hintergrundfarben der Link-Symbole, der Reihe nach vergeben. Feste Folge
 // statt Zufall oder Namens-Streuung: Ein Link soll beim nächsten Öffnen an
 // derselben Stelle in derselben Farbe liegen - dann findet ihn die Hand, ohne
@@ -1421,7 +1426,9 @@ const KOSTENSTELLEN_START = [
 // Bestände ohne den Schlüssel (vor dem 09.09.) bekommen den Startbestand -
 // dieselbe Regel wie beim Monitor: fehlend heißt Vorgabe, nie leer.
 function normalisiereKostenstellen(roh) {
-  if (!Array.isArray(roh)) return KOSTENSTELLEN_START.map((k) => ({ ...k }));
+  // Blanko-Standort: Der Scheurich-Startbestand wäre hier falsch - der
+  // Werkstattmeister pflegt seine eigenen Kostenstellen über das ⚙ ein.
+  if (!Array.isArray(roh)) return STANDORT.blanko ? [] : KOSTENSTELLEN_START.map((k) => ({ ...k }));
   return roh
     .map((k, i) => ({ id: String((k && k.id) || "ks-" + i), nr: String((k && k.nr) || "").trim(), name: String((k && k.name) || "").trim() }))
     .filter((k) => k.name);
@@ -1543,9 +1550,10 @@ const STATUS_COLORS = {
   none: { bg: "#F4F5F6", fg: "#C3C7CB" },
 };
 
-const STORAGE_KEY = "werkstatt-kalender-entries";
-const CONFIG_STORAGE_KEY = "werkstatt-kalender-config";
-const STOER_STORAGE_KEY = "werkstatt-stoerungen-entries"; // eigene Datei für Störungen (für alle beschreibbar)
+// Je Standort ein eigener Namensraum (Scheurich = Alt-Schlüssel) - siehe standort.js.
+const STORAGE_KEY = nsKey("werkstatt-kalender-entries");
+const CONFIG_STORAGE_KEY = nsKey("werkstatt-kalender-config");
+const STOER_STORAGE_KEY = nsKey("werkstatt-stoerungen-entries"); // eigene Datei für Störungen (für alle beschreibbar)
 
 // Gewerk eines Störberichts (Zuständigkeit)
 const STOER_GEWERK = {
@@ -1644,20 +1652,30 @@ function getHolidays(year) {
   const map = new Map();
   const add = (date, name) => map.set(dateKey(date.getFullYear(), date.getMonth(), date.getDate()), name);
   add(new Date(year, 0, 1), "Neujahr");
-  add(new Date(year, 0, 6), "Heilige Drei Könige");
   add(addDays(easter, -2), "Karfreitag");
   add(addDays(easter, 1), "Ostermontag");
   add(new Date(year, 4, 1), "Tag der Arbeit");
   add(addDays(easter, 39), "Christi Himmelfahrt");
   add(addDays(easter, 50), "Pfingstmontag");
-  add(addDays(easter, 60), "Fronleichnam");
-  add(new Date(year, 7, 15), "Mariä Himmelfahrt");
+  add(addDays(easter, 60), "Fronleichnam"); // Bayern UND NRW
   add(new Date(year, 9, 3), "Tag der Deutschen Einheit");
-  add(new Date(year, 10, 1), "Allerheiligen");
+  add(new Date(year, 10, 1), "Allerheiligen"); // Bayern UND NRW
   add(new Date(year, 11, 25), "1. Weihnachtstag");
   add(new Date(year, 11, 26), "2. Weihnachtstag");
+  // Nur in Bayern (Scheurich, Kleinheubach) - Soendgen liegt in NRW, dort
+  // sind das normale Arbeitstage. Die Rotation rechnet mit Feiertagen,
+  // deshalb muss die Liste zum Bundesland des Standorts passen.
+  if (STANDORT.bundesland === "BY") {
+    add(new Date(year, 0, 6), "Heilige Drei Könige");
+    add(new Date(year, 7, 15), "Mariä Himmelfahrt");
+  }
   return map;
 }
+
+// Test-Zugang (harte-68): Die Feiertagsliste hängt am Bundesland des
+// Standorts - im Browser sichtbar wird sie nur beim Drucken und im
+// Diagramm-Tooltip, deshalb hier direkt messbar gemacht.
+if (typeof window !== "undefined") window.__wkFeiertageTest = getHolidays;
 
 function isWeekend(y, m, d) {
   const dow = new Date(y, m, d).getDay();
@@ -1837,8 +1855,9 @@ function App() {
   const [archivGrenze, setArchivGrenze] = useState(null); // bis einschließlich welchem Jahr ausgelagert wird
   const [archivGesichert, setArchivGesichert] = useState(false); // Archivdatei wurde heruntergeladen
   const [entries, setEntries] = useState([]);
-  const [tpmAnlagen, setTpmAnlagen] = useState(DEFAULT_TPM_ANLAGEN);
-  const [riItems, setRiItems] = useState(riMitWissen(DEFAULT_RI_ITEMS));
+  // Blanko-Standort startet ohne Scheurich-Anlagen und -Rundgänge (⚙ pflegt alles ein).
+  const [tpmAnlagen, setTpmAnlagen] = useState(STANDORT.blanko ? [] : DEFAULT_TPM_ANLAGEN);
+  const [riItems, setRiItems] = useState(riMitWissen(STANDORT.blanko ? [] : DEFAULT_RI_ITEMS));
   const [team, setTeam] = useState([]); // Werkstatt-Team (für Zuweisung & Arbeitsplanung)
   const [extraSchichten, setExtraSchichten] = useState([]); // eigene Schichtarten aus dem ⚙-Dialog (immer grau)
   const [anlagenteile, setAnlagenteile] = useState([]); // Anlagenteile pro Anlage (⚙-Dialog), für Störungs-Maske
@@ -1881,7 +1900,7 @@ function App() {
   // Wunsch vom 07.09.: die Monate müssen frei wählbar sein.
   const [druckZeitraum, setDruckZeitraum] = useState(null);
   const [linkInhaber, setLinkInhaber] = useState(() => {
-    try { return (localStorage.getItem("werkstatt-links-inhaber") || "").toUpperCase(); } catch (e) { return ""; }
+    try { return (localStorage.getItem(nsKey("werkstatt-links-inhaber")) || "").toUpperCase(); } catch (e) { return ""; }
   });
   const [linkEntwurf, setLinkEntwurf] = useState(null); // {id?, name, ziel, symbol} solange bearbeitet wird
   const [linkKopiert, setLinkKopiert] = useState(""); // id des Links, dessen Pfad gerade kopiert wurde
@@ -1935,11 +1954,11 @@ function App() {
   // Nachtschicht-Modus (Auge-Knopf oben rechts): Leuchtdichte-Umkehr per CSS,
   // die Wahl bleibt am Gerät. Für die Nachtschicht am Störungs-Bildschirm.
   const [nachtModus, setNachtModus] = useState(() => {
-    try { return localStorage.getItem("werkstatt-kalender-nachtmodus") === "1"; } catch (e) { return false; }
+    try { return localStorage.getItem(nsKey("werkstatt-kalender-nachtmodus")) === "1"; } catch (e) { return false; }
   });
   useEffect(() => {
     document.documentElement.classList.toggle("wk-nacht", nachtModus);
-    try { localStorage.setItem("werkstatt-kalender-nachtmodus", nachtModus ? "1" : "0"); } catch (e) { /* Anzeige gilt trotzdem */ }
+    try { localStorage.setItem(nsKey("werkstatt-kalender-nachtmodus"), nachtModus ? "1" : "0"); } catch (e) { /* Anzeige gilt trotzdem */ }
   }, [nachtModus]);
   // Rückgängig-Leiste: eine Aktion, acht Sekunden Zeit.
   const [rueckgaengig, setRueckgaengig] = useState(null); // { text, mach }
@@ -1956,10 +1975,10 @@ function App() {
   // "Seit deinem letzten Besuch": Vergleichszeitpunkt je Gerät. Der neue
   // Zeitpunkt wird sofort gemerkt - beim nächsten Öffnen zählt dieses Öffnen.
   const [letzterBesuch] = useState(() => {
-    try { return localStorage.getItem("werkstatt-kalender-letzter-besuch") || ""; } catch (e) { return ""; }
+    try { return localStorage.getItem(nsKey("werkstatt-kalender-letzter-besuch")) || ""; } catch (e) { return ""; }
   });
   useEffect(() => {
-    try { localStorage.setItem("werkstatt-kalender-letzter-besuch", new Date().toISOString()); } catch (e) { /* dann eben beim nächsten Mal */ }
+    try { localStorage.setItem(nsKey("werkstatt-kalender-letzter-besuch"), new Date().toISOString()); } catch (e) { /* dann eben beim nächsten Mal */ }
   }, []);
   const [neuigkeitenZu, setNeuigkeitenZu] = useState(false);
   const [neuigkeitenAuf, setNeuigkeitenAuf] = useState(false);
@@ -2053,11 +2072,11 @@ function App() {
   const [zettelFotosNeu, setZettelFotosNeu] = useState([]);
   const [zettelSuche, setZettelSuche] = useState(""); // Mini-Suche in der Pinnwand
   const [zettelText, setZettelText] = useState("");
-  const [zettelName, setZettelName] = useState(() => localStorage.getItem("werkstatt-kalender-name") || "");
+  const [zettelName, setZettelName] = useState(() => localStorage.getItem(nsKey("werkstatt-kalender-name")) || "");
   // Benutzergruppen: Liste aus der gemeinsamen Datei; die Anmeldung merkt sich
   // das Gerät - wie von Roberto gewünscht "beim ersten Login für immer".
   const [benutzerListe, setBenutzerListe] = useState([]);
-  const [angemeldet, setAngemeldet] = useState(() => localStorage.getItem("werkstatt-kalender-benutzer") || "");
+  const [angemeldet, setAngemeldet] = useState(() => localStorage.getItem(nsKey("werkstatt-kalender-benutzer")) || "");
   const [anmeldung, setAnmeldung] = useState({ name: "", kennwort: "", fehler: "" }); // Entwurf im Anmelde-Dialog
   // „Nur ansehen": Der Anmelde-Dialog wurde bewusst weggeklickt - die App
   // läuft dann als Leser (Robertos Regel vom 10.08.: ohne Anmeldung NIE
@@ -2087,13 +2106,13 @@ function App() {
   // beim Umstieg niemand suchen muss. Die Wahl merkt sich das Gerät, nicht die
   // gemeinsame Datei: Wie ich sortiere, geht meine Kollegen nichts an.
   const [stoerAnsicht, setStoerAnsicht] = useState(() => {
-    try { return localStorage.getItem("werkstatt-stoer-ansicht") || "datum"; } catch (e) { return "datum"; }
+    try { return localStorage.getItem(nsKey("werkstatt-stoer-ansicht")) || "datum"; } catch (e) { return "datum"; }
   });
   // Vorgabe bewusst "alle": So zeigt die Liste nach dem Umstieg genau das,
   // was sie vorher zeigte. Ein voreingestellter Zeitraum hätte am ersten Tag
   // ausgesehen, als wären Berichte verschwunden.
   const [stoerListeZeitraum, setStoerListeZeitraum] = useState(() => {
-    try { return localStorage.getItem("werkstatt-stoer-zeitraum") || "alle"; } catch (e) { return "alle"; }
+    try { return localStorage.getItem(nsKey("werkstatt-stoer-zeitraum")) || "alle"; } catch (e) { return "alle"; }
   });
   const [stoerSchnell, setStoerSchnell] = useState(""); // "", "offen", "restarbeit", "lang"
   const [stoerOffeneTage, setStoerOffeneTage] = useState(null); // aufgeklappte Datums-Gruppen (null = Vorgabe: alle zu)
@@ -2463,7 +2482,7 @@ function App() {
     }
     const jetzt = new Date().toISOString();
     const melder = String(draft.melder || "").trim();
-    if (melder) localStorage.setItem("werkstatt-kalender-name", melder);
+    if (melder) localStorage.setItem(nsKey("werkstatt-kalender-name"), melder);
     const offen = draft.status === "offen";
     const datum = draft.date || jetzt.slice(0, 10);
     const ausfallzeit = Math.max(0, Math.round(Number(draft.ausfallzeit) || 0));
@@ -3026,7 +3045,7 @@ function App() {
         <thead><tr><th>Prüfpunkt / Rechtsgrundlage</th><th>Erledigt am</th><th>Versäumt (fällig, nicht erledigt)</th><th style="text-align:right">Stand</th></tr></thead>
         <tbody>${zeilen || '<tr><td colspan="4"><i>Für diesen Zeitraum liegen keine Einträge vor.</i></td></tr>'}</tbody>
       </table>
-      <div class="fuss">Erstellt am ${formatDateDE(todayKey)} aus dem Werkstatt-Cockpit. Grundlage sind die im System erfassten Termine; dieser Ausdruck gibt den Stand zum Erstellungszeitpunkt wieder.</div>
+      <div class="fuss">Erstellt am ${formatDateDE(todayKey)} aus dem BTA-Cockpit. Grundlage sind die im System erfassten Termine; dieser Ausdruck gibt den Stand zum Erstellungszeitpunkt wieder.</div>
       <div class="sign"><div>Datum / Unterschrift Werkstattleitung</div><div>Datum / Unterschrift Prüfer</div></div>
       </body></html>`;
     return html;
@@ -3625,7 +3644,7 @@ function App() {
   const waehleLinkInhaber = (k) => {
     setLinkInhaber(k);
     setLinkEntwurf(null);
-    try { localStorage.setItem("werkstatt-links-inhaber", k); } catch (e) { /* Speicher voll o.ä. */ }
+    try { localStorage.setItem(nsKey("werkstatt-links-inhaber"), k); } catch (e) { /* Speicher voll o.ä. */ }
   };
   const schalteLinks = () => {
     const next = !linksOffen;
@@ -3914,8 +3933,8 @@ function App() {
     // Melder-Vorschlag bei Störungen - ein Name, eine Wahrheit.
     setZettelName(b.name);
     try {
-      localStorage.setItem("werkstatt-kalender-benutzer", b.name);
-      localStorage.setItem("werkstatt-kalender-name", b.name);
+      localStorage.setItem(nsKey("werkstatt-kalender-benutzer"), b.name);
+      localStorage.setItem(nsKey("werkstatt-kalender-name"), b.name);
     } catch (e) { /* Speicher voll o. ä. - dann fragt das Gerät beim nächsten Start erneut */ }
     setAnmeldung({ name: "", kennwort: "", fehler: "" });
   };
@@ -3923,7 +3942,7 @@ function App() {
     setAngemeldet("");
     setAnmeldung({ name: "", kennwort: "", fehler: "" });
     setAnmeldungZu(false); // nach dem Abmelden fragt der Dialog wieder
-    try { localStorage.removeItem("werkstatt-kalender-benutzer"); } catch (e) { /* egal */ }
+    try { localStorage.removeItem(nsKey("werkstatt-kalender-benutzer")); } catch (e) { /* egal */ }
   };
 
   const addSettingsTpm = () => {
@@ -4380,7 +4399,7 @@ function App() {
     // "Auch an die Pinnwand": EIN veröffentlichter Zettel je Anlage-Vorgang,
     // damit alle die Reihe sehen - nicht 20 Zettel für 20 Termine.
     if (draftCat === "TERMIN" && draftPinnwand) {
-      const wer = (localStorage.getItem("werkstatt-kalender-name") || "").trim() || "Werkstatt";
+      const wer = (localStorage.getItem(nsKey("werkstatt-kalender-name")) || "").trim() || "Werkstatt";
       const wdhText = draftWdh === "woche" ? " – wöchentlich" : draftWdh === "2wochen" ? " – alle 2 Wochen" : draftWdh === "4wochen" ? " – alle 4 Wochen" : "";
       neu.push({
         id: neueId(), date: todayKey, category: "NOTIZ", name: wer, status: "open",
@@ -4626,7 +4645,7 @@ function App() {
 
   /* ---- Kreativ-Runde G1-G8: Berechnungen ---- */
   // G1: Der Name der Werkstatt - überall dort, wo bisher "Werkstatt-Cockpit" stand.
-  const appName = werkstattName.trim() || "Werkstatt-Cockpit";
+  const appName = werkstattName.trim() || "BTA-Cockpit"; // neuer Programmname (Betriebstechnische Abteilung, Ansage 10.09.)
   // G2: Voller Monat = kleines Fest. Feuert einmal je Monat und Gerät, wenn
   // der laufende Monat komplett erledigt ist - und verschwindet von selbst.
   useEffect(() => {
@@ -4635,9 +4654,9 @@ function App() {
       && String(e.date || "").startsWith(prefix) && (e.status === "done" || e.status === "open"));
     if (basis.length === 0 || !basis.every((e) => e.status === "done")) return undefined;
     let marker = null;
-    try { marker = localStorage.getItem("werkstatt-kalender-fest"); } catch (e) { /* dann eben doppelt */ }
+    try { marker = localStorage.getItem(nsKey("werkstatt-kalender-fest")); } catch (e) { /* dann eben doppelt */ }
     if (marker === prefix) return undefined;
-    try { localStorage.setItem("werkstatt-kalender-fest", prefix); } catch (e) { /* Anzeige gilt trotzdem */ }
+    try { localStorage.setItem(nsKey("werkstatt-kalender-fest"), prefix); } catch (e) { /* Anzeige gilt trotzdem */ }
     setFestOffen({ monatName: MONTHS[Number(prefix.slice(5, 7)) - 1], anzahl: basis.length });
     const t = setTimeout(() => setFestOffen(null), 7000);
     return () => clearTimeout(t);
@@ -4649,7 +4668,7 @@ function App() {
     const jetzt = new Date();
     if (jetzt.getDay() !== 5 || jetzt.getHours() < 12) return null;
     const wochenKennung = `${jetzt.getFullYear()}-KW${getISOWeek(jetzt)}`;
-    try { if (localStorage.getItem("werkstatt-kalender-rueckblick") === wochenKennung) return null; } catch (e) { /* dann eben zeigen */ }
+    try { if (localStorage.getItem(nsKey("werkstatt-kalender-rueckblick")) === wochenKennung) return null; } catch (e) { /* dann eben zeigen */ }
     if (rueckblickZu) return null;
     const montag = new Date(jetzt);
     montag.setDate(jetzt.getDate() - ((jetzt.getDay() + 6) % 7));
@@ -4679,7 +4698,7 @@ function App() {
   // Gerät; ohne eingetragene (lesbare) Geburtstage bleibt alles stumm.
   const geburtstagsLage = (() => {
     if (geburtstagZu) return null;
-    try { if (localStorage.getItem("werkstatt-kalender-geburtstag-zu") === todayKey) return null; } catch (e) { /* dann eben zeigen */ }
+    try { if (localStorage.getItem(nsKey("werkstatt-kalender-geburtstag-zu")) === todayKey) return null; } catch (e) { /* dann eben zeigen */ }
     const heute = [];
     const demnaechst = [];
     team.forEach((t) => {
@@ -4708,7 +4727,7 @@ function App() {
   useEffect(() => {
     if (readerMode || entries.length === 0 || archivHinweis) return;
     let verschobenBis = "";
-    try { verschobenBis = localStorage.getItem("wk-archiv-erinnerung") || ""; } catch (e) { /* egal */ }
+    try { verschobenBis = localStorage.getItem(nsKey("wk-archiv-erinnerung")) || ""; } catch (e) { /* egal */ }
     if (verschobenBis && verschobenBis > todayKey) return; // "Später erinnern" läuft noch
 
     const daten = entries.map((e) => String(e.date || "")).filter((d) => d.length >= 10).sort();
@@ -4720,7 +4739,7 @@ function App() {
     let groesseKB = 0;
     try {
       const a = localStorage.getItem(STORAGE_KEY) || "";
-      const b = localStorage.getItem("werkstatt-stoerungen-entries") || "";
+      const b = localStorage.getItem(STOER_STORAGE_KEY) || "";
       groesseKB = Math.round((a.length + b.length) / 1024);
     } catch (e) { /* egal */ }
     setArchivGrenze(today.getFullYear() - 2); // Vorschlag: die letzten zwei vollen Jahre behalten
@@ -4730,7 +4749,7 @@ function App() {
 
   const archivErinnerungVerschieben = (tage) => {
     const d = new Date(today.getTime() + tage * 86400000);
-    try { localStorage.setItem("wk-archiv-erinnerung", dateKey(d.getFullYear(), d.getMonth(), d.getDate())); } catch (e) { /* egal */ }
+    try { localStorage.setItem(nsKey("wk-archiv-erinnerung"), dateKey(d.getFullYear(), d.getMonth(), d.getDate())); } catch (e) { /* egal */ }
     setArchivHinweis(null);
   };
 
@@ -4766,7 +4785,7 @@ function App() {
       `lege sie an einen sicheren Ort, bevor du fortfährst.\n\nJetzt entfernen?`
     )) return;
     await persist(entries.filter((e) => String(e.date || "").slice(0, 4) > String(archivGrenze)));
-    try { localStorage.removeItem("wk-archiv-erinnerung"); } catch (e) { /* egal */ }
+    try { localStorage.removeItem(nsKey("wk-archiv-erinnerung")); } catch (e) { /* egal */ }
     setArchivHinweis(null);
   };
 
@@ -5036,9 +5055,9 @@ function App() {
   useEffect(() => {
     if (readerMode || !heavyReady || entries.length === 0) return;
     let marker = null;
-    try { marker = localStorage.getItem("werkstatt-kalender-archiv-raeumung"); } catch (e) { /* dann eben prüfen */ }
+    try { marker = localStorage.getItem(nsKey("werkstatt-kalender-archiv-raeumung")); } catch (e) { /* dann eben prüfen */ }
     if (marker === todayKey) return;
-    try { localStorage.setItem("werkstatt-kalender-archiv-raeumung", todayKey); } catch (e) { /* egal */ }
+    try { localStorage.setItem(nsKey("werkstatt-kalender-archiv-raeumung"), todayKey); } catch (e) { /* egal */ }
     const rausIds = new Set(entries.filter((e) =>
       e.category === "TERMIN" && typeof e.date === "string" && e.date && e.date < terminLoeschGrenze
     ).map((e) => e.id));
@@ -5081,7 +5100,7 @@ function App() {
   const addZettel = async (text, name) => {
     if (!String(text || "").trim() || !String(name || "").trim()) return;
     setZettelName(String(name).trim());
-    localStorage.setItem("werkstatt-kalender-name", String(name).trim());
+    localStorage.setItem(nsKey("werkstatt-kalender-name"), String(name).trim());
     const farben = Object.keys(ZETTEL_FARBEN);
     // Erst die angehängten Fotos in den Datenordner schreiben - am Zettel
     // steht wie bei Arbeit und Störung nur der Verweis, die JSON bleibt klein.
@@ -5237,7 +5256,7 @@ function App() {
         const neu = {
           neuId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           datei: neuerFotoName(todayKey), blob, url: URL.createObjectURL(blob),
-          wer: (localStorage.getItem("werkstatt-kalender-name") || "").trim(),
+          wer: (localStorage.getItem(nsKey("werkstatt-kalender-name")) || "").trim(),
           ts: new Date().toISOString(),
         };
         setDraft((d) => (d ? { ...d, fotosNeu: [...(d.fotosNeu || []), neu] } : d));
@@ -7137,7 +7156,7 @@ function App() {
       if (!stoerDarfSchreiben) return;
       setView("COCKPIT");
       setCockpitTab("STOERUNGEN");
-      setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "", fotos: [], fotosNeu: [], fotosWeg: [] });
+      setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem(nsKey("werkstatt-kalender-name")) || "", fotos: [], fotosNeu: [], fotosWeg: [] });
       setStoerModal({ mode: "add" });
     },
     spickzettel: () => setKuerzelOffen((o) => !o),
@@ -7188,13 +7207,50 @@ function App() {
     return teile.join(" · ");
   };
 
-  const printPrefix = filter === "ALL" ? "Werkstatt-Cockpit" : CATS[filter].full;
+  const printPrefix = filter === "ALL" ? "BTA-Cockpit" : CATS[filter].full;
   const printSuffix = view === "JAHR" ? `Jahresübersicht ${year}` : `Monatsübersicht ${MONTHS[month]} ${year}`;
+
+  /* ---------- Werkstatt-Wahl beim ersten Start (BTA-Cockpit) ----------
+     Erscheint NUR auf Rechnern ohne gemerkte Wahl und ohne Altbestand
+     (Bestandsschutz in standort.js: vorhandene Daten = Scheurich, keine
+     Frage). Die Wahl wird auf dem Gerät gemerkt; wechseln geht im ⚙. */
+  if (!STANDORT_GEWAEHLT) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F4F5F6" }}>
+        <div className="text-center px-6 py-10 bg-white rounded-2xl border" style={{ borderColor: "#E2E4E7", maxWidth: "560px", width: "92%", boxShadow: "0 14px 40px rgba(0,0,0,0.10)" }}>
+          <img src={LOGO_GRUPPE} alt="Scheurich-Group" style={{ maxWidth: "340px", width: "80%", margin: "0 auto", display: "block" }} />
+          <div className="font-black" style={{ fontSize: "26px", letterSpacing: "2.5px", color: "#22262B", marginTop: "16px" }}>BTA-COCKPIT</div>
+          <div className="uppercase" style={{ fontSize: "12px", letterSpacing: "2.5px", color: "#8A9099", marginTop: "4px" }}>Betriebstechnische Abteilung</div>
+          <div className="font-bold" style={{ fontSize: "15px", color: "#5B6572", margin: "22px 0 16px" }}>In welcher Werkstatt arbeitest du?</div>
+          <div className="flex gap-4 justify-center" style={{ flexWrap: "wrap" }}>
+            {[["scheurich", LOGO_SCHEURICH], ["soendgen", LOGO_SOENDGEN]].map(([id, logo]) => (
+              <button
+                key={id}
+                onClick={() => standortWaehlen(id)}
+                className="bg-white rounded-2xl border-2 px-4 py-5"
+                style={{ borderColor: "#E2E4E7", width: "220px", cursor: "pointer" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#E85D10"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E4E7"; }}
+              >
+                <img src={logo} alt={STANDORTE[id].name} style={{ height: "72px", objectFit: "contain", maxWidth: "86%", margin: "0 auto", display: "block" }} />
+                <div className="font-black" style={{ fontSize: "15px", color: "#22262B", marginTop: "10px" }}>{STANDORTE[id].name}</div>
+                <div style={{ fontSize: "11.5px", color: "#8A9099", marginTop: "2px" }}>{STANDORTE[id].ort}</div>
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: "11px", color: "#A6AEB6", lineHeight: 1.55, marginTop: "20px" }}>
+            Die Wahl wird auf diesem Rechner gemerkt – die Frage kommt nur beim ersten Start.<br />
+            Wechseln geht später über ⚙ → Verlauf &amp; Sicherung.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#EBEDEF" }}>
-        <div className="text-sm text-slate-500 font-mono">Werkstatt-Cockpit wird geladen…</div>
+        <div className="text-sm text-slate-500 font-mono">BTA-Cockpit wird geladen…</div>
       </div>
     );
   }
@@ -7245,8 +7301,13 @@ function App() {
               <path className="wk-z-blatt-l" d="M16 11.6 Q10.2 7.6 8.2 12.8 Q12.6 15.6 16 11.6 Z" fill="#4CA05E" />
               <path className="wk-z-blatt-r" d="M16 9 Q21.8 4.8 23.8 10 Q19.4 12.8 16 9 Z" fill="#58B36A" />
             </svg>
-            {/* G1: Der Name gehört der Werkstatt - einstellbar im ⚙. */}
-            <div className="font-black text-lg tracking-tight uppercase text-white">{appName}</div>
+            {/* G1: Der Name gehört der Werkstatt - einstellbar im ⚙. Seit der
+                Standort-Wahl steht daneben klein, WELCHE Werkstatt gerade
+                geladen ist - die wichtigste Auskunft gegen Verwechslungen. */}
+            <div>
+              <div className="font-black text-lg tracking-tight uppercase text-white" style={{ lineHeight: 1.05 }}>{appName}</div>
+              <div className="text-[10px] font-bold tracking-wide" style={{ color: "#B7BEC6" }}>{STANDORT.name} · {STANDORT.ort}</div>
+            </div>
           </div>
           {/* Hauptbereiche Cockpit / TPM - für Bearbeiter UND Leser gleich.
               Leser sehen im Untermenü nur die freigegebene, kleinere Auswahl
@@ -8522,7 +8583,7 @@ function App() {
                 const an = stoerAnsicht === k;
                 return (
                   <button key={k} className="w-full text-left flex items-center"
-                    onClick={() => { setStoerAnsicht(k); try { localStorage.setItem("werkstatt-stoer-ansicht", k); } catch (e) { /* egal */ } }}
+                    onClick={() => { setStoerAnsicht(k); try { localStorage.setItem(nsKey("werkstatt-stoer-ansicht"), k); } catch (e) { /* egal */ } }}
                     style={{ padding: "5px 12px", fontSize: "0.75rem", color: an ? "#A25E14" : "#3C444C", fontWeight: an ? 800 : 400, backgroundColor: an ? "#FDF0E2" : "transparent", boxShadow: an ? "inset 3px 0 0 #C97A2B" : "none" }}>
                     {label}
                   </button>
@@ -8534,7 +8595,7 @@ function App() {
                 const an = stoerListeZeitraum === k;
                 return (
                   <button key={k} className="w-full text-left flex items-center gap-2"
-                    onClick={() => { setStoerListeZeitraum(k); try { localStorage.setItem("werkstatt-stoer-zeitraum", k); } catch (e) { /* egal */ } }}
+                    onClick={() => { setStoerListeZeitraum(k); try { localStorage.setItem(nsKey("werkstatt-stoer-zeitraum"), k); } catch (e) { /* egal */ } }}
                     style={{ padding: "5px 12px", fontSize: "0.75rem", color: an ? "#A25E14" : "#3C444C", fontWeight: an ? 800 : 400, backgroundColor: an ? "#FDF0E2" : "transparent", boxShadow: an ? "inset 3px 0 0 #C97A2B" : "none" }}>
                     <span>{label}</span>
                     <span className="ml-auto font-mono font-bold" style={{ fontSize: "0.66rem", color: an ? "#C97A2B" : "#97A0A9" }}>{zaehleZeitraum(k)}</span>
@@ -8600,7 +8661,7 @@ function App() {
             {stoerModus === "liste" && stoerungen.length === 0 && <span className="ml-auto" />}
             {stoerDarfSchreiben && (
               <button
-                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem("werkstatt-kalender-name") || "", fotos: [], fotosNeu: [], fotosWeg: [] }); setStoerModal({ mode: "add" }); }}
+                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem(nsKey("werkstatt-kalender-name")) || "", fotos: [], fotosNeu: [], fotosWeg: [] }); setStoerModal({ mode: "add" }); }}
                 className="flex items-center gap-1.5 rounded-lg text-white font-bold shrink-0 ml-auto"
                 style={{ backgroundColor: "#C0392B", padding: "6px 12px", fontSize: "0.78rem" }}
               >
@@ -9063,7 +9124,7 @@ function App() {
               <span aria-hidden="true" style={{ fontSize: "18px" }}>🏁</span>
               <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#1F5233" }}>Wochen-Rückblick · KW {wochenRueckblick.kw}</span>
               <button
-                onClick={() => { setRueckblickZu(true); try { localStorage.setItem("werkstatt-kalender-rueckblick", wochenRueckblick.wochenKennung); } catch (e) { /* bleibt dann bis Freitagabend */ } }}
+                onClick={() => { setRueckblickZu(true); try { localStorage.setItem(nsKey("werkstatt-kalender-rueckblick"), wochenRueckblick.wochenKennung); } catch (e) { /* bleibt dann bis Freitagabend */ } }}
                 aria-label="Wochen-Rückblick schließen"
                 className="ml-auto text-slate-400 hover:text-slate-600"
               >
@@ -9116,7 +9177,7 @@ function App() {
               </span>
             )}
             <button
-              onClick={() => { setGeburtstagZu(true); try { localStorage.setItem("werkstatt-kalender-geburtstag-zu", todayKey); } catch (e) { /* dann eben je Sitzung */ } }}
+              onClick={() => { setGeburtstagZu(true); try { localStorage.setItem(nsKey("werkstatt-kalender-geburtstag-zu"), todayKey); } catch (e) { /* dann eben je Sitzung */ } }}
               aria-label="Geburtstags-Erinnerung schließen"
               className="ml-auto text-slate-400 hover:text-slate-600"
             >
@@ -12901,14 +12962,14 @@ function App() {
             </div>
             <input
               value={zettelName}
-              onChange={(e) => { setZettelName(e.target.value); try { localStorage.setItem("werkstatt-kalender-name", e.target.value.trim()); } catch (err) { /* Speicher voll o. ä. */ } }}
+              onChange={(e) => { setZettelName(e.target.value); try { localStorage.setItem(nsKey("werkstatt-kalender-name"), e.target.value.trim()); } catch (err) { /* Speicher voll o. ä. */ } }}
               placeholder="z. B. R. Ciraci"
               className="w-full text-sm px-2 py-1.5 rounded border mb-5"
               style={{ borderColor: "#D7DCE1" }}
             />
 
             {/* G1: Der Name der Werkstatt - Kopfzeile und Druckköpfe. Leer =
-                weiterhin "Werkstatt-Cockpit". Gespeichert beim Verlassen des
+                weiterhin "BTA-Cockpit". Gespeichert beim Verlassen des
                 Feldes, für alle (gemeinsame Einstellungen). */}
             {!readerMode && (
               <>
@@ -12997,6 +13058,28 @@ function App() {
             </>)}
 
             {settingsTab === "pflege" && (<>
+            {/* Standort dieses Rechners (BTA-Cockpit): anzeigen + wechseln.
+                Der Wechsel lädt die App neu - jeder Standort hat seinen
+                eigenen, komplett getrennten Datenbestand. */}
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Werkstatt / Standort dieses Rechners</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Dieser Rechner arbeitet als <strong>{STANDORT.name} ({STANDORT.ort})</strong>. Jede Werkstatt hat ihre
+              eigenen Daten und Datendateien – beim Wechsel wird nichts vermischt, die App lädt neu.
+            </div>
+            <div className="flex gap-2 mb-5">
+              {Object.values(STANDORTE).filter((s) => s.id !== STANDORT.id).map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    if (window.confirm(`Diesen Rechner auf die Werkstatt „${s.name}" umstellen? Die App lädt neu und zeigt dann den Bestand von ${s.name}. Die Daten von ${STANDORT.name} bleiben unverändert erhalten.`)) standortWaehlen(s.id);
+                  }}
+                  className="text-xs font-bold px-3 py-1.5 rounded border"
+                  style={{ borderColor: "#D6D9DC", color: "#374151", backgroundColor: "#F7F8F9" }}
+                >
+                  Zu „{s.name}" wechseln …
+                </button>
+              ))}
+            </div>
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Verlauf (wer hat was geändert)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Änderungen der letzten 90 Tage aus der gemeinsamen Datei. Wer keinen Namen hinterlegt hat, erscheint als „Unbekannt".

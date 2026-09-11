@@ -42,6 +42,9 @@ const pruef = (n, c, zusatz) => {
       { id: "s1", date: "2026-09-07", anlage: "TS480", stoerung: "Testlauf-Störung", offen: true, gemeldetAt: "2026-09-07T06:00:00" },
     ]));
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1200);
 

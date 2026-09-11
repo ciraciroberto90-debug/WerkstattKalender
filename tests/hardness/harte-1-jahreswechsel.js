@@ -16,6 +16,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   // Solo-Betrieb ohne File System Access API (wie Firefox/Safari) - dort gilt
   // die App als volle Solo-Instanz, nicht als "noch nicht verbundener Leser".
   await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker; });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.evaluate(() => {
     localStorage.setItem('werkstatt-kalender-config', JSON.stringify({

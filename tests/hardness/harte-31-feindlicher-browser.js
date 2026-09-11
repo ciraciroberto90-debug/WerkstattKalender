@@ -58,6 +58,9 @@ async function seite(browser) {
   // ---------- Hauptdatei ----------
   const p = await seite(b);
   const fehler = []; p.on("pageerror", (e) => fehler.push(e.message));
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP); await p.waitForTimeout(1500);
 
   await p.getByRole("button", { name: /Gemeinsame Datei/ }).first().click(); await p.waitForTimeout(400);

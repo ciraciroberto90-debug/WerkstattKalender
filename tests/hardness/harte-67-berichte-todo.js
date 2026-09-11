@@ -44,6 +44,9 @@ const pruef = (n, c, zusatz) => {
       { id: "s1", nr: "2026-0041", date: "2026-09-10", schicht: "Früh", anlage: "TS 480", stoerung: "Hydraulikleitung undicht", gewerk: "mech", ausfallzeit: 85, offen: true, gemeldetAt: "2026-09-10T07:00:00.000Z", melder: "TB" },
     ]));
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(1300);
 
@@ -127,6 +130,9 @@ const pruef = (n, c, zusatz) => {
     }));
     localStorage.setItem("werkstatt-kalender-benutzer", "chef");
   });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p2.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p2.goto(APP);
   await p2.waitForTimeout(1300);
   pruef("(B5) Leser sehen NUR Übersicht + Berichte",

@@ -40,6 +40,9 @@ for (const [name, content] of faelle) fs.writeFileSync(path.join(TMP, name), con
   // verbundener Nur-Leser" (der Unterschied gilt nur für Chrome/Edge, wo
   // eine "Gemeinsame Datei" grundsätzlich möglich wäre).
   await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker; });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await page.goto(APP);
   await page.evaluate(() => {
     localStorage.setItem('werkstatt-kalender-entries', JSON.stringify([

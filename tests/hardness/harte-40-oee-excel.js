@@ -161,6 +161,9 @@ async function starte(browser, { imDatenordner = {}, imQuellordner = null } = {}
     window.showOpenFilePicker = async () => [jsonHandle];
   }, [imDatenordner, imQuellordner]);
 
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.waitForTimeout(500);
   await p.locator('button[aria-label="Gemeinsame Datei"]').click();

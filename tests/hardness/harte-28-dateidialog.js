@@ -44,6 +44,9 @@ async function starte(browser, { dialogDauer, erlaubnis, antwort }) {
     window.showSaveFilePicker = async () => { await new Promise(r => setTimeout(r, dialogDauer)); return h; };
   }, { dialogDauer, erlaubnis, antwort });
   const fehler = []; p.on("pageerror", e => fehler.push(e.message));
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP); await p.waitForTimeout(1500);
   return { p, fehler };
 }
@@ -146,6 +149,9 @@ async function verbinde(p, wartezeit) {
       window.showOpenFilePicker = async () => [h];
       window.showSaveFilePicker = async () => h;
     }, { anzahl, lokal, darfSchreiben });
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP); await p.waitForTimeout(1400);
     await p.getByRole("button", { name: /Gemeinsame Datei/ }).first().click(); await p.waitForTimeout(400);
     await p.getByRole("button", { name: /Vorhandene Datei öffnen/ }).first().click();

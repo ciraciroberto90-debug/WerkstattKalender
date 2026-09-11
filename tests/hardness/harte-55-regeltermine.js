@@ -46,6 +46,9 @@ async function start(browser, eintraege, uhr) {
     localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(e));
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
   }, { e: eintraege, c: config });
+  // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+  // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+  await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
   await p.goto(APP);
   await p.getByRole("button", { name: "TPM", exact: true }).first().waitFor({ timeout: 8000 });
   await p.waitForTimeout(900);
@@ -241,6 +244,9 @@ const leseEintraege = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("w
       };
       window.showOpenFilePicker = async () => [handle];
     }, config);
+    // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
+    // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
+    await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(800);
     await p.locator('button[aria-label="Gemeinsame Datei"]').click();
