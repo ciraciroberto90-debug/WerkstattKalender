@@ -22,6 +22,12 @@ const GEWERKE = ["Mechanik", "Elektrik"];
 const FEHLERARTEN = ["Störmeldung", "Verschleiß", "Bedienfehler", "Materialfehler", "Sonstiges"];
 const SCHICHTEN = ["Früh", "Spät", "Nacht"];
 const WERTE = ["Früh", "Spät", "Nacht", "Urlaub", "Krank", "Schulung"];
+// Kleine Kostenstellen-Auswahl für die Zeiterfassungs-Buchungen des Auffüllers.
+const KOSTENSTELLEN_LANGZEIT = [
+  ["4711", "Presserei TS-Anlagen"], ["4720", "Glasur Halle 2"],
+  ["4730", "Ofenhalle"], ["4750", "Gebäude & Infrastruktur"],
+  ["4790", "Allgemeine Instandhaltung"],
+];
 
 function* werktage(vonISO, bisISO) {
   const d = new Date(vonISO + "T00:00:00Z");
@@ -107,9 +113,11 @@ function baueBestand({ von = "2019-07-01", bis = "2026-07-28", jeJahr = 4500 } =
 
   // Robertos Ansage vom 07.09.2026: Ein volles Werkstatt-Jahr sind rund
   // 4.500 Einträge - deutlich mehr, als die Taktgeber oben erzeugen.
-  // Der Bestand wird deshalb je Kalenderjahr deterministisch mit kleinen
-  // Zusatz-Arbeiten aufgefüllt, bis die Jahresrate erreicht ist. So misst
-  // die nächste Stress-Messfahrt das echte Tempo (15 Jahrgänge ≈ 67.500).
+  // Der Bestand wird deshalb je Kalenderjahr deterministisch aufgefüllt,
+  // bis die Jahresrate erreicht ist. Seit dem 11.09. (Robertos „teile es
+  // ordentlich auf") verteilt sich das Auffüllen auf DREI Sorten statt nur
+  // Backlog-Arbeiten: Arbeiten (Planung), To-dos und Zeiterfassungs-
+  // Buchungen - so, wie der Bestand seit dem Berichte-Umbau wirklich wächst.
   const JE_JAHR = jeJahr;
   if (!JE_JAHR) return { team: TEAM, entries };
   const zaehler = new Map();
@@ -131,13 +139,47 @@ function baueBestand({ von = "2019-07-01", bis = "2026-07-28", jeJahr = 4500 } =
     let fehlt = soll - (zaehler.get(jahr) || 0);
     for (let k = 0; fehlt > 0; k++, fehlt--) {
       const tag = tage[k % tage.length];
-      const a = ANLAGEN[streu("extra" + tag + k) % ANLAGEN.length];
-      entries.push({
-        id: `arbeit-extra|${tag}|${k}`, date: tag, category: "ARBEIT",
-        name: `${a}: ${TEILE[streu(tag + k) % TEILE.length]} nachgestellt`,
-        gewerk: GEWERKE[k % 2], status: k % 9 === 0 ? "open" : "done",
-        updatedAt: stempel(tag, 11),
-      });
+      const s = streu("extra" + tag + k);
+      const sorte = k % 3; // 0 = Arbeit (Planung), 1 = To-do, 2 = Zeiterfassung
+      if (sorte === 0) {
+        const a = ANLAGEN[s % ANLAGEN.length];
+        entries.push({
+          id: `arbeit-extra|${tag}|${k}`, date: tag, category: "ARBEIT",
+          name: `${a}: ${TEILE[streu(tag + k) % TEILE.length]} nachgestellt`,
+          gewerk: GEWERKE[k % 2], status: k % 9 === 0 ? "open" : "done",
+          updatedAt: stempel(tag, 11),
+        });
+      } else if (sorte === 1) {
+        // To-dos wie im Berichte-Bereich: erteilt, mit Frist, meist erledigt.
+        const wer = TEAM[s % TEAM.length].name;
+        const fertig = k % 8 !== 0;
+        entries.push({
+          id: `todo-extra|${tag}|${k}`, date: tag, category: "TODO",
+          name: `${TEILE[(s >> 2) % TEILE.length]} an ${ANLAGEN[s % ANLAGEN.length]} richten`,
+          wer, bis: tag, prio: ["", "mittel", "hoch"][(s >> 4) % 3],
+          erteiltVon: "R. Ciraci",
+          status: fertig ? "done" : "offen",
+          erledigtAm: fertig ? stempel(tag, 15) : "",
+          erledigtVon: fertig ? wer : "",
+          updatedAt: stempel(tag, 12),
+        });
+      } else {
+        // Zeiterfassung: name ist der Mitarbeiter (Pflichtfeld des Laders!).
+        const abwesend = k % 13 === 0;
+        const ks = KOSTENSTELLEN_LANGZEIT[(s >> 3) % KOSTENSTELLEN_LANGZEIT.length];
+        entries.push({
+          id: `zeit-extra|${tag}|${k}`, date: tag, category: "ZEIT",
+          art: abwesend ? "abwesenheit" : "arbeit",
+          schicht: SCHICHTEN[s % SCHICHTEN.length],
+          name: TEAM[(s >> 1) % TEAM.length].name,
+          ks: abwesend ? "" : ks[1], ksNr: abwesend ? "" : ks[0],
+          taetigkeit: abwesend ? "" : `${TEILE[(s >> 5) % TEILE.length]} instand gesetzt`,
+          stunden: abwesend ? 0 : (1 + (s % 14)) / 2,
+          grund: abwesend ? ["Urlaub", "Krank", "Zeitausgleich"][(s >> 6) % 3] : "",
+          bemerkung: "", stoerNr: "",
+          updatedAt: stempel(tag, 13),
+        });
+      }
     }
   }
 

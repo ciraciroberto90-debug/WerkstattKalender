@@ -8,7 +8,7 @@ Punkte, ohne Umschweife. Neue Aufgaben kommen unten dazu, erledigte wandern
 nach unten in „Erledigt" statt gelöscht zu werden – so bleibt nachvollziehbar,
 was schon durch ist.
 
-Stand: 07.08.2026
+Stand: 11.09.2026
 
 ---
 
@@ -96,108 +96,6 @@ gleich; unterschieden hat sie nur der Pfad, und den zeigt die App nirgends.
 - [ ] **Zwei Sicherungsdateien `…_2026-07-28`** – vorher `Selbsttest.cmd`
       laufen lassen und die Eintragszahlen vergleichen. Erst wenn die aktuelle
       Datei mindestens so viele Einträge hat, können sie weg.
-
-## Umzug auf einen Server - STICHTAG 10.08. (Robertos Entscheidung)
-
-**Robertos Ansage vom 07.08.: Die JSON muss raus aus OneDrive.** Der
-Daten-Umzug aufs Firmenlaufwerk ist damit gesetzt, nicht mehr nur angedacht.
-Die App kann die Datei dort lesen und schreiben – das Laufwerk wird wie
-jeder Ordner angesprochen (die OEE-Tabelle kommt heute schon von dort).
-Vor dem Stichtag erst mit einer KOPIE der JSON in einem Laufwerksordner
-proben; beim Umzug selbst wählt jedes Gerät die Datei einmal neu an –
-vorher den vollen Pfad an alle verteilen (der 03.08.-Fall).
-
-**Erste Probe am 10.08. (Roberto, Programm-Fassung):** Kopie der JSON auf dem
-Firmenlaufwerk verbunden → App ging auf **Schreibschutz**. Das ist das
-ehrliche, erwartete Verhalten, wenn der Schreibversuch am Laufwerk scheitert -
-Lesen klappt also schon. Zu klären, in dieser Reihenfolge:
-
-- [x] Schreibschutz-Häkchen der KOPIE geprüft (10.08., Robertos Bild): NICHT
-      gesetzt - scheidet aus.
-- [x] Neue Datei im Ordner anlegen: GEHT (10.08.) - Ordnerrechte scheiden
-      damit als Ursache weitgehend aus.
-- [x] **Konsequenz eingebaut (10.08.):** Der Schreibschutz wird nach einem
-      Fehlschlag GEMERKT - ein Neustart allein heilt ihn nicht. Und im
-      Programm gibt es keine Adresszeile für den Diagnose-Modus
-      `?verwalten=1`. Deshalb zeigt die Programm-Fassung jetzt in der
-      Schreibschutz-Leiste immer den **technischen Grund** und den Knopf
-      **„Schreibzugriff erneut versuchen"** (der Datei-Wechsel-Knopf bleibt
-      versteckt - 03.08.-Lehre). Gegenprobe dokumentiert: ohne die Änderung
-      2 FAIL (harte-41, Fall 12).
-- [x] **Aufgeklärt (10.08., zweites Bild):** Es lief die ALTE App-Fassung
-      (Kachel „68,0 % gesamt" kleingeschrieben = Anzeige von vor der
-      Pivot-Umstellung), obwohl die neue ZIP installiert war. Ursache im
-      Rahmen: Eine früher per Update übernommene `app-aktuell.html` im
-      Programm-Profil gewann BEDINGUNGSLOS gegen die eingebaute Fassung -
-      eine neue ZIP lief damit nie. Behoben: Es gewinnt die jüngere
-      Bau-Zeit (Fassungen ohne Stempel gelten als uralt). Nachweis am
-      echten Electron mit Gegenprobe (pruefe-programm 15/15; alter Rahmen:
-      FAIL). Achtung: Das ist ein RAHMEN-Fix → einmal ZIP tauschen.
-- [x] **Der technische Grund liegt vor (10.08., drittes Bild):**
-      `EPERM ... open '\\SCHEUDC1\...\.werkstatt-kalender-daten - Kopie.json.schreibe-44312'`
-      – der Server verweigert schon das ANLEGEN der Zwischendatei fürs
-      atomare Schreiben, während eine .txt im selben Ordner anstandslos
-      geht. Das passt auf eine **Dateityp-Prüfung des Servers** (FSRM):
-      unbekannte Endung „.schreibe-44312" + versteckter Punkt-Name →
-      abgewiesen. Behoben: Die Zwischendatei trägt jetzt die **Endung des
-      Ziels** (`daten.schreibe-4711.json`) und beginnt nicht mehr mit
-      einem Punkt (programm/zwischenname.js, pruefe-programm 18/18).
-      Wieder ein RAHMEN-Fix → noch einmal ZIP tauschen.
-- [x] **BESTÄTIGT (10.08., Roberto): „hat geklappt."** Mit der neuen
-      Zwischendatei-Endung schreibt das Programm auf das Firmenlaufwerk -
-      der Schreibschutz ist weg. Damit ist am echten Laufwerk bewiesen:
-      Das Programm kann die JSON dort **lesen UND schreiben**. Der Weg für
-      den OneDrive-Ausstieg ist frei; offen bleibt nur der Stichtag-Umzug
-      (Pfad an alle verteilen, jedes Gerät wählt einmal neu an) und die
-      `.crswap`-Probe für die Browser-Rechner (Punkt unten).
-- [x] **ENTFÄLLT (26.08., Robertos Ansage: keine Browser-Rechner mehr,
-      überall läuft das Programm):** ~~Fürs Umziehen der BROWSER-Rechner
-      aufs Laufwerk wichtig~~ - Chrome legt beim Speichern `.crswap`-
-      Zwischendateien an, die eine Dateityp-Prüfung des Servers abweisen
-      könnte. Das Programm schreibt stattdessen über seine eigene
-      Zwischendatei mit Ziel-Endung (am echten Laufwerk bewiesen, 10.08.).
-      Sollte je wieder ein Browser-Rechner dazukommen, gilt der Punkt
-      wieder - deshalb bleibt er hier stehen statt gelöscht zu werden.
-- [ ] **Nächster Schritt für Roberto:** neue ZIP einspielen (vorher alle
-      Cockpit-Fenster schließen - der Zweitstart-Schutz holt sonst das
-      alte Fenster nach vorn), Programm
-      öffnen → in der Leiste steht der technische Grund → einmal
-      „Schreibzugriff erneut versuchen" klicken. Klappt es dann, war der
-      erste Fehlschlag vorübergehend (Datei kurz belegt, Virenscanner).
-      Steht dort ein Rechte-Fehler (EPERM/EACCES), den Grund hier melden -
-      dann ist es doch eine Freigabe-Frage an die IT.
-
-App und Datendateien sollen künftig auf einem Server liegen statt in
-OneDrive. Zwei Dinge sind **vor** dem Aufsetzen zu klären, sonst steht die
-App hinterher still:
-
-- [ ] **Wenn die HTML vom Server ausgeliefert wird, dann zwingend über
-      `https` mit gültigem Zertifikat.** Gemessen am 04.08.2026 in Chromium:
-      über `http://<IP>:8080/` ist `window.showOpenFilePicker` **undefined**
-      (`isSecureContext = false`), über `localhost` dagegen vorhanden. Ohne
-      sicheren Ursprung gibt es keine gemeinsame Datei mehr – jeder arbeitet
-      still für sich, genau der Zustand vom 03.08., nur für alle.
-      Alternative: Die HTML bleibt lokal beim Ausliefer-Dienst (localhost),
-      und nur die **Daten** wandern auf die Server-Freigabe. Das ist der
-      billigste Weg und kostet keine Zeile Code.
-- [ ] **Der Ursprung wechselt = alle gemerkten Dateiverbindungen sind weg.**
-      Der Browser merkt sich den Dateiverweis pro Ursprung. Kommt die App
-      künftig von `https://server/…` statt von `localhost:8765`, muss
-      **jeder** die gemeinsame Datei einmal neu anwählen – der Vorgang, bei
-      dem am 03.08. eine leere Datei erwischt wurde. Deshalb: erst die vier
-      Punkte oben erledigen, dann umziehen, und den vollständigen Pfad
-      vorher an alle verteilen.
-- [ ] **Dateien per Klick öffnen braucht weiterhin den lokalen Dienst.** Eine
-      Seite vom zentralen Server kann keine Laufwerkspfade im Explorer
-      öffnen. `cockpit-server.ps1` müsste also bleiben, auch wenn die HTML
-      zentral liegt – ob eine `https`-Seite ihn ansprechen darf, ist vor der
-      Umstellung zu messen (Chrome behandelt `localhost` gesondert).
-
-**Was der Umzug bringt:** Liegen die Daten auf einer Server-Freigabe statt in
-OneDrive, entfallen Konfliktkopien und Sync-Verzug, und die Sicherung läuft
-über die Server-Sicherung mit. Die App selbst muss dafür nicht geändert
-werden – sie spricht ein eingebundenes Laufwerk genauso an wie den
-OneDrive-Ordner.
 
 ## Sicherheit (Robertos Frage vom 10.08.: „Lücken von außen?")
 
@@ -295,8 +193,9 @@ ein Netz-Aussetzer wird gemeldet, aber nicht festgeschrieben.
       Mechanismus, der alle Verbindungen kappt.
 
 - [ ] **Der Selbsttest prüft den falschen Ordner.** Er schaut in den
-      App-Ordner (`\\scheudc1\…\Werkstatt_Kalender`), die Daten liegen aber
-      in OneDrive. Ergebnis: „KEINE JSON-Datei" und „Sicherungen: keine" –
+      App-Ordner (`\\scheudc1\…\Werkstatt_Kalender`); liegen die Daten in
+      einem anderen Ordner (damals OneDrive, heute der Datenordner auf dem
+      Firmenlaufwerk), meldet er „KEINE JSON-Datei" und „Sicherungen: keine" –
       zwei Meldungen, die wie Datenverlust aussehen und niemanden kaltlassen.
       Ein Fehlalarm dieser Art ist gefährlich, weil er zu genau der Handlung
       treibt, die am 03.08. den Schaden angerichtet hat: eine neue Datei
@@ -542,6 +441,36 @@ auf denselben Dateien.
       (wurde im Altsystem wiederverwendet - deshalb hütet der
       Doppel-Wächter nur noch den neuen Nummernkreis JJJJ-NNNN).
 
+## Aufräumen + 70.000er-Messfahrt (Robertos Ansage vom 11.09.)
+
+- [x] **Neuer Roll-out-Prüfbericht (11.09.):** `doku/ROLLOUT-PRUEFBERICHT.md`
+      komplett neu geschrieben - Firmenlaufwerk statt OneDrive, aktuelle
+      Suiten-Zahl, die 70.000er-Messfahrt mit Aufteilung und allen Zeiten
+      zum Nachlesen. Die OneDrive-Ära in dieser Liste ist nach „Erledigt"
+      gewandert (Abschnitt „Umzug auf einen Server", mit Gründen
+      geschlossen statt gelöscht).
+
+- [x] **Langzeitbestand auf über 70.000 Einträge, ordentlich aufgeteilt
+      (11.09.):** Der Auffüller des Generators verteilt die 4.500er-
+      Jahresrate jetzt auf Arbeiten (Planung), To-dos und Zeiterfassungs-
+      Buchungen statt alles als Backlog-Arbeit zu stapeln. Bestand der
+      Messfahrt: 71.084 gesamt (SCHICHT 31.728 · ARBEIT 11.654 ·
+      TODO 10.660 · ZEIT 10.648 · TPM 1.647 · R+I 1.647 · NOTIZ 396 ·
+      Störberichte 2.704), 15,2 MB. harte-33 (sieben Jahre) blieb
+      byte-gleich und grün - der Generator ist rückwärtsverträglich.
+
+- [x] **FUND der Messfahrt + Fix: Notbremse gegen Massenlöschung
+      (11.09.).** Oberhalb der ~5-MB-Grenze des Browsers bleibt der
+      örtliche Spiegel leer; ein Speichervorgang auf dieser Basis machte
+      aus dem vollen Vergleichsstand „68.380 gewollte Löschungen" - die
+      Datei verlor GEMESSEN ihren kompletten fachlichen Bestand und
+      bekam 68.380 „gelöscht"-Verlaufszeilen. Seit der Notbremse gilt:
+      Löschmenge >1000 bei <100 verbleibenden Einträgen = kaputter
+      Vergleichsstand, kein Wille - Löschungen verworfen, Bestand bleibt,
+      laute Meldung. Neue Wache harte-69 (8 Prüfungen, mit
+      Archiv-Räumungs-Gegenprobe); Pflicht-Nachweis gemessen: ohne
+      Bremse 5/8 rot (von 1.500 Einträgen überlebt genau 1).
+
 ## Der nächste große Bau: Bereich „Berichte" + Zwei-Standort-Betrieb (Meeting vom 10.09.)
 
 Der Geschäftsführung gefällt die App - jetzt kommt die Umstrukturierung,
@@ -691,6 +620,121 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       das Handy können muss: nur nachschauen, oder auch melden?).
 
 ## Erledigt
+
+### Umzug auf einen Server - STICHTAG 10.08. (ABGESCHLOSSEN; OneDrive ist Geschichte)
+
+*Aufgeräumt am 11.09.2026: Der Umzug aufs Firmenlaufwerk ist seit dem
+10.08. vollzogen und bestätigt („hat geklappt"), OneDrive wird nirgends
+mehr verwendet. Der Abschnitt bleibt als Verlauf erhalten; die einst
+offenen Punkte sind unten mit Grund geschlossen.*
+
+**Robertos Ansage vom 07.08.: Die JSON muss raus aus OneDrive.** Der
+Daten-Umzug aufs Firmenlaufwerk ist damit gesetzt, nicht mehr nur angedacht.
+Die App kann die Datei dort lesen und schreiben – das Laufwerk wird wie
+jeder Ordner angesprochen (die OEE-Tabelle kommt heute schon von dort).
+Vor dem Stichtag erst mit einer KOPIE der JSON in einem Laufwerksordner
+proben; beim Umzug selbst wählt jedes Gerät die Datei einmal neu an –
+vorher den vollen Pfad an alle verteilen (der 03.08.-Fall).
+
+**Erste Probe am 10.08. (Roberto, Programm-Fassung):** Kopie der JSON auf dem
+Firmenlaufwerk verbunden → App ging auf **Schreibschutz**. Das ist das
+ehrliche, erwartete Verhalten, wenn der Schreibversuch am Laufwerk scheitert -
+Lesen klappt also schon. Zu klären, in dieser Reihenfolge:
+
+- [x] Schreibschutz-Häkchen der KOPIE geprüft (10.08., Robertos Bild): NICHT
+      gesetzt - scheidet aus.
+- [x] Neue Datei im Ordner anlegen: GEHT (10.08.) - Ordnerrechte scheiden
+      damit als Ursache weitgehend aus.
+- [x] **Konsequenz eingebaut (10.08.):** Der Schreibschutz wird nach einem
+      Fehlschlag GEMERKT - ein Neustart allein heilt ihn nicht. Und im
+      Programm gibt es keine Adresszeile für den Diagnose-Modus
+      `?verwalten=1`. Deshalb zeigt die Programm-Fassung jetzt in der
+      Schreibschutz-Leiste immer den **technischen Grund** und den Knopf
+      **„Schreibzugriff erneut versuchen"** (der Datei-Wechsel-Knopf bleibt
+      versteckt - 03.08.-Lehre). Gegenprobe dokumentiert: ohne die Änderung
+      2 FAIL (harte-41, Fall 12).
+- [x] **Aufgeklärt (10.08., zweites Bild):** Es lief die ALTE App-Fassung
+      (Kachel „68,0 % gesamt" kleingeschrieben = Anzeige von vor der
+      Pivot-Umstellung), obwohl die neue ZIP installiert war. Ursache im
+      Rahmen: Eine früher per Update übernommene `app-aktuell.html` im
+      Programm-Profil gewann BEDINGUNGSLOS gegen die eingebaute Fassung -
+      eine neue ZIP lief damit nie. Behoben: Es gewinnt die jüngere
+      Bau-Zeit (Fassungen ohne Stempel gelten als uralt). Nachweis am
+      echten Electron mit Gegenprobe (pruefe-programm 15/15; alter Rahmen:
+      FAIL). Achtung: Das ist ein RAHMEN-Fix → einmal ZIP tauschen.
+- [x] **Der technische Grund liegt vor (10.08., drittes Bild):**
+      `EPERM ... open '\\SCHEUDC1\...\.werkstatt-kalender-daten - Kopie.json.schreibe-44312'`
+      – der Server verweigert schon das ANLEGEN der Zwischendatei fürs
+      atomare Schreiben, während eine .txt im selben Ordner anstandslos
+      geht. Das passt auf eine **Dateityp-Prüfung des Servers** (FSRM):
+      unbekannte Endung „.schreibe-44312" + versteckter Punkt-Name →
+      abgewiesen. Behoben: Die Zwischendatei trägt jetzt die **Endung des
+      Ziels** (`daten.schreibe-4711.json`) und beginnt nicht mehr mit
+      einem Punkt (programm/zwischenname.js, pruefe-programm 18/18).
+      Wieder ein RAHMEN-Fix → noch einmal ZIP tauschen.
+- [x] **BESTÄTIGT (10.08., Roberto): „hat geklappt."** Mit der neuen
+      Zwischendatei-Endung schreibt das Programm auf das Firmenlaufwerk -
+      der Schreibschutz ist weg. Damit ist am echten Laufwerk bewiesen:
+      Das Programm kann die JSON dort **lesen UND schreiben**. Der Weg für
+      den OneDrive-Ausstieg ist frei; offen bleibt nur der Stichtag-Umzug
+      (Pfad an alle verteilen, jedes Gerät wählt einmal neu an) und die
+      `.crswap`-Probe für die Browser-Rechner (Punkt unten).
+- [x] **ENTFÄLLT (26.08., Robertos Ansage: keine Browser-Rechner mehr,
+      überall läuft das Programm):** ~~Fürs Umziehen der BROWSER-Rechner
+      aufs Laufwerk wichtig~~ - Chrome legt beim Speichern `.crswap`-
+      Zwischendateien an, die eine Dateityp-Prüfung des Servers abweisen
+      könnte. Das Programm schreibt stattdessen über seine eigene
+      Zwischendatei mit Ziel-Endung (am echten Laufwerk bewiesen, 10.08.).
+      Sollte je wieder ein Browser-Rechner dazukommen, gilt der Punkt
+      wieder - deshalb bleibt er hier stehen statt gelöscht zu werden.
+- [x] **ERLEDIGT (längst überholt):** Die ZIP wurde seither mehrfach
+      getauscht, das Programm schreibt seit dem 10.08. aufs Laufwerk -
+      der damalige „nächste Schritt" ist Geschichte. Ursprünglicher Text:
+      neue ZIP einspielen (vorher alle
+      Cockpit-Fenster schließen - der Zweitstart-Schutz holt sonst das
+      alte Fenster nach vorn), Programm
+      öffnen → in der Leiste steht der technische Grund → einmal
+      „Schreibzugriff erneut versuchen" klicken. Klappt es dann, war der
+      erste Fehlschlag vorübergehend (Datei kurz belegt, Virenscanner).
+      Steht dort ein Rechte-Fehler (EPERM/EACCES), den Grund hier melden -
+      dann ist es doch eine Freigabe-Frage an die IT.
+
+App und Datendateien sollen künftig auf einem Server liegen statt in
+OneDrive. Zwei Dinge sind **vor** dem Aufsetzen zu klären, sonst steht die
+App hinterher still:
+
+- [x] **ENTFALLEN (26.08.):** Die HTML wird nicht vom Server ausgeliefert,
+      sondern über den Update-Ordner verteilt (überall Programm-Fassung).
+      Bleibt als Nachschlag, falls je zentral ausgeliefert wird: über
+      `https` mit gültigem Zertifikat.** Gemessen am 04.08.2026 in Chromium:
+      über `http://<IP>:8080/` ist `window.showOpenFilePicker` **undefined**
+      (`isSecureContext = false`), über `localhost` dagegen vorhanden. Ohne
+      sicheren Ursprung gibt es keine gemeinsame Datei mehr – jeder arbeitet
+      still für sich, genau der Zustand vom 03.08., nur für alle.
+      Alternative: Die HTML bleibt lokal beim Ausliefer-Dienst (localhost),
+      und nur die **Daten** wandern auf die Server-Freigabe. Das ist der
+      billigste Weg und kostet keine Zeile Code.
+- [x] **ENTFALLEN (26.08., gleicher Grund - Nachschlag):** Der Ursprung
+      wechselt = alle gemerkten Dateiverbindungen sind weg.
+      Der Browser merkt sich den Dateiverweis pro Ursprung. Kommt die App
+      künftig von `https://server/…` statt von `localhost:8765`, muss
+      **jeder** die gemeinsame Datei einmal neu anwählen – der Vorgang, bei
+      dem am 03.08. eine leere Datei erwischt wurde. Deshalb: erst die vier
+      Punkte oben erledigen, dann umziehen, und den vollständigen Pfad
+      vorher an alle verteilen.
+- [x] **ENTFALLEN (26.08., gleicher Grund - Nachschlag):** Dateien per
+      Klick öffnen braucht weiterhin den lokalen Dienst. Eine
+      Seite vom zentralen Server kann keine Laufwerkspfade im Explorer
+      öffnen. `cockpit-server.ps1` müsste also bleiben, auch wenn die HTML
+      zentral liegt – ob eine `https`-Seite ihn ansprechen darf, ist vor der
+      Umstellung zu messen (Chrome behandelt `localhost` gesondert).
+
+**Was der Umzug bringt:** Liegen die Daten auf einer Server-Freigabe statt in
+OneDrive, entfallen Konfliktkopien und Sync-Verzug, und die Sicherung läuft
+über die Server-Sicherung mit. Die App selbst muss dafür nicht geändert
+werden – sie spricht ein eingebundenes Laufwerk genauso an wie den
+OneDrive-Ordner.
+
 
 - [x] **Störbericht-Dialoge aufgeräumt (Robertos Design-Ansage vom
       10.09.):** Die Berichtsnummer steht jetzt groß im Kopf von Ansicht

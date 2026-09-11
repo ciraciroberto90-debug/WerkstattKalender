@@ -24,18 +24,18 @@ const pruef = (n, c, zusatz) => {
 };
 const mess = (n, wert) => console.log("MESS | " + n + ": " + wert);
 
-const VON = "2011-07-01", BIS = "2026-07-28";
+const VON = "2011-07-01", BIS = "2026-09-11";
 const { entries: BESTAND } = baueBestand({ von: VON, bis: BIS });
 const STOERUNGEN = baueStoerungen({ von: VON, bis: BIS });
 const CONFIG = { team: TEAM };
 
 const platte = {
   "kalender-daten.json": JSON.stringify({
-    format: "werkstatt-kalender-v1", savedAt: "2026-07-28T05:00:00.000Z",
+    format: "werkstatt-kalender-v1", savedAt: "2026-09-11T05:00:00.000Z",
     entries: BESTAND, deleted: {}, config: null,
   }),
   "werkstatt-stoerungen.json": JSON.stringify({
-    format: "werkstatt-stoerungen-v1", savedAt: "2026-07-28T05:00:00.000Z",
+    format: "werkstatt-stoerungen-v1", savedAt: "2026-09-11T05:00:00.000Z",
     entries: STOERUNGEN, deleted: {},
   }),
 };
@@ -43,7 +43,7 @@ const platte = {
 async function seite(browser) {
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 980 } });
   const p = await ctx.newPage();
-  await p.clock.setFixedTime(new Date("2026-07-28T09:00:00"));
+  await p.clock.setFixedTime(new Date("2026-09-11T09:00:00"));
   await p.exposeFunction("__lies", (n) => platte[n] ?? "");
   await p.exposeFunction("__schreib", (n, c) => { platte[n] = c; });
   await p.addInitScript((cfg) => {
@@ -78,6 +78,11 @@ async function archivWeg(p) {
 
   const mb = ((platte["kalender-daten.json"].length + platte["werkstatt-stoerungen.json"].length) / 1048576).toFixed(1);
   mess("Bestand", `${BESTAND.length} Einträge + ${STOERUNGEN.length} Störberichte über 15 Jahrgänge, ${mb} MB`);
+  // Aufteilung für den Prüfbericht (Robertos Ansage 11.09.: ordentlich aufgeteilt).
+  const nachArt = {};
+  BESTAND.forEach((e) => { nachArt[e.category] = (nachArt[e.category] || 0) + 1; });
+  mess("Aufteilung", Object.entries(nachArt).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(" · ") + ` · STÖRBERICHT ${STOERUNGEN.length}`);
+  mess("Gesamt", (BESTAND.length + STOERUNGEN.length) + " Einträge");
   console.log("");
 
   /* ---------------- (1) Hochkommen, Verbinden, Zwischenspeicher ---------------- */
@@ -135,12 +140,12 @@ async function archivWeg(p) {
   await Promise.all([
     p.evaluate(async () => {
       const roh = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
-      roh.push({ id: "stress15|A", date: "2026-07-28", category: "NOTIZ", text: "Bearbeiter A", updatedAt: new Date().toISOString() });
+      roh.push({ id: "stress15|A", date: "2026-09-11", category: "NOTIZ", text: "Bearbeiter A", updatedAt: new Date().toISOString() });
       await window.storage.set("werkstatt-kalender-entries", JSON.stringify(roh));
     }),
     p2.evaluate(async () => {
       const roh = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
-      roh.push({ id: "stress15|B", date: "2026-07-28", category: "NOTIZ", text: "Bearbeiter B", updatedAt: new Date().toISOString() });
+      roh.push({ id: "stress15|B", date: "2026-09-11", category: "NOTIZ", text: "Bearbeiter B", updatedAt: new Date().toISOString() });
       await window.storage.set("werkstatt-kalender-entries", JSON.stringify(roh));
     }),
   ]);
@@ -164,16 +169,26 @@ async function archivWeg(p) {
   await p2.context().close();
 
   /* ---------------- (4) Bedienung bei voller Menge ---------------- */
-  for (const reiter of ["Schichtplan", "Planung", "Backlog"]) {
+  // Schichtplan/Planung wohnen im Bereich Werkstatt, der Backlog seit dem
+  // 10.09. im Bereich Berichte - gemessen wird der Weg, den die Hand geht.
+  for (const reiter of ["Schichtplan", "Planung"]) {
     t0 = Date.now();
     await p.getByRole("button", { name: reiter, exact: true }).first().click();
     await p.waitForTimeout(200);
     mess("Reiterwechsel " + reiter, (Date.now() - t0) + " ms");
   }
+  await p.getByRole("button", { name: /^Berichte/ }).first().click();
+  await p.waitForTimeout(300);
+  t0 = Date.now();
+  await p.getByRole("button", { name: "Backlog", exact: true }).first().click();
+  await p.waitForTimeout(200);
+  mess("Reiterwechsel Backlog (Bereich Berichte)", (Date.now() - t0) + " ms");
 
   /* ---------------- (5) Schichtbuch mit 15 Jahrgängen ---------------- */
   await p.evaluate(() => { window.__welche = "werkstatt-stoerungen.json"; });
-  await p.getByRole("button", { name: /Störungen/ }).first().click();
+  await p.getByRole("button", { name: /^Berichte/ }).first().click();
+  await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /^Störungen/ }).first().click();
   await p.waitForTimeout(600);
   const stoerKnopf = p.getByRole("button", { name: /Störungen-Datei öffnen/ });
   t0 = Date.now();

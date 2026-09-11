@@ -1509,7 +1509,26 @@ function createSharedStore(cfg) {
   // Datei stehen - falls nicht, wird neu zusammengeführt und nachgespeichert.
   async function saveEntries(nextEntries, prevEntries) {
     if (!fileHandle || accessMode !== "readwrite") return null;
-    const { stamped, removed } = stampEntries(nextEntries, prevEntries);
+    let { stamped, removed } = stampEntries(nextEntries, prevEntries);
+    // NOTBREMSE MASSENLÖSCHUNG (gefunden bei der 70.000er-Messfahrt, 11.09.):
+    // Oberhalb der Browser-Speichergrenze bleibt der örtliche Spiegel leer,
+    // der Vergleichsstand dieses Fensters kennt aber den vollen Bestand.
+    // Speichert dann etwas auf Basis des leeren Spiegels, sähe das hier wie
+    // "alle Einträge absichtlich gelöscht" aus - gemessen: 68.380 Einträge
+    // weg, 68.380 Verlaufszeilen "gelöscht". Kein Mensch löscht zehntausende
+    // Einträge in einem Zug UND behält dabei fast nichts: Die Jahres-
+    // Archiv-Räumung behält immer die aktuellen Jahrgänge (nextEntries
+    // bleibt groß), Einzellöschungen sind winzig. Deshalb: riesige Löschmenge
+    // bei fast leerem Speicherstand = kaputter Vergleichsstand, NICHT Wille.
+    let bremseMeldung = null;
+    if (removed.length > 1000 && nextEntries.length < 100) {
+      bremseMeldung =
+        `Sicherheits-Stopp: Dieser Speichervorgang hätte ${removed.length} Einträge auf einen Schlag ` +
+        `als gelöscht markiert, obwohl er selbst fast leer ist. Das deutet auf einen vollen ` +
+        `Browser-Zwischenspeicher hin, nicht auf gewolltes Löschen - der Bestand in der Datei ` +
+        `bleibt vollständig erhalten, nur die neuen Änderungen wurden übernommen.`;
+      removed = [];
+    }
     const delStamp = nowISO();
     let merged = null;
     let letzterFehler = null;
@@ -1555,7 +1574,14 @@ function createSharedStore(cfg) {
           await recordBackup(bestaetigt, null);
           nachpruefenUndHeilen(stamped, removed, delStamp);
           dispatchConfigUpdate(bestaetigt);
-          dispatchOk(); // Entwarnung erst hier: Die Änderung steht nachweislich in der Datei.
+          if (bremseMeldung) {
+            // Die Arbeit IST gesichert - aber die Warnung darf nicht von der
+            // Entwarnung weggewischt werden: Der Bediener muss erfahren, dass
+            // sein Fenster einen kaputten Vergleichsstand hatte.
+            dispatchError(bremseMeldung);
+          } else {
+            dispatchOk(); // Entwarnung erst hier: Die Änderung steht nachweislich in der Datei.
+          }
           return ohneSystemEntries(bestaetigt);
         }
       } catch (e) {
