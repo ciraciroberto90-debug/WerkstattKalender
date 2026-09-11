@@ -165,6 +165,31 @@ const RI = (id, datum, name, status) => ({ id, date: datum, category: "RI", name
     await page.close();
   }
 
+  /* (H) Von Hand aufrufbar (Robertos Ansage vom 11.09.): Der Knopf im
+     ⚙ → Verlauf & Sicherung öffnet dieselbe Auslagern-Karte AUCH unter
+     der Drei-Jahre-Schwelle - wer ab 5-8 MB gezielt auslagern will,
+     muss nicht auf die Erinnerung warten. */
+  {
+    const { page } = await mach(browser, "2026-09-11T10:00:00", [
+      { id: "h1", date: "2024-03-01", category: "TPM", name: "TS480", status: "done", updatedAt: "2024-03-01T08:00:00.000Z" },
+      { id: "h2", date: "2026-09-01", category: "TPM", name: "TS480", status: "done", updatedAt: "2026-09-01T08:00:00.000Z" },
+    ]);
+    check("(H) Unter drei Jahren erscheint von selbst KEINE Karte",
+      !/aufräumen empfohlen/i.test(await page.locator("body").innerText()));
+    await page.locator('button[aria-label="Verwalten"]').click();
+    await page.waitForTimeout(500);
+    await page.getByRole("button", { name: /Verlauf & Sicherung/ }).first().click();
+    await page.waitForTimeout(400);
+    await page.getByRole("button", { name: "Jahres-Archiv öffnen …" }).click();
+    await page.waitForTimeout(500);
+    const t = await page.locator("body").innerText();
+    check("(H) Der Knopf im ⚙ öffnet die Auslagern-Karte trotzdem",
+      /aufräumen empfohlen/i.test(t) && /Auslagern bis einschließlich Jahr/i.test(t));
+    check("(H) Entfernen bleibt gesperrt, bis heruntergeladen wurde",
+      await page.getByRole("button", { name: /Aus dem Bestand entfernen/ }).isDisabled());
+    await page.close();
+  }
+
   console.log(`\n${ok} PASS / ${fail} FAIL`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

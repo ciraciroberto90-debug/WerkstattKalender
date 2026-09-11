@@ -28,6 +28,9 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
     localStorage.setItem('werkstatt-kalender-entries', JSON.stringify([]));
   });
   await page.reload();
+  // Unter Suite-Last reichte die feste Wartezeit nicht immer (Flake vom
+  // 11.09.): erst warten, bis die Leiste wirklich steht, dann klicken.
+  await page.getByRole('button', { name: 'Planung', exact: true }).waitFor({ timeout: 20000 });
   await page.waitForTimeout(400);
 
   // Schicht + Notiz für "Alt Name" anlegen

@@ -111,8 +111,8 @@ Kein Eintrag ging bei irgendeinem dieser Vorgänge verloren; Stichproben von
   der App: die letzten zwei vollen Jahre behalten), lädt ZUERST die
   Archivdatei herunter, erst danach werden die ausgewählten alten
   Einträge aus dem laufenden Bestand entfernt – nichts geht verloren,
-  das Archiv bleibt als Datei lesbar. (Einen Aufruf von Hand im ⚙ gibt
-  es noch nicht – als offener Punkt in der Roll-out-Liste vermerkt.)
+  das Archiv bleibt als Datei lesbar. (Seit dem 11.09. auch von Hand aufrufbar: ⚙ → Verlauf & Sicherung →
+  „Jahres-Archiv öffnen …" - der Zwei-Schritt-Schutz gilt dort genauso.)
 - **Oberhalb von ~5 MB passt der Bestand nicht mehr in den örtlichen
   Browser-Zwischenspeicher.** Die Datei auf dem Laufwerk bleibt der
   maßgebliche Bestand (dafür ist sie gebaut); es wird nur das Neuladen

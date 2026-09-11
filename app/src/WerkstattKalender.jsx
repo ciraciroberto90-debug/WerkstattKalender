@@ -4753,6 +4753,29 @@ function App() {
     setArchivHinweis(null);
   };
 
+  // Von Hand aufrufen (⚙ → Verlauf & Sicherung): dieselbe Auslagern-Karte wie
+  // die automatische Erinnerung, nur ohne die Drei-Jahre-Schwelle - Roberto
+  // will ab 5-8 MB Altbestand gezielt auslagern können, ohne auf die
+  // Erinnerung warten zu müssen (Ansage vom 11.09.).
+  const archivVonHand = () => {
+    const daten = entries.map((e) => String(e.date || "")).filter((d) => d.length >= 10).sort();
+    if (daten.length === 0) {
+      setErr("Es gibt noch keine datierten Einträge – da ist nichts zum Auslagern.");
+      return;
+    }
+    const aeltestes = Number(daten[0].slice(0, 4));
+    const jahre = today.getFullYear() - aeltestes;
+    let groesseKB = 0;
+    try {
+      const a = localStorage.getItem(STORAGE_KEY) || "";
+      const b = localStorage.getItem(STOER_STORAGE_KEY) || "";
+      groesseKB = Math.round((a.length + b.length) / 1024);
+    } catch (e) { /* egal */ }
+    setArchivGrenze(today.getFullYear() - 2); // Vorschlag wie bei der Erinnerung
+    setArchivGesichert(false);
+    setArchivHinweis({ jahre, groesseKB, aeltestesJahr: aeltestes });
+  };
+
   // Schritt 1: Die auszulagernden Jahrgänge als Datei herunterladen. Erst wenn
   // das nachweislich geschehen ist, darf Schritt 2 sie aus dem Bestand nehmen.
   const archivHerunterladen = () => {
@@ -13511,6 +13534,21 @@ function App() {
               </div>
             )}
 
+            {/* Jahres-Archiv von Hand: dieselbe Karte wie die automatische
+                Erinnerung, jederzeit aufrufbar (Robertos Richtwert: ab
+                5-8 MB Altbestand gezielt auslagern). */}
+            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Jahres-Archiv (alte Jahrgänge auslagern)</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Alte Jahrgänge als Archivdatei sichern und aus dem laufenden Bestand nehmen – Stichjahr wählbar,
+              heruntergeladen wird IMMER zuerst. Die App erinnert ab drei Jahrgängen auch von selbst.
+            </div>
+            <button
+              onClick={archivVonHand}
+              className="text-xs font-bold px-3 py-1.5 rounded border mb-5"
+              style={{ borderColor: "#D6D9DC", color: "#374151", backgroundColor: "#F7F8F9" }}
+            >
+              Jahres-Archiv öffnen …
+            </button>
             <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Sicherungen (dieses Gerät)</div>
             <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
               Bei jedem Speichern wird der Stand hier zusätzlich lokal gesichert - falls doch mal etwas schiefgeht, kannst du eine frühere Version wiederherstellen.
