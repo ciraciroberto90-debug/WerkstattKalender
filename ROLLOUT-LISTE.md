@@ -665,6 +665,12 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       wird von Hand geführt; Robertos Wunschliste vom 11.09. nennt
       „Schichtrotationen" ausdrücklich.
 
+- [ ] **Standort-Zeile in der Kopfleiste („Scheurich · Kleinheubach"):
+      bleibt vorerst.** Auf der Startseite sind die Ortsnamen auf Robertos
+      Ansage raus (11.09.); ob die kleine Zeile oben in der Kopfleiste
+      auch wegkommt, sagt Roberto noch - bis dahin bleibt sie als
+      Verwechslungs-Schutz im laufenden Betrieb stehen.
+
 - [ ] **Handy-Fassung der App (Robertos Wunsch vom 10.09.).** Klickbare
       HTML-Vorlage am 10.09. in den Chat geliefert, auf Robertos Ansage
       nachgebessert: Start mit Werkstatt-Wahl (Scheurich/Soendgen mit
