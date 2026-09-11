@@ -634,6 +634,17 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       dauerhaft). Eine Regression eines Zwischenstands wurde von der
       Messfahrt gefangen, bevor irgendetwas ausgeliefert war.
 
+- [ ] **Bereichswechsel bei Vollbestand beschleunigen (Fund der
+      Klickrunde, 11.09.).** Robertos Maßstab: die reine Klick-Zeit des
+      Benutzers. Gemessen bei 71.084 Einträgen (tests/klickrunde-70k.js):
+      leichte Bereiche 0,1-0,9 s, aber Störungen / Backlog /
+      Zeiterfassung / Schichtplan 2-10 s je Klick, schwankend, OHNE
+      Aufwärm-Effekt. Kandidaten: Listen nur für den sichtbaren
+      Ausschnitt zeichnen (Virtualisierung), Summen/Filter merken
+      (Memoisierung), Jahres-Schnitt statt Gesamtliste. Erst messen,
+      wo die Zeit je Ansicht wirklich steckt, dann bauen - mit
+      Vorher/Nachher-Zahlen aus der Klickrunde.
+
 - [ ] **Handy-Fassung der App (Robertos Wunsch vom 10.09.).** Klickbare
       HTML-Vorlage am 10.09. in den Chat geliefert, auf Robertos Ansage
       nachgebessert: Start mit Werkstatt-Wahl (Scheurich/Soendgen mit

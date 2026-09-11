@@ -105,6 +105,28 @@ echten Fertig-Signal (Bedingung erfüllt, Bild gezeichnet) - die Puffer
 laufen außerhalb. Ein Messfehler, kein Programm-Gewinn; ehrlich
 ausgewiesen und im Skript begründet.
 
+#### Die Klickrunde – was der Benutzer spürt (Robertos Frage: „Ich öffne in 5 Jahren die App…")
+
+Gemessen mit `tests/klickrunde-70k.js` (wiederholbar): App öffnen wie im
+Alltag, dann jeden Bereich anklicken; jede Uhr stoppt erst, wenn die
+Ansicht gezeichnet ist.
+
+| Schritt | Zeit |
+|---|---|
+| App-Start bis die Oberfläche steht | 0,6 s |
+| Wiederverbinden (einmal je Neustart, 70.000 Einträge) | 3–8 s (schwankt mit der Rechnerlast) |
+| Störungs-Datei dazuladen | < 0,1 s |
+| **Leichte Bereiche:** Übersicht, Berichte-Start, To-do, Planung, TPM, Plan, Register | 0,1–0,9 s je Klick |
+| **Datenreiche Bereiche:** Störungen, Backlog, Zeiterfassung, Schichtplan | 2–10 s je Klick, schwankend |
+
+Ehrlich gesagt: Beim 70.000er-STRESSBESTAND sind die vier datenreichen
+Bereiche spürbar zäh - auch beim zweiten Besuch (kein Aufwärm-Effekt
+gemessen; zweite Runde teils langsamer, vermutlich Speicherdruck des
+Browsers). Mit gepflegtem Jahres-Archiv (Robertos Richtwert 5-8 MB,
+also etwa ein Drittel dieses Bestands) sind entsprechend kürzere Zeiten
+zu erwarten - dort bislang ungemessen. Die gezielte Beschleunigung
+dieser vier Ansichten steht als offener Punkt in der Roll-out-Liste.
+
 ### Einordnung: Was die Zahlen bedeuten
 
 - **Die 70.000 sind ein STRESSTEST, kein Betriebszustand.** Gemessen wird
