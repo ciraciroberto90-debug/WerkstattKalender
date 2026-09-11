@@ -15,7 +15,7 @@
 // Verluste (Eintrag weg, Skriptfehler, Funktion tot) als FAIL.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const { baueBestand, baueStoerungen, TEAM } = require("/home/user/WerkstattKalender/tools/langzeit-daten.js");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -98,8 +98,10 @@ async function archivWeg(p) {
   t0 = Date.now();
   await verbinde(p);
   await p.waitForFunction(() => !/Vorhandene Datei öffnen/.test(document.body.innerText), null, { timeout: 120000 });
-  await p.waitForTimeout(3000);
+  // STOPPUHR-EHRLICHKEIT (11.09.): Der Beruhigungs-Puffer läuft NACH der
+  // Messung - vorher steckten 3 feste Sekunden mit in der Zahl.
   const verbindeDauer = Date.now() - t0;
+  await p.waitForTimeout(3000);
   mess("Verbinden (15 Jahrgänge einlesen + zusammenführen)", verbindeDauer + " ms");
   pruef("(1) Verbinden gelingt", verbindeDauer < 120000, verbindeDauer + " ms");
 
@@ -135,6 +137,16 @@ async function archivWeg(p) {
   await p2.waitForTimeout(5000);
   await archivWeg(p2);
 
+  // Die Alltagszahl: EIN Bearbeiter speichert einen Eintrag bei voller Menge.
+  t0 = Date.now();
+  await p.evaluate(async () => {
+    const roh = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
+    roh.push({ id: "stress15|solo", date: "2026-09-11", category: "NOTIZ", text: "Solo", updatedAt: new Date().toISOString() });
+    await window.storage.set("werkstatt-kalender-entries", JSON.stringify(roh));
+  });
+  mess("Speichern, EIN Bearbeiter", (Date.now() - t0) + " ms");
+  await p.waitForTimeout(2000);
+
   const vorherAnzahl = JSON.parse(platte["kalender-daten.json"]).entries.length;
   t0 = Date.now();
   await Promise.all([
@@ -149,8 +161,13 @@ async function archivWeg(p) {
       await window.storage.set("werkstatt-kalender-entries", JSON.stringify(roh));
     }),
   ]);
-  await p.waitForTimeout(4000);
-  mess("Gleichzeitiges Speichern beider Bearbeiter", (Date.now() - t0) + " ms");
+  // storage.set löst erst auf, wenn die Datei den Stand bestätigt hat -
+  // DAS ist das Speicherende. Der 4-s-Puffer (Rücklauf-Events verdauen)
+  // läuft seit dem 11.09. außerhalb der Stoppuhr.
+  mess("Gleichzeitiges Speichern beider Bearbeiter (mit Kollisions-Heilung)", (Date.now() - t0) + " ms");
+  // Exakt gleichzeitige Schreiber heilen sich binnen ~11 s selbst
+  // (mehrstufige Nachprüfung) - der Bestand wird DANACH gemessen.
+  await p.waitForTimeout(12000);
   const nachSchreiben = JSON.parse(platte["kalender-daten.json"]);
   const ids = new Set(nachSchreiben.entries.map((e) => e.id));
   pruef("(3) Änderung A da", ids.has("stress15|A"));
@@ -171,17 +188,19 @@ async function archivWeg(p) {
   /* ---------------- (4) Bedienung bei voller Menge ---------------- */
   // Schichtplan/Planung wohnen im Bereich Werkstatt, der Backlog seit dem
   // 10.09. im Bereich Berichte - gemessen wird der Weg, den die Hand geht.
+  // Doppel-requestAnimationFrame = der Browser hat die neue Ansicht wirklich
+  // gezeichnet - ehrliches Ende der Stoppuhr statt fester 200 ms (11.09.).
   for (const reiter of ["Schichtplan", "Planung"]) {
     t0 = Date.now();
     await p.getByRole("button", { name: reiter, exact: true }).first().click();
-    await p.waitForTimeout(200);
+    await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     mess("Reiterwechsel " + reiter, (Date.now() - t0) + " ms");
   }
   await p.getByRole("button", { name: /^Berichte/ }).first().click();
   await p.waitForTimeout(300);
   t0 = Date.now();
   await p.getByRole("button", { name: "Backlog", exact: true }).first().click();
-  await p.waitForTimeout(200);
+  await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   mess("Reiterwechsel Backlog (Bereich Berichte)", (Date.now() - t0) + " ms");
 
   /* ---------------- (5) Schichtbuch mit 15 Jahrgängen ---------------- */
@@ -193,16 +212,21 @@ async function archivWeg(p) {
   const stoerKnopf = p.getByRole("button", { name: /Störungen-Datei öffnen/ });
   t0 = Date.now();
   await stoerKnopf.first().click();
-  await p.waitForTimeout(6000);
+  // Fertig-Signal: der Listen-Kopf (offen · N behoben) steht - vorher
+  // steckten 6 feste Sekunden mit in der Zahl (11.09.).
+  await p.waitForFunction(() => /behoben/.test(document.body.innerText), null, { timeout: 60000 });
+  await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   mess("Störungen-Datei verbinden (" + STOERUNGEN.length + " Berichte)", (Date.now() - t0) + " ms");
+  await p.waitForTimeout(1500);
   const stoerText = await p.locator("body").innerText();
   pruef("(5) Schichtbuch zeigt Einträge", /Einträge|Eintrag/.test(stoerText));
 
   const suche = p.getByPlaceholder(/Suche|suchen/i).first();
   t0 = Date.now();
   await suche.fill("Getriebe");
-  await p.waitForTimeout(2000);
-  mess("Volltextsuche über 15 Jahrgänge (Treffer gerendert)", (Date.now() - t0 - 2000) + " ms Eingabe + Denkpause");
+  await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  mess("Volltextsuche über 15 Jahrgänge (Treffer gerendert)", (Date.now() - t0) + " ms");
+  await p.waitForTimeout(800);
   const trefferText = await p.locator("body").innerText();
   pruef("(5) Suche findet Getriebe-Berichte über alle Jahre", /Getriebe/.test(trefferText));
   await suche.fill("");
@@ -210,8 +234,9 @@ async function archivWeg(p) {
 
   t0 = Date.now();
   await p.getByRole("button", { name: "Auswertung", exact: true }).first().click();
-  await p.waitForTimeout(2500);
-  mess("Störungs-Auswertung über 15 Jahrgänge", (Date.now() - t0 - 2500) + " ms + Wartezeit");
+  await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  mess("Störungs-Auswertung über 15 Jahrgänge", (Date.now() - t0) + " ms");
+  await p.waitForTimeout(1000);
   const ausw = await p.locator("body").innerText();
   pruef("(5) Auswertung rechnet (Ausfallzeiten sichtbar)", /min|Std|%/.test(ausw));
 
@@ -229,10 +254,11 @@ async function archivWeg(p) {
       p.context().waitForEvent("page", { timeout: 45000 }),
       p.locator('div[role="dialog"] button:has-text("Drucken")').click(),
     ]);
+    await nw.waitForLoadState("domcontentloaded");
+    mess("Prüfnachweis öffnen", (Date.now() - t0) + " ms");
     await nw.waitForTimeout(2500);
     kopf = (await nw.locator("body").innerText()).slice(0, 150).replace(/\s+/g, " ");
     nachweisOk = /\d/.test(kopf);
-    mess("Prüfnachweis öffnen", (Date.now() - t0) + " ms");
     await nw.close();
   } catch (e) { kopf = "Fehler: " + e.message; }
   pruef("(6) Prüfnachweis rechnet über den Zeitraum", nachweisOk, kopf.slice(0, 80));
@@ -242,8 +268,10 @@ async function archivWeg(p) {
   t0 = Date.now();
   await p.reload();
   await p.locator('button[aria-label="Gemeinsame Datei"]').waitFor({ timeout: 120000 });
+  // Oberhalb der Speichergrenze lädt die App hier OHNE Bestand - der Button
+  // ist das ehrliche Fertig-Signal; der 6-s-Puffer lief vorher mit in der Uhr.
+  mess("Neuladen (App steht wieder)", (Date.now() - t0) + " ms");
   await p.waitForTimeout(6000);
-  mess("Neuladen (einlesen + zusammenführen bei 15 Jahrgängen)", (Date.now() - t0) + " ms");
   await archivWeg(p);
   // Oberhalb der ~5-MB-Grenze gibt es nach dem Neuladen KEINE örtliche
   // Zweitschrift mehr (das ist die dokumentierte Folge des vollen
@@ -256,9 +284,9 @@ async function archivWeg(p) {
   t0 = Date.now();
   await verbinde(p);
   await p.waitForFunction(() => !/Vorhandene Datei öffnen/.test(document.body.innerText), null, { timeout: 120000 });
+  mess("Wiederverbinden nach Neuladen", (Date.now() - t0) + " ms");
   await p.waitForTimeout(3000);
   await archivWeg(p);
-  mess("Wiederverbinden nach Neuladen", (Date.now() - t0) + " ms");
   const uiStand = await p.evaluate(() =>
     JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]").length);
   const dateiStand = JSON.parse(platte["kalender-daten.json"]).entries.length;
@@ -275,7 +303,7 @@ async function archivWeg(p) {
 
   t0 = Date.now();
   await p.getByRole("button", { name: "Schichtplan", exact: true }).first().click();
-  await p.waitForTimeout(200);
+  await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   mess("Reiterwechsel Schichtplan bei 6x-Drossel", (Date.now() - t0) + " ms");
 
   await p.getByRole("button", { name: "Übersicht", exact: true }).first().click();

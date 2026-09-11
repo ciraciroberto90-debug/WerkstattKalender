@@ -37,6 +37,9 @@ async function neueSeite(browser, solo, uhr = "2026-07-23T15:00:00") {
     // Leser: File System Access vorhanden, aber read-only Datei
     await page.exposeFunction("__r", () => JSON.stringify({ format:"werkstatt-kalender-v1", savedAt:"2026-01-01T00:00:00.000Z", entries: ENTRIES, deleted:{}, config: CONFIG }));
     await page.addInitScript(() => {
+      // Standort festnageln: sonst bekäme der frische Leser-Rechner erst
+      // die Werkstatt-Frage (harte-68) statt der App.
+      try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {}
       const h = { name:"kalender-daten.json", kind:"file",
         async getFile(){ return new File([await window.__r()], "kalender-daten.json", {type:"application/json"}); },
         async createWritable(){ throw new Error("NotAllowedError"); },
@@ -76,12 +79,15 @@ const txt = async (page) => (await page.locator("body").innerText());
     await klick(page, "Planung");
     ok("B: Planung rendert", (await txt(page)).toLowerCase().includes("wartungsplan") || (await txt(page)).includes("Arbeiten"));
 
-    // Backlog
+    // Backlog + Störungen wohnen seit dem 10.09. im Bereich Berichte
+    await page.getByRole("button", { name: /^Berichte/ }).first().click();
+    await page.waitForTimeout(450);
     await klick(page, "Backlog");
     ok("B: Backlog zeigt Demo-Arbeit", (await txt(page)).includes("Hallenbeleuchtung"));
 
     // Störungen: Liste
-    await klick(page, "Störungen", false);
+    await page.getByRole("button", { name: /^Störungen/ }).first().click();
+    await page.waitForTimeout(450);
     ok("B: Störungen Kopf 'offen · behoben'", /offen\s*·\s*\d+\s*behoben/.test(await txt(page)));
     // Tag aufklappen -> Schicht -> Bericht -> Detail
     const tag = page.getByRole("button", { name: /22\.07\.2026/ }).first();
@@ -138,19 +144,24 @@ const txt = async (page) => (await page.locator("body").innerText());
     const vo = page.getByText("Vorhandene Datei öffnen …"); if (await vo.count()) await vo.click();
     await page.waitForTimeout(1200);
     ok("L: Lädt als Leser ohne Fehler", errs.length === 0);
-    ok("L: Cockpit + TPM Hauptreiter sichtbar", (await page.getByRole("button",{name:"Werkstatt",exact:true}).count()) === 1 && (await page.getByRole("button",{name:"TPM",exact:true}).count()) === 1);
+    // Seit dem 10.09. sehen Leser NUR Übersicht + Berichte (Ansage der GF).
+    ok("L: Nur Übersicht + Berichte in der Hauptleiste",
+       (await page.getByRole("button",{name:/^Berichte/}).count()) >= 1 &&
+       (await page.getByRole("button",{name:"Werkstatt",exact:true}).count()) === 0 &&
+       (await page.getByRole("button",{name:"TPM",exact:true}).count()) === 0);
     ok("L: KEIN Backlog", (await page.getByRole("button",{name:"Backlog",exact:true}).count()) === 0);
     ok("L: KEIN ⚙-Verwalten", (await page.locator('button[aria-label="Verwalten"]').count()) === 0);
     ok("L: Geheime Backlog-Arbeit NICHT sichtbar", !(await txt(page)).includes("Hallenbeleuchtung"));
-    // durch erlaubte Reiter klicken
-    for (const t of ["Schichtplan","Planung"]) await klick(page, t);
-    await klick(page, "Störungen", false);
+    // durch die erlaubten Bereiche klicken
+    await page.getByRole("button", { name: /^Berichte/ }).first().click();
+    await page.waitForTimeout(450);
+    await page.getByRole("button", { name: /^Störungen/ }).first().click();
+    await page.waitForTimeout(450);
     ok("L: Störungen für Leser sichtbar (eigene Datei)", /offen\s*·\s*\d+\s*behoben/.test(await txt(page)));
-    await klick(page, "TPM");
-    ok("L: TPM-Übersicht auch für Leser", (await txt(page)).includes("Willkommen"));
-    // Leser sehen den Plan seit dem 18.08. über die Auswertung (nur ansehen)
-    await klick(page, "Plan");
-    ok("L: Plan-Kalender für Leser", /plan-kalender/i.test(await txt(page)));
+    // Der TPM-Bereich (und damit der Plan) ist für Leser seit dem 10.09. weg -
+    // zurück auf die Übersicht, die ihnen bleibt.
+    await klick(page, "Übersicht");
+    ok("L: Übersicht bleibt erreichbar", (await txt(page)).includes("in der Werkstatt"));
     ok("L: KEINE JS-Fehler über den gesamten Durchlauf", errs.length === 0);
     if (errs.length) console.log("   Fehler:", errs.slice(0,5));
     await page.close();

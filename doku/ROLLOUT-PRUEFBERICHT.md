@@ -16,11 +16,12 @@
 
 | Bereich | Umfang |
 |---|---|
-| Härtetests | **68 Suiten** (harte-1 … harte-69), zuletzt kompletter Volllauf grün |
+| Härtetests | **69 Suiten** (harte-1 … harte-70), zuletzt kompletter Volllauf grün |
 | Weitere Suiten | Smoke, Sync-Fokus, Rollout, Veröffentlichung, Diagnose-Ablauf, Programm-Prüfung, Leistung |
 | **15 Jahre Betrieb, 71.084 Einträge** | Messfahrt vom 11.09. – Zahlen unten |
 | Standort-Trennung | harte-68 (20 Prüfungen) + Nachweis: ohne Trennung 13/20 rot |
 | Notbremse Massenlöschung | harte-69 (8 Prüfungen) + Nachweis: ohne Bremse 5/8 rot |
+| Doppel-Speichern ohne Verlust | harte-70 (9 Prüfungen) + Nachweis: ohne Heil-Kette 5/9 rot |
 | Ausliefer-Dienst | Auslieferung, Inhaltstypen, Ausbruchsversuch, Portsuche, Versionswechsel |
 | Programm-Fassung | pruefe-programm (Brücke, Zwischendatei-Endung fürs Laufwerk, Update-Rahmen) |
 
@@ -68,33 +69,41 @@ kommt je nach Netz etwas obendrauf; das ist dort bislang ungemessen.
 
 | Vorgang | Zeit | Was genau gemessen wird |
 |---|---|---|
-| Verbinden | 5,9 s | Vom Klick „Vorhandene Datei öffnen" bis alles steht: Datei komplett lesen, alle 68.380 Einträge prüfen und mit dem örtlichen Stand zusammenführen, Übersicht aufbauen. Fällt einmal an – beim Einrichten oder nach dem Browser-Neustart. |
-| Gleichzeitiges Speichern, zwei Bearbeiter | 12,8 s | Zwei Fenster speichern im selben Moment je einen Eintrag. Jeder Speichervorgang liest erst die volle Datei, führt zusammen, schreibt zurück und liest zur Kontrolle nochmal – bei einer Kollision wartet einer kurz und versucht es erneut (deshalb ≈ zwei volle Durchgänge nacheinander). Beide Änderungen standen danach in der Datei. |
-| Neuladen (F5) | 6,1 s | Seite neu laden bei voller Menge: die App kommt hoch und holt sich den Bestand erneut aus der Datei. |
-| Wiederverbinden danach | 6,2 s | Oberhalb der ~5-MB-Grenze gibt es keine örtliche Zweitschrift mehr – nach jedem Neuladen wird die volle Datei neu eingelesen. Zusammen mit dem Neuladen: ~12 s, einmal pro Browser-Neustart. |
+| Verbinden | 3,1 s | Vom Klick „Vorhandene Datei öffnen" bis alles steht: Datei komplett lesen, alle 68.380 Einträge prüfen und mit dem örtlichen Stand zusammenführen, Übersicht aufbauen. Fällt einmal an – beim Einrichten oder nach dem Browser-Neustart. |
+| Speichern, EIN Bearbeiter (der Alltag) | 6,8 s | Ein Eintrag wird bei voller Menge gespeichert: volle Datei lesen, zusammenführen, in einem Zug zurückschreiben, kurz warten und gegenlesen (Verlorenes-Update-Schutz). |
+| Gleichzeitiges Speichern, ZWEI Bearbeiter | ~20 s | Der Extremfall: beide speichern im selben Augenblick, die Sperre erkennt die Kollision über die Schreibmarke, der Verlierer führt neu zusammen und schreibt nach – verlustfrei (harte-70). Der Preis der Korrektheit; im Alltag selten. |
+| Neuladen (F5) + Wiederverbinden | 0,2 s + 3,5 s | Seite neu laden bei voller Menge und den Bestand neu aus der Datei holen – zusammen unter 4 s, einmal pro Browser-Neustart. |
 
 #### B · Vorgänge an der Störungs-Datei (2.704 Berichte)
 
 | Vorgang | Zeit | Was genau gemessen wird |
 |---|---|---|
-| Störungs-Datei verbinden | 6,0 s | Wie A/Verbinden, nur für die Schichtbuch-Datei: komplett lesen, alle Berichte zusammenführen, Liste aufbauen. Fällt ebenfalls nur beim Einrichten bzw. nach Neustart an. |
+| Störungs-Datei verbinden | < 0,1 s | Wie A/Verbinden, nur für die Schichtbuch-Datei: komplett lesen, alle Berichte zusammenführen, Liste aufbauen. Fällt ebenfalls nur beim Einrichten bzw. nach Neustart an. |
 
 #### C · Bedienung ohne Dateizugriff (alles schon im Arbeitsspeicher)
 
 | Vorgang | Zeit | Was genau gemessen wird |
 |---|---|---|
-| App-Start (leer) | 0,16 s | Aufruf der HTML bis zur bedienbaren Oberfläche, noch ohne Verbinden. |
-| Reiterwechsel Schichtplan / Planung / Backlog | 1,5 / 0,6 / 0,9 s | Klick auf den Bereich bis die Ansicht steht – die App zeichnet die jeweilige Ansicht aus 68.380 Einträgen im Speicher neu (der Schichtplan ist die dichteste, daher der höchste Wert). |
-| Volltextsuche im Schichtbuch | < 0,1 s | Tippen im Suchfeld bis die Treffer über alle 15 Jahrgänge dastehen. |
+| App-Start (leer) | 0,2 s | Aufruf der HTML bis zur bedienbaren Oberfläche, noch ohne Verbinden. |
+| Reiterwechsel Schichtplan / Planung / Backlog | 0,6 / 0,4 / 1,2 s | Klick auf den Bereich bis die Ansicht steht – die App zeichnet die jeweilige Ansicht aus 68.380 Einträgen im Speicher neu (der Schichtplan ist die dichteste, daher der höchste Wert). |
+| Volltextsuche im Schichtbuch | 0,1–2 s | Tippen im Suchfeld bis die Treffer über alle 15 Jahrgänge dastehen. |
 | Störungs-Auswertung | 0,4 s | Klick auf „Auswertung" bis Ausfallzeiten/Anteile über 15 Jahrgänge gerechnet und gezeichnet sind. |
-| Prüfnachweis (R+I) öffnen | 2,7 s | Druckansicht des Nachweises: über den ganzen Zeitraum rechnen und das Druckfenster aufbauen. |
-| Reiterwechsel bei 6-fach gedrosselter CPU | 3,8 s | Derselbe Reiterwechsel wie oben, aber mit künstlich auf ein Sechstel gebremstem Prozessor – der schwächste denkbare Werkstatt-PC. |
-| Tipp-Verzug, 18 Zeichen, 6-fach-Drossel | 0,3 s | Wie weit das Suchfeld beim schnellen Tippen hinterherhängt. Unter einer Drittelsekunde = fühlt sich flüssig an. |
+| Prüfnachweis (R+I) öffnen | 0,2 s | Druckansicht des Nachweises: über den ganzen Zeitraum rechnen und das Druckfenster aufbauen. |
+| Reiterwechsel bei 6-fach gedrosselter CPU | ~7 s | Derselbe Reiterwechsel wie oben, aber mit künstlich auf ein Sechstel gebremstem Prozessor – der schwächste denkbare Werkstatt-PC. |
+| Tipp-Verzug, 18 Zeichen, 6-fach-Drossel | 0,4 s | Wie weit das Suchfeld beim schnellen Tippen hinterherhängt. Unter einer Drittelsekunde = fühlt sich flüssig an. |
 
 Kein Eintrag ging bei irgendeinem dieser Vorgänge verloren; Stichproben von
 2011, 2018 und 2026 waren nach jedem Schritt einzeln vorhanden, und die
-Änderungen beider Bearbeiter überlebten Neuladen + Wiederverbinden
-(68.381 → 68.384 Einträge: Bestand + 2 Bearbeiter-Änderungen + Verlauf).
+Änderungen beider Bearbeiter überlebten Kollision, Neuladen und
+Wiederverbinden.
+
+**Warum die Zahlen kleiner sind als im Bericht vom Vormittag:** Die alte
+Messfahrt hatte feste Warte-Puffer MIT in der Stoppuhr (z. B. steckten in
+den „6,0 s Störungs-Datei verbinden" fast sechs Sekunden fester Puffer,
+in den „12,8 s" vier). Seit dem 11.09. nachmittags stoppt die Uhr am
+echten Fertig-Signal (Bedingung erfüllt, Bild gezeichnet) - die Puffer
+laufen außerhalb. Ein Messfehler, kein Programm-Gewinn; ehrlich
+ausgewiesen und im Skript begründet.
 
 ### Einordnung: Was die Zahlen bedeuten
 
@@ -147,6 +156,37 @@ harte-69 gegen einen Bau ohne Bremse = **5/8 rot** (von 1.500 Einträgen
 überlebt genau 1, 1.500 „gelöscht"-Zeilen); mit Bremse = 8/8, und die
 Messfahrt zeigt 68.381 → 68.384 statt der vorherigen Verdopplung auf
 136.781 (Bestand + Löschzeilen-Flut).
+
+### Verlorenes Update bei exakt gleichzeitigem Speichern (behoben, harte-70)
+
+**Gemessen am 11.09. bei der Tempo-Arbeit:** Speicherten zwei Fenster im
+selben Augenblick bei voller Menge, konnte eine der beiden Änderungen aus
+der Datei verdrängt werden - und beide Bearbeiter bekamen „gespeichert"
+gemeldet. Zwei Ursachen: (a) Der Änderungs-Stempel savedAt ist nur
+millisekundengenau - bei exakt gleichzeitigen Schreibern kann er identisch
+sein, dann war die optimistische Sperre blind. (b) Der Heil-Blick nach dem
+Speichern kam einmalig nach 1,2 s - ein parallel noch laufender
+14-MB-Schreibvorgang landete erst danach.
+
+**Der Fix:** Jede Schreibaktion trägt jetzt eine eindeutige
+Zufalls-**Schreibmarke** in der Datei (uhr-unabhängig; Alt-Dateien ohne
+Marke laufen über savedAt weiter und bekommen die Marke beim ersten
+Speichern). Die Sperre vergleicht die Marke, und nach jedem Speichern
+prüft eine **dreistufige Kette** (1,2 / 4 / 10 s, je zuerst mit billigem
+Kopf-Blick statt Voll-Parse), ob der eigene Stand noch liegt - Verdrängtes
+wird selbst nachgeschrieben. Ehrliche Semantik: Exakt gleichzeitige
+Schreiber sind binnen ~11 s beide sicher in der Datei.
+
+**Nachweise:** Neue Wache harte-70 (9 Prüfungen, drei Doppel-Runden bei
+71.000 Einträgen). Gegen einen Bau ohne Heil-Kette und Schutzpausen ist
+sie ROT (5/9 - jede Runde verliert dauerhaft). Der Bau von VOR dem Umbau
+verlor im Sofort-Blick ebenfalls fast jede Runde, heilte aber einstufig
+binnen Sekunden; ein Zwischenstand der Tempo-Arbeit hatte genau diese
+Heilung versehentlich ausgehebelt - die Messfahrt fing die Regression,
+BEVOR irgendetwas ausgeliefert wurde. Der Speicherweg zerlegt die Datei
+seither nur noch einmal je Vorgang statt dreimal (Sperren-Blick liest nur
+den Dateikopf, die Nachkontrolle vergleicht Byte für Byte mit dem eben
+Geschriebenen).
 
 ## 4. Standort-Trennung (Etappe 2, harte-68)
 

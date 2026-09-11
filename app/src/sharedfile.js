@@ -436,6 +436,12 @@ function createSharedStore(cfg) {
   const EV = cfg.evPrefix; // z. B. "werkstatt-shared" -> Ereignis "werkstatt-shared-update"
   // Standort-Kennung dieser Instanz: Dateien ohne Kennung sind Scheurich-Erbe.
   const STANDORT_DATEI = cfg.standort || "scheurich";
+  // Jede Schreibaktion trägt eine EINDEUTIGE Marke in die Datei. Grund
+  // (Kollisions-Sonde, 11.09.): savedAt ist nur millisekundengenau - zwei
+  // exakt gleichzeitige Schreiber können denselben Stempel erzeugen, und
+  // dann ist die optimistische Sperre blind (unter der fixierten Test-Uhr
+  // war sie es IMMER). Die Zufallsmarke ist uhr-unabhängig eindeutig.
+  const neueSchreibMarke = () => Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
 
   let fileHandle = null;
   // Beim Start gemerkter Verweis auf die zuletzt benutzte Datei.
@@ -700,7 +706,7 @@ function createSharedStore(cfg) {
 
   /* ---------- Dateiformat ---------- */
   function emptyData() {
-    return { format: FORMAT, standort: STANDORT_DATEI, savedAt: null, entries: [], deleted: {}, config: null, bauStand: null };
+    return { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: null, savedAt: null, entries: [], deleted: {}, config: null, bauStand: null };
   }
   function normalizeData(d) {
     // Auch eine reine Export-Datei (Array von Einträgen) wird als Startbestand akzeptiert.
@@ -711,6 +717,7 @@ function createSharedStore(cfg) {
       // des Wächters unten; Dateien ohne Kennung stammen aus der Zeit vor der
       // Standort-Wahl und gelten als Scheurich.
       standort: typeof d.standort === "string" ? d.standort : null,
+      schreibMarke: typeof d.schreibMarke === "string" ? d.schreibMarke : null,
       savedAt: typeof d.savedAt === "string" ? d.savedAt : null,
       entries: Array.isArray(d.entries) ? d.entries : [],
       deleted: d.deleted && typeof d.deleted === "object" ? d.deleted : {},
@@ -830,6 +837,25 @@ function createSharedStore(cfg) {
       try { await mitFrist(() => writable.abort(), 2000, "Der Abbruch"); } catch (e2) { /* dann eben nicht */ }
       throw e;
     }
+    // Den geschriebenen Wortlaut zurückgeben: Die Nachkontrolle kann damit
+    // per Byte-Vergleich bestätigen, statt 14 MB erneut zu zerlegen.
+    return inhalt;
+  }
+
+  // Nur den DATEIKOPF ansehen statt die ganze Datei zu zerlegen: savedAt
+  // steht seit jeher in den ersten Zeilen der JSON (Schreib-Reihenfolge
+  // format → standort → savedAt). Für den Sperren-Vergleich reicht das -
+  // wer schreibt, ändert savedAt. Findet der Blick in den Kopf kein
+  // savedAt (fremd formatierte oder leere Datei), meldet er das über
+  // gefunden:false und der Aufrufer nimmt den alten, gründlichen Weg.
+  // Eingeführt am 11.09. (Robertos Ansage: Speichern muss unter ~5 s):
+  // Vorher wurde die volle Datei je Speichervorgang DREIMAL zerlegt.
+  async function leseDateiKopf() {
+    const file = await mitFrist(() => fileHandle.getFile(), FRIST_LESEN, "Das Öffnen der Datei");
+    const text = await mitFrist(() => file.text(), FRIST_LESEN, "Das Lesen der Datei");
+    const m = text.slice(0, 4000).match(/"savedAt"\s*:\s*(?:null|"([^"]*)")/);
+    const mk = text.slice(0, 4000).match(/"schreibMarke"\s*:\s*(?:null|"([^"]*)")/);
+    return { text, gefunden: !!m, savedAt: m ? (m[1] || "") : "", marke: mk ? (mk[1] || "") : "", markeGefunden: !!mk, groesse: file.size, geaendert: file.lastModified };
   }
 
   /* ---------- Lokalen Zwischenspeicher angleichen ---------- */
@@ -882,7 +908,7 @@ function createSharedStore(cfg) {
           merged.push({ id, date: "", value: quelle[key], updatedAt: nowISO() });
         });
       }
-      const candidate = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config, bauStand: bauStandFuer(data.bauStand) };
+      const candidate = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config, bauStand: bauStandFuer(data.bauStand) };
       let geschrieben = false;
       let letzterFehler = null;
       // Zwei Anläufe: Der erste kann an einer belegten Datei scheitern (zweites
@@ -1378,7 +1404,7 @@ function createSharedStore(cfg) {
   // viele Einträge aus der Kopie tatsächlich neu übernommen wurden.
   async function mergeKopieInDatei(kopie) {
     let letzterFehler = null;
-    for (let versuch = 0; versuch < 5; versuch++) {
+    for (let versuch = 0; versuch < 8; versuch++) {
       try {
         const fileData = await readFileData();
         const deleted = { ...fileData.deleted };
@@ -1399,7 +1425,7 @@ function createSharedStore(cfg) {
         if (kopie.config && (!config || String(kopie.config.updatedAt || "") > String(config.updatedAt || ""))) {
           config = kopie.config;
         }
-        const out = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted, config, bauStand: bauStandFuer(fileData.bauStand) };
+        const out = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: nowISO(), entries: merged, deleted, config, bauStand: bauStandFuer(fileData.bauStand) };
         const nochAktuell = await readFileData();
         if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
           throw new Error("Kollision: Datei wurde zwischenzeitlich geändert");
@@ -1536,7 +1562,7 @@ function createSharedStore(cfg) {
     // dürfen nicht dieselben Änderungen ein zweites Mal protokolliert werden.
     const logZeilen = baueVerlauf(nextEntries, prevEntries, removed, delStamp);
 
-    for (let versuch = 0; versuch < 5; versuch++) {
+    for (let versuch = 0; versuch < 8; versuch++) {
       try {
         // WICHTIG: Ein Lesefehler hier darf NIE stillschweigend als "Datei ist
         // leer" behandelt werden - das würde sonst beim Schreiben den ganzen
@@ -1550,7 +1576,7 @@ function createSharedStore(cfg) {
         pruneTombstones(deleted);
 
         merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), deleted));
-        const out = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted, config: configAusEintraegen(merged) || fileData.config, bauStand: bauStandFuer(fileData.bauStand) };
+        const out = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: nowISO(), entries: merged, deleted, config: configAusEintraegen(merged) || fileData.config, bauStand: bauStandFuer(fileData.bauStand) };
 
         // Optimistische Sperre: unmittelbar vor dem Schreiben nochmal ganz kurz
         // prüfen, ob die Datei seit unserem Lesen oben noch denselben Stand hat.
@@ -1558,21 +1584,54 @@ function createSharedStore(cfg) {
         // würden wir sonst dessen bereits bestätigte Änderung unbemerkt
         // überschreiben - lieber jetzt abbrechen und mit dem NEUEN Stand neu
         // zusammenführen, statt das erst nach dem Schreiben zu bemerken.
-        const nochAktuell = await readFileData();
-        if (String(nochAktuell.savedAt || "") !== String(fileData.savedAt || "")) {
+        // Schlanke Fassung (11.09.): Für den Vergleich reicht der Dateikopf -
+        // die 14 MB werden nicht ein zweites Mal zerlegt. Ohne auffindbares
+        // savedAt gilt der alte, gründliche Weg.
+        const kopf = await leseDateiKopf();
+        // Vergleichen über die eindeutige Schreibmarke; Alt-Dateien ohne
+        // Marke fallen auf savedAt zurück (dort bleibt das ms-Restrisiko,
+        // es verschwindet mit dem ersten Speichern der neuen Fassung).
+        const gleich = (fileData.schreibMarke || kopf.markeGefunden)
+          ? String(kopf.marke || "") === String(fileData.schreibMarke || "")
+          : (kopf.gefunden ? kopf.savedAt : String((await readFileData()).savedAt || "")) === String(fileData.savedAt || "");
+        if (!gleich) {
           throw new Error("Kollision: Datei wurde zwischenzeitlich von anderer Stelle geändert");
         }
 
-        await writeFileData(out);
+        const geschrieben = await writeFileData(out);
         lastSavedAt = out.savedAt;
 
-        const kontrolle = await readFileData();
+        // VERLORENES-UPDATE-SCHUTZ (Fund der Kollisions-Sonde, 11.09.):
+        // Zwischen Sperren-Prüfung und Schreiben liegt ein unvermeidbares
+        // Fenster - schreibt ein zweites Fenster GENAU darin, überschreibt
+        // der Spätere den Früheren, und eine sofortige Nachkontrolle sieht
+        // noch den eigenen Stand ("alles gut"). Gemessen: Bei fünf exakt
+        // gleichzeitigen Doppel-Speicherungen ging VOR diesem Schutz in
+        // praktisch jeder Runde eine Änderung verloren - in alter wie neuer
+        // Fassung; die Trägheit des alten Voll-Parses hatte das nur zufällig
+        // kaschiert. Deshalb wartet die Nachkontrolle eine kurze
+        // Zufallsspanne: Der parallele Schreiber ist dann durch, der
+        // Überschriebene ERKENNT den Verlust und wiederholt mit Merge.
+        await new Promise((r) => setTimeout(r, 250 + Math.floor(Math.random() * 350)));
+
+        // Nachkontrolle, schlanke Fassung (11.09.): Steht in der Datei Byte
+        // für Byte genau das, was gerade geschrieben wurde, IST ihr Inhalt
+        // `out` - der dritte Voll-Parse entfällt. Weicht der Text ab (jemand
+        // hat in der Lücke geschrieben), gilt der gründliche Weg.
+        let kontrolle;
+        const nachher = await leseDateiKopf();
+        if (nachher.text === geschrieben) {
+          kontrolle = out;
+          dateiInfo = { groesse: nachher.groesse, geaendert: nachher.geaendert, eintraege: ohneSystemEntries(out.entries).length };
+        } else {
+          kontrolle = await readFileData();
+        }
         if (changesConfirmed(kontrolle, stamped, removed, delStamp) && keinVerlustGegenueber(fileData, kontrolle, removed)) {
           // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
           lastSavedAt = kontrolle.savedAt;
           const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
           await recordBackup(bestaetigt, null);
-          nachpruefenUndHeilen(stamped, removed, delStamp);
+          nachpruefenUndHeilen(stamped, removed, delStamp, kontrolle.schreibMarke || kontrolle.savedAt);
           dispatchConfigUpdate(bestaetigt);
           if (bremseMeldung) {
             // Die Arbeit IST gesichert - aber die Warnung darf nicht von der
@@ -1588,7 +1647,7 @@ function createSharedStore(cfg) {
         letzterFehler = e;
       }
       // Kollision oder vorübergehender Fehler: kurz warten (steigend), dann neuer Versuch
-      await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 150)));
+      await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 450)));
     }
     // Nach mehreren Versuchen weiterhin nicht bestätigt - nicht mehr still weitermachen,
     // sondern deutlich warnen. Lokal ist nichts verloren (localStorage + Sicherung).
@@ -1614,32 +1673,52 @@ function createSharedStore(cfg) {
   // bliebe das nur lokal sichtbar (siehe Merge in onUpdate), aber in der Datei
   // selbst dauerhaft verschwunden. Läuft im Hintergrund, meldet dem Nutzer
   // nichts (kein Grund zur Sorge) und heilt sich selbst.
-  function nachpruefenUndHeilen(stamped, removed, delStamp) {
-    setTimeout(async () => {
-      if (!fileHandle || accessMode !== "readwrite") return;
-      try {
-        const data = await readFileData();
-        if (changesConfirmed(data, stamped, removed, delStamp)) return; // alles noch da - nichts zu tun
-        const deleted = { ...data.deleted };
-        removed.forEach((id) => {
-          if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
-        });
-        pruneTombstones(deleted);
-        const merged = mergeEntries(data.entries, stamped, deleted);
-        const out = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted, config: data.config, bauStand: bauStandFuer(data.bauStand) };
-        await writeFileData(out);
-        lastSavedAt = out.savedAt;
-        const kontrolle = await readFileData();
-        if (changesConfirmed(kontrolle, stamped, removed, delStamp)) {
-          lastSavedAt = kontrolle.savedAt;
-          syncLocal(kontrolle);
-          dispatchUpdate(kontrolle);
-          await recordBackup(mergeEntries(kontrolle.entries, [], kontrolle.deleted), kontrolle.config);
+  function nachpruefenUndHeilen(stamped, removed, delStamp, eigenSavedAt) {
+    // MEHRSTUFIG seit dem 11.09. (Fund der Kollisions-Sonde): Ein parallel
+    // laufender 14-MB-Schreibvorgang des anderen Fensters kann WÄHREND
+    // unseres Speicherns begonnen haben und erst Sekunden NACH unserer
+    // Bestätigung landen - dann überschreibt er uns, und ein einzelner
+    // Heil-Blick nach 1,2 s kam zu früh (gemessen: bei fünf exakt
+    // gleichzeitigen Doppel-Speicherungen ging so fast jede Runde eine
+    // Änderung verloren, in alter wie neuer Fassung). Deshalb drei Blicke
+    // mit wachsendem Abstand; jeder beginnt mit dem BILLIGEN Kopf-Lesen:
+    // Trägt die Datei noch unser savedAt, hat niemand geschrieben - kein
+    // Voll-Parse nötig.
+    (async () => {
+      // Maßstab ist der savedAt des EIGENEN bestätigten Schreibstands - NICHT
+      // lastSavedAt: das setzt auch der 30-s-Abgleich auf fremde Stände, und
+      // dann hielte der Kopf-Blick ausgerechnet den Überschreiber für uns.
+      let meinStand = String(eigenSavedAt || "");
+      for (const frist of [1200, 4000, 10000]) {
+        await new Promise((r) => setTimeout(r, frist));
+        if (!fileHandle || accessMode !== "readwrite") return;
+        try {
+          const kopf = await leseDateiKopf();
+          if (kopf.markeGefunden ? kopf.marke === meinStand : (kopf.gefunden && kopf.savedAt === meinStand)) continue; // unverändert unser Stand
+          const data = await readFileData();
+          if (changesConfirmed(data, stamped, removed, delStamp)) continue; // fremder Stand, aber alles noch da
+          const deleted = { ...data.deleted };
+          removed.forEach((id) => {
+            if (!deleted[id] || String(deleted[id]) < delStamp) deleted[id] = delStamp;
+          });
+          pruneTombstones(deleted);
+          const merged = mergeEntries(data.entries, stamped, deleted);
+          const out = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: nowISO(), entries: merged, deleted, config: data.config, bauStand: bauStandFuer(data.bauStand) };
+          await writeFileData(out);
+          lastSavedAt = out.savedAt;
+          const kontrolle = await readFileData();
+          if (changesConfirmed(kontrolle, stamped, removed, delStamp)) {
+            lastSavedAt = kontrolle.savedAt;
+            meinStand = String(kontrolle.schreibMarke || kontrolle.savedAt || "");
+            syncLocal(kontrolle);
+            dispatchUpdate(kontrolle);
+            await recordBackup(mergeEntries(kontrolle.entries, [], kontrolle.deleted), kontrolle.config);
+          }
+        } catch (e) {
+          // Nächster Blick dieser Kette bzw. der planmäßige Poll gleicht ab.
         }
-      } catch (e) {
-        // Nächster planmäßiger Poll bzw. die nächste eigene Bearbeitung gleicht ohnehin ab.
       }
-    }, 1200);
+    })();
   }
 
   // Zusätzlich zu changesConfirmed: ist gegenüber dem gelesenen Ausgangsstand
@@ -1702,7 +1781,7 @@ function createSharedStore(cfg) {
     const logZeilen = geaenderteFelder.length
       ? [macheLogEintrag("Einstellungen geändert: " + geaenderteFelder.join(", "), nowISO())]
       : [];
-    for (let versuch = 0; versuch < 5; versuch++) {
+    for (let versuch = 0; versuch < 8; versuch++) {
       try {
         const fileData = await readFileData();
         const inDatei = extractConfigEntries(fileData.entries);
@@ -1766,7 +1845,7 @@ function createSharedStore(cfg) {
       } catch (e) {
         letzterFehler = e;
       }
-      await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 150)));
+      await new Promise((r) => setTimeout(r, 150 + versuch * 150 + Math.floor(Math.random() * 450)));
     }
     const grund = letzterFehler ? ` (${letzterFehler.name || "Fehler"}: ${letzterFehler.message || letzterFehler})` : "";
     dispatchError(`Die Anlagen-/Team-Liste konnte nicht sicher in der gemeinsamen Datei bestätigt werden${grund}. Nichts ist verloren - bitte kurz warten und erneut versuchen.`);
@@ -1841,7 +1920,7 @@ function createSharedStore(cfg) {
     const merged = pruneLogs(mergeEntries(geborgen, eigene, {}));
     // Nach einer Datei-Reparatur ist der alte bauStand nicht mehr lesbar -
     // dann steht eben die eigene Bau-Zeit drin, der nächste Abgleich hebt an.
-    const out = { format: FORMAT, standort: STANDORT_DATEI, savedAt: nowISO(), entries: merged, deleted: {}, config: configAusEintraegen(merged), bauStand: bauStandFuer(null) };
+    const out = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: nowISO(), entries: merged, deleted: {}, config: configAusEintraegen(merged), bauStand: bauStandFuer(null) };
     await writeFileData(out);
     const kontrolle = await readFileData(); // muss jetzt wieder sauber lesbar sein
     lastSavedAt = kontrolle.savedAt;

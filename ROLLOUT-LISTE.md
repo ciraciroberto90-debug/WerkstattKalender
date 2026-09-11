@@ -615,6 +615,25 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       auch wegkommt, sagt Roberto noch - bis dahin bleibt sie als
       Verwechslungs-Schutz im laufenden Betrieb stehen.
 
+- [x] **Speicherweg-Tempo + zwei Funde (Robertos „12 Sekunden sind mir zu
+      lang" vom 11.09.).** Drei Ergebnisse: (1) MESSFEHLER der Messfahrt
+      behoben - feste Warte-Puffer steckten mit in der Stoppuhr (in den
+      „12 s Neuladen+Wiederverbinden" z. B. 9 Puffer-Sekunden); seit der
+      ehrlichen Uhr: Neuladen + Wiederverbinden 3,7 s, Verbinden 3,1 s,
+      Störungs-Datei < 0,1 s. (2) Speicherweg beschleunigt: die Datei
+      wird je Speichervorgang nur noch EINMAL zerlegt statt dreimal
+      (Sperren-Blick liest nur den Dateikopf, Nachkontrolle vergleicht
+      Byte für Byte); Speichern EIN Bearbeiter bei 71.000 Einträgen:
+      6,8 s. (3) FUND dabei: Verlorenes Update bei exakt gleichzeitigem
+      Speichern (savedAt nur ms-genau → Sperre konnte blind sein;
+      Heil-Blick kam einmalig zu früh) - behoben über eindeutige
+      Schreibmarke je Schreibaktion + dreistufige Heil-Kette
+      (1,2/4/10 s); exakt gleichzeitige Schreiber sind binnen ~11 s
+      beide sicher in der Datei. Neue Wache harte-70 (9 Prüfungen);
+      Rot-Nachweis gemessen: ohne Heil-Kette 5/9 (jede Runde verliert
+      dauerhaft). Eine Regression eines Zwischenstands wurde von der
+      Messfahrt gefangen, bevor irgendetwas ausgeliefert war.
+
 - [ ] **Handy-Fassung der App (Robertos Wunsch vom 10.09.).** Klickbare
       HTML-Vorlage am 10.09. in den Chat geliefert, auf Robertos Ansage
       nachgebessert: Start mit Werkstatt-Wahl (Scheurich/Soendgen mit
