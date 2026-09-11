@@ -98,15 +98,26 @@ Kein Eintrag ging bei irgendeinem dieser Vorgänge verloren; Stichproben von
 
 ### Einordnung: Was die Zahlen bedeuten
 
-- **71.084 Einträge sind rund 15 Jahre ohne jedes Aufräumen.** Die App
-  bleibt dabei bedienbar (Suche, Auswertung, Tippen flüssig; Verbinden und
-  Speichern im Sekundenbereich). Das ist die Grenz-Messung, nicht der
-  empfohlene Dauerzustand.
+- **Die 70.000 sind ein STRESSTEST, kein Betriebszustand.** Gemessen wird
+  absichtlich weit jenseits des Alltags – rund 15 Jahre ohne jedes
+  Aufräumen –, damit belegt ist, dass die App auch dann bedienbar bleibt
+  und nichts verliert (Suche, Auswertung, Tippen flüssig; Verbinden und
+  Speichern im Sekundenbereich). So voll wird der Bestand im normalen
+  Betrieb nie, siehe nächster Punkt.
+- **Ab etwa 5–8 MB Altbestand wird archiviert – nach Auswahl.** Die App
+  meldet sich ab drei Jahrgängen von selbst mit der Karte „Aufräumen
+  empfohlen" (in der Messfahrt erschien sie zuverlässig). Dort wählt man
+  selbst das Stichjahr („Auslagern bis einschließlich Jahr …", Vorschlag
+  der App: die letzten zwei vollen Jahre behalten), lädt ZUERST die
+  Archivdatei herunter, erst danach werden die ausgewählten alten
+  Einträge aus dem laufenden Bestand entfernt – nichts geht verloren,
+  das Archiv bleibt als Datei lesbar. (Einen Aufruf von Hand im ⚙ gibt
+  es noch nicht – als offener Punkt in der Roll-out-Liste vermerkt.)
 - **Oberhalb von ~5 MB passt der Bestand nicht mehr in den örtlichen
-  Browser-Zwischenspeicher.** Die Datei bleibt der maßgebliche Bestand
-  (dafür ist sie gebaut); der vorgesehene Weg ist das **Jahres-Archiv**:
-  Die Archiv-Erinnerung meldet sich ab drei Jahrgängen von selbst – in der
-  Messfahrt erschien sie zuverlässig.
+  Browser-Zwischenspeicher.** Die Datei auf dem Laufwerk bleibt der
+  maßgebliche Bestand (dafür ist sie gebaut); es wird nur das Neuladen
+  träger (~12 s) – auch deshalb ist das Archivieren ab 5–8 MB der
+  vorgesehene Weg.
 
 ## 3. Fund der Messfahrt – gefunden und behoben am selben Tag
 

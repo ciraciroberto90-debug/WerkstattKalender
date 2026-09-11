@@ -471,6 +471,14 @@ auf denselben Dateien.
       Archiv-Räumungs-Gegenprobe); Pflicht-Nachweis gemessen: ohne
       Bremse 5/8 rot (von 1.500 Einträgen überlebt genau 1).
 
+- [ ] **Jahres-Archiv auch von Hand aufrufbar machen (aufgefallen beim
+      Prüfbericht, 11.09.).** Heute öffnet sich das Auslagern (Stichjahr
+      wählen, Archivdatei zuerst herunterladen, dann entfernen) NUR über
+      die automatische Karte „Aufräumen empfohlen" ab drei Jahrgängen.
+      Wer früher oder gezielt archivieren will (Robertos Richtwert:
+      ab 5-8 MB Altbestand), braucht einen Knopf im ⚙ → Verlauf &
+      Sicherung, der dieselbe Karte jederzeit öffnet.
+
 ## Der nächste große Bau: Bereich „Berichte" + Zwei-Standort-Betrieb (Meeting vom 10.09.)
 
 Der Geschäftsführung gefällt die App - jetzt kommt die Umstrukturierung,
