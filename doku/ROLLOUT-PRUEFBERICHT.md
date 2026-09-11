@@ -49,19 +49,47 @@ davon  SCHICHT     31.728     (Schichtplan, 8 Personen je Arbeitstag)
 
 ### Gemessene Zeiten (Messfahrt 11.09.2026, `tests/stress-15-jahre.js`)
 
-| Vorgang | Dauer |
+Jede Zeit gehört zu genau einer von drei „Verbindungen" – so ist ablesbar,
+WO die Zeit entsteht:
+
+| Verbindung | Was dahintersteckt |
 |---|---|
-| App starten | 0,16 s |
-| Verbinden (15 Jahrgänge einlesen + zusammenführen) | 5,9 s |
-| Gleichzeitiges Speichern, zwei Bearbeiter, volle Menge | 12,8 s |
-| Reiterwechsel Schichtplan / Planung / Backlog | 1,5 s / 0,6 s / 0,9 s |
-| Störungen-Datei verbinden (2.704 Berichte) | 6,0 s |
-| Volltextsuche über 15 Jahrgänge | unter 0,1 s |
-| Störungs-Auswertung über 15 Jahrgänge | 0,4 s |
-| Prüfnachweis (R+I) öffnen | 2,7 s |
-| **Neuladen + Wiederverbinden bei voller Menge** | **6,1 s + 6,2 s** |
-| Reiterwechsel bei 6-fach gedrosselter CPU (schwacher PC) | 3,8 s |
-| Tipp-Verzug 18 Zeichen bei 6-fach-Drossel | 0,3 s (flüssig) |
+| **A · Hauptdatei** | `werkstatt-kalender-daten.json` (13,8 MB bei 68.380 Einträgen): Kalender, Schichten, Planung, To-dos, Zeiterfassung. Jeder Vorgang liest die GANZE Datei, führt Eintrag für Eintrag zusammen und schreibt sie in einem Zug zurück – so kann sich nichts halb überschreiben. |
+| **B · Störungs-Datei** | `werkstatt-stoerungen.json` (1,4 MB, 2.704 Berichte): die eigene, für alle beschreibbare Datei des Schichtbuchs. |
+| **C · Keine Datei** | Reine Anzeige aus dem Arbeitsspeicher – es wird nichts gelesen oder geschrieben. Diese Zeiten hängen NUR am Rechner, nie am Laufwerk. |
+
+**Ehrlich dazugesagt:** Die Messfahrt stellt die Dateien im Speicher des
+Test-Rechners nach. Gemessen ist also die **Arbeit der App** (rund 14 MB Text
+lesen, 68.000 Einträge vergleichen und zusammenführen, zurückschreiben) –
+**nicht** die Netz-Geschwindigkeit des echten Firmenlaufwerks. Am Laufwerk
+kommt je nach Netz etwas obendrauf; das ist dort bislang ungemessen.
+
+#### A · Vorgänge an der Hauptdatei (bei 68.380 Einträgen)
+
+| Vorgang | Zeit | Was genau gemessen wird |
+|---|---|---|
+| Verbinden | 5,9 s | Vom Klick „Vorhandene Datei öffnen" bis alles steht: Datei komplett lesen, alle 68.380 Einträge prüfen und mit dem örtlichen Stand zusammenführen, Übersicht aufbauen. Fällt einmal an – beim Einrichten oder nach dem Browser-Neustart. |
+| Gleichzeitiges Speichern, zwei Bearbeiter | 12,8 s | Zwei Fenster speichern im selben Moment je einen Eintrag. Jeder Speichervorgang liest erst die volle Datei, führt zusammen, schreibt zurück und liest zur Kontrolle nochmal – bei einer Kollision wartet einer kurz und versucht es erneut (deshalb ≈ zwei volle Durchgänge nacheinander). Beide Änderungen standen danach in der Datei. |
+| Neuladen (F5) | 6,1 s | Seite neu laden bei voller Menge: die App kommt hoch und holt sich den Bestand erneut aus der Datei. |
+| Wiederverbinden danach | 6,2 s | Oberhalb der ~5-MB-Grenze gibt es keine örtliche Zweitschrift mehr – nach jedem Neuladen wird die volle Datei neu eingelesen. Zusammen mit dem Neuladen: ~12 s, einmal pro Browser-Neustart. |
+
+#### B · Vorgänge an der Störungs-Datei (2.704 Berichte)
+
+| Vorgang | Zeit | Was genau gemessen wird |
+|---|---|---|
+| Störungs-Datei verbinden | 6,0 s | Wie A/Verbinden, nur für die Schichtbuch-Datei: komplett lesen, alle Berichte zusammenführen, Liste aufbauen. Fällt ebenfalls nur beim Einrichten bzw. nach Neustart an. |
+
+#### C · Bedienung ohne Dateizugriff (alles schon im Arbeitsspeicher)
+
+| Vorgang | Zeit | Was genau gemessen wird |
+|---|---|---|
+| App-Start (leer) | 0,16 s | Aufruf der HTML bis zur bedienbaren Oberfläche, noch ohne Verbinden. |
+| Reiterwechsel Schichtplan / Planung / Backlog | 1,5 / 0,6 / 0,9 s | Klick auf den Bereich bis die Ansicht steht – die App zeichnet die jeweilige Ansicht aus 68.380 Einträgen im Speicher neu (der Schichtplan ist die dichteste, daher der höchste Wert). |
+| Volltextsuche im Schichtbuch | < 0,1 s | Tippen im Suchfeld bis die Treffer über alle 15 Jahrgänge dastehen. |
+| Störungs-Auswertung | 0,4 s | Klick auf „Auswertung" bis Ausfallzeiten/Anteile über 15 Jahrgänge gerechnet und gezeichnet sind. |
+| Prüfnachweis (R+I) öffnen | 2,7 s | Druckansicht des Nachweises: über den ganzen Zeitraum rechnen und das Druckfenster aufbauen. |
+| Reiterwechsel bei 6-fach gedrosselter CPU | 3,8 s | Derselbe Reiterwechsel wie oben, aber mit künstlich auf ein Sechstel gebremstem Prozessor – der schwächste denkbare Werkstatt-PC. |
+| Tipp-Verzug, 18 Zeichen, 6-fach-Drossel | 0,3 s | Wie weit das Suchfeld beim schnellen Tippen hinterherhängt. Unter einer Drittelsekunde = fühlt sich flüssig an. |
 
 Kein Eintrag ging bei irgendeinem dieser Vorgänge verloren; Stichproben von
 2011, 2018 und 2026 waren nach jedem Schritt einzeln vorhanden, und die
