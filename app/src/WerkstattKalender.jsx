@@ -7233,8 +7233,8 @@ function App() {
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E4E7"; }}
               >
                 <img src={logo} alt={STANDORTE[id].name} style={{ height: "72px", objectFit: "contain", maxWidth: "86%", margin: "0 auto", display: "block" }} />
+                {/* Nur der Firmenname - die Ortsnamen wollte Roberto hier nicht sehen (11.09.). */}
                 <div className="font-black" style={{ fontSize: "15px", color: "#22262B", marginTop: "10px" }}>{STANDORTE[id].name}</div>
-                <div style={{ fontSize: "11.5px", color: "#8A9099", marginTop: "2px" }}>{STANDORTE[id].ort}</div>
               </button>
             ))}
           </div>
