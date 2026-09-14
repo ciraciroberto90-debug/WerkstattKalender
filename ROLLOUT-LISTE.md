@@ -634,6 +634,21 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       dauerhaft). Eine Regression eines Zwischenstands wurde von der
       Messfahrt gefangen, bevor irgendetwas ausgeliefert war.
 
+- [ ] **Berichte-Startseite: Score-Kacheln + bereichsweite Suche
+      (Robertos Ansage vom 14.09.).** Gewünscht: oben Score-Kacheln wie
+      in der Übersicht, darunter eine Suchleiste mit Filter, die über
+      den GANZEN Berichte-Bereich sucht (To-dos, Störungen, Backlog,
+      Zeiterfassung). Drei klickbare Vorlagen am 14.09. in den Chat
+      geliefert (V1 Score + Suche + Bereichs-Kacheln; V2 Score + Suche +
+      „Zuletzt im Bereich Berichte"; V3 Score-Kacheln SIND die
+      Navigation) - gebaut wird nach Robertos Varianten-Wahl. Vor dem
+      Bau zu klären: welche Score-Zahlen in die Kacheln sollen, ob die
+      Suche auch alte/erledigte Einträge findet (Zeitraum-Filter), und
+      das Tempo bei 70.000 Einträgen (hängt mit dem Klickrunden-Punkt
+      unten zusammen - die Volltextsuche der Messfahrt brauchte 2,0 s
+      über 15 Jahrgänge, eine Berichte-Suche muss das einhalten oder
+      unterbieten).
+
 - [ ] **Bereichswechsel bei Vollbestand beschleunigen (Fund der
       Klickrunde, 11.09.).** Robertos Maßstab: die reine Klick-Zeit des
       Benutzers. Gemessen bei 71.084 Einträgen (tests/klickrunde-70k.js):
