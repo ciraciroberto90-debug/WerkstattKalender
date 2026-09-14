@@ -656,9 +656,14 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       FUND dabei: die Störungs-Suche durchsuchte die Berichtsnummer
       gar nicht (obwohl der Code-Kommentar es versprach), jetzt tut
       sie es. Gerechnet und gesucht wird nur bei aktiver Suche - der
-      blanke Start bleibt bei 70.000 Einträgen frei von Suchkosten
-      (Suchtempo bei Vollbestand: Messung folgt mit der nächsten
-      Messfahrt). NEUE WACHE harte-71 (16 Prüfungen: Zahlenpaare der
+      blanke Start bleibt bei 70.000 Einträgen frei von Suchkosten.
+      GEMESSEN bei 71.084 Einträgen (tests/suchtempo-berichte-70k.js,
+      ehrliche Stoppuhr bis zur gezeichneten Trefferliste, 150-ms-
+      Tippdämpfung inklusive): Berichte-Start öffnen 1,1 s, Suche
+      0,3-0,4 s je Wort (auch bei 4.462 Treffern), Suche leeren 0,3 s,
+      Filter-Pille ohne Suchwort 0,2 s - die 2,0 s der alten
+      Störungs-Volltextsuche sind klar unterboten.
+      NEUE WACHE harte-71 (16 Prüfungen: Zahlenpaare der
       Bögen, Kacheln-Weichen, Art-/Status-Filter, Berichts-Sprung,
       Leser ohne Backlog); Rot-Nachweis gemessen: gegen den Bau ohne
       die Startseite fallen die Score-Prüfungen und der Lauf bricht am
