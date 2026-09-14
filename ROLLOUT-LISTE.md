@@ -634,30 +634,36 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       dauerhaft). Eine Regression eines Zwischenstands wurde von der
       Messfahrt gefangen, bevor irgendetwas ausgeliefert war.
 
-- [ ] **Berichte-Startseite: Score-Kacheln + bereichsweite Suche
-      (Robertos Ansage vom 14.09.).** Gewünscht: oben Score-Kacheln wie
-      in der Übersicht, darunter eine Suchleiste mit Filter, die über
-      den GANZEN Berichte-Bereich sucht (To-dos, Störungen, Backlog,
-      Zeiterfassung). Drei klickbare Vorlagen am 14.09. in den Chat
-      geliefert (V1 Score + Suche + Bereichs-Kacheln; V2 Score + Suche +
-      „Zuletzt im Bereich Berichte"; V3 Score-Kacheln SIND die
-      Navigation) - gebaut wird nach Robertos Varianten-Wahl.
-      Robertos Nachschärfung vom 14.09.: die Score-Kacheln als
-      HALBKREIS-Anzeigen - und zwar GENAU der filigrane, animierte
-      Halbkreis aus der Übersicht (HalbkreisQuote: schlanker Bogen mit
-      Farbverlauf, mitlaufender Punkt an der Spitze, 1,4-s-Einlauf,
-      Prozent im Bogen), darunter klein „X von Y" (z. B. „100 von
-      300"). Der erste Vorlagen-Wurf mit dickem Bogen war ihm zu grob;
-      Zeiterfassung bekommt KEINE Score-Kachel - die Vorlagen sind
-      entsprechend umgebaut und neu geliefert. Farb-Angleich dabei:
-      To-do blau, Backlog orange (wie die Filter-Pillen und die
-      Trefferliste - vorher war es in einer Vorlage vertauscht). Vor dem
-      Bau zu klären: welche Score-Zahlen in die Kacheln sollen, ob die
-      Suche auch alte/erledigte Einträge findet (Zeitraum-Filter), und
-      das Tempo bei 70.000 Einträgen (hängt mit dem Klickrunden-Punkt
-      unten zusammen - die Volltextsuche der Messfahrt brauchte 2,0 s
-      über 15 Jahrgänge, eine Berichte-Suche muss das einhalten oder
-      unterbieten).
+- [x] **Berichte-Startseite GEBAUT (14.09.): Halbkreis-Score +
+      bereichsweite Suche.** Robertos Ansagen vom 14.09. in Reihe:
+      Score-Kacheln wie in der Übersicht, dann „als Halbkreis-Diagramm
+      mit klein ‚X von Y' darunter", dann „GENAU der filigrane,
+      animierte Halbkreis aus der Übersicht", dann die Streichungen
+      (Zeiterfassung und Störungen bekommen KEINE Score-Kachel) und
+      „baue es bitte erstmal direkt". Gebaut nach V1-Aufbau (Vorlagen
+      V1-V3 waren im Chat; V2/V3-Elemente auf Zuruf nachrüstbar):
+      Oben DREI Halbkreise der echten HalbkreisQuote-Komponente, je
+      Bereich gefärbt (Überfällige To-dos blau „X von Y offenen",
+      Backlog orange „X von Y (Jahr)" - Jahres-Nenner, damit der Bogen
+      bei Langzeit-Beständen nicht nichtssagend auf null steht -,
+      Erledigt diese Woche grün „X von Y fälligen" über To-dos +
+      Backlog + behobene Störungen; Backlog-Bogen nur für Bearbeiter).
+      Darunter EINE Suche über den ganzen Bereich mit Art- und
+      Status-Pillen; beim Tippen weichen die Kacheln der Trefferliste
+      (neueste zuerst, gedeckelt auf 120 mit Hinweis), „Suche leeren"
+      bringt sie zurück. Treffer-Klick springt in den Bereich; beim
+      Störungs-Treffer mit vorgefüllter Nummer direkt zum Bericht -
+      FUND dabei: die Störungs-Suche durchsuchte die Berichtsnummer
+      gar nicht (obwohl der Code-Kommentar es versprach), jetzt tut
+      sie es. Gerechnet und gesucht wird nur bei aktiver Suche - der
+      blanke Start bleibt bei 70.000 Einträgen frei von Suchkosten
+      (Suchtempo bei Vollbestand: Messung folgt mit der nächsten
+      Messfahrt). NEUE WACHE harte-71 (16 Prüfungen: Zahlenpaare der
+      Bögen, Kacheln-Weichen, Art-/Status-Filter, Berichts-Sprung,
+      Leser ohne Backlog); Rot-Nachweis gemessen: gegen den Bau ohne
+      die Startseite fallen die Score-Prüfungen und der Lauf bricht am
+      fehlenden Suchfeld ab. Noch von Roberto: ob die Zahlenpaare der
+      drei Bögen so bleiben, und ob ein Zeitraum-Filter dazukommt.
 
 - [ ] **Bereichswechsel bei Vollbestand beschleunigen (Fund der
       Klickrunde, 11.09.).** Robertos Maßstab: die reine Klick-Zeit des

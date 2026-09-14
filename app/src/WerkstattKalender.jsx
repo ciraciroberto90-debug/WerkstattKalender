@@ -485,7 +485,7 @@ function MonatsDiagramm({ tage, monatName, jahr, erledigt, basis, prozent, filte
   );
 }
 
-function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false }) {
+function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = ["#43B26F", "#2F7D4F"] }) {
   const hatWert = prozent !== null && prozent !== undefined;
   const ziel = hatWert ? Math.min(100, Math.max(0, prozent)) : 0;
   const [anim, setAnim] = useState(0);
@@ -511,7 +511,7 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false }) {
   const theta = Math.PI * (1 - frac); // Winkel der Bogenspitze (links = π, rechts = 0)
   const tipX = 42 + 34 * Math.cos(theta);
   const tipY = 44 - 34 * Math.sin(theta);
-  const [gruenHell, gruenDunkel] = ["#43B26F", "#2F7D4F"]; // immer grün
+  const [gruenHell, gruenDunkel] = farben; // Vorgabe grün (Übersicht); der Berichte-Score färbt je Bereich
   return (
     <div
       className="px-3.5 py-3 flex flex-col justify-center"
@@ -2031,6 +2031,13 @@ function App() {
      Zeiterfassung (Letztere "in Klärung"). Leser sehen künftig nur noch
      Übersicht + Berichte. */
   const [berichtTab, setBerichtTab] = useState("START"); // START | TODO | STOERUNGEN | BACKLOG | ZEIT
+  /* Suche über den GANZEN Berichte-Bereich auf der Startseite (Robertos
+     Ansage vom 14.09.): ein Suchwort trifft To-dos, Störungen, Backlog und
+     Zeiterfassung zugleich - erst beim Tippen weichen die Kacheln der
+     Trefferliste, damit der vertraute Einstieg unangetastet bleibt. */
+  const [berichtSuche, setBerichtSuche] = useState("");
+  const [berichtSucheArt, setBerichtSucheArt] = useState("ALLE"); // ALLE | TODO | STOERUNG | BACKLOG | ZEIT
+  const [berichtSucheStatus, setBerichtSucheStatus] = useState("ALLE"); // ALLE | OFFEN | ERLEDIGT
   const [todoModal, setTodoModal] = useState(null); // null | Entwurf {id?, titel, wer, bis, prio, bemerkung}
   const [todoFilter, setTodoFilter] = useState("ALLE"); // ALLE | MEINE | ERLEDIGT
   const [todoFehler, setTodoFehler] = useState(null);
@@ -3063,7 +3070,10 @@ function App() {
   const stoerTreffer = (() => {
     if (!stoerSucheAktiv) return null;
     const q = stoerSuche.trim().toLowerCase();
-    return stoerungenSortiert.filter((s) => [s.anlage, s.anlagenteil, s.stoerung, s.ursache, s.getan, s.nochZuTun, s.ersatzteile, s.melder, s.fehlerart, STOER_GEWERK[s.gewerk]?.label]
+    // Auch die Berichtsnummer (lange Form, z. B. 2026-0041) - der Sprung aus
+    // der Berichte-Startsuche füllt genau sie vor, und am Telefon wird nach
+    // Nummern gefragt. Ohne sie lief der Sprung ins Leere (Sonde 14.09.).
+    return stoerungenSortiert.filter((s) => [stoerNrLang(s), s.anlage, s.anlagenteil, s.stoerung, s.ursache, s.getan, s.nochZuTun, s.ersatzteile, s.melder, s.fehlerart, STOER_GEWERK[s.gewerk]?.label]
       .some((v) => String(v || "").toLowerCase().includes(q)));
   })();
 
@@ -8150,6 +8160,91 @@ function App() {
           Störungen, Backlog (nur Bearbeiter), Zeiterfassung (in Klärung). */}
       {view === "BERICHTE" && berichtTab === "START" && (() => {
         const prioHochZahl = arbeitenOffen.filter((a) => a.prio === "hoch").length;
+
+        /* ---- Score-Halbkreise (Robertos Ansage vom 14.09.) ----
+           Drei Anzeigen im Stil der Übersicht (HalbkreisQuote), je Bereich
+           gefärbt. Störungen und Zeiterfassung haben auf Robertos Ansage
+           KEINE Score-Kachel - ihre Zahlen stehen weiter auf den Kacheln. */
+        const jahr = todayKey.slice(0, 4);
+        const mo = new Date(today); mo.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+        const montagKey = dateKey(mo.getFullYear(), mo.getMonth(), mo.getDate());
+        const so = new Date(mo); so.setDate(mo.getDate() + 6);
+        const sonntagKey = dateKey(so.getFullYear(), so.getMonth(), so.getDate());
+        // erledigtAm ist bei To-dos ein ISO-Zeitstempel, beim Backlog ein
+        // Tagesschlüssel, behobenAt bei Störungen ISO - vor dem Vergleich
+        // alles auf den Tagesschlüssel bringen, sonst mischt man Formate.
+        const tagVon = (wert) => String(wert || "").slice(0, 10);
+        const erledigtWoche =
+          todos.filter((t) => t.status === "done" && tagVon(t.erledigtAm) >= montagKey).length +
+          arbeiten.filter((a) => a.status === "done" && tagVon(a.erledigtAm) >= montagKey).length +
+          stoerungen.filter((s) => !s.offen && tagVon(s.behobenAt) >= montagKey).length;
+        // "Fällig" diese Woche: offene To-dos mit Frist bis Sonntag plus alle
+        // offenen Störungen (eine offene Störung ist immer fällig).
+        const faelligWoche = erledigtWoche + todoOffene.filter((t) => t.bis && String(t.bis) <= sonntagKey).length + stoerOffenCount;
+        // Backlog-Maßstab ist das laufende Jahr - über alle Jahrgänge würde
+        // der Nenner bei Langzeit-Beständen ins Zehntausendfache wachsen und
+        // der Bogen stünde nichtssagend auf null.
+        const backlogVon = Math.max(arbeiten.filter((a) => String(a.date || "").startsWith(jahr)).length, arbeitenOffen.length);
+        const quoteVon = (z, n) => (n > 0 ? Math.round((z / n) * 100) : 0);
+
+        /* ---- Bereichsweite Suche: ein Wort trifft alle vier Berichte-Arten.
+           Gerechnet wird nur, wenn wirklich gesucht/gefiltert wird - bei
+           Langzeit-Beständen (70.000+) bleibt der blanke Start dadurch frei
+           von Suchkosten; das Tippfeld selbst dämpft mit 150 ms (SuchFeld). */
+        const suchWort = berichtSuche.trim().toLowerCase();
+        const sucheAktiv = suchWort.length >= 2 || berichtSucheArt !== "ALLE" || berichtSucheStatus !== "ALLE";
+        const MAX_TREFFER = 120;
+        let treffer = [], trefferMehr = 0;
+        if (sucheAktiv) {
+          const trifft = (...felder) => !suchWort || felder.some((f) => String(f || "").toLowerCase().includes(suchWort));
+          const stZu = (offen) => (berichtSucheStatus === "ALLE" ? true : berichtSucheStatus === "OFFEN" ? offen : !offen);
+          const artZu = (a) => berichtSucheArt === "ALLE" || berichtSucheArt === a;
+          if (artZu("TODO")) {
+            for (const t of todos) {
+              if (!stZu(t.status !== "done") || !trifft(t.name, t.wer, t.bemerkung, t.erteiltVon, t.erledigtVon)) continue;
+              treffer.push({ art: "TODO", id: t.id, titel: t.name, offen: t.status !== "done",
+                meta: [t.wer && `für ${t.wer}`, t.erteiltVon && `erteilt von ${t.erteiltVon}`, t.bis && `bis ${t.bis}`].filter(Boolean).join(" · "),
+                datum: t.status === "done" ? tagVon(t.erledigtAm) || t.date : t.bis || t.date, ziel: () => setBerichtTab("TODO") });
+            }
+          }
+          if (artZu("STOERUNG")) {
+            for (const s of stoerungen) {
+              const gw = STOER_GEWERK[s.gewerk];
+              if (!stZu(!!s.offen) || !trifft(stoerNrLang(s), s.anlage, s.anlagenteil, s.stoerung, s.ursache, s.getan, s.nochZuTun, s.ersatzteile, s.melder, s.fehlerart, gw && gw.label)) continue;
+              treffer.push({ art: "STOERUNG", id: s.id, titel: [stoerNrLang(s), s.anlage, s.stoerung].filter(Boolean).join(" · "), offen: !!s.offen,
+                meta: [s.schicht, gw && gw.label, s.ausfallzeit && `Ausfall ${s.ausfallzeit} min`, s.melder && `Melder ${s.melder}`].filter(Boolean).join(" · "),
+                datum: s.date, ziel: () => { setStoerSuche(stoerNrLang(s)); setBerichtTab("STOERUNGEN"); } });
+            }
+          }
+          if (!leserAnzeige && artZu("BACKLOG")) {
+            for (const a of arbeiten) {
+              if (!stZu(a.status !== "done") || !trifft(a.name, a.note, a.wer, a.melder)) continue;
+              treffer.push({ art: "BACKLOG", id: a.id, titel: [a.name, a.note].filter(Boolean).join(" · "), offen: a.status !== "done",
+                meta: [a.art, a.prio && `Prio ${a.prio}`, a.geplant && `eingeplant ${a.geplant}`].filter(Boolean).join(" · "),
+                datum: a.status === "done" ? a.erledigtAm || a.date : a.date, ziel: () => setBerichtTab("BACKLOG") });
+            }
+          }
+          // Zeit-Buchungen kennen kein offen/erledigt - sie erscheinen nur ohne Status-Filter
+          if (artZu("ZEIT") && berichtSucheStatus === "ALLE") {
+            for (const z of zeitEintraege) {
+              if (!trifft(z.name, z.ks, z.ksNr, z.taetigkeit, z.grund, z.bemerkung, z.stoerNr)) continue;
+              treffer.push({ art: "ZEIT", id: z.id, titel: [z.name, z.stunden != null && `${String(z.stunden).replace(".", ",")} h`, z.art === "abwesenheit" ? z.grund : z.ks && `${z.ks}${z.ksNr ? ` (${z.ksNr})` : ""}`].filter(Boolean).join(" · "), offen: null,
+                meta: [z.taetigkeit, z.bemerkung, z.stoerNr && `zu Störung ${z.stoerNr}`].filter(Boolean).join(" · "),
+                datum: z.date, ziel: () => setBerichtTab("ZEIT") });
+            }
+          }
+          treffer.sort((a, b) => String(b.datum || "").localeCompare(String(a.datum || "")));
+          trefferMehr = Math.max(0, treffer.length - MAX_TREFFER);
+          if (trefferMehr) treffer = treffer.slice(0, MAX_TREFFER);
+        }
+        const ART_FARBEN = { TODO: "#2F6690", STOERUNG: "#C0392B", BACKLOG: "#C97A2B", ZEIT: "#4B5259" };
+        const ART_NAMEN = { TODO: "To-do", STOERUNG: "Störung", BACKLOG: "Backlog", ZEIT: "Zeit" };
+        const pille = (an, txt, setz, anBg) => (
+          <button key={txt} onClick={setz} className="rounded-full font-bold border"
+            style={{ fontSize: "0.7rem", padding: "3px 11px",
+              backgroundColor: an ? (anBg || "#22262B") : "#F7F8F9", color: an ? "#fff" : "#374151",
+              borderColor: an ? (anBg || "#22262B") : "#D6D9DC" }}>{txt}</button>
+        );
         const kachel = (ziel, zeichen, zeichenBg, name, info, zahl, zahlFarbe, pillen) => (
           <button onClick={() => setBerichtTab(ziel)} className="text-left rounded-2xl border bg-white p-5 hover:border-orange-300 w-full"
             style={{ borderColor: "#E2E4E7", boxShadow: "0 2px 10px rgba(20,22,25,0.05)" }}>
@@ -8172,17 +8267,85 @@ function App() {
         );
         return (
           <div className="no-print max-w-5xl mx-auto px-4 mt-5">
-            <div className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#5B6572" }}>Berichte – was liegt an?</div>
-            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-              {kachel("TODO", "📋", "#EEF3F8", "To-do", "Aufgaben – erteilt, ohne Störungs-Bezug", todoOffene.length, "#2F6690",
-                todoUeberfaellige.length ? [[`${todoUeberfaellige.length} überfällig`, "#FBEAE8", "#C0392B"]] : [])}
-              {kachel("STOERUNGEN", "⚠️", "#FBEAE8", "Störungen", "Berichte ansehen & neue Störung melden", stoerOffenCount, "#C0392B",
-                offeneNachbestellungen.length ? [[`${offeneNachbestellungen.length} Ersatzteil(e) nachbestellt`, "#FBF3DA", "#9A6B00"]] : [])}
-              {!leserAnzeige && kachel("BACKLOG", "🧰", "#FDF0E2", "Backlog", "Arbeiten zum Einplanen", arbeitenOffen.length, "#C97A2B",
-                prioHochZahl ? [[`${prioHochZahl} hohe Prio`, "#FBEAE8", "#C0392B"]] : [])}
-              {kachel("ZEIT", "⏱️", "#F0F2F5", "Zeiterfassung", "Stunden auf Kostenstellen buchen", null, "#8A9099",
-                [["in Klärung – bleibt erreichbar", "#FBF3DA", "#9A6B00"]])}
+            {/* Score-Reihe: die drei Halbkreise (Backlog nur für Bearbeiter) */}
+            <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
+              <HalbkreisQuote prozent={quoteVon(todoUeberfaellige.length, todoOffene.length)} farben={["#4A81B4", "#2C5F8A"]}
+                label="Überfällige To-dos" sub={`${todoUeberfaellige.length} von ${todoOffene.length} offenen`}
+                titel="Anteil der offenen To-dos, deren Frist verstrichen ist" />
+              {!leserAnzeige && (
+                <HalbkreisQuote prozent={quoteVon(arbeitenOffen.length, backlogVon)} farben={["#E09141", "#A8641F"]}
+                  label="Backlog offen" sub={`${arbeitenOffen.length} von ${backlogVon} (Jahr)`}
+                  titel="Offene Backlog-Arbeiten, gemessen an den im laufenden Jahr aufgenommenen" />
+              )}
+              <HalbkreisQuote prozent={faelligWoche > 0 ? quoteVon(erledigtWoche, faelligWoche) : null}
+                label="Erledigt diese Woche" sub={`${erledigtWoche} von ${faelligWoche} fälligen`}
+                titel="Diese Woche erledigte To-dos, Backlog-Arbeiten und behobene Störungen, gemessen an allem, was bis Sonntag fällig ist" />
             </div>
+
+            {/* Suchleiste über den GANZEN Berichte-Bereich */}
+            <div className="rounded-2xl border bg-white p-4 mb-4" style={{ borderColor: "#E2E4E7", boxShadow: "0 2px 10px rgba(20,22,25,0.05)" }}>
+              <SuchFeld wert={berichtSuche} onWert={setBerichtSuche} type="search"
+                placeholder="Über alle Berichte suchen – To-dos, Störungen, Backlog, Zeiterfassung …"
+                className="w-full rounded-xl border-2 px-4 py-2.5 text-sm outline-none focus:border-orange-400" style={{ borderColor: "#D6D9DC" }} />
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                <span className="text-[10px] font-black uppercase mr-1" style={{ color: "#8A9099" }}>Art:</span>
+                {pille(berichtSucheArt === "ALLE", "Alle", () => setBerichtSucheArt("ALLE"))}
+                {pille(berichtSucheArt === "TODO", "To-dos", () => setBerichtSucheArt("TODO"), ART_FARBEN.TODO)}
+                {pille(berichtSucheArt === "STOERUNG", "Störungen", () => setBerichtSucheArt("STOERUNG"), ART_FARBEN.STOERUNG)}
+                {!leserAnzeige && pille(berichtSucheArt === "BACKLOG", "Backlog", () => setBerichtSucheArt("BACKLOG"), ART_FARBEN.BACKLOG)}
+                {pille(berichtSucheArt === "ZEIT", "Zeiterfassung", () => setBerichtSucheArt("ZEIT"), ART_FARBEN.ZEIT)}
+                <span className="text-[10px] font-black uppercase ml-2 mr-1" style={{ color: "#8A9099" }}>Status:</span>
+                {pille(berichtSucheStatus === "ALLE", "Alle", () => setBerichtSucheStatus("ALLE"))}
+                {pille(berichtSucheStatus === "OFFEN", "Offen", () => setBerichtSucheStatus("OFFEN"))}
+                {pille(berichtSucheStatus === "ERLEDIGT", "Erledigt", () => setBerichtSucheStatus("ERLEDIGT"))}
+                {sucheAktiv && (
+                  <button onClick={() => { setBerichtSuche(""); setBerichtSucheArt("ALLE"); setBerichtSucheStatus("ALLE"); }}
+                    className="ml-auto text-xs font-bold underline" style={{ color: "#8A9099" }}>Suche leeren</button>
+                )}
+              </div>
+            </div>
+
+            {sucheAktiv ? (
+              /* Trefferliste ersetzt die Kacheln, solange gesucht wird */
+              <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: "#E2E4E7" }}>
+                <div className="text-[11px] font-black uppercase px-4 py-2.5 border-b" style={{ color: "#5A6068", backgroundColor: "#FAFBFC", borderColor: "#F0F1F3" }}>
+                  {treffer.length + trefferMehr} Treffer über alle Berichte{trefferMehr ? ` – die neuesten ${MAX_TREFFER} angezeigt, Suchwort verfeinern` : ""}
+                </div>
+                {treffer.length === 0 && (
+                  <div className="px-4 py-5 text-sm italic" style={{ color: "#8A9099" }}>Nichts gefunden – anderes Suchwort oder Filter lockern.</div>
+                )}
+                {treffer.map((tr, i) => (
+                  <button key={`${tr.art}-${tr.id || i}`} onClick={tr.ziel}
+                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 border-b hover:bg-slate-50" style={{ borderColor: "#F0F1F3" }}>
+                    <span className="rounded-md font-black uppercase text-white text-center shrink-0"
+                      style={{ fontSize: "0.6rem", padding: "3px 0", width: "64px", backgroundColor: ART_FARBEN[tr.art] }}>{ART_NAMEN[tr.art]}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-bold truncate" style={{ color: "#22262B" }}>{tr.titel || "(ohne Titel)"}</span>
+                      {tr.meta && <span className="block text-xs truncate" style={{ color: "#8A9099" }}>{tr.meta}</span>}
+                    </span>
+                    {tr.offen !== null && (
+                      <span className="rounded-full font-black shrink-0" style={{ fontSize: "0.64rem", padding: "3px 9px",
+                        backgroundColor: tr.offen ? "#FBEAEA" : "#E5F3E9", color: tr.offen ? "#C0392B" : "#1F7A3D" }}>{tr.offen ? "offen" : "erledigt"}</span>
+                    )}
+                    <span className="text-xs shrink-0 text-right font-mono" style={{ color: "#8A9099", width: "82px" }}>{tr.datum || ""}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#5B6572" }}>Berichte – was liegt an?</div>
+                <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+                  {kachel("TODO", "📋", "#EEF3F8", "To-do", "Aufgaben – erteilt, ohne Störungs-Bezug", todoOffene.length, "#2F6690",
+                    todoUeberfaellige.length ? [[`${todoUeberfaellige.length} überfällig`, "#FBEAE8", "#C0392B"]] : [])}
+                  {kachel("STOERUNGEN", "⚠️", "#FBEAE8", "Störungen", "Berichte ansehen & neue Störung melden", stoerOffenCount, "#C0392B",
+                    offeneNachbestellungen.length ? [[`${offeneNachbestellungen.length} Ersatzteil(e) nachbestellt`, "#FBF3DA", "#9A6B00"]] : [])}
+                  {!leserAnzeige && kachel("BACKLOG", "🧰", "#FDF0E2", "Backlog", "Arbeiten zum Einplanen", arbeitenOffen.length, "#C97A2B",
+                    prioHochZahl ? [[`${prioHochZahl} hohe Prio`, "#FBEAE8", "#C0392B"]] : [])}
+                  {kachel("ZEIT", "⏱️", "#F0F2F5", "Zeiterfassung", "Stunden auf Kostenstellen buchen", null, "#8A9099",
+                    [["in Klärung – bleibt erreichbar", "#FBF3DA", "#9A6B00"]])}
+                </div>
+              </>
+            )}
           </div>
         );
       })()}
