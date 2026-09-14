@@ -641,7 +641,14 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Zeiterfassung). Drei klickbare Vorlagen am 14.09. in den Chat
       geliefert (V1 Score + Suche + Bereichs-Kacheln; V2 Score + Suche +
       „Zuletzt im Bereich Berichte"; V3 Score-Kacheln SIND die
-      Navigation) - gebaut wird nach Robertos Varianten-Wahl. Vor dem
+      Navigation) - gebaut wird nach Robertos Varianten-Wahl.
+      Robertos Nachschärfung vom 14.09.: die Score-Kacheln als
+      HALBKREIS-Anzeigen (der Bogen zeigt den Anteil, die große Zahl im
+      Bogen, darunter klein „X von Y", z. B. „100 von 300"), und
+      Zeiterfassung bekommt KEINE Score-Kachel - die Vorlagen sind
+      entsprechend umgebaut und neu geliefert. Farb-Angleich dabei:
+      To-do blau, Backlog orange (wie die Filter-Pillen und die
+      Trefferliste - vorher war es in einer Vorlage vertauscht). Vor dem
       Bau zu klären: welche Score-Zahlen in die Kacheln sollen, ob die
       Suche auch alte/erledigte Einträge findet (Zeitraum-Filter), und
       das Tempo bei 70.000 Einträgen (hängt mit dem Klickrunden-Punkt
