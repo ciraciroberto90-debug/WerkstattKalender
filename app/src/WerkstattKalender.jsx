@@ -1245,8 +1245,10 @@ const oeeZeitraumText = (s) => {
 
 // R+I-Punkte aus Todoist importiert (Stand: Juli 2026). "Wasserrundgang" und
 // "Filterwartung / Schaltschränke" liefen doppelt in Todoist - hier zusammengeführt.
-// type: "weekly" (weekday), "biweekly" (weekday, anchor), "monthly-day" (day),
-// "every-n-months" (n, anchor), "yearly" (month, day), "manual" (kein fester Rhythmus)
+// type: "weekly" (weekday), "biweekly" (weekday, anchor), "every-n-weeks" (weekday, n, anchor),
+// "nth-weekday" (weekday, nth: 1..4 oder -1 = letzter - "jeden ersten Montag im Monat"),
+// "monthly-day" (day), "every-n-months" (n, anchor), "yearly" (month, day),
+// "manual" (kein fester Rhythmus)
 const DEFAULT_RI_ITEMS = [
   { id: "wasserrundgang", name: "Wasserrundgang", type: "weekly", weekday: 1 },
   { id: "elevator", name: "Elevatorprüfung + Ölen", type: "weekly", weekday: 4 },
@@ -1318,9 +1320,13 @@ const riMitWissen = (items) => (Array.isArray(items) ? items : []).map((r) => {
 });
 
 const RI_TYPE_LABELS = {
-  weekly: "Wöchentlich", biweekly: "Alle 2 Wochen", "monthly-day": "Monatlich",
+  weekly: "Wöchentlich", biweekly: "Alle 2 Wochen", "every-n-weeks": "Alle X Wochen",
+  "nth-weekday": "Wochentag im Monat", "monthly-day": "Monatlich",
   "every-n-months": "Alle X Monate", yearly: "Jährlich", manual: "Kein fester Rhythmus",
 };
+// Für "jeden ersten/letzten Montag im Monat" (Robertos Ansage vom 14.09.)
+const NTH_LABELS = [[1, "ersten"], [2, "zweiten"], [3, "dritten"], [4, "vierten"], [-1, "letzten"]];
+const WOCHENTAGE_WAHL = [[1, "Montag"], [2, "Dienstag"], [3, "Mittwoch"], [4, "Donnerstag"], [5, "Freitag"], [6, "Samstag"], [0, "Sonntag"]];
 
 const ROTATION_ANCHOR = new Date(2026, 0, 5); // Montag 05.01.2026, Slot 0 = erste Montags-Rolle
 
@@ -1736,6 +1742,7 @@ function planGroupLabel(anlage, tpmAnlagen, riItems) {
     if (tpmItem.role === "takt") return "Taktstraße";
     if (tpmItem.role === "b1") return "Beschichtung (flexibel)";
     if (tpmItem.role === "flexA" || tpmItem.role === "flexB") return "Flexibel (alle 2 Monate)";
+    if (tpmItem.role === "rhythmus") return "Eigener Rhythmus";
   }
   if (riItems.some((r) => r.name === anlage)) return "R+I";
   return "";
@@ -1758,6 +1765,25 @@ function riItemOccursOn(item, date) {
       const diffWeeks = Math.round((date.getTime() - anchor.getTime()) / (7 * 24 * 3600 * 1000));
       return ((diffWeeks % 2) + 2) % 2 === 0;
     }
+    case "every-n-weeks": {
+      // Wie "biweekly", nur mit frei wählbarem Wochen-Abstand
+      if (date.getDay() !== item.weekday) return false;
+      const anchor = new Date(item.anchor + "T00:00:00");
+      const diffWeeks = Math.round((date.getTime() - anchor.getTime()) / (7 * 24 * 3600 * 1000));
+      const n = Math.max(2, Number(item.n) || 2);
+      return ((diffWeeks % n) + n) % n === 0;
+    }
+    case "nth-weekday": {
+      // "Jeden ersten Montag im Monat" (nth 1..4) bzw. "jeden letzten" (nth -1).
+      // Der N-te Wochentag liegt immer in den Tagen (N-1)*7+1 .. N*7.
+      if (date.getDay() !== item.weekday) return false;
+      const nth = Number(item.nth) || 1;
+      if (nth === -1) {
+        const tageImMonat = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+        return date.getDate() + 7 > tageImMonat;
+      }
+      return Math.ceil(date.getDate() / 7) === nth;
+    }
     case "monthly-day":
       return date.getDate() === item.day;
     case "every-n-months": {
@@ -1773,6 +1799,10 @@ function riItemOccursOn(item, date) {
       return false;
   }
 }
+
+// Testzugang wie bei den Feiertagen: Die Härtetests prüfen die Rhythmus-
+// Rechnung (u. a. "jeden ersten Montag") direkt gegen den echten Bau.
+if (typeof window !== "undefined") window.__wkRhythmusTest = riItemOccursOn;
 
 const RI_LOAD_THRESHOLD = 3; // ab wann ein Tag als "zu voll" für R+I gilt und ausgewichen wird
 
@@ -2425,6 +2455,52 @@ function App() {
   // der muss sichtbar bleiben, bevor überhaupt verbunden wurde (sonst könnte
   // sich niemand jemals verbinden).
   const confirmedReadOnly = shareChecked && shareState.status === "connected" && shareState.mode === "read";
+
+  /* Zurück-Pfeil in der Untermenü-Zeile (Robertos Ansage vom 14.09.): ein
+     kleiner Ansichts-Verlauf über Hauptbereich + Unterreiter. Jede Änderung
+     legt die vorige Ansicht auf den Stapel, Zurück holt sie wieder - auch
+     über Bereichsgrenzen (Berichte -> Werkstatt -> Zurück landet wieder in
+     Berichten). Gedeckelt, damit ein Arbeitstag den Speicher nicht füllt. */
+  const [navTiefe, setNavTiefe] = useState(0);
+  const navVerlauf = React.useRef([]);
+  const navVorher = React.useRef(null);
+  const navImRuecklauf = React.useRef(false);
+  useEffect(() => {
+    const jetzt = { view, cockpitTab, berichtTab };
+    if (navImRuecklauf.current) {
+      navImRuecklauf.current = false;
+    } else if (navVorher.current && (navVorher.current.view !== view
+        || navVorher.current.cockpitTab !== cockpitTab || navVorher.current.berichtTab !== berichtTab)) {
+      navVerlauf.current.push(navVorher.current);
+      if (navVerlauf.current.length > 30) navVerlauf.current.shift();
+      setNavTiefe(navVerlauf.current.length);
+    }
+    navVorher.current = jetzt;
+  }, [view, cockpitTab, berichtTab]);
+  const zurueckGehen = () => {
+    const ziel = navVerlauf.current.pop();
+    if (!ziel) return;
+    setNavTiefe(navVerlauf.current.length);
+    navImRuecklauf.current = true;
+    setView(ziel.view); setCockpitTab(ziel.cockpitTab); setBerichtTab(ziel.berichtTab);
+  };
+
+  /* Leser-Ansicht: nach 15 Minuten ohne Eingabe automatisch zurück auf die
+     Übersicht (Robertos Ansage vom 14.09.) - ein Werkstatt-Bildschirm bleibt
+     so nicht tagelang auf einer Unterseite hängen. Bewusst NUR für Leser:
+     Bearbeiter würde ein Rücksprung mitten aus der Pflege werfen. */
+  useEffect(() => {
+    if (!readerMode) return undefined;
+    let timer = null;
+    const neuStarten = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); setBerichtTab("START"); }, 15 * 60 * 1000);
+    };
+    const arten = ["pointerdown", "keydown", "wheel", "touchstart"];
+    arten.forEach((a) => window.addEventListener(a, neuStarten, { passive: true }));
+    neuStarten();
+    return () => { clearTimeout(timer); arten.forEach((a) => window.removeEventListener(a, neuStarten)); };
+  }, [readerMode]);
 
   // ---- Störungen: Zugriff & Speichern (unabhängig von readerMode!) ----
   // Störungen dürfen ALLE bearbeiten - auch reine Leser der Hauptdaten. Maßgeblich
@@ -4944,6 +5020,17 @@ function App() {
       anlage: r.name,
     }));
 
+    /* ---- Anlagen mit EIGENEM Rhythmus (Rolle "rhythmus", Robertos Ansage
+       vom 14.09.: PitStops z. B. "jeden ersten Montag im Monat") ----
+       Sie laufen AUSSERHALB der Rotation; ihre Tage rechnet dieselbe
+       Rhythmus-Logik wie bei den R+I-Punkten, samt Ausweichen von
+       Wochenende und Feiertag. */
+    const rhythmusAnlagen = tpmAnlagen.filter((a) => a.role === "rhythmus" && a.rhythmus && a.rhythmus.type);
+    const rhythmusNamen = new Set(rhythmusAnlagen.map((a) => a.name));
+    const rhythmusAssignments = riOccurrencesInMonth(
+      rhythmusAnlagen.map((a) => ({ id: a.id, name: a.name, ...a.rhythmus })), py, pm, hol
+    ).map((r) => ({ day: r.day, date: dateKey(py, pm, r.day), anlage: r.name }));
+
     /* ---- Die Wirklichkeit schlägt die Rechnung (Robertos 18.08.) ----
        Verschobene oder von Hand angelegte Termine stehen als ECHTE Einträge
        im Kalender - die Auswertung zeigt sie richtig, der Plan rechnete
@@ -4967,10 +5054,16 @@ function App() {
       return `${dt.getFullYear()}|${getISOWeek(dt)}`;
     };
     const echteRiWochen = new Set(echte.filter((e) => e.category === "RI").map((e) => `${e.name}|${wocheVon(e.date)}`));
-    const errechnete = [...mondayAssignments, ...weekdayAssignments, ...riAssignments].filter((a) =>
+    // Rhythmus-Anlagen können MEHRFACH im Monat laufen - ein echter Eintrag
+    // ersetzt deshalb (wie bei R+I) nur den Slot seiner Woche, nicht alle
+    // Slots des Monats.
+    const echteTpmWochen = new Set(echte.filter((e) => e.category === "TPM").map((e) => `${e.name}|${wocheVon(e.date)}`));
+    const errechnete = [...mondayAssignments, ...weekdayAssignments, ...rhythmusAssignments, ...riAssignments].filter((a) =>
       riNamen.has(a.anlage)
         ? !echteRiWochen.has(`${a.anlage}|${wocheVon(a.date)}`)
-        : !echteTpm.has(a.anlage));
+        : rhythmusNamen.has(a.anlage)
+          ? !echteTpmWochen.has(`${a.anlage}|${wocheVon(a.date)}`)
+          : !echteTpm.has(a.anlage));
     const belegt = new Set(errechnete.map((a) => `${a.date}|${a.anlage}`));
     echte.forEach((e) => {
       const k = `${e.date}|${e.name}`;
@@ -7391,68 +7484,10 @@ function App() {
                 );
               })}
             </div>
-            {/* Untermenü des aktiven Hauptbereichs (kleiner und dezenter abgesetzt) */}
-            {view === "BERICHTE" ? (
-              <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
-                {[["START", "Alle Berichte"], ["TODO", "To-do"], ["STOERUNGEN", "Störungen"],
-                  ...(leserAnzeige ? [] : [["BACKLOG", "Backlog"]]), ["ZEIT", "Zeiterfassung"]].map(([v, label]) => (
-                  <button
-                    key={v}
-                    onClick={() => setBerichtTab(v)}
-                    className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center shrink-0 whitespace-nowrap"
-                    style={{ backgroundColor: berichtTab === v ? "#4B5259" : "transparent", color: berichtTab === v ? "#fff" : "#B7BEC6" }}
-                  >
-                    {label}
-                    {v === "STOERUNGEN" && stoerOffenCount > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{stoerOffenCount}</span>
-                    )}
-                    {v === "TODO" && todoUeberfaellige.length > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{todoUeberfaellige.length}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            ) : view === "COCKPIT" ? (leserAnzeige ? null : (
-              <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
-                {/* Störungen, Backlog und Zeiterfassung leben seit dem 10.09.
-                    im Bereich Berichte - hier bleibt die eigentliche
-                    Werkstatt-Planung (bei Soendgen später eben blanko).
-                    Schichtplan/Planung stehen auch auf der Übersicht schon in
-                    der Leiste - ein Klick weniger für die tägliche Arbeit. */}
-                {[["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"]].map(([v, label]) => (
-                  <button
-                    key={v}
-                    onClick={() => setCockpitTab(v)}
-                    className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center shrink-0 whitespace-nowrap"
-                    style={{ backgroundColor: cockpitTab === v ? "#4B5259" : "transparent", color: cockpitTab === v ? "#fff" : "#B7BEC6" }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )) : (
-              <div className="flex rounded overflow-x-auto border border-white/10 max-w-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", scrollbarWidth: "none" }}>
-                {/* Seit dem 18.08. ohne eigenen Plan-Reiter: Der Plan-Kalender
-                    steckt in der Auswertung (Robertos Ansage). Leser bekommen
-                    dafür die Auswertung - sonst verlören sie den Plan ganz. */}
-                {(readerMode
-                  ? [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Plan"]]
-                  : [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Plan"], ["REGISTER", "Register"]]
-                ).map(([v, label]) => {
-                  const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
-                  return (
-                    <button
-                      key={v}
-                      onClick={() => setView(v === "AUSWERTUNG" ? "MONAT" : v)}
-                      className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
-                      style={{ backgroundColor: active ? "#4B5259" : "transparent", color: active ? "#fff" : "#B7BEC6" }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {/* Das Untermenü des aktiven Hauptbereichs wohnt seit dem 14.09.
+                in einer EIGENEN Zeile unter der Kopfzeile (Robertos Ansage
+                mit Bild: oben war die Reihe auf schmalen Bildschirmen
+                abgeschnitten) - siehe Untermenü-Zeile weiter unten. */}
           </>
         </div>
         <div className="flex items-center gap-1 text-white">
@@ -7649,6 +7684,85 @@ function App() {
           </>
           )}
         </div>
+      </div>
+
+      {/* Untermenü-Zeile (Robertos Ansage vom 14.09., mit Bild): die
+          Unterreiter des aktiven Hauptbereichs stehen in einer EIGENEN Zeile
+          unter den Haupt-Tabs - oben in der Kopfzeile war die Reihe auf
+          schmalen Bildschirmen abgeschnitten. Links der Zurück-Pfeil: er
+          holt die vorige Ansicht aus dem kleinen Verlauf, auch über
+          Bereichsgrenzen hinweg. */}
+      <div className="flex items-center gap-2 px-4 py-1 overflow-x-auto" style={{ backgroundColor: "#2C3137", borderTop: "1px solid rgba(255,255,255,0.08)", scrollbarWidth: "none" }}>
+        <button
+          onClick={zurueckGehen}
+          disabled={navTiefe === 0}
+          className="flex items-center gap-1 shrink-0 text-[11px] font-black uppercase tracking-wide rounded px-2 py-1"
+          style={{ color: navTiefe > 0 ? "#fff" : "#6B7480", backgroundColor: navTiefe > 0 ? "rgba(255,255,255,0.10)" : "transparent", cursor: navTiefe > 0 ? "pointer" : "default" }}
+          title={navTiefe > 0 ? "Zurück zur vorigen Ansicht" : "Noch kein Verlauf zum Zurückgehen"}
+          aria-label="Zurück"
+        >
+          <ChevronLeft size={14} /> Zurück
+        </button>
+        <div className="w-px self-stretch shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.12)", margin: "3px 0" }} />
+        {view === "BERICHTE" ? (
+          <div className="flex" style={{ scrollbarWidth: "none" }}>
+            {[["START", "Alle Berichte"], ["TODO", "To-do"], ["STOERUNGEN", "Störungen"],
+              ...(leserAnzeige ? [] : [["BACKLOG", "Backlog"]]), ["ZEIT", "Zeiterfassung"]].map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setBerichtTab(v)}
+                className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center shrink-0 whitespace-nowrap rounded"
+                style={{ backgroundColor: berichtTab === v ? "#4B5259" : "transparent", color: berichtTab === v ? "#fff" : "#B7BEC6" }}
+              >
+                {label}
+                {v === "STOERUNGEN" && stoerOffenCount > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{stoerOffenCount}</span>
+                )}
+                {v === "TODO" && todoUeberfaellige.length > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{todoUeberfaellige.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : view === "COCKPIT" ? (leserAnzeige ? null : (
+          <div className="flex" style={{ scrollbarWidth: "none" }}>
+            {/* Störungen, Backlog und Zeiterfassung leben seit dem 10.09.
+                im Bereich Berichte - hier bleibt die eigentliche
+                Werkstatt-Planung (bei Soendgen später eben blanko). */}
+            {[["SCHICHTPLAN", "Schichtplan"], ["PLANUNG", "Planung"]].map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setCockpitTab(v)}
+                className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center shrink-0 whitespace-nowrap rounded"
+                style={{ backgroundColor: cockpitTab === v ? "#4B5259" : "transparent", color: cockpitTab === v ? "#fff" : "#B7BEC6" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )) : (
+          <div className="flex" style={{ scrollbarWidth: "none" }}>
+            {/* Seit dem 18.08. ohne eigenen Plan-Reiter: Der Plan-Kalender
+                steckt in der Auswertung (Robertos Ansage). Leser bekommen
+                dafür die Auswertung - sonst verlören sie den Plan ganz. */}
+            {(readerMode
+              ? [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Plan"]]
+              : [["TPMINFO", "Übersicht"], ["AUSWERTUNG", "Plan"], ["REGISTER", "Register"]]
+            ).map(([v, label]) => {
+              const active = v === "AUSWERTUNG" ? (view === "MONAT" || view === "JAHR") : view === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => setView(v === "AUSWERTUNG" ? "MONAT" : v)}
+                  className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide rounded"
+                  style={{ backgroundColor: active ? "#4B5259" : "transparent", color: active ? "#fff" : "#B7BEC6" }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Linkstreifen: eine Zeile unter der Menüleiste, und zwar NUR auf der
@@ -12728,8 +12842,15 @@ function App() {
             {settingsTab === "anlagen" && (<>
             <div className="text-xs font-bold uppercase mb-2" style={{ color: CATS.TPM.color }}>PitStop-Anlagen</div>
             <div className="flex flex-col gap-1.5 mb-2">
-              {settingsTpm.map((a, idx) => (
-                <div key={a.id} className="flex gap-1.5 items-center">
+              {settingsTpm.map((a, idx) => {
+                // Kurzschreiber für die Rhythmus-Felder der Rolle "Eigener
+                // Rhythmus" (Robertos Ansage 14.09.: PitStops auch außerhalb
+                // der Rotation, z. B. "jeden ersten Montag im Monat").
+                const rw = a.rhythmus || {};
+                const rSet = (feld, wert) => setSettingsTpm((prev) => prev.map((x, i) => (i === idx ? { ...x, rhythmus: { ...(x.rhythmus || {}), [feld]: wert } } : x)));
+                return (
+                <div key={a.id} className="flex flex-col gap-1">
+                  <div className="flex gap-1.5 items-center">
                   <input
                     value={a.name}
                     onChange={(e) => {
@@ -12743,7 +12864,11 @@ function App() {
                     value={a.role}
                     onChange={(e) => {
                       const v = e.target.value;
-                      setSettingsTpm((prev) => prev.map((x, i) => (i === idx ? { ...x, role: v } : x)));
+                      // Beim Wechsel auf "Eigener Rhythmus" gleich einen sinnvollen
+                      // Start setzen - sonst stünde die Anlage rhythmuslos im Leeren.
+                      setSettingsTpm((prev) => prev.map((x, i) => (i === idx
+                        ? { ...x, role: v, rhythmus: v === "rhythmus" && !(x.rhythmus && x.rhythmus.type) ? { type: "nth-weekday", nth: 1, weekday: 1 } : x.rhythmus }
+                        : x)));
                     }}
                     className="text-xs border rounded px-1.5 py-1.5"
                     style={{ borderColor: "#D6D9DC", width: "190px" }}
@@ -12756,12 +12881,68 @@ function App() {
                     <option value="b1">Flexibel (B1-artig)</option>
                     <option value="flexA">Flexibel Gruppe A (2 Mon.)</option>
                     <option value="flexB">Flexibel Gruppe B (2 Mon.)</option>
+                    <option value="rhythmus">Eigener Rhythmus …</option>
                   </select>
                   <button onClick={() => setSettingsTpm((prev) => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-red-600 p-1" aria-label="Löschen">
                     <X size={14} />
                   </button>
+                  </div>
+                  {a.role === "rhythmus" && (
+                    <div className="flex gap-1.5 items-center flex-wrap rounded px-2 py-1.5" style={{ backgroundColor: "#F7F8F9" }}>
+                      <select value={rw.type || "nth-weekday"} onChange={(e) => rSet("type", e.target.value)}
+                        className="text-xs border rounded px-1.5 py-1" style={{ borderColor: "#D6D9DC" }}>
+                        {Object.entries(RI_TYPE_LABELS).filter(([k]) => k !== "manual").map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                      </select>
+                      {rw.type === "nth-weekday" && (
+                        <>
+                          <span className="text-xs text-slate-500">jeden</span>
+                          <select value={rw.nth ?? 1} onChange={(e) => rSet("nth", Number(e.target.value))}
+                            className="text-xs border rounded px-1.5 py-1" style={{ borderColor: "#D6D9DC" }}>
+                            {NTH_LABELS.map(([n, l]) => <option key={n} value={n}>{l}</option>)}
+                          </select>
+                        </>
+                      )}
+                      {(rw.type === "nth-weekday" || rw.type === "weekly" || rw.type === "biweekly" || rw.type === "every-n-weeks") && (
+                        <select value={rw.weekday ?? 1} onChange={(e) => rSet("weekday", Number(e.target.value))}
+                          className="text-xs border rounded px-1.5 py-1" style={{ borderColor: "#D6D9DC" }}>
+                          {WOCHENTAGE_WAHL.map(([w, l]) => <option key={w} value={w}>{l}</option>)}
+                        </select>
+                      )}
+                      {rw.type === "nth-weekday" && <span className="text-xs text-slate-500">im Monat</span>}
+                      {(rw.type === "every-n-weeks" || rw.type === "every-n-months") && (
+                        <>
+                          <span className="text-xs text-slate-500">alle</span>
+                          <input type="number" min={2} max={26} value={rw.n ?? (rw.type === "every-n-weeks" ? 3 : 2)}
+                            onChange={(e) => rSet("n", Number(e.target.value))}
+                            className="text-xs border rounded px-1.5 py-1" style={{ borderColor: "#D6D9DC", width: "50px" }} />
+                          <span className="text-xs text-slate-500">{rw.type === "every-n-weeks" ? "Wochen" : "Monate"}</span>
+                        </>
+                      )}
+                      {(rw.type === "biweekly" || rw.type === "every-n-weeks" || rw.type === "every-n-months") && (
+                        <>
+                          <span className="text-xs text-slate-500">ab</span>
+                          <input type="date" value={rw.anchor || ""} onChange={(e) => rSet("anchor", e.target.value)}
+                            className="text-xs border rounded px-1.5 py-1" style={{ borderColor: "#D6D9DC" }} />
+                        </>
+                      )}
+                      {rw.type === "yearly" && (
+                        <select value={rw.month ?? 0} onChange={(e) => rSet("month", Number(e.target.value))}
+                          className="text-xs border rounded px-1.5 py-1" style={{ borderColor: "#D6D9DC" }}>
+                          {MONTHS.map((m, mi) => <option key={m} value={mi}>{m}</option>)}
+                        </select>
+                      )}
+                      {(rw.type === "monthly-day" || rw.type === "yearly") && (
+                        <>
+                          <span className="text-xs text-slate-500">Tag</span>
+                          <input type="number" min={1} max={31} value={rw.day ?? 1} onChange={(e) => rSet("day", Number(e.target.value))}
+                            className="text-xs border rounded px-1.5 py-1" style={{ borderColor: "#D6D9DC", width: "60px" }} />
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
             <button onClick={addSettingsTpm} className="text-xs font-bold mb-5" style={{ color: CATS.TPM.color }}>
               + Anlage hinzufügen
@@ -12828,6 +13009,78 @@ function App() {
                           style={{ borderColor: "#D6D9DC" }}
                         />
                       )}
+                    </div>
+                  )}
+
+                  {/* "Alle X Wochen": frei wählbarer Wochen-Abstand (Robertos Ansage 14.09.) */}
+                  {r.type === "every-n-weeks" && (
+                    <div className="flex gap-1.5 items-center flex-wrap">
+                      <span className="text-xs text-slate-500">alle</span>
+                      <input
+                        type="number"
+                        min={2}
+                        max={26}
+                        value={r.n ?? 3}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setSettingsRi((prev) => prev.map((x, i) => (i === idx ? { ...x, n: v } : x)));
+                        }}
+                        className="text-xs border rounded px-1.5 py-1"
+                        style={{ borderColor: "#D6D9DC", width: "50px" }}
+                      />
+                      <span className="text-xs text-slate-500">Wochen am</span>
+                      <select
+                        value={r.weekday ?? 1}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setSettingsRi((prev) => prev.map((x, i) => (i === idx ? { ...x, weekday: v } : x)));
+                        }}
+                        className="text-xs border rounded px-1.5 py-1"
+                        style={{ borderColor: "#D6D9DC" }}
+                      >
+                        {WOCHENTAGE_WAHL.map(([w, l]) => <option key={w} value={w}>{l}</option>)}
+                      </select>
+                      <span className="text-xs text-slate-500">ab</span>
+                      <input
+                        type="date"
+                        value={r.anchor || ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSettingsRi((prev) => prev.map((x, i) => (i === idx ? { ...x, anchor: v } : x)));
+                        }}
+                        className="text-xs border rounded px-1.5 py-1"
+                        style={{ borderColor: "#D6D9DC" }}
+                      />
+                    </div>
+                  )}
+
+                  {/* "Jeden ersten Montag im Monat" u. ä. (Robertos Ansage 14.09.) */}
+                  {r.type === "nth-weekday" && (
+                    <div className="flex gap-1.5 items-center flex-wrap">
+                      <span className="text-xs text-slate-500">jeden</span>
+                      <select
+                        value={r.nth ?? 1}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setSettingsRi((prev) => prev.map((x, i) => (i === idx ? { ...x, nth: v } : x)));
+                        }}
+                        className="text-xs border rounded px-1.5 py-1"
+                        style={{ borderColor: "#D6D9DC" }}
+                      >
+                        {NTH_LABELS.map(([n, l]) => <option key={n} value={n}>{l}</option>)}
+                      </select>
+                      <select
+                        value={r.weekday ?? 1}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setSettingsRi((prev) => prev.map((x, i) => (i === idx ? { ...x, weekday: v } : x)));
+                        }}
+                        className="text-xs border rounded px-1.5 py-1"
+                        style={{ borderColor: "#D6D9DC" }}
+                      >
+                        {WOCHENTAGE_WAHL.map(([w, l]) => <option key={w} value={w}>{l}</option>)}
+                      </select>
+                      <span className="text-xs text-slate-500">im Monat</span>
                     </div>
                   )}
 

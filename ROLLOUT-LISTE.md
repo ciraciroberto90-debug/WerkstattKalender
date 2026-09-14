@@ -670,6 +670,44 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       fehlenden Suchfeld ab. Noch von Roberto: ob die Zahlenpaare der
       drei Bögen so bleiben, und ob ein Zeitraum-Filter dazukommt.
 
+- [x] **Drei Ansagen vom 14.09. GEBAUT: Untermenü-Zeile + Zurück-Pfeil,
+      Leser-Rücksprung, neue Rhythmen.** Robertos Ansagen (mit Bild):
+      (1) KOPFZEILE: Die Unterreiter des aktiven Hauptbereichs stehen
+      jetzt in einer EIGENEN Zeile unter den Haupt-Tabs (oben war die
+      Reihe auf schmalen Bildschirmen abgeschnitten - das Bild zeigte
+      „BERSICHT"). Links davor ein ZURÜCK-Pfeil mit kleinem
+      Ansichts-Verlauf (30 Schritte): er holt die vorige Ansicht
+      zurück, auch über Bereichsgrenzen (Werkstatt -> Zurück landet
+      wieder in Berichte -> Störungen); ohne Verlauf ist er ausgegraut.
+      (2) LESER-RÜCKSPRUNG: In der Leseransicht springt die App nach
+      15 Minuten ohne Eingabe (Maus, Tastatur, Rad, Touch) automatisch
+      auf die Übersicht - ein Werkstatt-Bildschirm bleibt nicht
+      tagelang auf einer Unterseite hängen. Jede Eingabe setzt die Uhr
+      zurück; Bearbeiter werden bewusst NICHT umgeworfen.
+      (3) NEUE RHYTHMEN für R+I-Punkte: „Wochentag im Monat" (jeden
+      ersten/zweiten/dritten/vierten/LETZTEN Montag…Sonntag - Robertos
+      Beispiel „jeden ersten Montag im Monat") und „Alle X Wochen"
+      (2-26, fester Wochentag, ab Ankerdatum). Für TPM-PitStops die
+      neue Rolle „EIGENER RHYTHMUS": eine Anlage läuft damit außerhalb
+      der Montags-/Takt-Rotation und bekommt dieselbe Rhythmus-Auswahl
+      wie die R+I-Punkte (alle Arten außer „ohne Rhythmus"); ihre Tage
+      rechnet dieselbe Logik samt Wochenend-/Feiertags-Ausweichen, und
+      Robertos Regel „nie zwei TPM am selben Tag" gilt weiter (ein
+      Rhythmus-PitStop am Montags-Slot weicht auf den nächsten freien
+      Werktag aus - gemessen: 1. Montag 07.09. gehört TS 480, Presse
+      P1 rückt auf den 08.09.). Ein echter Eintrag ersetzt bei
+      Rhythmus-Anlagen (wie bei R+I) nur den Slot seiner Woche.
+      NEUE WACHE harte-72 (18 Prüfungen: datumsgenaue Rhythmus-Rechnung
+      über den neuen Testzugang __wkRhythmusTest inkl. 5-Freitage-Monat
+      und Zeitumstellung, Plan-Kalender, ⚙-Auswahl, Zurück-Pfeil über
+      Bereichsgrenzen, Leser-Rücksprung mit Uhr-Reset, Bearbeiter
+      bleiben unberührt). Rot-Nachweis gemessen: gegen den Bau von
+      heute Morgen bricht der Lauf sofort ab (kein Testzugang, keine
+      Leiste). Damit ist aus der Etappe-3-Inventur der Punkt
+      „PitStop-Termine nur über die feste Rotation" ein Stück
+      abgeräumt; Rotations-Anker, Schichtzeiten und die automatische
+      TEAM-Schichtrotation bleiben offen.
+
 - [ ] **Bereichswechsel bei Vollbestand beschleunigen (Fund der
       Klickrunde, 11.09.).** Robertos Maßstab: die reine Klick-Zeit des
       Benutzers. Gemessen bei 71.084 Einträgen (tests/klickrunde-70k.js):
