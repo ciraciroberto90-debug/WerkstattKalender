@@ -100,7 +100,9 @@ const mockHandle = (mode) => ({
     // Backlog wohnt seit dem 10.09. im Bereich Berichte
     await page.getByRole('button', { name: /^Berichte/ }).first().click();
     await page.waitForTimeout(400);
-    ok('S3: "Backlog" (im Bereich Berichte) erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
+    // Seit der Berichte-Startsuche (14.09.) heißen ZWEI Knöpfe "Backlog":
+    // der Unterleisten-Reiter und die Art-Filter-Pille - erreichbar heißt >= 1.
+    ok('S3: "Backlog" (im Bereich Berichte) erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() >= 1);
     ok('S3: "Gemeinsame Datei"-Knopf sichtbar (Bearbeiter darf verwalten)', await page.locator('button[aria-label="Gemeinsame Datei"]').count() === 1);
     await page.close();
   }
@@ -119,7 +121,7 @@ const mockHandle = (mode) => ({
     ok('S4: Solo-Browser (kein FS-Access) - volle App nutzbar ("Cockpit" sichtbar)', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 1);
     await page.getByRole('button', { name: /^Berichte/ }).first().click();
     await page.waitForTimeout(400);
-    ok('S4: "Backlog" (im Bereich Berichte) erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 1);
+    ok('S4: "Backlog" (im Bereich Berichte) erreichbar', await page.getByRole('button', { name: 'Backlog', exact: true }).count() >= 1); // s. S3: Reiter + Filter-Pille
     await page.close();
   }
 
