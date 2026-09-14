@@ -643,8 +643,11 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       „Zuletzt im Bereich Berichte"; V3 Score-Kacheln SIND die
       Navigation) - gebaut wird nach Robertos Varianten-Wahl.
       Robertos Nachschärfung vom 14.09.: die Score-Kacheln als
-      HALBKREIS-Anzeigen (der Bogen zeigt den Anteil, die große Zahl im
-      Bogen, darunter klein „X von Y", z. B. „100 von 300"), und
+      HALBKREIS-Anzeigen - und zwar GENAU der filigrane, animierte
+      Halbkreis aus der Übersicht (HalbkreisQuote: schlanker Bogen mit
+      Farbverlauf, mitlaufender Punkt an der Spitze, 1,4-s-Einlauf,
+      Prozent im Bogen), darunter klein „X von Y" (z. B. „100 von
+      300"). Der erste Vorlagen-Wurf mit dickem Bogen war ihm zu grob;
       Zeiterfassung bekommt KEINE Score-Kachel - die Vorlagen sind
       entsprechend umgebaut und neu geliefert. Farb-Angleich dabei:
       To-do blau, Backlog orange (wie die Filter-Pillen und die
