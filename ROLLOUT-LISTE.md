@@ -708,6 +708,28 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       abgeräumt; Rotations-Anker, Schichtzeiten und die automatische
       TEAM-Schichtrotation bleiben offen.
 
+- [x] **Leser-Schichtplan GEBAUT (15.09.): eigener Haupt-Tab zwischen
+      Übersicht und Berichte.** Robertos Ansage vom 15.09. - sie
+      übersteuert für den Schichtplan die Regel vom 10.09. („Leser nur
+      Übersicht + Berichte", Ansage der GF): Leser können den
+      Werkstattschichtplan jetzt wieder NACHSCHAUEN. Nur ansehen:
+      die Zellen sind für Leser stumm (kein Auswahl-Fenster, doppelt
+      gesichert), der Hinweistext sagt „nur ansehen", der
+      Bearbeiter-Tipp (⚙/Planung) ist ausgeblendet; Planung, Backlog,
+      Werkstatt- und TPM-Bereich bleiben für Leser tabu (die
+      Sicherheits-Klammer lässt zusätzlich zu Übersicht/Berichte nur
+      noch SCHICHTPLAN durch). Der „➜ Schichtplan"-Link in „Heute da"
+      funktioniert damit auch für Leser. Der Drucken-Knopf steht
+      Lesern im Schichtplan zur Verfügung (Aushang drucken ist Lesen).
+      Drei Alt-Wachen trugen noch die 10.09.-Erwartung („Schichtplan
+      für Leser unsichtbar") und wurden auf die neue Ansage
+      umgeschrieben (harte-10, harte-15, Smoke); harte-72 um vier
+      (S)-Prüfungen erweitert (Tab da, Matrix „nur ansehen", stumme
+      Zelle, Gegenprobe Bearbeiter-Zelle öffnet die Auswahl) - 22/22.
+      Die Leser-Vorschau-Bilder im Chat laufen seither mit
+      Generator-Daten („mit Leben", Robertos Ansage) statt mit
+      Mini-Beispielen.
+
 - [ ] **Bereichswechsel bei Vollbestand beschleunigen (Fund der
       Klickrunde, 11.09.).** Robertos Maßstab: die reine Klick-Zeit des
       Benutzers. Gemessen bei 71.084 Einträgen (tests/klickrunde-70k.js):

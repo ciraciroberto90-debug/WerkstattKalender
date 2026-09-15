@@ -40,7 +40,7 @@ const pruef = (n, c, zusatz) => {
         { id: "riA", name: "Druckluft-Check", type: "nth-weekday", nth: 2, weekday: 3 },
         { id: "riB", name: "Ölstand-Runde", type: "every-n-weeks", n: 3, weekday: 4, anchor: "2026-09-03" },
       ],
-      team: [],
+      team: [{ name: "T. Balles", rolle: "mech" }, { name: "M. Kilic", rolle: "elek" }],
     }));
   });
   await p.goto(APP);
@@ -148,16 +148,47 @@ const pruef = (n, c, zusatz) => {
     localStorage.setItem("bta-standort", "scheurich");
     localStorage.setItem("werkstatt-kalender-entries", JSON.stringify([]));
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify({
-      tpmAnlagen: [], riItems: [], team: [],
+      tpmAnlagen: [], riItems: [],
+      team: [{ name: "T. Balles", rolle: "mech" }, { name: "M. Kilic", rolle: "elek" }],
       benutzer: [{ name: "chef", rolle: "leser", kennwortHash: "" }, { name: "rc", rolle: "verwalter", kennwortHash: "" }],
     }));
     localStorage.setItem("werkstatt-kalender-benutzer", "chef");
   });
   await p2.goto(APP);
   await p2.waitForTimeout(1300);
+
+  /* ---- (S) Leser-Schichtplan (Robertos Ansage vom 15.09.): eigener
+     Haupt-Tab zwischen Übersicht und Berichte, aber NUR zum Ansehen -
+     stumme Zellen, kein Auswahl-Fenster. ---- */
+  pruef("(S) Leser haben den Schichtplan-Tab in der Hauptleiste",
+        (await p2.getByRole("button", { name: "Schichtplan", exact: true }).count()) === 1);
+  await p2.getByRole("button", { name: "Schichtplan", exact: true }).click();
+  await p2.waitForTimeout(700);
+  let t2 = await p2.locator("body").innerText();
+  pruef("(S) Die Matrix steht mit dem Team und sagt „nur ansehen“",
+        /T\. Balles/.test(t2) && /nur ansehen/.test(t2) && !/öffnet die Auswahl/.test(t2));
+  await p2.locator('button[aria-label^="Matrix "]').first().click();
+  await p2.waitForTimeout(400);
+  pruef("(S) Zellen-Klick öffnet für Leser KEIN Auswahl-Fenster",
+        (await p2.locator('div[style*="z-index: 71"]').count()) === 0);
+  // Gegenprobe beim Bearbeiter: dort öffnet dieselbe Zelle die Auswahl
+  await p.getByRole("button", { name: "Werkstatt", exact: true }).click();
+  await p.waitForTimeout(600);
+  const zelle = p.locator('button[aria-label^="Matrix "]').first();
+  if (await zelle.count()) {
+    await zelle.click();
+    await p.waitForTimeout(400);
+    pruef("(S) Gegenprobe Bearbeiter: Zellen-Klick öffnet die Auswahl",
+          (await p.locator('div[style*="z-index: 71"]').count()) === 1);
+  } else {
+    // Ohne Team in der Bearbeiter-Saat gibt es keine Zellen - dann zählt
+    // die Leser-Prüfung allein (ehrlich vermerkt statt still übersprungen).
+    pruef("(S) Gegenprobe Bearbeiter: keine Matrix-Zellen in dieser Saat (Team leer)", true, "übersprungen");
+  }
+
   await p2.getByRole("button", { name: /^Berichte/ }).first().click();
   await p2.waitForTimeout(600);
-  let t2 = await p2.locator("body").innerText();
+  t2 = await p2.locator("body").innerText();
   pruef("(L) Leser steht im Bereich Berichte", /Aufgaben – erteilt/.test(t2));
   await p2.clock.fastForward("14:00");
   await p2.waitForTimeout(500);

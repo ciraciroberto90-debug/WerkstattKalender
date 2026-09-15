@@ -144,9 +144,11 @@ const txt = async (page) => (await page.locator("body").innerText());
     const vo = page.getByText("Vorhandene Datei öffnen …"); if (await vo.count()) await vo.click();
     await page.waitForTimeout(1200);
     ok("L: Lädt als Leser ohne Fehler", errs.length === 0);
-    // Seit dem 10.09. sehen Leser NUR Übersicht + Berichte (Ansage der GF).
-    ok("L: Nur Übersicht + Berichte in der Hauptleiste",
+    // Leser-Hauptleiste: Übersicht + Schichtplan (seit 15.09., nur lesend)
+    // + Berichte - Werkstatt und TPM bleiben verschwunden.
+    ok("L: Übersicht + Schichtplan + Berichte in der Hauptleiste",
        (await page.getByRole("button",{name:/^Berichte/}).count()) >= 1 &&
+       (await page.getByRole("button",{name:"Schichtplan",exact:true}).count()) === 1 &&
        (await page.getByRole("button",{name:"Werkstatt",exact:true}).count()) === 0 &&
        (await page.getByRole("button",{name:"TPM",exact:true}).count()) === 0);
     ok("L: KEIN Backlog", (await page.getByRole("button",{name:"Backlog",exact:true}).count()) === 0);

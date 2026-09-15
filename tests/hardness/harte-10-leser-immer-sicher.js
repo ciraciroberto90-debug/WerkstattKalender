@@ -36,7 +36,9 @@ const mockHandle = (mode) => ({
     // Seit dem 10.09. sehen Leser NUR Übersicht + Berichte (Ansage der
     // Geschäftsführung) - Werkstatt und TPM sind für sie ganz verschwunden.
     ok('S1: "Berichte"-Tab sichtbar (Leser-Standard)', await page.getByRole('button', { name: /^Berichte/ }).count() >= 1);
-    ok('S1: "Schichtplan"-Tab NICHT sichtbar (Leser sehen nur Übersicht + Berichte)', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 0);
+    // Robertos Ansage vom 15.09.: Der Schichtplan steht Lesern WIEDER offen -
+    // als eigener Haupt-Tab zwischen Übersicht und Berichte, nur zum Ansehen.
+    ok('S1: "Schichtplan"-Tab sichtbar (seit 15.09. für Leser, nur lesend)', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 1);
     ok('S1: "TPM"-Hauptreiter NICHT sichtbar (Leser sehen nur Übersicht + Berichte)', await page.getByRole('button', { name: 'TPM', exact: true }).count() === 0);
     ok('S1: "Backlog"-Tab NICHT sichtbar (noch nicht verbunden = sicherer Standard)', await page.getByRole('button', { name: 'Backlog', exact: true }).count() === 0);
     ok('S1: "Werkstatt"-Hauptreiter NICHT sichtbar (Leser sehen nur Übersicht + Berichte)', await page.getByRole('button', { name: 'Werkstatt', exact: true }).count() === 0);

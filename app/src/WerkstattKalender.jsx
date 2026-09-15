@@ -3453,10 +3453,11 @@ function App() {
     // unentschiedenen Start-Phase, bevor die Rechte geprüft sind.
     if (view === "BERICHTE" && berichtTab === "BACKLOG") setBerichtTab("START");
     if (leserAnzeige) {
-      // Rechte-Prüfung abgeschlossen, wirklich Nur-Leser: nur noch
-      // Übersicht + Berichte (Robertos Ansage vom 10.09.).
+      // Rechte-Prüfung abgeschlossen, wirklich Nur-Leser: Übersicht,
+      // SCHICHTPLAN (Robertos Ansage vom 15.09. - zum Nachschauen, die
+      // Zellen sind für Leser stumm) und der Bereich Berichte.
       if (view !== "COCKPIT" && view !== "BERICHTE") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
-      if (view === "COCKPIT" && cockpitTab !== "UEBERSICHT") setCockpitTab("UEBERSICHT");
+      if (view === "COCKPIT" && cockpitTab !== "UEBERSICHT" && cockpitTab !== "SCHICHTPLAN") setCockpitTab("UEBERSICHT");
     } else {
       // Start-Phase: die alten (milderen) Leser-Regeln, damit ein Bearbeiter
       // beim Laden nicht von seiner Ansicht geworfen wird.
@@ -7450,16 +7451,18 @@ function App() {
               Klammer (useEffect oben) setzt unerlaubte Ansichten ohnehin zurück. */}
           <>
             {/* Hauptbereiche seit dem großen Umbau (Robertos Meeting 10.09.):
-                Übersicht | Berichte | Werkstatt | TPM. Leser sehen NUR
-                Übersicht + Berichte - Ansage der Geschäftsführung; die
-                Sicherheits-Klammer setzt alles andere zurück. */}
+                Übersicht | Berichte | Werkstatt | TPM. Leser sehen Übersicht,
+                SCHICHTPLAN (Robertos Ansage vom 15.09. - nur zum Nachschauen)
+                und Berichte; die Sicherheits-Klammer setzt alles andere
+                zurück. */}
             <div className="flex rounded overflow-hidden border border-white/20 shrink-0">
               {(leserAnzeige
-                ? [["UEBERSICHT", "Übersicht"], ["BERICHTE", "Berichte"]]
+                ? [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["BERICHTE", "Berichte"]]
                 : [["UEBERSICHT", "Übersicht"], ["BERICHTE", "Berichte"], ["WERKSTATT", "Werkstatt"], ["TPM", "TPM"]]
               ).map(([v, label]) => {
                 const active =
                   v === "UEBERSICHT" ? (view === "COCKPIT" && cockpitTab === "UEBERSICHT")
+                  : v === "SCHICHTPLAN" ? (view === "COCKPIT" && cockpitTab === "SCHICHTPLAN")
                   : v === "BERICHTE" ? view === "BERICHTE"
                   : v === "WERKSTATT" ? (view === "COCKPIT" && cockpitTab !== "UEBERSICHT")
                   : (view !== "COCKPIT" && view !== "BERICHTE");
@@ -7469,6 +7472,7 @@ function App() {
                     key={v}
                     onClick={() => {
                       if (v === "UEBERSICHT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
+                      else if (v === "SCHICHTPLAN") { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }
                       else if (v === "BERICHTE") { setView("BERICHTE"); setBerichtTab("START"); }
                       else if (v === "WERKSTATT") { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }
                       else setView("TPMINFO");
@@ -10410,7 +10414,9 @@ function App() {
               <span className="font-mono text-sm font-bold ml-2">{MONTHS[mm]} {my}</span>
               <button onClick={() => setMatrixCursor(new Date(my, mm + 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächster Monat">›</button>
               <button onClick={() => setMatrixCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
-              <span className="ml-auto text-xs text-slate-400">Werkstattschichtplan – Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung</span>
+              <span className="ml-auto text-xs text-slate-400">{readerMode
+                ? "Werkstattschichtplan – nur ansehen"
+                : "Werkstattschichtplan – Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung"}</span>
             </div>
 
             {team.length === 0 ? (
@@ -10486,7 +10492,9 @@ function App() {
                                   background: heutig ? "#FDF3E7" : ft ? "#FBEFED" : we ? "#EFF5FA" : "white",
                                 }}>
                                   <button
-                                    onClick={(ev) => {
+                                    /* Leser schauen nur nach - die Zelle bleibt stumm,
+                                       statt eine Auswahl zu öffnen, die nichts speichern darf */
+                                    onClick={readerMode ? undefined : (ev) => {
                                       const r = ev.currentTarget.getBoundingClientRect();
                                       setMatrixPick({
                                         person,
@@ -10545,15 +10553,17 @@ function App() {
                 {Object.entries(SCHICHTEN).map(([name, s]) => (
                   <span key={name} className="rounded font-black uppercase" style={{ fontSize: "0.6rem", letterSpacing: "0.03em", padding: "2px 7px", color: s.text || "white", backgroundColor: s.color }}>{name}</span>
                 ))}
-                <span className="text-xs text-slate-400">· Reihenfolge der Leute änderst du im ⚙-Verwalten-Dialog (↑/↓) · ganze Wochen setzt du am schnellsten in der Planung</span>
+                {/* Der Bearbeiter-Tipp würde Leser auf Knöpfe schicken, die sie nicht haben */}
+                {!readerMode && <span className="text-xs text-slate-400">· Reihenfolge der Leute änderst du im ⚙-Verwalten-Dialog (↑/↓) · ganze Wochen setzt du am schnellsten in der Planung</span>}
               </div>
             )}
           </div>
         );
       })()}
 
-      {/* Zellen-Dropdown der Schichtplan-Matrix */}
-      {matrixPick && (
+      {/* Zellen-Dropdown der Schichtplan-Matrix (Leser öffnen es gar nicht
+          erst - doppelte Sicherung zur stummen Zelle) */}
+      {matrixPick && !readerMode && (
         <div className="no-print" style={{ position: "fixed", inset: 0, zIndex: 70 }} onClick={() => setMatrixPick(null)}>
           <div
             style={{ position: "fixed", left: matrixPick.links, top: matrixPick.oben, backgroundColor: "white", borderRadius: "8px", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", padding: "6px", width: "190px", zIndex: 71 }}

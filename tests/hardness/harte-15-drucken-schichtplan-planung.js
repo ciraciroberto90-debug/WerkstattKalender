@@ -184,9 +184,13 @@ const seedTeam = (personName) => {
     await page.getByText('Vorhandene Datei öffnen …').click();
     await page.waitForTimeout(1000);
 
-    // Seit dem 10.09. sehen Leser den Schichtplan GAR NICHT mehr
-    // (Robertos Ansage: nur Übersicht + Berichte).
-    ok('Leser: Schichtplan ist NICHT mehr sichtbar (neue Leser-Regel)', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 0);
+    // Robertos Ansage vom 15.09.: Leser sehen den Schichtplan WIEDER - als
+    // Haupt-Tab zwischen Übersicht und Berichte, aber nur zum Ansehen
+    // (stumme Zellen, kein Auswahl-Fenster).
+    ok('Leser: Schichtplan-Tab ist sichtbar (seit 15.09., nur lesend)', await page.getByRole('button', { name: 'Schichtplan', exact: true }).count() === 1);
+    await page.getByRole('button', { name: 'Schichtplan', exact: true }).click();
+    await page.waitForTimeout(800);
+    ok('Leser: Schichtplan sagt "nur ansehen"', (await page.locator('body').innerText()).includes('nur ansehen'));
     ok('Leser: der Bereich Berichte bleibt erreichbar', await page.getByRole('button', { name: /^Berichte/ }).count() >= 1);
 
     await page.close();
