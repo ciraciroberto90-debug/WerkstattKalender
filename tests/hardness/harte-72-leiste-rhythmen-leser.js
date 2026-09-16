@@ -146,7 +146,10 @@ const pruef = (n, c, zusatz) => {
   await p2.addInitScript(() => {
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
     localStorage.setItem("bta-standort", "scheurich");
-    localStorage.setItem("werkstatt-kalender-entries", JSON.stringify([]));
+    localStorage.setItem("werkstatt-kalender-entries", JSON.stringify([
+      // Eine Zellen-Notiz im Bestand: Leser sollen den gelben Kasten SEHEN
+      { id: "n1", category: "PLANNOTIZ", name: "T. Balles", date: "2026-09-14", note: "Dies ist ein Test", verfasser: "Roberto" },
+    ]));
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify({
       tpmAnlagen: [], riItems: [],
       team: [{ name: "T. Balles", rolle: "mech" }, { name: "M. Kilic", rolle: "elek" }],
@@ -171,6 +174,12 @@ const pruef = (n, c, zusatz) => {
   await p2.waitForTimeout(400);
   pruef("(S) Zellen-Klick öffnet für Leser KEIN Auswahl-Fenster",
         (await p2.locator('div[style*="z-index: 71"]').count()) === 0);
+  // (N) Aber die Zellen-Notiz SEHEN Leser - gelber Kasten mit Verfasser
+  await p2.locator('button[aria-label="Matrix T. Balles 2026-09-14"]').hover();
+  await p2.waitForTimeout(400);
+  const kastenLeser = await p2.locator("body").innerText();
+  pruef("(N) Leser sehen den gelben Notiz-Kasten samt Verfasser (nur ansehen)",
+        /Roberto:/.test(kastenLeser) && /Dies ist ein Test/.test(kastenLeser));
   // Gegenprobe beim Bearbeiter: dort öffnet dieselbe Zelle die Auswahl
   await p.getByRole("button", { name: "Werkstatt", exact: true }).click();
   await p.waitForTimeout(600);
@@ -180,6 +189,28 @@ const pruef = (n, c, zusatz) => {
     await p.waitForTimeout(400);
     pruef("(S) Gegenprobe Bearbeiter: Zellen-Klick öffnet die Auswahl",
           (await p.locator('div[style*="z-index: 71"]').count()) === 1);
+
+    /* ---- (N) Zellen-Notiz wie der Excel-Kommentar (Robertos Ansage
+       vom 16.09.): anheften über das Zellen-Menü, rotes Eck + gelber
+       Kasten beim Zeigen, beim zweiten Mal "Notiz ändern". ---- */
+    await p.getByRole("button", { name: /Notiz anheften/ }).click();
+    await p.waitForTimeout(400);
+    await p.locator("textarea").fill("Bremse an B1 prüfen");
+    await p.getByRole("button", { name: "Speichern", exact: true }).click();
+    await p.waitForTimeout(700);
+    const notizB = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-kalender-entries"))).find((e) => e.category === "PLANNOTIZ");
+    pruef("(N) Die Zellen-Notiz liegt als PLANNOTIZ im Bestand (geteilt mit der Planung)",
+          !!notizB && notizB.note === "Bremse an B1 prüfen", notizB && `${notizB.name} · ${notizB.date}`);
+    await p.locator(`button[aria-label="Matrix ${notizB.name} ${notizB.date}"]`).hover();
+    await p.waitForTimeout(400);
+    pruef("(N) Beim Zeigen erscheint der gelbe Notiz-Kasten",
+          (await p.locator("body").innerText()).includes("Bremse an B1 prüfen"));
+    await p.locator(`button[aria-label="Matrix ${notizB.name} ${notizB.date}"]`).click();
+    await p.waitForTimeout(400);
+    pruef("(N) Das Zellen-Menü bietet jetzt „Notiz ändern“",
+          (await p.getByRole("button", { name: /Notiz ändern/ }).count()) === 1);
+    await p.mouse.click(20, 700); // Menü über die Fläche daneben schließen
+    await p.waitForTimeout(300);
   } else {
     // Ohne Team in der Bearbeiter-Saat gibt es keine Zellen - dann zählt
     // die Leser-Prüfung allein (ehrlich vermerkt statt still übersprungen).

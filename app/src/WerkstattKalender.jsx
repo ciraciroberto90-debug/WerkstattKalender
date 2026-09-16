@@ -2102,6 +2102,7 @@ function App() {
   const [sonstigeOffen, setSonstigeOffen] = useState(false); // Planung: Gruppe "Sonstige" (ohne Gewerk) aufgeklappt?
   const [matrixCursor, setMatrixCursor] = useState(() => new Date()); // Monat der Schichtplan-Matrix
   const [matrixPick, setMatrixPick] = useState(null); // {person, datum, links, oben} | null - Zellen-Dropdown
+  const [matrixNotizHover, setMatrixNotizHover] = useState(null); // {links, oben, notizen} | null - Excel-artiger Notiz-Kasten beim Zeigen
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
   const [zettelOpen, setZettelOpen] = useState(false);
   // Fotos am neuen Zettel (26.08.): nur frisch angehängte - ein Zettel wird
@@ -5786,7 +5787,9 @@ function App() {
     if (planNotiz.id) {
       next = entries.map((e) => (e.id === planNotiz.id ? { ...e, note: text } : e));
     } else {
-      next = [...entries, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: planNotiz.datum, category: "PLANNOTIZ", name: planNotiz.person, note: text }];
+      // "verfasser" wie der Excel-Kommentar-Kopf (Robertos Ansage vom 16.09.):
+      // der Notiz-Kasten im Schichtplan zeigt, WER die Notiz hinterlassen hat.
+      next = [...entries, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: planNotiz.datum, category: "PLANNOTIZ", name: planNotiz.person, note: text, verfasser: angemeldet || "" }];
     }
     await persist(next);
     setPlanNotiz(null);
@@ -10407,6 +10410,17 @@ function App() {
           else kwSegmente.push({ kw: t.kw, span: 1 });
         });
         const zellBreite = "66px";
+        // Zellen-Notizen (Robertos Ansage vom 16.09., "wie bei Excel"):
+        // dieselben PLANNOTIZ-Einträge wie in der Planung, hier als rotes
+        // Eck an der Zelle plus gelber Kasten beim Draufzeigen. Einmal je
+        // Render als Karte gebündelt statt je Zelle den Bestand zu filtern.
+        const zellNotizen = new Map();
+        entries.forEach((e) => {
+          if (e.category !== "PLANNOTIZ") return;
+          const k = `${e.name}|${e.date}`;
+          const l = zellNotizen.get(k);
+          if (l) l.push(e); else zellNotizen.set(k, [e]);
+        });
         return (
           <div className="no-print max-w-7xl mx-auto px-4 mt-4">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -10483,12 +10497,14 @@ function App() {
                               const ft = feiertage.get(t.key);
                               const kwStart = t.dow === 1; // Montag = Beginn einer neuen KW - deutliche Abgrenzung zum Sonntag davor
                               const wochenendStart = t.dow === 6; // Samstag = Beginn des Wochenendes - Abgrenzung zum Freitag davor
+                              const notizen = zellNotizen.get(`${person}|${t.key}`);
                               return (
                                 <td key={t.key} title={ft || undefined} style={{
                                   border: "1.5px solid #6B7280",
                                   borderLeft: heutig ? "3px solid #C97A2B" : kwStart ? "3px solid #22262B" : wochenendStart ? "3px solid #22262B" : "1.5px solid #6B7280",
                                   borderRight: heutig ? "3px solid #C97A2B" : "1.5px solid #6B7280",
                                   padding: 0,
+                                  position: "relative",
                                   background: heutig ? "#FDF3E7" : ft ? "#FBEFED" : we ? "#EFF5FA" : "white",
                                 }}>
                                   <button
@@ -10503,6 +10519,17 @@ function App() {
                                         oben: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 400)),
                                       });
                                     }}
+                                    /* Der gelbe Notiz-Kasten folgt dem Zeigen wie der
+                                       Excel-Kommentar - auch für Leser (nur ansehen) */
+                                    onMouseEnter={notizen ? (ev) => {
+                                      const r = ev.currentTarget.getBoundingClientRect();
+                                      setMatrixNotizHover({
+                                        notizen,
+                                        links: Math.max(8, Math.min(r.right + 6, window.innerWidth - 260)),
+                                        oben: Math.max(8, Math.min(r.top - 4, window.innerHeight - 160)),
+                                      });
+                                    } : undefined}
+                                    onMouseLeave={notizen ? () => setMatrixNotizHover(null) : undefined}
                                     className="block w-full font-extrabold"
                                     style={schicht
                                       ? { minWidth: zellBreite, height: "26px", fontSize: "0.58rem", color: SCHICHTEN[schicht].text || "white", backgroundColor: SCHICHTEN[schicht].color, whiteSpace: "nowrap", overflow: "hidden" }
@@ -10512,6 +10539,11 @@ function App() {
                                   >
                                     {schicht || "·"}
                                   </button>
+                                  {/* Rotes Eck wie der Excel-Kommentar-Marker */}
+                                  {notizen && (
+                                    <span aria-hidden="true" style={{ position: "absolute", top: 0, right: 0, width: 0, height: 0,
+                                      borderTop: "7px solid #C0392B", borderLeft: "7px solid transparent", pointerEvents: "none" }} />
+                                  )}
                                 </td>
                               );
                             })}
@@ -10587,7 +10619,39 @@ function App() {
             >
               – keine Schicht
             </button>
+            {/* Zellen-Notiz wie der Excel-Kommentar (Robertos Ansage vom
+                16.09.): öffnet den bekannten Notiz-Dialog der Planung -
+                gibt es schon eine Notiz, zum Ändern/Löschen. */}
+            <button
+              onClick={() => {
+                const n = notizenFuer(matrixPick.person, matrixPick.datum)[0];
+                setPlanNotiz(n
+                  ? { person: matrixPick.person, datum: matrixPick.datum, id: n.id, text: n.note }
+                  : { person: matrixPick.person, datum: matrixPick.datum, text: "" });
+                setMatrixPick(null);
+              }}
+              className="block w-full text-left rounded font-bold border mt-0.5"
+              style={{ fontSize: "0.7rem", padding: "4px 8px", backgroundColor: "#FFFBE6", color: "#8A6508", borderColor: "#EADFB8" }}
+            >
+              📝 {notizenFuer(matrixPick.person, matrixPick.datum).length ? "Notiz ändern …" : "Notiz anheften …"}
+            </button>
           </div>
+        </div>
+      )}
+
+      {/* Gelber Notiz-Kasten beim Zeigen auf eine Zelle mit rotem Eck -
+          bewusst wie der Excel-Kommentar: Verfasser fett, darunter der
+          Text. pointerEvents:none, damit er dem Zeiger nicht im Weg steht. */}
+      {matrixNotizHover && view === "COCKPIT" && cockpitTab === "SCHICHTPLAN" && (
+        <div className="no-print" style={{ position: "fixed", left: matrixNotizHover.links, top: matrixNotizHover.oben,
+          zIndex: 72, pointerEvents: "none", backgroundColor: "#FFFFE1", border: "1px solid #8A9099",
+          boxShadow: "3px 3px 8px rgba(0,0,0,0.25)", padding: "8px 10px", width: "230px", fontSize: "0.74rem", color: "#22262B" }}>
+          {matrixNotizHover.notizen.map((n) => (
+            <div key={n.id} className="mb-1 last:mb-0">
+              {n.verfasser && <div className="font-black">{n.verfasser}:</div>}
+              <div style={{ whiteSpace: "pre-wrap" }}>{n.note}</div>
+            </div>
+          ))}
         </div>
       )}
 

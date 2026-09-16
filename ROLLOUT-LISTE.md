@@ -730,6 +730,24 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Generator-Daten („mit Leben", Robertos Ansage) statt mit
       Mini-Beispielen.
 
+- [x] **Zellen-Notiz im Schichtplan GEBAUT (16.09.): „wie bei Excel".**
+      Robertos Ansage mit Excel-Bild: Bearbeiter können eine
+      Schichtplan-Zelle mit einer Notiz versehen. Umsetzung: Das
+      Zellen-Menü (Klick auf die Zelle) hat unten „📝 Notiz anheften …"
+      bzw. „Notiz ändern …" - es öffnet den BEKANNTEN Notiz-Dialog der
+      Planung, denn gespeichert wird in derselben Datenart (PLANNOTIZ,
+      Person + Tag): eine Notiz aus dem Schichtplan steht damit
+      automatisch auch in der Planung und umgekehrt. Neu am Datensatz:
+      ein „verfasser"-Stempel (der angemeldete Benutzer), damit der
+      Kasten wie der Excel-Kommentar den Urheber fett zeigt. Anzeige:
+      kleines ROTES ECK oben rechts an der Zelle (wie Excel), beim
+      Draufzeigen ein GELBER Kasten („Roberto: Dies ist ein Test");
+      mehrere Notizen je Zelle erscheinen untereinander. Leser SEHEN
+      Eck und Kasten (nur ansehen), können aber nichts anheften -
+      ihre Zellen bleiben stumm. harte-72 um fünf (N)-Prüfungen
+      erweitert (anheften -> PLANNOTIZ im Bestand, gelber Kasten,
+      „Notiz ändern", Leser sehen den Kasten samt Verfasser) - 26/26.
+
 - [ ] **Bereichswechsel bei Vollbestand beschleunigen (Fund der
       Klickrunde, 11.09.).** Robertos Maßstab: die reine Klick-Zeit des
       Benutzers. Gemessen bei 71.084 Einträgen (tests/klickrunde-70k.js):
