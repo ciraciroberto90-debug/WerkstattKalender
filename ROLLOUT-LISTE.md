@@ -744,9 +744,21 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Draufzeigen ein GELBER Kasten („Roberto: Dies ist ein Test");
       mehrere Notizen je Zelle erscheinen untereinander. Leser SEHEN
       Eck und Kasten (nur ansehen), können aber nichts anheften -
-      ihre Zellen bleiben stumm. harte-72 um fünf (N)-Prüfungen
-      erweitert (anheften -> PLANNOTIZ im Bestand, gelber Kasten,
-      „Notiz ändern", Leser sehen den Kasten samt Verfasser) - 26/26.
+      ihre Zellen bleiben stumm.
+      Robertos Nachschärfung vom 16.09., beides umgesetzt:
+      (1) Die Schichtplan-Notizen sind eine EIGENE Datenart
+      (SCHICHTNOTIZ), GETRENNT von den Planungs-Notizen - eine
+      Planungs-Notiz erscheint nicht mehr im Schichtplan und umgekehrt;
+      nur der Dialog ist geteilt. (Die wenigen am 16.09. vor der
+      Trennung angehefteten Zellen-Notizen zählen als
+      Planungs-Notizen und stehen jetzt in der Planung.)
+      (2) „Heute da" auf der Übersicht markiert Personen, die am
+      heutigen Tag eine Schichtplan-Notiz tragen: dasselbe rote Eck
+      neben dem Namen, beim Draufzeigen derselbe gelbe Kasten.
+      harte-72 wacht mit acht (N)-Prüfungen (anheften -> SCHICHTNOTIZ
+      im Bestand, gelber Kasten, „Notiz ändern", Leser sehen den
+      Kasten, Planungs-Notiz bleibt draußen, Heute-da-Markierung) -
+      28/28.
 
 - [ ] **Bereichswechsel bei Vollbestand beschleunigen (Fund der
       Klickrunde, 11.09.).** Robertos Maßstab: die reine Klick-Zeit des

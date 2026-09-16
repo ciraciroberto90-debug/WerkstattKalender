@@ -3966,7 +3966,7 @@ function App() {
         if (e.category === "TPM" && tpmRenames.has(e.name)) return { ...e, name: tpmRenames.get(e.name) };
         if (e.category === "RI" && riRenames.has(e.name)) return { ...e, name: riRenames.get(e.name) };
         if ((e.category === "ARBEIT" || e.category === "TODO") && e.wer && teamRenames.has(e.wer)) return { ...e, wer: teamRenames.get(e.wer) };
-        if ((e.category === "SCHICHT" || e.category === "PLANNOTIZ" || e.category === "ZEIT") && teamRenames.has(e.name)) return { ...e, name: teamRenames.get(e.name) };
+        if ((e.category === "SCHICHT" || e.category === "PLANNOTIZ" || e.category === "SCHICHTNOTIZ" || e.category === "ZEIT") && teamRenames.has(e.name)) return { ...e, name: teamRenames.get(e.name) };
         return e;
       });
     }
@@ -5776,9 +5776,13 @@ function App() {
     setSchichtPicker(null);
   };
 
-  // Freie Notizen in Planungszellen (Kategorie PLANNOTIZ)
+  // Freie Notizen in Planungszellen (Kategorie PLANNOTIZ). Die
+  // Schichtplan-Zellen-Notizen sind seit Robertos Nachschärfung vom 16.09.
+  // eine EIGENE Datenart (SCHICHTNOTIZ) - beide teilen sich nur den Dialog.
   const notizenFuer = (person, tagKey) =>
     entries.filter((e) => e.category === "PLANNOTIZ" && e.name === person && e.date === tagKey);
+  const schichtNotizenFuer = (person, tagKey) =>
+    entries.filter((e) => e.category === "SCHICHTNOTIZ" && e.name === person && e.date === tagKey);
   const savePlanNotiz = async () => {
     if (readerMode || !planNotiz) return;
     const text = saeubere(planNotiz.text || "");
@@ -5789,7 +5793,9 @@ function App() {
     } else {
       // "verfasser" wie der Excel-Kommentar-Kopf (Robertos Ansage vom 16.09.):
       // der Notiz-Kasten im Schichtplan zeigt, WER die Notiz hinterlassen hat.
-      next = [...entries, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: planNotiz.datum, category: "PLANNOTIZ", name: planNotiz.person, note: text, verfasser: angemeldet || "" }];
+      next = [...entries, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: planNotiz.datum,
+        category: planNotiz.art === "SCHICHT" ? "SCHICHTNOTIZ" : "PLANNOTIZ",
+        name: planNotiz.person, note: text, verfasser: angemeldet || "" }];
     }
     await persist(next);
     setPlanNotiz(null);
@@ -9573,12 +9579,29 @@ function App() {
                         ) : (
                           liste.map((x) => {
                             const sc = x.schicht && SCHICHTEN[x.schicht];
+                            // Schichtplan-Notiz des heutigen Tags (Robertos Ansage vom
+                            // 16.09.): rotes Eck an der Zeile, gelber Kasten beim Zeigen -
+                            // dieselbe Sprache wie an der Schichtplan-Zelle.
+                            const heuteNotizen = schichtNotizenFuer(x.name, todayKey);
                             // Ohne eingetragene Schichtart ist die Person trotzdem DA (Tag-/Frühdienst) -
                             // daher normal anzeigen, nur mit neutralem Avatar (kein Durchstreichen!).
                             return (
-                              <div key={x.name} className="flex items-center gap-2" style={{ padding: "3px 0" }} title={sc ? x.schicht : "Anwesend (keine Schichtart eingetragen)"}>
+                              <div key={x.name} className="flex items-center gap-2" style={{ padding: "3px 0", position: "relative" }}
+                                title={sc ? x.schicht : "Anwesend (keine Schichtart eingetragen)"}
+                                onMouseEnter={heuteNotizen.length ? (ev) => {
+                                  const r = ev.currentTarget.getBoundingClientRect();
+                                  setMatrixNotizHover({
+                                    notizen: heuteNotizen,
+                                    links: Math.max(8, Math.min(r.left + 30, window.innerWidth - 260)),
+                                    oben: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 160)),
+                                  });
+                                } : undefined}
+                                onMouseLeave={heuteNotizen.length ? () => setMatrixNotizHover(null) : undefined}>
                                 <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "24px", height: "24px", fontSize: "0.6rem", backgroundColor: sc ? sc.color : "#8A9099", color: sc ? (sc.text || "#fff") : "#fff" }}>{initialen(x.name)}</span>
                                 <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#22262B" }}>{x.name}</span>
+                                {heuteNotizen.length > 0 && (
+                                  <span aria-hidden="true" style={{ width: 0, height: 0, borderTop: "7px solid #C0392B", borderLeft: "7px solid transparent", flexShrink: 0 }} />
+                                )}
                                 {aktiv && <span className="ml-auto inline-flex items-center rounded-full font-extrabold uppercase" style={{ fontSize: "0.5rem", letterSpacing: "0.3px", backgroundColor: "#EAF3EC", color: "#1F7A3D", padding: "1px 6px" }}>jetzt</span>}
                               </div>
                             );
@@ -10411,12 +10434,13 @@ function App() {
         });
         const zellBreite = "66px";
         // Zellen-Notizen (Robertos Ansage vom 16.09., "wie bei Excel"):
-        // dieselben PLANNOTIZ-Einträge wie in der Planung, hier als rotes
-        // Eck an der Zelle plus gelber Kasten beim Draufzeigen. Einmal je
-        // Render als Karte gebündelt statt je Zelle den Bestand zu filtern.
+        // EIGENE Datenart SCHICHTNOTIZ - bewusst GETRENNT von den
+        // Planungs-Notizen (Robertos Nachschärfung: die gehören nicht in
+        // den Schichtplan). Rotes Eck an der Zelle plus gelber Kasten beim
+        // Draufzeigen; einmal je Render als Karte gebündelt.
         const zellNotizen = new Map();
         entries.forEach((e) => {
-          if (e.category !== "PLANNOTIZ") return;
+          if (e.category !== "SCHICHTNOTIZ") return;
           const k = `${e.name}|${e.date}`;
           const l = zellNotizen.get(k);
           if (l) l.push(e); else zellNotizen.set(k, [e]);
@@ -10624,16 +10648,16 @@ function App() {
                 gibt es schon eine Notiz, zum Ändern/Löschen. */}
             <button
               onClick={() => {
-                const n = notizenFuer(matrixPick.person, matrixPick.datum)[0];
+                const n = schichtNotizenFuer(matrixPick.person, matrixPick.datum)[0];
                 setPlanNotiz(n
-                  ? { person: matrixPick.person, datum: matrixPick.datum, id: n.id, text: n.note }
-                  : { person: matrixPick.person, datum: matrixPick.datum, text: "" });
+                  ? { person: matrixPick.person, datum: matrixPick.datum, id: n.id, text: n.note, art: "SCHICHT" }
+                  : { person: matrixPick.person, datum: matrixPick.datum, text: "", art: "SCHICHT" });
                 setMatrixPick(null);
               }}
               className="block w-full text-left rounded font-bold border mt-0.5"
               style={{ fontSize: "0.7rem", padding: "4px 8px", backgroundColor: "#FFFBE6", color: "#8A6508", borderColor: "#EADFB8" }}
             >
-              📝 {notizenFuer(matrixPick.person, matrixPick.datum).length ? "Notiz ändern …" : "Notiz anheften …"}
+              📝 {schichtNotizenFuer(matrixPick.person, matrixPick.datum).length ? "Notiz ändern …" : "Notiz anheften …"}
             </button>
           </div>
         </div>
@@ -10642,7 +10666,8 @@ function App() {
       {/* Gelber Notiz-Kasten beim Zeigen auf eine Zelle mit rotem Eck -
           bewusst wie der Excel-Kommentar: Verfasser fett, darunter der
           Text. pointerEvents:none, damit er dem Zeiger nicht im Weg steht. */}
-      {matrixNotizHover && view === "COCKPIT" && cockpitTab === "SCHICHTPLAN" && (
+      {/* ... sichtbar im Schichtplan UND bei "Heute da" auf der Übersicht */}
+      {matrixNotizHover && view === "COCKPIT" && (cockpitTab === "SCHICHTPLAN" || cockpitTab === "UEBERSICHT") && (
         <div className="no-print" style={{ position: "fixed", left: matrixNotizHover.links, top: matrixNotizHover.oben,
           zIndex: 72, pointerEvents: "none", backgroundColor: "#FFFFE1", border: "1px solid #8A9099",
           boxShadow: "3px 3px 8px rgba(0,0,0,0.25)", padding: "8px 10px", width: "230px", fontSize: "0.74rem", color: "#22262B" }}>

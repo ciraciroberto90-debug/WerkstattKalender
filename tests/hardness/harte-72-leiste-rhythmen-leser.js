@@ -147,8 +147,14 @@ const pruef = (n, c, zusatz) => {
     delete window.showOpenFilePicker; delete window.showSaveFilePicker;
     localStorage.setItem("bta-standort", "scheurich");
     localStorage.setItem("werkstatt-kalender-entries", JSON.stringify([
-      // Eine Zellen-Notiz im Bestand: Leser sollen den gelben Kasten SEHEN
-      { id: "n1", category: "PLANNOTIZ", name: "T. Balles", date: "2026-09-14", note: "Dies ist ein Test", verfasser: "Roberto" },
+      // Eine SCHICHTPLAN-Notiz im Bestand: Leser sollen den gelben Kasten SEHEN
+      { id: "n1", category: "SCHICHTNOTIZ", name: "T. Balles", date: "2026-09-14", note: "Dies ist ein Test", verfasser: "Roberto" },
+      // Eine PLANUNGS-Notiz für die Gegenprobe: sie gehört NICHT in den
+      // Schichtplan (Robertos Nachschärfung vom 16.09. - eigene Datenarten)
+      { id: "n2", category: "PLANNOTIZ", name: "M. Kilic", date: "2026-09-14", note: "Planungs-Notiz bleibt drüben", verfasser: "Roberto" },
+      // T. Balles hat heute Früh - damit die Person in "Heute da" steht und
+      // die Übersicht die Notiz-Markierung zeigen kann
+      { id: "sch1", category: "SCHICHT", name: "T. Balles", date: "2026-09-14", scope: "tag", wert: "Früh", updatedAt: "2026-09-14T06:00:00.000Z" },
     ]));
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify({
       tpmAnlagen: [], riItems: [],
@@ -159,6 +165,14 @@ const pruef = (n, c, zusatz) => {
   });
   await p2.goto(APP);
   await p2.waitForTimeout(1300);
+
+  /* ---- (N) "Heute da" auf der Übersicht markiert Personen mit einer
+     Schichtplan-Notiz des heutigen Tags (Robertos Ansage vom 16.09.) ---- */
+  await p2.getByText("T. Balles", { exact: true }).first().hover();
+  await p2.waitForTimeout(400);
+  const heuteDaText = await p2.locator("body").innerText();
+  pruef("(N) „Heute da“ zeigt beim Zeigen auf die Person den gelben Notiz-Kasten",
+        /Roberto:/.test(heuteDaText) && /Dies ist ein Test/.test(heuteDaText));
 
   /* ---- (S) Leser-Schichtplan (Robertos Ansage vom 15.09.): eigener
      Haupt-Tab zwischen Übersicht und Berichte, aber NUR zum Ansehen -
@@ -180,6 +194,12 @@ const pruef = (n, c, zusatz) => {
   const kastenLeser = await p2.locator("body").innerText();
   pruef("(N) Leser sehen den gelben Notiz-Kasten samt Verfasser (nur ansehen)",
         /Roberto:/.test(kastenLeser) && /Dies ist ein Test/.test(kastenLeser));
+  // (N) Trennung der Datenarten: die PLANUNGS-Notiz von M. Kilic erscheint
+  // im Schichtplan NICHT (kein Eck, kein Kasten)
+  await p2.locator('button[aria-label="Matrix M. Kilic 2026-09-14"]').hover();
+  await p2.waitForTimeout(400);
+  pruef("(N) Planungs-Notizen bleiben draußen: kein Kasten an der Kilic-Zelle",
+        !(await p2.locator("body").innerText()).includes("Planungs-Notiz bleibt drüben"));
   // Gegenprobe beim Bearbeiter: dort öffnet dieselbe Zelle die Auswahl
   await p.getByRole("button", { name: "Werkstatt", exact: true }).click();
   await p.waitForTimeout(600);
@@ -198,8 +218,8 @@ const pruef = (n, c, zusatz) => {
     await p.locator("textarea").fill("Bremse an B1 prüfen");
     await p.getByRole("button", { name: "Speichern", exact: true }).click();
     await p.waitForTimeout(700);
-    const notizB = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-kalender-entries"))).find((e) => e.category === "PLANNOTIZ");
-    pruef("(N) Die Zellen-Notiz liegt als PLANNOTIZ im Bestand (geteilt mit der Planung)",
+    const notizB = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-kalender-entries"))).find((e) => e.category === "SCHICHTNOTIZ");
+    pruef("(N) Die Zellen-Notiz liegt als EIGENE Datenart SCHICHTNOTIZ im Bestand (getrennt von der Planung)",
           !!notizB && notizB.note === "Bremse an B1 prüfen", notizB && `${notizB.name} · ${notizB.date}`);
     await p.locator(`button[aria-label="Matrix ${notizB.name} ${notizB.date}"]`).hover();
     await p.waitForTimeout(400);
