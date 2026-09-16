@@ -30,7 +30,13 @@ async function makeUser(browser, uhr) {
 }
 
 const adoptMain = (page) => page.evaluate(async () => await window.__wkSharedTest.adopt(window.__mk("kalender-daten.json"), "readwrite"));
-const setzeEntries = (page, arr) => page.evaluate(async (a) => await window.storage.set("werkstatt-kalender-entries", JSON.stringify(a)), arr);
+// Seit der Hintergrund-Warteschlange (16.09.) kehrt storage.set nach der
+// LOKALEN Sicherung zurück - für die Datei-Prüfungen dieses Tests wird
+// deshalb ausdrücklich das Ende der Hintergrund-Kette abgewartet.
+const setzeEntries = (page, arr) => page.evaluate(async (a) => {
+  await window.storage.set("werkstatt-kalender-entries", JSON.stringify(a));
+  if (window.__wkStorageTest) await window.__wkStorageTest.dateiFertig();
+}, arr);
 const pollMain = (page) => page.evaluate(() => window.__wkSharedTest.poll());
 const getFileState = () => JSON.parse(drive["kalender-daten.json"] || '{"entries":[]}');
 const getLocalEntries = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]"));

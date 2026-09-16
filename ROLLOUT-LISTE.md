@@ -760,6 +760,37 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       Kasten, Planungs-Notiz bleibt draußen, Heute-da-Markierung) -
       28/28.
 
+- [x] **Speichern-Hänger BEHOBEN (16.09.): Dialoge schließen sofort,
+      die Datei schreibt im Hintergrund.** Robertos Fund: „beim Klick
+      auf Speichern muss ich erst aus dem Popout raus klicken, damit
+      er weg geht." Ursache GEMESSEN: Der Speichern-Klick wartete auf
+      die komplette Datei-Speicher-Kette (Sperren-Blick, Schreiben,
+      Schutzpause, Nachkontrolle - bei 70.000 Einträgen ~7 s), obwohl
+      die Änderung längst im laufenden Bestand und im örtlichen
+      Spiegel gesichert war und der Rückgabewert, den die Dialoge
+      auswerten, schon immer NUR an der lokalen Sicherung hing.
+      Umbau im Speicher-Unterbau (storage.js): set() kehrt nach der
+      lokalen Sicherung zurück; in die gemeinsame Datei wird über eine
+      Hintergrund-WARTESCHLANGE geschrieben - streng nacheinander (nie
+      zwei Schreiber desselben Fensters zugleich, die Klick-Reihenfolge
+      bleibt die Datei-Reihenfolge), mit „bin ich noch der
+      neueste?"-Wächter, damit ein älterer Hintergrund-Schreiber den
+      frischeren Stand nicht zurückdreht. Fehlerbild unverändert (rote
+      Warnung), Kollisions-Heilung der Dateischicht unberührt; solange
+      die Kette schreibt, warnt der Browser vor dem Schließen des
+      Fensters. Der Störungs-Speicherweg bleibt BEWUSST synchron
+      (die Berichts-NUMMER wird aus dem frisch zusammengeführten Stand
+      vergeben - zwei gleichzeitige Melder; die Störungs-Datei ist
+      klein und schnell).
+      PFLICHT-NACHWEIS der Hausregel erbracht: neue Wache harte-73
+      (7 Prüfungen, Datei künstlich auf 2,5 s je Schreibvorgang
+      gebremst) - Rot-Lauf gegen den Bau davor: Masken hingen 3,3-3,4 s
+      (2 FAILs); neuer Bau: 48/80 ms, und ALLES landet trotzdem in der
+      Datei (auch zwei schnelle Aktionen nacheinander). Sync-Fokus
+      zweimal 17/17 (der Test wartet jetzt über den neuen Testzugang
+      __wkStorageTest.dateiFertig auf das Ketten-Ende statt auf
+      Verdacht), Smoke 27/27.
+
 - [ ] **Bereichswechsel bei Vollbestand beschleunigen (Fund der
       Klickrunde, 11.09.).** Robertos Maßstab: die reine Klick-Zeit des
       Benutzers. Gemessen bei 71.084 Einträgen (tests/klickrunde-70k.js):
