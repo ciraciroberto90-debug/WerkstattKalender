@@ -73,7 +73,12 @@ window.addEventListener("beforeunload", (e) => {
   if (dateiOffen > 0) { e.preventDefault(); e.returnValue = ""; }
 });
 
-async function inDateiSchreiben(key, value, prevRaw, laufNr) {
+async function inDateiSchreiben(key, value, prevRaw, laufNr, lokalFehlte) {
+  // "lokalFehlte": der Zwischenspeicher war beim set() voll. Die Warnung
+  // dazu kommt bewusst HIER, nach dem Datei-Schreiben - käme sie sofort,
+  // würde die Entwarnung des erfolgreichen Datei-Speicherns sie eine
+  // Sekunde später wegwischen (harte-21 hat genau das gefangen).
+  let lokalImmerNochOffen = !!lokalFehlte;
   try {
     if (key === ENTRIES_KEY) {
       const next = JSON.parse(value);
@@ -87,7 +92,10 @@ async function inDateiSchreiben(key, value, prevRaw, laufNr) {
       if (merged && setLauf.get(key) === laufNr) {
         const mergedRaw = JSON.stringify(merged);
         eigenerStand.set(key, mergedRaw);
-        try { localStorage.setItem(key, mergedRaw); } catch (e) { /* Spiegel voll - Datei hat den Stand */ }
+        try {
+          localStorage.setItem(key, mergedRaw);
+          lokalImmerNochOffen = false; // zweiter Versuch hat geklappt
+        } catch (e) { /* Spiegel voll - Datei hat den Stand */ }
         // Kam beim Zusammenführen irgendetwas anderes heraus als das, was
         // gerade gespeichert werden sollte (neue Einträge, gelöschte,
         // oder inhaltlich geänderte) - App sofort informieren, nicht erst
@@ -112,7 +120,19 @@ async function inDateiSchreiben(key, value, prevRaw, laufNr) {
     // für gesichert, obwohl sie die gemeinsame Datei nie erreicht hat.
     // Die Entwarnung gibt daher nur, wer die Bestätigung wirklich hat.
   } catch (e) {
-    shared.dispatchError("In der gemeinsamen Datei konnte nicht gespeichert werden (Laufwerk erreichbar? Datei gesperrt?). Lokal ist alles gesichert – beim nächsten erfolgreichen Speichern wird automatisch abgeglichen.");
+    shared.dispatchError(lokalImmerNochOffen
+      // Doppel-Fall: Zwischenspeicher voll UND Datei nicht erreichbar -
+      // die Änderung ist gerade wirklich nirgends dauerhaft gesichert.
+      ? "Der Zwischenspeicher dieses Browsers ist voll UND die gemeinsame Datei war nicht erreichbar – die letzte Änderung ist derzeit NICHT gesichert. Bitte Laufwerk prüfen und erneut speichern; alte Jahrgänge auslagern schafft Platz."
+      : "In der gemeinsamen Datei konnte nicht gespeichert werden (Laufwerk erreichbar? Datei gesperrt?). Lokal ist alles gesichert – beim nächsten erfolgreichen Speichern wird automatisch abgeglichen.");
+    return;
+  }
+  if (lokalImmerNochOffen) {
+    // Die Änderung STEHT jetzt in der gemeinsamen Datei - nur die örtliche
+    // Zweitschrift fehlt. Kein Datenverlust, aber ein Zustand, den man
+    // kennen muss (nach dem Neuladen fehlen Daten, bis die Datei wieder
+    // gelesen wurde).
+    shared.dispatchError("Der Zwischenspeicher dieses Browsers ist voll. Deine Änderung steht in der gemeinsamen Datei und ist NICHT verloren – auf diesem Gerät kann sie aber nicht zwischengespeichert werden. Bitte alte Jahrgänge auslagern oder den Browser-Speicher der Seite leeren.");
   }
 }
 
@@ -146,29 +166,23 @@ window.storage = {
       lokalGespeichert = false;
     }
 
-    if (shared.isConnected() && shared.canWrite() && (key === ENTRIES_KEY || key === CONFIG_KEY)) {
+    const dateiWeg = shared.isConnected() && shared.canWrite() && (key === ENTRIES_KEY || key === CONFIG_KEY);
+    if (dateiWeg) {
       const laufNr = (setLauf.get(key) || 0) + 1;
       setLauf.set(key, laufNr);
       dateiOffen++;
       dateiKette = dateiKette
-        .then(() => inDateiSchreiben(key, value, prevRaw, laufNr))
+        .then(() => inDateiSchreiben(key, value, prevRaw, laufNr, !lokalGespeichert))
         .catch(() => { /* inDateiSchreiben fängt selbst - die Kette darf nie reißen */ })
         .then(() => { dateiOffen--; });
     }
 
-    if (!lokalGespeichert) {
-      if (shared.isConnected() && shared.canWrite()) {
-        // Die Änderung ist auf dem Weg in die gemeinsame Datei - nur die
-        // örtliche Zweitschrift fehlt. Kein Datenverlust, aber ein Zustand,
-        // den man kennen muss (nach dem Neuladen fehlen Daten, bis die Datei
-        // wieder gelesen wurde).
-        shared.dispatchError("Der Zwischenspeicher dieses Browsers ist voll. Deine Änderung wird in die gemeinsame Datei geschrieben und ist NICHT verloren – auf diesem Gerät kann sie aber nicht zwischengespeichert werden. Bitte alte Jahrgänge auslagern oder den Browser-Speicher der Seite leeren.");
-      } else {
-        // Ohne gemeinsame Datei gibt es keine zweite Ablage: Jetzt ist die
-        // Änderung wirklich nirgends. Das muss als Fehler durchschlagen,
-        // damit die App es meldet statt still weiterzumachen.
-        throw new Error("Der Zwischenspeicher dieses Browsers ist voll – die Änderung konnte nirgends gesichert werden. Bitte alte Jahrgänge auslagern oder eine gemeinsame Datei verbinden.");
-      }
+    if (!lokalGespeichert && !dateiWeg) {
+      // Ohne gemeinsame Datei gibt es keine zweite Ablage: Jetzt ist die
+      // Änderung wirklich nirgends. Das muss als Fehler durchschlagen,
+      // damit die App es meldet statt still weiterzumachen. (MIT Datei-Weg
+      // meldet die Hintergrund-Kette den Voll-Zustand nach dem Schreiben.)
+      throw new Error("Der Zwischenspeicher dieses Browsers ist voll – die Änderung konnte nirgends gesichert werden. Bitte alte Jahrgänge auslagern oder eine gemeinsame Datei verbinden.");
     }
     return { key, value };
   },

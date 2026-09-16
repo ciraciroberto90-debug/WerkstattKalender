@@ -73,6 +73,10 @@ const pruef = (n, c, zusatz) => {
     const roh = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
     roh.push({ id: kennung, date: "2026-09-11", category: "NOTIZ", text: kennung, updatedAt: new Date().toISOString() });
     await window.storage.set("werkstatt-kalender-entries", JSON.stringify(roh));
+    // Hintergrund-Warteschlange (16.09.): das 12-s-Heilfenster zählt ab dem
+    // Moment, in dem MEIN Schreiben die Datei erreicht hat - wie zuvor, als
+    // der await das Schreiben noch selbst enthielt.
+    if (window.__wkStorageTest) await window.__wkStorageTest.dateiFertig();
   }, id);
 
   for (let runde = 1; runde <= 3; runde++) {

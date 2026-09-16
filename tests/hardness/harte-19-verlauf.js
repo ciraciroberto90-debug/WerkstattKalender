@@ -44,8 +44,15 @@ async function makeUser(browser, uhr, name) {
 }
 
 const adopt = (p) => p.evaluate(async () => await window.__wkSharedTest.adopt(window.__mk("kalender-daten.json"), "readwrite"));
-const setzeEntries = (p, a) => p.evaluate(async (x) => await window.storage.set("werkstatt-kalender-entries", JSON.stringify(x)), a);
-const setzeConfig = (p, c) => p.evaluate(async (x) => await window.storage.set("werkstatt-kalender-config", JSON.stringify(x)), c);
+const setzeEntries = (p, a) => p.evaluate(async (x) => {
+  await window.storage.set("werkstatt-kalender-entries", JSON.stringify(x));
+  // Hintergrund-Warteschlange (16.09.): erst wenn die Datei-Kette durch ist, gilt "in der Datei"
+  if (window.__wkStorageTest) await window.__wkStorageTest.dateiFertig();
+}, a);
+const setzeConfig = (p, c) => p.evaluate(async (x) => {
+  await window.storage.set("werkstatt-kalender-config", JSON.stringify(x));
+  if (window.__wkStorageTest) await window.__wkStorageTest.dateiFertig();
+}, c);
 const lokaleEntries = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]"));
 const datei = () => JSON.parse(drive["kalender-daten.json"] || "{}");
 const verlauf = () => (datei().entries || []).filter((e) => String(e.id).startsWith("log|"));

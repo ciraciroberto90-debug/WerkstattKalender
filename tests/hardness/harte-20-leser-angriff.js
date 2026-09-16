@@ -216,7 +216,11 @@ async function macheLeser(browser) {
         { id: "danach", date: "2026-07-16", category: "ARBEIT", name: "Nach Entzug", status: "open", prio: "hoch" },
       ]));
     });
-    await p3.waitForTimeout(4000); // Wiederholversuche der Sync-Schicht abwarten
+    // Wiederholversuche der Sync-Schicht laufen seit der Hintergrund-
+    // Warteschlange (16.09.) NACH der set()-Rückkehr - auf die Warnung
+    // wird deshalb gewartet statt eine feste Frist zu raten.
+    await p3.waitForFunction(() => /nicht sicher|konnte nicht|Schreibschutz|nur ansehen|nicht gespeichert/i.test(document.body.innerText), null, { timeout: 25000 }).catch(() => {});
+    await p3.waitForTimeout(300);
 
     check("(E) Nach dem Entzug gelangt nichts mehr in die Datei",
       globalThis.__datei === standVorEntzug && !String(globalThis.__datei).includes("Nach Entzug"));
