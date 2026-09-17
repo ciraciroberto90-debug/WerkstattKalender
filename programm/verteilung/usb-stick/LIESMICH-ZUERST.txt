@@ -9,26 +9,35 @@ aus dem Release kam oder von einem USB-Stick. Keine
 Adminrechte, keine IT-Anfrage noetig.
 
 ----------------------------------------------------------
- DER SCHNELLE WEG (empfohlen): Einrichten.cmd
+ DER SCHNELLE WEG: BTA-Cockpit-Werkzeug.cmd
 ----------------------------------------------------------
 1. Diesen Ordner oeffnen (einen Download vorher entpacken,
    vom Stick geht es direkt).
-2. Doppelklick auf  Einrichten.cmd
-3. Fragen beantworten (Eingabetaste = Vorschlag uebernehmen):
-   - Wohin auf diesem Rechner? (Vorschlag: eigener Ordner
-     im Benutzerprofil - nie vom Stick aus starten!)
-   - Die drei Werkstatt-Pfade (Update-Ordner, Datendatei,
-     Stoerungs-Datei) - die Vorschlaege passen fuer die
-     Werkstatt Scheurich, einfach bestaetigen.
-4. Der Helfer entpackt das Programm, schreibt die
-   Einstellungs-Datei mit den Pfaden und legt eine
-   Desktop-Verknuepfung an. Fertig.
-5. Erster Start: Doppelklick auf die Verknuepfung.
+2. Doppelklick auf  BTA-Cockpit-Werkzeug.cmd
+   Es oeffnet sich ein Menue-Programm im schwarzen Fenster -
+   Auswahl mit den Pfeiltasten oder den Zahlen:
+
+     1  Neu einrichten        (Programm + Pfade + Verknuepfung)
+     2  Programm herunterladen (neuester Stand vom Release)
+     3  Pfade reparieren      (gemerkte Pfade ansehen/aendern)
+     4  Verbindung pruefen    (kommt der Rechner ans Laufwerk?)
+     5  Vom Rechner entfernen (sauber aufraeumen)
+
+3. Fuer einen neuen Rechner: Punkt 1 waehlen und die Fragen
+   beantworten (Eingabetaste = Vorschlag uebernehmen - die
+   Vorschlaege passen fuer die Werkstatt Scheurich).
+   Wichtig: als Zielordner den Vorschlag im Benutzerprofil
+   nehmen, nie vom Stick aus starten!
+4. Erster Start: Doppelklick auf die Desktop-Verknuepfung.
    Windows-SmartScreen beim allerersten Mal:
    "Weitere Informationen" -> "Trotzdem ausfuehren".
 
+Das Werkzeug hilft auch spaeter: Punkt 4 sagt bei Problemen
+sofort, ob der Rechner ans Laufwerk kommt, Punkt 3 richtet
+verstellte Pfade, Punkt 5 raeumt einen Rechner sauber ab.
+
 ----------------------------------------------------------
- DER HAND-WEG (falls der Helfer nicht gewuenscht ist)
+ DER HAND-WEG (falls das Werkzeug nicht gewuenscht ist)
 ----------------------------------------------------------
 1. 01-Programm\Werkstatt-Cockpit-Programm-win64.zip auf den
    Rechner kopieren und DORT entpacken (nicht auf dem Stick,
@@ -43,13 +52,13 @@ Die ausfuehrliche Anleitung mit Bildern liegt unter
 ----------------------------------------------------------
  WAS LIEGT WO?
 ----------------------------------------------------------
-Einrichten.cmd        Doppelklick-Einrichtung (fragt Pfade ab)
-werkzeug\             das Einrichtungs-Skript selbst
+BTA-Cockpit-Werkzeug.cmd  das Menue-Programm (Doppelklick)
+werkzeug\             das Skript hinter dem Menue
 01-Programm\          das Programm als ZIP (ca. 110 MB)
 02-Einstellungen\     fertige Einstellungs-Datei + Erklaerung
                       der Pfade
 03-Anleitung\         die Aufsetz-Anleitung als PDF
-04-Download-Links\    alle Download-Adressen, falls der Stick
+04-Download-Links\    alle Download-Adressen, falls das Paket
                       mal nicht zur Hand ist
 
 ----------------------------------------------------------
@@ -58,7 +67,7 @@ werkzeug\             das Einrichtungs-Skript selbst
 - Leser-Rechner werden GENAU GLEICH eingerichtet. Ohne
   Schreibrecht auf dem Laufwerk schaltet die App von selbst
   auf "nur ansehen".
-- Updates kommen NICHT ueber diesen Stick: Sobald eine neue
+- Updates kommen NICHT ueber dieses Paket: Sobald eine neue
   Werkstatt_Kalender_TPM.html im Update-Ordner liegt, meldet
   sich im Programm der gruene Balken.
 - Fragen und Rueckmeldungen an Roberto Ciraci (Werkstatt).

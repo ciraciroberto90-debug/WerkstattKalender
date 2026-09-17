@@ -853,12 +853,26 @@ ohne BOM neben die EXE, legt die Desktop-Verknüpfung an - keine Adminrechte),
 `02-Einstellungen/` (fertig ausgefüllte Einstellungs-Datei mit allen vier
 Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
 
-- [ ] **Einrichten.cmd einmal auf einem echten Windows-Rechner
-      durchspielen.** Das PowerShell-Skript ist hier UNGETESTET (kein
-      Windows in der Werkstatt-Sitzung verfügbar) - Roberto klickt es
-      einmal durch, bevor der Stick an Kollegen geht. Erwartung: vier
-      Fragen, Zusammenfassung, „ja", entpackt, Verknüpfung liegt auf dem
-      Desktop, erster Start findet die gemeinsame Datei ohne Zahnrad.
+- [ ] **BTA-Cockpit-Werkzeug.cmd einmal auf einem echten Windows-Rechner
+      durchspielen.** Das Werkzeug (17.09., Robertos Wunsch „richtiges
+      Programm im schwarzen Fenster") hat den einfachen `Einrichten.cmd`
+      ersetzt: ein Menü mit Pfeiltasten-Auswahl und fünf Punkten -
+      1 Neu einrichten (der bisherige Ablauf), 2 Programm herunterladen
+      (holt das ZIP per `curl` direkt vom Release-Link `releases/latest`),
+      3 Pfade reparieren (ändert die GEMERKTEN Pfade in
+      `%APPDATA%\Werkstatt-Cockpit\einstellungen.json`, mit Sicherung
+      daneben; Cockpit muss dazu zu sein), 4 Verbindung prüfen
+      (Test-Path auf alle vier Pfade + Schreibprobe, „kein Schreibrecht"
+      wird als Leser-Rolle erklärt, nicht als Fehler), 5 Vom Rechner
+      entfernen (nur lokale Sachen, Bestätigung durch Tippen von
+      „entfernen"). Quelle: `werkzeug/cockpit-werkzeug.ps1` (UTF-8 MIT
+      BOM - Pflicht für die Rahmenzeichen unter PowerShell 5.1).
+      UNGETESTET auf Windows (kein Windows in der Sitzung; geprüft wurde
+      nur die Klammer-Balance maschinell) - Roberto klickt alle fünf
+      Punkte einmal durch, bevor das Paket an Kollegen geht. Offen dabei
+      auch ungemessen: ob die Werkstatt-Rechner GitHub erreichen dürfen
+      (Firmen-Proxy) - Punkt 2 meldet einen Fehlschlag sauber und
+      verweist auf den Ersatzweg.
 - [ ] **Stolperstein Beispiel-JSON:** `programm/standard-einstellungen.beispiel.json`
       im Programm-ZIP hat DREI LEERE Pfade (`werkstatt-kalender-fs:handle`,
       `:folder`, `werkstatt-stoerungen-fs:handle`), während die Aufsetz-PDF
@@ -879,7 +893,10 @@ Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
       mit fertigem Release-Text steht in
       `programm/verteilung/RELEASE-ANLEITUNG.txt` (ZIP am eigenen Rechner
       per Rechtsklick bauen, Dateiname muss exakt stimmen, Tag v1.0,
-      hochladen, veröffentlichen, Prüf-Link klicken). Von der Sitzung aus
+      hochladen, veröffentlichen, Prüf-Link klicken). Seit dem Werkzeug
+      (17.09.) gehören ZWEI Anhänge ins Release: das Komplettpaket UND
+      das nackte `Werkstatt-Cockpit-Programm-win64.zip` - letzteres holt
+      sich das Werkzeug unter Menüpunkt 2 selbst. Von der Sitzung aus
       nicht machbar: die GitHub-Werkzeuge hier können Releases nur lesen,
       nicht befüllen. `DOWNLOAD-LINKS.txt` trägt den festen
       `releases/latest`-Link bereits als Weg 1.
