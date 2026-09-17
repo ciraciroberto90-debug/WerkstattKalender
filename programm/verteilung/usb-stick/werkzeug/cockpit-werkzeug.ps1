@@ -1,102 +1,44 @@
-﻿# BTA-Cockpit: Das Werkzeug (Menue-Programm fuers schwarze Fenster)
-# ==================================================================
+# BTA-Cockpit: Das Werkzeug - jetzt als richtiges Fenster-Programm
+# =================================================================
 #
-# Robertos Wunsch vom 17.09.: ein "richtiges Programm" in der Konsole -
-# mit Rahmen, Farben und Pfeiltasten-Auswahl statt loser Skripte. Alles
-# mit Windows-Bordmitteln (PowerShell 5.1), nichts wird installiert,
-# keine Adminrechte.
+# Robertos Wunsch vom 17.09., zweite Runde: weg von der schwarzen
+# CMD-Umgebung, hin zu einem echten Fenster. Umgesetzt mit WinForms -
+# das steckt in jedem Windows, es wird nichts installiert und es sind
+# keine Adminrechte noetig. Ein Fenster, vier Pfad-Felder mit
+# Durchsuchen-Knoepfen, fuenf Aktionen, unten ein Verlaufsfeld.
 #
-# Die fuenf Menuepunkte decken den ganzen Lebenslauf eines Rechners ab:
-#   1 Neu einrichten      (entpacken, Pfade schreiben, Verknuepfung)
-#   2 Programm herunterladen (neuester Stand direkt vom Release)
-#   3 Pfade reparieren    (die GEMERKTEN Pfade des Programms aendern)
-#   4 Verbindung pruefen  (kommt dieser Rechner ans Laufwerk?)
-#   5 Vom Rechner entfernen
+# Die Aktionen decken den ganzen Lebenslauf eines Rechners ab:
+#   Einrichten     entpacken, Pfade vorbelegen, Desktop-Verknuepfung
+#   Herunterladen  neuester Programm-Stand direkt vom Release
+#   Pruefen        kommt dieser Rechner an die vier Pfade heran?
+#   Speichern      die GEMERKTEN Pfade des Programms aendern
+#   Entfernen      Rechner sauber abraeumen (Laufwerk bleibt tabu)
 #
-# WICHTIG fuer Bearbeiter: Diese Datei ist UTF-8 MIT BOM gespeichert.
-# Ohne BOM liest Windows-PowerShell 5.1 die Rahmenzeichen als Muell.
-# Die JSON-Dateien, die das Skript SCHREIBT, sind dagegen bewusst OHNE
-# BOM - das Programm liest sie mit JSON.parse, und eine BOM-Markierung
-# liesse das Einlesen stillschweigend scheitern.
-
-param(
-  [switch]$OhneNachfrage
-)
+# WICHTIG fuer Bearbeiter: Die JSON-Dateien, die das Skript SCHREIBT,
+# sind bewusst OHNE BOM - das Programm liest sie mit JSON.parse, und
+# eine BOM-Markierung liesse das Einlesen stillschweigend scheitern.
 
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+[System.Windows.Forms.Application]::EnableVisualStyles()
 
 # ---- Feste Werte (Werkstatt Scheurich) --------------------------------------
-# Schraegstriche statt Backslashes: Windows versteht beide, und in JSON
-# erspart das die doppelten Backslashes.
 $WerkstattOrdnerVorgabe = "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender"
-$DatenDateiName  = "kalender-daten.json"
-$StoerDateiName  = "werkstatt-stoerungen.json"
-$ZielVorgabe     = Join-Path $env:LOCALAPPDATA "Werkstatt-Cockpit"
+$DatenDateiName = "kalender-daten.json"
+$StoerDateiName = "werkstatt-stoerungen.json"
+$ZielVorgabe    = Join-Path $env:LOCALAPPDATA "Werkstatt-Cockpit"
 # Fester Release-Link: zeigt immer auf den neuesten veroeffentlichten Stand.
-$ProgrammZipUrl  = "https://github.com/ciraciroberto90-debug/WerkstattKalender/releases/latest/download/Werkstatt-Cockpit-Programm-win64.zip"
+$ProgrammZipUrl = "https://github.com/ciraciroberto90-debug/WerkstattKalender/releases/latest/download/Werkstatt-Cockpit-Programm-win64.zip"
 
 $hier  = Split-Path -Parent $MyInvocation.MyCommand.Path   # ...\werkzeug
 $paket = Split-Path -Parent $hier                          # Paket-Wurzel
 $programmZip = Join-Path $paket "01-Programm\Werkstatt-Cockpit-Programm-win64.zip"
 
-# Die vier Pfad-Schluessel, um die sich hier alles dreht (siehe
-# programm/main.js, uebernehmeStandardEinstellungen).
-$PfadSchluessel = @(
-  @{ Name = "programm:update-ordner";          Titel = "Update-Ordner (gruener Balken)" },
-  @{ Name = "werkstatt-kalender-fs:handle";    Titel = "Gemeinsame Datendatei" },
-  @{ Name = "werkstatt-kalender-fs:folder";    Titel = "Datenordner (Sicherung, Fotos)" },
-  @{ Name = "werkstatt-stoerungen-fs:handle";  Titel = "Stoerungs-Datei" }
-)
-
 # =============================================================================
-#  Zeichen-Helfer: Rahmen, Kopf, Fusszeile
-# =============================================================================
-$B = 66  # Innenbreite aller Rahmen - eine Zahl, damit alles buendig ist
-
-function Zeile([string]$links, [string]$mitte, [string]$rechts) {
-  return $links + ([string]$mitte * $B) + $rechts
-}
-function Zeichne-Kopf([string]$untertitel) {
-  Clear-Host
-  Write-Host ""
-  Write-Host ("  " + (Zeile "╔" "═" "╗")) -ForegroundColor DarkCyan
-  $titel = "B T A - C O C K P I T   ·   W E R K Z E U G"
-  $pad = [Math]::Max(0, [int](($B - $titel.Length) / 2))
-  Write-Host "  ║" -NoNewline -ForegroundColor DarkCyan
-  Write-Host ((" " * $pad) + $titel).PadRight($B) -NoNewline -ForegroundColor White
-  Write-Host "║" -ForegroundColor DarkCyan
-  if ($untertitel) {
-    $pad = [Math]::Max(0, [int](($B - $untertitel.Length) / 2))
-    Write-Host "  ║" -NoNewline -ForegroundColor DarkCyan
-    Write-Host ((" " * $pad) + $untertitel).PadRight($B) -NoNewline -ForegroundColor DarkGray
-    Write-Host "║" -ForegroundColor DarkCyan
-  }
-  Write-Host ("  " + (Zeile "╚" "═" "╝")) -ForegroundColor DarkCyan
-  Write-Host ""
-}
-function Warte-Taste {
-  Write-Host ""
-  Write-Host "  Weiter mit einer beliebigen Taste ..." -ForegroundColor DarkGray
-  [void][Console]::ReadKey($true)
-}
-function Frage([string]$text, [string]$vorgabe) {
-  # Eine Frage mit Vorschlag: Eingabetaste uebernimmt den Vorschlag.
-  Write-Host ""
-  Write-Host ("  " + $text)
-  if ($vorgabe) { Write-Host ("     Vorschlag: " + $vorgabe) -ForegroundColor DarkGray }
-  $antwort = Read-Host "     Eingabe (Eingabetaste = Vorschlag)"
-  if (-not $antwort) { $antwort = $vorgabe }
-  return $antwort
-}
-function Schreibe-OhneBom([string]$pfad, [string]$inhalt) {
-  [System.IO.File]::WriteAllText($pfad, $inhalt, (New-Object System.Text.UTF8Encoding($false)))
-}
-
-# =============================================================================
-#  Lage-Helfer: Was ist auf diesem Rechner schon da?
+#  Lage-Helfer (identisch zur App-Logik in programm/main.js)
 # =============================================================================
 function Finde-Exe {
-  # Erst am Standardort suchen, das reicht fast immer.
   $kandidat = Join-Path $ZielVorgabe "Werkstatt-Cockpit.exe"
   if (Test-Path -LiteralPath $kandidat) { return (Get-Item -LiteralPath $kandidat) }
   if (Test-Path -LiteralPath $ZielVorgabe) {
@@ -108,103 +50,228 @@ function Finde-Exe {
 function Finde-Einstellungen {
   # Die GEMERKTEN Pfade des Programms liegen in einstellungen.json unter
   # dem Benutzerprofil. Der Ordnername haengt vom Electron-Programmnamen
-  # ab - beide Schreibweisen pruefen und melden, was wirklich da ist.
+  # ab - beide Schreibweisen pruefen und nehmen, was wirklich da ist.
   foreach ($ordner in @("Werkstatt-Cockpit", "werkstatt-cockpit")) {
     $p = Join-Path (Join-Path $env:APPDATA $ordner) "einstellungen.json"
     if (Test-Path -LiteralPath $p) { return $p }
   }
   return $null
 }
-function Lies-Pfade {
-  # Beste bekannte Pfad-Werte einsammeln: zuerst die gemerkten
-  # Einstellungen des Programms, sonst die Vorgaben dieses Pakets.
-  $werte = @{}
-  $quelle = "Vorgaben dieses Pakets"
-  $einstellungen = Finde-Einstellungen
-  if ($einstellungen) {
-    try {
-      $json = Get-Content -LiteralPath $einstellungen -Raw | ConvertFrom-Json
-      foreach ($s in $PfadSchluessel) {
-        $wert = $json.PSObject.Properties[$s.Name]
-        if ($wert -and $wert.Value) { $werte[$s.Name] = [string]$wert.Value }
-      }
-      if ($werte.Count -gt 0) { $quelle = "gemerkte Einstellungen ($einstellungen)" }
-    } catch { }
-  }
-  if ($werte.Count -eq 0) {
-    $werte["programm:update-ordner"]         = $WerkstattOrdnerVorgabe
-    $werte["werkstatt-kalender-fs:handle"]   = $WerkstattOrdnerVorgabe + "/" + $DatenDateiName
-    $werte["werkstatt-kalender-fs:folder"]   = $WerkstattOrdnerVorgabe
-    $werte["werkstatt-stoerungen-fs:handle"] = $WerkstattOrdnerVorgabe + "/" + $StoerDateiName
-  }
-  return @{ Werte = $werte; Quelle = $quelle }
+function Schreibe-OhneBom([string]$pfad, [string]$inhalt) {
+  [System.IO.File]::WriteAllText($pfad, $inhalt, (New-Object System.Text.UTF8Encoding($false)))
+}
+function Datenordner-Aus([string]$datenDatei) {
+  # Der Datenordner ist der Ordner der Datendatei - kein eigenes Feld noetig.
+  $o = ($datenDatei -replace "\\", "/")
+  $schnitt = $o.LastIndexOf("/")
+  if ($schnitt -gt 0) { return $o.Substring(0, $schnitt) }
+  return $o
 }
 
 # =============================================================================
-#  1 - NEU EINRICHTEN
+#  Das Fenster
 # =============================================================================
-function Aktion-Einrichten {
-  Zeichne-Kopf "Neu einrichten"
-  if (-not (Test-Path -LiteralPath $programmZip)) {
-    Write-Host "  Das Programm-ZIP fehlt noch:" -ForegroundColor Yellow
-    Write-Host ("  " + $programmZip) -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host "  Erst Menuepunkt 2 (Programm herunterladen) ausfuehren" -ForegroundColor Yellow
-    Write-Host "  oder die Datei laut 04-Download-Links dorthin legen." -ForegroundColor Yellow
-    Warte-Taste
-    return
+$fenster = New-Object System.Windows.Forms.Form
+$fenster.Text = "BTA-Cockpit - Werkzeug"
+$fenster.ClientSize = New-Object System.Drawing.Size(640, 600)
+$fenster.FormBorderStyle = "FixedSingle"
+$fenster.MaximizeBox = $false
+$fenster.StartPosition = "CenterScreen"
+$fenster.BackColor = [System.Drawing.Color]::White
+$fenster.Font = New-Object System.Drawing.Font("Segoe UI", 9.75)
+
+$dunkel = [System.Drawing.Color]::FromArgb(44, 49, 55)
+$gruen  = [System.Drawing.Color]::FromArgb(31, 122, 61)
+$orange = [System.Drawing.Color]::FromArgb(176, 108, 0)
+$rot    = [System.Drawing.Color]::FromArgb(192, 57, 43)
+
+$lblTitel = New-Object System.Windows.Forms.Label
+$lblTitel.Text = "BTA-Cockpit"
+$lblTitel.Font = New-Object System.Drawing.Font("Segoe UI", 19, [System.Drawing.FontStyle]::Bold)
+$lblTitel.ForeColor = $dunkel
+$lblTitel.Location = New-Object System.Drawing.Point(18, 12)
+$lblTitel.AutoSize = $true
+
+$lblUnter = New-Object System.Windows.Forms.Label
+$lblUnter.Text = "Einrichtung und Werkzeug fuer diesen Rechner"
+$lblUnter.ForeColor = [System.Drawing.Color]::Gray
+$lblUnter.Location = New-Object System.Drawing.Point(21, 52)
+$lblUnter.AutoSize = $true
+
+$lblPaket = New-Object System.Windows.Forms.Label
+$lblPaket.Location = New-Object System.Drawing.Point(21, 80)
+$lblPaket.AutoSize = $true
+$lblRechner = New-Object System.Windows.Forms.Label
+$lblRechner.Location = New-Object System.Drawing.Point(21, 102)
+$lblRechner.AutoSize = $true
+
+# ---- Pfad-Felder mit Durchsuchen-Knoepfen -----------------------------------
+$rahmen = New-Object System.Windows.Forms.GroupBox
+$rahmen.Text = " Die Pfade (Vorschlaege passen fuer die Werkstatt Scheurich) "
+$rahmen.Location = New-Object System.Drawing.Point(18, 130)
+$rahmen.Size = New-Object System.Drawing.Size(604, 185)
+$rahmen.ForeColor = $dunkel
+
+function Neue-PfadZeile([int]$y, [string]$beschriftung) {
+  $l = New-Object System.Windows.Forms.Label
+  $l.Text = $beschriftung
+  $l.Location = New-Object System.Drawing.Point(12, ($y + 4))
+  $l.Size = New-Object System.Drawing.Size(150, 20)
+  $t = New-Object System.Windows.Forms.TextBox
+  $t.Location = New-Object System.Drawing.Point(165, $y)
+  $t.Size = New-Object System.Drawing.Size(330, 24)
+  $k = New-Object System.Windows.Forms.Button
+  $k.Text = "Waehlen..."
+  $k.Location = New-Object System.Drawing.Point(503, ($y - 1))
+  $k.Size = New-Object System.Drawing.Size(88, 26)
+  $k.FlatStyle = "System"
+  $rahmen.Controls.AddRange(@($l, $t, $k))
+  return @{ Feld = $t; Knopf = $k }
+}
+$zZiel   = Neue-PfadZeile 28  "Programm-Ordner hier:"
+$zUpdate = Neue-PfadZeile 66  "Update-Ordner:"
+$zDaten  = Neue-PfadZeile 104 "Datendatei:"
+$zStoer  = Neue-PfadZeile 142 "Stoerungs-Datei:"
+
+function Waehle-Ordner([System.Windows.Forms.TextBox]$feld) {
+  $d = New-Object System.Windows.Forms.FolderBrowserDialog
+  $d.Description = "Ordner waehlen"
+  try { if ($feld.Text) { $d.SelectedPath = ($feld.Text -replace "/", "\") } } catch { }
+  if ($d.ShowDialog($fenster) -eq "OK") { $feld.Text = ($d.SelectedPath -replace "\\", "/") }
+}
+function Waehle-Datei([System.Windows.Forms.TextBox]$feld) {
+  $d = New-Object System.Windows.Forms.OpenFileDialog
+  $d.Filter = "Datendateien (*.json)|*.json|Alle Dateien (*.*)|*.*"
+  $d.CheckFileExists = $false   # eine noch nicht angelegte Datei ist erlaubt
+  try { if ($feld.Text) { $d.InitialDirectory = ((Datenordner-Aus $feld.Text) -replace "/", "\") } } catch { }
+  if ($d.ShowDialog($fenster) -eq "OK") { $feld.Text = ($d.FileName -replace "\\", "/") }
+}
+$zZiel.Knopf.Add_Click({ Waehle-Ordner $zZiel.Feld })
+$zUpdate.Knopf.Add_Click({ Waehle-Ordner $zUpdate.Feld })
+$zDaten.Knopf.Add_Click({ Waehle-Datei $zDaten.Feld })
+$zStoer.Knopf.Add_Click({ Waehle-Datei $zStoer.Feld })
+
+# ---- Aktions-Knoepfe ---------------------------------------------------------
+function Neuer-Knopf([int]$x, [int]$y, [int]$breite, [string]$text) {
+  $k = New-Object System.Windows.Forms.Button
+  $k.Text = $text
+  $k.Location = New-Object System.Drawing.Point($x, $y)
+  $k.Size = New-Object System.Drawing.Size($breite, 34)
+  $k.FlatStyle = "Flat"
+  $k.BackColor = [System.Drawing.Color]::FromArgb(240, 242, 244)
+  $k.ForeColor = $dunkel
+  $k.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(200, 204, 208)
+  $fenster.Controls.Add($k)
+  return $k
+}
+$kEinrichten = Neuer-Knopf 18 328 196 "Einrichten"
+$kEinrichten.BackColor = $gruen
+$kEinrichten.ForeColor = [System.Drawing.Color]::White
+$kEinrichten.FlatAppearance.BorderColor = $gruen
+$kEinrichten.Font = New-Object System.Drawing.Font("Segoe UI", 9.75, [System.Drawing.FontStyle]::Bold)
+$kLaden     = Neuer-Knopf 222 328 196 "Programm herunterladen"
+$kPruefen   = Neuer-Knopf 426 328 196 "Verbindung pruefen"
+$kSpeichern = Neuer-Knopf 222 368 196 "Pfade speichern"
+$kEntfernen = Neuer-Knopf 426 368 196 "Vom Rechner entfernen"
+
+# ---- Fortschritt + Verlauf ---------------------------------------------------
+$balken = New-Object System.Windows.Forms.ProgressBar
+$balken.Location = New-Object System.Drawing.Point(18, 414)
+$balken.Size = New-Object System.Drawing.Size(480, 12)
+$balken.Style = "Marquee"
+$balken.Visible = $false
+
+$lblFortschritt = New-Object System.Windows.Forms.Label
+$lblFortschritt.Location = New-Object System.Drawing.Point(506, 408)
+$lblFortschritt.Size = New-Object System.Drawing.Size(116, 20)
+$lblFortschritt.TextAlign = "MiddleRight"
+$lblFortschritt.ForeColor = [System.Drawing.Color]::Gray
+
+$logFeld = New-Object System.Windows.Forms.TextBox
+$logFeld.Location = New-Object System.Drawing.Point(18, 434)
+$logFeld.Size = New-Object System.Drawing.Size(604, 150)
+$logFeld.Multiline = $true
+$logFeld.ReadOnly = $true
+$logFeld.ScrollBars = "Vertical"
+$logFeld.Font = New-Object System.Drawing.Font("Consolas", 9)
+$logFeld.BackColor = [System.Drawing.Color]::FromArgb(30, 33, 36)
+$logFeld.ForeColor = [System.Drawing.Color]::Gainsboro
+
+$fenster.Controls.AddRange(@($lblTitel, $lblUnter, $lblPaket, $lblRechner, $rahmen, $balken, $lblFortschritt, $logFeld))
+
+function Schreibe-Log([string]$text) {
+  $logFeld.AppendText($text + [Environment]::NewLine)
+  [System.Windows.Forms.Application]::DoEvents()
+}
+function Melde([string]$text, [string]$titel = "BTA-Cockpit") {
+  [void][System.Windows.Forms.MessageBox]::Show($fenster, $text, $titel, "OK", "Information")
+}
+function Frage-JaNein([string]$text, [string]$titel = "BTA-Cockpit") {
+  return ([System.Windows.Forms.MessageBox]::Show($fenster, $text, $titel, "YesNo", "Question") -eq "Yes")
+}
+function Aktualisiere-Status {
+  if (Test-Path -LiteralPath $programmZip) {
+    $lblPaket.Text = "Paket:  Programm-ZIP liegt bereit"; $lblPaket.ForeColor = $gruen
+  } else {
+    $lblPaket.Text = "Paket:  Programm-ZIP fehlt noch - 'Programm herunterladen' holt es"; $lblPaket.ForeColor = $orange
   }
-
-  $ziel = Frage "1) Wohin soll das Programm auf DIESEN Rechner?" $ZielVorgabe
-  $ziel = [Environment]::ExpandEnvironmentVariables($ziel)
-
-  $updateOrdner = Frage "2) Update-Ordner (dort liegt die neue Werkstatt_Kalender_TPM.html)" $WerkstattOrdnerVorgabe
-  $datenDatei   = Frage "3) Gemeinsame DATENDATEI" ($updateOrdner.TrimEnd("/", "\") + "/" + $DatenDateiName)
-  $stoerDatei   = Frage "4) STOERUNGS-Datei" ($updateOrdner.TrimEnd("/", "\") + "/" + $StoerDateiName)
-
-  # Der Datenordner ist der Ordner der Datendatei - keine eigene Frage noetig.
-  $datenOrdner = ($datenDatei -replace "\\", "/")
-  $schnitt = $datenOrdner.LastIndexOf("/")
-  if ($schnitt -gt 0) { $datenOrdner = $datenOrdner.Substring(0, $schnitt) }
-  $updateOrdner = ($updateOrdner -replace "\\", "/")
-  $datenDatei   = ($datenDatei   -replace "\\", "/")
-  $stoerDatei   = ($stoerDatei   -replace "\\", "/")
-
-  Write-Host ""
-  Write-Host ("  " + (Zeile "┌" "─" "┐")) -ForegroundColor DarkGray
-  Write-Host ("  │ " + "Zusammenfassung".PadRight($B - 2) + "│") -ForegroundColor White
-  foreach ($z in @(
-    ("Programm nach:   " + $ziel),
-    ("Update-Ordner:   " + $updateOrdner),
-    ("Datendatei:      " + $datenDatei),
-    ("Datenordner:     " + $datenOrdner),
-    ("Stoerungs-Datei: " + $stoerDatei))) {
-    if ($z.Length -gt $B - 2) { $z = $z.Substring(0, $B - 5) + "..." }
-    Write-Host ("  │ " + $z.PadRight($B - 2) + "│") -ForegroundColor Gray
+  if (Finde-Exe) {
+    $lblRechner.Text = "Rechner:  Cockpit ist eingerichtet"; $lblRechner.ForeColor = $gruen
+  } else {
+    $lblRechner.Text = "Rechner:  Cockpit ist hier noch nicht eingerichtet"; $lblRechner.ForeColor = $orange
   }
-  Write-Host ("  " + (Zeile "└" "─" "┘")) -ForegroundColor DarkGray
-  if (-not $OhneNachfrage) {
-    $antwort = Read-Host "  So einrichten? (ja/nein)"
-    if ($antwort -ne "ja") { Write-Host "  Abgebrochen - nichts veraendert." -ForegroundColor Yellow; Warte-Taste; return }
-  }
+}
+function Arbeit-Beginnt { $balken.Visible = $true;  [System.Windows.Forms.Application]::DoEvents() }
+function Arbeit-Fertig  { $balken.Visible = $false; $lblFortschritt.Text = ""; Aktualisiere-Status }
 
-  Write-Host ""
-  Write-Host "  Entpacke das Programm (ca. 110 MB, dauert einen Moment) ..."
-  if (-not (Test-Path -LiteralPath $ziel)) { New-Item -ItemType Directory -Path $ziel -Force | Out-Null }
-  Expand-Archive -LiteralPath $programmZip -DestinationPath $ziel -Force
+# =============================================================================
+#  Aktion: EINRICHTEN
+# =============================================================================
+$kEinrichten.Add_Click({
+  try {
+    if (-not (Test-Path -LiteralPath $programmZip)) {
+      Schreibe-Log "Das Programm-ZIP fehlt noch - erst 'Programm herunterladen' druecken"
+      Schreibe-Log "oder die Datei laut 04-Download-Links in 01-Programm legen."
+      Melde "Das Programm-ZIP fehlt noch.`n`nErst 'Programm herunterladen' druecken (holt den neuesten Stand vom Release) oder die Datei laut 04-Download-Links in den Ordner 01-Programm legen."
+      return
+    }
+    $ziel = [Environment]::ExpandEnvironmentVariables($zZiel.Feld.Text.Trim())
+    $updateOrdner = ($zUpdate.Feld.Text.Trim() -replace "\\", "/")
+    $datenDatei   = ($zDaten.Feld.Text.Trim()  -replace "\\", "/")
+    $stoerDatei   = ($zStoer.Feld.Text.Trim()  -replace "\\", "/")
+    if (-not $ziel -or -not $updateOrdner -or -not $datenDatei -or -not $stoerDatei) {
+      Melde "Bitte alle vier Pfad-Felder ausfuellen (die Vorschlaege stehen schon drin)."
+      return
+    }
+    $datenOrdner = Datenordner-Aus $datenDatei
+    $frage = "So einrichten?`n`nProgramm nach:`n  $ziel`n`nUpdate-Ordner:`n  $updateOrdner`nDatendatei:`n  $datenDatei`nStoerungs-Datei:`n  $stoerDatei"
+    if (-not (Frage-JaNein $frage "Einrichten")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
 
-  # Die EXE liegt in der ZIP-Wurzel - zur Sicherheit trotzdem suchen, damit
-  # eine kuenftige ZIP-Struktur mit Unterordner die Einrichtung nicht bricht.
-  $exe = Get-ChildItem -LiteralPath $ziel -Recurse -Filter "Werkstatt-Cockpit.exe" | Select-Object -First 1
-  if (-not $exe) {
-    Write-Host "  FEHLER: Nach dem Entpacken keine Werkstatt-Cockpit.exe gefunden." -ForegroundColor Red
-    Warte-Taste; return
-  }
-  Write-Host ("  entpackt: " + $exe.FullName) -ForegroundColor Green
+    Arbeit-Beginnt
+    Schreibe-Log "Entpacke das Programm (ca. 110 MB, dauert einen Moment) ..."
+    if (-not (Test-Path -LiteralPath $ziel)) { New-Item -ItemType Directory -Path $ziel -Force | Out-Null }
+    # Das Entpacken laeuft in einem Nebenlauf, damit das Fenster nicht einfriert.
+    $auftrag = Start-Job -ScriptBlock {
+      param($zip, $ziel)
+      Expand-Archive -LiteralPath $zip -DestinationPath $ziel -Force
+    } -ArgumentList $programmZip, $ziel
+    while ($auftrag.State -eq "Running") { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 150 }
+    $fehler = $null
+    if ($auftrag.State -ne "Completed") { $fehler = "Das Entpacken ist fehlgeschlagen." }
+    Receive-Job $auftrag -ErrorAction SilentlyContinue -ErrorVariable jobFehler | Out-Null
+    Remove-Job $auftrag -Force
+    if ($jobFehler) { $fehler = [string]$jobFehler[0] }
+    if ($fehler) { throw $fehler }
 
-  # Vorbelegung neben die EXE - das Programm uebernimmt beim ersten Start
-  # NUR Schluessel, die auf dem Rechner noch nie gesetzt wurden.
-  $json = @"
+    # Die EXE liegt in der ZIP-Wurzel - zur Sicherheit trotzdem suchen, damit
+    # eine kuenftige ZIP-Struktur mit Unterordner die Einrichtung nicht bricht.
+    $exe = Get-ChildItem -LiteralPath $ziel -Recurse -Filter "Werkstatt-Cockpit.exe" | Select-Object -First 1
+    if (-not $exe) { throw "Nach dem Entpacken wurde keine Werkstatt-Cockpit.exe gefunden." }
+    Schreibe-Log ("entpackt: " + $exe.FullName)
+
+    # Vorbelegung neben die EXE - das Programm uebernimmt beim ersten Start
+    # NUR Schluessel, die auf dem Rechner noch nie gesetzt wurden.
+    $json = @"
 {
   "_was_ist_das": "Vorbelegung fuer diesen Rechner - geschrieben vom BTA-Cockpit-Werkzeug. Es werden NUR Schluessel uebernommen, die auf dem Rechner noch nie gesetzt wurden.",
 
@@ -214,261 +281,244 @@ function Aktion-Einrichten {
   "werkstatt-stoerungen-fs:handle": "$stoerDatei"
 }
 "@
-  $jsonPfad = Join-Path $exe.DirectoryName "standard-einstellungen.json"
-  Schreibe-OhneBom $jsonPfad $json
-  Write-Host ("  geschrieben: " + $jsonPfad) -ForegroundColor Green
+    $jsonPfad = Join-Path $exe.DirectoryName "standard-einstellungen.json"
+    Schreibe-OhneBom $jsonPfad $json
+    Schreibe-Log ("geschrieben: " + $jsonPfad)
 
-  $desktop = [Environment]::GetFolderPath("Desktop")
-  if ($desktop) {
-    $schale = New-Object -ComObject WScript.Shell
-    $v = $schale.CreateShortcut((Join-Path $desktop "Werkstatt-Cockpit.lnk"))
-    $v.TargetPath = $exe.FullName
-    $v.WorkingDirectory = $exe.DirectoryName
-    $v.IconLocation = $exe.FullName
-    $v.Description = "BTA-Cockpit (Werkstatt-Cockpit) starten"
-    $v.Save()
-    Write-Host ("  Verknuepfung: " + (Join-Path $desktop "Werkstatt-Cockpit.lnk")) -ForegroundColor Green
-  } else {
-    Write-Host "  Desktop-Ordner nicht gefunden - Verknuepfung bitte von Hand anlegen." -ForegroundColor Yellow
-  }
-
-  Write-Host ""
-  Write-Host "  Fertig eingerichtet." -ForegroundColor Green
-  Write-Host "  Erster Start: Desktop-Verknuepfung doppelklicken. SmartScreen"
-  Write-Host "  meldet sich nur beim allerersten Mal: 'Weitere Informationen'"
-  Write-Host "  -> 'Trotzdem ausfuehren'."
-  Warte-Taste
-}
-
-# =============================================================================
-#  2 - PROGRAMM HERUNTERLADEN (Release)
-# =============================================================================
-function Aktion-Herunterladen {
-  Zeichne-Kopf "Programm herunterladen"
-  Write-Host "  Holt den neuesten veroeffentlichten Stand direkt vom Release:"
-  Write-Host ("  " + $ProgrammZipUrl) -ForegroundColor DarkGray
-  Write-Host ""
-  $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
-  if (-not $curl) {
-    Write-Host "  Auf diesem Rechner fehlt curl.exe (gehoert seit Windows 10" -ForegroundColor Yellow
-    Write-Host "  von Haus aus dazu). Bitte den Download-Weg aus" -ForegroundColor Yellow
-    Write-Host "  04-Download-Links\DOWNLOAD-LINKS.txt nehmen." -ForegroundColor Yellow
-    Warte-Taste; return
-  }
-  $zielOrdner = Split-Path -Parent $programmZip
-  if (-not (Test-Path -LiteralPath $zielOrdner)) { New-Item -ItemType Directory -Path $zielOrdner -Force | Out-Null }
-  if (Test-Path -LiteralPath $programmZip) {
-    $alt = (Get-Item -LiteralPath $programmZip).Length
-    Write-Host ("  Hinweis: Es liegt schon ein Programm-ZIP hier (" + [Math]::Round($alt/1MB) + " MB).")
-    $antwort = Read-Host "  Ueberschreiben und den neuesten Stand holen? (ja/nein)"
-    if ($antwort -ne "ja") { Write-Host "  Abgebrochen - nichts veraendert." -ForegroundColor Yellow; Warte-Taste; return }
-  }
-  Write-Host ""
-  Write-Host "  Lade herunter (ca. 110 MB) ..."
-  # -L folgt der Release-Weiterleitung, -f macht aus HTTP-Fehlern echte
-  # Fehler, -# zeigt den Fortschrittsbalken im Fenster.
-  & curl.exe -L -f -# -o $programmZip $ProgrammZipUrl
-  if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $programmZip) -or (Get-Item -LiteralPath $programmZip).Length -lt 10MB) {
-    if (Test-Path -LiteralPath $programmZip) { Remove-Item -LiteralPath $programmZip -Force -ErrorAction SilentlyContinue }
-    Write-Host ""
-    Write-Host "  Der Download hat NICHT geklappt." -ForegroundColor Red
-    Write-Host "  Moegliche Gruende: kein Internet an diesem Rechner, die" -ForegroundColor Yellow
-    Write-Host "  Firma sperrt GitHub, oder das Release ist noch nicht" -ForegroundColor Yellow
-    Write-Host "  veroeffentlicht. Ersatzweg: 04-Download-Links an einem" -ForegroundColor Yellow
-    Write-Host "  Rechner mit Internet, Datei dann in 01-Programm legen." -ForegroundColor Yellow
-    Warte-Taste; return
-  }
-  $mb = [Math]::Round((Get-Item -LiteralPath $programmZip).Length / 1MB)
-  Write-Host ""
-  Write-Host ("  Fertig: " + $mb + " MB liegen in 01-Programm.") -ForegroundColor Green
-  Write-Host "  Weiter mit Menuepunkt 1 (Neu einrichten)."
-  Warte-Taste
-}
-
-# =============================================================================
-#  3 - PFADE REPARIEREN
-# =============================================================================
-function Aktion-Reparieren {
-  Zeichne-Kopf "Pfade reparieren"
-  $einstellungen = Finde-Einstellungen
-  if (-not $einstellungen) {
-    Write-Host "  Auf diesem Rechner wurden noch keine gemerkten Einstellungen" -ForegroundColor Yellow
-    Write-Host "  gefunden (das Programm lief hier wohl noch nie)." -ForegroundColor Yellow
-    Write-Host "  Dann genuegt Menuepunkt 1 - er schreibt die Vorbelegung." -ForegroundColor Yellow
-    Warte-Taste; return
-  }
-  Write-Host "  Gefunden: " -NoNewline
-  Write-Host $einstellungen -ForegroundColor DarkGray
-  Write-Host ""
-  Write-Host "  WICHTIG: Das Cockpit vorher SCHLIESSEN - sonst ueberschreibt" -ForegroundColor Yellow
-  Write-Host "  es die Reparatur beim Beenden mit den alten Werten." -ForegroundColor Yellow
-
-  $json = Get-Content -LiteralPath $einstellungen -Raw | ConvertFrom-Json
-  $geaendert = $false
-  foreach ($s in $PfadSchluessel) {
-    $feld = $json.PSObject.Properties[$s.Name]
-    $alt = ""
-    if ($feld -and $feld.Value) { $alt = [string]$feld.Value }
-    $neu = Frage ($s.Titel) $alt
-    $neu = ($neu -replace "\\", "/")
-    if ($neu -ne $alt) {
-      if ($feld) { $feld.Value = $neu }
-      else { $json | Add-Member -NotePropertyName $s.Name -NotePropertyValue $neu }
-      $geaendert = $true
+    $desktop = [Environment]::GetFolderPath("Desktop")
+    if ($desktop) {
+      $schale = New-Object -ComObject WScript.Shell
+      $v = $schale.CreateShortcut((Join-Path $desktop "Werkstatt-Cockpit.lnk"))
+      $v.TargetPath = $exe.FullName
+      $v.WorkingDirectory = $exe.DirectoryName
+      $v.IconLocation = $exe.FullName
+      $v.Description = "BTA-Cockpit (Werkstatt-Cockpit) starten"
+      $v.Save()
+      Schreibe-Log ("Verknuepfung: " + (Join-Path $desktop "Werkstatt-Cockpit.lnk"))
+    } else {
+      Schreibe-Log "Desktop-Ordner nicht gefunden - Verknuepfung bitte von Hand anlegen."
     }
-  }
-  if (-not $geaendert) {
-    Write-Host ""
-    Write-Host "  Nichts geaendert - alles bleibt wie es ist." -ForegroundColor Green
-    Warte-Taste; return
-  }
-  $antwort = Read-Host "  Die geaenderten Pfade jetzt speichern? (ja/nein)"
-  if ($antwort -ne "ja") { Write-Host "  Abgebrochen - nichts veraendert." -ForegroundColor Yellow; Warte-Taste; return }
-  # Sicherung neben die Datei legen, dann ohne BOM zurueckschreiben -
-  # alle uebrigen gemerkten Schluessel bleiben unangetastet.
-  Copy-Item -LiteralPath $einstellungen -Destination ($einstellungen + ".sicherung") -Force
-  Schreibe-OhneBom $einstellungen (ConvertTo-Json $json -Depth 10)
-  Write-Host ""
-  Write-Host "  Gespeichert. Eine Sicherung der alten Datei liegt daneben" -ForegroundColor Green
-  Write-Host ("  (" + $einstellungen + ".sicherung).") -ForegroundColor DarkGray
-  Write-Host "  Beim naechsten Start nutzt das Cockpit die neuen Pfade."
-  Warte-Taste
-}
-
-# =============================================================================
-#  4 - VERBINDUNG PRUEFEN
-# =============================================================================
-function Aktion-Pruefen {
-  Zeichne-Kopf "Verbindung pruefen"
-  $lage = Lies-Pfade
-  Write-Host ("  Geprueft werden: " + $lage.Quelle)
-  Write-Host ""
-  foreach ($s in $PfadSchluessel) {
-    $wert = $lage.Werte[$s.Name]
-    Write-Host ("  " + $s.Titel)
-    Write-Host ("     " + $wert) -ForegroundColor DarkGray
-    $ok = $false
-    try { $ok = Test-Path -LiteralPath $wert } catch { $ok = $false }
-    if ($ok) { Write-Host "     erreichbar" -ForegroundColor Green }
-    else     { Write-Host "     NICHT erreichbar" -ForegroundColor Red }
-  }
-  # Schreibprobe im Datenordner: ein Nur-Leser-Rechner darf hier ruhig
-  # scheitern - das ist dann kein Fehler, sondern seine Rolle.
-  $datenOrdner = $lage.Werte["werkstatt-kalender-fs:folder"]
-  Write-Host ""
-  Write-Host "  Schreibprobe im Datenordner:"
-  $probe = Join-Path $datenOrdner ("werkzeug-schreibprobe-" + $env:COMPUTERNAME + ".tmp")
-  try {
-    Schreibe-OhneBom $probe "Schreibprobe des BTA-Cockpit-Werkzeugs - darf geloescht werden."
-    Remove-Item -LiteralPath $probe -Force
-    Write-Host "     Schreiben klappt - dieser Rechner kann bearbeiten." -ForegroundColor Green
+    Arbeit-Fertig
+    Schreibe-Log "Fertig eingerichtet."
+    Melde "Fertig eingerichtet.`n`nErster Start: Desktop-Verknuepfung 'Werkstatt-Cockpit' doppelklicken. Windows-SmartScreen meldet sich nur beim allerersten Mal: 'Weitere Informationen' -> 'Trotzdem ausfuehren'."
   } catch {
-    Write-Host "     Kein Schreibrecht - als Leser-Rechner voellig in Ordnung," -ForegroundColor Yellow
-    Write-Host "     das Cockpit schaltet dann von selbst auf 'nur ansehen'." -ForegroundColor Yellow
+    Arbeit-Fertig
+    Schreibe-Log ("FEHLER: " + $_)
+    Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
-  Warte-Taste
-}
+})
 
 # =============================================================================
-#  5 - VOM RECHNER ENTFERNEN
+#  Aktion: PROGRAMM HERUNTERLADEN
 # =============================================================================
-function Aktion-Entfernen {
-  Zeichne-Kopf "Vom Rechner entfernen"
-  $exe = Finde-Exe
-  $verknuepfung = Join-Path ([Environment]::GetFolderPath("Desktop")) "Werkstatt-Cockpit.lnk"
-  $einstellungen = Finde-Einstellungen
-
-  Write-Host "  Entfernt wird NUR, was auf DIESEM Rechner liegt - die"
-  Write-Host "  gemeinsamen Dateien auf dem Laufwerk bleiben unberuehrt."
-  Write-Host ""
-  if ($exe) { Write-Host ("  - Programm-Ordner: " + (Split-Path -Parent $exe.FullName)) }
-  else      { Write-Host "  - Programm-Ordner: nicht gefunden" -ForegroundColor DarkGray }
-  if (Test-Path -LiteralPath $verknuepfung) { Write-Host ("  - Verknuepfung:    " + $verknuepfung) }
-  if ($einstellungen) { Write-Host ("  - Gemerkte Einstellungen: " + (Split-Path -Parent $einstellungen)) }
-  Write-Host ""
-  if (-not $exe -and -not (Test-Path -LiteralPath $verknuepfung) -and -not $einstellungen) {
-    Write-Host "  Hier gibt es nichts zu entfernen." -ForegroundColor Green
-    Warte-Taste; return
-  }
-  # Bewusst das Wort tippen lassen - ein "ja" ist bei einem Loeschvorgang
-  # zu schnell gegeben.
-  $antwort = Read-Host "  Zum Bestaetigen das Wort  entfernen  tippen"
-  if ($antwort -ne "entfernen") { Write-Host "  Abgebrochen - nichts veraendert." -ForegroundColor Yellow; Warte-Taste; return }
-
-  if ($exe) {
-    Remove-Item -LiteralPath (Split-Path -Parent $exe.FullName) -Recurse -Force
-    Write-Host "  Programm-Ordner entfernt." -ForegroundColor Green
-  }
-  if (Test-Path -LiteralPath $verknuepfung) {
-    Remove-Item -LiteralPath $verknuepfung -Force
-    Write-Host "  Verknuepfung entfernt." -ForegroundColor Green
-  }
-  if ($einstellungen) {
-    $antwort = Read-Host "  Auch die gemerkten Einstellungen (Pfade) loeschen? (ja/nein)"
-    if ($antwort -eq "ja") {
-      Remove-Item -LiteralPath (Split-Path -Parent $einstellungen) -Recurse -Force
-      Write-Host "  Gemerkte Einstellungen entfernt." -ForegroundColor Green
-    } else {
-      Write-Host "  Gemerkte Einstellungen bleiben (gut fuer eine Neu-Einrichtung)." -ForegroundColor DarkGray
+$kLaden.Add_Click({
+  try {
+    $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+    if (-not $curl) {
+      Melde "Auf diesem Rechner fehlt curl.exe (gehoert seit Windows 10 dazu).`n`nBitte den Download-Weg aus 04-Download-Links\DOWNLOAD-LINKS.txt nehmen."
+      return
     }
-  }
-  Warte-Taste
-}
-
-# =============================================================================
-#  Hauptmenue mit Pfeiltasten-Auswahl
-# =============================================================================
-$menue = @(
-  @{ Taste = "1"; Text = "Neu einrichten        Programm + Pfade + Verknuepfung"; Aktion = { Aktion-Einrichten } },
-  @{ Taste = "2"; Text = "Programm herunterladen   neuester Stand vom Release";   Aktion = { Aktion-Herunterladen } },
-  @{ Taste = "3"; Text = "Pfade reparieren      gemerkte Pfade ansehen/aendern";  Aktion = { Aktion-Reparieren } },
-  @{ Taste = "4"; Text = "Verbindung pruefen    kommt der Rechner ans Laufwerk?"; Aktion = { Aktion-Pruefen } },
-  @{ Taste = "5"; Text = "Vom Rechner entfernen sauber aufraeumen";               Aktion = { Aktion-Entfernen } }
-)
-
-function Zeichne-Menue([int]$auswahl) {
-  Zeichne-Kopf ""
-  # Lagebericht: zwei Zeilen, die sofort sagen, woran man ist.
-  $zipDa = Test-Path -LiteralPath $programmZip
-  $exe = Finde-Exe
-  Write-Host "   Paket:   " -NoNewline -ForegroundColor DarkGray
-  if ($zipDa) { Write-Host "Programm-ZIP liegt bereit" -ForegroundColor Green }
-  else        { Write-Host "Programm-ZIP fehlt noch (Punkt 2 holt es)" -ForegroundColor Yellow }
-  Write-Host "   Rechner: " -NoNewline -ForegroundColor DarkGray
-  if ($exe) { Write-Host "Cockpit ist eingerichtet" -ForegroundColor Green }
-  else      { Write-Host "Cockpit ist hier noch nicht eingerichtet" -ForegroundColor Yellow }
-  Write-Host ""
-  for ($i = 0; $i -lt $menue.Count; $i++) {
-    $p = $menue[$i]
-    $zeile = ("  " + $p.Taste + "  " + $p.Text).PadRight($B)
-    if ($i -eq $auswahl) {
-      Write-Host "   " -NoNewline
-      Write-Host ("▶" + $zeile) -ForegroundColor Black -BackgroundColor Cyan
-    } else {
-      Write-Host ("    " + $zeile) -ForegroundColor Gray
+    if (Test-Path -LiteralPath $programmZip) {
+      $mb = [Math]::Round((Get-Item -LiteralPath $programmZip).Length / 1MB)
+      if (-not (Frage-JaNein "Es liegt schon ein Programm-ZIP hier ($mb MB).`n`nUeberschreiben und den neuesten Stand holen?")) { return }
     }
-  }
-  Write-Host ""
-  Write-Host ("   " + ("─" * $B)) -ForegroundColor DarkGray
-  Write-Host "   Pfeiltasten bewegen · Eingabetaste startet · Zahl springt · Esc beendet" -ForegroundColor DarkGray
-}
-
-$auswahl = 0
-while ($true) {
-  Zeichne-Menue $auswahl
-  $taste = [Console]::ReadKey($true)
-  switch ($taste.Key) {
-    "UpArrow"   { $auswahl = ($auswahl - 1 + $menue.Count) % $menue.Count }
-    "DownArrow" { $auswahl = ($auswahl + 1) % $menue.Count }
-    "Enter"     { & $menue[$auswahl].Aktion }
-    "Escape"    { Clear-Host; exit 0 }
-    default {
-      # Zahlentasten springen direkt zum Punkt und starten ihn.
-      $zeichen = [string]$taste.KeyChar
-      for ($i = 0; $i -lt $menue.Count; $i++) {
-        if ($zeichen -eq $menue[$i].Taste) { $auswahl = $i; & $menue[$i].Aktion }
+    $zielOrdner = Split-Path -Parent $programmZip
+    if (-not (Test-Path -LiteralPath $zielOrdner)) { New-Item -ItemType Directory -Path $zielOrdner -Force | Out-Null }
+    Arbeit-Beginnt
+    Schreibe-Log "Lade den neuesten Stand vom Release (ca. 110 MB) ..."
+    Schreibe-Log $ProgrammZipUrl
+    # curl laeuft unsichtbar nebenher; das Fenster zeigt die geladenen MB.
+    $lauf = Start-Process -FilePath "curl.exe" -ArgumentList @("-L", "-f", "-sS", "-o", ('"' + $programmZip + '"'), $ProgrammZipUrl) -WindowStyle Hidden -PassThru
+    while (-not $lauf.HasExited) {
+      if (Test-Path -LiteralPath $programmZip) {
+        $mb = [Math]::Round((Get-Item -LiteralPath $programmZip).Length / 1MB)
+        $lblFortschritt.Text = "$mb MB"
       }
-      if ($zeichen -eq "0") { Clear-Host; exit 0 }
+      [System.Windows.Forms.Application]::DoEvents()
+      Start-Sleep -Milliseconds 250
     }
+    $gut = ($lauf.ExitCode -eq 0) -and (Test-Path -LiteralPath $programmZip) -and ((Get-Item -LiteralPath $programmZip).Length -gt 10MB)
+    if (-not $gut) {
+      if (Test-Path -LiteralPath $programmZip) { Remove-Item -LiteralPath $programmZip -Force -ErrorAction SilentlyContinue }
+      Arbeit-Fertig
+      Schreibe-Log "Der Download hat NICHT geklappt."
+      Melde "Der Download hat nicht geklappt.`n`nMoegliche Gruende: kein Internet an diesem Rechner, die Firma sperrt GitHub, oder das Release ist noch nicht veroeffentlicht.`n`nErsatzweg: 04-Download-Links an einem Rechner mit Internet, die Datei dann in 01-Programm legen." "Download"
+      return
+    }
+    $mb = [Math]::Round((Get-Item -LiteralPath $programmZip).Length / 1MB)
+    Arbeit-Fertig
+    Schreibe-Log ("Fertig: " + $mb + " MB liegen in 01-Programm. Weiter mit 'Einrichten'.")
+  } catch {
+    Arbeit-Fertig
+    Schreibe-Log ("FEHLER: " + $_)
+    Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
+})
+
+# =============================================================================
+#  Aktion: VERBINDUNG PRUEFEN
+# =============================================================================
+$kPruefen.Add_Click({
+  try {
+    Arbeit-Beginnt
+    $datenOrdner = Datenordner-Aus $zDaten.Feld.Text.Trim()
+    $pruefliste = @(
+      @{ Titel = "Update-Ordner";   Pfad = $zUpdate.Feld.Text.Trim() },
+      @{ Titel = "Datendatei";      Pfad = $zDaten.Feld.Text.Trim() },
+      @{ Titel = "Datenordner";     Pfad = $datenOrdner },
+      @{ Titel = "Stoerungs-Datei"; Pfad = $zStoer.Feld.Text.Trim() }
+    )
+    Schreibe-Log "Pruefe die Pfade aus den Feldern oben ..."
+    $alleGut = $true
+    foreach ($p in $pruefliste) {
+      $ok = $false
+      try { $ok = Test-Path -LiteralPath $p.Pfad } catch { $ok = $false }
+      if ($ok) { Schreibe-Log ("  erreichbar:       " + $p.Titel) }
+      else     { Schreibe-Log ("  NICHT erreichbar: " + $p.Titel + "  (" + $p.Pfad + ")"); $alleGut = $false }
+    }
+    # Schreibprobe: ein Nur-Leser-Rechner darf hier ruhig scheitern -
+    # das ist dann kein Fehler, sondern seine Rolle.
+    $probe = Join-Path $datenOrdner ("werkzeug-schreibprobe-" + $env:COMPUTERNAME + ".tmp")
+    try {
+      Schreibe-OhneBom $probe "Schreibprobe des BTA-Cockpit-Werkzeugs - darf geloescht werden."
+      Remove-Item -LiteralPath $probe -Force
+      Schreibe-Log "  Schreibprobe:     klappt - dieser Rechner kann bearbeiten."
+    } catch {
+      Schreibe-Log "  Schreibprobe:     kein Schreibrecht - als Leser-Rechner in Ordnung"
+      Schreibe-Log "                    (das Cockpit schaltet von selbst auf 'nur ansehen')."
+    }
+    Arbeit-Fertig
+    if ($alleGut) { Schreibe-Log "Alle Pfade erreichbar." }
+    else { Schreibe-Log "Mindestens ein Pfad ist nicht erreichbar - Pfad pruefen oder Netz/Laufwerk klaeren." }
+  } catch {
+    Arbeit-Fertig
+    Schreibe-Log ("FEHLER: " + $_)
+  }
+})
+
+# =============================================================================
+#  Aktion: PFADE SPEICHERN (Reparatur der gemerkten Einstellungen)
+# =============================================================================
+$kSpeichern.Add_Click({
+  try {
+    $updateOrdner = ($zUpdate.Feld.Text.Trim() -replace "\\", "/")
+    $datenDatei   = ($zDaten.Feld.Text.Trim()  -replace "\\", "/")
+    $stoerDatei   = ($zStoer.Feld.Text.Trim()  -replace "\\", "/")
+    $datenOrdner  = Datenordner-Aus $datenDatei
+    $einstellungen = Finde-Einstellungen
+    if ($einstellungen) {
+      if (-not (Frage-JaNein "Die vier Pfade aus den Feldern oben in die GEMERKTEN Einstellungen des Cockpits schreiben?`n`nWICHTIG: Das Cockpit vorher SCHLIESSEN - sonst ueberschreibt es die Aenderung beim Beenden wieder.`n`nEine Sicherung der alten Datei wird daneben abgelegt." "Pfade speichern")) { return }
+      $json = Get-Content -LiteralPath $einstellungen -Raw | ConvertFrom-Json
+      foreach ($paar in @(
+        @{ Name = "programm:update-ordner";         Wert = $updateOrdner },
+        @{ Name = "werkstatt-kalender-fs:handle";   Wert = $datenDatei },
+        @{ Name = "werkstatt-kalender-fs:folder";   Wert = $datenOrdner },
+        @{ Name = "werkstatt-stoerungen-fs:handle"; Wert = $stoerDatei })) {
+        $feld = $json.PSObject.Properties[$paar.Name]
+        if ($feld) { $feld.Value = $paar.Wert }
+        else { $json | Add-Member -NotePropertyName $paar.Name -NotePropertyValue $paar.Wert }
+      }
+      Copy-Item -LiteralPath $einstellungen -Destination ($einstellungen + ".sicherung") -Force
+      Schreibe-OhneBom $einstellungen (ConvertTo-Json $json -Depth 10)
+      Schreibe-Log ("Gespeichert: " + $einstellungen)
+      Schreibe-Log ("Sicherung:   " + $einstellungen + ".sicherung")
+      Schreibe-Log "Beim naechsten Start nutzt das Cockpit die neuen Pfade."
+    } else {
+      # Noch keine gemerkten Einstellungen: dann als Vorbelegung neben die
+      # EXE schreiben (gilt nur fuer noch nie gesetzte Schluessel).
+      $exe = Finde-Exe
+      if (-not $exe) {
+        Melde "Auf diesem Rechner wurden weder gemerkte Einstellungen noch ein eingerichtetes Cockpit gefunden.`n`nDann genuegt der Knopf 'Einrichten' - er schreibt die Pfade gleich mit."
+        return
+      }
+      $json = @"
+{
+  "_was_ist_das": "Vorbelegung fuer diesen Rechner - geschrieben vom BTA-Cockpit-Werkzeug. Es werden NUR Schluessel uebernommen, die auf dem Rechner noch nie gesetzt wurden.",
+
+  "programm:update-ordner": "$updateOrdner",
+  "werkstatt-kalender-fs:handle": "$datenDatei",
+  "werkstatt-kalender-fs:folder": "$datenOrdner",
+  "werkstatt-stoerungen-fs:handle": "$stoerDatei"
 }
+"@
+      $jsonPfad = Join-Path $exe.DirectoryName "standard-einstellungen.json"
+      Schreibe-OhneBom $jsonPfad $json
+      Schreibe-Log ("Vorbelegung geschrieben: " + $jsonPfad)
+      Schreibe-Log "(Sie gilt nur fuer Schluessel, die noch nie gesetzt wurden.)"
+    }
+  } catch {
+    Schreibe-Log ("FEHLER: " + $_)
+    Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
+  }
+})
+
+# =============================================================================
+#  Aktion: VOM RECHNER ENTFERNEN
+# =============================================================================
+$kEntfernen.Add_Click({
+  try {
+    $exe = Finde-Exe
+    $verknuepfung = Join-Path ([Environment]::GetFolderPath("Desktop")) "Werkstatt-Cockpit.lnk"
+    $einstellungen = Finde-Einstellungen
+    $liste = @()
+    if ($exe) { $liste += ("Programm-Ordner: " + (Split-Path -Parent $exe.FullName)) }
+    if (Test-Path -LiteralPath $verknuepfung) { $liste += ("Verknuepfung: " + $verknuepfung) }
+    if (-not $liste -and -not $einstellungen) { Schreibe-Log "Hier gibt es nichts zu entfernen."; return }
+    $frage = "Vom Rechner entfernen?`n`n" + ($liste -join "`n") + "`n`nDie gemeinsamen Dateien auf dem Laufwerk bleiben unberuehrt."
+    if (-not (Frage-JaNein $frage "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
+    if (-not (Frage-JaNein "Wirklich sicher? Der Programm-Ordner auf diesem Rechner wird geloescht." "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
+    if ($exe) {
+      Remove-Item -LiteralPath (Split-Path -Parent $exe.FullName) -Recurse -Force
+      Schreibe-Log "Programm-Ordner entfernt."
+    }
+    if (Test-Path -LiteralPath $verknuepfung) {
+      Remove-Item -LiteralPath $verknuepfung -Force
+      Schreibe-Log "Verknuepfung entfernt."
+    }
+    if ($einstellungen) {
+      if (Frage-JaNein "Auch die gemerkten Einstellungen (Pfade) dieses Rechners loeschen?" "Entfernen") {
+        Remove-Item -LiteralPath (Split-Path -Parent $einstellungen) -Recurse -Force
+        Schreibe-Log "Gemerkte Einstellungen entfernt."
+      } else {
+        Schreibe-Log "Gemerkte Einstellungen bleiben (gut fuer eine Neu-Einrichtung)."
+      }
+    }
+    Aktualisiere-Status
+  } catch {
+    Schreibe-Log ("FEHLER: " + $_)
+    Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
+  }
+})
+
+# =============================================================================
+#  Start: Felder vorbelegen und Fenster zeigen
+# =============================================================================
+$exe = Finde-Exe
+if ($exe) { $zZiel.Feld.Text = (Split-Path -Parent $exe.FullName) } else { $zZiel.Feld.Text = $ZielVorgabe }
+
+# Beste bekannte Pfade einsammeln: zuerst die gemerkten Einstellungen des
+# Programms, sonst die Scheurich-Vorgaben dieses Pakets.
+$quelle = "Vorgaben dieses Pakets"
+$zUpdate.Feld.Text = $WerkstattOrdnerVorgabe
+$zDaten.Feld.Text  = $WerkstattOrdnerVorgabe + "/" + $DatenDateiName
+$zStoer.Feld.Text  = $WerkstattOrdnerVorgabe + "/" + $StoerDateiName
+$einstellungen = Finde-Einstellungen
+if ($einstellungen) {
+  try {
+    $json = Get-Content -LiteralPath $einstellungen -Raw | ConvertFrom-Json
+    $treffer = 0
+    foreach ($paar in @(
+      @{ Name = "programm:update-ordner";         Feld = $zUpdate.Feld },
+      @{ Name = "werkstatt-kalender-fs:handle";   Feld = $zDaten.Feld },
+      @{ Name = "werkstatt-stoerungen-fs:handle"; Feld = $zStoer.Feld })) {
+      $wert = $json.PSObject.Properties[$paar.Name]
+      if ($wert -and $wert.Value) { $paar.Feld.Text = [string]$wert.Value; $treffer++ }
+    }
+    if ($treffer -gt 0) { $quelle = "gemerkte Einstellungen dieses Rechners" }
+  } catch { }
+}
+
+Aktualisiere-Status
+Schreibe-Log ("Bereit. Pfad-Felder vorbelegt aus: " + $quelle)
+Schreibe-Log "Neuer Rechner: Felder pruefen (oder einfach lassen) und 'Einrichten' druecken."
+[void]$fenster.ShowDialog()

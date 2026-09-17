@@ -14,27 +14,29 @@ Adminrechte, keine IT-Anfrage noetig.
 1. Diesen Ordner oeffnen (einen Download vorher entpacken,
    vom Stick geht es direkt).
 2. Doppelklick auf  BTA-Cockpit-Werkzeug.cmd
-   Es oeffnet sich ein Menue-Programm im schwarzen Fenster -
-   Auswahl mit den Pfeiltasten oder den Zahlen:
+   Es oeffnet sich ein richtiges Programmfenster (das schwarze
+   Fenster blitzt nur kurz auf). Oben stehen die Pfade schon
+   fertig ausgefuellt fuer die Werkstatt Scheurich - bei
+   Bedarf mit "Waehlen..." aendern. Darunter die Knoepfe:
 
-     1  Neu einrichten        (Programm + Pfade + Verknuepfung)
-     2  Programm herunterladen (neuester Stand vom Release)
-     3  Pfade reparieren      (gemerkte Pfade ansehen/aendern)
-     4  Verbindung pruefen    (kommt der Rechner ans Laufwerk?)
-     5  Vom Rechner entfernen (sauber aufraeumen)
+     Einrichten              Programm + Pfade + Verknuepfung
+     Programm herunterladen  neuester Stand vom Release
+     Verbindung pruefen      kommt der Rechner ans Laufwerk?
+     Pfade speichern         gemerkte Pfade richten
+     Vom Rechner entfernen   sauber aufraeumen
 
-3. Fuer einen neuen Rechner: Punkt 1 waehlen und die Fragen
-   beantworten (Eingabetaste = Vorschlag uebernehmen - die
-   Vorschlaege passen fuer die Werkstatt Scheurich).
-   Wichtig: als Zielordner den Vorschlag im Benutzerprofil
-   nehmen, nie vom Stick aus starten!
+3. Fuer einen neuen Rechner: einfach den gruenen Knopf
+   "Einrichten" druecken und die Zusammenfassung bestaetigen.
+   Wichtig: als Programm-Ordner den Vorschlag im
+   Benutzerprofil lassen, nie vom Stick aus starten!
 4. Erster Start: Doppelklick auf die Desktop-Verknuepfung.
    Windows-SmartScreen beim allerersten Mal:
    "Weitere Informationen" -> "Trotzdem ausfuehren".
 
-Das Werkzeug hilft auch spaeter: Punkt 4 sagt bei Problemen
-sofort, ob der Rechner ans Laufwerk kommt, Punkt 3 richtet
-verstellte Pfade, Punkt 5 raeumt einen Rechner sauber ab.
+Das Werkzeug hilft auch spaeter: "Verbindung pruefen" sagt
+bei Problemen sofort, ob der Rechner ans Laufwerk kommt,
+"Pfade speichern" richtet verstellte Pfade, "Vom Rechner
+entfernen" raeumt einen Rechner sauber ab.
 
 ----------------------------------------------------------
  DER HAND-WEG (falls das Werkzeug nicht gewuenscht ist)
@@ -52,8 +54,8 @@ Die ausfuehrliche Anleitung mit Bildern liegt unter
 ----------------------------------------------------------
  WAS LIEGT WO?
 ----------------------------------------------------------
-BTA-Cockpit-Werkzeug.cmd  das Menue-Programm (Doppelklick)
-werkzeug\             das Skript hinter dem Menue
+BTA-Cockpit-Werkzeug.cmd  das Werkzeug-Fenster (Doppelklick)
+werkzeug\             das Skript hinter dem Fenster
 01-Programm\          das Programm als ZIP (ca. 110 MB)
 02-Einstellungen\     fertige Einstellungs-Datei + Erklaerung
                       der Pfade

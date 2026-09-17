@@ -50,7 +50,8 @@ HIER-FEHLT-NOCH-DAS-PROGRAMM.txt muss raus sein).
       Werkstatt-Cockpit-Programm-win64.zip   (ca. 110 MB)
    Die zweite ist das nackte Programm-ZIP aus dem Ordner
    01-Programm - sie ist noetig, damit das Werkzeug sie
-   sich unter Menuepunkt 2 selbst herunterladen kann.
+   sich mit dem Knopf "Programm herunterladen" selbst
+   holen kann.
 8. Auf den gruenen Knopf "Publish release" klicken.
 
 ----------------------------------------------------------
@@ -67,17 +68,18 @@ Startet er, ist der Ein-Link-Weg fuer alle Zeiten aktiv.
  RELEASE-TEXT ZUM EINFUEGEN (Schritt 2, Punkt 6)
 ----------------------------------------------------------
 Alles fuer einen neuen Rechner in EINER Datei: das Programm,
-das BTA-Cockpit-Werkzeug (Menue im schwarzen Fenster mit
-Pfeiltasten-Auswahl: Einrichten, Herunterladen, Pfade
-reparieren, Verbindung pruefen, Entfernen), die fertig
-ausgefuellte Einstellungs-Datei und die Anleitung als PDF.
+das BTA-Cockpit-Werkzeug (ein richtiges Fenster mit fertig
+ausgefuellten Pfaden und Knoepfen fuer Einrichten,
+Herunterladen, Pfade speichern, Verbindung pruefen und
+Entfernen), die fertige Einstellungs-Datei und die
+Anleitung als PDF.
 
 So geht es:
 1. BTA-Cockpit-Komplettpaket.zip herunterladen (unten bei
    "Assets") und auf dem Rechner entpacken.
 2. Im entpackten Ordner BTA-Cockpit-Werkzeug.cmd
-   doppelklicken, Menuepunkt 1 (Neu einrichten) waehlen und
-   die Fragen beantworten (Eingabetaste = Vorschlag).
+   doppelklicken und im Fenster den gruenen Knopf
+   "Einrichten" druecken (die Pfade stehen schon drin).
 3. Desktop-Verknuepfung "Werkstatt-Cockpit" doppelklicken.
    Beim allerersten Start meldet sich Windows-SmartScreen:
    "Weitere Informationen" -> "Trotzdem ausfuehren".
@@ -97,5 +99,5 @@ naechsten Tag (v1.1, v1.2, ...) anlegen und BEIDE ZIPs
 unter den GLEICHEN Dateinamen anhaengen. Die festen
 ".../releases/latest/..."-Links zeigen dann automatisch auf
 den neuesten Stand - kein Link muss je angepasst werden,
-und das Werkzeug laedt unter Punkt 2 von selbst die
-neueste Fassung.
+und der Knopf "Programm herunterladen" im Werkzeug holt
+von selbst die neueste Fassung.

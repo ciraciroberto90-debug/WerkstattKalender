@@ -854,25 +854,31 @@ ohne BOM neben die EXE, legt die Desktop-Verknüpfung an - keine Adminrechte),
 Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
 
 - [ ] **BTA-Cockpit-Werkzeug.cmd einmal auf einem echten Windows-Rechner
-      durchspielen.** Das Werkzeug (17.09., Robertos Wunsch „richtiges
-      Programm im schwarzen Fenster") hat den einfachen `Einrichten.cmd`
-      ersetzt: ein Menü mit Pfeiltasten-Auswahl und fünf Punkten -
-      1 Neu einrichten (der bisherige Ablauf), 2 Programm herunterladen
-      (holt das ZIP per `curl` direkt vom Release-Link `releases/latest`),
-      3 Pfade reparieren (ändert die GEMERKTEN Pfade in
-      `%APPDATA%\Werkstatt-Cockpit\einstellungen.json`, mit Sicherung
-      daneben; Cockpit muss dazu zu sein), 4 Verbindung prüfen
-      (Test-Path auf alle vier Pfade + Schreibprobe, „kein Schreibrecht"
-      wird als Leser-Rolle erklärt, nicht als Fehler), 5 Vom Rechner
-      entfernen (nur lokale Sachen, Bestätigung durch Tippen von
-      „entfernen"). Quelle: `werkzeug/cockpit-werkzeug.ps1` (UTF-8 MIT
-      BOM - Pflicht für die Rahmenzeichen unter PowerShell 5.1).
-      UNGETESTET auf Windows (kein Windows in der Sitzung; geprüft wurde
-      nur die Klammer-Balance maschinell) - Roberto klickt alle fünf
-      Punkte einmal durch, bevor das Paket an Kollegen geht. Offen dabei
-      auch ungemessen: ob die Werkstatt-Rechner GitHub erreichen dürfen
-      (Firmen-Proxy) - Punkt 2 meldet einen Fehlschlag sauber und
-      verweist auf den Ersatzweg.
+      durchspielen.** Das Werkzeug (17.09.) ist auf Robertos Ansage in
+      zwei Stufen entstanden: erst als Konsolen-Menü, dann („weg von der
+      CMD-Umgebung") als **richtiges Fenster-Programm** mit WinForms -
+      Bordmittel jedes Windows, nichts zu installieren, keine
+      Adminrechte. Ein Fenster mit vier vorbelegten Pfad-Feldern samt
+      „Wählen…"-Knöpfen (Ordner-/Datei-Dialoge), fünf Aktions-Knöpfen
+      und Verlaufsfeld unten: **Einrichten** (grün; entpackt im
+      Nebenlauf, damit das Fenster nicht einfriert, schreibt die
+      Vorbelegung ohne BOM, legt die Desktop-Verknüpfung an),
+      **Programm herunterladen** (per `curl` vom festen
+      `releases/latest`-Link, MB-Anzeige; Fehlschlag → klare Meldung
+      mit Ersatzweg), **Verbindung prüfen** (Test-Path auf alle vier
+      Pfade + Schreibprobe; „kein Schreibrecht" wird als Leser-Rolle
+      erklärt, nicht als Fehler), **Pfade speichern** (ändert die
+      GEMERKTEN Pfade in `%APPDATA%\Werkstatt-Cockpit\einstellungen.json`
+      mit Sicherungskopie, Cockpit muss zu sein; ohne gemerkte
+      Einstellungen wird die Vorbelegung neben die EXE geschrieben),
+      **Vom Rechner entfernen** (nur Lokales, doppelte Nachfrage,
+      Laufwerk tabu). Quelle: `werkzeug/cockpit-werkzeug.ps1` (reines
+      ASCII). UNGETESTET auf Windows (kein Windows in der Sitzung;
+      maschinell geprüft nur Zeichenvorrat und Klammer-Balance) -
+      Roberto klickt alle fünf Knöpfe einmal durch, bevor das Paket an
+      Kollegen geht; auch die Fenster-Darstellung bei Bildschirm-Skalierung
+      125 % gehört in den Blick. Ungemessen bleibt, ob die
+      Werkstatt-Rechner GitHub erreichen dürfen (Firmen-Proxy).
 - [ ] **Stolperstein Beispiel-JSON:** `programm/standard-einstellungen.beispiel.json`
       im Programm-ZIP hat DREI LEERE Pfade (`werkstatt-kalender-fs:handle`,
       `:folder`, `werkstatt-stoerungen-fs:handle`), während die Aufsetz-PDF
