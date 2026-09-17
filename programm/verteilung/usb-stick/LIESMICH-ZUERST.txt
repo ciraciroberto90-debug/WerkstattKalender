@@ -1,0 +1,62 @@
+==========================================================
+ BTA-COCKPIT - USB-INSTALLATIONS-STICK
+==========================================================
+Stand: 17.09.2026
+
+Dieser Stick enthaelt ALLES, um das BTA-Cockpit auf einem
+neuen Windows-Rechner einzurichten. Keine Adminrechte, keine
+IT-Anfrage, kein Internet noetig.
+
+----------------------------------------------------------
+ DER SCHNELLE WEG (empfohlen): Einrichten.cmd
+----------------------------------------------------------
+1. Stick einstecken, diesen Ordner oeffnen.
+2. Doppelklick auf  Einrichten.cmd
+3. Fragen beantworten (Eingabetaste = Vorschlag uebernehmen):
+   - Wohin auf diesem Rechner? (Vorschlag: eigener Ordner
+     im Benutzerprofil - nie vom Stick aus starten!)
+   - Die drei Werkstatt-Pfade (Update-Ordner, Datendatei,
+     Stoerungs-Datei) - die Vorschlaege passen fuer die
+     Werkstatt Scheurich, einfach bestaetigen.
+4. Der Helfer entpackt das Programm, schreibt die
+   Einstellungs-Datei mit den Pfaden und legt eine
+   Desktop-Verknuepfung an. Fertig.
+5. Erster Start: Doppelklick auf die Verknuepfung.
+   Windows-SmartScreen beim allerersten Mal:
+   "Weitere Informationen" -> "Trotzdem ausfuehren".
+
+----------------------------------------------------------
+ DER HAND-WEG (falls der Helfer nicht gewuenscht ist)
+----------------------------------------------------------
+1. 01-Programm\Werkstatt-Cockpit-Programm-win64.zip auf den
+   Rechner kopieren und DORT entpacken (nicht auf dem Stick,
+   nicht auf dem Netzlaufwerk).
+2. Aus 02-Einstellungen die Datei standard-einstellungen.json
+   NEBEN die Werkstatt-Cockpit.exe legen (Pfade vorher pruefen,
+   siehe 02-Einstellungen\PFADE-ERKLAERT.txt).
+3. Werkstatt-Cockpit.exe doppelklicken.
+Die ausfuehrliche Anleitung mit Bildern liegt unter
+03-Anleitung (PDF, 4 Seiten - auch fuer den Aushang).
+
+----------------------------------------------------------
+ WAS LIEGT WO?
+----------------------------------------------------------
+Einrichten.cmd        Doppelklick-Einrichtung (fragt Pfade ab)
+werkzeug\             das Einrichtungs-Skript selbst
+01-Programm\          das Programm als ZIP (ca. 110 MB)
+02-Einstellungen\     fertige Einstellungs-Datei + Erklaerung
+                      der Pfade
+03-Anleitung\         die Aufsetz-Anleitung als PDF
+04-Download-Links\    alle Download-Adressen, falls der Stick
+                      mal nicht zur Hand ist
+
+----------------------------------------------------------
+ GUT ZU WISSEN
+----------------------------------------------------------
+- Leser-Rechner werden GENAU GLEICH eingerichtet. Ohne
+  Schreibrecht auf dem Laufwerk schaltet die App von selbst
+  auf "nur ansehen".
+- Updates kommen NICHT ueber diesen Stick: Sobald eine neue
+  Werkstatt_Kalender_TPM.html im Update-Ordner liegt, meldet
+  sich im Programm der gruene Balken.
+- Fragen und Rueckmeldungen an Roberto Ciraci (Werkstatt).

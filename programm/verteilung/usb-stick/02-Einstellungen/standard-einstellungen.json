@@ -1,0 +1,13 @@
+{
+  "_was_ist_das": "Vorbelegung fuer neue Rechner (Werkstatt Scheurich, FERTIG AUSGEFUELLT): Diese Datei NEBEN die Werkstatt-Cockpit.exe legen (also mit in den entpackten Ordner). Beim ersten Start uebernimmt das Programm die Eintraege - danach heisst ein neuer Rechner nur noch: entpacken, starten, fertig. Kein Zahnrad noetig, auch nicht fuer Leser-Rechner.",
+  "_wichtig": "Es werden NUR Schluessel uebernommen, die auf dem Rechner noch nie gesetzt wurden. Eine bewusste Wahl am Geraet (andere Datei, anderer Ordner) wird nie ueberschrieben.",
+  "_bitte_pruefen": "Die Dateinamen kalender-daten.json und werkstatt-stoerungen.json sind die Standard-Namen der App - heissen die Dateien auf dem Laufwerk anders, die zwei Zeilen unten anpassen (Erklaerung: PFADE-ERKLAERT.txt).",
+
+  "programm:update-ordner": "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender",
+
+  "werkstatt-kalender-fs:handle": "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender/kalender-daten.json",
+
+  "werkstatt-kalender-fs:folder": "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender",
+
+  "werkstatt-stoerungen-fs:handle": "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender/werkstatt-stoerungen.json"
+}

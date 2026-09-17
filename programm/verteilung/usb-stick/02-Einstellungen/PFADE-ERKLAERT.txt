@@ -1,0 +1,55 @@
+==========================================================
+ DIE EINSTELLUNGS-DATEI UND IHRE PFADE
+==========================================================
+
+Die Datei standard-einstellungen.json gehoert NEBEN die
+Werkstatt-Cockpit.exe (also mit in den entpackten Ordner).
+Beim ersten Start uebernimmt das Programm die Eintraege -
+danach heisst ein neuer Rechner nur: entpacken, starten,
+fertig. Kein Zahnrad noetig, auch nicht fuer Leser-Rechner.
+
+WICHTIG: Es werden NUR Schluessel uebernommen, die auf dem
+Rechner noch nie gesetzt wurden. Eine bewusste Wahl am
+Geraet (andere Datei, anderer Ordner) wird nie
+ueberschrieben.
+
+----------------------------------------------------------
+ DIE VIER EINTRAEGE
+----------------------------------------------------------
+1) programm:update-ordner
+   Der Ordner, in dem die neue Werkstatt_Kalender_TPM.html
+   abgelegt wird. Das Programm schaut alle 5 Minuten hinein
+   und meldet neue Fassungen mit dem GRUENEN BALKEN.
+
+2) werkstatt-kalender-fs:handle
+   Voller Pfad der gemeinsamen DATENDATEI. Die App
+   verbindet sich beim ersten Start von selbst damit.
+
+3) werkstatt-kalender-fs:folder
+   Der DATENORDNER - meist der Ordner, in dem die
+   Datendatei liegt. Dort wohnen Konflikt-Waechter,
+   Tages-Sicherung und Fotos.
+
+4) werkstatt-stoerungen-fs:handle
+   Voller Pfad der STOERUNGS-Datei (eigene Datei, damit
+   jeder Melder schreiben kann).
+
+----------------------------------------------------------
+ SCHREIBWEISE
+----------------------------------------------------------
+In JSON muessen Backslashes DOPPELT geschrieben werden:
+   \\\\SCHEUDC1\\PSG_Gruppe\\...
+Einfacher: Schraegstriche verwenden - Windows versteht
+beide:
+   //SCHEUDC1/PSG_Gruppe/...
+
+----------------------------------------------------------
+ BITTE PRUEFEN
+----------------------------------------------------------
+Die beiliegende standard-einstellungen.json ist fuer die
+Werkstatt Scheurich FERTIG AUSGEFUELLT. Die DATEINAMEN der
+beiden Datendateien (kalender-daten.json und
+werkstatt-stoerungen.json) sind die Standard-Namen der
+App - falls die Dateien auf dem Laufwerk anders heissen,
+bitte die zwei Zeilen anpassen. Der Update-Ordner-Pfad ist
+derselbe wie im laufenden Betrieb.

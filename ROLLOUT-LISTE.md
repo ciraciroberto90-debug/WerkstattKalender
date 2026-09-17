@@ -840,6 +840,49 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       mit der Grundregel „keine IT nötig" - deshalb zuerst die Frage, WAS
       das Handy können muss: nur nachschauen, oder auch melden?).
 
+## USB-Installations-Stick (Robertos Auftrag vom 17.09.)
+
+Der komplette Stick-Ordner ist gebaut und im Chat geliefert
+(`BTA-Cockpit-USB-Stick-ohne-Programm.zip`, 0,7 MB - das Programm-ZIP war
+mit 110 MB zu groß für die Chat-Lieferung, der Zettel in `01-Programm`
+erklärt die zwei Handgriffe über die Download-Links). Die Quellen liegen
+dauerhaft unter **`programm/verteilung/usb-stick/`**: `LIESMICH-ZUERST.txt`,
+`Einrichten.cmd` + `werkzeug/cockpit-einrichten.ps1` (fragt Zielordner und
+die drei Werkstatt-Pfade ab, entpackt, schreibt `standard-einstellungen.json`
+ohne BOM neben die EXE, legt die Desktop-Verknüpfung an - keine Adminrechte),
+`02-Einstellungen/` (fertig ausgefüllte Einstellungs-Datei mit allen vier
+Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
+
+- [ ] **Einrichten.cmd einmal auf einem echten Windows-Rechner
+      durchspielen.** Das PowerShell-Skript ist hier UNGETESTET (kein
+      Windows in der Werkstatt-Sitzung verfügbar) - Roberto klickt es
+      einmal durch, bevor der Stick an Kollegen geht. Erwartung: vier
+      Fragen, Zusammenfassung, „ja", entpackt, Verknüpfung liegt auf dem
+      Desktop, erster Start findet die gemeinsame Datei ohne Zahnrad.
+- [ ] **Stolperstein Beispiel-JSON:** `programm/standard-einstellungen.beispiel.json`
+      im Programm-ZIP hat DREI LEERE Pfade (`werkstatt-kalender-fs:handle`,
+      `:folder`, `werkstatt-stoerungen-fs:handle`), während die Aufsetz-PDF
+      behauptet, die Datei „zeigt bereits" die Pfade - wer nach PDF
+      vorgeht, landet doch bei der Hand-Verbindung. Die Stick-Fassung in
+      `02-Einstellungen/` ist fertig ausgefüllt; beim nächsten
+      Programm-ZIP-Bau die Beispiel-Datei ebenfalls füllen und die PDF
+      angleichen.
+- [ ] **Stolperstein Aufsetz-PDF ohne Quelle:** `doku/Werkstatt-Cockpit-Programm-Aufsetzen.pdf`
+      liegt nur fertig gerendert im Repo - es gibt keine HTML/Markdown-Quelle,
+      Änderungen (z. B. der Einrichten.cmd-Weg als neuer erster Weg) sind
+      nicht sauber möglich. Quelle nachbauen, dann PDF neu erzeugen.
+- [ ] **Stolperstein Download-Adressen am Arbeits-Zweig:** Die drei
+      Adressen in `04-Download-Links/DOWNLOAD-LINKS.txt` zeigen auf
+      `claude/jolly-bell-qmnsv0`. Läuft der Zweig irgendwann zusammen oder
+      wird umbenannt, laufen sie ins Leere (Hinweis steht in der Datei).
+      Dauerhaft besser: ein GitHub-Release mit einem einzigen
+      Download-Knopf (Punkt steht schon unter „Programm-Fassung").
+- [ ] **Bei Bedarf `tools/stick-bauen.js`:** ein kleiner Bauer, der aus
+      den Repo-Quellen (Teile zusammenfügen, PDF und Einstellungs-Dateien
+      einsammeln) den kompletten Stick-Ordner samt Programm-ZIP frisch
+      erzeugt - dann ist der Stick jederzeit reproduzierbar statt einmal
+      von Hand gebaut.
+
 ## Erledigt
 
 ### Umzug auf einen Server - STICHTAG 10.08. (ABGESCHLOSSEN; OneDrive ist Geschichte)
