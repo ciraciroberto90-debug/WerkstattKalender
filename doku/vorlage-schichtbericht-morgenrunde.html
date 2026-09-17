@@ -1,0 +1,175 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Schichtbericht Störungen – Di., 16.09.2026</title>
+<style>
+  /* Ganzes Blatt nutzen (Robertos Ansage): 5 mm sind das Minimum, das
+     übliche Drucker ohne Abschneiden sicher schaffen. */
+  @page { size: A4 landscape; margin: 4mm; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; margin: 0; }
+  h1 { font-size: 13pt; margin: 0; }
+  .kopf { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #22262B; padding-bottom: 1.2mm; margin-bottom: 1.5mm; }
+  .kopf .stand { text-align: right; color: #5B6572; font-size: 8.5pt; line-height: 1.4; }
+  .kopf .stand .fett { font-size: 10.5pt; font-weight: 800; color: #1f2430; }
+
+  /* Tagesblick: Schicht-Summen + Sorgenkind auf einen Blick */
+  .tagesblick { display: flex; gap: 2mm; margin-bottom: 1.8mm; }
+  .tb { flex: 1; border: 0.8pt solid #C4CBD2; border-radius: 1.5mm; padding: 0.9mm 2mm; font-size: 8pt; color: #5B6572; white-space: nowrap; }
+  .tb .tbz { font-size: 9.5pt; font-weight: 900; color: #1f2430; font-family: ui-monospace, Consolas, monospace; }
+  .tb.frueh { background: #FDF6DF; border-color: #E3CE8F; }
+  .tb.spaet { background: #EAF3EC; border-color: #A9CDB4; }
+  .tb.nacht { background: #E9F0F7; border-color: #A9C2D8; }
+  .tb.sorge { background: #FDF1EF; border-color: #E0B0AA; }
+  .tb .tbl { font-weight: 800; text-transform: uppercase; letter-spacing: 0.4pt; font-size: 7pt; margin-right: 1.2mm; }
+
+  table { width: 100%; border-collapse: collapse; }
+  tr { page-break-inside: avoid; break-inside: avoid; } /* kein Bericht wird über die Seitengrenze zerschnitten */
+  th { background: #22262B; color: #fff; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.4pt; text-align: left; padding: 1.3mm 2mm; }
+  td { font-size: 8.5pt; vertical-align: top; padding: 1.25mm 2mm; border-bottom: 0.5pt solid #D8DCE1; }
+  tr.gruppe td { border-bottom: 1pt solid #B9C0C8; padding: 1.1mm 2mm; font-weight: 800; font-size: 9pt; }
+  .gsumme { font-weight: 600; color: #5B6572; }
+  .gsumme .gfett { font-weight: 900; color: #1f2430; }
+  td.nr { white-space: nowrap; }
+  /* Erste Spalte trägt die Schichtfarbe (Robertos Ansage 17.09.) */
+  td.nr.frueh { background: #FDF6DF; }
+  td.nr.spaet { background: #EAF3EC; }
+  td.nr.nacht { background: #E9F0F7; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 8pt; }
+  .klein { color: #5B6572; font-size: 7.5pt; margin-top: 0.6mm; }
+  /* Die Störungsursache als eigener, deutlicher Block (Robertos Ansage 17.09.) */
+  td.ursache { background: rgba(34,38,43,0.045); font-weight: 600; }
+  .naechste { color: #8A4B00; font-weight: 600; }
+  .st { font-weight: 800; font-size: 8pt; padding: 0.5mm 2mm; border-radius: 2.5mm; border: 1.2pt solid; white-space: nowrap; }
+  .st.ok { color: #1F7A3D; border-color: #1F7A3D; }
+  .st.offen { color: #fff; background: #C0392B; border-color: #C0392B; }
+  .leer { color: #8A9099; font-style: italic; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 3px; font-weight: 800; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.5px; }
+  /* Ausfallzeit als deutliche Plakette */
+  .ausfall { display: inline-block; font-family: ui-monospace, Consolas, monospace; font-weight: 800; font-size: 9pt; padding: 0.6mm 2mm; margin-top: 0.8mm; border-radius: 1.5mm; background: #FBF3DA; color: #8A4B00; border: 0.8pt solid #E3CE8F; white-space: nowrap; }
+  .ausfall.hoch { background: #F9E2DE; color: #B23A34; border-color: #E0B0AA; }
+  .ausfall.null { background: transparent; border-color: transparent; color: #8A9099; font-weight: 600; }
+  tr.zoffen td { border-top: 1pt solid #C0392B; border-bottom: 1pt solid #C0392B; }
+  tr.zoffen td:first-child { border-left: 3pt solid #C0392B; }
+  .fuss { margin-top: 1.2mm; display: flex; justify-content: space-between; color: #8A9099; font-size: 7.5pt; border-top: 0.5pt solid #C4CBD2; padding-top: 1.5mm; }
+</style></head><body>
+<div class="kopf">
+  <h1>Schichtbericht Störungen</h1>
+  <div class="stand">Stand: <strong>Di., 16.09.2026</strong><br><span class="fett">9 Störungen</span> · <span class="fett" style="color:#C0392B">1 offen</span> · <span class="fett">Ausfallzeit 210 min</span></div>
+</div>
+
+<div class="tagesblick">
+  <div class="tb frueh"><span class="tbl">Früh</span><span class="tbz">4</span> Berichte · <span class="tbz">70</span> min</div>
+  <div class="tb spaet"><span class="tbl">Spät</span><span class="tbz">5</span> Berichte · <span class="tbz">140</span> min</div>
+  <div class="tb nacht"><span class="tbl">Nacht</span><span class="tbz">0</span> Berichte</div>
+</div>
+
+<table>
+<thead><tr><th style="width:17mm">Nr. / Ausfall</th><th style="width:32mm">Anlage · Teil</th><th style="width:40mm">Abweichung / Störung</th><th style="width:48mm">Störungsursache</th><th style="width:50mm">Was wurde unternommen?</th><th style="width:38mm">Was muss die nächste Schicht tun?</th><th style="width:12mm">Status</th><th style="width:17mm">Melder</th></tr></thead>
+<tbody>
+
+<tr class="gruppe"><td colspan="8" style="background:#F6E9BC"><span class="chip" style="background:#F0C230;color:#2B2200">Früh</span> &nbsp;Di., 16.09.2026 · Früh (06:00–14:00) &nbsp;<span class="gsumme">· <span class="gfett">4 Berichte · 70 min</span></span></td></tr>
+
+<tr>
+  <td class="nr frueh"><span class="mono">31315</span><br><span class="ausfall">30 min</span></td>
+  <td><strong>Sortieren Handverpacken 20380</strong><div class="klein">Fliesmaschine</div></td>
+  <td>Das Messer der Lineareinheit fuhr nur bis zur Hälfte und schnitt nicht mehr richtig ab</td>
+  <td class="ursache">Messer abgebrochen; zusätzlich war der hintere Flies außermittig eingestellt (zu weit nach außen)</td>
+  <td>Neues Messer eingebaut und eingestellt, hinteren Flies mittig ausgerichtet</td>
+  <td class="naechste"></td>
+  <td><span class="st ok">OK</span></td>
+  <td>X. Rudzinski</td>
+</tr>
+
+<tr>
+  <td class="nr frueh"><span class="mono">31316</span><br><span class="ausfall">20 min</span></td>
+  <td><strong>B2 Beschichtungsanlage 2036202</strong><div class="klein">Mechanische Reparatur (1052)</div></td>
+  <td>Kabine saugt das Pulver nicht mehr ab</td>
+  <td class="ursache">Absaugung mechanisch verbogen – dadurch keine Saugleistung mehr an der Kabine</td>
+  <td>Absaugung gerichtet und wieder zusammengeschweißt</td>
+  <td class="naechste"></td>
+  <td><span class="st ok">OK</span></td>
+  <td>X. Rudzinski</td>
+</tr>
+
+<tr>
+  <td class="nr frueh"><span class="mono">31317</span><br><span class="ausfall">20 min</span></td>
+  <td><strong>Trayschrumpfmaschine V2 20381</strong><div class="klein">Elektrische Reparatur (1051)</div></td>
+  <td>Anlage auf Störung: Ropex-Schweißtemperaturregler meldet Fehler</td>
+  <td class="ursache">Schweißdraht zu locker gespannt; zusätzlich Temperatur (Poti) und Schweißzeit verstellt</td>
+  <td>Schweißdraht gespannt, Anlage neu zentriert; Temperatur auf 152 °C und Schweißzeit neu eingestellt</td>
+  <td class="naechste"></td>
+  <td><span class="st ok">OK</span></td>
+  <td>Kilic / Giaquinta</td>
+</tr>
+
+<tr>
+  <td class="nr frueh"><span class="mono">31319</span><br><span class="ausfall null">–</span></td>
+  <td><strong>B3 Beschichtungsanlage 2036203</strong><div class="klein">Elektrische Reparatur (1051)</div></td>
+  <td>Aus der Spät übernommen: Sicherungen vom Umlüfter 2 (Vorwärmzone) lösen aus</td>
+  <td class="ursache">Erdschluss durch einen defekten Draht im Motorklemmbrett des Umlüfters</td>
+  <td>Alles durchgemessen, defekten Draht gewechselt</td>
+  <td class="naechste"></td>
+  <td><span class="st ok">OK</span></td>
+  <td>Radke</td>
+</tr>
+
+<tr class="gruppe"><td colspan="8" style="background:#D8EADD"><span class="chip" style="background:#1F7A3D;color:#fff">Spät</span> &nbsp;Di., 16.09.2026 · Spät (14:00–22:00) &nbsp;<span class="gsumme">· <span class="gfett">5 Berichte · 140 min</span> · 1 offen</span></td></tr>
+
+<tr class="zoffen">
+  <td class="nr spaet"><span class="mono">31320</span><br><span class="ausfall">30 min</span></td>
+  <td><strong>TS 320 ADL 2032001</strong><div class="klein">Mechanische Reparatur (1052)</div></td>
+  <td>An beiden Seiten der Vakuumtafeln treten massiv Öl­pfützen aus den Ölabscheidern aus</td>
+  <td class="ursache">Ölabscheider im Kompressorraum war komplett voll und läuft nicht mehr selbsttätig ab (Ablass-Schlauch verstopft) – das Öl wurde dadurch in die Druckluftleitungen gedrückt</td>
+  <td>Abscheider auf der Pressenseite gewechselt (defekt), Gegenseite noch original. Lief zunächst; gegen 21:00 trat erneut Öl aus. Ölabscheider im Kompressorraum zur Hälfte in die Auffangwanne abgelassen</td>
+  <td class="naechste">Heute im Kompressorraum nachschauen: Ölabscheider prüfen, verstopften Ablass-Schlauch frei machen</td>
+  <td><span class="st offen">OFFEN</span></td>
+  <td>Becker</td>
+</tr>
+
+<tr>
+  <td class="nr spaet"><span class="mono">31318</span><br><span class="ausfall hoch">60 min</span></td>
+  <td><strong>TS 320 ADL 2032001</strong><div class="klein">Elektrische Reparatur</div></td>
+  <td>Hubwerk erreicht die untere Endlage nicht mehr</td>
+  <td class="ursache">Ein Formstück hatte sich unter dem Hubwerk verklemmt und blockierte die Fahrt; auch der Endschalter der unteren Endlage war verklemmt</td>
+  <td>Hubwerk hochgefahren und gereinigt; das verklemmte Stück zerschlagen (zu groß zum Herausnehmen). Endschalter unten ersetzt und eingestellt</td>
+  <td class="naechste"></td>
+  <td><span class="st ok">OK</span></td>
+  <td>Wiesner</td>
+</tr>
+
+<tr>
+  <td class="nr spaet"><span class="mono">31319</span><br><span class="ausfall">15 min</span></td>
+  <td><strong>B3 Be- und Entladeanlage 2036223</strong><div class="klein">Sonstiges</div></td>
+  <td>Aufsetzroboter fährt nicht mehr</td>
+  <td class="ursache">Störung an den Pufferbändern – der Roboter blieb dadurch stehen</td>
+  <td>Störung quittiert, Anlage lief wieder an</td>
+  <td class="naechste"></td>
+  <td><span class="st ok">OK</span></td>
+  <td>Wiesner</td>
+</tr>
+
+<tr>
+  <td class="nr spaet"><span class="mono">31319</span><br><span class="ausfall">5 min</span></td>
+  <td><strong>Trayaufrichter Beschichtung 2036211</strong><div class="klein">Mechanische Reparatur (1052)</div></td>
+  <td>Tür der B2-Trayfaltmaschine abgefallen</td>
+  <td class="ursache">Türbefestigung hatte sich gelöst</td>
+  <td>Tür neu befestigt</td>
+  <td class="naechste"></td>
+  <td><span class="st ok">OK</span></td>
+  <td>Becker</td>
+</tr>
+
+<tr>
+  <td class="nr spaet"><span class="mono">31320</span><br><span class="ausfall">30 min</span></td>
+  <td><strong>VSM 1 20325</strong><div class="klein">Elektrische Reparatur</div></td>
+  <td>Gondel oben nicht gezogen</td>
+  <td class="ursache">Sensor der Gondelerkennung (hinten oben) verstellt – vermutlich an einer Box hängengeblieben; die Gondel wurde nicht mehr erkannt</td>
+  <td>Verdächtige Box markiert (zur Kontrolle, ob es beim nächsten Mal dieselbe ist). Sensor neu eingestellt und etwas weiter von den Gondeln weggeschraubt</td>
+  <td class="naechste"></td>
+  <td><span class="st ok">OK</span></td>
+  <td>Wiesner</td>
+</tr>
+
+<tr class="gruppe"><td colspan="8" style="background:#D5E3F0"><span class="chip" style="background:#2F6690;color:#fff">Nacht</span> &nbsp;Di., 16.09.2026 · Nacht (22:00–06:00) &nbsp;<span class="gsumme">· <span class="gfett">0 Berichte</span> · <span class="leer">keine Störungen</span></span></td></tr>
+
+</tbody></table>
+<div class="fuss"><span>BTA-Cockpit · Schichtbericht</span><span>Di., 16.09.2026</span></div>
+</body></html>
