@@ -872,13 +872,35 @@ Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
       mit Sicherungskopie, Cockpit muss zu sein; ohne gemerkte
       Einstellungen wird die Vorbelegung neben die EXE geschrieben),
       **Vom Rechner entfernen** (nur Lokales, doppelte Nachfrage,
-      Laufwerk tabu). Quelle: `werkzeug/cockpit-werkzeug.ps1` (reines
-      ASCII). UNGETESTET auf Windows (kein Windows in der Sitzung;
-      maschinell geprüft nur Zeichenvorrat und Klammer-Balance) -
-      Roberto klickt alle fünf Knöpfe einmal durch, bevor das Paket an
-      Kollegen geht; auch die Fenster-Darstellung bei Bildschirm-Skalierung
-      125 % gehört in den Blick. Ungemessen bleibt, ob die
-      Werkstatt-Rechner GitHub erreichen dürfen (Firmen-Proxy).
+      Laufwerk tabu). Auf echtem Windows am 17.09. getestet: Einrichten,
+      Entfernen (fand die Alt-Verknüpfung „- KHB"), Pfade speichern und
+      Verbindung prüfen liefen; nachgebessert wurden dabei die
+      EXE-Erkennung (folgt allen Verknüpfungen, Desktop+AppData, Netz-Start
+      grün) und das Lösch-Protokoll (Verknüpfungs-Ziele mitschreiben).
+      **Danach (17.09., Robertos Wahl A2/A3/A4/A5 + Design B2) zum
+      Reiter-Programm ausgebaut:** Farb-Kopfband mit Logo; drei Reiter
+      Einrichten / Selbsttest / Wartung; darunter DAUERHAFT sichtbar der
+      Ladebalken und ein Protokoll mit Zeitstempel plus „Protokoll
+      speichern…" (jede Aktion schreibt mit - für die Fehlersuche).
+      Reiter Einrichten: Standort-Vorlage (Scheurich/Soendgen), die vier
+      Pfade, Rechner-Art (Arbeitsplatz / Info-Bildschirm mit Autostart +
+      Vollbild). Reiter Selbsttest: fünf Ampel-Zeilen + „Prüfbericht
+      speichern…". Reiter Wartung: Update suchen, Verknüpfung reparieren,
+      an Taskleiste anheften, Datenordner öffnen, Pfade speichern, Vom
+      Rechner entfernen. Diese neue Fassung ist auf Windows NOCH
+      UNGETESTET - Roberto klickt sie einmal komplett durch (auch bei
+      Skalierung 125 %). Drei ehrliche Kennzeichnungen: (a) der
+      **Soendgen-Pfad** in der Standort-Vorlage ist eine ANNAHME - beim
+      ersten Soendgen-Rechner den echten Pfad prüfen und in
+      `cockpit-werkzeug.ps1` (`$SoendgenOrdnerVorgabe`) fest hinterlegen;
+      (b) **Vollbild/Kiosk** braucht die neue `programm/main.js`-Zeile
+      (`process.argv.includes("--vollbild")` → `setFullScreen`) - wirkt
+      erst ab dem NÄCHSTEN Programm-ZIP-Bau, das Werkzeug schreibt den
+      Schalter aber schon in die Verknüpfung (ältere Fassungen ignorieren
+      ihn gefahrlos); (c) **an Taskleiste anheften** blockt Windows oft -
+      dann kommt der ehrliche Hinweis „Rechtsklick → An Taskleiste
+      anheften". Ungemessen bleibt, ob die Werkstatt-Rechner GitHub
+      erreichen dürfen (Firmen-Proxy).
 - [ ] **Stolperstein Beispiel-JSON:** `programm/standard-einstellungen.beispiel.json`
       im Programm-ZIP hat DREI LEERE Pfade (`werkstatt-kalender-fs:handle`,
       `:folder`, `werkstatt-stoerungen-fs:handle`), während die Aufsetz-PDF

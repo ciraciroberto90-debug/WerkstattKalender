@@ -1,38 +1,44 @@
-# BTA-Cockpit: Das Werkzeug - jetzt als richtiges Fenster-Programm
-# =================================================================
+# BTA-Cockpit: Das Werkzeug - Fenster-Programm mit Reitern
+# ========================================================
 #
-# Robertos Wunsch vom 17.09., zweite Runde: weg von der schwarzen
-# CMD-Umgebung, hin zu einem echten Fenster. Umgesetzt mit WinForms -
-# das steckt in jedem Windows, es wird nichts installiert und es sind
-# keine Adminrechte noetig. Ein Fenster, vier Pfad-Felder mit
-# Durchsuchen-Knoepfen, fuenf Aktionen, unten ein Verlaufsfeld.
+# Stand 17.09. (Robertos Wahl): Design mit Farb-Kopfband und drei Reitern
+# (Einrichten / Selbsttest / Wartung). Unter den Reitern liegt ein
+# DAUERHAFT sichtbares Protokoll mit Zeitstempel plus Ladebalken - jede
+# Aktion schreibt dort mit, und ueber "Protokoll speichern..." laesst sich
+# alles als Textdatei sichern (zum Weiterschicken bei Fehlern).
 #
-# Die Aktionen decken den ganzen Lebenslauf eines Rechners ab:
-#   Einrichten     entpacken, Pfade vorbelegen, Desktop-Verknuepfung
-#   Herunterladen  neuester Programm-Stand direkt vom Release
-#   Pruefen        kommt dieser Rechner an die vier Pfade heran?
-#   Speichern      die GEMERKTEN Pfade des Programms aendern
-#   Entfernen      Rechner sauber abraeumen (Laufwerk bleibt tabu)
+# Umgesetzt mit WinForms - steckt in jedem Windows, nichts wird
+# installiert, keine Adminrechte.
 #
-# WICHTIG fuer Bearbeiter: Die JSON-Dateien, die das Skript SCHREIBT,
-# sind bewusst OHNE BOM - das Programm liest sie mit JSON.parse, und
-# eine BOM-Markierung liesse das Einlesen stillschweigend scheitern.
+# Funktionen:
+#   Reiter Einrichten: Standort-Vorlage (Scheurich/Soendgen), die vier
+#     Pfade, Rechner-Art (Arbeitsplatz / Info-Bildschirm mit Autostart und
+#     Vollbild), Einrichten + Programm herunterladen.
+#   Reiter Selbsttest: Ampel je Pruefpunkt + Pruefbericht speichern.
+#   Reiter Wartung: Update suchen, Verknuepfung reparieren, an Taskleiste
+#     anheften, Datenordner oeffnen, Vom Rechner entfernen, Pfade speichern.
+#
+# WICHTIG fuer Bearbeiter: Die JSON-Dateien, die das Skript SCHREIBT, sind
+# bewusst OHNE BOM - das Programm liest sie mit JSON.parse, eine
+# BOM-Markierung liesse das Einlesen stillschweigend scheitern.
 
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-# ---- Feste Werte (Werkstatt Scheurich) --------------------------------------
+# ---- Feste Werte ------------------------------------------------------------
 $WerkstattOrdnerVorgabe = "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender"
+# Soendgen-Pfad ist eine ANNAHME - beim ersten Soendgen-Rechner pruefen und
+# mir den echten Pfad nennen, dann wird er hier fest hinterlegt.
+$SoendgenOrdnerVorgabe  = "//SCHEUDC1/PSG_Gruppe/16_Technik/03_Soendgen/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender"
 $DatenDateiName = "kalender-daten.json"
 $StoerDateiName = "werkstatt-stoerungen.json"
 $ZielVorgabe    = Join-Path $env:LOCALAPPDATA "Werkstatt-Cockpit"
-# Fester Release-Link: zeigt immer auf den neuesten veroeffentlichten Stand.
 $ProgrammZipUrl = "https://github.com/ciraciroberto90-debug/WerkstattKalender/releases/latest/download/Werkstatt-Cockpit-Programm-win64.zip"
 
-$hier  = Split-Path -Parent $MyInvocation.MyCommand.Path   # ...\werkzeug
-$paket = Split-Path -Parent $hier                          # Paket-Wurzel
+$hier  = Split-Path -Parent $MyInvocation.MyCommand.Path
+$paket = Split-Path -Parent $hier
 $programmZip = Join-Path $paket "01-Programm\Werkstatt-Cockpit-Programm-win64.zip"
 
 # =============================================================================
@@ -40,11 +46,6 @@ $programmZip = Join-Path $paket "01-Programm\Werkstatt-Cockpit-Programm-win64.zi
 # =============================================================================
 $script:exeMerker = $null
 function Finde-Exe {
-  # Robertos Ansage vom 17.09.: Desktop UND AppData durchsuchen und DANN
-  # entscheiden - einige Rechner haben den Ordner woanders liegen. Bei
-  # mehreren Funden gewinnt die zuletzt veraenderte EXE (die aktuelle
-  # Fassung). Eine einmal gefundene EXE wird gemerkt und nur noch gegen
-  # die Platte geprueft - die Suche kostet sonst bei jeder Statuszeile Zeit.
   if ($script:exeMerker -and (Test-Path -LiteralPath $script:exeMerker)) {
     return (Get-Item -LiteralPath $script:exeMerker)
   }
@@ -58,16 +59,12 @@ function Finde-Exe {
   return $null
 }
 function Verknuepfungs-Ziel([string]$lnkPfad) {
-  # Wohin zeigt eine Verknuepfung? Leerer Text, wenn nicht lesbar.
   try { return [string]((New-Object -ComObject WScript.Shell).CreateShortcut($lnkPfad).TargetPath) } catch { return "" }
 }
 function Finde-Exe-Alle {
-  # Alle LOKALEN Kopien der EXE einsammeln - Grundlage fuer Status und
-  # fuer 'Vom Rechner entfernen'. Robertos Fund vom 17.09.: Seine
-  # Verknuepfung hiess 'Werkstatt-Cockpit - KHB', nicht Standardname -
-  # deshalb werden die Ziele ALLER Cockpit-Verknuepfungen verfolgt,
-  # nicht nur die eine mit dem Standardnamen. Netz-Ziele zaehlen hier
-  # nicht mit (dort wird nie geloescht, siehe Finde-NetzStart).
+  # Alle LOKALEN EXE-Kopien: Ziele aller Cockpit-Verknuepfungen (auch
+  # Alt-Namen wie "... - KHB") plus Desktop und beide AppData. Netz-Ziele
+  # zaehlen hier nicht mit - dort wird nie geloescht (Finde-NetzStart).
   $treffer = @()
   foreach ($lnk in (Finde-Verknuepfungen)) {
     $zielPfad = Verknuepfungs-Ziel $lnk.FullName
@@ -86,9 +83,6 @@ function Finde-Exe-Alle {
   return @($treffer | Sort-Object FullName -Unique)
 }
 function Finde-NetzStart {
-  # Gibt es eine Verknuepfung, deren Ziel eine Cockpit-EXE auf dem
-  # LAUFWERK ist? Dann startet dieser Rechner das Programm vom Netz -
-  # das ist ein eingerichteter Zustand, nur eben ohne lokalen Ordner.
   foreach ($lnk in (Finde-Verknuepfungen)) {
     $zielPfad = Verknuepfungs-Ziel $lnk.FullName
     if ($zielPfad -and ($zielPfad -like "*Werkstatt-Cockpit.exe") -and (($zielPfad -like "\\*") -or ($zielPfad -like "//*"))) {
@@ -98,14 +92,11 @@ function Finde-NetzStart {
   return $null
 }
 function Finde-Verknuepfungen {
-  # Alle Verknuepfungen einsammeln, die zum Cockpit gehoeren - auch alte
-  # mit anderen Namen, solange ihr Ziel die Cockpit-EXE ist. Durchsucht
-  # werden Desktop und das Startmenue DES BENUTZERS (das gemeinsame
-  # Startmenue braucht Adminrechte und bleibt darum aussen vor).
   $funde = @()
   $orte = @()
   try { $orte += [Environment]::GetFolderPath("Desktop") } catch { }
   try { $orte += [Environment]::GetFolderPath("StartMenu") } catch { }
+  try { $orte += [Environment]::GetFolderPath("Startup") } catch { }
   $schale = New-Object -ComObject WScript.Shell
   foreach ($ort in $orte) {
     if (-not ($ort -and (Test-Path -LiteralPath $ort))) { continue }
@@ -120,9 +111,6 @@ function Finde-Verknuepfungen {
   return @($funde | Sort-Object FullName -Unique)
 }
 function Finde-Einstellungen {
-  # Die GEMERKTEN Pfade des Programms liegen in einstellungen.json unter
-  # dem Benutzerprofil. Der Ordnername haengt vom Electron-Programmnamen
-  # ab - beide Schreibweisen pruefen und nehmen, was wirklich da ist.
   foreach ($ordner in @("Werkstatt-Cockpit", "werkstatt-cockpit")) {
     $p = Join-Path (Join-Path $env:APPDATA $ordner) "einstellungen.json"
     if (Test-Path -LiteralPath $p) { return $p }
@@ -133,135 +121,254 @@ function Schreibe-OhneBom([string]$pfad, [string]$inhalt) {
   [System.IO.File]::WriteAllText($pfad, $inhalt, (New-Object System.Text.UTF8Encoding($false)))
 }
 function Datenordner-Aus([string]$datenDatei) {
-  # Der Datenordner ist der Ordner der Datendatei - kein eigenes Feld noetig.
   $o = ($datenDatei -replace "\\", "/")
   $schnitt = $o.LastIndexOf("/")
   if ($schnitt -gt 0) { return $o.Substring(0, $schnitt) }
   return $o
 }
+function Verknuepfung-Anlegen([string]$lnkPfad, [string]$exePfad, [string]$arg) {
+  # Eine Verknuepfung schreiben (Desktop oder Autostart). $arg z.B. "--vollbild".
+  $schale = New-Object -ComObject WScript.Shell
+  $v = $schale.CreateShortcut($lnkPfad)
+  $v.TargetPath = $exePfad
+  $v.WorkingDirectory = (Split-Path -Parent $exePfad)
+  $v.IconLocation = $exePfad
+  if ($arg) { $v.Arguments = $arg }
+  $v.Description = "BTA-Cockpit (Werkstatt-Cockpit) starten"
+  $v.Save()
+}
 
 # =============================================================================
-#  Das Fenster
+#  Farben
 # =============================================================================
-$fenster = New-Object System.Windows.Forms.Form
-$fenster.Text = "BTA-Cockpit - Werkzeug"
-$fenster.ClientSize = New-Object System.Drawing.Size(640, 600)
-$fenster.FormBorderStyle = "FixedSingle"
-$fenster.MaximizeBox = $false
-$fenster.StartPosition = "CenterScreen"
-$fenster.BackColor = [System.Drawing.Color]::White
-$fenster.Font = New-Object System.Drawing.Font("Segoe UI", 9.75)
-
 $dunkel = [System.Drawing.Color]::FromArgb(44, 49, 55)
 $gruen  = [System.Drawing.Color]::FromArgb(31, 122, 61)
 $orange = [System.Drawing.Color]::FromArgb(176, 108, 0)
 $rot    = [System.Drawing.Color]::FromArgb(192, 57, 43)
+$weiss  = [System.Drawing.Color]::White
 
-$lblTitel = New-Object System.Windows.Forms.Label
-$lblTitel.Text = "BTA-Cockpit"
-$lblTitel.Font = New-Object System.Drawing.Font("Segoe UI", 19, [System.Drawing.FontStyle]::Bold)
-$lblTitel.ForeColor = $dunkel
-$lblTitel.Location = New-Object System.Drawing.Point(18, 12)
-$lblTitel.AutoSize = $true
+# =============================================================================
+#  Das Fenster + Kopfband
+# =============================================================================
+$fenster = New-Object System.Windows.Forms.Form
+$fenster.Text = "BTA-Cockpit - Werkzeug"
+$fenster.ClientSize = New-Object System.Drawing.Size(660, 704)
+$fenster.FormBorderStyle = "FixedSingle"
+$fenster.MaximizeBox = $false
+$fenster.StartPosition = "CenterScreen"
+$fenster.BackColor = $weiss
+$fenster.Font = New-Object System.Drawing.Font("Segoe UI", 9.75)
 
-$lblUnter = New-Object System.Windows.Forms.Label
-$lblUnter.Text = "Einrichtung und Werkzeug fuer diesen Rechner"
-$lblUnter.ForeColor = [System.Drawing.Color]::Gray
-$lblUnter.Location = New-Object System.Drawing.Point(21, 52)
-$lblUnter.AutoSize = $true
+$band = New-Object System.Windows.Forms.Panel
+$band.Location = New-Object System.Drawing.Point(0, 0)
+$band.Size = New-Object System.Drawing.Size(660, 56)
+$band.BackColor = $dunkel
+$logo = New-Object System.Windows.Forms.Label
+$logo.Text = "B"
+$logo.Size = New-Object System.Drawing.Size(36, 36)
+$logo.Location = New-Object System.Drawing.Point(16, 10)
+$logo.TextAlign = "MiddleCenter"
+$logo.BackColor = [System.Drawing.Color]::FromArgb(192, 57, 43)
+$logo.ForeColor = $weiss
+$logo.Font = New-Object System.Drawing.Font("Segoe UI", 15, [System.Drawing.FontStyle]::Bold)
+$bTitel = New-Object System.Windows.Forms.Label
+$bTitel.Text = "BTA-Cockpit"
+$bTitel.Location = New-Object System.Drawing.Point(62, 7)
+$bTitel.AutoSize = $true
+$bTitel.ForeColor = $weiss
+$bTitel.BackColor = $dunkel
+$bTitel.Font = New-Object System.Drawing.Font("Segoe UI", 15, [System.Drawing.FontStyle]::Bold)
+$bUnter = New-Object System.Windows.Forms.Label
+$bUnter.Text = "Einrichtung und Werkzeug fuer diesen Rechner"
+$bUnter.Location = New-Object System.Drawing.Point(64, 34)
+$bUnter.AutoSize = $true
+$bUnter.ForeColor = [System.Drawing.Color]::FromArgb(199, 204, 210)
+$bUnter.BackColor = $dunkel
+$band.Controls.AddRange(@($logo, $bTitel, $bUnter))
 
 $lblPaket = New-Object System.Windows.Forms.Label
-$lblPaket.Location = New-Object System.Drawing.Point(21, 80)
+$lblPaket.Location = New-Object System.Drawing.Point(16, 62)
 $lblPaket.AutoSize = $true
 $lblRechner = New-Object System.Windows.Forms.Label
-$lblRechner.Location = New-Object System.Drawing.Point(21, 102)
+$lblRechner.Location = New-Object System.Drawing.Point(16, 82)
 $lblRechner.AutoSize = $true
 
-# ---- Pfad-Felder mit Durchsuchen-Knoepfen -----------------------------------
-$rahmen = New-Object System.Windows.Forms.GroupBox
-$rahmen.Text = " Die Pfade (Vorschlaege passen fuer die Werkstatt Scheurich) "
-$rahmen.Location = New-Object System.Drawing.Point(18, 130)
-$rahmen.Size = New-Object System.Drawing.Size(604, 185)
-$rahmen.ForeColor = $dunkel
+# =============================================================================
+#  Reiter
+# =============================================================================
+$reiter = New-Object System.Windows.Forms.TabControl
+$reiter.Location = New-Object System.Drawing.Point(12, 104)
+$reiter.Size = New-Object System.Drawing.Size(636, 388)
+$tabEin  = New-Object System.Windows.Forms.TabPage; $tabEin.Text  = "Einrichten"; $tabEin.BackColor = $weiss; $tabEin.UseVisualStyleBackColor = $true
+$tabTest = New-Object System.Windows.Forms.TabPage; $tabTest.Text = "Selbsttest"; $tabTest.BackColor = $weiss; $tabTest.UseVisualStyleBackColor = $true
+$tabWart = New-Object System.Windows.Forms.TabPage; $tabWart.Text = "Wartung";    $tabWart.BackColor = $weiss; $tabWart.UseVisualStyleBackColor = $true
+$reiter.Controls.AddRange(@($tabEin, $tabTest, $tabWart))
 
-function Neue-PfadZeile([int]$y, [string]$beschriftung) {
+# ---- Reiter EINRICHTEN ------------------------------------------------------
+# Standort-Vorlage
+$gbStandort = New-Object System.Windows.Forms.GroupBox
+$gbStandort.Text = " Standort-Vorlage "
+$gbStandort.Location = New-Object System.Drawing.Point(10, 8)
+$gbStandort.Size = New-Object System.Drawing.Size(608, 52)
+$rbScheurich = New-Object System.Windows.Forms.RadioButton
+$rbScheurich.Text = "Scheurich - Kleinheubach"
+$rbScheurich.Location = New-Object System.Drawing.Point(16, 20)
+$rbScheurich.Size = New-Object System.Drawing.Size(240, 22)
+$rbScheurich.Checked = $true
+$rbSoendgen = New-Object System.Windows.Forms.RadioButton
+$rbSoendgen.Text = "Soendgen - Ransbach"
+$rbSoendgen.Location = New-Object System.Drawing.Point(300, 20)
+$rbSoendgen.Size = New-Object System.Drawing.Size(240, 22)
+$gbStandort.Controls.AddRange(@($rbScheurich, $rbSoendgen))
+
+# Pfade
+$gbPfade = New-Object System.Windows.Forms.GroupBox
+$gbPfade.Text = " Die Pfade (aus der Vorlage - bei Bedarf aendern) "
+$gbPfade.Location = New-Object System.Drawing.Point(10, 66)
+$gbPfade.Size = New-Object System.Drawing.Size(608, 150)
+function Neue-PfadZeile($parent, [int]$y, [string]$beschriftung) {
   $l = New-Object System.Windows.Forms.Label
   $l.Text = $beschriftung
   $l.Location = New-Object System.Drawing.Point(12, ($y + 4))
-  $l.Size = New-Object System.Drawing.Size(150, 20)
+  $l.Size = New-Object System.Drawing.Size(140, 20)
   $t = New-Object System.Windows.Forms.TextBox
-  $t.Location = New-Object System.Drawing.Point(165, $y)
-  $t.Size = New-Object System.Drawing.Size(330, 24)
+  $t.Location = New-Object System.Drawing.Point(150, $y)
+  $t.Size = New-Object System.Drawing.Size(354, 24)
   $k = New-Object System.Windows.Forms.Button
   $k.Text = "Waehlen..."
-  $k.Location = New-Object System.Drawing.Point(503, ($y - 1))
-  $k.Size = New-Object System.Drawing.Size(88, 26)
+  $k.Location = New-Object System.Drawing.Point(512, ($y - 1))
+  $k.Size = New-Object System.Drawing.Size(84, 26)
   $k.FlatStyle = "System"
-  $rahmen.Controls.AddRange(@($l, $t, $k))
+  $parent.Controls.AddRange(@($l, $t, $k))
   return @{ Feld = $t; Knopf = $k }
 }
-$zZiel   = Neue-PfadZeile 28  "Programm-Ordner hier:"
-$zUpdate = Neue-PfadZeile 66  "Update-Ordner:"
-$zDaten  = Neue-PfadZeile 104 "Datendatei:"
-$zStoer  = Neue-PfadZeile 142 "Stoerungs-Datei:"
+$zZiel   = Neue-PfadZeile $gbPfade 24  "Programm-Ordner:"
+$zUpdate = Neue-PfadZeile $gbPfade 54  "Update-Ordner:"
+$zDaten  = Neue-PfadZeile $gbPfade 84  "Datendatei:"
+$zStoer  = Neue-PfadZeile $gbPfade 114 "Stoerungs-Datei:"
 
-function Waehle-Ordner([System.Windows.Forms.TextBox]$feld) {
-  $d = New-Object System.Windows.Forms.FolderBrowserDialog
-  $d.Description = "Ordner waehlen"
-  try { if ($feld.Text) { $d.SelectedPath = ($feld.Text -replace "/", "\") } } catch { }
-  if ($d.ShowDialog($fenster) -eq "OK") { $feld.Text = ($d.SelectedPath -replace "\\", "/") }
-}
-function Waehle-Datei([System.Windows.Forms.TextBox]$feld) {
-  $d = New-Object System.Windows.Forms.OpenFileDialog
-  $d.Filter = "Datendateien (*.json)|*.json|Alle Dateien (*.*)|*.*"
-  $d.CheckFileExists = $false   # eine noch nicht angelegte Datei ist erlaubt
-  try { if ($feld.Text) { $d.InitialDirectory = ((Datenordner-Aus $feld.Text) -replace "/", "\") } } catch { }
-  if ($d.ShowDialog($fenster) -eq "OK") { $feld.Text = ($d.FileName -replace "\\", "/") }
-}
-$zZiel.Knopf.Add_Click({ Waehle-Ordner $zZiel.Feld })
-$zUpdate.Knopf.Add_Click({ Waehle-Ordner $zUpdate.Feld })
-$zDaten.Knopf.Add_Click({ Waehle-Datei $zDaten.Feld })
-$zStoer.Knopf.Add_Click({ Waehle-Datei $zStoer.Feld })
+# Rechner-Art
+$gbArt = New-Object System.Windows.Forms.GroupBox
+$gbArt.Text = " Wozu dient dieser Rechner? "
+$gbArt.Location = New-Object System.Drawing.Point(10, 222)
+$gbArt.Size = New-Object System.Drawing.Size(608, 92)
+$rbArbeit = New-Object System.Windows.Forms.RadioButton
+$rbArbeit.Text = "Arbeitsplatz"
+$rbArbeit.Location = New-Object System.Drawing.Point(16, 20)
+$rbArbeit.Size = New-Object System.Drawing.Size(160, 22)
+$rbArbeit.Checked = $true
+$rbInfo = New-Object System.Windows.Forms.RadioButton
+$rbInfo.Text = "Info-Bildschirm (Morgenrunde)"
+$rbInfo.Location = New-Object System.Drawing.Point(210, 20)
+$rbInfo.Size = New-Object System.Drawing.Size(260, 22)
+$chkAutostart = New-Object System.Windows.Forms.CheckBox
+$chkAutostart.Text = "Beim Windows-Start automatisch oeffnen"
+$chkAutostart.Location = New-Object System.Drawing.Point(16, 44)
+$chkAutostart.Size = New-Object System.Drawing.Size(320, 20)
+$chkVollbild = New-Object System.Windows.Forms.CheckBox
+$chkVollbild.Text = "Im Vollbild starten (Kiosk, keine Bedienung)"
+$chkVollbild.Location = New-Object System.Drawing.Point(16, 66)
+$chkVollbild.Size = New-Object System.Drawing.Size(340, 20)
+$gbArt.Controls.AddRange(@($rbArbeit, $rbInfo, $chkAutostart, $chkVollbild))
 
-# ---- Aktions-Knoepfe ---------------------------------------------------------
-function Neuer-Knopf([int]$x, [int]$y, [int]$breite, [string]$text) {
+# Knoepfe
+$kEinrichten = New-Object System.Windows.Forms.Button
+$kEinrichten.Text = "Einrichten"
+$kEinrichten.Location = New-Object System.Drawing.Point(10, 322)
+$kEinrichten.Size = New-Object System.Drawing.Size(298, 34)
+$kEinrichten.FlatStyle = "Flat"
+$kEinrichten.BackColor = $gruen
+$kEinrichten.ForeColor = $weiss
+$kEinrichten.FlatAppearance.BorderColor = $gruen
+$kEinrichten.Font = New-Object System.Drawing.Font("Segoe UI", 9.75, [System.Drawing.FontStyle]::Bold)
+$kLaden = New-Object System.Windows.Forms.Button
+$kLaden.Text = "Programm herunterladen"
+$kLaden.Location = New-Object System.Drawing.Point(318, 322)
+$kLaden.Size = New-Object System.Drawing.Size(298, 34)
+$kLaden.FlatStyle = "System"
+$tabEin.Controls.AddRange(@($gbStandort, $gbPfade, $gbArt, $kEinrichten, $kLaden))
+
+# ---- Reiter SELBSTTEST ------------------------------------------------------
+$gbAmpel = New-Object System.Windows.Forms.GroupBox
+$gbAmpel.Text = " Ergebnis "
+$gbAmpel.Location = New-Object System.Drawing.Point(10, 8)
+$gbAmpel.Size = New-Object System.Drawing.Size(608, 220)
+$ampelZeilen = @()
+$ampelTitel = @("Laufwerk erreichbar", "Datendatei gefunden & lesbar", "Schreibrecht (Bearbeiter/Leser)", "Update-Ordner erreichbar", "Stoerungs-Datei erreichbar")
+for ($i = 0; $i -lt $ampelTitel.Count; $i++) {
+  $y = 30 + $i * 34
+  $dot = New-Object System.Windows.Forms.Panel
+  $dot.Location = New-Object System.Drawing.Point(18, ($y + 3))
+  $dot.Size = New-Object System.Drawing.Size(12, 12)
+  $dot.BackColor = [System.Drawing.Color]::FromArgb(200, 204, 208)
+  $lab = New-Object System.Windows.Forms.Label
+  $lab.Location = New-Object System.Drawing.Point(40, $y)
+  $lab.Size = New-Object System.Drawing.Size(552, 20)
+  $lab.Text = $ampelTitel[$i] + "  -  noch nicht geprueft"
+  $gbAmpel.Controls.AddRange(@($dot, $lab))
+  $ampelZeilen += @{ Dot = $dot; Lab = $lab; Titel = $ampelTitel[$i] }
+}
+$kSelbsttest = New-Object System.Windows.Forms.Button
+$kSelbsttest.Text = "Selbsttest starten"
+$kSelbsttest.Location = New-Object System.Drawing.Point(10, 238)
+$kSelbsttest.Size = New-Object System.Drawing.Size(298, 34)
+$kSelbsttest.FlatStyle = "Flat"
+$kSelbsttest.BackColor = $gruen
+$kSelbsttest.ForeColor = $weiss
+$kSelbsttest.FlatAppearance.BorderColor = $gruen
+$kSelbsttest.Font = New-Object System.Drawing.Font("Segoe UI", 9.75, [System.Drawing.FontStyle]::Bold)
+$kBericht = New-Object System.Windows.Forms.Button
+$kBericht.Text = "Pruefbericht speichern..."
+$kBericht.Location = New-Object System.Drawing.Point(318, 238)
+$kBericht.Size = New-Object System.Drawing.Size(298, 34)
+$kBericht.FlatStyle = "System"
+$tabTest.Controls.AddRange(@($gbAmpel, $kSelbsttest, $kBericht))
+
+# ---- Reiter WARTUNG ---------------------------------------------------------
+$gbPflege = New-Object System.Windows.Forms.GroupBox
+$gbPflege.Text = " Pflege & kleine Handgriffe "
+$gbPflege.Location = New-Object System.Drawing.Point(10, 8)
+$gbPflege.Size = New-Object System.Drawing.Size(608, 112)
+function Wartungs-Knopf($parent, [int]$x, [int]$y, [string]$text) {
   $k = New-Object System.Windows.Forms.Button
   $k.Text = $text
   $k.Location = New-Object System.Drawing.Point($x, $y)
-  $k.Size = New-Object System.Drawing.Size($breite, 34)
-  $k.FlatStyle = "Flat"
-  $k.BackColor = [System.Drawing.Color]::FromArgb(240, 242, 244)
-  $k.ForeColor = $dunkel
-  $k.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(200, 204, 208)
-  $fenster.Controls.Add($k)
+  $k.Size = New-Object System.Drawing.Size(286, 32)
+  $k.FlatStyle = "System"
+  $parent.Controls.Add($k)
   return $k
 }
-$kEinrichten = Neuer-Knopf 18 328 196 "Einrichten"
-$kEinrichten.BackColor = $gruen
-$kEinrichten.ForeColor = [System.Drawing.Color]::White
-$kEinrichten.FlatAppearance.BorderColor = $gruen
-$kEinrichten.Font = New-Object System.Drawing.Font("Segoe UI", 9.75, [System.Drawing.FontStyle]::Bold)
-$kLaden     = Neuer-Knopf 222 328 196 "Programm herunterladen"
-$kPruefen   = Neuer-Knopf 426 328 196 "Verbindung pruefen"
-$kSpeichern = Neuer-Knopf 222 368 196 "Pfade speichern"
-$kEntfernen = Neuer-Knopf 426 368 196 "Vom Rechner entfernen"
+$kUpdate   = Wartungs-Knopf $gbPflege 12 26  "Nach Update suchen"
+$kReparier = Wartungs-Knopf $gbPflege 308 26 "Verknuepfung reparieren"
+$kTaskbar  = Wartungs-Knopf $gbPflege 12 64  "An Taskleiste anheften"
+$kOeffnen  = Wartungs-Knopf $gbPflege 308 64 "Datenordner oeffnen"
 
-# ---- Fortschritt + Verlauf ---------------------------------------------------
+$gbReset = New-Object System.Windows.Forms.GroupBox
+$gbReset.Text = " Zuruecksetzen "
+$gbReset.Location = New-Object System.Drawing.Point(10, 128)
+$gbReset.Size = New-Object System.Drawing.Size(608, 68)
+$kSpeichern = Wartungs-Knopf $gbReset 12 26 "Pfade neu speichern"
+$kEntfernen = Wartungs-Knopf $gbReset 308 26 "Vom Rechner entfernen"
+$kEntfernen.ForeColor = $rot
+$tabWart.Controls.AddRange(@($gbPflege, $gbReset))
+
+# =============================================================================
+#  Dauerhaft sichtbar: Ladebalken + Protokoll (unter den Reitern)
+# =============================================================================
 $balken = New-Object System.Windows.Forms.ProgressBar
-$balken.Location = New-Object System.Drawing.Point(18, 414)
-$balken.Size = New-Object System.Drawing.Size(480, 12)
+$balken.Location = New-Object System.Drawing.Point(16, 500)
+$balken.Size = New-Object System.Drawing.Size(470, 12)
 $balken.Style = "Marquee"
 $balken.Visible = $false
-
 $lblFortschritt = New-Object System.Windows.Forms.Label
-$lblFortschritt.Location = New-Object System.Drawing.Point(506, 408)
-$lblFortschritt.Size = New-Object System.Drawing.Size(116, 20)
+$lblFortschritt.Location = New-Object System.Drawing.Point(492, 496)
+$lblFortschritt.Size = New-Object System.Drawing.Size(152, 18)
 $lblFortschritt.TextAlign = "MiddleRight"
 $lblFortschritt.ForeColor = [System.Drawing.Color]::Gray
 
 $logFeld = New-Object System.Windows.Forms.TextBox
-$logFeld.Location = New-Object System.Drawing.Point(18, 434)
-$logFeld.Size = New-Object System.Drawing.Size(604, 150)
+$logFeld.Location = New-Object System.Drawing.Point(12, 518)
+$logFeld.Size = New-Object System.Drawing.Size(636, 150)
 $logFeld.Multiline = $true
 $logFeld.ReadOnly = $true
 $logFeld.ScrollBars = "Vertical"
@@ -269,10 +376,25 @@ $logFeld.Font = New-Object System.Drawing.Font("Consolas", 9)
 $logFeld.BackColor = [System.Drawing.Color]::FromArgb(30, 33, 36)
 $logFeld.ForeColor = [System.Drawing.Color]::Gainsboro
 
-$fenster.Controls.AddRange(@($lblTitel, $lblUnter, $lblPaket, $lblRechner, $rahmen, $balken, $lblFortschritt, $logFeld))
+$kProtokoll = New-Object System.Windows.Forms.Button
+$kProtokoll.Text = "Protokoll speichern..."
+$kProtokoll.Location = New-Object System.Drawing.Point(496, 672)
+$kProtokoll.Size = New-Object System.Drawing.Size(152, 26)
+$kProtokoll.FlatStyle = "System"
+$lblProtokoll = New-Object System.Windows.Forms.Label
+$lblProtokoll.Text = "Protokoll - jede Aktion wird hier mitgeschrieben:"
+$lblProtokoll.Location = New-Object System.Drawing.Point(12, 676)
+$lblProtokoll.AutoSize = $true
+$lblProtokoll.ForeColor = [System.Drawing.Color]::Gray
 
+$fenster.Controls.AddRange(@($band, $lblPaket, $lblRechner, $reiter, $balken, $lblFortschritt, $logFeld, $lblProtokoll, $kProtokoll))
+
+# =============================================================================
+#  Gemeinsame Helfer (Protokoll, Meldungen, Status)
+# =============================================================================
 function Schreibe-Log([string]$text) {
-  $logFeld.AppendText($text + [Environment]::NewLine)
+  $zeit = (Get-Date).ToString("HH:mm:ss")
+  $logFeld.AppendText($zeit + "  " + $text + [Environment]::NewLine)
   [System.Windows.Forms.Application]::DoEvents()
 }
 function Melde([string]$text, [string]$titel = "BTA-Cockpit") {
@@ -291,14 +413,8 @@ function Aktualisiere-Status {
   if ($exeStatus) {
     $lblRechner.Text = "Rechner:  Cockpit ist eingerichtet"; $lblRechner.ForeColor = $gruen
   } elseif (Finde-NetzStart) {
-    # Kein lokaler Ordner, aber eine Verknuepfung aufs Laufwerk: dieser
-    # Rechner startet das Cockpit vom Netz - auch ein eingerichteter
-    # Zustand, nur eben ohne eigene Kopie.
     $lblRechner.Text = "Rechner:  Cockpit startet vom Laufwerk (Verknuepfung)"; $lblRechner.ForeColor = $gruen
   } elseif (Finde-Einstellungen) {
-    # Es gibt gemerkte Einstellungen, aber weder Verknuepfung noch
-    # Standardort fuehren zu einer EXE: das Cockpit lief hier schon,
-    # sein Ordner ist nur von hier aus nicht auffindbar.
     $lblRechner.Text = "Rechner:  Cockpit lief hier schon - Programm-Ordner nicht auffindbar"; $lblRechner.ForeColor = $orange
   } else {
     $lblRechner.Text = "Rechner:  Cockpit ist hier noch nicht eingerichtet"; $lblRechner.ForeColor = $orange
@@ -308,14 +424,58 @@ function Arbeit-Beginnt { $balken.Visible = $true;  [System.Windows.Forms.Applic
 function Arbeit-Fertig  { $balken.Visible = $false; $lblFortschritt.Text = ""; Aktualisiere-Status }
 
 # =============================================================================
+#  Standort-Vorlage: Felder fuellen (nur auf Klick, nicht beim Aufbau)
+# =============================================================================
+$script:initFertig = $false
+function Fuelle-Standort([string]$ordner, [string]$name) {
+  $zUpdate.Feld.Text = $ordner
+  $zDaten.Feld.Text  = $ordner + "/" + $DatenDateiName
+  $zStoer.Feld.Text  = $ordner + "/" + $StoerDateiName
+  Schreibe-Log ("Standort-Vorlage '" + $name + "' uebernommen - Pfade gefuellt.")
+}
+$rbScheurich.Add_CheckedChanged({ if ($script:initFertig -and $rbScheurich.Checked) { Fuelle-Standort $WerkstattOrdnerVorgabe "Scheurich" } })
+$rbSoendgen.Add_CheckedChanged({
+  if ($script:initFertig -and $rbSoendgen.Checked) {
+    Fuelle-Standort $SoendgenOrdnerVorgabe "Soendgen"
+    Schreibe-Log "  ACHTUNG: Der Soendgen-Pfad ist eine Annahme - bitte pruefen."
+  }
+})
+
+# Rechner-Art: Info-Bildschirm schlaegt Autostart+Vollbild vor.
+$rbInfo.Add_CheckedChanged({
+  if ($rbInfo.Checked) { $chkAutostart.Checked = $true; $chkVollbild.Checked = $true }
+})
+$rbArbeit.Add_CheckedChanged({
+  if ($rbArbeit.Checked) { $chkAutostart.Checked = $false; $chkVollbild.Checked = $false }
+})
+
+# Pfad-Waehlen
+function Waehle-Ordner([System.Windows.Forms.TextBox]$feld) {
+  $d = New-Object System.Windows.Forms.FolderBrowserDialog
+  $d.Description = "Ordner waehlen"
+  try { if ($feld.Text) { $d.SelectedPath = ($feld.Text -replace "/", "\") } } catch { }
+  if ($d.ShowDialog($fenster) -eq "OK") { $feld.Text = ($d.SelectedPath -replace "\\", "/"); Schreibe-Log ("Pfad gewaehlt: " + $feld.Text) }
+}
+function Waehle-Datei([System.Windows.Forms.TextBox]$feld) {
+  $d = New-Object System.Windows.Forms.OpenFileDialog
+  $d.Filter = "Datendateien (*.json)|*.json|Alle Dateien (*.*)|*.*"
+  $d.CheckFileExists = $false
+  try { if ($feld.Text) { $d.InitialDirectory = ((Datenordner-Aus $feld.Text) -replace "/", "\") } } catch { }
+  if ($d.ShowDialog($fenster) -eq "OK") { $feld.Text = ($d.FileName -replace "\\", "/"); Schreibe-Log ("Datei gewaehlt: " + $feld.Text) }
+}
+$zZiel.Knopf.Add_Click({ Waehle-Ordner $zZiel.Feld })
+$zUpdate.Knopf.Add_Click({ Waehle-Ordner $zUpdate.Feld })
+$zDaten.Knopf.Add_Click({ Waehle-Datei $zDaten.Feld })
+$zStoer.Knopf.Add_Click({ Waehle-Datei $zStoer.Feld })
+
+# =============================================================================
 #  Aktion: EINRICHTEN
 # =============================================================================
 $kEinrichten.Add_Click({
   try {
     if (-not (Test-Path -LiteralPath $programmZip)) {
-      Schreibe-Log "Das Programm-ZIP fehlt noch - erst 'Programm herunterladen' druecken"
-      Schreibe-Log "oder die Datei laut 04-Download-Links in 01-Programm legen."
-      Melde "Das Programm-ZIP fehlt noch.`n`nErst 'Programm herunterladen' druecken (holt den neuesten Stand vom Release) oder die Datei laut 04-Download-Links in den Ordner 01-Programm legen."
+      Schreibe-Log "Einrichten abgebrochen: Programm-ZIP fehlt."
+      Melde "Das Programm-ZIP fehlt noch.`n`nErst 'Programm herunterladen' druecken oder die Datei laut 04-Download-Links in den Ordner 01-Programm legen."
       return
     }
     $ziel = [Environment]::ExpandEnvironmentVariables($zZiel.Feld.Text.Trim())
@@ -327,17 +487,18 @@ $kEinrichten.Add_Click({
       return
     }
     $datenOrdner = Datenordner-Aus $datenDatei
-    $frage = "So einrichten?`n`nProgramm nach:`n  $ziel`n`nUpdate-Ordner:`n  $updateOrdner`nDatendatei:`n  $datenDatei`nStoerungs-Datei:`n  $stoerDatei"
-    if (-not (Frage-JaNein $frage "Einrichten")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
+    $art = if ($rbInfo.Checked) { "Info-Bildschirm" } else { "Arbeitsplatz" }
+    $extra = ""
+    if ($chkAutostart.Checked) { $extra += "`n  + beim Windows-Start automatisch" }
+    if ($chkVollbild.Checked)  { $extra += "`n  + im Vollbild (Kiosk)" }
+    $frage = "So einrichten?`n`nProgramm nach:`n  $ziel`n`nUpdate-Ordner:`n  $updateOrdner`nDatendatei:`n  $datenDatei`nStoerungs-Datei:`n  $stoerDatei`n`nRechner-Art: $art$extra"
+    if (-not (Frage-JaNein $frage "Einrichten")) { Schreibe-Log "Einrichten abgebrochen - nichts veraendert."; return }
 
     Arbeit-Beginnt
+    Schreibe-Log ("Einrichten gestartet. Rechner-Art: " + $art + ".")
     Schreibe-Log "Entpacke das Programm (ca. 110 MB, dauert einen Moment) ..."
     if (-not (Test-Path -LiteralPath $ziel)) { New-Item -ItemType Directory -Path $ziel -Force | Out-Null }
-    # Das Entpacken laeuft in einem Nebenlauf, damit das Fenster nicht einfriert.
-    $auftrag = Start-Job -ScriptBlock {
-      param($zip, $ziel)
-      Expand-Archive -LiteralPath $zip -DestinationPath $ziel -Force
-    } -ArgumentList $programmZip, $ziel
+    $auftrag = Start-Job -ScriptBlock { param($zip, $ziel) Expand-Archive -LiteralPath $zip -DestinationPath $ziel -Force } -ArgumentList $programmZip, $ziel
     while ($auftrag.State -eq "Running") { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 150 }
     $fehler = $null
     if ($auftrag.State -ne "Completed") { $fehler = "Das Entpacken ist fehlgeschlagen." }
@@ -346,15 +507,11 @@ $kEinrichten.Add_Click({
     if ($jobFehler) { $fehler = [string]$jobFehler[0] }
     if ($fehler) { throw $fehler }
 
-    # Die EXE liegt in der ZIP-Wurzel - zur Sicherheit trotzdem suchen, damit
-    # eine kuenftige ZIP-Struktur mit Unterordner die Einrichtung nicht bricht.
     $exe = Get-ChildItem -LiteralPath $ziel -Recurse -Filter "Werkstatt-Cockpit.exe" | Select-Object -First 1
     if (-not $exe) { throw "Nach dem Entpacken wurde keine Werkstatt-Cockpit.exe gefunden." }
-    $script:exeMerker = $exe.FullName   # frisch eingerichtet = ab jetzt der massgebliche Ort
+    $script:exeMerker = $exe.FullName
     Schreibe-Log ("entpackt: " + $exe.FullName)
 
-    # Vorbelegung neben die EXE - das Programm uebernimmt beim ersten Start
-    # NUR Schluessel, die auf dem Rechner noch nie gesetzt wurden.
     $json = @"
 {
   "_was_ist_das": "Vorbelegung fuer diesen Rechner - geschrieben vom BTA-Cockpit-Werkzeug. Es werden NUR Schluessel uebernommen, die auf dem Rechner noch nie gesetzt wurden.",
@@ -369,25 +526,31 @@ $kEinrichten.Add_Click({
     Schreibe-OhneBom $jsonPfad $json
     Schreibe-Log ("geschrieben: " + $jsonPfad)
 
+    # Startargument fuer den Info-Bildschirm (Vollbild wirkt ab der naechsten
+    # Programm-Fassung; aeltere ignorieren das Argument gefahrlos).
+    $arg = ""
+    if ($chkVollbild.Checked) { $arg = "--vollbild" }
+
     $desktop = [Environment]::GetFolderPath("Desktop")
     if ($desktop) {
-      $schale = New-Object -ComObject WScript.Shell
-      $v = $schale.CreateShortcut((Join-Path $desktop "Werkstatt-Cockpit.lnk"))
-      $v.TargetPath = $exe.FullName
-      $v.WorkingDirectory = $exe.DirectoryName
-      $v.IconLocation = $exe.FullName
-      $v.Description = "BTA-Cockpit (Werkstatt-Cockpit) starten"
-      $v.Save()
-      Schreibe-Log ("Verknuepfung: " + (Join-Path $desktop "Werkstatt-Cockpit.lnk"))
+      Verknuepfung-Anlegen (Join-Path $desktop "Werkstatt-Cockpit.lnk") $exe.FullName $arg
+      Schreibe-Log ("Desktop-Verknuepfung angelegt" + $(if ($arg) { " (Vollbild)" } else { "" }) + ".")
     } else {
       Schreibe-Log "Desktop-Ordner nicht gefunden - Verknuepfung bitte von Hand anlegen."
+    }
+    if ($chkAutostart.Checked) {
+      $startup = [Environment]::GetFolderPath("Startup")
+      if ($startup) {
+        Verknuepfung-Anlegen (Join-Path $startup "Werkstatt-Cockpit.lnk") $exe.FullName $arg
+        Schreibe-Log "Autostart eingerichtet (oeffnet sich beim Windows-Start)."
+      }
     }
     Arbeit-Fertig
     Schreibe-Log "Fertig eingerichtet."
     Melde "Fertig eingerichtet.`n`nErster Start: Desktop-Verknuepfung 'Werkstatt-Cockpit' doppelklicken. Windows-SmartScreen meldet sich nur beim allerersten Mal: 'Weitere Informationen' -> 'Trotzdem ausfuehren'."
   } catch {
     Arbeit-Fertig
-    Schreibe-Log ("FEHLER: " + $_)
+    Schreibe-Log ("FEHLER beim Einrichten: " + $_)
     Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
 })
@@ -411,7 +574,6 @@ $kLaden.Add_Click({
     Arbeit-Beginnt
     Schreibe-Log "Lade den neuesten Stand vom Release (ca. 110 MB) ..."
     Schreibe-Log $ProgrammZipUrl
-    # curl laeuft unsichtbar nebenher; das Fenster zeigt die geladenen MB.
     $lauf = Start-Process -FilePath "curl.exe" -ArgumentList @("-L", "-f", "-sS", "-o", ('"' + $programmZip + '"'), $ProgrammZipUrl) -WindowStyle Hidden -PassThru
     while (-not $lauf.HasExited) {
       if (Test-Path -LiteralPath $programmZip) {
@@ -434,54 +596,143 @@ $kLaden.Add_Click({
     Schreibe-Log ("Fertig: " + $mb + " MB liegen in 01-Programm. Weiter mit 'Einrichten'.")
   } catch {
     Arbeit-Fertig
-    Schreibe-Log ("FEHLER: " + $_)
+    Schreibe-Log ("FEHLER beim Download: " + $_)
     Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
 })
 
 # =============================================================================
-#  Aktion: VERBINDUNG PRUEFEN
+#  Aktion: SELBSTTEST (Ampel)
 # =============================================================================
-$kPruefen.Add_Click({
+function Setze-Ampel($zeile, [string]$farbe, [string]$text) {
+  switch ($farbe) {
+    "gruen" { $zeile.Dot.BackColor = [System.Drawing.Color]::FromArgb(34, 169, 90) }
+    "gelb"  { $zeile.Dot.BackColor = [System.Drawing.Color]::FromArgb(230, 184, 0) }
+    "rot"   { $zeile.Dot.BackColor = [System.Drawing.Color]::FromArgb(224, 80, 60) }
+  }
+  $zeile.Lab.Text = $zeile.Titel + "  -  " + $text
+  [System.Windows.Forms.Application]::DoEvents()
+}
+$kSelbsttest.Add_Click({
   try {
     Arbeit-Beginnt
-    $datenOrdner = Datenordner-Aus $zDaten.Feld.Text.Trim()
-    $pruefliste = @(
-      @{ Titel = "Update-Ordner";   Pfad = $zUpdate.Feld.Text.Trim() },
-      @{ Titel = "Datendatei";      Pfad = $zDaten.Feld.Text.Trim() },
-      @{ Titel = "Datenordner";     Pfad = $datenOrdner },
-      @{ Titel = "Stoerungs-Datei"; Pfad = $zStoer.Feld.Text.Trim() }
-    )
-    Schreibe-Log "Pruefe die Pfade aus den Feldern oben ..."
-    $alleGut = $true
-    foreach ($p in $pruefliste) {
-      $ok = $false
-      try { $ok = Test-Path -LiteralPath $p.Pfad } catch { $ok = $false }
-      if ($ok) { Schreibe-Log ("  erreichbar:       " + $p.Titel) }
-      else     { Schreibe-Log ("  NICHT erreichbar: " + $p.Titel + "  (" + $p.Pfad + ")"); $alleGut = $false }
-    }
-    # Schreibprobe: ein Nur-Leser-Rechner darf hier ruhig scheitern -
-    # das ist dann kein Fehler, sondern seine Rolle.
+    Schreibe-Log "Selbsttest gestartet."
+    $updateOrdner = $zUpdate.Feld.Text.Trim()
+    $datenDatei   = $zDaten.Feld.Text.Trim()
+    $stoerDatei   = $zStoer.Feld.Text.Trim()
+    $datenOrdner  = Datenordner-Aus $datenDatei
+
+    # 1) Laufwerk (Datenordner erreichbar)
+    if (Test-Path -LiteralPath $datenOrdner) { Setze-Ampel $ampelZeilen[0] "gruen" "erreichbar"; Schreibe-Log "  Laufwerk: erreichbar." }
+    else { Setze-Ampel $ampelZeilen[0] "rot" "NICHT erreichbar"; Schreibe-Log "  Laufwerk: NICHT erreichbar." }
+
+    # 2) Datendatei gefunden & lesbar
+    $datenOk = $false
+    try { if (Test-Path -LiteralPath $datenDatei) { [void][System.IO.File]::OpenRead($datenDatei).Close(); $datenOk = $true } } catch { $datenOk = $false }
+    if ($datenOk) { Setze-Ampel $ampelZeilen[1] "gruen" "gefunden und lesbar"; Schreibe-Log "  Datendatei: gefunden und lesbar." }
+    elseif (Test-Path -LiteralPath $datenDatei) { Setze-Ampel $ampelZeilen[1] "gelb" "gefunden, aber nicht lesbar"; Schreibe-Log "  Datendatei: gefunden, aber nicht lesbar." }
+    else { Setze-Ampel $ampelZeilen[1] "rot" "NICHT gefunden - Dateiname pruefen"; Schreibe-Log "  Datendatei: NICHT gefunden." }
+
+    # 3) Schreibrecht (Bearbeiter/Leser)
     $probe = Join-Path $datenOrdner ("werkzeug-schreibprobe-" + $env:COMPUTERNAME + ".tmp")
     try {
-      Schreibe-OhneBom $probe "Schreibprobe des BTA-Cockpit-Werkzeugs - darf geloescht werden."
+      Schreibe-OhneBom $probe "Schreibprobe - darf geloescht werden."
       Remove-Item -LiteralPath $probe -Force
-      Schreibe-Log "  Schreibprobe:     klappt - dieser Rechner kann bearbeiten."
+      Setze-Ampel $ampelZeilen[2] "gruen" "Schreibrecht - Bearbeiter"; Schreibe-Log "  Schreibrecht: ja (Bearbeiter)."
     } catch {
-      Schreibe-Log "  Schreibprobe:     kein Schreibrecht - als Leser-Rechner in Ordnung"
-      Schreibe-Log "                    (das Cockpit schaltet von selbst auf 'nur ansehen')."
+      Setze-Ampel $ampelZeilen[2] "gelb" "kein Schreibrecht - Leser (nur ansehen)"; Schreibe-Log "  Schreibrecht: nein - Leser-Rolle (in Ordnung)."
     }
+
+    # 4) Update-Ordner erreichbar
+    if (Test-Path -LiteralPath $updateOrdner) { Setze-Ampel $ampelZeilen[3] "gruen" "erreichbar"; Schreibe-Log "  Update-Ordner: erreichbar." }
+    else { Setze-Ampel $ampelZeilen[3] "rot" "NICHT erreichbar"; Schreibe-Log "  Update-Ordner: NICHT erreichbar." }
+
+    # 5) Stoerungs-Datei erreichbar
+    if (Test-Path -LiteralPath $stoerDatei) { Setze-Ampel $ampelZeilen[4] "gruen" "erreichbar"; Schreibe-Log "  Stoerungs-Datei: erreichbar." }
+    else { Setze-Ampel $ampelZeilen[4] "gelb" "noch nicht vorhanden (wird bei Bedarf angelegt)"; Schreibe-Log "  Stoerungs-Datei: noch nicht vorhanden." }
+
     Arbeit-Fertig
-    if ($alleGut) { Schreibe-Log "Alle Pfade erreichbar." }
-    else { Schreibe-Log "Mindestens ein Pfad ist nicht erreichbar - Pfad pruefen oder Netz/Laufwerk klaeren." }
+    Schreibe-Log "Selbsttest fertig."
   } catch {
     Arbeit-Fertig
-    Schreibe-Log ("FEHLER: " + $_)
+    Schreibe-Log ("FEHLER beim Selbsttest: " + $_)
+  }
+})
+$kBericht.Add_Click({
+  try {
+    $d = New-Object System.Windows.Forms.SaveFileDialog
+    $d.Filter = "Textdatei (*.txt)|*.txt"
+    $d.FileName = "BTA-Cockpit-Pruefbericht-" + $env:COMPUTERNAME + "-" + (Get-Date).ToString("yyyy-MM-dd") + ".txt"
+    try { $d.InitialDirectory = [Environment]::GetFolderPath("Desktop") } catch { }
+    if ($d.ShowDialog($fenster) -eq "OK") {
+      $kopf = "BTA-Cockpit - Pruefbericht" + [Environment]::NewLine +
+              "Rechner: " + $env:COMPUTERNAME + "   Benutzer: " + $env:USERNAME + [Environment]::NewLine +
+              "Zeit: " + (Get-Date).ToString("dd.MM.yyyy HH:mm") + [Environment]::NewLine +
+              ("-" * 50) + [Environment]::NewLine + [Environment]::NewLine
+      Schreibe-OhneBom $d.FileName ($kopf + $logFeld.Text)
+      Schreibe-Log ("Pruefbericht gespeichert: " + $d.FileName)
+    }
+  } catch {
+    Schreibe-Log ("FEHLER beim Speichern des Berichts: " + $_)
+    Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
 })
 
 # =============================================================================
-#  Aktion: PFADE SPEICHERN (Reparatur der gemerkten Einstellungen)
+#  Aktion: WARTUNG
+# =============================================================================
+$kUpdate.Add_Click({
+  try {
+    $updateOrdner = $zUpdate.Feld.Text.Trim()
+    Schreibe-Log "Suche im Update-Ordner nach einer neuen Fassung ..."
+    if (-not (Test-Path -LiteralPath $updateOrdner)) { Schreibe-Log "  Update-Ordner NICHT erreichbar."; Melde "Der Update-Ordner ist nicht erreichbar."; return }
+    $html = @(Get-ChildItem -LiteralPath $updateOrdner -Filter "*.html" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+    if ($html.Count -eq 0) { Schreibe-Log "  Keine HTML-Fassung im Update-Ordner gefunden."; return }
+    $neu = $html[0]
+    Schreibe-Log ("  Neueste Fassung: " + $neu.Name + "  (" + $neu.LastWriteTime.ToString("dd.MM.yyyy HH:mm") + ")")
+    Schreibe-Log "  Das Uebernehmen macht das Cockpit selbst - beim Start meldet sich der gruene Balken."
+  } catch { Schreibe-Log ("FEHLER: " + $_) }
+})
+$kReparier.Add_Click({
+  try {
+    $exe = Finde-Exe
+    if (-not $exe) { Melde "Es wurde keine eingerichtete Werkstatt-Cockpit.exe gefunden.`n`nDann bitte im Reiter 'Einrichten' neu aufsetzen."; return }
+    $desktop = [Environment]::GetFolderPath("Desktop")
+    Verknuepfung-Anlegen (Join-Path $desktop "Werkstatt-Cockpit.lnk") $exe.FullName ""
+    Schreibe-Log ("Verknuepfung repariert -> " + $exe.FullName)
+    Melde "Die Desktop-Verknuepfung wurde neu angelegt."
+  } catch { Schreibe-Log ("FEHLER: " + $_); Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler" }
+})
+$kTaskbar.Add_Click({
+  try {
+    $exe = Finde-Exe
+    if (-not $exe) { Melde "Es wurde keine eingerichtete Werkstatt-Cockpit.exe gefunden."; return }
+    $angeheftet = $false
+    try {
+      $shell = New-Object -ComObject Shell.Application
+      $ordner = $shell.Namespace((Split-Path -Parent $exe.FullName))
+      $item = $ordner.ParseName((Split-Path -Leaf $exe.FullName))
+      $verb = $item.Verbs() | Where-Object { ($_.Name -replace '&','') -match 'Taskleiste anheften|An Taskleiste|Pin to taskbar' } | Select-Object -First 1
+      if ($verb) { $verb.DoIt(); $angeheftet = $true }
+    } catch { $angeheftet = $false }
+    if ($angeheftet) { Schreibe-Log "An Taskleiste angeheftet." }
+    else {
+      Schreibe-Log "Anheften konnte nicht automatisch ausgeloest werden (Windows blockt das oft)."
+      Melde "Windows laesst das Anheften nicht immer automatisch zu.`n`nBitte die Desktop-Verknuepfung 'Werkstatt-Cockpit' mit der rechten Maustaste anklicken -> 'An Taskleiste anheften'."
+    }
+  } catch { Schreibe-Log ("FEHLER: " + $_) }
+})
+$kOeffnen.Add_Click({
+  try {
+    $datenOrdner = (Datenordner-Aus $zDaten.Feld.Text.Trim()) -replace "/", "\"
+    Schreibe-Log ("Oeffne Datenordner: " + $datenOrdner)
+    if (Test-Path -LiteralPath $datenOrdner) { Start-Process "explorer.exe" $datenOrdner }
+    else { Melde "Der Datenordner ist nicht erreichbar:`n$datenOrdner" }
+  } catch { Schreibe-Log ("FEHLER: " + $_) }
+})
+
+# =============================================================================
+#  Aktion: PFADE SPEICHERN
 # =============================================================================
 $kSpeichern.Add_Click({
   try {
@@ -491,7 +742,7 @@ $kSpeichern.Add_Click({
     $datenOrdner  = Datenordner-Aus $datenDatei
     $einstellungen = Finde-Einstellungen
     if ($einstellungen) {
-      if (-not (Frage-JaNein "Die vier Pfade aus den Feldern oben in die GEMERKTEN Einstellungen des Cockpits schreiben?`n`nWICHTIG: Das Cockpit vorher SCHLIESSEN - sonst ueberschreibt es die Aenderung beim Beenden wieder.`n`nEine Sicherung der alten Datei wird daneben abgelegt." "Pfade speichern")) { return }
+      if (-not (Frage-JaNein "Die vier Pfade aus den Feldern in die GEMERKTEN Einstellungen des Cockpits schreiben?`n`nWICHTIG: Das Cockpit vorher SCHLIESSEN - sonst ueberschreibt es die Aenderung beim Beenden wieder.`n`nEine Sicherung der alten Datei wird daneben abgelegt." "Pfade speichern")) { return }
       $json = Get-Content -LiteralPath $einstellungen -Raw | ConvertFrom-Json
       foreach ($paar in @(
         @{ Name = "programm:update-ordner";         Wert = $updateOrdner },
@@ -499,22 +750,15 @@ $kSpeichern.Add_Click({
         @{ Name = "werkstatt-kalender-fs:folder";   Wert = $datenOrdner },
         @{ Name = "werkstatt-stoerungen-fs:handle"; Wert = $stoerDatei })) {
         $feld = $json.PSObject.Properties[$paar.Name]
-        if ($feld) { $feld.Value = $paar.Wert }
-        else { $json | Add-Member -NotePropertyName $paar.Name -NotePropertyValue $paar.Wert }
+        if ($feld) { $feld.Value = $paar.Wert } else { $json | Add-Member -NotePropertyName $paar.Name -NotePropertyValue $paar.Wert }
       }
       Copy-Item -LiteralPath $einstellungen -Destination ($einstellungen + ".sicherung") -Force
       Schreibe-OhneBom $einstellungen (ConvertTo-Json $json -Depth 10)
-      Schreibe-Log ("Gespeichert: " + $einstellungen)
-      Schreibe-Log ("Sicherung:   " + $einstellungen + ".sicherung")
-      Schreibe-Log "Beim naechsten Start nutzt das Cockpit die neuen Pfade."
+      Schreibe-Log ("Pfade gespeichert: " + $einstellungen)
+      Schreibe-Log ("Sicherung daneben: " + $einstellungen + ".sicherung")
     } else {
-      # Noch keine gemerkten Einstellungen: dann als Vorbelegung neben die
-      # EXE schreiben (gilt nur fuer noch nie gesetzte Schluessel).
       $exe = Finde-Exe
-      if (-not $exe) {
-        Melde "Auf diesem Rechner wurden weder gemerkte Einstellungen noch ein eingerichtetes Cockpit gefunden.`n`nDann genuegt der Knopf 'Einrichten' - er schreibt die Pfade gleich mit."
-        return
-      }
+      if (-not $exe) { Melde "Weder gemerkte Einstellungen noch ein eingerichtetes Cockpit gefunden.`n`nDann genuegt 'Einrichten' - es schreibt die Pfade mit."; return }
       $json = @"
 {
   "_was_ist_das": "Vorbelegung fuer diesen Rechner - geschrieben vom BTA-Cockpit-Werkzeug. Es werden NUR Schluessel uebernommen, die auf dem Rechner noch nie gesetzt wurden.",
@@ -528,10 +772,9 @@ $kSpeichern.Add_Click({
       $jsonPfad = Join-Path $exe.DirectoryName "standard-einstellungen.json"
       Schreibe-OhneBom $jsonPfad $json
       Schreibe-Log ("Vorbelegung geschrieben: " + $jsonPfad)
-      Schreibe-Log "(Sie gilt nur fuer Schluessel, die noch nie gesetzt wurden.)"
     }
   } catch {
-    Schreibe-Log ("FEHLER: " + $_)
+    Schreibe-Log ("FEHLER beim Speichern: " + $_)
     Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
 })
@@ -541,19 +784,13 @@ $kSpeichern.Add_Click({
 # =============================================================================
 $kEntfernen.Add_Click({
   try {
-    # Robertos Ansage: ALLES vom Cockpit auf diesem Rechner abraeumen -
-    # auch alte Verknuepfungen und Alt-Versionen - damit man danach
-    # frisch einrichten kann. Das Firmenlaufwerk bleibt grundsaetzlich
-    # unberuehrt.
     Arbeit-Beginnt
-    Schreibe-Log "Suche alles vom Cockpit auf DIESEM Rechner (Desktop + AppData) ..."
+    Schreibe-Log "Entfernen: suche alles vom Cockpit auf DIESEM Rechner ..."
     $exes = Finde-Exe-Alle
     $verknuepfungen = Finde-Verknuepfungen
     $einstellungen = Finde-Einstellungen
     Arbeit-Fertig
 
-    # Schutzgelaender 1: niemals Desktop, AppData oder das Benutzerprofil
-    # selbst loeschen, falls eine EXE dort ohne eigenen Ordner liegt.
     $tabu = @()
     foreach ($t in @([Environment]::GetFolderPath("Desktop"), $env:LOCALAPPDATA, $env:APPDATA, $env:USERPROFILE)) {
       if ($t) { $tabu += $t.TrimEnd("\").ToLower() }
@@ -562,75 +799,71 @@ $kEntfernen.Add_Click({
     $handarbeit = @()
     foreach ($exe in $exes) {
       $o = $exe.DirectoryName
-      # Schutzgelaender 2: Netzpfade bleiben immer tabu.
       if ($o -like "\\*" -or $o -like "//*") { continue }
       if ($tabu -contains $o.TrimEnd("\").ToLower()) { $handarbeit += $exe.FullName; continue }
-      # Schutzgelaender 3: nur Ordner loeschen, die auch wie ein
-      # Programm-Ordner aussehen (Electron bringt einen resources-
-      # Unterordner mit) - sonst koennte ein Sammelordner mit anderen
-      # Dingen mitgerissen werden.
       $siehtRichtigAus = (Test-Path -LiteralPath (Join-Path $o "resources")) -or ((Split-Path -Leaf $o) -like "*Cockpit*")
       if (-not $siehtRichtigAus) { $handarbeit += $exe.FullName; continue }
       $ordnerListe += $o
     }
     $ordnerListe = @($ordnerListe | Sort-Object -Unique)
 
-    if ((-not $ordnerListe) -and (-not $verknuepfungen) -and (-not $einstellungen)) {
-      Schreibe-Log "Hier gibt es nichts zu entfernen."
-      return
-    }
+    if ((-not $ordnerListe) -and (-not $verknuepfungen) -and (-not $einstellungen)) { Schreibe-Log "Hier gibt es nichts zu entfernen."; return }
     $liste = @()
     $netzHinweis = $false
     foreach ($o in $ordnerListe) { $liste += ("Programm-Ordner:  " + $o) }
     foreach ($v in $verknuepfungen) {
-      # Das Ziel mit festhalten - sonst ist nach dem Loeschen die
-      # Information verloren, wo das Programm eigentlich lag.
       $zielPfad = Verknuepfungs-Ziel $v.FullName
       if ($zielPfad) {
         $liste += ("Verknuepfung:     " + $v.FullName + "  (zeigt auf: " + $zielPfad + ")")
         if (($zielPfad -like "\\*") -or ($zielPfad -like "//*")) { $netzHinweis = $true }
-      } else {
-        $liste += ("Verknuepfung:     " + $v.FullName)
-      }
+      } else { $liste += ("Verknuepfung:     " + $v.FullName) }
     }
     if ($einstellungen) { $liste += ("Gemerkte Pfade:   " + (Split-Path -Parent $einstellungen)) }
     foreach ($z in $liste) { Schreibe-Log ("  gefunden: " + $z) }
-    if ($netzHinweis) {
-      Schreibe-Log "  Hinweis: mindestens eine Verknuepfung zeigt aufs LAUFWERK -"
-      Schreibe-Log "  dort wird nichts geloescht, nur die Verknuepfung selbst."
-    }
+    if ($netzHinweis) { Schreibe-Log "  Hinweis: eine Verknuepfung zeigt aufs LAUFWERK - dort wird nichts geloescht, nur die Verknuepfung." }
 
     $frage = "Vom Rechner entfernen?`n`n" + ($liste -join "`n") + "`n`nDie gemeinsamen Dateien auf dem Firmenlaufwerk bleiben unberuehrt."
-    if (-not (Frage-JaNein $frage "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
+    if (-not (Frage-JaNein $frage "Entfernen")) { Schreibe-Log "Entfernen abgebrochen - nichts veraendert."; return }
     if ($ordnerListe.Count -gt 0) {
-      if (-not (Frage-JaNein ("Wirklich sicher? Es werden " + $ordnerListe.Count + " Programm-Ordner samt Inhalt geloescht.") "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
+      if (-not (Frage-JaNein ("Wirklich sicher? Es werden " + $ordnerListe.Count + " Programm-Ordner samt Inhalt geloescht.") "Entfernen")) { Schreibe-Log "Entfernen abgebrochen - nichts veraendert."; return }
     }
-
-    foreach ($o in $ordnerListe) {
-      Remove-Item -LiteralPath $o -Recurse -Force
-      Schreibe-Log ("entfernt: " + $o)
-    }
-    foreach ($v in $verknuepfungen) {
-      Remove-Item -LiteralPath $v.FullName -Force -ErrorAction SilentlyContinue
-      Schreibe-Log ("entfernt: " + $v.FullName)
-    }
-    foreach ($h in $handarbeit) {
-      Schreibe-Log ("NICHT angefasst (liegt direkt in einem Grundordner - bitte von Hand): " + $h)
-    }
+    foreach ($o in $ordnerListe) { Remove-Item -LiteralPath $o -Recurse -Force; Schreibe-Log ("entfernt: " + $o) }
+    foreach ($v in $verknuepfungen) { Remove-Item -LiteralPath $v.FullName -Force -ErrorAction SilentlyContinue; Schreibe-Log ("entfernt: " + $v.FullName) }
+    foreach ($h in $handarbeit) { Schreibe-Log ("NICHT angefasst (liegt direkt in einem Grundordner - bitte von Hand): " + $h) }
     if ($einstellungen) {
       if (Frage-JaNein "Auch die gemerkten Einstellungen (Pfade) dieses Rechners loeschen?`n`n'Nein' behaelt sie - eine Neu-Einrichtung findet die Pfade dann sofort wieder." "Entfernen") {
         Remove-Item -LiteralPath (Split-Path -Parent $einstellungen) -Recurse -Force
         Schreibe-Log "Gemerkte Einstellungen entfernt."
-      } else {
-        Schreibe-Log "Gemerkte Einstellungen bleiben (gut fuer eine Neu-Einrichtung)."
-      }
+      } else { Schreibe-Log "Gemerkte Einstellungen bleiben (gut fuer eine Neu-Einrichtung)." }
     }
-    $script:exeMerker = $null   # der gemerkte Fundort ist damit hinfaellig
+    $script:exeMerker = $null
     Aktualisiere-Status
     Schreibe-Log "Fertig - der Rechner ist sauber. 'Einrichten' richtet alles frisch ein."
   } catch {
     Arbeit-Fertig
-    Schreibe-Log ("FEHLER: " + $_)
+    Schreibe-Log ("FEHLER beim Entfernen: " + $_)
+    Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
+  }
+})
+
+# =============================================================================
+#  Protokoll speichern (der Verlauf unten)
+# =============================================================================
+$kProtokoll.Add_Click({
+  try {
+    $d = New-Object System.Windows.Forms.SaveFileDialog
+    $d.Filter = "Textdatei (*.txt)|*.txt"
+    $d.FileName = "BTA-Cockpit-Protokoll-" + $env:COMPUTERNAME + "-" + (Get-Date).ToString("yyyy-MM-dd_HHmm") + ".txt"
+    try { $d.InitialDirectory = [Environment]::GetFolderPath("Desktop") } catch { }
+    if ($d.ShowDialog($fenster) -eq "OK") {
+      $kopf = "BTA-Cockpit - Protokoll" + [Environment]::NewLine +
+              "Rechner: " + $env:COMPUTERNAME + "   Benutzer: " + $env:USERNAME + [Environment]::NewLine +
+              ("-" * 50) + [Environment]::NewLine + [Environment]::NewLine
+      Schreibe-OhneBom $d.FileName ($kopf + $logFeld.Text)
+      Schreibe-Log ("Protokoll gespeichert: " + $d.FileName)
+    }
+  } catch {
+    Schreibe-Log ("FEHLER beim Speichern des Protokolls: " + $_)
     Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
 })
@@ -641,9 +874,7 @@ $kEntfernen.Add_Click({
 $exe = Finde-Exe
 if ($exe) { $zZiel.Feld.Text = (Split-Path -Parent $exe.FullName) } else { $zZiel.Feld.Text = $ZielVorgabe }
 
-# Beste bekannte Pfade einsammeln: zuerst die gemerkten Einstellungen des
-# Programms, sonst die Scheurich-Vorgaben dieses Pakets.
-$quelle = "Vorgaben dieses Pakets"
+$quelle = "Vorgaben dieses Pakets (Scheurich)"
 $zUpdate.Feld.Text = $WerkstattOrdnerVorgabe
 $zDaten.Feld.Text  = $WerkstattOrdnerVorgabe + "/" + $DatenDateiName
 $zStoer.Feld.Text  = $WerkstattOrdnerVorgabe + "/" + $StoerDateiName
@@ -666,5 +897,6 @@ if ($einstellungen) {
 Aktualisiere-Status
 if ($exe) { Schreibe-Log ("Cockpit gefunden: " + $exe.FullName) }
 Schreibe-Log ("Bereit. Pfad-Felder vorbelegt aus: " + $quelle)
-Schreibe-Log "Neuer Rechner: Felder pruefen (oder einfach lassen) und 'Einrichten' druecken."
+Schreibe-Log "Neuer Rechner: Felder pruefen (oder lassen), Rechner-Art waehlen, 'Einrichten' druecken."
+$script:initFertig = $true
 [void]$fenster.ShowDialog()

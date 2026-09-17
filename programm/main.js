@@ -377,6 +377,15 @@ function erstelleFenster() {
   });
   Menu.setApplicationMenu(null);
 
+  // Info-Bildschirm (Robertos Wunsch vom 17.09.): Wird das Programm mit
+  // "--vollbild" gestartet (so legt es das Werkzeug bei einem Info-/
+  // Morgenrunden-Bildschirm an), oeffnet es sich im Vollbild. Fuer normale
+  // Arbeitsplaetze bleibt es beim festen Fenster. Ein unbekanntes Argument
+  // schadet nie - aeltere Fassungen ignorieren es einfach.
+  if (process.argv.includes("--vollbild")) {
+    fenster.setFullScreen(true);
+  }
+
   // Weblinks (Linkbereich) im normalen Browser öffnen, nicht im Programm.
   // Druckfenster (about:blank) dagegen gehören zum Programm.
   fenster.webContents.setWindowOpenHandler(({ url }) => {
