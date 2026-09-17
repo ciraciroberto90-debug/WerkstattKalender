@@ -39,6 +39,21 @@ $programmZip = Join-Path $paket "01-Programm\Werkstatt-Cockpit-Programm-win64.zi
 #  Lage-Helfer (identisch zur App-Logik in programm/main.js)
 # =============================================================================
 function Finde-Exe {
+  # Robertos Fund vom ersten Windows-Lauf (17.09.): Sein Cockpit liegt
+  # NICHT am Standardort, sondern wo eine fruehere Einrichtung es
+  # hingelegt hat. Deshalb zuerst der Desktop-Verknuepfung folgen -
+  # sie zeigt auf den echten Ort, egal wo der ist.
+  try {
+    $desktop = [Environment]::GetFolderPath("Desktop")
+    $lnk = Join-Path $desktop "Werkstatt-Cockpit.lnk"
+    if (Test-Path -LiteralPath $lnk) {
+      $schale = New-Object -ComObject WScript.Shell
+      $zielPfad = $schale.CreateShortcut($lnk).TargetPath
+      if ($zielPfad -and (Test-Path -LiteralPath $zielPfad) -and $zielPfad -like "*Werkstatt-Cockpit.exe") {
+        return (Get-Item -LiteralPath $zielPfad)
+      }
+    }
+  } catch { }
   $kandidat = Join-Path $ZielVorgabe "Werkstatt-Cockpit.exe"
   if (Test-Path -LiteralPath $kandidat) { return (Get-Item -LiteralPath $kandidat) }
   if (Test-Path -LiteralPath $ZielVorgabe) {
@@ -215,8 +230,14 @@ function Aktualisiere-Status {
   } else {
     $lblPaket.Text = "Paket:  Programm-ZIP fehlt noch - 'Programm herunterladen' holt es"; $lblPaket.ForeColor = $orange
   }
-  if (Finde-Exe) {
+  $exeStatus = Finde-Exe
+  if ($exeStatus) {
     $lblRechner.Text = "Rechner:  Cockpit ist eingerichtet"; $lblRechner.ForeColor = $gruen
+  } elseif (Finde-Einstellungen) {
+    # Es gibt gemerkte Einstellungen, aber weder Verknuepfung noch
+    # Standardort fuehren zu einer EXE: das Cockpit lief hier schon,
+    # sein Ordner ist nur von hier aus nicht auffindbar.
+    $lblRechner.Text = "Rechner:  Cockpit lief hier schon - Programm-Ordner nicht auffindbar"; $lblRechner.ForeColor = $orange
   } else {
     $lblRechner.Text = "Rechner:  Cockpit ist hier noch nicht eingerichtet"; $lblRechner.ForeColor = $orange
   }
