@@ -28,12 +28,17 @@ Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 # ---- Feste Werte ------------------------------------------------------------
+# Der Update-Ordner (die neue Programm-HTML) liegt auf dem Firmenlaufwerk und
+# ist fuer BEIDE Standorte derselbe - so bekommt Soendgen Keramik dieselben
+# Programm-Updates wie Scheurich (Robertos Ansage vom 17.09.).
 $WerkstattOrdnerVorgabe = "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender"
-# Soendgen-Pfad ist eine ANNAHME - beim ersten Soendgen-Rechner pruefen und
-# mir den echten Pfad nennen, dann wird er hier fest hinterlegt.
-$SoendgenOrdnerVorgabe  = "//SCHEUDC1/PSG_Gruppe/16_Technik/03_Soendgen/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender"
 $DatenDateiName = "kalender-daten.json"
 $StoerDateiName = "werkstatt-stoerungen.json"
+# Soendgen Keramik nutzt DENSELBEN Update-Ordner, hat aber EIGENE Daten- und
+# Stoerungs-Dateien (getrennte Daten je Standort). Die Namen sind ein
+# Vorschlag im selben Ordner - Ort/Name beim ersten SK-Rechner bestaetigen.
+$SK_DatenName = "kalender-daten-soendgen.json"
+$SK_StoerName = "werkstatt-stoerungen-soendgen.json"
 $ZielVorgabe    = Join-Path $env:LOCALAPPDATA "Werkstatt-Cockpit"
 $ProgrammZipUrl = "https://github.com/ciraciroberto90-debug/WerkstattKalender/releases/latest/download/Werkstatt-Cockpit-Programm-win64.zip"
 
@@ -211,12 +216,12 @@ $gbStandort.Text = " Standort-Vorlage "
 $gbStandort.Location = New-Object System.Drawing.Point(10, 8)
 $gbStandort.Size = New-Object System.Drawing.Size(608, 52)
 $rbScheurich = New-Object System.Windows.Forms.RadioButton
-$rbScheurich.Text = "Scheurich - Kleinheubach"
+$rbScheurich.Text = "Scheurich"
 $rbScheurich.Location = New-Object System.Drawing.Point(16, 20)
 $rbScheurich.Size = New-Object System.Drawing.Size(240, 22)
 $rbScheurich.Checked = $true
 $rbSoendgen = New-Object System.Windows.Forms.RadioButton
-$rbSoendgen.Text = "Soendgen - Ransbach"
+$rbSoendgen.Text = "Soendgen Keramik"
 $rbSoendgen.Location = New-Object System.Drawing.Point(300, 20)
 $rbSoendgen.Size = New-Object System.Drawing.Size(240, 22)
 $gbStandort.Controls.AddRange(@($rbScheurich, $rbSoendgen))
@@ -427,17 +432,23 @@ function Arbeit-Fertig  { $balken.Visible = $false; $lblFortschritt.Text = ""; A
 #  Standort-Vorlage: Felder fuellen (nur auf Klick, nicht beim Aufbau)
 # =============================================================================
 $script:initFertig = $false
-function Fuelle-Standort([string]$ordner, [string]$name) {
-  $zUpdate.Feld.Text = $ordner
-  $zDaten.Feld.Text  = $ordner + "/" + $DatenDateiName
-  $zStoer.Feld.Text  = $ordner + "/" + $StoerDateiName
+function Fuelle-Standort([string]$upd, [string]$daten, [string]$stoer, [string]$name) {
+  $zUpdate.Feld.Text = $upd
+  $zDaten.Feld.Text  = $daten
+  $zStoer.Feld.Text  = $stoer
   Schreibe-Log ("Standort-Vorlage '" + $name + "' uebernommen - Pfade gefuellt.")
 }
-$rbScheurich.Add_CheckedChanged({ if ($script:initFertig -and $rbScheurich.Checked) { Fuelle-Standort $WerkstattOrdnerVorgabe "Scheurich" } })
+$rbScheurich.Add_CheckedChanged({
+  if ($script:initFertig -and $rbScheurich.Checked) {
+    Fuelle-Standort $WerkstattOrdnerVorgabe ($WerkstattOrdnerVorgabe + "/" + $DatenDateiName) ($WerkstattOrdnerVorgabe + "/" + $StoerDateiName) "Scheurich"
+  }
+})
 $rbSoendgen.Add_CheckedChanged({
   if ($script:initFertig -and $rbSoendgen.Checked) {
-    Fuelle-Standort $SoendgenOrdnerVorgabe "Soendgen"
-    Schreibe-Log "  ACHTUNG: Der Soendgen-Pfad ist eine Annahme - bitte pruefen."
+    # Gleicher Update-Ordner wie Scheurich, aber eigene SK-Dateien.
+    Fuelle-Standort $WerkstattOrdnerVorgabe ($WerkstattOrdnerVorgabe + "/" + $SK_DatenName) ($WerkstattOrdnerVorgabe + "/" + $SK_StoerName) "Soendgen Keramik"
+    Schreibe-Log "  Soendgen: selber Update-Ordner, eigene Daten-/Stoerungs-Datei."
+    Schreibe-Log "  SK-Datei-Namen/Ort bitte bestaetigen; die Datei selbst wird in der App angelegt."
   }
 })
 
@@ -545,9 +556,22 @@ $kEinrichten.Add_Click({
         Schreibe-Log "Autostart eingerichtet (oeffnet sich beim Windows-Start)."
       }
     }
+    # Gibt es die gemeinsame Datendatei schon? Wenn nicht (typisch beim
+    # ERSTEN Rechner eines Standorts, z.B. Soendgen Keramik), wird sie NICHT
+    # vom Werkzeug angelegt - das macht die App richtig und mit
+    # Konflikt-Waechter. Hier nur der Hinweis darauf.
+    $hinweisNeu = ""
+    $datenPruef = ($datenDatei -replace "/", "\")
+    try {
+      if (-not (Test-Path -LiteralPath $datenPruef)) {
+        Schreibe-Log "Hinweis: Die gemeinsame Datendatei gibt es an diesem Pfad noch nicht (beim ersten Rechner eines Standorts normal)."
+        $hinweisNeu = "`n`nHinweis: Die gemeinsame Datendatei gibt es an diesem Pfad noch nicht. Das ist beim ERSTEN Rechner eines Standorts normal. Im Cockpit einmal 'Neue gemeinsame Datei anlegen' waehlen - alle weiteren Rechner oeffnen sie dann nur noch."
+      }
+    } catch { }
+
     Arbeit-Fertig
     Schreibe-Log "Fertig eingerichtet."
-    Melde "Fertig eingerichtet.`n`nErster Start: Desktop-Verknuepfung 'Werkstatt-Cockpit' doppelklicken. Windows-SmartScreen meldet sich nur beim allerersten Mal: 'Weitere Informationen' -> 'Trotzdem ausfuehren'."
+    Melde ("Fertig eingerichtet.`n`nErster Start: Desktop-Verknuepfung 'Werkstatt-Cockpit' doppelklicken. Windows-SmartScreen meldet sich nur beim allerersten Mal: 'Weitere Informationen' -> 'Trotzdem ausfuehren'." + $hinweisNeu)
   } catch {
     Arbeit-Fertig
     Schreibe-Log ("FEHLER beim Einrichten: " + $_)
