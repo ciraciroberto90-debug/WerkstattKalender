@@ -871,12 +871,24 @@ Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
       liegt nur fertig gerendert im Repo - es gibt keine HTML/Markdown-Quelle,
       Änderungen (z. B. der Einrichten.cmd-Weg als neuer erster Weg) sind
       nicht sauber möglich. Quelle nachbauen, dann PDF neu erzeugen.
+- [ ] **GitHub-Release veröffentlichen – der Ein-Link-Weg (Robertos
+      Handgriff, beschlossen am 17.09.).** Ziel: eine einzige Datei
+      `BTA-Cockpit-Komplettpaket.zip` (der komplette Stick-Ordner samt
+      Programm-ZIP) als Release im Projekt – dann heißt ein neuer Rechner
+      nur noch Link → entpacken → `Einrichten.cmd`. Die Klick-Anleitung
+      mit fertigem Release-Text steht in
+      `programm/verteilung/RELEASE-ANLEITUNG.txt` (ZIP am eigenen Rechner
+      per Rechtsklick bauen, Dateiname muss exakt stimmen, Tag v1.0,
+      hochladen, veröffentlichen, Prüf-Link klicken). Von der Sitzung aus
+      nicht machbar: die GitHub-Werkzeuge hier können Releases nur lesen,
+      nicht befüllen. `DOWNLOAD-LINKS.txt` trägt den festen
+      `releases/latest`-Link bereits als Weg 1.
 - [ ] **Stolperstein Download-Adressen am Arbeits-Zweig:** Die drei
-      Adressen in `04-Download-Links/DOWNLOAD-LINKS.txt` zeigen auf
-      `claude/jolly-bell-qmnsv0`. Läuft der Zweig irgendwann zusammen oder
-      wird umbenannt, laufen sie ins Leere (Hinweis steht in der Datei).
-      Dauerhaft besser: ein GitHub-Release mit einem einzigen
-      Download-Knopf (Punkt steht schon unter „Programm-Fassung").
+      Teil-Adressen (jetzt Weg 2 in `04-Download-Links/DOWNLOAD-LINKS.txt`)
+      zeigen auf `claude/jolly-bell-qmnsv0`. Läuft der Zweig irgendwann
+      zusammen oder wird umbenannt, laufen sie ins Leere (Hinweis steht in
+      der Datei). Mit dem veröffentlichten Release ist das entschärft –
+      Weg 1 hängt an keinem Zweig.
 - [ ] **Bei Bedarf `tools/stick-bauen.js`:** ein kleiner Bauer, der aus
       den Repo-Quellen (Teile zusammenfügen, PDF und Einstellungs-Dateien
       einsammeln) den kompletten Stick-Ordner samt Programm-ZIP frisch

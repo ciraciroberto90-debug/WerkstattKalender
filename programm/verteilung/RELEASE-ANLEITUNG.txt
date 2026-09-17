@@ -1,0 +1,90 @@
+==========================================================
+ GITHUB-RELEASE VEROEFFENTLICHEN (Robertos Handgriff)
+==========================================================
+Stand: 17.09.2026
+
+Ziel: EIN Download-Link fuer alles. Danach heisst ein neuer
+Rechner nur noch: Link -> entpacken -> Einrichten.cmd.
+Dauert einmalig ca. 5 Minuten, laeuft komplett im Browser,
+keine Adminrechte.
+
+----------------------------------------------------------
+ SCHRITT 1: Die eine ZIP-Datei bauen (am eigenen Rechner)
+----------------------------------------------------------
+Grundlage ist der fertige Paket-Ordner (der USB-Stick-Ordner
+mit dem Programm-ZIP in 01-Programm; der Zettel
+HIER-FEHLT-NOCH-DAS-PROGRAMM.txt muss raus sein).
+
+1. Rechtsklick auf den Ordner BTA-Cockpit-USB-Stick
+   -> "In ZIP-Datei komprimieren" (Windows 11)
+      bzw. "Senden an -> ZIP-komprimierter Ordner" (Windows 10).
+2. Die entstandene Datei EXAKT so umbenennen:
+
+      BTA-Cockpit-Komplettpaket.zip
+
+   WICHTIG: Der Name muss Buchstabe fuer Buchstabe stimmen,
+   sonst laeuft der feste Download-Link (Weg 1 in
+   DOWNLOAD-LINKS.txt) ins Leere.
+
+----------------------------------------------------------
+ SCHRITT 2: Release anlegen (im Browser)
+----------------------------------------------------------
+1. https://github.com/ciraciroberto90-debug/WerkstattKalender
+   oeffnen und anmelden.
+2. Rechts in der Seitenleiste auf "Releases" klicken,
+   dann auf "Draft a new release".
+3. "Choose a tag" anklicken, eintippen:  v1.0
+   und darunter "Create new tag: v1.0 on publish" waehlen.
+4. Bei "Target" den Zweig  claude/jolly-bell-qmnsv0  waehlen
+   (Klick auf das Auswahlfeld, Reiter "Branches").
+5. Titel eintragen:
+
+      BTA-Cockpit - Komplettpaket (Stand 17.09.2026)
+
+6. In das Beschreibungsfeld den Text aus dem Kasten unten
+   einfuegen (kopieren ab "Alles fuer einen...").
+7. Die Datei BTA-Cockpit-Komplettpaket.zip in das Feld
+   "Attach binaries by dropping them here" ziehen und
+   WARTEN, bis der Ladebalken fertig ist (ca. 110 MB).
+8. Auf den gruenen Knopf "Publish release" klicken.
+
+----------------------------------------------------------
+ SCHRITT 3: Einmal pruefen
+----------------------------------------------------------
+Diesen Link im Browser oeffnen - der Download muss sofort
+starten:
+
+https://github.com/ciraciroberto90-debug/WerkstattKalender/releases/latest/download/BTA-Cockpit-Komplettpaket.zip
+
+Startet er, ist der Ein-Link-Weg fuer alle Zeiten aktiv.
+
+----------------------------------------------------------
+ RELEASE-TEXT ZUM EINFUEGEN (Schritt 2, Punkt 6)
+----------------------------------------------------------
+Alles fuer einen neuen Rechner in EINER Datei: das Programm,
+der Einrichtungs-Helfer (Einrichten.cmd - fragt die Pfade ab,
+Eingabetaste uebernimmt jeweils den Vorschlag), die fertig
+ausgefuellte Einstellungs-Datei und die Anleitung als PDF.
+
+So geht es:
+1. BTA-Cockpit-Komplettpaket.zip herunterladen (unten bei
+   "Assets") und auf dem Rechner entpacken.
+2. Im entpackten Ordner Einrichten.cmd doppelklicken und die
+   Fragen beantworten (Eingabetaste = Vorschlag uebernehmen).
+3. Desktop-Verknuepfung "Werkstatt-Cockpit" doppelklicken.
+   Beim allerersten Start meldet sich Windows-SmartScreen:
+   "Weitere Informationen" -> "Trotzdem ausfuehren".
+
+Keine Adminrechte noetig, nichts wird im Windows-Sinn
+installiert - den Programm-Ordner loeschen entfernt alles
+wieder. Leser-Rechner werden genau gleich eingerichtet.
+Fragen an Roberto Ciraci (Werkstatt).
+
+----------------------------------------------------------
+ SPAETERE STAENDE
+----------------------------------------------------------
+Bei einer neuen Programm-Fassung: neues Release mit dem
+naechsten Tag (v1.1, v1.2, ...) anlegen und die neue ZIP
+unter dem GLEICHEN Dateinamen anhaengen. Der feste
+".../releases/latest/..."-Link zeigt dann automatisch auf
+den neuesten Stand - kein Link muss je angepasst werden.

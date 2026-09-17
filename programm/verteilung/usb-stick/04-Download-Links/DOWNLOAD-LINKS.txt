@@ -1,14 +1,32 @@
 ==========================================================
- DOWNLOAD-ADRESSEN (falls der Stick nicht zur Hand ist)
+ DOWNLOAD-ADRESSEN
 ==========================================================
 Stand: 17.09.2026
 
-Das Programm liegt wegen der GitHub-Groessengrenze in zwei
-Teilen. Alle drei Dateien herunterladen, in EINEN Ordner
-legen, dann Zusammenfuegen.zip entpacken und
-Zusammenfuegen.cmd doppelklicken - heraus kommt
-Werkstatt-Cockpit-Programm-win64.zip (identisch mit der
-Datei in 01-Programm auf diesem Stick).
+----------------------------------------------------------
+ WEG 1 - EIN LINK, EINE DATEI (der einfache Weg)
+----------------------------------------------------------
+Das komplette Paket (Programm, Einrichten.cmd, fertige
+Einstellungen, Anleitung) als EINE Datei aus dem Release:
+
+https://github.com/ciraciroberto90-debug/WerkstattKalender/releases/latest/download/BTA-Cockpit-Komplettpaket.zip
+
+Herunterladen, entpacken, Einrichten.cmd doppelklicken -
+das war alles. Der Link zeigt immer auf den NEUESTEN Stand.
+
+Alle Veroeffentlichungen im Ueberblick:
+https://github.com/ciraciroberto90-debug/WerkstattKalender/releases
+
+----------------------------------------------------------
+ WEG 2 - ERSATZWEG IN ZWEI TEILEN
+----------------------------------------------------------
+Nur noetig, falls es Weg 1 (das Release) noch nicht gibt
+oder er nicht erreichbar ist. Das Programm liegt hier wegen
+der GitHub-Groessengrenze in zwei Teilen. Alle drei Dateien
+herunterladen, in EINEN Ordner legen, dann Zusammenfuegen.zip
+entpacken und Zusammenfuegen.cmd doppelklicken - heraus kommt
+Werkstatt-Cockpit-Programm-win64.zip (gehoert in den Ordner
+01-Programm dieses Pakets).
 
 Teil 1 (58,0 MB / 60.817.408 Bytes):
 https://github.com/ciraciroberto90-debug/WerkstattKalender/raw/claude/jolly-bell-qmnsv0/programm/verteilung/WC-Programm-1.teil
@@ -19,11 +37,11 @@ https://github.com/ciraciroberto90-debug/WerkstattKalender/raw/claude/jolly-bell
 Zusammenfuegen (771 Bytes):
 https://github.com/ciraciroberto90-debug/WerkstattKalender/raw/claude/jolly-bell-qmnsv0/programm/verteilung/Zusammenfuegen.zip
 
+Hinweis zu Weg 2: Die drei Adressen zeigen auf den
+Arbeits-Zweig claude/jolly-bell-qmnsv0. Sollten sie irgendwann
+ins Leere laufen, Weg 1 nehmen oder Roberto Ciraci
+(Werkstatt) fragen.
+
 ----------------------------------------------------------
 Das gesamte Projekt (Quelltext, Anleitungen, Pruefberichte):
 https://github.com/ciraciroberto90-debug/WerkstattKalender
-
-Hinweis: Die drei Adressen zeigen auf den Arbeits-Zweig
-claude/jolly-bell-qmnsv0. Sollten sie irgendwann ins Leere
-laufen, im Projekt oben "Branches" pruefen oder Roberto
-Ciraci (Werkstatt) fragen.

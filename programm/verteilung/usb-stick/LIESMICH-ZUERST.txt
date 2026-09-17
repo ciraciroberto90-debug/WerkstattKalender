@@ -1,16 +1,18 @@
 ==========================================================
- BTA-COCKPIT - USB-INSTALLATIONS-STICK
+ BTA-COCKPIT - KOMPLETTPAKET (Download oder USB-Stick)
 ==========================================================
 Stand: 17.09.2026
 
-Dieser Stick enthaelt ALLES, um das BTA-Cockpit auf einem
-neuen Windows-Rechner einzurichten. Keine Adminrechte, keine
-IT-Anfrage, kein Internet noetig.
+Dieser Ordner enthaelt ALLES, um das BTA-Cockpit auf einem
+neuen Windows-Rechner einzurichten - egal ob er als Download
+aus dem Release kam oder von einem USB-Stick. Keine
+Adminrechte, keine IT-Anfrage noetig.
 
 ----------------------------------------------------------
  DER SCHNELLE WEG (empfohlen): Einrichten.cmd
 ----------------------------------------------------------
-1. Stick einstecken, diesen Ordner oeffnen.
+1. Diesen Ordner oeffnen (einen Download vorher entpacken,
+   vom Stick geht es direkt).
 2. Doppelklick auf  Einrichten.cmd
 3. Fragen beantworten (Eingabetaste = Vorschlag uebernehmen):
    - Wohin auf diesem Rechner? (Vorschlag: eigener Ordner
