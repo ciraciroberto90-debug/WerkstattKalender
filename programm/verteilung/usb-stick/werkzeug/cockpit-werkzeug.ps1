@@ -40,63 +40,41 @@ $programmZip = Join-Path $paket "01-Programm\Werkstatt-Cockpit-Programm-win64.zi
 # =============================================================================
 $script:exeMerker = $null
 function Finde-Exe {
-  # Eine einmal gefundene EXE wird nur noch gegen die Platte geprueft
-  # statt jedes Mal neu gesucht - die AppData-Suche kostet sonst bei
-  # jeder Statuszeile Zeit.
+  # Robertos Ansage vom 17.09.: Desktop UND AppData durchsuchen und DANN
+  # entscheiden - einige Rechner haben den Ordner woanders liegen. Bei
+  # mehreren Funden gewinnt die zuletzt veraenderte EXE (die aktuelle
+  # Fassung). Eine einmal gefundene EXE wird gemerkt und nur noch gegen
+  # die Platte geprueft - die Suche kostet sonst bei jeder Statuszeile Zeit.
   if ($script:exeMerker -and (Test-Path -LiteralPath $script:exeMerker)) {
     return (Get-Item -LiteralPath $script:exeMerker)
   }
   $script:exeMerker = $null
-  # 1) Desktop-Verknuepfung zuerst: sie zeigt auf den echten Ort,
-  #    egal wo der ist.
-  try {
-    $desktop = [Environment]::GetFolderPath("Desktop")
-    $lnk = Join-Path $desktop "Werkstatt-Cockpit.lnk"
-    if (Test-Path -LiteralPath $lnk) {
-      $zielPfad = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).TargetPath
-      if ($zielPfad -and ($zielPfad -like "*Werkstatt-Cockpit.exe") -and (Test-Path -LiteralPath $zielPfad)) {
-        $script:exeMerker = $zielPfad
-        return (Get-Item -LiteralPath $zielPfad)
-      }
-    }
-  } catch { }
-  # 2) Robertos Ansage vom 17.09.: Desktop UND AppData durchsuchen und
-  #    DANN entscheiden - einige Rechner haben den Ordner woanders liegen.
-  $treffer = @()
-  $suchorte = @()
-  try { $suchorte += [Environment]::GetFolderPath("Desktop") } catch { }
-  $suchorte += @($env:LOCALAPPDATA, $env:APPDATA)
-  foreach ($ort in $suchorte) {
-    if ($ort -and (Test-Path -LiteralPath $ort)) {
-      # Suchtiefe begrenzt, damit der Start nicht an riesigen
-      # AppData-Baeumen haengenbleibt.
-      $treffer += @(Get-ChildItem -LiteralPath $ort -Recurse -Depth 3 -Filter "Werkstatt-Cockpit.exe" -File -ErrorAction SilentlyContinue)
-    }
-  }
+  $treffer = Finde-Exe-Alle
   if ($treffer.Count -gt 0) {
-    # Entscheidung bei mehreren Funden: die zuletzt veraenderte EXE ist
-    # die aktuelle Fassung.
     $beste = $treffer | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     $script:exeMerker = $beste.FullName
     return $beste
   }
   return $null
 }
+function Verknuepfungs-Ziel([string]$lnkPfad) {
+  # Wohin zeigt eine Verknuepfung? Leerer Text, wenn nicht lesbar.
+  try { return [string]((New-Object -ComObject WScript.Shell).CreateShortcut($lnkPfad).TargetPath) } catch { return "" }
+}
 function Finde-Exe-Alle {
-  # Alle lokalen Kopien der EXE einsammeln (Verknuepfungs-Ziel, Desktop,
-  # beide AppData) - Grundlage fuer 'Vom Rechner entfernen', das auf
-  # Robertos Ansage auch Alt-Versionen mit abraeumen soll.
+  # Alle LOKALEN Kopien der EXE einsammeln - Grundlage fuer Status und
+  # fuer 'Vom Rechner entfernen'. Robertos Fund vom 17.09.: Seine
+  # Verknuepfung hiess 'Werkstatt-Cockpit - KHB', nicht Standardname -
+  # deshalb werden die Ziele ALLER Cockpit-Verknuepfungen verfolgt,
+  # nicht nur die eine mit dem Standardnamen. Netz-Ziele zaehlen hier
+  # nicht mit (dort wird nie geloescht, siehe Finde-NetzStart).
   $treffer = @()
-  try {
-    $desktop = [Environment]::GetFolderPath("Desktop")
-    $lnk = Join-Path $desktop "Werkstatt-Cockpit.lnk"
-    if (Test-Path -LiteralPath $lnk) {
-      $zielPfad = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).TargetPath
-      if ($zielPfad -and ($zielPfad -like "*Werkstatt-Cockpit.exe") -and (Test-Path -LiteralPath $zielPfad)) {
-        $treffer += @(Get-Item -LiteralPath $zielPfad)
-      }
+  foreach ($lnk in (Finde-Verknuepfungen)) {
+    $zielPfad = Verknuepfungs-Ziel $lnk.FullName
+    if ($zielPfad -and ($zielPfad -like "*Werkstatt-Cockpit.exe") -and ($zielPfad -notlike "\\*") -and ($zielPfad -notlike "//*")) {
+      if (Test-Path -LiteralPath $zielPfad) { $treffer += @(Get-Item -LiteralPath $zielPfad) }
     }
-  } catch { }
+  }
   $suchorte = @()
   try { $suchorte += [Environment]::GetFolderPath("Desktop") } catch { }
   $suchorte += @($env:LOCALAPPDATA, $env:APPDATA)
@@ -106,6 +84,18 @@ function Finde-Exe-Alle {
     }
   }
   return @($treffer | Sort-Object FullName -Unique)
+}
+function Finde-NetzStart {
+  # Gibt es eine Verknuepfung, deren Ziel eine Cockpit-EXE auf dem
+  # LAUFWERK ist? Dann startet dieser Rechner das Programm vom Netz -
+  # das ist ein eingerichteter Zustand, nur eben ohne lokalen Ordner.
+  foreach ($lnk in (Finde-Verknuepfungen)) {
+    $zielPfad = Verknuepfungs-Ziel $lnk.FullName
+    if ($zielPfad -and ($zielPfad -like "*Werkstatt-Cockpit.exe") -and (($zielPfad -like "\\*") -or ($zielPfad -like "//*"))) {
+      return $zielPfad
+    }
+  }
+  return $null
 }
 function Finde-Verknuepfungen {
   # Alle Verknuepfungen einsammeln, die zum Cockpit gehoeren - auch alte
@@ -300,6 +290,11 @@ function Aktualisiere-Status {
   $exeStatus = Finde-Exe
   if ($exeStatus) {
     $lblRechner.Text = "Rechner:  Cockpit ist eingerichtet"; $lblRechner.ForeColor = $gruen
+  } elseif (Finde-NetzStart) {
+    # Kein lokaler Ordner, aber eine Verknuepfung aufs Laufwerk: dieser
+    # Rechner startet das Cockpit vom Netz - auch ein eingerichteter
+    # Zustand, nur eben ohne eigene Kopie.
+    $lblRechner.Text = "Rechner:  Cockpit startet vom Laufwerk (Verknuepfung)"; $lblRechner.ForeColor = $gruen
   } elseif (Finde-Einstellungen) {
     # Es gibt gemerkte Einstellungen, aber weder Verknuepfung noch
     # Standardort fuehren zu einer EXE: das Cockpit lief hier schon,
@@ -585,10 +580,25 @@ $kEntfernen.Add_Click({
       return
     }
     $liste = @()
+    $netzHinweis = $false
     foreach ($o in $ordnerListe) { $liste += ("Programm-Ordner:  " + $o) }
-    foreach ($v in $verknuepfungen) { $liste += ("Verknuepfung:     " + $v.FullName) }
+    foreach ($v in $verknuepfungen) {
+      # Das Ziel mit festhalten - sonst ist nach dem Loeschen die
+      # Information verloren, wo das Programm eigentlich lag.
+      $zielPfad = Verknuepfungs-Ziel $v.FullName
+      if ($zielPfad) {
+        $liste += ("Verknuepfung:     " + $v.FullName + "  (zeigt auf: " + $zielPfad + ")")
+        if (($zielPfad -like "\\*") -or ($zielPfad -like "//*")) { $netzHinweis = $true }
+      } else {
+        $liste += ("Verknuepfung:     " + $v.FullName)
+      }
+    }
     if ($einstellungen) { $liste += ("Gemerkte Pfade:   " + (Split-Path -Parent $einstellungen)) }
     foreach ($z in $liste) { Schreibe-Log ("  gefunden: " + $z) }
+    if ($netzHinweis) {
+      Schreibe-Log "  Hinweis: mindestens eine Verknuepfung zeigt aufs LAUFWERK -"
+      Schreibe-Log "  dort wird nichts geloescht, nur die Verknuepfung selbst."
+    }
 
     $frage = "Vom Rechner entfernen?`n`n" + ($liste -join "`n") + "`n`nDie gemeinsamen Dateien auf dem Firmenlaufwerk bleiben unberuehrt."
     if (-not (Frage-JaNein $frage "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
