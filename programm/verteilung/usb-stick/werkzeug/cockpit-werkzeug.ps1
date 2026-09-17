@@ -82,6 +82,53 @@ function Finde-Exe {
   }
   return $null
 }
+function Finde-Exe-Alle {
+  # Alle lokalen Kopien der EXE einsammeln (Verknuepfungs-Ziel, Desktop,
+  # beide AppData) - Grundlage fuer 'Vom Rechner entfernen', das auf
+  # Robertos Ansage auch Alt-Versionen mit abraeumen soll.
+  $treffer = @()
+  try {
+    $desktop = [Environment]::GetFolderPath("Desktop")
+    $lnk = Join-Path $desktop "Werkstatt-Cockpit.lnk"
+    if (Test-Path -LiteralPath $lnk) {
+      $zielPfad = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).TargetPath
+      if ($zielPfad -and ($zielPfad -like "*Werkstatt-Cockpit.exe") -and (Test-Path -LiteralPath $zielPfad)) {
+        $treffer += @(Get-Item -LiteralPath $zielPfad)
+      }
+    }
+  } catch { }
+  $suchorte = @()
+  try { $suchorte += [Environment]::GetFolderPath("Desktop") } catch { }
+  $suchorte += @($env:LOCALAPPDATA, $env:APPDATA)
+  foreach ($ort in $suchorte) {
+    if ($ort -and (Test-Path -LiteralPath $ort)) {
+      $treffer += @(Get-ChildItem -LiteralPath $ort -Recurse -Depth 3 -Filter "Werkstatt-Cockpit.exe" -File -ErrorAction SilentlyContinue)
+    }
+  }
+  return @($treffer | Sort-Object FullName -Unique)
+}
+function Finde-Verknuepfungen {
+  # Alle Verknuepfungen einsammeln, die zum Cockpit gehoeren - auch alte
+  # mit anderen Namen, solange ihr Ziel die Cockpit-EXE ist. Durchsucht
+  # werden Desktop und das Startmenue DES BENUTZERS (das gemeinsame
+  # Startmenue braucht Adminrechte und bleibt darum aussen vor).
+  $funde = @()
+  $orte = @()
+  try { $orte += [Environment]::GetFolderPath("Desktop") } catch { }
+  try { $orte += [Environment]::GetFolderPath("StartMenu") } catch { }
+  $schale = New-Object -ComObject WScript.Shell
+  foreach ($ort in $orte) {
+    if (-not ($ort -and (Test-Path -LiteralPath $ort))) { continue }
+    foreach ($lnk in @(Get-ChildItem -LiteralPath $ort -Recurse -Depth 2 -Filter "*.lnk" -File -ErrorAction SilentlyContinue)) {
+      $passt = ($lnk.BaseName -like "*Cockpit*")
+      if (-not $passt) {
+        try { $passt = ($schale.CreateShortcut($lnk.FullName).TargetPath -like "*Werkstatt-Cockpit.exe") } catch { }
+      }
+      if ($passt) { $funde += $lnk }
+    }
+  }
+  return @($funde | Sort-Object FullName -Unique)
+}
 function Finde-Einstellungen {
   # Die GEMERKTEN Pfade des Programms liegen in einstellungen.json unter
   # dem Benutzerprofil. Der Ordnername haengt vom Electron-Programmnamen
@@ -499,35 +546,80 @@ $kSpeichern.Add_Click({
 # =============================================================================
 $kEntfernen.Add_Click({
   try {
-    $exe = Finde-Exe
-    $verknuepfung = Join-Path ([Environment]::GetFolderPath("Desktop")) "Werkstatt-Cockpit.lnk"
+    # Robertos Ansage: ALLES vom Cockpit auf diesem Rechner abraeumen -
+    # auch alte Verknuepfungen und Alt-Versionen - damit man danach
+    # frisch einrichten kann. Das Firmenlaufwerk bleibt grundsaetzlich
+    # unberuehrt.
+    Arbeit-Beginnt
+    Schreibe-Log "Suche alles vom Cockpit auf DIESEM Rechner (Desktop + AppData) ..."
+    $exes = Finde-Exe-Alle
+    $verknuepfungen = Finde-Verknuepfungen
     $einstellungen = Finde-Einstellungen
-    $liste = @()
-    if ($exe) { $liste += ("Programm-Ordner: " + (Split-Path -Parent $exe.FullName)) }
-    if (Test-Path -LiteralPath $verknuepfung) { $liste += ("Verknuepfung: " + $verknuepfung) }
-    if (-not $liste -and -not $einstellungen) { Schreibe-Log "Hier gibt es nichts zu entfernen."; return }
-    $frage = "Vom Rechner entfernen?`n`n" + ($liste -join "`n") + "`n`nDie gemeinsamen Dateien auf dem Laufwerk bleiben unberuehrt."
-    if (-not (Frage-JaNein $frage "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
-    if (-not (Frage-JaNein "Wirklich sicher? Der Programm-Ordner auf diesem Rechner wird geloescht." "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
-    if ($exe) {
-      Remove-Item -LiteralPath (Split-Path -Parent $exe.FullName) -Recurse -Force
-      $script:exeMerker = $null   # der gemerkte Fundort ist damit hinfaellig
-      Schreibe-Log "Programm-Ordner entfernt."
+    Arbeit-Fertig
+
+    # Schutzgelaender 1: niemals Desktop, AppData oder das Benutzerprofil
+    # selbst loeschen, falls eine EXE dort ohne eigenen Ordner liegt.
+    $tabu = @()
+    foreach ($t in @([Environment]::GetFolderPath("Desktop"), $env:LOCALAPPDATA, $env:APPDATA, $env:USERPROFILE)) {
+      if ($t) { $tabu += $t.TrimEnd("\").ToLower() }
     }
-    if (Test-Path -LiteralPath $verknuepfung) {
-      Remove-Item -LiteralPath $verknuepfung -Force
-      Schreibe-Log "Verknuepfung entfernt."
+    $ordnerListe = @()
+    $handarbeit = @()
+    foreach ($exe in $exes) {
+      $o = $exe.DirectoryName
+      # Schutzgelaender 2: Netzpfade bleiben immer tabu.
+      if ($o -like "\\*" -or $o -like "//*") { continue }
+      if ($tabu -contains $o.TrimEnd("\").ToLower()) { $handarbeit += $exe.FullName; continue }
+      # Schutzgelaender 3: nur Ordner loeschen, die auch wie ein
+      # Programm-Ordner aussehen (Electron bringt einen resources-
+      # Unterordner mit) - sonst koennte ein Sammelordner mit anderen
+      # Dingen mitgerissen werden.
+      $siehtRichtigAus = (Test-Path -LiteralPath (Join-Path $o "resources")) -or ((Split-Path -Leaf $o) -like "*Cockpit*")
+      if (-not $siehtRichtigAus) { $handarbeit += $exe.FullName; continue }
+      $ordnerListe += $o
+    }
+    $ordnerListe = @($ordnerListe | Sort-Object -Unique)
+
+    if ((-not $ordnerListe) -and (-not $verknuepfungen) -and (-not $einstellungen)) {
+      Schreibe-Log "Hier gibt es nichts zu entfernen."
+      return
+    }
+    $liste = @()
+    foreach ($o in $ordnerListe) { $liste += ("Programm-Ordner:  " + $o) }
+    foreach ($v in $verknuepfungen) { $liste += ("Verknuepfung:     " + $v.FullName) }
+    if ($einstellungen) { $liste += ("Gemerkte Pfade:   " + (Split-Path -Parent $einstellungen)) }
+    foreach ($z in $liste) { Schreibe-Log ("  gefunden: " + $z) }
+
+    $frage = "Vom Rechner entfernen?`n`n" + ($liste -join "`n") + "`n`nDie gemeinsamen Dateien auf dem Firmenlaufwerk bleiben unberuehrt."
+    if (-not (Frage-JaNein $frage "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
+    if ($ordnerListe.Count -gt 0) {
+      if (-not (Frage-JaNein ("Wirklich sicher? Es werden " + $ordnerListe.Count + " Programm-Ordner samt Inhalt geloescht.") "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
+    }
+
+    foreach ($o in $ordnerListe) {
+      Remove-Item -LiteralPath $o -Recurse -Force
+      Schreibe-Log ("entfernt: " + $o)
+    }
+    foreach ($v in $verknuepfungen) {
+      Remove-Item -LiteralPath $v.FullName -Force -ErrorAction SilentlyContinue
+      Schreibe-Log ("entfernt: " + $v.FullName)
+    }
+    foreach ($h in $handarbeit) {
+      Schreibe-Log ("NICHT angefasst (liegt direkt in einem Grundordner - bitte von Hand): " + $h)
     }
     if ($einstellungen) {
-      if (Frage-JaNein "Auch die gemerkten Einstellungen (Pfade) dieses Rechners loeschen?" "Entfernen") {
+      if (Frage-JaNein "Auch die gemerkten Einstellungen (Pfade) dieses Rechners loeschen?`n`n'Nein' behaelt sie - eine Neu-Einrichtung findet die Pfade dann sofort wieder." "Entfernen") {
         Remove-Item -LiteralPath (Split-Path -Parent $einstellungen) -Recurse -Force
         Schreibe-Log "Gemerkte Einstellungen entfernt."
       } else {
         Schreibe-Log "Gemerkte Einstellungen bleiben (gut fuer eine Neu-Einrichtung)."
       }
     }
+    $script:exeMerker = $null   # der gemerkte Fundort ist damit hinfaellig
     Aktualisiere-Status
+    Schreibe-Log "Fertig - der Rechner ist sauber. 'Einrichten' richtet alles frisch ein."
   } catch {
+    Arbeit-Fertig
     Schreibe-Log ("FEHLER: " + $_)
     Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
