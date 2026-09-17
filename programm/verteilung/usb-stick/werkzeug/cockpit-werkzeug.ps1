@@ -38,27 +38,47 @@ $programmZip = Join-Path $paket "01-Programm\Werkstatt-Cockpit-Programm-win64.zi
 # =============================================================================
 #  Lage-Helfer (identisch zur App-Logik in programm/main.js)
 # =============================================================================
+$script:exeMerker = $null
 function Finde-Exe {
-  # Robertos Fund vom ersten Windows-Lauf (17.09.): Sein Cockpit liegt
-  # NICHT am Standardort, sondern wo eine fruehere Einrichtung es
-  # hingelegt hat. Deshalb zuerst der Desktop-Verknuepfung folgen -
-  # sie zeigt auf den echten Ort, egal wo der ist.
+  # Eine einmal gefundene EXE wird nur noch gegen die Platte geprueft
+  # statt jedes Mal neu gesucht - die AppData-Suche kostet sonst bei
+  # jeder Statuszeile Zeit.
+  if ($script:exeMerker -and (Test-Path -LiteralPath $script:exeMerker)) {
+    return (Get-Item -LiteralPath $script:exeMerker)
+  }
+  $script:exeMerker = $null
+  # 1) Desktop-Verknuepfung zuerst: sie zeigt auf den echten Ort,
+  #    egal wo der ist.
   try {
     $desktop = [Environment]::GetFolderPath("Desktop")
     $lnk = Join-Path $desktop "Werkstatt-Cockpit.lnk"
     if (Test-Path -LiteralPath $lnk) {
-      $schale = New-Object -ComObject WScript.Shell
-      $zielPfad = $schale.CreateShortcut($lnk).TargetPath
-      if ($zielPfad -and (Test-Path -LiteralPath $zielPfad) -and $zielPfad -like "*Werkstatt-Cockpit.exe") {
+      $zielPfad = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).TargetPath
+      if ($zielPfad -and ($zielPfad -like "*Werkstatt-Cockpit.exe") -and (Test-Path -LiteralPath $zielPfad)) {
+        $script:exeMerker = $zielPfad
         return (Get-Item -LiteralPath $zielPfad)
       }
     }
   } catch { }
-  $kandidat = Join-Path $ZielVorgabe "Werkstatt-Cockpit.exe"
-  if (Test-Path -LiteralPath $kandidat) { return (Get-Item -LiteralPath $kandidat) }
-  if (Test-Path -LiteralPath $ZielVorgabe) {
-    $t = Get-ChildItem -LiteralPath $ZielVorgabe -Recurse -Filter "Werkstatt-Cockpit.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($t) { return $t }
+  # 2) Robertos Ansage vom 17.09.: Desktop UND AppData durchsuchen und
+  #    DANN entscheiden - einige Rechner haben den Ordner woanders liegen.
+  $treffer = @()
+  $suchorte = @()
+  try { $suchorte += [Environment]::GetFolderPath("Desktop") } catch { }
+  $suchorte += @($env:LOCALAPPDATA, $env:APPDATA)
+  foreach ($ort in $suchorte) {
+    if ($ort -and (Test-Path -LiteralPath $ort)) {
+      # Suchtiefe begrenzt, damit der Start nicht an riesigen
+      # AppData-Baeumen haengenbleibt.
+      $treffer += @(Get-ChildItem -LiteralPath $ort -Recurse -Depth 3 -Filter "Werkstatt-Cockpit.exe" -File -ErrorAction SilentlyContinue)
+    }
+  }
+  if ($treffer.Count -gt 0) {
+    # Entscheidung bei mehreren Funden: die zuletzt veraenderte EXE ist
+    # die aktuelle Fassung.
+    $beste = $treffer | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    $script:exeMerker = $beste.FullName
+    return $beste
   }
   return $null
 }
@@ -288,6 +308,7 @@ $kEinrichten.Add_Click({
     # eine kuenftige ZIP-Struktur mit Unterordner die Einrichtung nicht bricht.
     $exe = Get-ChildItem -LiteralPath $ziel -Recurse -Filter "Werkstatt-Cockpit.exe" | Select-Object -First 1
     if (-not $exe) { throw "Nach dem Entpacken wurde keine Werkstatt-Cockpit.exe gefunden." }
+    $script:exeMerker = $exe.FullName   # frisch eingerichtet = ab jetzt der massgebliche Ort
     Schreibe-Log ("entpackt: " + $exe.FullName)
 
     # Vorbelegung neben die EXE - das Programm uebernimmt beim ersten Start
@@ -490,6 +511,7 @@ $kEntfernen.Add_Click({
     if (-not (Frage-JaNein "Wirklich sicher? Der Programm-Ordner auf diesem Rechner wird geloescht." "Entfernen")) { Schreibe-Log "Abgebrochen - nichts veraendert."; return }
     if ($exe) {
       Remove-Item -LiteralPath (Split-Path -Parent $exe.FullName) -Recurse -Force
+      $script:exeMerker = $null   # der gemerkte Fundort ist damit hinfaellig
       Schreibe-Log "Programm-Ordner entfernt."
     }
     if (Test-Path -LiteralPath $verknuepfung) {
@@ -540,6 +562,7 @@ if ($einstellungen) {
 }
 
 Aktualisiere-Status
+if ($exe) { Schreibe-Log ("Cockpit gefunden: " + $exe.FullName) }
 Schreibe-Log ("Bereit. Pfad-Felder vorbelegt aus: " + $quelle)
 Schreibe-Log "Neuer Rechner: Felder pruefen (oder einfach lassen) und 'Einrichten' druecken."
 [void]$fenster.ShowDialog()
