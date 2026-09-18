@@ -8,7 +8,7 @@ Punkte, ohne Umschweife. Neue Aufgaben kommen unten dazu, erledigte wandern
 nach unten in „Erledigt" statt gelöscht zu werden – so bleibt nachvollziehbar,
 was schon durch ist.
 
-Stand: 11.09.2026
+Stand: 18.09.2026
 
 ---
 
@@ -935,6 +935,31 @@ Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
       einsammeln) den kompletten Stick-Ordner samt Programm-ZIP frisch
       erzeugt - dann ist der Stick jederzeit reproduzierbar statt einmal
       von Hand gebaut.
+
+## Vorstellung bei Soendgen Keramik am 22.09. (Robertos Auftrag vom 18.09.)
+
+Termin Dienstag 22.09.2026, 10–13 Uhr, vier Personen (Werkstattleiter SK,
+Betriebsleiter, Werkleiter SK). Ziel laut Roberto: Information und
+Kennenlernen – kein Verkaufsgespräch. Deck liegt als
+`doku/BTA-Cockpit-Vorstellung-SK.pptx` (42 Folien, 7 Kapitel), Bauskripte
+und Erklärung unter `doku/vorstellung-sk-2026-09-22/`.
+
+- [ ] **Roberto geht das Deck komplett durch** (seine Ansage: „gehe ich sie
+      komplett durch"). Änderungswünsche folienweise zurück – jede Folie ist
+      im Skript einzeln benannt (`// ---- 3.4 Updates …`).
+- [ ] **Echte Werkzeug-Screenshots einsetzen (optional):** Die drei
+      Werkzeug-Bilder in Kapitel 5 sind aus der HTML-Vorlage gezeichnet,
+      keine Windows-Aufnahmen. Ein Bild vom echten Fenster (Reiter
+      Einrichten / Selbsttest / Wartung) kann 1:1 getauscht werden.
+- [ ] **Live-Prompt am Ende vorbereiten:** Folie 36 kündigt an, dass
+      Roberto vor Ort einen Auftrag schreibt. Sinnvoll: vorher einen
+      kleinen, klar umrissenen Wunsch aussuchen (Beispiel: ein Feld im
+      Druck, eine Farbe), damit das Ergebnis in Minuten sichtbar ist –
+      und Laptop mit Internet und Zugriff auf den Chat mitnehmen.
+- [ ] **Zahlen im Deck sind Stand 18.09.:** 73 Härtetests, Stresstest
+      71.084 Einträge / 15,2 MB, Messzeiten vom 11.09. Ändert sich bis
+      Dienstag etwas Wesentliches (neue Suite, neue Messung), Folien 25–27
+      nachziehen.
 
 ## Erledigt
 
