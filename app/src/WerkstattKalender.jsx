@@ -2842,71 +2842,121 @@ function App() {
     const slots = [...stoerSchichtSlots()].sort((a, b) => STOER_SCHICHTEN.indexOf(a.schicht) - STOER_SCHICHTEN.indexOf(b.schicht));
     const jetzt = new Date();
     const stand = jetzt.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    // Robertos Ansage vom 17.09. (in der Morgenrunde abgestimmt): OFFENE
+    // Berichte stehen je Schicht-Block IMMER oben, danach nach Meldezeit.
     const proSlot = slots.map((slot) => ({
       ...slot,
       liste: stoerungen
         .filter((s) => s.date === slot.datum && s.schicht === slot.schicht)
-        .sort((a, b) => String(a.gemeldetAt || "").localeCompare(String(b.gemeldetAt || ""))),
+        .sort((a, b) => (Number(!!b.offen) - Number(!!a.offen))
+          || String(a.gemeldetAt || "").localeCompare(String(b.gemeldetAt || ""))),
     }));
     const alle = proSlot.flatMap((x) => x.liste);
     const ausfallGesamt = alle.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
     const offene = alle.filter((s) => s.offen).length;
+    // Schicht -> CSS-Klasse fuer die Schichtfarbe (Balken + erste Spalte).
+    const tbCls = { "Früh": "frueh", "Spät": "spaet", "Nacht": "nacht" };
     const chip = (sch) => {
       const f = STOER_DRUCK_FARBEN[sch] || { chip: "#8A9099", chipText: "#fff" };
-      return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${f.chip};color:${f.chipText};font-weight:800;font-size:8pt;text-transform:uppercase;letter-spacing:0.5px">${esc(sch)}</span>`;
+      return `<span class="chip" style="background:${f.chip};color:${f.chipText}">${esc(sch)}</span>`;
     };
+    // Tagesblick: eine Zeile mit drei Kacheln Früh/Spät/Nacht (Anzahl + Zeit).
+    const tagesblick = `<div class="tagesblick">${proSlot.map((slot) => {
+      const n = slot.liste.length;
+      const summe = slot.liste.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
+      const rechts = n === 0
+        ? `<span class="tbz">0</span> Berichte`
+        : `<span class="tbz">${n}</span> ${n === 1 ? "Bericht" : "Berichte"}${summe > 0 ? ` · <span class="tbz">${Math.round(summe)}</span> min` : ""}`;
+      return `<div class="tb ${tbCls[slot.schicht] || ""}"><span class="tbl">${esc(slot.schicht)}</span>${rechts}</div>`;
+    }).join("")}</div>`;
     const gruppe = (slot) => {
       const d = new Date(slot.datum + "T00:00:00");
       const f = STOER_DRUCK_FARBEN[slot.schicht] || { gruppe: "#E9EDF1" };
+      const n = slot.liste.length;
       const summe = slot.liste.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
-      return `<tr class="gruppe"><td colspan="7" style="background:${f.gruppe}">${chip(slot.schicht)} &nbsp;${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })} · ${esc(slot.schicht)} (${zeitVon[slot.schicht] || ""}) &nbsp;<span class="gsumme">· ${slot.liste.length} ${slot.liste.length === 1 ? "Bericht" : "Berichte"}${summe > 0 ? " · " + esc(minutenText(summe)) : ""}</span></td></tr>`;
+      const off = slot.liste.filter((s) => s.offen).length;
+      const summeTxt = n === 0
+        ? `<span class="gfett">0 Berichte</span> · <span class="leer">keine Störungen</span>`
+        : `<span class="gfett">${n} ${n === 1 ? "Bericht" : "Berichte"}${summe > 0 ? " · " + esc(minutenText(summe)) : ""}</span>${off > 0 ? ` · ${off} offen` : ""}`;
+      return `<tr class="gruppe"><td colspan="8" style="background:${f.gruppe}">${chip(slot.schicht)} &nbsp;${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })} · ${esc(slot.schicht)} (${zeitVon[slot.schicht] || ""}) &nbsp;<span class="gsumme">· ${summeTxt}</span></td></tr>`;
     };
     const zeile = (s, slot) => {
-      const f = STOER_DRUCK_FARBEN[slot.schicht] || { zeile: "#fff" };
-      return `<tr style="background:${f.zeile}">
-        <td class="nr"><span class="mono">${esc(stoerNrLang(s))}</span><div class="klein mono">${(Number(s.ausfallzeit) || 0) > 0 ? esc(minutenText(s.ausfallzeit)) : "–"}</div></td>
+      const min = Number(s.ausfallzeit) || 0;
+      // Ausfallzeit als Plakette: leer=grau "–", ab 60 min rot ("hoch").
+      const ausfall = min <= 0
+        ? `<span class="ausfall null">–</span>`
+        : `<span class="ausfall${min >= 60 ? " hoch" : ""}">${Math.round(min)} min</span>`;
+      const naechste = (s.nochZuTun && String(s.nochZuTun).trim()) ? esc(s.nochZuTun) : "";
+      return `<tr class="${s.offen ? "zoffen" : ""}">
+        <td class="nr ${tbCls[slot.schicht] || ""}"><span class="mono">${esc(stoerNrLang(s))}</span><br>${ausfall}</td>
         <td><strong>${esc(s.anlage) || "—"}</strong>${s.anlagenteil ? `<div class="klein">${esc(s.anlagenteil)}</div>` : ""}</td>
-        <td>${esc(s.stoerung)}${s.ursache ? `<div class="klein">Ursache: ${esc(s.ursache)}</div>` : ""}</td>
+        <td>${esc(s.stoerung)}</td>
+        <td class="ursache">${s.ursache ? esc(s.ursache) : ""}</td>
         <td>${esc(s.getan || "")}${s.ersatzteile ? `<div class="klein">Ersatzteile: ${esc(s.ersatzteile)}${s.nachbestellt ? " (nachbestellt)" : ""}</div>` : ""}</td>
-        <td class="naechste">${s.offen ? esc(s.nochZuTun || "") : ""}</td>
+        <td class="naechste">${naechste}</td>
         <td>${s.offen ? '<span class="st offen">OFFEN</span>' : '<span class="st ok">OK</span>'}</td>
         <td>${esc(s.melder) || ""}</td>
       </tr>`;
     };
     return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Schichtbericht Störungen – Stand ${esc(stand)}</title>
       <style>
-        @page { size: A4 landscape; margin: 10mm; }
+        /* Ganzes Blatt nutzen (Robertos Ansage 17.09.): 4 mm Rand. */
+        @page { size: A4 landscape; margin: 4mm; }
         ${DRUCK_FARBTREUE}
         * { box-sizing: border-box; }
         body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; margin: 0; }
-        h1 { font-size: 15pt; margin: 0; }
-        .kopf { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2.5px solid #22262B; padding-bottom: 2.5mm; margin-bottom: 3mm; }
-        .kopf .stand { text-align: right; color: #5B6572; font-size: 8.5pt; line-height: 1.5; }
+        h1 { font-size: 13pt; margin: 0; }
+        .kopf { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #22262B; padding-bottom: 1.2mm; margin-bottom: 1.5mm; }
+        .kopf .stand { text-align: right; color: #5B6572; font-size: 8.5pt; line-height: 1.4; }
+        .kopf .stand .fett { font-size: 10.5pt; font-weight: 800; color: #1f2430; }
+        /* Tagesblick: Schicht-Summen auf einen Blick */
+        .tagesblick { display: flex; gap: 2mm; margin-bottom: 1.8mm; }
+        .tb { flex: 1; border: 0.8pt solid #C4CBD2; border-radius: 1.5mm; padding: 0.9mm 2mm; font-size: 8pt; color: #5B6572; white-space: nowrap; }
+        .tb .tbz { font-size: 9.5pt; font-weight: 900; color: #1f2430; font-family: ui-monospace, Consolas, monospace; }
+        .tb.frueh { background: #FDF6DF; border-color: #E3CE8F; }
+        .tb.spaet { background: #EAF3EC; border-color: #A9CDB4; }
+        .tb.nacht { background: #E9F0F7; border-color: #A9C2D8; }
+        .tb .tbl { font-weight: 800; text-transform: uppercase; letter-spacing: 0.4pt; font-size: 7pt; margin-right: 1.2mm; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #22262B; color: #fff; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.4pt; text-align: left; padding: 1.8mm 2mm; }
-        td { font-size: 8.5pt; vertical-align: top; padding: 1.8mm 2mm; border-bottom: 0.5pt solid #D8DCE1; }
-        tr.gruppe td { border-bottom: 1pt solid #B9C0C8; padding: 1.4mm 2mm; font-weight: 800; font-size: 9pt; }
+        tr { page-break-inside: avoid; break-inside: avoid; } /* kein Bericht wird über die Seitengrenze zerschnitten */
+        th { background: #22262B; color: #fff; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.4pt; text-align: left; padding: 1.3mm 2mm; }
+        td { font-size: 8.5pt; vertical-align: top; padding: 1.25mm 2mm; border-bottom: 0.5pt solid #D8DCE1; }
+        tr.gruppe td { border-bottom: 1pt solid #B9C0C8; padding: 1.1mm 2mm; font-weight: 800; font-size: 9pt; }
         .gsumme { font-weight: 600; color: #5B6572; }
+        .gsumme .gfett { font-weight: 900; color: #1f2430; }
         td.nr { white-space: nowrap; }
+        /* Erste Spalte trägt die Schichtfarbe (Robertos Ansage 17.09.) */
+        td.nr.frueh { background: #FDF6DF; }
+        td.nr.spaet { background: #EAF3EC; }
+        td.nr.nacht { background: #E9F0F7; }
         .mono { font-family: ui-monospace, Consolas, monospace; font-size: 8pt; }
         .klein { color: #5B6572; font-size: 7.5pt; margin-top: 0.6mm; }
+        /* Die Störungsursache als eigener, deutlicher Block */
+        td.ursache { background: rgba(34,38,43,0.045); font-weight: 600; }
         .naechste { color: #8A4B00; font-weight: 600; }
+        .chip { display: inline-block; padding: 1px 8px; border-radius: 3px; font-weight: 800; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.5px; }
         .st { font-weight: 800; font-size: 8pt; padding: 0.5mm 2mm; border-radius: 2.5mm; border: 1.2pt solid; white-space: nowrap; }
         .st.ok { color: #1F7A3D; border-color: #1F7A3D; }
         .st.offen { color: #fff; background: #C0392B; border-color: #C0392B; }
         .leer { color: #8A9099; font-style: italic; }
-        .fuss { margin-top: 4mm; display: flex; justify-content: space-between; color: #8A9099; font-size: 7.5pt; border-top: 0.5pt solid #C4CBD2; padding-top: 1.5mm; }
+        /* Ausfallzeit als deutliche Plakette */
+        .ausfall { display: inline-block; font-family: ui-monospace, Consolas, monospace; font-weight: 800; font-size: 9pt; padding: 0.6mm 2mm; margin-top: 0.8mm; border-radius: 1.5mm; background: #FBF3DA; color: #8A4B00; border: 0.8pt solid #E3CE8F; white-space: nowrap; }
+        .ausfall.hoch { background: #F9E2DE; color: #B23A34; border-color: #E0B0AA; }
+        .ausfall.null { background: transparent; border-color: transparent; color: #8A9099; font-weight: 600; }
+        /* Offene Berichte mit roter Kante hervorheben */
+        tr.zoffen td { border-top: 1pt solid #C0392B; border-bottom: 1pt solid #C0392B; }
+        tr.zoffen td:first-child { border-left: 3pt solid #C0392B; }
+        .fuss { margin-top: 1.2mm; display: flex; justify-content: space-between; color: #8A9099; font-size: 7.5pt; border-top: 0.5pt solid #C4CBD2; padding-top: 1.5mm; }
       </style></head><body>
       <div class="kopf">
         <h1>Schichtbericht Störungen</h1>
-        <div class="stand">Stand: <strong>${esc(stand)}</strong><br>Letzte drei Schichten · ${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"} · ${offene} offen${ausfallGesamt > 0 ? " · Ausfallzeit " + esc(minutenText(ausfallGesamt)) : ""}</div>
+        <div class="stand">Stand: <strong>${esc(stand)}</strong><br><span class="fett">${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}</span> · <span class="fett" style="color:${offene > 0 ? "#C0392B" : "#1F7A3D"}">${offene} offen</span>${ausfallGesamt > 0 ? ` · <span class="fett">Ausfallzeit ${esc(minutenText(ausfallGesamt))}</span>` : ""}</div>
       </div>
+      ${tagesblick}
       <table>
-      <thead><tr><th style="width:20mm">Nr. / Ausfall</th><th style="width:38mm">Anlage · Teil</th><th style="width:55mm">Abweichung / Störung</th><th style="width:62mm">Was wurde unternommen?</th><th style="width:52mm">Was muss die nächste Schicht tun?</th><th style="width:13mm">Status</th><th style="width:20mm">Melder</th></tr></thead>
+      <thead><tr><th style="width:17mm">Nr. / Ausfall</th><th style="width:32mm">Anlage · Teil</th><th style="width:40mm">Abweichung / Störung</th><th style="width:48mm">Störungsursache</th><th style="width:50mm">Was wurde unternommen?</th><th style="width:38mm">Was muss die nächste Schicht tun?</th><th style="width:12mm">Status</th><th style="width:17mm">Melder</th></tr></thead>
       <tbody>
-      ${proSlot.map((slot) => gruppe(slot) + (slot.liste.length === 0
-        ? `<tr><td colspan="7" class="leer">keine Störungen</td></tr>`
-        : slot.liste.map((s) => zeile(s, slot)).join(""))).join("")}
+      ${proSlot.map((slot) => gruppe(slot) + slot.liste.map((s) => zeile(s, slot)).join("")).join("")}
       </tbody></table>
       <div class="fuss"><span>${esc(appName)} · Schichtbericht</span><span>gedruckt ${esc(stand)}</span></div>
       </body></html>`;
@@ -7142,7 +7192,7 @@ function App() {
         anzeige: true, // zusätzlich zum Drucker: am Bildschirm zeigen (Monitor/Besprechung)
         optionen: [
           { id: "stoer-schichtbericht", text: "Schichtbericht – letzte 3 Schichten",
-            erklaerung: "Alle Störungen der laufenden und der zwei vorigen Schichten, Stand jetzt – A4 quer, Zeilen in der Schichtfarbe" },
+            erklaerung: "Alle Störungen der laufenden und der zwei vorigen Schichten, Stand jetzt – A4 quer, Tagesblick, eigene Störungsursache-Spalte, offene zuerst, Ausfallzeit als Plakette" },
           { id: "stoer-monat", text: "Monats-Auswertung", monatsWahl: true,
             erklaerung: "Diagramm und Anlagen-Liste nach Anzahl der Störungen, darunter die Ausfälle mit Notizen – A4 hoch" },
           { id: "uebergabe", text: "Schichtübergabe – Stand jetzt",

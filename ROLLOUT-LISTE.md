@@ -802,28 +802,24 @@ danach wieder Feinheiten. Konzept mit Roberto in Klärung (Mockups vom
       wo die Zeit je Ansicht wirklich steckt, dann bauen - mit
       Vorher/Nachher-Zahlen aus der Klickrunde.
 
-- [ ] **Schichtbericht-Druckvorlage auf das Morgenrunden-Format umbauen
-      (Robertos Test vom 17.09.).** Roberto hat einen echten
-      Alt-Tagesbericht (Schichtprotokoll vom 16.09.) ins Cockpit-Format
-      übertragen bekommen und in mehreren Runden zum Morgenrunden-Blatt
-      geformt - er testet es heute in der Morgenrunde und gibt
-      Feedback. Der abgestimmte Stand (Vorlage im Chat als PDF, Quelle
-      im Sitzungs-Arbeitsordner): EINE A4-Seite quer, 4-mm-Ränder;
-      schmaler Kopf mit fetten Kennzahlen (Anzahl, „X offen" fett in
-      Rot, Ausfallzeit); dünne Tagesblick-Zeile Früh/Spät/Nacht (OHNE
-      Sorgenkind-Kachel - gestrichen); Farbe NUR in den Schicht-Balken
-      und in der ersten Spalte (Nr./Ausfall je Bericht in der
-      Schichtfarbe hinterlegt), Berichtszeilen weiß; NEUE eigene Spalte
-      „Störungsursache" (grau hinterlegt, fett); OFFENE Berichte immer
-      ZUERST im jeweiligen Schicht-Block, mit roter Kante;
-      Ausfallzeit als Plakette (gelb, ab 60 min rot); leere Schicht
-      steht kompakt im Balken („keine Störungen"); kein Bericht wird
-      über die Seitengrenze zerschnitten. NACH Robertos Freigabe:
-      buildStoerSchichtberichtHTML in der App auf dieses Format
-      umbauen (Ursache-Feld existiert im Störbericht bereits als
-      s.ursache) und die Druck-Wachen (harte-15/17-Umfeld) nachziehen.
-      HTML-Vorlage am 10.09. in den Chat geliefert, auf Robertos Ansage
-      nachgebessert: Start mit Werkstatt-Wahl (Scheurich/Soendgen mit
+- [x] **Schichtbericht-Druckvorlage auf das Morgenrunden-Format umgebaut
+      (18.09., nach Robertos Freigabe in der Morgenrunde).**
+      `buildStoerSchichtberichtHTML` in der App liefert jetzt das
+      abgestimmte Ein-Seiten-Blatt: A4 quer, 4-mm-Ränder; schmaler Kopf
+      mit fetten Kennzahlen (Anzahl, „X offen" fett – rot bei >0, sonst
+      grün, Ausfallzeit); Tagesblick-Zeile Früh/Spät/Nacht (Anzahl +
+      Zeit); NEUE eigene Spalte „Störungsursache" (grau, fett, aus
+      `s.ursache`); OFFENE Berichte je Schicht-Block ZUERST mit roter
+      Kante; Farbe nur in Schicht-Balken und erster Spalte; Ausfallzeit
+      als Plakette (gelb, ab 60 min rot, „–" bei 0); leere Schicht als
+      „keine Störungen"; kein Bericht über die Seitengrenze zerschnitten.
+      Nachgewiesen mit **harte-74** (15 Prüfungen, druckt echtes HTML und
+      prüft Tagesblick, Ursache-Spalte, Offene-zuerst, Plaketten,
+      Kennzahlen). Zwei PDFs (16.09. und 17.09.) waren zuvor im Chat
+      abgestimmt.
+- [ ] **Handy-Fassung des Cockpits (Vorlage vom 10.09., Roberto
+      entscheidet).** HTML-Vorlage in den Chat geliefert, auf Robertos
+      Ansage nachgebessert: Start mit Werkstatt-Wahl (Scheurich/Soendgen mit
       echten Logos, wie die BTA-Startseiten-Vorlage), Kopfzeile
       „BTA-COCKPIT" mit gewählter Werkstatt (antippen = wechseln), alle
       Icons als Strich-Grafiken statt Emojis (alle Bereiche als
