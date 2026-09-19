@@ -133,7 +133,7 @@ module.exports = async function ({ pres, titel, fuss, bild, kapitel, bildFolie, 
     T(s, "Gemeinsam: dieselbe Programmdatei und derselbe Update-Ordner auf dem Firmenlaufwerk – eine neue Fassung erreicht beide Werkstätten. Beim ersten Start wählt jeder Rechner seine Werkstatt; die Daten der anderen sieht er nie.",
       { x: 0.7, y: 3.95, w: 8.6, h: 0.85, fontSize: 11.5, color: "1F5A33", valign: "middle" });
     fuss(s);
-    notiz(s, "Die Standort-Trennung ist seit September eingebaut (Werkstatt-Wahl beim ersten Start). Soendgen Keramik startet mit einem leeren, eigenen Datenbestand.");
+    notiz(s, "Die Standort-Trennung ist seit September eingebaut (Werkstatt-Wahl beim ersten Start). Eine neu hinzukommende Werkstatt startet mit einem leeren, eigenen Datenbestand.");
   }
 
   // =====================================================================
@@ -401,19 +401,19 @@ module.exports = async function ({ pres, titel, fuss, bild, kapitel, bildFolie, 
   }
 
   // =====================================================================
-  //  KAPITEL 7 - Nutzen für Soendgen Keramik
+  //  KAPITEL 7 - Nutzen für die Werkstatt (firmenneutral, gilt für SK wie für Scheurich)
   // =====================================================================
-  kapitel(7, "Nutzen für Soendgen Keramik", "Was SK bekäme, wie der Einstieg aussähe – und was das Cockpit bewusst nicht kann.");
+  kapitel(7, "Nutzen für die Werkstatt", "Was eine Werkstatt bekommt, wie der Einstieg aussieht – und was das Cockpit bewusst nicht kann.");
 
-  // ---- 7.1 Was SK bekommt ----
+  // ---- 7.1 Was eine Werkstatt bekommt ----
   {
     const s = pres.addSlide();
-    titel(s, "Was Soendgen Keramik bekommt", "Dasselbe Programm, eigene Daten, gemeinsame Weiterentwicklung");
+    titel(s, "Was eine Werkstatt bekommt", "Dasselbe Programm, eigene Daten, gemeinsame Weiterentwicklung");
     const karten = [
       { t: "Sofort einsatzbereit", farbe: GRUEN, glyph: "✓", b: "Dasselbe erprobte Programm, in fünf Minuten je Rechner eingerichtet – mit eigenem, leerem Datenbestand." },
       { t: "Morgenrunde & Nachweise", farbe: ORANGE, glyph: "▤", b: "Schichtbericht auf Knopfdruck, Prüfnachweis fürs Audit, Hallenmonitor für die Runde." },
       { t: "Eigene Stammdaten", farbe: BLAU, glyph: "A", b: "Anlagen, Team, Prüfpunkte, Kostenstellen im Verwalten – ohne Programmierung, ohne IT." },
-      { t: "Gemeinsame Updates", farbe: DUNKEL, glyph: "↑", b: "Jede Verbesserung erreicht beide Werkstätten über den grünen Balken – Wünsche aus SK fließen in dieselbe Roll-out-Liste." },
+      { t: "Gemeinsame Updates", farbe: DUNKEL, glyph: "↑", b: "Jede Verbesserung erreicht alle Werkstätten über den grünen Balken – Wünsche aus jeder Werkstatt fließen in dieselbe Roll-out-Liste." },
     ];
     for (let i = 0; i < 4; i++) {
       const k = karten[i], x = 0.5 + (i % 2) * 4.6, y = 1.4 + Math.floor(i / 2) * 1.75;
@@ -428,9 +428,9 @@ module.exports = async function ({ pres, titel, fuss, bild, kapitel, bildFolie, 
   // ---- 7.2 Fahrplan ----
   {
     const s = pres.addSlide();
-    titel(s, "So könnte der Einstieg aussehen", "Ein Vorschlag – Tempo und Umfang bestimmt Soendgen Keramik");
+    titel(s, "So könnte der Einstieg aussehen", "Ein Vorschlag – Tempo und Umfang bestimmt die Werkstatt selbst");
     const schritte = [
-      { t: "Erster Rechner", b: "Werkzeug, Standort „Soendgen Keramik“, in der App die gemeinsame Datei einmalig anlegen" },
+      { t: "Erster Rechner", b: "Werkzeug starten, Standort wählen, in der App die gemeinsame Datei einmalig anlegen" },
       { t: "Stammdaten", b: "Anlagen, Team, Schichtarten, R+I-Punkte und Kostenstellen im Verwalten eintragen" },
       { t: "Weitere Rechner", b: "Werkstatt-Rechner als Bearbeiter, ein Leser-Bildschirm für die Morgenrunde" },
       { t: "Probelauf", b: "Zwei bis vier Wochen parallel zum Bisherigen – Störungen, Schichtplan, Morgenrunde" },
@@ -445,7 +445,7 @@ module.exports = async function ({ pres, titel, fuss, bild, kapitel, bildFolie, 
       T(s, st.b, { x: x, y: 2.65, w: 1.65, h: 1.5, fontSize: 10, align: "center", valign: "top" });
     });
     karte(s, 0.5, 4.3, 9.0, 0.6, HELL);
-    T(s, "Begleitung: Roberto richtet den ersten Rechner mit ein; Fragen laufen über denselben Chat, aus dem auch die Scheurich-Werkstatt bedient wird.",
+    T(s, "Begleitung: Roberto richtet den ersten Rechner mit ein; Fragen und Wünsche laufen über denselben Chat, in dem das Cockpit weiterentwickelt wird.",
       { x: 0.7, y: 4.3, w: 8.6, h: 0.6, fontSize: 11, color: TEXT, valign: "middle" });
     fuss(s);
   }

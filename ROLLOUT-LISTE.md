@@ -941,8 +941,8 @@ Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
 Termin Dienstag 22.09.2026, 10–13 Uhr, vier Personen (Werkstattleiter SK,
 Betriebsleiter, Werkleiter SK). Ziel laut Roberto: Information und
 Kennenlernen – kein Verkaufsgespräch. Deck liegt als
-`doku/BTA-Cockpit-Vorstellung-SK.pptx` (42 Folien, 7 Kapitel), Bauskripte
-und Erklärung unter `doku/vorstellung-sk-2026-09-22/`.
+`doku/BTA-Cockpit-Vorstellung.pptx` (42 Folien, 7 Kapitel), Bauskripte
+und Erklärung unter `doku/vorstellung-bta-cockpit/`.
 
 - [ ] **Roberto geht das Deck komplett durch** (seine Ansage: „gehe ich sie
       komplett durch"). Änderungswünsche folienweise zurück – jede Folie ist

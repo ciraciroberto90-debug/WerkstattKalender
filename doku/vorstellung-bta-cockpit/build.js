@@ -1,4 +1,6 @@
-// Vorstellung BTA-Cockpit fuer Soendgen Keramik - Folienbau (pptxgenjs)
+// Vorstellung BTA-Cockpit - Folienbau (pptxgenjs)
+// Firmenneutral gehalten: dasselbe Deck dient bei Soendgen Keramik UND bei Scheurich,
+// deshalb kein Termin und kein Adressat im Titel, in der Fusszeile oder in Kapitel 7.
 // Kapitel 1 (Ausgangslage) + 2 (Das Cockpit im Ueberblick)
 const path = require("path");
 const fs = require("fs");
@@ -6,7 +8,7 @@ const pptxgen = require("pptxgenjs");
 
 const SHOTS = "/tmp/claude-0/-home-user-WerkstattKalender/8b2eab4a-3225-51dd-900c-dbf3d21c0a06/scratchpad/shots";
 const LOGOS = "/home/user/WerkstattKalender/doku/logos";
-const AUS = path.join(__dirname, "BTA-Cockpit-Vorstellung-SK.pptx");
+const AUS = path.join(__dirname, "BTA-Cockpit-Vorstellung.pptx");
 
 // Farben (aus der App, kein Hashtag!)
 const DUNKEL = "2C3137", ORANGE = "C97A2B", GRUEN = "1F7A3D", BLAU = "2F6690", GELB = "F0C230", ROT = "C0392B";
@@ -27,13 +29,13 @@ try {
 
 const pres = new pptxgen();
 pres.layout = "LAYOUT_16x9"; // 10 x 5.625 in
-pres.author = "R. Ciraci"; pres.title = "BTA-Cockpit – Vorstellung Soendgen Keramik";
+pres.author = "R. Ciraci"; pres.title = "BTA-Cockpit – Vorstellung";
 let nr = 0;
 
 // ---------- Bausteine ----------
 function fuss(s, dunkel = false) {
   nr++;
-  s.addText("BTA-Cockpit · Vorstellung für Soendgen Keramik", { x: 0.5, y: 5.28, w: 6, h: 0.25, fontSize: 9, color: dunkel ? "9AA1A8" : HELLGRAU, fontFace: FONT, margin: 0, isTextBox: true });
+  s.addText("BTA-Cockpit · Instandhaltung digital in der Scheurich Group", { x: 0.5, y: 5.28, w: 6, h: 0.25, fontSize: 9, color: dunkel ? "9AA1A8" : HELLGRAU, fontFace: FONT, margin: 0, isTextBox: true });
   s.addText(String(nr), { x: 9.0, y: 5.28, w: 0.5, h: 0.25, fontSize: 9, color: dunkel ? "9AA1A8" : HELLGRAU, fontFace: FONT, align: "right", margin: 0, isTextBox: true });
 }
 function titel(s, text, sub) {
@@ -105,8 +107,8 @@ const R_BERICHT = (() => { try { const { PNG } = {}; } catch (e) {}
     const s = pres.addSlide();
     s.background = { color: DUNKEL };
     s.addText("BTA-Cockpit", { x: 0.7, y: 1.35, w: 8.6, h: 1.0, fontSize: 46, bold: true, color: WEISS, fontFace: FONT, margin: 0, isTextBox: true });
-    s.addText("Instandhaltung digital – ein Werkzeug für Scheurich und Soendgen Keramik", { x: 0.7, y: 2.35, w: 8.6, h: 0.5, fontSize: 17, color: "C7CCD2", fontFace: FONT, margin: 0, isTextBox: true });
-    s.addText("Vorstellung bei Soendgen Keramik · Dienstag, 22.09.2026 · R. Ciraci, Werkstattleiter BTA Scheurich", { x: 0.7, y: 2.95, w: 8.6, h: 0.4, fontSize: 12.5, color: "9AA1A8", fontFace: FONT, margin: 0, isTextBox: true });
+    s.addText("Instandhaltung digital für Scheurich und Soendgen Keramik", { x: 0.7, y: 2.35, w: 8.6, h: 0.5, fontSize: 17, color: "C7CCD2", fontFace: FONT, margin: 0, isTextBox: true });
+    s.addText("R. Ciraci, Werkstattleiter BTA Scheurich · Stand September 2026", { x: 0.7, y: 2.95, w: 8.6, h: 0.4, fontSize: 12.5, color: "9AA1A8", fontFace: FONT, margin: 0, isTextBox: true });
     // Logos auf weissen Karten
     s.addShape(pres.ShapeType.roundRect, { x: 0.7, y: 3.95, w: 2.9, h: 0.9, fill: { color: WEISS }, line: { color: WEISS }, rectRadius: 0.08 });
     s.addImage({ path: path.join(LOGOS, "scheurich-group-hauptlogo.png"), x: 0.85, y: 4.13, w: 2.6, h: 0.65 });
@@ -122,11 +124,11 @@ const R_BERICHT = (() => { try { const { PNG } = {}; } catch (e) {}
     const punkte = [
       ["Ausgangslage", "Warum überhaupt – und was fehlte"],
       ["Das Cockpit im Überblick", "Alle Bereiche, so wie sie täglich aussehen"],
-      ["Backend – bewusst einfach", "Dateien statt Server, Rollen, Updates, zwei Standorte"],
+      ["Backend – bewusst einfach", "Dateien statt Server, Rollen, Updates, Standorte"],
       ["Belastbarkeit", "Stresstest mit 71.000 Einträgen, 73 Härtetests"],
       ["Einführung in 5 Minuten", "Das Installations-Werkzeug – ohne IT, ohne Admin"],
-      ["Wie es entstanden ist", "Die Arbeit mit Claude: Rollen, Regeln, Kommunikation"],
-      ["Nutzen für Soendgen Keramik", "Fahrplan, Grenzen, Diskussion"],
+      ["Wie es entstanden ist", "Die Arbeit mit Claude: Rollen, Regeln, Chat"],
+      ["Nutzen für die Werkstatt", "Was eine Werkstatt bekommt, Fahrplan, Grenzen"],
     ];
     for (let i = 0; i < punkte.length; i++) {
       const links = i < 4;
@@ -134,7 +136,7 @@ const R_BERICHT = (() => { try { const { PNG } = {}; } catch (e) {}
       s.addShape(pres.ShapeType.ellipse, { x, y: y + 0.05, w: 0.5, h: 0.5, fill: { color: ORANGE }, line: { color: ORANGE } });
       s.addText(String(i + 1), { x, y: y + 0.05, w: 0.5, h: 0.5, fontSize: 15, bold: true, color: WEISS, align: "center", valign: "middle", fontFace: FONT, margin: 0, isTextBox: true });
       s.addText(punkte[i][0], { x: x + 0.65, y: y, w: 4.2, h: 0.32, fontSize: 14.5, bold: true, color: DUNKEL, fontFace: FONT, margin: 0, isTextBox: true });
-      s.addText(punkte[i][1], { x: x + 0.65, y: y + 0.32, w: 4.2, h: 0.4, fontSize: 11, color: GRAU, fontFace: FONT, margin: 0, isTextBox: true });
+      s.addText(punkte[i][1], { x: x + 0.65, y: y + 0.32, w: 3.7, h: 0.4, fontSize: 11, color: GRAU, fontFace: FONT, margin: 0, isTextBox: true });
     }
     fuss(s);
   }

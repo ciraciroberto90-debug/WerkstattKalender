@@ -1,8 +1,11 @@
-# Vorstellung BTA-Cockpit und Claude – Soendgen Keramik, 22.09.2026
+# Vorstellung BTA-Cockpit und Claude – firmenneutral (SK und Scheurich)
 
-Die fertige Präsentation liegt als `doku/BTA-Cockpit-Vorstellung-SK.pptx`
-(42 Folien, 7 Kapitel). Hier liegen die Bauskripte, damit das Deck nach
-einer Änderung neu erzeugt werden kann.
+Die fertige Präsentation liegt als `doku/BTA-Cockpit-Vorstellung.pptx`
+(42 Folien, 7 Kapitel). Sie ist bewusst **firmenneutral** gehalten: kein
+Termin, kein Adressat im Titel, in der Fußzeile oder in Kapitel 7 – dasselbe
+Deck dient bei Soendgen Keramik (erstmals 22.09.2026) und bei Scheurich.
+Hier liegen die Bauskripte, damit das Deck nach einer Änderung neu erzeugt
+werden kann.
 
 ## Warum Skripte statt Handarbeit
 
@@ -31,8 +34,8 @@ Vorlagen, keine Windows-Screenshots – ein echtes Bild vom Rechner kann
 ## Bauen und prüfen
 
 ```bash
-node build.js                                   # schreibt BTA-Cockpit-Vorstellung-SK.pptx
-python3 <pptx-skill>/scripts/office/validate.py BTA-Cockpit-Vorstellung-SK.pptx
+node build.js                                   # schreibt BTA-Cockpit-Vorstellung.pptx
+python3 <pptx-skill>/scripts/office/validate.py BTA-Cockpit-Vorstellung.pptx
 ```
 
 Stand 18.09.2026: 42 Folien, Validierung „All validations PASSED", alle
