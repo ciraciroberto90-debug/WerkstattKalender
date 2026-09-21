@@ -450,6 +450,19 @@ Störungen, nicht den Rest.
   **offene Störungen als Gedankenstütze**, Tagesliste und **Pinnwand**.
   Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌),
   auf den **Monitor** legen (📺) und **veröffentlichen** (🌐, dann auch für Nur-Leser sichtbar).
+- **Tagesliste mit Köpfen (seit dem 21.09.):** Links neben den Terminen des Tages
+  steht eine schmale Leiste – oben das Klemmbrett (📋 = die Termine), darunter
+  die **heute Anwesenden als Köpfe**, nach Früh / Spät / Nacht gruppiert. Wer
+  fehlt (Schule, Krank, Urlaub), hat keinen Kopf und steht grau unter der Liste.
+  Ein roter Punkt am Kopf zählt die offenen Punkte. Ein Klick auf einen Kopf
+  zeigt rechts, was für die Person **heute** eingeplant ist: Backlog-Arbeiten
+  (Person + „geplant für" = heute), fällige To-dos (Frist bis heute oder ohne
+  Frist; spätere nur als Zeile) und die Planungs-Notizen des Tages. Kästchen
+  hakt direkt ab (und wieder auf), der Stift öffnet den gewohnten Dialog.
+  Störungen haben keine Person – ihre Restarbeit erscheint erst, wenn sie als
+  Arbeit eingeplant ist. Rechte wie in den Bereichen: Arbeiten/Notizen nach
+  „Planung", To-dos nach „To-dos"; Leser sehen nur, was ihre Gruppe sehen darf.
+  Klemmbrett oder ✕ führen zu den Terminen zurück.
 - **Schichtplan:** Monatsmatrix, je Person und Tag eine Schicht (Früh/Spät/Nacht u. a.).
   Zwei Ausdrucke: **Monat** (die Matrix, quer) und **Wochen** – je Kalenderwoche
   ein Blatt im Querformat, gedacht fürs Schwarze Brett.

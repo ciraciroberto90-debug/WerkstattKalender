@@ -992,18 +992,20 @@ Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
       Härtetest harte-78.
 - [x] **Kopfzeile ohne Ortsnamen** („Scheurich" / „Soendgen Keramik" statt
       „… · Kleinheubach").
-- [ ] **Termin-Kachel „Heute · Montag" um die Anwesenden erweitern** (Robertos
-      Klarstellung: NICHT die „Heute da"-Kachel, sondern die Tagesliste
-      unten). Die Standard-Terminliste bleibt; zusätzlich lassen sich die
-      heute anwesenden Mitarbeiter (Früh/Spät/Nacht; Schule, Krank, Urlaub
-      außen vor) auswählen und ihre geplanten Punkte direkt abhaken oder
-      bearbeiten. Fünf Bedien-Vorlagen an Roberto geschickt (V1 Reiter in
-      der Kachel, V2 Dropdown im Kopf, V3 Chip-Leiste unter den Terminen,
-      V4 Seitenleiste mit Köpfen, V5 Schicht-Schalter Termine|Früh|Spät|
-      Nacht) – gebaut wird nach seiner Wahl. Datengrundlage: Backlog-
-      Arbeiten mit `wer` + `geplant` = heute, To-dos mit `wer`,
-      Planungs-Notizen, Störungen mit Restarbeit. (Die früheren Vorlagen
-      A–D für eine eigene Kachel sind damit hinfällig.)
+- [x] **Termin-Kachel „Heute · Montag" mit Seitenleiste der Köpfe** (Robertos
+      Wahl: Vorlage 4 von fünf geschickten; NICHT die „Heute da"-Kachel).
+      Die Terminliste bleibt; links eine Leiste mit Klemmbrett (= Termine)
+      und den heute Anwesenden als Köpfen nach Früh/Spät/Nacht, roter
+      Punkt = offene Punkte. Abwesende (Schule, Krank, Urlaub) ohne Kopf,
+      grau unter der Liste. Klick auf einen Kopf: Backlog-Arbeiten mit
+      `wer` + `geplant` = heute, To-dos mit Frist bis heute oder ohne Frist
+      (spätere als Zeile), Planungs-Notizen des Tages – Kästchen hakt
+      ab/auf, Stift öffnet den Dialog. Rechte über die Matrix (Arbeiten/
+      Notizen: Planung, To-dos: To-dos). Härtetest harte-79 (30 Prüfungen).
+- [ ] **Bewusst nicht drin:** Störungen mit Restarbeit in der Personen-Liste
+      – ein Störbericht hat keine zuständige Person. Sobald die Restarbeit als
+      Arbeit eingeplant ist, steht sie beim Kollegen. Wenn Roberto Störungen
+      eine Person geben will: Feld „wer" am Störbericht, auf Zuruf.
 
 ## Gruppen-Verwalter (Robertos Ansage vom 21.09.)
 

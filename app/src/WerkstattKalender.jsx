@@ -2451,6 +2451,11 @@ function App() {
   // an ist, ist der Inhalt eingefroren (keine Klicks in die Kacheln).
   const [uebersichtBearbeiten, setUebersichtBearbeiten] = useState(false);
   const [uebDrag, setUebDrag] = useState(null); // {art, k} - was gerade gezogen wird
+  // Termin-Kachel, Seitenleiste mit Köpfen (Robertos Wahl vom 21.09., Vorlage 4):
+  // null = die Termine des Tages, sonst der Name des anwesenden Kollegen,
+  // dessen geplante Punkte rechts stehen. Bewusst nur im Speicher - nach dem
+  // Neuladen (und am nächsten Tag) beginnt die Kachel wieder bei den Terminen.
+  const [tagesPerson, setTagesPerson] = useState(null);
   useEffect(() => {
     if (!uebersichtBearbeiten) return undefined;
     const aufTaste = (ev) => { if (ev.key === "Escape") setUebersichtBearbeiten(false); };
@@ -10262,20 +10267,121 @@ function App() {
 
         const spalten = {};
         /* Tagesliste */
-        spalten.tagesliste = zeig.tagesliste && (
-            <div>
-              <div className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B" }}>
-                Heute · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
-                {/* Kalender-Popup (24.08.): der TPM/R+I-Monatskalender als
-                    kleines Fenster, ohne den Reiter zu wechseln. */}
-                <button
-                  onClick={() => setKalenderPopup((o) => (o ? null : { jahr: today.getFullYear(), monat: today.getMonth() }))}
-                  aria-label="Wartungskalender als Fenster öffnen"
-                  title="TPM/R+I-Kalender in einem kleinen Fenster zeigen"
-                  className="rounded border px-1.5"
-                  style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px" }}
-                >📅</button>
-              </div>
+        spalten.tagesliste = zeig.tagesliste && (() => {
+            /* Seitenleiste mit Köpfen (Robertos Wahl vom 21.09., Vorlage 4):
+               links die heute Anwesenden als Köpfe, nach Schicht gruppiert,
+               oben das Klemmbrett = die Termine des Tages. Ein Klick auf
+               einen Kopf zeigt rechts die geplanten Punkte dieser Person -
+               Backlog-Arbeiten mit "wer" + "geplant" = heute, offene To-dos
+               (fällig bis heute oder ohne Frist) und die Planungs-Notizen des
+               Tages - zum direkten Abhaken oder Bearbeiten. Wer heute fehlt
+               (Schule, Krank, Urlaub), steht nicht in der Leiste, sondern
+               grau unter der Liste. Störungen haben keine Person - sie
+               erscheinen hier nur, wenn ihre Restarbeit als Arbeit eingeplant
+               ist. Rechte: Arbeiten/Notizen nach PLANUNG, To-dos nach TODO. */
+            const leiste = jetztInDerWerkstatt.spalten.filter(([, , crew]) => crew.length > 0);
+            const anwesend = leiste.flatMap(([, , crew]) => crew);
+            const gewaehlt = tagesPerson && anwesend.some((x) => x.name === tagesPerson) ? tagesPerson : null;
+            const darfPlanung = !nurLesen("PLANUNG");
+            const darfTodo = !nurLesen("TODO");
+            const tagVon = (iso) => { const d = new Date(iso || ""); return isNaN(d) ? "" : dateKey(d.getFullYear(), d.getMonth(), d.getDate()); };
+            const punkteVon = (person) => {
+              const arbeitenHeute = sichtbar("PLANUNG") ? geplantFuer(person, todayKey) : [];
+              const meine = sichtbar("TODO") ? todos.filter((t) => t.wer === person) : [];
+              const rang = (t) => (t.status === "done" ? 3 : !t.bis ? 2 : String(t.bis) < todayKey ? 0 : 1);
+              const faellig = meine
+                .filter((t) => (t.status !== "done" && (!t.bis || String(t.bis) <= todayKey)) || (t.status === "done" && tagVon(t.erledigtAm) === todayKey))
+                .sort((x, y) => rang(x) - rang(y) || String(x.bis || "").localeCompare(String(y.bis || "")));
+              const spaeter = meine.filter((t) => t.status !== "done" && t.bis && String(t.bis) > todayKey);
+              const notizen = sichtbar("PLANUNG") ? notizenFuer(person, todayKey) : [];
+              const offen = arbeitenHeute.filter((a) => a.status !== "done").length + faellig.filter((t) => t.status !== "done").length;
+              const gesamt = arbeitenHeute.length + faellig.length;
+              return { arbeitenHeute, faellig, spaeter, notizen, offen, gesamt };
+            };
+            const abwesend = team
+              .map((m) => ({ name: m.name, schicht: schichtFuer(m.name, todayKey) }))
+              .filter((x) => x.schicht && SCHICHT_ABWESEND.has(x.schicht));
+            const kopfFarbe = (x) => { const sc = x.schicht && SCHICHTEN[x.schicht]; return sc ? { bg: sc.color, text: sc.text || "#fff" } : { bg: "#8A9099", text: "#fff" }; };
+            const kastenStil = { width: "20px", height: "20px", borderRadius: "7px", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", fontSize: "0.72rem" };
+            const kasten = (fertig, darf, label, onClick) => (
+              <button
+                onClick={(ev) => { ev.stopPropagation(); if (darf) onClick(); }}
+                disabled={!darf}
+                aria-label={label}
+                title={darf ? label : "Nur ansehen"}
+                style={{ ...kastenStil, backgroundColor: fertig ? "#1F7A3D" : "white", border: fertig ? "none" : "2px solid #C3C7CB", cursor: darf ? "pointer" : "default" }}
+              >{fertig ? "✓" : ""}</button>
+            );
+            const stift = (darf, label, onClick) => darf && (
+              <button onClick={(ev) => { ev.stopPropagation(); onClick(); }} aria-label={label} title={label} className="ml-auto" style={{ color: "#B7BEC6", fontSize: "13px", lineHeight: 1 }}>✎</button>
+            );
+            const personenListe = (person) => {
+              const x = anwesend.find((a) => a.name === person);
+              const f = kopfFarbe(x);
+              const p = punkteVon(person);
+              const leer = p.arbeitenHeute.length === 0 && p.faellig.length === 0 && p.notizen.length === 0;
+              return (
+                <div role="region" aria-label={`Punkte von ${person}`}>
+                  <div className="flex items-center gap-2 mb-2" style={{ minHeight: "28px" }}>
+                    <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "26px", height: "26px", fontSize: "0.62rem", backgroundColor: f.bg, color: f.text }}>{personKuerzel(person)}</span>
+                    <strong style={{ fontSize: "0.9rem", color: "#22262B" }}>{person}</strong>
+                    <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.4px", padding: "2px 8px", backgroundColor: f.bg, color: f.text }}>{x.schicht || "Tagschicht"}</span>
+                    <span className="ml-auto text-xs font-bold" style={{ color: "#8A9099" }}>{p.gesamt > 0 ? `${p.gesamt - p.offen} von ${p.gesamt} erledigt` : ""}</span>
+                    <button onClick={() => setTagesPerson(null)} aria-label="Zurück zu den Terminen" title="Zurück zu den Terminen" className="rounded border px-1.5" style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px", color: "#5B6572" }}>✕</button>
+                  </div>
+                  {leer && (
+                    <div className="text-xs italic text-slate-400 mb-3">
+                      Für {person} ist heute nichts eingeplant.
+                      {sichtbar("PLANUNG") && <button onClick={() => setCockpitTab("PLANUNG")} className="ml-2 font-bold not-italic" style={{ color: "#C97A2B" }}>➜ Planung</button>}
+                    </div>
+                  )}
+                  {p.arbeitenHeute.map((a) => {
+                    const fertig = a.status === "done";
+                    return (
+                      <div key={a.id} className="wk-karte w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left" style={{ boxShadow: "inset 3px 0 0 0 #C97A2B, var(--wk-schatten)" }}>
+                        {kasten(fertig, darfPlanung, `${a.note} ${fertig ? "wieder öffnen" : "abhaken"}`, () => setArbeitStatus(a.id, fertig ? "open" : "done"))}
+                        <span className="wk-chip wk-chip-arbeit">Arbeit</span>
+                        <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", textDecoration: fertig ? "line-through" : "none", color: fertig ? "#8A9099" : "#22262B" }}>{a.note}</strong>
+                        <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099" }}>{a.name}</span>
+                        {a.prio && a.prio !== "ohne" && <span style={{ fontSize: "0.6rem", fontWeight: 900, color: "#C0392B", textTransform: "uppercase" }}>{a.prio}</span>}
+                        {stift(darfPlanung, `${a.note} bearbeiten`, () => openArbeitEdit(a))}
+                      </div>
+                    );
+                  })}
+                  {p.faellig.map((t) => {
+                    const fertig = t.status === "done";
+                    const ueber = !fertig && t.bis && String(t.bis) < todayKey;
+                    return (
+                      <div key={t.id} className="wk-karte w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left" style={{ boxShadow: `inset 3px 0 0 0 ${ueber ? "#B23A34" : "#2F6690"}, var(--wk-schatten)` }}>
+                        {kasten(fertig, darfTodo, `${t.name} ${fertig ? "wieder öffnen" : "abhaken"}`, () => todoHaken(t))}
+                        <span className="wk-chip wk-chip-todo">To-do</span>
+                        <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", textDecoration: fertig ? "line-through" : "none", color: fertig ? "#8A9099" : "#22262B" }}>{t.name}</strong>
+                        {t.bis && <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: ueber ? "#B23A34" : "#8A9099" }}>{ueber ? "seit " : "bis "}{formatDateDE(t.bis)}</span>}
+                        {stift(darfTodo, `${t.name} bearbeiten`, () => todoBearbeiten(t))}
+                      </div>
+                    );
+                  })}
+                  {p.notizen.map((n) => (
+                    <div key={n.id} className="wk-karte w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left" style={{ boxShadow: "inset 3px 0 0 0 #E3B341, var(--wk-schatten)" }}>
+                      <span style={{ ...kastenStil, border: "2px solid transparent" }} aria-hidden="true" />
+                      <span className="wk-chip wk-chip-notiz">Notiz</span>
+                      <span className="flex-1" style={{ fontSize: "var(--wk-txt)", color: "#22262B", whiteSpace: "pre-wrap" }}>{n.note}</span>
+                      {stift(darfPlanung, `Notiz bearbeiten: ${n.note}`, () => setPlanNotiz({ person, datum: todayKey, id: n.id, text: n.note }))}
+                    </div>
+                  ))}
+                  {p.spaeter.length > 0 && (
+                    <div className="text-xs" style={{ color: "#8A9099" }}>{p.spaeter.length === 1 ? "1 To-do" : `${p.spaeter.length} To-dos`} mit späterer Frist (siehe Berichte → To-dos)</div>
+                  )}
+                  {abwesend.length > 0 && (
+                    <div className="text-xs mt-3" style={{ color: "#8A9099" }}>
+                      <b style={{ color: "#5B6572" }}>Nicht da:</b> {abwesend.map((x) => `${x.name} (${x.schicht})`).join(" · ")}
+                    </div>
+                  )}
+                </div>
+              );
+            };
+            const termine = (
+              <>
               {heutePlan.length === 0 && heuteTermine.length === 0 && (
                 <div className="text-xs italic text-slate-400 mb-3">Heute steht laut Plan nichts an.</div>
               )}
@@ -10354,8 +10460,69 @@ function App() {
                   <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099" }}>{terminArchiv.length} über eine Woche versäumt</span>
                 </button>
               )}
+              </>
+            );
+            const kopfKnopf = (x) => {
+              const f = kopfFarbe(x);
+              const an = gewaehlt === x.name;
+              const offen = punkteVon(x.name).offen;
+              return (
+                <button
+                  key={x.name}
+                  onClick={() => setTagesPerson(an ? null : x.name)}
+                  aria-label={`Punkte von ${x.name}`}
+                  aria-pressed={an}
+                  title={`${x.name} · ${x.schicht || "Tagschicht"} · ${offen === 0 ? "nichts offen" : offen === 1 ? "1 Punkt offen" : offen + " Punkte offen"}`}
+                  className="relative inline-flex items-center justify-center rounded-full font-extrabold"
+                  style={{ width: "34px", height: "34px", fontSize: "0.68rem", backgroundColor: f.bg, color: f.text, border: "2px solid " + (an ? "#22262B" : "transparent"), boxShadow: an ? "0 0 0 2px #fff, 0 0 0 4px #C97A2B" : "none", flexShrink: 0 }}
+                >
+                  {personKuerzel(x.name)}
+                  {offen > 0 && (
+                    <span aria-hidden="true" className="absolute inline-flex items-center justify-center rounded-full text-white font-black" style={{ top: "-4px", right: "-6px", minWidth: "16px", height: "16px", fontSize: "0.56rem", padding: "0 4px", backgroundColor: "#C0392B", border: "2px solid white" }}>{offen}</span>
+                  )}
+                </button>
+              );
+            };
+            const schichtLabel = { FRUEH: "Früh", SPAET: "Spät", NACHT: "Nacht" };
+            return (
+            <div>
+              <div className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B" }}>
+                Heute · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
+                {/* Kalender-Popup (24.08.): der TPM/R+I-Monatskalender als
+                    kleines Fenster, ohne den Reiter zu wechseln. */}
+                <button
+                  onClick={() => setKalenderPopup((o) => (o ? null : { jahr: today.getFullYear(), monat: today.getMonth() }))}
+                  aria-label="Wartungskalender als Fenster öffnen"
+                  title="TPM/R+I-Kalender in einem kleinen Fenster zeigen"
+                  className="rounded border px-1.5"
+                  style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px" }}
+                >📅</button>
+              </div>
+              {leiste.length === 0 ? termine : (
+                <div className="grid gap-3" style={{ gridTemplateColumns: "52px minmax(0, 1fr)" }}>
+                  <div className="flex flex-col items-center" style={{ gap: "6px", paddingTop: "2px" }} role="toolbar" aria-label="Heute anwesend">
+                    <button
+                      onClick={() => setTagesPerson(null)}
+                      aria-label="Termine anzeigen"
+                      aria-pressed={!gewaehlt}
+                      title="Termine des Tages"
+                      className="inline-flex items-center justify-center"
+                      style={{ width: "34px", height: "34px", borderRadius: "10px", fontSize: "15px", backgroundColor: gewaehlt ? "white" : "#22262B", border: gewaehlt ? "1px solid #D6D9DC" : "1px solid #22262B", flexShrink: 0 }}
+                    >📋</button>
+                    {leiste.map(([typ, , crew]) => (
+                      <React.Fragment key={typ}>
+                        <span aria-hidden="true" style={{ width: "24px", height: "1px", backgroundColor: "#D6D9DC", margin: "4px 0 2px" }} />
+                        <span style={{ fontSize: "0.5rem", fontWeight: 900, color: "#8A9099", textTransform: "uppercase", letterSpacing: "0.3px" }}>{schichtLabel[typ] || typ}</span>
+                        {crew.map(kopfKnopf)}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                  <div style={{ minWidth: 0 }}>{gewaehlt ? personenListe(gewaehlt) : termine}</div>
+                </div>
+              )}
             </div>
-        );
+            );
+        })();
 
         /* Pinnwand - readerMode hier bewusst überdeckt: Stufe "sehen" der
            Rechte-Matrix nimmt die Schreib-Knöpfe, lässt aber alle Zettel. */
