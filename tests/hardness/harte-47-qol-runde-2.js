@@ -129,13 +129,21 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
   }
 
   /* ---- (D) Nachtschicht-Modus über den Auge-Knopf ---- */
+  // Seit dem 21.09. ist das Auge für den Verwalter (und ohne Benutzerliste
+  // gilt jeder als Verwalter) der Ansichts-Schalter; der Nachtmodus steht in
+  // dessen Menü. Bearbeiter behalten das Auge direkt als Nachtmodus (harte-78).
   {
     const { p, ctx } = await start(browser, []);
-    const auge = p.locator('button[aria-label="Nachtschicht-Modus"]');
+    const auge = p.locator('button[aria-label="Ansicht wechseln"]');
+    const nachtSchalten = async () => {
+      await auge.click();
+      await p.waitForTimeout(200);
+      await p.locator('[role="menu"] button[aria-label="Nachtschicht-Modus"]').click();
+    };
     pruef("(D) Der Auge-Knopf sitzt oben rechts", (await auge.count()) === 1);
     pruef("(D) Vorher: normale Darstellung",
           !(await p.evaluate(() => document.documentElement.classList.contains("wk-nacht"))));
-    await auge.click();
+    await nachtSchalten();
     await p.waitForTimeout(300);
     pruef("(D) Ein Klick schaltet dunkel",
           await p.evaluate(() => document.documentElement.classList.contains("wk-nacht")));
@@ -143,7 +151,7 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     await p.waitForTimeout(1000);
     pruef("(D) Die Wahl überlebt das Neuladen",
           await p.evaluate(() => document.documentElement.classList.contains("wk-nacht")));
-    await p.locator('button[aria-label="Nachtschicht-Modus"]').click();
+    await nachtSchalten();
     await p.waitForTimeout(300);
     pruef("(D) Noch ein Klick schaltet zurück",
           !(await p.evaluate(() => document.documentElement.classList.contains("wk-nacht"))));
