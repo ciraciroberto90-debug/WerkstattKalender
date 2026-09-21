@@ -655,6 +655,14 @@ Die App ersetzt einen Backend-Server durch mehrere Schutzmechanismen:
 - **Optimistische Sperre + Kontroll-Lesung:** Nach dem Schreiben wird zurückgelesen und
   geprüft, ob die eigene Änderung wirklich drinsteht.
 - **Selbstheilung:** Ein Hintergrund-Check gleicht sehr seltene Zeitfenster automatisch aus.
+- **Abgleich-Kurzblick (seit 21.09.):** Der 30-Sekunden-Abgleich sieht zuerst nur auf
+  Größe und Änderungszeit der Datei und liest den Inhalt nur, wenn eine davon abweicht.
+  Zwei Vorsichtsregeln: ohne bekannten Stand wird immer gelesen, und eine Datei, die vor
+  weniger als fünf Sekunden geändert wurde, wird immer gelesen (manche Laufwerke führen die
+  Änderungszeit nur sekundengenau). Eine beschädigte Datei bleibt erkennbar, weil ihre
+  Kennkarte nie als „bekannt" übernommen wird. In der Programm-Fassung braucht der
+  Kurzblick die Brücken-Funktion `stat` – ältere Programm-ZIPs lesen bis zum Update weiter
+  wie bisher.
 - **Tombstones:** Absichtlich Gelöschtes wird nicht durch alte Kopien wiederbelebt.
   Die Lösch-Merkliste gilt 180 Tage und altert **nicht** nach der Uhr eines einzelnen
   Rechners – sonst könnte ein Gerät mit falschem Jahr sie für alle leeren.

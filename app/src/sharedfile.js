@@ -316,6 +316,15 @@ function desktopDateiHandle(pfad) {
       if (!r) { const e = new Error("Datei nicht gefunden: " + pfad); e.name = "NotFoundError"; throw e; }
       return new File([r.bytes], name, { lastModified: r.geaendert });
     },
+    // Kurzblick für den Abgleich (21.09.): nur Größe und Änderungszeit, ohne
+    // die Bytes zu holen. Ältere Programm-Fassungen ohne "stat" in der Brücke
+    // liefern null - dann liest der Abgleich wie bisher die ganze Datei.
+    async kurz() {
+      if (typeof d.stat !== "function") return null;
+      const r = await d.stat(pfad);
+      if (!r) { const e = new Error("Datei nicht gefunden: " + pfad); e.name = "NotFoundError"; throw e; }
+      return { size: r.groesse, lastModified: r.geaendert };
+    },
     async createWritable() {
       let teile = [];
       return {
@@ -476,6 +485,16 @@ function createSharedStore(cfg) {
   let uhrVersatzMs = 0;      // wie weit die Zeitangaben in der Datei in der Zukunft liegen
   let fremdeBauZeit = "";    // jüngste in der Datei gesehene Bau-Zeit einer anderen Fassung
   let dateiInfo = null;   // { groesse, geaendert, eintraege }
+  /* Abgleich-Kurzblick (Robertos Auftrag vom 21.09., aus dem Gedankenspiel
+     "71.000 Einträge je Jahr"): Der 30-Sekunden-Abgleich las bisher bei
+     JEDEM Durchlauf die ganze Datei und zerlegte sie - auch wenn sich nichts
+     geändert hatte. Bei 15 MB und zehn Rechnern sind das 300 MB je Minute
+     übers Laufwerk, umsonst. Jetzt schaut der Abgleich zuerst nur auf Größe
+     und Änderungszeit; nur wenn eine davon abweicht (oder die Datei gerade
+     eben erst geschrieben wurde), wird der Inhalt gelesen. Die zuletzt
+     gelesene Fassung bleibt für die Tages-Sicherung greifbar. */
+  let zuletztGelesen = null;
+  const leseZaehler = { inhalt: 0, kurz: 0 }; // Messzähler: volle Lesungen / übersprungene Abgleiche
   let dateiPfad = "";     // z. B. "Werkstatt/werkstatt-kalender-daten.json"
   let folderPerm = "none"; // "ok" | "needs-permission" | "none"
   // Zweiter, rein lesender Ordner für fremde Tabellen (OEE auf dem Firmenlaufwerk)
@@ -763,11 +782,16 @@ function createSharedStore(cfg) {
     return uhrVersatzMs > 0 ? Math.round(uhrVersatzMs / 60000) : 0;
   }
 
-  async function readFileData() {
-    const file = await mitFrist(() => fileHandle.getFile(), FRIST_LESEN, "Das Öffnen der Datei");
+  // vorab: eine schon geöffnete Datei (vom Kurzblick) - spart das zweite Öffnen.
+  async function readFileData(vorab) {
+    const file = vorab || await mitFrist(() => fileHandle.getFile(), FRIST_LESEN, "Das Öffnen der Datei");
     const text = await mitFrist(() => file.text(), FRIST_LESEN, "Das Lesen der Datei");
-    dateiInfo = { groesse: file.size, geaendert: file.lastModified, eintraege: null };
-    if (!text.trim()) { dateiInfo.eintraege = 0; return emptyData(); }
+    leseZaehler.inhalt++;
+    // Die Kennkarte wird erst nach GELUNGENER Lesung übernommen: Eine kaputte
+    // Datei darf der Kurzblick nicht als "bekannt und unverändert" abhaken -
+    // sonst käme die zweite Lesung nie, und damit weder Heilung noch Meldung.
+    const info = { groesse: file.size, geaendert: file.lastModified, eintraege: null };
+    if (!text.trim()) { info.eintraege = 0; dateiInfo = info; zuletztGelesen = emptyData(); return zuletztGelesen; }
     try {
       const gelesen = normalizeData(JSON.parse(text));
       // Standort-Wächter: Eine Datei des ANDEREN Standorts darf hier nie
@@ -787,9 +811,11 @@ function createSharedStore(cfg) {
         fehler.name = "StandortKonflikt";
         throw fehler;
       }
-      dateiInfo.eintraege = ohneSystemEntries(gelesen.entries).length;
+      info.eintraege = ohneSystemEntries(gelesen.entries).length;
+      dateiInfo = info;
       pruefeUhr(gelesen);
       if (gelesen.bauStand && gelesen.bauStand > fremdeBauZeit) fremdeBauZeit = gelesen.bauStand;
+      zuletztGelesen = gelesen;
       return gelesen;
     } catch (e) {
       // Der Standort-Wächter ist KEIN Dateischaden - seine Meldung muss
@@ -1180,6 +1206,8 @@ function createSharedStore(cfg) {
     fileHandle = null;
     accessMode = null;
     lastSavedAt = null;
+    dateiInfo = null;       // sonst hielte der Kurzblick eine andere Datei für "unverändert"
+    zuletztGelesen = null;
     folderHandle = null;
     folderPerm = "none";
     try {
@@ -2067,10 +2095,43 @@ function createSharedStore(cfg) {
   let lastSuccessfulSyncAt = null; // für die "zuletzt aktualisiert"-Anzeige
   function getLastSuccessfulSyncAt() { return lastSuccessfulSyncAt; }
 
+  /* Kurzblick: Ist die Datei nach Größe und Änderungszeit noch die, die wir
+     zuletzt gelesen (oder selbst geschrieben) haben? Zwei Vorsichtsregeln:
+     (1) Ohne bekannten Stand wird immer gelesen. (2) Eine Datei, die vor
+     weniger als KURZBLICK_RUHE_MS geändert wurde, wird immer gelesen - die
+     Änderungszeit mancher Laufwerke ist nur sekundengenau, und zwei Schreiber
+     kurz hintereinander könnten sonst dieselbe Marke tragen. Liefert die
+     schon geöffnete Datei mit, damit readFileData sie nicht erneut öffnet. */
+  const KURZBLICK_RUHE_MS = 5000;
+  async function kurzblick() {
+    if (!dateiInfo || dateiInfo.geaendert === null || dateiInfo.geaendert === undefined) return { unveraendert: false, file: null };
+    let kurz = null, file = null;
+    if (typeof fileHandle.kurz === "function") kurz = await mitFrist(() => fileHandle.kurz(), FRIST_LESEN, "Der Kurzblick auf die Datei");
+    if (!kurz) {
+      file = await mitFrist(() => fileHandle.getFile(), FRIST_LESEN, "Das Öffnen der Datei");
+      kurz = { size: file.size, lastModified: file.lastModified };
+    }
+    const unveraendert = kurz.size === dateiInfo.groesse && kurz.lastModified === dateiInfo.geaendert
+      && (Date.now() - Number(kurz.lastModified)) > KURZBLICK_RUHE_MS;
+    return { unveraendert, file };
+  }
+
   async function pollNow() {
     if (!fileHandle) return;
     try {
-      const data = await readFileData();
+      const blick = await kurzblick();
+      if (blick.unveraendert) {
+        // Nichts Neues auf dem Laufwerk: Inhalt nicht lesen. Die Kür läuft trotzdem.
+        leseZaehler.kurz++;
+        lastSuccessfulSyncAt = nowISO();
+        if (pollFehlerFolge >= POLL_FEHLER_SCHWELLE || pollWarnungAktiv) { dispatchOk(); pollWarnungAktiv = false; }
+        pollFehlerFolge = 0;
+        kaputtFolge = 0;
+        sammleKonfliktkopien();
+        if (zuletztGelesen) tagesSicherung(zuletztGelesen);
+        return;
+      }
+      const data = await readFileData(blick.file || undefined);
       lastSuccessfulSyncAt = nowISO();
       if (pollFehlerFolge >= POLL_FEHLER_SCHWELLE || pollWarnungAktiv) {
         // War zwischenzeitlich nicht erreichbar, jetzt wieder da - Entwarnung geben.
@@ -2147,6 +2208,7 @@ function createSharedStore(cfg) {
       return data;
     },
     poll: pollNow,
+    leseZaehler: () => ({ ...leseZaehler }), // Messzähler des Abgleich-Kurzblicks
     canWrite, // nur lesende Statusabfrage - verleiht kein Recht
     save: saveEntries, // greift dieselbe Prüfung ab wie jeder andere Weg
     getLastSuccessfulSyncAt: () => lastSuccessfulSyncAt,

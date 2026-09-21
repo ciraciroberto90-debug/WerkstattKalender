@@ -77,7 +77,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 79 Härtetests und acht weitere Suiten | Entwicklung |
+| `tests/` | 80 Härtetests und acht weitere Suiten | Entwicklung |
 | `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
@@ -113,7 +113,9 @@ schaltet die App von selbst auf „nur ansehen" um.
   überschreibt den anderen. Vor jedem Speichern wird der aktuelle Dateiinhalt
   gelesen, danach wird zurückgelesen und geprüft, ob nichts verschwunden ist.
 - Fremde Änderungen erscheinen **automatisch alle 30 Sekunden** – Neuladen ist
-  dafür nicht nötig.
+  dafür nicht nötig. Der Abgleich schaut dabei zuerst nur auf Größe und
+  Änderungszeit der Datei (Kurzblick, seit 21.09.) und liest den Inhalt nur,
+  wenn sich etwas geändert hat – das Laufwerk wird nicht mit Leerlesungen belastet.
 - Löschungen werden über eine Merkliste (180 Tage) zwischen den Bearbeitern
   abgeglichen.
 - Ist das Laufwerk kurz nicht erreichbar, wird lokal weitergespeichert und eine
@@ -127,7 +129,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 79 Härtetests
+bash tests/run-hardness-tests.sh           # 80 Härtetests
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren

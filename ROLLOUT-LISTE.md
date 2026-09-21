@@ -1096,11 +1096,23 @@ Kandidaten in Reihenfolge des Nutzens, alle auf Zuruf – jeder mit
 Vorher/Nachher-Messung und (bei Sync-Änderungen) mit Test, der ohne die
 Änderung fehlschlägt:
 
-- [ ] **Abgleich-Kurzblick:** Der 30-Sekunden-Abgleich liest heute die
-      ganze Datei und zerlegt sie, auch wenn sich nichts geändert hat
-      (`pollNow` → `readFileData`). Erst Größe/Änderungszeit der Datei
-      prüfen, nur bei Änderung lesen. Bei 10 Rechnern und 45 MB sind das
-      sonst 900 MB je Minute übers Laufwerk.
+- [x] **Abgleich-Kurzblick GEBAUT (21.09., Robertos „bau erstmal den
+      Abgleich-Kurzblick"):** Der 30-Sekunden-Abgleich schaut zuerst nur auf
+      Größe und Änderungszeit der Datei und liest den Inhalt nur bei
+      Abweichung. Zwei Vorsichtsregeln: ohne bekannten Stand wird immer
+      gelesen; eine Datei mit Änderungszeit jünger als 5 s wird immer
+      gelesen (sekundengenaue Laufwerke, zwei Schreiber kurz nacheinander).
+      Die Kennkarte wird erst nach gelungener Lesung übernommen – eine
+      kaputte Datei bleibt so erkennbar (Heilung und Meldung wie bisher).
+      Programm-Fassung: neue Brücken-Funktion `stat` (Größe + Zeit ohne
+      Bytes); ältere Programm-Fassungen ohne `stat` lesen wie bisher voll
+      – wirksam wird der Kurzblick dort erst mit der nächsten Programm-ZIP.
+      Gilt für Hauptdatei UND Störberichte-Datei (gleicher Baustein).
+      Härtetest harte-81 (15 Prüfungen, zählt die ECHTEN Inhalts-Lesungen);
+      Rot-Nachweis gemessen: ohne Kurzblick 5 Lesungen bei 5 Abgleichen
+      statt 0. Nicht gemessen: die Netzlast auf dem echten Laufwerk – die
+      Rechnung (eine Lesung je Änderung statt zwei je Minute je Rechner)
+      ist Hochrechnung.
 - [ ] **Örtlicher Spiegel in IndexedDB statt localStorage:** die ~5-MB-
       Grenze ist heute schon überschritten; ohne Spiegel fehlt der
       Offline-Puffer („Laufwerk kurz weg") und der Vergleichsstand für die

@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("__werkstattDesktop", {
   waehleOrdner: () => ipcRenderer.invoke("ordner-waehlen"),
   // Dateizugriffe über Pfade
   lese: (pfad) => ipcRenderer.invoke("lese", pfad),
+  stat: (pfad) => ipcRenderer.invoke("stat", pfad), // Kurzblick: Größe + Änderungszeit ohne Lesen (21.09.)
   schreibe: (pfad, text) => ipcRenderer.invoke("schreibe", pfad, text),
   liste: (ordnerPfad) => ipcRenderer.invoke("liste", ordnerPfad),
   entferne: (pfad) => ipcRenderer.invoke("entferne", pfad),

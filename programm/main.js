@@ -117,6 +117,18 @@ ipcMain.handle("lese", async (ev, pfad) => {
   }
 });
 
+// Kurzblick für den Abgleich (21.09.): nur Größe und Änderungszeit, ohne die
+// Datei zu lesen - der 30-Sekunden-Abgleich holt die Bytes nur bei Änderung.
+ipcMain.handle("stat", async (ev, pfad) => {
+  try {
+    const stat = await fs.stat(String(pfad));
+    return { geaendert: Math.round(stat.mtimeMs), groesse: stat.size };
+  } catch (e) {
+    if (e && e.code === "ENOENT") return null;
+    throw e;
+  }
+});
+
 ipcMain.handle("schreibe", async (ev, pfad, text) => {
   // Atomar: Zwischendatei im selben Ordner, dann Umbenennen. Bricht der
   // Rechner mittendrin ab, ist die Zieldatei unangetastet. Die Namensregel
