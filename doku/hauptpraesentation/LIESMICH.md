@@ -5,7 +5,7 @@ Die fertige Präsentation liegt als `doku/BTA-Cockpit-Hauptpraesentation.pptx`
 (`Werkstatt-Cockpit-Vorstellung.pptx`, 17 Folien) ab – Robertos Auftrag vom
 21.09.: auf den heutigen Stand bringen, Bildschirmfotos erneuern und als
 **Hauptpräsentation für beide Firmen** führen. Deshalb kein Adressat, kein
-Termin und kein Bundesland im Text; beide Logos auf Titel und Schlussfolie.
+Termin und kein Bundesland im Text; drei Logos auf Titel und Schlussfolie (Gruppe, Scheurich, Soendgen Keramik – erst beide Werke zusammen bilden die Scheurich Group).
 
 Daneben bleibt `BTA-Cockpit-Vorstellung.pptx` (42 Folien, Bauskripte in
 `../vorstellung-bta-cockpit/`) als lange Fassung für die Vorstellung bei

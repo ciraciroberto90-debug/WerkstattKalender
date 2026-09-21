@@ -1089,7 +1089,8 @@ Ziele (5), Rechner-Einstellungen (6), Vorlagen und Pflichtfelder (8).
 - [x] **Die Vorstellung vom 08.09. auf den heutigen Stand gebracht und als
       Hauptpräsentation für Scheurich UND Soendgen Keramik geführt:**
       `doku/BTA-Cockpit-Hauptpraesentation.pptx` (23 Folien, firmenneutral,
-      beide Logos). Neu gegenüber dem 08.09.: Tagesliste mit Anwesenden,
+      drei Logos auf Titel und Schluss: Gruppe, Scheurich, SK – Robertos
+      Nachschärfung: erst beide Werke zusammen bilden die Scheurich Group). Neu gegenüber dem 08.09.: Tagesliste mit Anwesenden,
       Schichtplan-Folie, Berichte-Folie, Rollen & Rechte mit Ansichts-
       Schalter, Personalisieren & Regeln, mehrere Werkstätten mit Gruppen-
       Verwalter; Zahlen auf den Suitenlauf vom 21.09. (79 Härtetests, 1.400+

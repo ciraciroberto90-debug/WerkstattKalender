@@ -116,11 +116,16 @@ function kartenFolie(titelText, sub, karten, spalten = 2) {
   fuss(s);
   return s;
 }
+// Drei Logos auf Titel und Schlussfolie (Robertos Ansage vom 21.09.): die
+// Gruppe, Scheurich und Soendgen Keramik - erst beide Werke zusammen bilden
+// die Scheurich Group. scheurich-weiss.png = Logo auf weißem Grund (300 px).
 const logos = (s) => {
   s.addShape(pres.ShapeType.roundRect, { x: 0.7, y: 3.95, w: 2.9, h: 0.9, fill: { color: WEISS }, line: { color: WEISS }, rectRadius: 0.08 });
   s.addImage({ path: path.join(LOGOS, "scheurich-group-hauptlogo.png"), x: 0.85, y: 4.13, w: 2.6, h: 0.65 });
-  s.addShape(pres.ShapeType.roundRect, { x: 3.8, y: 3.95, w: 1.5, h: 0.9, fill: { color: WEISS }, line: { color: WEISS }, rectRadius: 0.08 });
-  s.addImage({ path: path.join(LOGOS, "soendgen-keramik.png"), x: 4.02, y: 4.02, w: 1.06, h: 0.76 });
+  s.addShape(pres.ShapeType.roundRect, { x: 3.8, y: 3.95, w: 1.7, h: 0.9, fill: { color: WEISS }, line: { color: WEISS }, rectRadius: 0.08 });
+  s.addImage({ path: path.join(LOGOS, "scheurich-weiss.png"), x: 3.9, y: 4.005, w: 1.5, h: 0.79 });
+  s.addShape(pres.ShapeType.roundRect, { x: 5.7, y: 3.95, w: 1.5, h: 0.9, fill: { color: WEISS }, line: { color: WEISS }, rectRadius: 0.08 });
+  s.addImage({ path: path.join(LOGOS, "soendgen-keramik.png"), x: 5.92, y: 4.02, w: 1.06, h: 0.76 });
 };
 const S = (name) => path.join(SHOTS, name);
 
@@ -479,7 +484,8 @@ const S = (name) => path.join(SHOTS, name);
     const punkte = ["Rundgang in der App – 15 Minuten am echten System", "Lesezugang für Betriebsleitung und Nachbarabteilungen ist sofort möglich", "Fragen & Wünsche fließen in die Roll-out-Liste ein"];
     punkte.forEach((p, i) => T(s, "▸  " + p, { x: 0.7, y: 2.6 + i * 0.4, w: 8.6, h: 0.38, fontSize: 14, color: "C7CCD2" }));
     logos(s);
-    T(s, "R. Ciraci · Werkstattleiter BTA", { x: 5.6, y: 4.2, w: 3.9, h: 0.4, fontSize: 12.5, color: "9AA1A8", align: "right" });
+    // rechts neben den drei Logo-Karten (die enden bei 7,2 Zoll)
+    T(s, "R. Ciraci\nWerkstattleiter BTA", { x: 7.4, y: 3.95, w: 2.1, h: 0.9, fontSize: 11, color: "9AA1A8", align: "right", valign: "middle" });
     fuss(s, true);
     notiz(s, "Abschluss: Angebot für einen Rundgang am echten System. Lesezugang kostet nichts und zeigt mehr als jede Folie.");
   }
