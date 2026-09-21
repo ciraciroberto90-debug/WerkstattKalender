@@ -1,7 +1,7 @@
 ==========================================================
  DOWNLOAD-ADRESSEN
 ==========================================================
-Stand: 17.09.2026
+Stand: 21.09.2026
 
 ----------------------------------------------------------
  WEG 1 - EIN LINK, EINE DATEI (der einfache Weg)
@@ -31,7 +31,7 @@ Werkstatt-Cockpit-Programm-win64.zip (gehoert in den Ordner
 Teil 1 (58,0 MB / 60.817.408 Bytes):
 https://github.com/ciraciroberto90-debug/WerkstattKalender/raw/claude/jolly-bell-qmnsv0/programm/verteilung/WC-Programm-1.teil
 
-Teil 2 (52,0 MB / 54.563.217 Bytes):
+Teil 2 (52,2 MB / 54.739.710 Bytes):
 https://github.com/ciraciroberto90-debug/WerkstattKalender/raw/claude/jolly-bell-qmnsv0/programm/verteilung/WC-Programm-2.teil
 
 Zusammenfuegen (771 Bytes):

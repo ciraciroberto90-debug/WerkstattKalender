@@ -1,6 +1,12 @@
 WERKSTATT-COCKPIT ALS PROGRAMM (Probefassung)
 =============================================
 
+Stand 1.1 (21.09.2026): Programm-Rahmen mit Abgleich-Kurzblick (der
+30-Sekunden-Abgleich liest die Datei nur noch bei Aenderung - Bruecken-
+Funktion "stat") und dem Vollbild-Schalter --vollbild fuer den
+Hallenmonitor. Wer noch die ZIP vom 31.08. hat, tauscht den Programm-
+Ordner einmal aus - die Daten und die gemerkten Pfade bleiben.
+
 Was ist das?
   Dieselbe App wie die HTML - aber als eigenstaendiges Programm.
   Kein Browser noetig, keine Verknuepfung auf localhost, kein

@@ -1113,13 +1113,25 @@ Vorher/Nachher-Messung und (bei Sync-Änderungen) mit Test, der ohne die
       Programm-Rahmen: Vollbild-Schalter `--vollbild` (17.09.) und `stat`
       (21.09.). Der Kurzblick wirkt in der Werkstatt also ERST mit einer
       neuen Programm-ZIP → nächster Punkt.
-- [ ] **Neue Programm-ZIP bauen und verteilen** (`cd programm && npm install
-      && npm run bauen`, dann Teil-Dateien in `verteilung/`, USB-Stick
-      `01-Programm` und GitHub-Release v1.1 nach `RELEASE-ANLEITUNG.txt`).
-      Bringt: Kurzblick-Brücke `stat`, Vollbild-Schalter. Vorher die
-      Beispiel-Einstellungsdatei füllen (Stolperstein unten). Bau hier
-      braucht den Electron-Download über den Proxy – ungemessen, ob er
-      durchkommt.
+- [x] **Neue Programm-ZIP 1.1 GEBAUT (21.09.):** `Werkstatt-Cockpit-Programm-
+      win64.zip`, 115.557.118 Bytes (Electron 33.4.11), im Paket geprüft:
+      `stat`-Handler, `stat` in der Brücke, Vollbild-Schalter, aktuelle
+      App-HTML (Anwesende-Menü), Beispiel-Einstellungen mit Pfaden, symbol.ico.
+      Teil-Dateien in `programm/verteilung/` (Teil 1 60.817.408 Bytes,
+      Teil 2 54.739.710 Bytes, zusammengesetzt byte-gleich per SHA-256),
+      Download-Zettel und Release-Anleitung auf v1.1 / 21.09. gestellt.
+      Gemessen am ECHTEN Electron (`tests/pruefe-programm.js`, 35/35):
+      Kurzblick über `stat`, drei Abgleiche ohne Inhalts-Lesung, fremde
+      Änderung kommt an; Rot-Nachweis mit dem alten Rahmen: `stat` fehlt →
+      rot. FUND dabei: `pruefe-programm` war seit der Werkstatt-Wahl
+      (harte-68) beim Update-Balken rot, weil das frische Prüf-Profil erst
+      die Werkstatt-Frage zeigte – die Prüfung wählt jetzt wie ein Kollege
+      Scheurich; kein Fehler im Programm.
+- [ ] **Robertos Handgriffe:** (1) Release v1.1 nach
+      `programm/verteilung/RELEASE-ANLEITUNG.txt` anlegen (Komplettpaket +
+      Programm-ZIP anhängen), (2) auf jedem Rechner den Programm-Ordner
+      gegen den entpackten neuen tauschen – Daten und gemerkte Pfade bleiben
+      im Profil. Erst danach wirkt der Kurzblick in der Werkstatt.
       Gilt für Hauptdatei UND Störberichte-Datei (gleicher Baustein).
       Härtetest harte-81 (15 Prüfungen, zählt die ECHTEN Inhalts-Lesungen);
       Rot-Nachweis gemessen: ohne Kurzblick 5 Lesungen bei 5 Abgleichen

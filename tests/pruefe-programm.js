@@ -135,8 +135,19 @@ const pruef = (n, c, zusatz) => {
     process.exit(1);
   }
 
+  // Werkstatt-Wahl (seit harte-68): Das frische Pruef-Profil kennt noch keine
+  // Werkstatt, die App zeigt zuerst die Frage "In welcher Werkstatt arbeitest
+  // du?" - und davor gibt es weder Kopfzeile noch Update-Balken. Wie ein
+  // Kollege am ersten Tag: Scheurich waehlen (die App laedt sich danach neu).
+  if (/In welcher Werkstatt arbeitest du/.test(await page.locator("body").innerText())) {
+    await page.getByRole("button", { name: /Scheurich/ }).first().click(); // Logo-Alt + Name ergeben "Scheurich Scheurich"
+    await page.waitForFunction(() => window.__wkSharedTest && window.__wkDesktopTest && !/In welcher Werkstatt arbeitest du/.test(document.body.innerText), { timeout: 30000 });
+    await page.waitForTimeout(800);
+  }
   pruef("Das Programm startet und lädt die App",
     (await page.title()).length > 0, await page.title());
+  pruef("Die Werkstatt ist gewaehlt - die App zeigt die Kopfzeile, nicht die Werkstatt-Frage",
+    /ÜBERSICHT/i.test(await page.locator("body").innerText()) && !/In welcher Werkstatt/.test(await page.locator("body").innerText()));
   pruef("Die Brücke des Vorspann-Skripts ist da",
     await page.evaluate(() => !!window.__werkstattDesktop));
   pruef("Die App erkennt die Programm-Umgebung",
@@ -194,6 +205,39 @@ const pruef = (n, c, zusatz) => {
     !fs.readdirSync(ordner).some((n) => n.includes(".schreibe-")),
     fs.readdirSync(ordner).join(", "));
 
+  /* ---- Abgleich-Kurzblick ueber die ECHTE Bruecke (21.09.) ----
+     Die Bruecke liefert mit "stat" Groesse und Aenderungszeit, ohne die Bytes
+     zu holen; der 30-s-Abgleich liest die Datei dann nur bei Aenderung. */
+  // Ohne "stat" in der Bruecke (aeltere Programm-Fassung) faellt die Pruefung rot, statt abzubrechen.
+  const statAntwort = await page.evaluate((pfad) => (window.__werkstattDesktop.stat ? window.__werkstattDesktop.stat(pfad) : null), dateiPfad);
+  const statPlatte = fs.statSync(dateiPfad);
+  pruef("Kurzblick: Die Bruecke liefert Groesse und Aenderungszeit ohne Lesen (stat)",
+    !!statAntwort && statAntwort.groesse === statPlatte.size && Math.abs(statAntwort.geaendert - Math.round(statPlatte.mtimeMs)) < 2,
+    JSON.stringify(statAntwort));
+  // Die Datei ist gerade geschrieben worden - Aenderungszeit zurueckdrehen,
+  // damit die 5-Sekunden-Vorsichtsregel nicht greift.
+  const alt = new Date(Date.now() - 60000);
+  fs.utimesSync(dateiPfad, alt, alt);
+  const zaehlerLesen = () => page.evaluate(() => (window.__wkSharedTest.leseZaehler ? window.__wkSharedTest.leseZaehler() : { kurz: 0, inhalt: -1 }));
+  await page.evaluate(() => window.__wkSharedTest.poll()); // nimmt die zurueckgedrehte Zeit als bekannt auf
+  const z0 = await zaehlerLesen();
+  for (let i = 0; i < 3; i++) await page.evaluate(() => window.__wkSharedTest.poll());
+  const z1 = await zaehlerLesen();
+  pruef("Kurzblick: Drei Abgleiche bei unveraenderter Datei lesen den Inhalt NICHT (nur stat)",
+    z1.kurz - z0.kurz === 3 && z1.inhalt === z0.inhalt, `kurz +${z1.kurz - z0.kurz}, inhalt +${z1.inhalt - z0.inhalt}`);
+  // Fremde Aenderung auf der Platte: der naechste Abgleich liest wieder
+  const fremd = JSON.parse(fs.readFileSync(dateiPfad, "utf8"));
+  fremd.entries.push({ id: "fremd-1", date: "2026-08-07", category: "SCHICHT", name: "Bernd", scope: "tag", wert: "Nacht", updatedAt: "2026-08-07T10:00:00.000Z" });
+  fremd.savedAt = "2026-08-07T10:00:00.000Z";
+  fs.writeFileSync(dateiPfad, JSON.stringify(fremd, null, 2));
+  fs.utimesSync(dateiPfad, alt, new Date(Date.now() - 20000));
+  await page.evaluate(() => window.__wkSharedTest.poll());
+  await page.waitForTimeout(500);
+  const z2 = await zaehlerLesen();
+  const angekommen = await page.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]").some((e) => e.id === "fremd-1"));
+  pruef("Kurzblick: Nach fremder Aenderung liest der Abgleich genau einmal und der Eintrag kommt an",
+    z2.inhalt === z1.inhalt + 1 && angekommen, `inhalt +${z2.inhalt - z1.inhalt}, angekommen ${angekommen}`);
+
   /* ---- Fotos ueber die ECHTE Bruecke (26.08.) ----
      Robertos Frage aus dem Programm: "wie sieht es mit den fotos aus?"
      Gemessen wird der ganze Weg: mkdir + Bytes durch das echte IPC in den
@@ -243,12 +287,16 @@ const pruef = (n, c, zusatz) => {
   const neueHtml = originalHtml.slice(0, schnitt) + "<script>window.__updateMarker='v2'</script></html>";
   fs.writeFileSync(path.join(updateOrdner, "Werkstatt_Kalender_TPM.html"), neueHtml);
 
+  // Zweiter Horcher nur fuer die Messung: Kommt die Meldung des Rahmens ueberhaupt an?
+  await page.evaluate(() => { window.__updMeldung = null; window.__werkstattDesktop.aufUpdate((i) => { window.__updMeldung = i; }); });
   await page.evaluate((ordnerPfad) => window.__werkstattDesktop.updateOrdnerSetzen(ordnerPfad), updateOrdner);
   // updateOrdnerSetzen prueft sofort - die Meldung muss in der App ankommen
   await page.waitForTimeout(1000);
+  const updMeldung = await page.evaluate(() => window.__updMeldung);
+  pruef("Update: Der Rahmen meldet die neue Datei an die App", !!updMeldung, JSON.stringify(updMeldung));
   const leiste = await page.locator("body").innerText();
   pruef("Update: Die Leiste 'Neue Version verfügbar' erscheint",
-    /Neue Version verfügbar/.test(leiste));
+    /Neue Version verfügbar/.test(leiste), leiste.slice(0, 160).replace(/\n+/g, " | "));
 
   // Halbe Datei als NEUESTE hinlegen - sie darf NICHT uebernommen werden
   fs.writeFileSync(path.join(updateOrdner, "Werkstatt_Kalender_TPM (2).html"), neueHtml.slice(0, 150000));

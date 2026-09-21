@@ -1,7 +1,7 @@
 ==========================================================
  GITHUB-RELEASE VEROEFFENTLICHEN (Robertos Handgriff)
 ==========================================================
-Stand: 17.09.2026
+Stand: 21.09.2026
 
 Ziel: EIN Download-Link fuer alles. Danach heisst ein neuer
 Rechner nur noch: Link -> entpacken -> Einrichten.cmd.
@@ -33,13 +33,13 @@ HIER-FEHLT-NOCH-DAS-PROGRAMM.txt muss raus sein).
    oeffnen und anmelden.
 2. Rechts in der Seitenleiste auf "Releases" klicken,
    dann auf "Draft a new release".
-3. "Choose a tag" anklicken, eintippen:  v1.0
-   und darunter "Create new tag: v1.0 on publish" waehlen.
+3. "Choose a tag" anklicken, eintippen:  v1.1
+   und darunter "Create new tag: v1.1 on publish" waehlen.
 4. Bei "Target" den Zweig  claude/jolly-bell-qmnsv0  waehlen
    (Klick auf das Auswahlfeld, Reiter "Branches").
 5. Titel eintragen:
 
-      BTA-Cockpit - Komplettpaket (Stand 17.09.2026)
+      BTA-Cockpit - Komplettpaket (Stand 21.09.2026)
 
 6. In das Beschreibungsfeld den Text aus dem Kasten unten
    einfuegen (kopieren ab "Alles fuer einen...").
@@ -95,7 +95,7 @@ Komplettpaket nehmen.) Fragen an Roberto Ciraci (Werkstatt).
  SPAETERE STAENDE
 ----------------------------------------------------------
 Bei einer neuen Programm-Fassung: neues Release mit dem
-naechsten Tag (v1.1, v1.2, ...) anlegen und BEIDE ZIPs
+naechsten Tag (v1.2, v1.3, ...) anlegen und BEIDE ZIPs
 unter den GLEICHEN Dateinamen anhaengen. Die festen
 ".../releases/latest/..."-Links zeigen dann automatisch auf
 den neuesten Stand - kein Link muss je angepasst werden,
