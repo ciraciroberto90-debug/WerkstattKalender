@@ -11,3 +11,9 @@ programm/app/
 programm/standard-einstellungen.json
 node_modules
 package-lock.json
+
+# Bildschirmfotos der Präsentationen werden aus Beispieldaten erzeugt (shots.js) – nicht versionieren
+doku/vorstellung-bta-cockpit/shots/*.png
+doku/vorstellung-bta-cockpit/shots/*.jpg
+doku/vorstellung-bta-cockpit/shots/*.html
+doku/vorstellung-bta-cockpit/shots/*.pdf

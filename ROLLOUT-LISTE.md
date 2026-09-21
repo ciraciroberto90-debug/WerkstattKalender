@@ -1084,6 +1084,26 @@ Ziele (5), Rechner-Einstellungen (6), Vorlagen und Pflichtfelder (8).
       eine eigene Fehlerart anlegen, am Hallenrechner Zoom und
       Nachtmodus-Automatik ausprobieren.
 
+## Hauptpräsentation für beide Firmen (Robertos Auftrag vom 21.09.)
+
+- [x] **Die Vorstellung vom 08.09. auf den heutigen Stand gebracht und als
+      Hauptpräsentation für Scheurich UND Soendgen Keramik geführt:**
+      `doku/BTA-Cockpit-Hauptpraesentation.pptx` (23 Folien, firmenneutral,
+      beide Logos). Neu gegenüber dem 08.09.: Tagesliste mit Anwesenden,
+      Schichtplan-Folie, Berichte-Folie, Rollen & Rechte mit Ansichts-
+      Schalter, Personalisieren & Regeln, mehrere Werkstätten mit Gruppen-
+      Verwalter; Zahlen auf den Suitenlauf vom 21.09. (79 Härtetests, 1.400+
+      Einzelprüfungen, 71.084 Einträge). Alle Bildschirmfotos neu aus dem
+      aktuellen Programm gezogen (`doku/hauptpraesentation/shots.js`), Bau
+      mit `build.js`, Validierung bestanden, alle Folien gesichtet.
+      Das alte `Werkstatt-Cockpit-Vorstellung.pptx` ist aus dem Ordner
+      genommen (bleibt in der Git-Historie).
+- [ ] **Roberto geht das Deck durch** – Änderungswünsche folienweise, jede
+      Folie ist im Skript benannt (`// ===== 13 Rollen & Rechte`).
+- [ ] **Offen:** Das 42er-Deck für den 22.09. zeigt den Stand vom 19.09.
+      (ohne Rechte-Matrix, Personalisieren, Gruppen-Verwalter, Anwesende).
+      Auf Zuruf mit denselben Bildern nachziehen.
+
 ## Vorstellung bei Soendgen Keramik am 22.09. (Robertos Auftrag vom 18.09.)
 
 Termin Dienstag 22.09.2026, 10–13 Uhr, vier Personen (Werkstattleiter SK,

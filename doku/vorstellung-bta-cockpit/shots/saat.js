@@ -127,16 +127,20 @@ async function bauePlatte(ctx) {
 }
 
 // Seite oeffnen und beide Dateien laden - wie im Alltag.
-async function seiteLaden(ctx, platte) {
+// extra (optional, seit 21.09. fuer die Hauptpraesentation): { cfg: {...} } wird
+// in die Konfiguration gemischt (z. B. Benutzerliste), { speicher: {k: v} } setzt
+// weitere localStorage-Schluessel (z. B. gemerkte Anmeldung, Gruppen-Pass).
+async function seiteLaden(ctx, platte, extra = {}) {
   const p = await ctx.newPage();
   await p.clock.setFixedTime(new Date("2026-09-18T09:30:00"));
   await p.exposeFunction("__lies", (n) => platte[n] ?? "");
   await p.exposeFunction("__schreib", (n, c) => { platte[n] = c; });
-  await p.addInitScript((cfg) => {
+  await p.addInitScript(({ cfg, speicher }) => {
     localStorage.setItem("bta-standort", "scheurich");
     localStorage.setItem("werkstatt-kalender-config", JSON.stringify(cfg));
     localStorage.setItem("werkstatt-kalender-name", "R. Ciraci");
     localStorage.setItem("werkstatt-kalender-fest", "2026-09");
+    Object.entries(speicher || {}).forEach(([k, v]) => localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)));
     const bau = (name) => ({ name, kind: "file",
       async getFile() { const t = await window.__lies(name); return new File([t], name, { type: "application/json" }); },
       async createWritable() { let x = ""; return { async write(c) { x += c; }, async close() { await window.__schreib(name, x); }, async abort() {} }; },
@@ -145,7 +149,7 @@ async function seiteLaden(ctx, platte) {
     window.showOpenFilePicker = async () => [bau(window.__welche)];
     window.__druckHtml = "";
     window.open = function () { window.__druckHtml = ""; return { document: { open() {}, write(h) { window.__druckHtml += h; }, close() {} }, focus() {}, print() {} }; };
-  }, { team: TEAM });
+  }, { cfg: Object.assign({ team: TEAM }, extra.cfg || {}), speicher: extra.speicher || {} });
   await p.goto(APP);
   await p.locator('button[aria-label="Gemeinsame Datei"]').waitFor({ timeout: 60000 });
   await p.locator('button[aria-label="Gemeinsame Datei"]').click();
