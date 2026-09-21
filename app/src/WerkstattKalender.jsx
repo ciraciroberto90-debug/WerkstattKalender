@@ -30,11 +30,25 @@ function SyncAnzeige({ style }) {
    Tastendruck ~60 ms Vollzeichnung der ganzen Oberfläche - das war Robertos
    "Nachhängen beim Eintragen". Erst das Anpinnen reicht den fertigen Text
    nach oben. */
-function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen, fotoLeiste }) {
+function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen, fotoLeiste, bausteine = [] }) {
   const [text, setText] = useState("");
   const [name, setName] = useState(startName || "");
   return (
     <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
+      {/* Textbausteine (⚙ Regeln & Listen): ein Klick setzt den Standardtext
+          ein - der Zettel bleibt danach frei änderbar. */}
+      {bausteine.length > 0 && (
+        <select
+          value=""
+          onChange={(e) => { if (e.target.value) setText((t) => (t.trim() ? t + "\n" : "") + e.target.value); }}
+          aria-label="Textbaustein Pinnwand"
+          className="text-xs border rounded px-2 py-1 mb-2"
+          style={{ borderColor: "#D6D9DC" }}
+        >
+          <option value="">📋 Textbaustein einfügen …</option>
+          {bausteine.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
+      )}
       <textarea
         autoFocus
         spellCheck
@@ -485,8 +499,12 @@ function MonatsDiagramm({ tage, monatName, jahr, erledigt, basis, prozent, filte
   );
 }
 
-function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = ["#43B26F", "#2F7D4F"] }) {
+function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null }) {
   const hatWert = prozent !== null && prozent !== undefined;
+  // Zielwert (⚙ Regeln & Listen): liegt die Quote darunter, wird der Bogen
+  // orange statt grün - nur für Aufrufer ohne eigene Farben (die Übersicht).
+  const quoteZiel = REGELN.schwellen.quoteZiel;
+  const unterZiel = !farben && hatWert && quoteZiel > 0 && prozent < quoteZiel;
   const ziel = hatWert ? Math.min(100, Math.max(0, prozent)) : 0;
   const [anim, setAnim] = useState(0);
   const [gid] = useState(() => "hkq-" + Math.random().toString(36).slice(2, 8));
@@ -511,14 +529,14 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = [
   const theta = Math.PI * (1 - frac); // Winkel der Bogenspitze (links = π, rechts = 0)
   const tipX = 42 + 34 * Math.cos(theta);
   const tipY = 44 - 34 * Math.sin(theta);
-  const [gruenHell, gruenDunkel] = farben; // Vorgabe grün (Übersicht); der Berichte-Score färbt je Bereich
+  const [gruenHell, gruenDunkel] = farben || (unterZiel ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"]); // Vorgabe grün (Übersicht); der Berichte-Score färbt je Bereich
   return (
     <div
       className="px-3.5 py-3 flex flex-col justify-center"
       style={dunkel
         ? { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--wk-eck)", textAlign: "center" }
         : { background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", borderRadius: "var(--wk-eck)", textAlign: "center", boxShadow: "var(--wk-schatten)" }}
-      title={titel || "Anteil erledigter Wartungs- und R+I-Punkte"}
+      title={(titel || "Anteil erledigter Wartungs- und R+I-Punkte") + (!farben && quoteZiel > 0 ? ` · Ziel ${quoteZiel} %` : "")}
     >
       <svg viewBox="0 0 84 50" style={{ width: "80px", height: "47px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
         <defs>
@@ -696,7 +714,7 @@ function OeeVerlauf({ daten, breite = 560, hoehe = 150 }) {
    eine Kennzahl ohne Herkunft ist in einer Werkstattbesprechung wertlos. */
 function OeeKachel({ stand, onKlick, darfEinrichten }) {
   const lage = (stand && stand.lage) || "aus";
-  const farbeFuer = (w) => (w == null ? "#8A9099" : w >= 85 ? "#2F7D4F" : w >= 70 ? "#C97A2B" : "#B23A34");
+  const farbeFuer = (w) => (w == null ? "#8A9099" : w >= REGELN.schwellen.oeeGruen ? "#2F7D4F" : w >= REGELN.schwellen.oeeGelb ? "#C97A2B" : "#B23A34");
 
   if (lage === "ok") {
     const wert = stand.oee;
@@ -1707,6 +1725,88 @@ const STOER_GEWERK = {
 // Fehlerart-Kategorien (für Auswertung nach Fehlerbild)
 const STOER_FEHLERARTEN = ["Mechanisch", "Elektrisch", "Hydraulisch", "Pneumatisch", "Steuerung/Software", "Verschleiß", "Bedienung", "Sonstiges"];
 
+/* ---------- Werkstatt-Regeln (Robertos Wahl vom 21.09.) ----------
+   Was bis dahin fest im Programm stand und je Werkstatt anders ist: Feiertage
+   (Bundesland + eigene freie Tage), die Auswahllisten im Störbericht und der
+   Zeiterfassung, Schwellen und Ziele, Textbausteine und Pflichtfelder. Liegt
+   in der GEMEINSAMEN Datei (config.regeln), gepflegt im ⚙ unter
+   "Regeln & Listen". Fehlt der Schlüssel, gilt exakt der bisherige Stand. */
+const BUNDESLAENDER = [
+  ["BW", "Baden-Württemberg"], ["BY", "Bayern"], ["BE", "Berlin"], ["BB", "Brandenburg"], ["HB", "Bremen"],
+  ["HH", "Hamburg"], ["HE", "Hessen"], ["MV", "Mecklenburg-Vorpommern"], ["NI", "Niedersachsen"],
+  ["NW", "Nordrhein-Westfalen"], ["RP", "Rheinland-Pfalz"], ["SL", "Saarland"], ["SN", "Sachsen"],
+  ["ST", "Sachsen-Anhalt"], ["SH", "Schleswig-Holstein"], ["TH", "Thüringen"],
+];
+const GEWERK_EMOJI = { mech: "🔧", elek: "⚡", beide: "🔧⚡" };
+const REGELN_STANDARD = () => ({
+  feiertage: { bundesland: "", eigene: [] }, // "" = Bundesland des Standorts
+  listen: { fehlerarten: [...STOER_FEHLERARTEN], abwesenheit: [...ABWESENHEIT_GRUENDE], gewerkNamen: { mech: "Mechanik", elek: "Elektrik", beide: "Mechanik + Elektrik" } },
+  // quoteZiel 0 = kein Ziel (Halbkreis bleibt grün wie bisher)
+  schwellen: { ausfallHochMin: 60, todoWarnTage: 0, quoteZiel: 0, oeeGruen: 85, oeeGelb: 70, archivJahre: 3 },
+  vorlagen: { zettel: [], stoerung: [], pflicht: { anlagenteil: false, gewerk: false, fehlerart: false, ausfallzeit: false, ursache: false, getan: false } },
+});
+const textListe = (roh, standard) => (Array.isArray(roh) ? roh.map((x) => String(x || "").trim()).filter(Boolean) : standard);
+const zahlOder = (v, standard, min, max) => { const n = Number(v); return v !== "" && v != null && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : standard; };
+function normalisiereRegeln(roh) {
+  const st = REGELN_STANDARD();
+  const r = roh && typeof roh === "object" ? roh : {};
+  const f = r.feiertage || {}, l = r.listen || {}, sw = r.schwellen || {}, v = r.vorlagen || {}, pf = v.pflicht || {};
+  const gn = l.gewerkNamen || {};
+  const tag = /^\d{4}-\d{2}-\d{2}$/;
+  return {
+    feiertage: {
+      bundesland: BUNDESLAENDER.some(([k]) => k === f.bundesland) ? f.bundesland : "",
+      eigene: (Array.isArray(f.eigene) ? f.eigene : [])
+        .filter((e) => e && tag.test(e.von || ""))
+        .map((e) => ({ von: e.von, bis: tag.test(e.bis || "") && e.bis >= e.von ? e.bis : e.von, name: String(e.name || "").trim() || "Betriebsferien" })),
+    },
+    listen: {
+      fehlerarten: textListe(l.fehlerarten, st.listen.fehlerarten),
+      abwesenheit: textListe(l.abwesenheit, st.listen.abwesenheit),
+      gewerkNamen: { mech: String(gn.mech || "").trim() || "Mechanik", elek: String(gn.elek || "").trim() || "Elektrik", beide: String(gn.beide || "").trim() || "Mechanik + Elektrik" },
+    },
+    schwellen: {
+      ausfallHochMin: zahlOder(sw.ausfallHochMin, 60, 1, 100000), todoWarnTage: zahlOder(sw.todoWarnTage, 0, 0, 365),
+      quoteZiel: zahlOder(sw.quoteZiel, 0, 0, 100), oeeGruen: zahlOder(sw.oeeGruen, 85, 0, 100), oeeGelb: zahlOder(sw.oeeGelb, 70, 0, 100),
+      archivJahre: zahlOder(sw.archivJahre, 3, 1, 50),
+    },
+    vorlagen: {
+      zettel: textListe(v.zettel, []), stoerung: textListe(v.stoerung, []),
+      pflicht: Object.fromEntries(Object.keys(st.vorlagen.pflicht).map((k) => [k, !!pf[k]])),
+    },
+  };
+}
+// Modul-Stand für Helfer außerhalb des Bauteils (Feiertage, Kachel-Farben,
+// Gewerk-Namen): das Bauteil schreibt ihn bei jedem Zeichnen synchron nach.
+let REGELN = normalisiereRegeln(null);
+
+/* ---------- Rechner-Einstellungen (nur dieses Gerät, localStorage) ----------
+   Startansicht, Zoom, Nachtmodus-Automatik, Leser-Rücksprung - Dinge, die am
+   Hallenbildschirm anders sein sollen als am Schreibtisch. Deshalb nie in der
+   gemeinsamen Datei. Gepflegt im ⚙ unter Personalisieren → "Dieser Rechner". */
+const GERAET_KEY = "wk-geraet";
+const GERAET_STANDARD = { startansicht: "UEBERSICHT", zoom: 100, nachtAuto: false, nachtVon: "20:00", nachtBis: "06:00", ruecksprungMin: 15 };
+function normalisiereGeraet(roh) {
+  const g = roh && typeof roh === "object" ? roh : {};
+  const uhr = (v, st) => (/^\d{2}:\d{2}$/.test(v || "") ? v : st);
+  return {
+    startansicht: ["UEBERSICHT", "SCHICHTPLAN", "BERICHTE", "TPM"].includes(g.startansicht) ? g.startansicht : GERAET_STANDARD.startansicht,
+    zoom: [80, 90, 100, 110, 125, 150].includes(Number(g.zoom)) ? Number(g.zoom) : 100,
+    nachtAuto: !!g.nachtAuto, nachtVon: uhr(g.nachtVon, "20:00"), nachtBis: uhr(g.nachtBis, "06:00"),
+    ruecksprungMin: zahlOder(g.ruecksprungMin, 15, 1, 240),
+  };
+}
+function leseGeraet() {
+  try { return normalisiereGeraet(JSON.parse(localStorage.getItem(nsKey(GERAET_KEY)) || "null")); } catch (e) { return normalisiereGeraet(null); }
+}
+// Liegt "jetzt" im Zeitfenster? Es darf über Mitternacht gehen (20:00–06:00).
+function imZeitfenster(jetzt, von, bis) {
+  const m = jetzt.getHours() * 60 + jetzt.getMinutes();
+  const [vh, vm] = von.split(":").map(Number), [bh, bm] = bis.split(":").map(Number);
+  const a = vh * 60 + vm, b = bh * 60 + bm;
+  return a <= b ? (m >= a && m < b) : (m >= a || m < b);
+}
+
 function pad(n) {
   return n.toString().padStart(2, "0");
 }
@@ -1789,29 +1889,40 @@ function addDays(date, days) {
   return d;
 }
 
-// Gesetzliche Feiertage Bayern
+// Gesetzliche Feiertage je Bundesland (seit dem 21.09. im ⚙ wählbar; Vorgabe
+// ist das Bundesland des Standorts) plus eigene freie Tage der Werkstatt
+// (Betriebsferien, Brückentage). Rotation, R+I und Schichtplan rechnen damit.
 function getHolidays(year) {
+  const land = REGELN.feiertage.bundesland || STANDORT.bundesland;
   const easter = easterSunday(year);
   const map = new Map();
   const add = (date, name) => map.set(dateKey(date.getFullYear(), date.getMonth(), date.getDate()), name);
   add(new Date(year, 0, 1), "Neujahr");
+  if (["BW", "BY", "ST"].includes(land)) add(new Date(year, 0, 6), "Heilige Drei Könige");
+  if (["BE", "MV"].includes(land)) add(new Date(year, 2, 8), "Internationaler Frauentag");
   add(addDays(easter, -2), "Karfreitag");
   add(addDays(easter, 1), "Ostermontag");
   add(new Date(year, 4, 1), "Tag der Arbeit");
   add(addDays(easter, 39), "Christi Himmelfahrt");
   add(addDays(easter, 50), "Pfingstmontag");
-  add(addDays(easter, 60), "Fronleichnam"); // Bayern UND NRW
+  if (["BW", "BY", "HE", "NW", "RP", "SL"].includes(land)) add(addDays(easter, 60), "Fronleichnam");
+  if (["BY", "SL"].includes(land)) add(new Date(year, 7, 15), "Mariä Himmelfahrt");
+  if (land === "TH") add(new Date(year, 8, 20), "Weltkindertag");
   add(new Date(year, 9, 3), "Tag der Deutschen Einheit");
-  add(new Date(year, 10, 1), "Allerheiligen"); // Bayern UND NRW
+  if (["BB", "HB", "HH", "MV", "NI", "SN", "ST", "SH", "TH"].includes(land)) add(new Date(year, 9, 31), "Reformationstag");
+  if (["BW", "BY", "NW", "RP", "SL"].includes(land)) add(new Date(year, 10, 1), "Allerheiligen");
+  if (land === "SN") { // Buß- und Bettag: der Mittwoch vor dem 23. November
+    const d = new Date(year, 10, 22);
+    while (d.getDay() !== 3) d.setDate(d.getDate() - 1);
+    add(d, "Buß- und Bettag");
+  }
   add(new Date(year, 11, 25), "1. Weihnachtstag");
   add(new Date(year, 11, 26), "2. Weihnachtstag");
-  // Nur in Bayern (Scheurich, Kleinheubach) - Soendgen liegt in NRW, dort
-  // sind das normale Arbeitstage. Die Rotation rechnet mit Feiertagen,
-  // deshalb muss die Liste zum Bundesland des Standorts passen.
-  if (STANDORT.bundesland === "BY") {
-    add(new Date(year, 0, 6), "Heilige Drei Könige");
-    add(new Date(year, 7, 15), "Mariä Himmelfahrt");
-  }
+  // Eigene freie Tage der Werkstatt gelten wie Feiertage
+  REGELN.feiertage.eigene.forEach((e) => {
+    const von = new Date(e.von + "T00:00:00"), bis = new Date(e.bis + "T00:00:00");
+    for (const d = new Date(von); d <= bis; d.setDate(d.getDate() + 1)) if (d.getFullYear() === year) add(new Date(d), e.name);
+  });
   return map;
 }
 
@@ -2014,7 +2125,8 @@ function App() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   // Start immer im Cockpit auf der Übersicht; Hauptreiter springen stets auf ihren ersten Unterpunkt
-  const [view, setView] = useState("COCKPIT"); // 'COCKPIT' | 'TPMINFO' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (TPMINFO = Übersicht, MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
+  // Startansicht dieses Rechners (⚙ Personalisieren → Dieser Rechner)
+  const [view, setView] = useState(() => { const st = leseGeraet().startansicht; return st === "TPM" ? "TPMINFO" : st === "BERICHTE" ? "BERICHTE" : "COCKPIT"; }); // 'COCKPIT' | 'TPMINFO' | 'PLAN' | 'MONAT' | 'JAHR' | 'REGISTER' (TPMINFO = Übersicht, MONAT/JAHR = Auswertung, alles außer COCKPIT = Hauptbereich TPM)
   const [tpmInfoOffen, setTpmInfoOffen] = useState(null); // welcher R+I-Punkt in der TPM-Übersicht aufgeklappt ist (id oder null)
   const [auswertungOffen, setAuswertungOffen] = useState(false); // Ausklappleiste "Auswertung" unter dem Plan-Kalender (Diagramm, Matrix, Druckvorlagen)
   const [nachweisJahr, setNachweisJahr] = useState(() => new Date().getFullYear()); // Zeitraum für den Prüfnachweis
@@ -2192,7 +2304,7 @@ function App() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareState, setShareState] = useState({ status: "none" }); // none | unsupported | needs-permission | connected
   // Cockpit: Untermenü + Backlog-Filter + Arbeit-Dialog
-  const [cockpitTab, setCockpitTab] = useState("UEBERSICHT"); // UEBERSICHT | BACKLOG
+  const [cockpitTab, setCockpitTab] = useState(() => (leseGeraet().startansicht === "SCHICHTPLAN" ? "SCHICHTPLAN" : "UEBERSICHT")); // UEBERSICHT | BACKLOG
   /* Bereich "Berichte" (großer Umbau, Robertos Meeting vom 10.09.):
      eigener Hauptbereich mit Kacheln - To-do, Störungen, Backlog,
      Zeiterfassung (Letztere "in Klärung"). Leser sehen künftig nur noch
@@ -2297,7 +2409,31 @@ function App() {
   const [stoerSuche, setStoerSuche] = useState(""); // Freitextsuche über alle Störberichte
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorBausteine, setMonitorBausteine] = useState(() => normalisiereMonitor(null)); // was der Monitor zeigt (⚙, gemeinsame Datei)
-  const [rechte, setRechte] = useState(() => normalisiereRechte(null)); // Rechte je Benutzergruppe (⚙ Personalisieren, gemeinsame Datei)
+  const [rechte, setRechte] = useState(() => normalisiereRechte(null)); // Rechte je Benutzergruppe (⚙ Benutzer & Rechte, gemeinsame Datei)
+  const [regeln, setRegeln] = useState(() => normalisiereRegeln(null)); // Werkstatt-Regeln (⚙ Regeln & Listen, gemeinsame Datei)
+  const [settingsRegeln, setSettingsRegeln] = useState(() => normalisiereRegeln(null)); // Entwurf im ⚙, gespeichert mit "Speichern"
+  const [geraet, setGeraetState] = useState(leseGeraet); // Einstellungen NUR dieses Rechners
+  const setGeraet = (neu) => {
+    const g = normalisiereGeraet(neu);
+    setGeraetState(g);
+    try { localStorage.setItem(nsKey(GERAET_KEY), JSON.stringify(g)); } catch (e) { /* dann nur bis zum Neustart */ }
+  };
+  // Rechner-Einstellungen: Zoom über die Wurzel-Schriftgröße (alle rem-Maße
+  // skalieren mit), Nachtmodus-Automatik minütlich nach Zeitfenster - solange
+  // sie an ist, gewinnt sie über den Auge-Knopf (spätestens nach einer Minute).
+  useEffect(() => { document.documentElement.style.fontSize = geraet.zoom === 100 ? "" : `${geraet.zoom}%`; }, [geraet.zoom]);
+  useEffect(() => {
+    if (!geraet.nachtAuto) return undefined;
+    const pruefe = () => setNachtModus(imZeitfenster(new Date(), geraet.nachtVon, geraet.nachtBis));
+    pruefe();
+    const t = setInterval(pruefe, 60000);
+    return () => clearInterval(t);
+  }, [geraet.nachtAuto, geraet.nachtVon, geraet.nachtBis]);
+  // Modul-Stand synchron nachziehen: Feiertage, Kachel-Farben und Gewerk-Namen
+  // leben außerhalb des Bauteils. Bewusst beim Zeichnen statt im Effekt -
+  // sonst hinkte jedes erste Bild nach einer Änderung hinterher.
+  REGELN = regeln;
+  Object.keys(STOER_GEWERK).forEach((k) => { STOER_GEWERK[k].label = regeln.listen.gewerkNamen[k]; STOER_GEWERK[k].kurz = `${GEWERK_EMOJI[k]} ${regeln.listen.gewerkNamen[k]}`; });
   const [uebersichtLayout, setUebersichtLayoutState] = useState(leseUebersichtLayout); // Übersichts-Bausteine DIESES Rechners
   const setUebersichtLayout = (neu) => {
     const n = normalisiereUebersichtLayout(neu);
@@ -2395,6 +2531,7 @@ function App() {
         if (d.config.monitor) setMonitorBausteine(stabil(normalisiereMonitor(d.config.monitor)));
         if (d.config.kostenstellen) setKostenstellen(stabil(normalisiereKostenstellen(d.config.kostenstellen)));
         if (d.config.rechte) setRechte(stabil(normalisiereRechte(d.config.rechte)));
+        if (d.config.regeln) setRegeln(stabil(normalisiereRegeln(d.config.regeln)));
       }
       });
     };
@@ -2692,13 +2829,13 @@ function App() {
     let timer = null;
     const neuStarten = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); setBerichtTab("START"); }, 15 * 60 * 1000);
+      timer = setTimeout(() => { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); setBerichtTab("START"); }, geraet.ruecksprungMin * 60 * 1000);
     };
     const arten = ["pointerdown", "keydown", "wheel", "touchstart"];
     arten.forEach((a) => window.addEventListener(a, neuStarten, { passive: true }));
     neuStarten();
     return () => { clearTimeout(timer); arten.forEach((a) => window.removeEventListener(a, neuStarten)); };
-  }, [readerMode]);
+  }, [readerMode, geraet.ruecksprungMin]);
 
   // ---- Störungen: Zugriff & Speichern (unabhängig von readerMode!) ----
   // Störungen dürfen ALLE bearbeiten - auch reine Leser der Hauptdaten. Maßgeblich
@@ -2864,7 +3001,7 @@ function App() {
       art: "arbeit", date: s.date || todayKey, schicht: s.schicht || "Früh",
       wer: wer ? wer.name : "", ksWahl: treffer.length === 1 ? ksAnzeige(treffer[0]) : "",
       taetigkeit: s.stoerung ? `Störung behoben: ${s.stoerung}` : "", stunden: "",
-      grund: ABWESENHEIT_GRUENDE[0], bemerkung: "", stoerNr: stoerNrLang(s),
+      grund: regeln.listen.abwesenheit[0], bemerkung: "", stoerNr: stoerNrLang(s),
     });
     setStoerModal(null);
     setSDraft(null);
@@ -3088,7 +3225,7 @@ function App() {
       // Ausfallzeit als Plakette: leer=grau "–", ab 60 min rot ("hoch").
       const ausfall = min <= 0
         ? `<span class="ausfall null">–</span>`
-        : `<span class="ausfall${min >= 60 ? " hoch" : ""}">${Math.round(min)} min</span>`;
+        : `<span class="ausfall${min >= regeln.schwellen.ausfallHochMin ? " hoch" : ""}">${Math.round(min)} min</span>`;
       const naechste = (s.nochZuTun && String(s.nochZuTun).trim()) ? esc(s.nochZuTun) : "";
       return `<tr class="${s.offen ? "zoffen" : ""}">
         <td class="nr ${tbCls[slot.schicht] || ""}"><span class="mono">${esc(stoerNrLang(s))}</span><br>${ausfall}</td>
@@ -3429,7 +3566,7 @@ function App() {
     return null; // "alle"
   })();
   const imZeitraum = (s) => !stoerZeitGrenze || String(s.date || "") >= stoerZeitGrenze;
-  const langeStoerung = (s) => (Number(s.ausfallzeit) || 0) >= 60;
+  const langeStoerung = (s) => (Number(s.ausfallzeit) || 0) >= regeln.schwellen.ausfallHochMin; // Schwelle aus ⚙ Regeln & Listen
   const mitRestarbeit = (s) => !!s.offen && String(s.nochZuTun || "").trim().length > 0;
   const passtSchnell = (s) => {
     if (stoerSchnell === "offen") return !!s.offen;
@@ -3833,6 +3970,7 @@ function App() {
           if (parsed.monitor) setMonitorBausteine(normalisiereMonitor(parsed.monitor));
           if (parsed.kostenstellen) setKostenstellen(normalisiereKostenstellen(parsed.kostenstellen));
           if (parsed.rechte) setRechte(normalisiereRechte(parsed.rechte));
+          if (parsed.regeln) setRegeln(normalisiereRegeln(parsed.regeln));
           if (typeof parsed.werkstattName === "string") {
             setWerkstattName(parsed.werkstattName);
           }
@@ -3858,7 +3996,7 @@ function App() {
   // der Zusammenführung zu überlassen.
   // nextRechte: wie nextBenutzer ein Wächter-Feld - null heißt "nicht anfassen".
   // Nur die Rechte-Matrix im ⚙ (Verwalter) übergibt eine Matrix.
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen, nextRechte = null) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen, nextRechte = null, nextRegeln = null) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -3872,11 +4010,12 @@ function App() {
     setMonitorBausteine(nextMonitor);
     setKostenstellen(nextKostenstellen);
     if (nextRechte) setRechte(nextRechte);
+    if (nextRegeln) setRegeln(nextRegeln);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}), ...(nextRechte ? { rechte: nextRechte } : {}) }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}), ...(nextRechte ? { rechte: nextRechte } : {}), ...(nextRegeln ? { regeln: nextRegeln } : {}) }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -4107,6 +4246,7 @@ function App() {
     setSettingsSchichten(extraSchichten.map((s) => ({ ...s })));
     setSettingsAnlagenteile(anlagenteile.map((t) => ({ ...t })));
     setSettingsKostenstellen(kostenstellen.map((k) => ({ ...k })));
+    setSettingsRegeln(JSON.parse(JSON.stringify(regeln)));
     setKsSuche("");
     setNeueSchichtName("");
     setNeuesTeilAnlage("");
@@ -4260,7 +4400,7 @@ function App() {
       }
     }
 
-    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten), normalisiereAnlagenteile(teileMitRename), links, oeeQuelle, nextBenutzer, werkstattName, monitorBausteine, normalisiereKostenstellen(settingsKostenstellen));
+    await persistConfig(cleanTpm, cleanRi, cleanTeam, normalisiereExtraSchichten(settingsSchichten), normalisiereAnlagenteile(teileMitRename), links, oeeQuelle, nextBenutzer, werkstattName, monitorBausteine, normalisiereKostenstellen(settingsKostenstellen), null, normalisiereRegeln(settingsRegeln));
     if (nextEntries !== entries) await persist(nextEntries);
     setSettingsOpen(false);
   };
@@ -4439,13 +4579,13 @@ function App() {
     // Angemeldeter Benutzer als Vorgabe, wenn er in der Berechtigten-Liste steht
     const ich = zeitBerechtigte.find((t) => t.name.toLowerCase() === String(angemeldet || "").toLowerCase());
     setZeitFehler(null);
-    setZeitModal({ art: "arbeit", date: todayKey, schicht, wer: ich ? ich.name : (zeitBerechtigte[0]?.name || ""), ksWahl: "", taetigkeit: "", stunden: "", grund: ABWESENHEIT_GRUENDE[0], bemerkung: "", stoerNr: "" });
+    setZeitModal({ art: "arbeit", date: todayKey, schicht, wer: ich ? ich.name : (zeitBerechtigte[0]?.name || ""), ksWahl: "", taetigkeit: "", stunden: "", grund: regeln.listen.abwesenheit[0], bemerkung: "", stoerNr: "" });
   };
   const zeitBearbeiten = (e) => {
     setZeitFehler(null);
     setZeitModal({ id: e.id, art: e.art === "abwesenheit" ? "abwesenheit" : "arbeit", date: e.date, schicht: e.schicht || "Früh",
       wer: e.name || "", ksWahl: e.ks ? (e.ksNr ? `${e.ks} (${e.ksNr})` : e.ks) : "", taetigkeit: e.taetigkeit || "",
-      stunden: zeitStundenText(e.stunden || 0), grund: e.grund || ABWESENHEIT_GRUENDE[0], bemerkung: e.bemerkung || "", stoerNr: e.stoerNr || "" });
+      stunden: zeitStundenText(e.stunden || 0), grund: e.grund || regeln.listen.abwesenheit[0], bemerkung: e.bemerkung || "", stoerNr: e.stoerNr || "" });
   };
   const zeitSpeichern = async () => {
     const m = zeitModal;
@@ -4567,6 +4707,15 @@ function App() {
   const todoHeute = new Date();
   const todoHeuteKey = dateKey(todoHeute.getFullYear(), todoHeute.getMonth(), todoHeute.getDate());
   const todoIstUeberfaellig = (t) => t.status !== "done" && t.bis && String(t.bis) < todoHeuteKey;
+  // Frist-Warnung (⚙ Regeln & Listen): so viele Tage VOR der Frist wird das
+  // Datum orange - 0 = keine Vorwarnung, nur rot bei Überfälligkeit.
+  const todoBaldFaellig = (t) => {
+    if (t.status === "done" || !t.bis || regeln.schwellen.todoWarnTage <= 0) return false;
+    const d = new Date(todoHeuteKey + "T00:00:00");
+    d.setDate(d.getDate() + regeln.schwellen.todoWarnTage);
+    const grenze = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    return String(t.bis) >= todoHeuteKey && String(t.bis) <= grenze;
+  };
   const todoOffene = todos.filter((t) => t.status !== "done");
   const todoUeberfaellige = todoOffene.filter(todoIstUeberfaellig);
   const todoNeu = () => {
@@ -5084,7 +5233,7 @@ function App() {
     if (daten.length === 0) return;
     const aeltestes = Number(daten[0].slice(0, 4));
     const jahre = today.getFullYear() - aeltestes;
-    if (jahre < 3) return;
+    if (jahre < regeln.schwellen.archivJahre) return; // Schwelle aus ⚙ Regeln & Listen
 
     let groesseKB = 0;
     try {
@@ -5095,7 +5244,7 @@ function App() {
     setArchivGrenze(today.getFullYear() - 2); // Vorschlag: die letzten zwei vollen Jahre behalten
     setArchivGesichert(false);
     setArchivHinweis({ jahre, groesseKB, aeltestesJahr: aeltestes });
-  }, [entries, readerMode, todayKey, archivHinweis]);
+  }, [entries, readerMode, todayKey, archivHinweis, regeln.schwellen.archivJahre]);
 
   const archivErinnerungVerschieben = (tage) => {
     const d = new Date(today.getTime() + tage * 86400000);
@@ -5171,7 +5320,7 @@ function App() {
     setArchivHinweis(null);
   };
 
-  const holidays = useMemo(() => getHolidays(year), [year]);
+  const holidays = useMemo(() => getHolidays(year), [year, regeln]);
 
 
   // ---- Wartungsplan (fortlaufende Rotation) ----
@@ -8794,7 +8943,7 @@ function App() {
               {t.prio && (
                 <span className="rounded-full font-black uppercase" style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: t.prio === "hoch" ? "#FBEAE8" : "#FBF3DA", color: t.prio === "hoch" ? "#C0392B" : "#9A6B00" }}>{t.prio}</span>
               )}
-              {t.bis && <span className="font-mono text-xs font-bold" style={{ color: todoIstUeberfaellig(t) ? "#C0392B" : "#5B6572" }}>bis {formatDateDE(t.bis)}</span>}
+              {t.bis && <span className="font-mono text-xs font-bold" title={todoBaldFaellig(t) ? "Frist rückt näher (Vorwarnung aus ⚙ Regeln & Listen)" : undefined} style={{ color: todoIstUeberfaellig(t) ? "#C0392B" : todoBaldFaellig(t) ? "#C97A2B" : "#5B6572" }}>{todoBaldFaellig(t) ? "⏳ " : ""}bis {formatDateDE(t.bis)}</span>}
               {t.wer && (
                 <span className="flex items-center justify-center rounded-full text-white font-black" style={{ width: "28px", height: "28px", fontSize: "0.62rem", backgroundColor: "#2F6690" }} title={t.wer}>{initialen(t.wer)}</span>
               )}
@@ -9135,7 +9284,7 @@ function App() {
               <label className="block text-xs font-bold mb-2" style={{ color: "#5B6572" }}>Abwesenheitsgrund
                 <select value={zeitModal.grund} onChange={(e) => setZeitModal((m) => ({ ...m, grund: e.target.value }))} aria-label="Abwesenheitsgrund"
                   className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }}>
-                  {ABWESENHEIT_GRUENDE.map((g) => <option key={g} value={g}>{g}</option>)}
+                  {[...regeln.listen.abwesenheit, ...(zeitModal.grund && !regeln.listen.abwesenheit.includes(zeitModal.grund) ? [zeitModal.grund] : [])].map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </label>
             )}
@@ -9215,7 +9364,7 @@ function App() {
               <div style={{ fontSize: "0.6rem", fontWeight: 800, letterSpacing: "0.7px", textTransform: "uppercase", color: "#A2AAB3", padding: "0 12px 4px" }}>Schnellzugriff</div>
               {[["offen", "⚠ Nur offene", stoerungen.filter((s) => s.offen).length],
                 ["restarbeit", "📌 Mit Restarbeit", stoerungen.filter(mitRestarbeit).length],
-                ["lang", "🕐 Über 60 min", stoerungen.filter(langeStoerung).length]].map(([k, label, n]) => {
+                ["lang", `🕐 Über ${regeln.schwellen.ausfallHochMin} min`, stoerungen.filter(langeStoerung).length]].map(([k, label, n]) => {
                 const an = stoerSchnell === k;
                 return (
                   <button key={k} className="w-full text-left flex items-center gap-2"
@@ -10142,6 +10291,7 @@ function App() {
                   startName={zettelName}
                   onAnpinnen={addZettel}
                   onAbbrechen={zettelVerfasserZu}
+                  bausteine={regeln.vorlagen.zettel}
                   fotoLeiste={(
                     <div className="flex gap-2 items-center flex-wrap mb-2">
                       {zettelFotosNeu.map((n, i) => (
@@ -11731,7 +11881,16 @@ function App() {
         const statusGewaehlt = sDraft.status === "offen" || sDraft.status === "erledigt";
         // Bei "Erledigt" gehört zur vollständigen Doku auch Ursache + Sofort Maßnahme.
         const erledigtVollstaendig = sDraft.status !== "erledigt" || (String(sDraft.ursache || "").trim() && String(sDraft.getan || "").trim());
-        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim() && statusGewaehlt && erledigtVollstaendig;
+        // Zusätzliche Pflichtfelder laut Werkstatt-Regel (⚙ Regeln & Listen)
+        const pf = regeln.vorlagen.pflicht;
+        const pflichtFehlt = [];
+        if (pf.anlagenteil && !String(sDraft.anlagenteil || "").trim()) pflichtFehlt.push("Anlagenteil");
+        if (pf.gewerk && !String(sDraft.gewerk || "").trim()) pflichtFehlt.push("Gewerk");
+        if (pf.fehlerart && !String(sDraft.fehlerart || "").trim()) pflichtFehlt.push("Fehlerart");
+        if (pf.ausfallzeit && !(Number(sDraft.ausfallzeit) > 0)) pflichtFehlt.push("Ausfallzeit");
+        if (pf.ursache && !String(sDraft.ursache || "").trim()) pflichtFehlt.push("Ursache");
+        if (pf.getan && !String(sDraft.getan || "").trim()) pflichtFehlt.push("Sofort Maßnahme");
+        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim() && statusGewaehlt && erledigtVollstaendig && pflichtFehlt.length === 0;
         const anlagenVorschlaege = Array.from(new Set([
           ...tpmAnlagen.map((a) => a.name),
           ...stoerungen.map((s) => s.anlage).filter(Boolean),
@@ -12004,7 +12163,7 @@ function App() {
                     <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Fehlerart</label>
                     <select value={sDraft.fehlerart || ""} onChange={(ev) => setSDraft({ ...sDraft, fehlerart: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", minWidth: "180px" }}>
                       <option value="">– keine Angabe –</option>
-                      {STOER_FEHLERARTEN.map((f) => <option key={f} value={f}>{f}</option>)}
+                      {[...regeln.listen.fehlerarten, ...(sDraft.fehlerart && !regeln.listen.fehlerarten.includes(sDraft.fehlerart) ? [sDraft.fehlerart] : [])].map((f) => <option key={f} value={f}>{f}</option>)}
                     </select>
                   </div>
                   <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7CF8F" }}>
@@ -12027,6 +12186,12 @@ function App() {
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Störungs Beschreibung<span style={{ color: "#C0392B" }}> *</span></label>
                   <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Was funktioniert nicht?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                  {regeln.vorlagen.stoerung.length > 0 && (
+                    <select value="" onChange={(ev) => { if (ev.target.value) setSDraft({ ...sDraft, stoerung: [String(sDraft.stoerung || "").trim(), ev.target.value].filter(Boolean).join(" ") }); }} aria-label="Textbaustein Beschreibung" className="text-xs border rounded px-2 py-1 mt-1" style={{ borderColor: "#D6D9DC" }}>
+                      <option value="">📋 Textbaustein einfügen …</option>
+                      {regeln.vorlagen.stoerung.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔍 Störungs Ursache</label>
@@ -12035,6 +12200,12 @@ function App() {
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔧 Sofort Maßnahme</label>
                   <textarea value={sDraft.getan} onChange={(ev) => setSDraft({ ...sDraft, getan: ev.target.value })} rows={2} placeholder="Was wurde sofort getan?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
+                  {regeln.vorlagen.stoerung.length > 0 && (
+                    <select value="" onChange={(ev) => { if (ev.target.value) setSDraft({ ...sDraft, getan: [String(sDraft.getan || "").trim(), ev.target.value].filter(Boolean).join(" ") }); }} aria-label="Textbaustein Sofort Maßnahme" className="text-xs border rounded px-2 py-1 mt-1" style={{ borderColor: "#D6D9DC" }}>
+                      <option value="">📋 Textbaustein einfügen …</option>
+                      {regeln.vorlagen.stoerung.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🧩 Ersatzteile / Material</label>
@@ -12071,6 +12242,7 @@ function App() {
                   <div className="text-xs" style={{ color: "#C0392B" }}>
                     Bitte die Pflichtfelder <strong>*</strong> ausfüllen: Anlage, Beschreibung, Schicht und Status.
                     {sDraft.status === "erledigt" && !erledigtVollstaendig && " Bei Erledigt zusätzlich Ursache und Sofort Maßnahme."}
+                    {pflichtFehlt.length > 0 && ` Laut Werkstatt-Regel außerdem: ${pflichtFehlt.join(", ")}.`}
                   </div>
                 )}
                 <div className="flex gap-2 items-center mt-1 flex-wrap">
@@ -13393,7 +13565,7 @@ function App() {
                 // Benutzer & Rechte (Robertos Ansage vom 21.09.): Liste und
                 // Rechte-Matrix an EINEM Ort, nur für Verwalter.
                 ...(istVerwalter ? [["benutzer", "Benutzer & Rechte"]] : []),
-                ["kostenstellen", "Kostenstellen"], ["oee", "OEE"], ["monitor", "Monitor"],
+                ["kostenstellen", "Kostenstellen"], ["regeln", "Regeln & Listen"], ["oee", "OEE"], ["monitor", "Monitor"],
                 // Personalisieren (21.09.): nur der Verwalter - die Übersicht
                 // dieses Rechners (Rechte wohnen im Reiter "Benutzer & Rechte").
                 ...(istVerwalter ? [["personalisieren", "Personalisieren"]] : []),
@@ -14294,6 +14466,113 @@ function App() {
               </div>
             </>)}
 
+            {settingsTab === "regeln" && (() => {
+              /* Regeln & Listen (Robertos Wahl vom 21.09.): alles, was je
+                 Werkstatt anders ist und bis dahin fest im Programm stand.
+                 Entwurf im Dialog, übernommen mit "Speichern" unten - wie
+                 Anlagen und Team. Gilt dann auf jedem Rechner. */
+              const r = settingsRegeln;
+              const setze = (pfad, wert) => setSettingsRegeln((alt) => {
+                const neu = JSON.parse(JSON.stringify(alt));
+                let ziel = neu;
+                for (let i = 0; i < pfad.length - 1; i++) ziel = ziel[pfad[i]];
+                ziel[pfad[pfad.length - 1]] = wert;
+                return neu;
+              });
+              const eingabe = { borderColor: "#D7DCE1" };
+              const kopf = (text) => <div className="text-xs font-bold uppercase mb-1 mt-4 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>{text}</div>;
+              const hinweis = (text) => <div className="text-xs mb-2" style={{ color: "#8A9099" }}>{text}</div>;
+              // Einfache Textliste: ein Feld je Eintrag, ✕ entfernt, + hängt an
+              const liste = (titel, pfad, werte, platzhalter) => (
+                <div className="mb-3">
+                  <div className="text-[11px] font-bold uppercase mb-1" style={{ color: "#8A9099" }}>{titel}</div>
+                  {werte.map((w, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-1">
+                      <input value={w} aria-label={`${titel} ${i + 1}`} placeholder={platzhalter}
+                        onChange={(e) => setze(pfad, werte.map((x, j) => (j === i ? e.target.value : x)))}
+                        className="flex-1 text-sm px-2 py-1.5 rounded border" style={eingabe} />
+                      <button onClick={() => setze(pfad, werte.filter((_, j) => j !== i))} aria-label={`${titel} ${i + 1} entfernen`} className="text-slate-400 hover:text-red-600"><X size={15} /></button>
+                    </div>
+                  ))}
+                  <button onClick={() => setze(pfad, [...werte, ""])} aria-label={`${titel} hinzufügen`} className="text-xs font-bold" style={{ color: "#22262B" }}>+ {titel} hinzufügen</button>
+                </div>
+              );
+              const zahl = (titel, pfad, wert, einheit, min, max, erklaerung) => (
+                <label className="flex items-center gap-3 mb-2 text-sm">
+                  <span className="w-64 font-bold" style={{ color: "#22262B" }}>{titel}</span>
+                  <input type="number" min={min} max={max} value={wert} aria-label={titel}
+                    onChange={(e) => setze(pfad, e.target.value)}
+                    className="text-sm px-2 py-1 rounded border" style={{ ...eingabe, width: "90px" }} />
+                  <span className="text-xs" style={{ color: "#8A9099" }}>{einheit}{erklaerung ? ` · ${erklaerung}` : ""}</span>
+                </label>
+              );
+              const standortLand = BUNDESLAENDER.find(([k]) => k === STANDORT.bundesland);
+              return (<>
+              <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Feiertage &amp; freie Tage</div>
+              {hinweis("Gesetzliche Feiertage nach Bundesland – sie fallen aus Rotation und R+I heraus und stehen rot im Schichtplan. Eigene freie Tage (Betriebsferien, Brückentage) gelten genauso.")}
+              <label className="flex items-center gap-3 mb-2 text-sm">
+                <span className="w-64 font-bold" style={{ color: "#22262B" }}>Bundesland</span>
+                <select value={r.feiertage.bundesland} aria-label="Bundesland" onChange={(e) => setze(["feiertage", "bundesland"], e.target.value)} className="text-sm px-2 py-1.5 rounded border" style={eingabe}>
+                  <option value="">wie Standort ({standortLand ? standortLand[1] : STANDORT.bundesland})</option>
+                  {BUNDESLAENDER.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
+                </select>
+              </label>
+              <div className="text-[11px] font-bold uppercase mb-1 mt-2" style={{ color: "#8A9099" }}>Eigene freie Tage</div>
+              {r.feiertage.eigene.map((e, i) => (
+                <div key={i} className="flex items-center gap-2 mb-1 flex-wrap">
+                  <input type="date" value={e.von} aria-label={`Freie Tage ${i + 1} von`} onChange={(ev) => setze(["feiertage", "eigene"], r.feiertage.eigene.map((x, j) => (j === i ? { ...x, von: ev.target.value } : x)))} className="text-sm px-2 py-1 rounded border" style={eingabe} />
+                  <span className="text-xs" style={{ color: "#8A9099" }}>bis</span>
+                  <input type="date" value={e.bis} aria-label={`Freie Tage ${i + 1} bis`} onChange={(ev) => setze(["feiertage", "eigene"], r.feiertage.eigene.map((x, j) => (j === i ? { ...x, bis: ev.target.value } : x)))} className="text-sm px-2 py-1 rounded border" style={eingabe} />
+                  <input value={e.name} aria-label={`Freie Tage ${i + 1} Name`} placeholder="z. B. Betriebsferien" onChange={(ev) => setze(["feiertage", "eigene"], r.feiertage.eigene.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))} className="flex-1 text-sm px-2 py-1 rounded border" style={{ ...eingabe, minWidth: "140px" }} />
+                  <button onClick={() => setze(["feiertage", "eigene"], r.feiertage.eigene.filter((_, j) => j !== i))} aria-label={`Freie Tage ${i + 1} entfernen`} className="text-slate-400 hover:text-red-600"><X size={15} /></button>
+                </div>
+              ))}
+              <button onClick={() => setze(["feiertage", "eigene"], [...r.feiertage.eigene, { von: todayKey, bis: todayKey, name: "Betriebsferien" }])} aria-label="Freie Tage hinzufügen" className="text-xs font-bold mb-2" style={{ color: "#22262B" }}>+ Freie Tage hinzufügen</button>
+
+              {kopf("Auswahllisten")}
+              {hinweis("Die Listen im Störbericht und in der Zeiterfassung. Bestehende Einträge behalten ihren alten Wert, auch wenn er aus der Liste fliegt.")}
+              <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                {liste("Fehlerart", ["listen", "fehlerarten"], r.listen.fehlerarten, "z. B. Sensorik")}
+                {liste("Abwesenheitsgrund", ["listen", "abwesenheit"], r.listen.abwesenheit, "z. B. Elternzeit")}
+              </div>
+              <div className="text-[11px] font-bold uppercase mb-1" style={{ color: "#8A9099" }}>Gewerk-Namen</div>
+              <div className="flex gap-2 mb-2 flex-wrap">
+                {[["mech", "🔧"], ["elek", "⚡"], ["beide", "🔧⚡"]].map(([k, sym]) => (
+                  <label key={k} className="flex items-center gap-1.5 text-sm">
+                    <span>{sym}</span>
+                    <input value={r.listen.gewerkNamen[k]} aria-label={`Gewerk ${k}`} onChange={(e) => setze(["listen", "gewerkNamen", k], e.target.value)} className="text-sm px-2 py-1 rounded border" style={{ ...eingabe, width: "170px" }} />
+                  </label>
+                ))}
+              </div>
+
+              {kopf("Schwellen & Ziele")}
+              {hinweis("Ab wann etwas rot oder orange wird – und welche Zahl als Ziel gilt.")}
+              {zahl("Störung zählt als lang ab", ["schwellen", "ausfallHochMin"], r.schwellen.ausfallHochMin, "Minuten Ausfall", 1, 100000, "Filter „lang“ und roter Ausfall im Schichtbericht")}
+              {zahl("To-do-Vorwarnung", ["schwellen", "todoWarnTage"], r.schwellen.todoWarnTage, "Tage vor der Frist", 0, 365, "0 = nur rot bei Überfälligkeit")}
+              {zahl("TPM-Quote Ziel", ["schwellen", "quoteZiel"], r.schwellen.quoteZiel, "%", 0, 100, "darunter wird der Halbkreis orange · 0 = kein Ziel")}
+              {zahl("OEE grün ab", ["schwellen", "oeeGruen"], r.schwellen.oeeGruen, "%", 0, 100)}
+              {zahl("OEE orange ab", ["schwellen", "oeeGelb"], r.schwellen.oeeGelb, "%", 0, 100, "darunter rot")}
+              {zahl("Archiv-Erinnerung ab", ["schwellen", "archivJahre"], r.schwellen.archivJahre, "Jahren im Bestand", 1, 50)}
+
+              {kopf("Textbausteine & Pflichtfelder")}
+              {hinweis("Textbausteine erscheinen als Auswahl an der Pinnwand und im Störbericht (Beschreibung, Sofort Maßnahme). Pflichtfelder gelten zusätzlich zu Anlage, Beschreibung, Schicht und Status.")}
+              <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                {liste("Textbaustein Pinnwand", ["vorlagen", "zettel"], r.vorlagen.zettel, "z. B. Ersatzteil bestellt, kommt Do.")}
+                {liste("Textbaustein Störbericht", ["vorlagen", "stoerung"], r.vorlagen.stoerung, "z. B. Sicherung getauscht, Anlage wieder frei")}
+              </div>
+              <div className="text-[11px] font-bold uppercase mb-1" style={{ color: "#8A9099" }}>Pflichtfelder im Störbericht</div>
+              <div className="flex gap-x-4 gap-y-1 flex-wrap mb-2">
+                {[["anlagenteil", "Anlagenteil"], ["gewerk", "Gewerk"], ["fehlerart", "Fehlerart"], ["ausfallzeit", "Ausfallzeit"], ["ursache", "Ursache (immer)"], ["getan", "Sofort Maßnahme (immer)"]].map(([k, name]) => (
+                  <label key={k} className="flex items-center gap-1.5 text-sm">
+                    <input type="checkbox" checked={!!r.vorlagen.pflicht[k]} aria-label={`Pflichtfeld ${name}`} onChange={(e) => setze(["vorlagen", "pflicht", k], e.target.checked)} />
+                    {name}
+                  </label>
+                ))}
+              </div>
+              <div className="text-xs mb-4" style={{ color: "#8A9099" }}>Übernommen wird alles mit <strong>Speichern</strong> unten – dann für alle Rechner (gemeinsame Datei).</div>
+              </>);
+            })()}
+
             {settingsTab === "personalisieren" && istVerwalter && (<>
               {/* ---- A: Übersicht dieses Rechners -----------------------------
                   Robertos Auftrag vom 21.09.: "frei wählbar, auf jedem
@@ -14387,6 +14666,44 @@ function App() {
                 Die Wahl wird sofort übernommen und bleibt auf diesem Rechner gespeichert. ·{" "}
                 <button onClick={() => setUebersichtLayout(layoutAusVorlage("standard"))} className="font-bold underline" style={{ color: "#5B6572" }}>Auf Standard zurücksetzen</button>
               </div>
+
+              {/* ---- Dieser Rechner (Robertos Wahl vom 21.09., Punkt 6) ----
+                  Startansicht, Zoom, Nachtmodus-Automatik, Leser-Rücksprung -
+                  liegt im localStorage, gilt sofort, nie in der Datei. */}
+              <div className="text-xs font-bold uppercase mb-1 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Dieser Rechner</div>
+              <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
+                Gilt nur hier und sofort – der Hallenbildschirm darf größer, dunkler und schneller zurück auf der Übersicht sein als der Schreibtisch.
+              </div>
+              <label className="flex items-center gap-3 mb-2 text-sm">
+                <span className="w-56 font-bold" style={{ color: "#22262B" }}>Startansicht beim Öffnen</span>
+                <select value={geraet.startansicht} aria-label="Startansicht" onChange={(e) => setGeraet({ ...geraet, startansicht: e.target.value })} className="text-sm px-2 py-1.5 rounded border" style={{ borderColor: "#D7DCE1" }}>
+                  <option value="UEBERSICHT">Übersicht</option>
+                  <option value="SCHICHTPLAN">Schichtplan</option>
+                  <option value="BERICHTE">Berichte</option>
+                  <option value="TPM">TPM</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-3 mb-2 text-sm">
+                <span className="w-56 font-bold" style={{ color: "#22262B" }}>Größe (Zoom)</span>
+                <select value={geraet.zoom} aria-label="Zoom" onChange={(e) => setGeraet({ ...geraet, zoom: Number(e.target.value) })} className="text-sm px-2 py-1.5 rounded border" style={{ borderColor: "#D7DCE1" }}>
+                  {[80, 90, 100, 110, 125, 150].map((z) => <option key={z} value={z}>{z} %{z === 100 ? " (normal)" : ""}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-3 mb-2 text-sm flex-wrap">
+                <span className="w-56 font-bold" style={{ color: "#22262B" }}>Nachtmodus automatisch</span>
+                <input type="checkbox" checked={geraet.nachtAuto} aria-label="Nachtmodus automatisch" onChange={(e) => setGeraet({ ...geraet, nachtAuto: e.target.checked })} />
+                <span className="text-xs" style={{ color: "#8A9099" }}>von</span>
+                <input type="time" value={geraet.nachtVon} aria-label="Nachtmodus von" onChange={(e) => setGeraet({ ...geraet, nachtVon: e.target.value })} className="text-sm px-2 py-1 rounded border" style={{ borderColor: "#D7DCE1" }} />
+                <span className="text-xs" style={{ color: "#8A9099" }}>bis</span>
+                <input type="time" value={geraet.nachtBis} aria-label="Nachtmodus bis" onChange={(e) => setGeraet({ ...geraet, nachtBis: e.target.value })} className="text-sm px-2 py-1 rounded border" style={{ borderColor: "#D7DCE1" }} />
+              </label>
+              <label className="flex items-center gap-3 mb-2 text-sm">
+                <span className="w-56 font-bold" style={{ color: "#22262B" }}>Leser-Rücksprung zur Übersicht</span>
+                <select value={geraet.ruecksprungMin} aria-label="Leser-Rücksprung" onChange={(e) => setGeraet({ ...geraet, ruecksprungMin: Number(e.target.value) })} className="text-sm px-2 py-1.5 rounded border" style={{ borderColor: "#D7DCE1" }}>
+                  {[1, 2, 5, 10, 15, 30, 60, 120].map((m) => <option key={m} value={m}>nach {m} min ohne Eingabe</option>)}
+                </select>
+              </label>
+              <div className="text-xs mb-4" style={{ color: "#8A9099" }}>Der Rücksprung gilt nur für Leser-Rechner; Bearbeiter werden nie umgeworfen.</div>
 
             </>)}
 

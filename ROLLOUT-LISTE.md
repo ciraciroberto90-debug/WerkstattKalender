@@ -981,6 +981,36 @@ Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
       und ein Verwalter-Layout, das für alle Rechner gilt – beides auf
       Zuruf machbar.
 
+## Zahnrad-Ausbau „Regeln & Listen" + „Dieser Rechner" (Robertos Wahl vom 21.09.)
+
+Aus der Ideenliste gewählt: Feiertage (2), eigene Listen (4), Schwellen und
+Ziele (5), Rechner-Einstellungen (6), Vorlagen und Pflichtfelder (8).
+
+- [x] **Reiter „Regeln & Listen"** (gemeinsame Datei, `config|regeln`, mit
+      „Speichern" übernommen): Bundesland für die gesetzlichen Feiertage
+      (Vorgabe: Bundesland des Standorts, alle 16 Länder hinterlegt) und
+      eigene freie Tage (Betriebsferien, Brückentage) – gelten wie
+      Feiertage in Rotation, R+I und Schichtplan. Fehlerarten und
+      Abwesenheitsgründe frei pflegbar, Gewerk-Namen umbenennbar.
+      Schwellen: Störung „lang" ab X Minuten (Filter und roter Ausfall im
+      Schichtbericht), To-do-Vorwarnung X Tage vor der Frist (⏳ orange),
+      TPM-Quote-Ziel (Halbkreis wird darunter orange), OEE grün/orange ab,
+      Archiv-Erinnerung ab X Jahren. Textbausteine für Pinnwand und
+      Störbericht (Beschreibung, Sofort Maßnahme), zusätzliche
+      Pflichtfelder im Störbericht. Ohne Einstellung gilt exakt der
+      bisherige Stand. Härtetest harte-76.
+- [x] **Personalisieren → „Dieser Rechner"** (localStorage `wk-geraet`):
+      Startansicht beim Öffnen, Zoom 80–150 % (über die
+      Wurzel-Schriftgröße), Nachtmodus automatisch im Zeitfenster,
+      Leser-Rücksprung 1–120 Minuten statt fest 15.
+- [ ] **Bewusst nicht drin:** Prioritätsstufen (hoch/mittel/normal sind
+      fest verdrahtet und in Auswertungen verbaut), Monitor-Umlauftakt (es
+      gibt keinen Umlauf – der Monitor zeigt alles gleichzeitig), Logo auf
+      Ausdrucken, Schichtzeiten (Punkt 1 und 3 – auf Zuruf).
+- [ ] **Roberto prüft am Rechner:** Bundesland und Betriebsferien setzen,
+      eine eigene Fehlerart anlegen, am Hallenrechner Zoom und
+      Nachtmodus-Automatik ausprobieren.
+
 ## Vorstellung bei Soendgen Keramik am 22.09. (Robertos Auftrag vom 18.09.)
 
 Termin Dienstag 22.09.2026, 10–13 Uhr, vier Personen (Werkstattleiter SK,

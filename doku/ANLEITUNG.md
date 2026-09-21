@@ -298,6 +298,21 @@ Planung, Schlank) als Einstieg, danach jeder Baustein einzeln an/aus
 Tagesliste, Pinnwand, Linkstreifen) und die vier Abschnitte in der Reihenfolge
 tauschbar. „Auf Standard zurücksetzen" holt die gewohnte Übersicht zurück.
 
+**Dieser Rechner (⚙ → Personalisieren, unten).** Startansicht beim Öffnen
+(Übersicht, Schichtplan, Berichte, TPM), Zoom 80–150 % für den Hallenbildschirm,
+Nachtmodus automatisch in einem Zeitfenster (z. B. 20–6 Uhr) und der
+Leser-Rücksprung zur Übersicht in Minuten. Gilt sofort und nur auf diesem Rechner.
+
+**Regeln & Listen (⚙ → Regeln & Listen, für alle Rechner).** Was je Werkstatt
+anders ist: das **Bundesland** für die gesetzlichen Feiertage und **eigene freie
+Tage** (Betriebsferien, Brückentage – zählen wie Feiertage), die Auswahllisten
+**Fehlerart** und **Abwesenheitsgrund**, die **Gewerk-Namen**, **Schwellen und
+Ziele** (Störung „lang" ab X Minuten, To-do-Vorwarnung X Tage vor der Frist,
+TPM-Quote-Ziel, OEE-Farbgrenzen, Archiv-Erinnerung ab X Jahren),
+**Textbausteine** für Pinnwand und Störbericht sowie zusätzliche
+**Pflichtfelder** im Störbericht. Übernommen wird mit „Speichern"; ohne eigene
+Einstellung gilt der bisherige Stand.
+
 Der direkte Weg: **„Übersicht direkt anordnen"** (oben im Reiter) friert die
 Übersicht ein. Jede Kachel bekommt einen orangen Rahmen mit Griff – am Griff
 ziehen oder mit den Pfeilen schieben, **✕** blendet aus, **⇄** tauscht
