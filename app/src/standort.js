@@ -16,7 +16,8 @@
 const WAHL_KEY = "bta-standort"; // bewusst OHNE Namensraum - die Wahl steht über allem
 
 export const STANDORTE = {
-  scheurich: { id: "scheurich", name: "Scheurich", ort: "Kleinheubach", bundesland: "BY", blanko: false },
+  // leitwerkstatt: Verwalter von hier sind Gruppen-Verwalter (siehe unten)
+  scheurich: { id: "scheurich", name: "Scheurich", ort: "Kleinheubach", bundesland: "BY", blanko: false, leitwerkstatt: true },
   // Soendgen startet BLANKO: keine Scheurich-Anlagen, -Rundgänge oder
   // -Kostenstellen als Vorbelegung - der Werkstattmeister pflegt alles
   // selbst über das ⚙-Menü ein (Robertos Ansage vom 11.09.).
@@ -63,4 +64,29 @@ export function standortWaehlen(id) {
   if (!STANDORTE[id]) return;
   try { localStorage.setItem(WAHL_KEY, id); } catch (e) { /* dann bleibt die Frage */ }
   window.location.reload();
+}
+
+// ---------------------------------------------------------------------------
+// Gruppen-Verwalter (Robertos Ansage vom 21.09.): Ein Verwalter der
+// Leit-Werkstatt (Scheurich) darf frei in jede Werkstatt der Gruppe wechseln
+// und ist dort Verwalter - ohne in DEREN Benutzerliste zu stehen. Die andere
+// Werkstatt sieht davon in ihren Einstellungen nichts.
+//
+// Der "Pass" liegt nur auf diesem Rechner, bewusst OHNE Namensraum (damit ihn
+// jede Werkstatt sieht), und entsteht beim Anmelden als Verwalter in der
+// Leit-Werkstatt. Abmelden löscht ihn. Wie die Benutzerliste ist das eine
+// Leitplanke, kein Schloss - wer den Rechner bedient, hat den Pass.
+// ---------------------------------------------------------------------------
+const PASS_KEY = "bta-gruppenverwalter";
+export function leseGruppenPass() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PASS_KEY) || "null");
+    return p && typeof p.name === "string" && p.name.trim() && STANDORTE[p.von] && STANDORTE[p.von].leitwerkstatt ? p : null;
+  } catch (e) { return null; }
+}
+export function setzeGruppenPass(pass) {
+  try {
+    if (pass) localStorage.setItem(PASS_KEY, JSON.stringify(pass));
+    else localStorage.removeItem(PASS_KEY);
+  } catch (e) { /* dann gilt der Pass nur bis zum Neustart */ }
 }

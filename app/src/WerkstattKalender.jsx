@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv, LogOut, LogIn, Eye } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
-import { STANDORT, STANDORTE, STANDORT_GEWAEHLT, standortWaehlen, nsKey } from "./standort.js";
+import { STANDORT, STANDORTE, STANDORT_GEWAEHLT, standortWaehlen, nsKey, leseGruppenPass, setzeGruppenPass } from "./standort.js";
 import { LOGO_GRUPPE, LOGO_SCHEURICH, LOGO_SOENDGEN } from "./logos.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
 
@@ -2364,6 +2364,9 @@ function App() {
   // das Gerät - wie von Roberto gewünscht "beim ersten Login für immer".
   const [benutzerListe, setBenutzerListe] = useState([]);
   const [angemeldet, setAngemeldet] = useState(() => localStorage.getItem(nsKey("werkstatt-kalender-benutzer")) || "");
+  // Gruppen-Verwalter-Pass dieses Rechners (Robertos Ansage vom 21.09.)
+  const [gruppenPass, setGruppenPassState] = useState(leseGruppenPass);
+  const setGruppenPass = (pass) => { setzeGruppenPass(pass); setGruppenPassState(pass); };
   const [anmeldung, setAnmeldung] = useState({ name: "", kennwort: "", fehler: "" }); // Entwurf im Anmelde-Dialog
   // „Nur ansehen": Der Anmelde-Dialog wurde bewusst weggeklickt - die App
   // läuft dann als Leser (Robertos Regel vom 10.08.: ohne Anmeldung NIE
@@ -2732,7 +2735,21 @@ function App() {
   // Solange die Anmeldung aussteht, gilt Nur-Lesen - erst der bestätigte
   // Benutzer beweist das Gegenteil (dieselbe Denkweise wie bei der Datei).
   const benutzerAktiv = benutzerListe.length > 0;
-  const meinBenutzer = benutzerAktiv ? benutzerListe.find((b) => b.name === angemeldet) || null : null;
+  // Gruppen-Verwalter zu Gast: In einer fremden Werkstatt zählt der Pass als
+  // Verwalter-Anmeldung, ohne dass die Person in DEREN Liste steht - so
+  // sieht Soendgen in seinen Einstellungen nichts vom Scheurich-Verwalter.
+  const gruppenGast = !STANDORT.leitwerkstatt && gruppenPass ? { name: gruppenPass.name, rolle: "verwalter", kennwortHash: "", gruppenGast: true } : null;
+  const meinBenutzer = benutzerAktiv ? (benutzerListe.find((b) => b.name === angemeldet) || gruppenGast) : null;
+  // Wer sich in der Leit-Werkstatt als Verwalter anmeldet, bekommt den Pass;
+  // eine andere Rolle oder eine fremde Werkstatt stellen keinen aus.
+  useEffect(() => {
+    if (!STANDORT.leitwerkstatt || !benutzerAktiv || !meinBenutzer || meinBenutzer.rolle !== "verwalter" || meinBenutzer.gruppenGast) return;
+    if (gruppenPass && gruppenPass.name === meinBenutzer.name) return;
+    setGruppenPass({ name: meinBenutzer.name, von: STANDORT.id, seit: new Date().toISOString() });
+  }, [benutzerAktiv, meinBenutzer && meinBenutzer.name, meinBenutzer && meinBenutzer.rolle]);
+  // Der Gast darf zwischen den Werkstätten springen; in der Leit-Werkstatt
+  // jeder angemeldete Verwalter (der Pass entsteht dort ja).
+  const darfWerkstattWechseln = !!gruppenGast || (STANDORT.leitwerkstatt && benutzerAktiv && !!meinBenutzer && meinBenutzer.rolle === "verwalter");
   const benutzerDarfSchreiben = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle !== "leser");
   const istVerwalter = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle === "verwalter");
   const anmeldungOffen = benutzerAktiv && meinBenutzer == null && !anmeldungZu;
@@ -4429,6 +4446,9 @@ function App() {
     setAnmeldung({ name: "", kennwort: "", fehler: "" });
   };
   const abmelden = () => {
+    // Abmelden nimmt auch den Gruppen-Verwalter-Pass vom Rechner - sonst
+    // bliebe der Kollege am selben PC Verwalter in der anderen Werkstatt.
+    setGruppenPass(null);
     setAngemeldet("");
     setAnmeldung({ name: "", kennwort: "", fehler: "" });
     setAnmeldungZu(false); // nach dem Abmelden fragt der Dialog wieder
@@ -7864,7 +7884,22 @@ function App() {
                 geladen ist - die wichtigste Auskunft gegen Verwechslungen. */}
             <div>
               <div className="font-black text-lg tracking-tight uppercase text-white" style={{ lineHeight: 1.05 }}>{appName}</div>
-              <div className="text-[10px] font-bold tracking-wide" style={{ color: "#B7BEC6" }}>{STANDORT.name} · {STANDORT.ort}</div>
+              <div className="text-[10px] font-bold tracking-wide flex items-center gap-2" style={{ color: "#B7BEC6" }}>
+                <span>{STANDORT.name} · {STANDORT.ort}</span>
+                {/* Werkstatt-Wechsel für Gruppen-Verwalter (21.09.): ein Klick,
+                    die App lädt mit dem Bestand der anderen Werkstatt neu. */}
+                {darfWerkstattWechseln && Object.values(STANDORTE).filter((st) => st.id !== STANDORT.id).map((st) => (
+                  <button
+                    key={st.id}
+                    onClick={() => standortWaehlen(st.id)}
+                    aria-label={`Wechseln zu ${st.name}`}
+                    title={`Zur Werkstatt ${st.name} wechseln (${gruppenGast ? "als Gruppen-Verwalter" : "Sie bleiben dort Verwalter"})`}
+                    className="rounded px-1.5 py-0.5 font-bold"
+                    style={{ backgroundColor: "rgba(255,255,255,0.10)", color: "#E7EAEE", fontSize: "10px", letterSpacing: "0.3px" }}
+                  >⇄ {st.name}</button>
+                ))}
+                {gruppenGast && <span title="Gruppen-Verwalter aus der Leit-Werkstatt - nicht in der Benutzerliste dieser Werkstatt" style={{ color: "#E0A45B" }}>Gruppen-Verwalter</span>}
+              </div>
             </div>
           </div>
           {/* Hauptbereiche Cockpit / TPM - für Bearbeiter UND Leser gleich.

@@ -271,6 +271,21 @@ eine andere JSON-Datei anwählen. Der Sinn der Liste: Die Rechtevergabe hängt
 damit **nicht an den Datei-Freigaben des Laufwerks** – alle bekommen dieselbe Datei, wer
 was darf, steht in der App.
 
+**Gruppen-Verwalter (seit dem 21.09.).** Wer sich in der Leit-Werkstatt
+(Scheurich) als **Verwalter** anmeldet, bekommt auf diesem Rechner einen
+Gruppen-Pass: In der Kopfzeile erscheint neben dem Standort der Knopf
+**„⇄ Soendgen Keramik"**, ein Klick lädt die App mit dem Soendgen-Bestand. Dort
+gilt er als Verwalter – ohne in der Soendgen-Benutzerliste zu stehen; Soendgen
+sieht davon in seinen Einstellungen nichts (Kopfzeile: „Gruppen-Verwalter").
+Zurück geht es genauso. **Abmelden** (auch in Soendgen) nimmt den Pass vom
+Rechner. Die Datendateien der anderen Werkstatt müssen auf dem Rechner einmal
+verbunden werden (Ordner-Symbol), danach merkt er sie sich je Werkstatt.
+
+**Klar getrennt bleibt alles andere:** Mitarbeiter, Anlagen, Benutzerliste,
+Rechte, Regeln, Schichtplan, Störberichte und Zeiterfassung liegen je Werkstatt
+in eigenen Dateien; Browser-Zwischenspeicher und Sicherungen sind je Werkstatt
+getrennt. Gemeinsam sind nur die Programmdatei und der Update-Ordner.
+
 **Rechte je Gruppe frei einstellen (⚙ → Benutzer & Rechte, nur Verwalter).**
 Seit dem 21.09. legt der Verwalter je Bereich fest, was Bearbeiter und Leser
 dürfen: **ausgeblendet** (der Reiter fehlt), **nur ansehen** oder

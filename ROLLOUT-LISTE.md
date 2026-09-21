@@ -981,6 +981,27 @@ Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
       und ein Verwalter-Layout, das für alle Rechner gilt – beides auf
       Zuruf machbar.
 
+## Gruppen-Verwalter (Robertos Ansage vom 21.09.)
+
+- [x] **Scheurich-Verwalter springt frei zwischen den Werkstätten und ist
+      in Soendgen Verwalter** („GodMode"): Anmeldung als Verwalter in der
+      Leit-Werkstatt stellt einen Pass auf dem Rechner aus
+      (`bta-gruppenverwalter`, ohne Namensraum). Kopfzeile: Knopf
+      „⇄ Soendgen Keramik" / „⇄ Scheurich". In Soendgen zählt der Pass als
+      Verwalter-Anmeldung, ohne dass die Person in deren Liste steht –
+      Soendgen sieht in seinen Einstellungen nichts davon. Abmelden nimmt
+      den Pass. Härtetest harte-77 (Gegenprobe: Rechner ohne Pass bekommt
+      in Soendgen die normale Anmeldung).
+- [x] **Mitarbeiter klar getrennt – geprüft:** Team, Benutzer, Rechte,
+      Regeln, Anlagen, alle Einträge liegen je Werkstatt in der eigenen
+      Datei; Zwischenspeicher und Sicherungen je Standort im eigenen
+      Namensraum. harte-77 (3): im Soendgen-Zahnrad steht nur das
+      Soendgen-Team.
+- [ ] **Stolperstein:** Der Pass braucht eine Benutzerliste in Scheurich
+      (sonst gibt es keine „Anmeldung als Verwalter"). Und die
+      Soendgen-Dateien müssen auf Robertos Rechner einmal verbunden werden
+      (Werkzeug-Vorgabe oder Ordner-Symbol) – danach gemerkt.
+
 ## Zahnrad-Ausbau „Regeln & Listen" + „Dieser Rechner" (Robertos Wahl vom 21.09.)
 
 Aus der Ideenliste gewählt: Feiertage (2), eigene Listen (4), Schwellen und
