@@ -1107,6 +1107,19 @@ Vorher/Nachher-Messung und (bei Sync-Änderungen) mit Test, der ohne die
       Programm-Fassung: neue Brücken-Funktion `stat` (Größe + Zeit ohne
       Bytes); ältere Programm-Fassungen ohne `stat` lesen wie bisher voll
       – wirksam wird der Kurzblick dort erst mit der nächsten Programm-ZIP.
+      **Robertos Info (21.09.): alle Rechner laufen nur noch als Programm**
+      – die verteilte ZIP (`programm/verteilung/WC-Programm-*.teil`,
+      USB-Stick `01-Programm`) stammt vom 31.08.; seither geänderter
+      Programm-Rahmen: Vollbild-Schalter `--vollbild` (17.09.) und `stat`
+      (21.09.). Der Kurzblick wirkt in der Werkstatt also ERST mit einer
+      neuen Programm-ZIP → nächster Punkt.
+- [ ] **Neue Programm-ZIP bauen und verteilen** (`cd programm && npm install
+      && npm run bauen`, dann Teil-Dateien in `verteilung/`, USB-Stick
+      `01-Programm` und GitHub-Release v1.1 nach `RELEASE-ANLEITUNG.txt`).
+      Bringt: Kurzblick-Brücke `stat`, Vollbild-Schalter. Vorher die
+      Beispiel-Einstellungsdatei füllen (Stolperstein unten). Bau hier
+      braucht den Electron-Download über den Proxy – ungemessen, ob er
+      durchkommt.
       Gilt für Hauptdatei UND Störberichte-Datei (gleicher Baustein).
       Härtetest harte-81 (15 Prüfungen, zählt die ECHTEN Inhalts-Lesungen);
       Rot-Nachweis gemessen: ohne Kurzblick 5 Lesungen bei 5 Abgleichen

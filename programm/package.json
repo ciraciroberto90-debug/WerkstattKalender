@@ -1,7 +1,7 @@
 {
   "name": "werkstatt-cockpit",
   "productName": "Werkstatt-Cockpit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Werkstatt-Cockpit als installierbares Programm - gleiche App, echte Dateizugriffe",
   "main": "main.js",
   "author": "Werkstatt",
