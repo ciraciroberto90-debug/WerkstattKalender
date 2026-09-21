@@ -981,6 +981,26 @@ Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
       und ein Verwalter-Layout, das für alle Rechner gilt – beides auf
       Zuruf machbar.
 
+## Ansichts-Schalter + Mitarbeiter-Kachel (Robertos Ansage vom 21.09.)
+
+- [x] **Auge = Ansichts-Schalter für den Verwalter:** Menü „Cockpit ansehen
+      als Verwalter / Bearbeiter / Leser" plus Nachtmodus. Die Simulation
+      greift an der Rechte-Ableitung, alles darunter (readerMode,
+      Rechte-Matrix, Notiz-Sichtbarkeit, Klammer) folgt wie einer echten
+      Anmeldung; orange Hinweisleiste mit „Zurück zur Verwalter-Ansicht".
+      Bearbeiter und Leser behalten das Auge als Nachtschicht-Modus.
+      Härtetest harte-78.
+- [x] **Kopfzeile ohne Ortsnamen** („Scheurich" / „Soendgen Keramik" statt
+      „… · Kleinheubach").
+- [ ] **Neue Kachel „Heute da & dran"** (anwesende Mitarbeiter je Schicht,
+      Abwesende – Schule, Krank, Urlaub – außen vor, die geplanten Punkte
+      der Anwesenden direkt abhaken oder bearbeiten): vier Vorlagen (A
+      Schicht-Spalten, B Personen-Zeilen, C Personen-Kacheln mit
+      Fortschritt, D Kompakt-Tabelle) an Roberto geschickt – gebaut wird
+      nach seiner Wahl. Datengrundlage: Backlog-Arbeiten mit `wer` +
+      `geplant` = heute, To-dos mit `wer`, Planungs-Notizen, Störungen mit
+      Restarbeit.
+
 ## Gruppen-Verwalter (Robertos Ansage vom 21.09.)
 
 - [x] **Scheurich-Verwalter springt frei zwischen den Werkstätten und ist

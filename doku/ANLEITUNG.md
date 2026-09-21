@@ -271,6 +271,13 @@ eine andere JSON-Datei anwählen. Der Sinn der Liste: Die Rechtevergabe hängt
 damit **nicht an den Datei-Freigaben des Laufwerks** – alle bekommen dieselbe Datei, wer
 was darf, steht in der App.
 
+**Ansichts-Schalter (seit dem 21.09.).** Für den Verwalter ist das Auge oben
+rechts ein Schalter: **Cockpit ansehen als Verwalter / Bearbeiter / Leser**.
+Damit prüft er in Sekunden, was eine Gruppe nach der Rechte-Tabelle sieht und
+darf – eine orange Leiste erinnert daran, „Zurück zur Verwalter-Ansicht" holt
+ihn zurück. Der Nachtschicht-Modus steckt im selben Menü. Bearbeiter und Leser
+behalten das Auge als Nachtschicht-Modus.
+
 **Gruppen-Verwalter (seit dem 21.09.).** Wer sich in der Leit-Werkstatt
 (Scheurich) als **Verwalter** anmeldet, bekommt auf diesem Rechner einen
 Gruppen-Pass: In der Kopfzeile erscheint neben dem Standort der Knopf

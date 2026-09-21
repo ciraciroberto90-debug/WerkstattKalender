@@ -85,7 +85,7 @@ const ok = (n, c, zusatz) => {
   /* ---- (2) Wechsel nach Soendgen ---- */
   await r.p.locator('button[aria-label="Wechseln zu Soendgen Keramik"]').click();
   await r.p.waitForTimeout(1500);
-  ok("(2) Die App läuft jetzt als Soendgen Keramik", /Soendgen Keramik · Adendorf/i.test(await kopf(r.p)));
+  ok("(2) Die App läuft jetzt als Soendgen Keramik", /Soendgen Keramik/i.test(await kopf(r.p)));
   await verbinde(r.p);
   ok("(2) KEIN Anmelde-Dialog - der Pass gilt", (await r.p.locator('[aria-label="Anmelden"]').count()) === 0);
   ok("(2) Zahnrad da, Kopfzeile nennt „Gruppen-Verwalter“",
@@ -115,7 +115,7 @@ const ok = (n, c, zusatz) => {
   await r.p.waitForTimeout(1500);
   await verbinde(r.p);
   ok("(4) Zurück in Scheurich: gemerkte Anmeldung gilt, kein Dialog, Zahnrad da",
-    /Scheurich · Kleinheubach/i.test(await kopf(r.p)) && (await r.p.locator('[aria-label="Anmelden"]').count()) === 0 && (await r.p.locator('button[aria-label="Verwalten"]').count()) === 1);
+    /Scheurich(?! Group)/i.test(await kopf(r.p)) && (await r.p.locator('[aria-label="Anmelden"]').count()) === 0 && (await r.p.locator('button[aria-label="Verwalten"]').count()) === 1);
 
   /* ---- (5) GEGENPROBE: Rechner ohne Pass in Soendgen ---- */
   const fremd = await neuerRechner({ standort: "soendgen" });

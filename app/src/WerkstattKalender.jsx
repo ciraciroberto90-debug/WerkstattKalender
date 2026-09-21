@@ -2366,6 +2366,9 @@ function App() {
   const [angemeldet, setAngemeldet] = useState(() => localStorage.getItem(nsKey("werkstatt-kalender-benutzer")) || "");
   // Gruppen-Verwalter-Pass dieses Rechners (Robertos Ansage vom 21.09.)
   const [gruppenPass, setGruppenPassState] = useState(leseGruppenPass);
+  // Ansichts-Schalter des Verwalters (Robertos Ansage vom 21.09.): "" | "bearbeiter" | "leser"
+  const [ansichtAls, setAnsichtAls] = useState("");
+  const [ansichtMenueOffen, setAnsichtMenueOffen] = useState(false);
   const setGruppenPass = (pass) => { setzeGruppenPass(pass); setGruppenPassState(pass); };
   const [anmeldung, setAnmeldung] = useState({ name: "", kennwort: "", fehler: "" }); // Entwurf im Anmelde-Dialog
   // „Nur ansehen": Der Anmelde-Dialog wurde bewusst weggeklickt - die App
@@ -2750,8 +2753,15 @@ function App() {
   // Der Gast darf zwischen den Werkstätten springen; in der Leit-Werkstatt
   // jeder angemeldete Verwalter (der Pass entsteht dort ja).
   const darfWerkstattWechseln = !!gruppenGast || (STANDORT.leitwerkstatt && benutzerAktiv && !!meinBenutzer && meinBenutzer.rolle === "verwalter");
-  const benutzerDarfSchreiben = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle !== "leser");
-  const istVerwalter = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle === "verwalter");
+  const istVerwalterEcht = !benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle === "verwalter");
+  // Ansichts-Schalter (Robertos Ansage vom 21.09.): Der Verwalter lässt sich
+  // das Cockpit so zeigen, wie ein Bearbeiter oder ein Leser es sieht. Die
+  // Simulation greift GENAU hier - alle Ableitungen darunter (readerMode,
+  // Rechte-Matrix, Notiz-Sichtbarkeit, Klammer) folgen ihr wie einer echten
+  // Anmeldung. Nur der Verwalter darf das; der Schalter selbst bleibt sichtbar.
+  const ansichtSimuliert = istVerwalterEcht && (ansichtAls === "bearbeiter" || ansichtAls === "leser") ? ansichtAls : "";
+  const benutzerDarfSchreiben = (!benutzerAktiv || (meinBenutzer != null && meinBenutzer.rolle !== "leser")) && ansichtSimuliert !== "leser";
+  const istVerwalter = istVerwalterEcht && !ansichtSimuliert;
   const anmeldungOffen = benutzerAktiv && meinBenutzer == null && !anmeldungZu;
   const vollzugriff = shareChecked && (shareState.status === "unsupported" || (shareState.status === "connected" && shareState.mode === "readwrite")) && benutzerDarfSchreiben;
   const readerMode = !vollzugriff;
@@ -2774,10 +2784,10 @@ function App() {
      Anmelde-Lage (readerMode) entscheidet, mit den Standard-Stufen.
      Die Datei-Ebene bleibt oberste Instanz: Wer am Laufwerk nicht schreiben
      darf, bekommt aus "bearbeiten" immer "sehen". */
-  const rechteGruppe = benutzerAktiv && meinBenutzer && (meinBenutzer.rolle === "bearbeiter" || meinBenutzer.rolle === "leser") ? meinBenutzer.rolle : null;
+  const rechteGruppe = ansichtSimuliert || (benutzerAktiv && meinBenutzer && (meinBenutzer.rolle === "bearbeiter" || meinBenutzer.rolle === "leser") ? meinBenutzer.rolle : null);
   // Meine Gruppe für Sichtbarkeits-Fragen (Schichtplan-Notizen, Robertos
   // Ansage vom 21.09.): ohne Benutzerliste zählt allein die Datei-Lage.
-  const meineGruppe = benutzerAktiv ? (meinBenutzer ? meinBenutzer.rolle : "leser") : (readerMode ? "leser" : "verwalter");
+  const meineGruppe = ansichtSimuliert || (benutzerAktiv ? (meinBenutzer ? meinBenutzer.rolle : "leser") : (readerMode ? "leser" : "verwalter"));
   // Eine Zellen-Notiz trägt "sichtbarFuer": alle | bearbeiter | verwalter.
   // Alte Notizen ohne das Feld gelten wie bisher für alle.
   const notizSichtbar = (e) => {
@@ -7885,7 +7895,7 @@ function App() {
             <div>
               <div className="font-black text-lg tracking-tight uppercase text-white" style={{ lineHeight: 1.05 }}>{appName}</div>
               <div className="text-[10px] font-bold tracking-wide flex items-center gap-2" style={{ color: "#B7BEC6" }}>
-                <span>{STANDORT.name} · {STANDORT.ort}</span>
+                <span>{STANDORT.name}</span>
                 {/* Werkstatt-Wechsel für Gruppen-Verwalter (21.09.): ein Klick,
                     die App lädt mit dem Bestand der anderen Werkstatt neu. */}
                 {darfWerkstattWechseln && Object.values(STANDORTE).filter((st) => st.id !== STANDORT.id).map((st) => (
@@ -8021,9 +8031,54 @@ function App() {
               <Printer size={16} /> Drucken
             </button>
           )}
-          {/* Nachtschicht-Modus (QoL 19.08., Robertos Ansage: über einen
-              Auge-Knopf oben rechts) - auch für Leser, die Wahl ist rein
-              örtlich am Gerät. */}
+          {/* Auge-Knopf: für den Verwalter seit dem 21.09. der Ansichts-Schalter
+              (als Verwalter / Bearbeiter / Leser sehen, Nachtmodus im Menü);
+              für alle anderen wie bisher der Nachtschicht-Modus (QoL 19.08.). */}
+          {istVerwalterEcht ? (
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setAnsichtMenueOffen((o) => !o)}
+                className="flex items-center gap-1 text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: ansichtSimuliert ? "#C97A2B" : "#4B5259" }}
+                title={ansichtSimuliert ? `Ansicht als ${ansichtSimuliert === "leser" ? "Leser" : "Bearbeiter"} – Klick zum Wechseln` : "Ansicht wechseln: als Verwalter, Bearbeiter oder Leser sehen"}
+                aria-label="Ansicht wechseln"
+                aria-expanded={ansichtMenueOffen}
+              >
+                <Eye size={14} />
+                {ansichtSimuliert && <span className="text-[10px] font-black uppercase">{ansichtSimuliert === "leser" ? "Leser" : "Bearbeiter"}</span>}
+              </button>
+              {ansichtMenueOffen && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 59 }} onClick={() => setAnsichtMenueOffen(false)} />
+                  <div className="no-print" role="menu" aria-label="Ansicht" style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 60, backgroundColor: "white", borderRadius: "10px", padding: "10px", width: "280px", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", border: "1px solid #E2E4E7" }}>
+                    <div className="text-[10px] font-black uppercase mb-1.5" style={{ color: "#8A9099" }}>Cockpit ansehen als</div>
+                    {[["", "Verwalter", "alles – so wie jetzt eingerichtet"], ["bearbeiter", "Bearbeiter", "was ein Bearbeiter laut Rechte-Tabelle sieht und darf"], ["leser", "Leser", "nur ansehen – was ein Leser sieht"]].map(([wert, titel, unter]) => (
+                      <button
+                        key={wert || "verwalter"}
+                        onClick={() => { setAnsichtAls(wert); setAnsichtMenueOffen(false); }}
+                        role="menuitemradio"
+                        aria-checked={ansichtSimuliert === wert}
+                        className="w-full text-left rounded-lg px-3 py-2 mb-1 border hover:bg-slate-50"
+                        style={{ borderColor: ansichtSimuliert === wert ? "#C97A2B" : "#E2E4E7", backgroundColor: ansichtSimuliert === wert ? "#FDF3E7" : "white" }}
+                      >
+                        <span className="block text-sm font-extrabold" style={{ color: "#22262B" }}>{ansichtSimuliert === wert ? "● " : "○ "}{titel}</span>
+                        <span className="block text-xs" style={{ color: "#8A9099" }}>{unter}</span>
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => { setNachtModus((n) => !n); setAnsichtMenueOffen(false); }}
+                      className="w-full text-left rounded-lg px-3 py-2 mt-1 border hover:bg-slate-50 text-sm font-bold"
+                      style={{ borderColor: "#E2E4E7", color: "#22262B" }}
+                      aria-label="Nachtschicht-Modus"
+                      aria-pressed={nachtModus}
+                    >
+                      🌙 Nachtschicht-Modus {nachtModus ? "ausschalten" : "einschalten"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
           <button
             onClick={() => setNachtModus((n) => !n)}
             className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
@@ -8034,6 +8089,7 @@ function App() {
           >
             <Eye size={14} />
           </button>
+          )}
           {!readerMode && erlaubt("ZAHNRAD") && (
             <button
               onClick={openSettings}
@@ -8606,6 +8662,16 @@ function App() {
           )}
         </div>
       )}
+      {/* Ansichts-Schalter aktiv: deutliche Leiste, damit der Verwalter nie
+          vergisst, dass er gerade "als Leser" schaut - und der Rückweg
+          einen Klick entfernt ist. */}
+      {ansichtSimuliert && (
+        <div className="no-print px-4 py-2 flex flex-wrap items-center gap-3 text-xs font-bold" role="status" aria-label="Ansichts-Hinweis" style={{ backgroundColor: "#FDF3E7", color: "#A25E14", borderBottom: "1px solid #E3CE8F" }}>
+          <span>👁 Ansicht als <strong>{ansichtSimuliert === "leser" ? "Leser" : "Bearbeiter"}</strong> – so sieht diese Gruppe das Cockpit gerade. Sie bleiben Verwalter, es wird nichts geändert.</span>
+          <button onClick={() => setAnsichtAls("")} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#C97A2B" }} aria-label="Zurück zur Verwalter-Ansicht">Zurück zur Verwalter-Ansicht</button>
+        </div>
+      )}
+
       {/* Schreibschutz auf BENUTZER-Ebene: Die Datei dürfte schreiben, aber
           die Rolle (Leser) bzw. die fehlende Anmeldung sagt Nur-Lesen. Ohne
           diese Leiste sähe der Betroffene nur verschwundene Knöpfe und wüsste

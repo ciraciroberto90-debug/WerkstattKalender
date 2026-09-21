@@ -81,7 +81,7 @@ async function seite(browser, init) {
           (await p.getByText("In welcher Werkstatt arbeitest du?").count()) === 0);
     pruef("(S2) Er läuft automatisch als Scheurich weiter",
           (await p.evaluate(() => localStorage.getItem("bta-standort"))) === "scheurich" &&
-          /Scheurich · Kleinheubach/.test(await p.locator("body").innerText()));
+          /Scheurich/.test(await p.locator("body").innerText()));
     await ctx.close();
   }
 
@@ -130,7 +130,7 @@ async function seite(browser, init) {
     await p.waitForTimeout(300);
     const zurueck = await p.locator("body").innerText();
     pruef("(S3) Scheurich zeigt seinen Bestand wieder",
-          /NUR-SCHEURICH-ANLAGE/.test(zurueck) || /Scheurich · Kleinheubach/.test(zurueck));
+          /NUR-SCHEURICH-ANLAGE/.test(zurueck) || /Scheurich/.test(zurueck));
     await p.getByRole("button", { name: /^Berichte/ }).first().click();
     await p.waitForTimeout(400);
     await p.getByRole("button", { name: /^To-do/ }).first().click();
