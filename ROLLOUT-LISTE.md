@@ -1084,6 +1084,47 @@ Ziele (5), Rechner-Einstellungen (6), Vorlagen und Pflichtfelder (8).
       eine eigene Fehlerart anlegen, am Hallenrechner Zoom und
       Nachtmodus-Automatik ausprobieren.
 
+## Gedankenspiel „71.000 Einträge je Jahr statt je 15 Jahre" (Robertos Frage vom 21.09.)
+
+Einschätzung auf Basis der Messfahrt vom 11.09. (71.084 Einträge, 15,2 MB):
+Verbinden 3,1 s, Speichern 6,8 s, zwei Schreiber ~11–20 s, leichte Bereiche
+0,1–0,9 s, datenreiche Bereiche 2–10 s, örtlicher Spiegel oberhalb ~5 MB
+leer. Bei 71.000 je Jahr wäre das der Stand nach EINEM Jahr; nach drei
+Jahren ~215.000 Einträge / ~45 MB (Hochrechnung, ungemessen). Das Modell
+„eine Datei, bei jedem Abgleich ganz gelesen" trägt das nicht mehr. Die
+Kandidaten in Reihenfolge des Nutzens, alle auf Zuruf – jeder mit
+Vorher/Nachher-Messung und (bei Sync-Änderungen) mit Test, der ohne die
+Änderung fehlschlägt:
+
+- [ ] **Abgleich-Kurzblick:** Der 30-Sekunden-Abgleich liest heute die
+      ganze Datei und zerlegt sie, auch wenn sich nichts geändert hat
+      (`pollNow` → `readFileData`). Erst Größe/Änderungszeit der Datei
+      prüfen, nur bei Änderung lesen. Bei 10 Rechnern und 45 MB sind das
+      sonst 900 MB je Minute übers Laufwerk.
+- [ ] **Örtlicher Spiegel in IndexedDB statt localStorage:** die ~5-MB-
+      Grenze ist heute schon überschritten; ohne Spiegel fehlt der
+      Offline-Puffer („Laufwerk kurz weg") und der Vergleichsstand für die
+      Notbremse. IndexedDB trägt hunderte MB.
+- [ ] **Datei automatisch segmentieren:** kleine Arbeitsdatei (laufender
+      Monat + alles Offene) plus abgeschlossene Monats-/Jahrgangsdateien,
+      die nur bei Bedarf gelesen werden (Register, Auswertung, Suche).
+      Das Jahres-Archiv von Hand hilft hier nicht, weil schon EIN Jahr zu
+      groß ist. Größter Umbau, größter Gewinn: Speichern und Verbinden
+      hängen dann an der Arbeitsdatei, nicht am Gesamtbestand.
+- [ ] **Anhängen statt Neuschreiben (Journal):** je Speichervorgang nur
+      die Änderung ans Dateiende, Verdichtung nachts/beim Start – Speichern
+      bleibt konstant kurz statt mit der Datei zu wachsen.
+- [ ] **Oberfläche:** Listen nur im sichtbaren Ausschnitt zeichnen
+      (Störungen, Backlog, Zeiterfassung, Schichtplan), Ableitungen merken
+      (`useMemo` statt Filter je Render), Standardansicht = laufendes Jahr.
+      Steht bereits als „Bereichswechsel bei Vollbestand" offen.
+- [ ] **Sicherungen ausdünnen:** 30 Stände + 14 Tages-Stände je Gerät sind
+      bei 45 MB je Stand ~2 GB je Rechner – Delta-Sicherungen oder weniger
+      Stände.
+- [ ] **Messlatte vorab:** Messfahrt mit Jahresrate 71.000 im Generator
+      (`tools/langzeit-daten.js`, Jahresrate ist Parameter) – erst messen,
+      wo die Zeit je Vorgang steckt, dann bauen.
+
 ## Hauptpräsentation für beide Firmen (Robertos Auftrag vom 21.09.)
 
 - [x] **Die Vorstellung vom 08.09. auf den heutigen Stand gebracht und als
