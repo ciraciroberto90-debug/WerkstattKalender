@@ -1018,14 +1018,16 @@ Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
       vorhandene öffnen/wechseln, mit Schreibrecht verbinden, trennen, mit
       Kennkarte; auch für Leser. Die Hinweisleisten im Schichtbuch bleiben.
       Härtetest harte-80 (Teil B).
-- [ ] **Offene Entscheidung – eigene Dateien für To-dos und Zeiterfassung?**
-      (Robertos Frage vom 21.09.) Einschätzung: To-dos NEIN (dieselben
-      Schreiber wie die Hauptdaten, kein Rechte-Grund). Zeiterfassung NUR,
-      wenn (a) Kollegen ohne Schreibrecht auf die Hauptdatei ihre Stunden
-      selbst eintragen sollen (wie bei den Störungen) oder (b) die Stunden
-      am Laufwerk enger geschützt werden sollen als der Rest – dann eigene
-      Datei mit eigenen Laufwerksrechten. Jede weitere Datei ist ein
-      weiterer Verbindungsweg je Rechner (mehr Sync-Fläche). Robertos Wahl.
+- [x] **Entschieden (Roberto, 21.09.): KEINE eigenen Dateien für To-dos und
+      Zeiterfassung** – es bleibt bei Hauptdatei + Störberichte-Datei.
+      Begründung: To-dos schreiben dieselben Leute wie die Hauptdaten;
+      für die Zeiterfassung greift keiner der beiden Gründe (Eintragen
+      ohne Schreibrecht, engerer Schutz am Laufwerk). Jede weitere Datei
+      wäre ein weiterer Verbindungsweg je Rechner. Wieder aufmachen nur,
+      wenn sich einer der beiden Gründe ändert.
+- [x] **Am Rechner ausprobiert (Roberto, 21.09.):** Termin-Kachel mit
+      Dropdown, abhakbare Notizen, Link-Kürzel am Konto, Störberichte-Datei
+      im Datei-Dialog – „passt soweit".
 - [ ] **Bewusst nicht drin:** Störungen mit Restarbeit in der Personen-Liste
       – ein Störbericht hat keine zuständige Person. Sobald die Restarbeit als
       Arbeit eingeplant ist, steht sie beim Kollegen. Wenn Roberto Störungen
