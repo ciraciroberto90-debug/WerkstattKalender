@@ -992,16 +992,40 @@ Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
       Härtetest harte-78.
 - [x] **Kopfzeile ohne Ortsnamen** („Scheurich" / „Soendgen Keramik" statt
       „… · Kleinheubach").
-- [x] **Termin-Kachel „Heute · Montag" mit Seitenleiste der Köpfe** (Robertos
-      Wahl: Vorlage 4 von fünf geschickten; NICHT die „Heute da"-Kachel).
-      Die Terminliste bleibt; links eine Leiste mit Klemmbrett (= Termine)
-      und den heute Anwesenden als Köpfen nach Früh/Spät/Nacht, roter
-      Punkt = offene Punkte. Abwesende (Schule, Krank, Urlaub) ohne Kopf,
-      grau unter der Liste. Klick auf einen Kopf: Backlog-Arbeiten mit
-      `wer` + `geplant` = heute, To-dos mit Frist bis heute oder ohne Frist
-      (spätere als Zeile), Planungs-Notizen des Tages – Kästchen hakt
-      ab/auf, Stift öffnet den Dialog. Rechte über die Matrix (Arbeiten/
-      Notizen: Planung, To-dos: To-dos). Härtetest harte-79 (30 Prüfungen).
+- [x] **Termin-Kachel „Heute · Montag" mit „Anwesende"-Dropdown** (Robertos
+      Wahl: zuerst Vorlage 4 Seitenleiste, dann umentschieden auf Vorlage 2
+      Dropdown – „macht das Ganze ruhiger"; NICHT die „Heute da"-Kachel).
+      Die Terminliste bleibt; rechts im Kopf der Knopf „👷 Anwesende N · x
+      offen", sein Menü listet die heute Anwesenden nach Früh/Spät/Nacht
+      (laufende Schicht „jetzt") mit „erledigt / gesamt", oben „Termine".
+      Abwesende (Schule, Krank, Urlaub) nur grau als „Nicht da". Wahl einer
+      Person: Backlog-Arbeiten mit `wer` + `geplant` = heute, To-dos mit
+      Frist bis heute oder ohne Frist (spätere als Zeile), Planungs-Notizen
+      des Tages – Kästchen hakt ab/auf, Stift öffnet den Dialog, „← zurück
+      zu den Terminen". Rechte über die Matrix (Arbeiten/Notizen: Planung,
+      To-dos: To-dos). Härtetest harte-79 (34 Prüfungen).
+- [x] **Notizen abhakbar** (Robertos Nachschärfung): eine Planungs-Notiz
+      („Zu Markus") ist ein Auftrag – abgehakt = erledigt (`status: done`,
+      `erledigtAm`, `erledigtVon`), bleibt durchgestrichen stehen; in der
+      Planungszelle und im Wochen-Ausdruck mit ✓ statt 📝. In harte-79.
+- [x] **Links ans Benutzerkonto** (Robertos Ansage): Feld „Link-Sammlung"
+      je Benutzer im Zahnrad „Benutzer & Rechte" (Kürzel, z. B. RC). Mit
+      Kürzel sieht der Benutzer im Linkstreifen nur diese Sammlung, ohne
+      Umschalter; ein neues Kürzel entsteht mit dem ersten Link. Leer = wie
+      bisher. Härtetest harte-80 (Teil A).
+- [x] **Störberichte-Datei in der Dateiverwaltung** (Robertos Ansage):
+      eigener Abschnitt im Dialog „Gemeinsame Datei" – neu anlegen,
+      vorhandene öffnen/wechseln, mit Schreibrecht verbinden, trennen, mit
+      Kennkarte; auch für Leser. Die Hinweisleisten im Schichtbuch bleiben.
+      Härtetest harte-80 (Teil B).
+- [ ] **Offene Entscheidung – eigene Dateien für To-dos und Zeiterfassung?**
+      (Robertos Frage vom 21.09.) Einschätzung: To-dos NEIN (dieselben
+      Schreiber wie die Hauptdaten, kein Rechte-Grund). Zeiterfassung NUR,
+      wenn (a) Kollegen ohne Schreibrecht auf die Hauptdatei ihre Stunden
+      selbst eintragen sollen (wie bei den Störungen) oder (b) die Stunden
+      am Laufwerk enger geschützt werden sollen als der Rest – dann eigene
+      Datei mit eigenen Laufwerksrechten. Jede weitere Datei ist ein
+      weiterer Verbindungsweg je Rechner (mehr Sync-Fläche). Robertos Wahl.
 - [ ] **Bewusst nicht drin:** Störungen mit Restarbeit in der Personen-Liste
       – ein Störbericht hat keine zuständige Person. Sobald die Restarbeit als
       Arbeit eingeplant ist, steht sie beim Kollegen. Wenn Roberto Störungen

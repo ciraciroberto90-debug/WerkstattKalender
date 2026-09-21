@@ -920,6 +920,10 @@ const normalisiereBenutzer = (roh) => (Array.isArray(roh) ? roh : [])
     // Kennwörter stehen NIE im Klartext in der Datei, nur als SHA-256-Wert.
     // (Auch das ist kein Geheimnis im strengen Sinn - siehe Kommentar oben.)
     kennwortHash: typeof (b && b.kennwortHash) === "string" ? b.kennwortHash : "",
+    // Link-Sammlung des Kontos (Robertos Ansage vom 21.09.): das Kürzel der
+    // Sammlung im Linkstreifen, die dieser Benutzer sieht - leer = wie bisher
+    // alle Sammlungen mit Umschalter.
+    links: typeof (b && b.links) === "string" ? b.links.trim().toUpperCase() : "",
   }))
   .filter((b) => b.name);
 const kennwortHashen = async (text) => {
@@ -2451,11 +2455,13 @@ function App() {
   // an ist, ist der Inhalt eingefroren (keine Klicks in die Kacheln).
   const [uebersichtBearbeiten, setUebersichtBearbeiten] = useState(false);
   const [uebDrag, setUebDrag] = useState(null); // {art, k} - was gerade gezogen wird
-  // Termin-Kachel, Seitenleiste mit Köpfen (Robertos Wahl vom 21.09., Vorlage 4):
-  // null = die Termine des Tages, sonst der Name des anwesenden Kollegen,
-  // dessen geplante Punkte rechts stehen. Bewusst nur im Speicher - nach dem
-  // Neuladen (und am nächsten Tag) beginnt die Kachel wieder bei den Terminen.
+  // Termin-Kachel, Dropdown im Kopf (Robertos Wahl vom 21.09., Vorlage 2 -
+  // "macht das Ganze ruhiger"): null = die Termine des Tages, sonst der Name
+  // des anwesenden Kollegen, dessen geplante Punkte in der Kachel stehen.
+  // Bewusst nur im Speicher - nach dem Neuladen (und am nächsten Tag) beginnt
+  // die Kachel wieder bei den Terminen.
   const [tagesPerson, setTagesPerson] = useState(null);
+  const [tagesMenue, setTagesMenue] = useState(false); // das Dropdown ist aufgeklappt
   useEffect(() => {
     if (!uebersichtBearbeiten) return undefined;
     const aufTaste = (ev) => { if (ev.key === "Escape") setUebersichtBearbeiten(false); };
@@ -4160,7 +4166,14 @@ function App() {
   // Welches Kürzel gerade angezeigt wird. Steht das gemerkte Kürzel nicht mehr
   // in der Liste (umbenannt, entfernt), wird still das erste genommen, statt
   // eine leere Liste zu zeigen.
-  const linkInhaberAktiv = links.inhaber.includes(linkInhaber) ? linkInhaber : (links.inhaber[0] || LINK_INHABER_VORGABE[0]);
+  // Ans Benutzerkonto gebunden (Robertos Ansage vom 21.09.): Steht am
+  // angemeldeten Benutzer ein Link-Kürzel, sieht er NUR diese Sammlung - der
+  // Umschalter RC/AR verschwindet. Ohne Kürzel (oder ohne Anmeldung) bleibt
+  // der Umschalter wie bisher. Das Kürzel muss nicht in der Liste stehen:
+  // die erste Sammlung eines neuen Kontos entsteht mit dem ersten Link.
+  const linkGebunden = !!(benutzerAktiv && meinBenutzer && meinBenutzer.links);
+  const linkInhaberAktiv = linkGebunden ? meinBenutzer.links
+    : links.inhaber.includes(linkInhaber) ? linkInhaber : (links.inhaber[0] || LINK_INHABER_VORGABE[0]);
   const linkListe = links.eintraege.filter((l) => l.inhaber === linkInhaberAktiv);
   const waehleLinkInhaber = (k) => {
     setLinkInhaber(k);
@@ -4428,6 +4441,7 @@ function App() {
           name: b.name,
           rolle: BENUTZER_ROLLEN[b.rolle] ? b.rolle : "bearbeiter",
           kennwortHash: b.kennwortNeu ? await kennwortHashen(b.kennwortNeu) : (b.kennwortHash || ""),
+          links: String(b.links || "").trim().toUpperCase(),
         });
       }
     }
@@ -6229,6 +6243,16 @@ function App() {
     entries.filter((e) => e.category === "PLANNOTIZ" && e.name === person && e.date === tagKey);
   const schichtNotizenFuer = (person, tagKey) =>
     entries.filter((e) => e.category === "SCHICHTNOTIZ" && e.name === person && e.date === tagKey && notizSichtbar(e));
+  // Planungs-Notiz abhaken (Robertos Ansage vom 21.09.): eine Notiz in der
+  // Zelle ist oft ein Auftrag ("Zu Markus") - abgehakt heißt erledigt. Sie
+  // bleibt stehen (durchgestrichen), damit der Tag als Beleg vollständig ist.
+  const notizHaken = async (n) => {
+    if (readerMode) return;
+    const fertig = n.status !== "done";
+    await persist(entries.map((e) => (e.id === n.id
+      ? { ...e, status: fertig ? "done" : "offen", erledigtAm: fertig ? todayKey : "", erledigtVon: fertig ? (angemeldet || "") : "" }
+      : e)));
+  };
   const savePlanNotiz = async () => {
     if (readerMode || !planNotiz) return;
     const text = saeubere(planNotiz.text || "");
@@ -6965,7 +6989,7 @@ function App() {
             ? chip(`✓ ${escapeHtml(a.name)}: ${escapeHtml(a.note || "")}`, "#2F7D4F", "#E5F3EA")
             : chip(`${escapeHtml(a.name)}: ${escapeHtml(a.note || "")}`, a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color, "white"))).join("");
         const notizen = abwesend ? "" : notizenFuer(person, t.key)
-          .map((n) => chip(`📝 ${escapeHtml(n.note)}`, "#8A7A1E", "#FEF9C3")).join("");
+          .map((n) => chip(`${n.status === "done" ? "✓" : "📝"} ${escapeHtml(n.note)}`, n.status === "done" ? "#8A9099" : "#8A7A1E", n.status === "done" ? "#F1F2F4" : "#FEF9C3")).join("");
         const inhalt = abwesend
           ? `<span style="color:#A2AAB3;font-size:10px;font-style:italic;">abwesend</span>`
           : (arbeiten + notizen) || `<span style="color:#C3C7CB;font-size:10px;">–</span>`;
@@ -8325,21 +8349,25 @@ function App() {
               <span style={{ color: "#8A9099", fontSize: "0.58rem", display: "inline-block", transform: linksOffen ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}>▶</span>
             </button>
             )}
-            {/* Kürzel-Umschalter: bestimmt, wessen Sammlung im Streifen steht */}
+            {/* Kürzel-Umschalter: bestimmt, wessen Sammlung im Streifen steht.
+                Bei einem ans Konto gebundenen Benutzer steht nur sein Kürzel
+                da - fest, ohne Umschalten. */}
             <div className="flex items-center gap-1 shrink-0">
-              {links.inhaber.map((k) => {
+              {(linkGebunden ? [linkInhaberAktiv] : links.inhaber).map((k) => {
                 const an = k === linkInhaberAktiv;
                 return (
                   <button
                     key={k}
-                    onClick={() => waehleLinkInhaber(k)}
+                    onClick={() => { if (!linkGebunden) waehleLinkInhaber(k); }}
                     className="rounded font-extrabold"
                     style={{
                       fontSize: "0.6rem", letterSpacing: "0.3px", padding: "2px 7px",
                       backgroundColor: an ? "#C97A2B" : "rgba(255,255,255,0.08)",
                       color: an ? "#fff" : "#B7BEC6",
+                      cursor: linkGebunden ? "default" : "pointer",
                     }}
-                    title={`Links von ${k} anzeigen`}
+                    aria-label={linkGebunden ? `Links von ${k} (an dein Konto gebunden)` : undefined}
+                    title={linkGebunden ? `Deine Sammlung ${k} - im Zahnrad unter Benutzer & Rechte änderbar` : `Links von ${k} anzeigen`}
                   >{k}</button>
                 );
               })}
@@ -10268,10 +10296,10 @@ function App() {
         const spalten = {};
         /* Tagesliste */
         spalten.tagesliste = zeig.tagesliste && (() => {
-            /* Seitenleiste mit Köpfen (Robertos Wahl vom 21.09., Vorlage 4):
-               links die heute Anwesenden als Köpfe, nach Schicht gruppiert,
-               oben das Klemmbrett = die Termine des Tages. Ein Klick auf
-               einen Kopf zeigt rechts die geplanten Punkte dieser Person -
+            /* Dropdown im Kopf (Robertos Wahl vom 21.09., Vorlage 2): rechts
+               in der Kopfzeile ein Knopf, das Menü listet die heute Anwesenden
+               nach Schicht mit Fortschritt, oben "Termine" = die Tagesliste.
+               Eine Wahl zeigt in der Kachel die geplanten Punkte der Person -
                Backlog-Arbeiten mit "wer" + "geplant" = heute, offene To-dos
                (fällig bis heute oder ohne Frist) und die Planungs-Notizen des
                Tages - zum direkten Abhaken oder Bearbeiten. Wer heute fehlt
@@ -10294,8 +10322,9 @@ function App() {
                 .sort((x, y) => rang(x) - rang(y) || String(x.bis || "").localeCompare(String(y.bis || "")));
               const spaeter = meine.filter((t) => t.status !== "done" && t.bis && String(t.bis) > todayKey);
               const notizen = sichtbar("PLANUNG") ? notizenFuer(person, todayKey) : [];
-              const offen = arbeitenHeute.filter((a) => a.status !== "done").length + faellig.filter((t) => t.status !== "done").length;
-              const gesamt = arbeitenHeute.length + faellig.length;
+              const nichtFertig = (x) => x.status !== "done";
+              const offen = arbeitenHeute.filter(nichtFertig).length + faellig.filter(nichtFertig).length + notizen.filter(nichtFertig).length;
+              const gesamt = arbeitenHeute.length + faellig.length + notizen.length;
               return { arbeitenHeute, faellig, spaeter, notizen, offen, gesamt };
             };
             const abwesend = team
@@ -10327,7 +10356,6 @@ function App() {
                     <strong style={{ fontSize: "0.9rem", color: "#22262B" }}>{person}</strong>
                     <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.4px", padding: "2px 8px", backgroundColor: f.bg, color: f.text }}>{x.schicht || "Tagschicht"}</span>
                     <span className="ml-auto text-xs font-bold" style={{ color: "#8A9099" }}>{p.gesamt > 0 ? `${p.gesamt - p.offen} von ${p.gesamt} erledigt` : ""}</span>
-                    <button onClick={() => setTagesPerson(null)} aria-label="Zurück zu den Terminen" title="Zurück zu den Terminen" className="rounded border px-1.5" style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px", color: "#5B6572" }}>✕</button>
                   </div>
                   {leer && (
                     <div className="text-xs italic text-slate-400 mb-3">
@@ -10361,14 +10389,19 @@ function App() {
                       </div>
                     );
                   })}
-                  {p.notizen.map((n) => (
-                    <div key={n.id} className="wk-karte w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left" style={{ boxShadow: "inset 3px 0 0 0 #E3B341, var(--wk-schatten)" }}>
-                      <span style={{ ...kastenStil, border: "2px solid transparent" }} aria-hidden="true" />
-                      <span className="wk-chip wk-chip-notiz">Notiz</span>
-                      <span className="flex-1" style={{ fontSize: "var(--wk-txt)", color: "#22262B", whiteSpace: "pre-wrap" }}>{n.note}</span>
-                      {stift(darfPlanung, `Notiz bearbeiten: ${n.note}`, () => setPlanNotiz({ person, datum: todayKey, id: n.id, text: n.note }))}
-                    </div>
-                  ))}
+                  {p.notizen.map((n) => {
+                    // Notizen sind abhakbar (Robertos Ansage vom 21.09.): "Zu Markus"
+                    // ist ein Auftrag, abgehakt = erledigt, bleibt durchgestrichen stehen.
+                    const fertig = n.status === "done";
+                    return (
+                      <div key={n.id} className="wk-karte w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left" style={{ boxShadow: "inset 3px 0 0 0 #E3B341, var(--wk-schatten)" }}>
+                        {kasten(fertig, darfPlanung, `${n.note} ${fertig ? "wieder öffnen" : "abhaken"}`, () => notizHaken(n))}
+                        <span className="wk-chip wk-chip-notiz">Notiz</span>
+                        <span className="flex-1" style={{ fontSize: "var(--wk-txt)", color: fertig ? "#8A9099" : "#22262B", whiteSpace: "pre-wrap", textDecoration: fertig ? "line-through" : "none" }}>{n.note}</span>
+                        {stift(darfPlanung, `Notiz bearbeiten: ${n.note}`, () => setPlanNotiz({ person, datum: todayKey, id: n.id, text: n.note }))}
+                      </div>
+                    );
+                  })}
                   {p.spaeter.length > 0 && (
                     <div className="text-xs" style={{ color: "#8A9099" }}>{p.spaeter.length === 1 ? "1 To-do" : `${p.spaeter.length} To-dos`} mit späterer Frist (siehe Berichte → To-dos)</div>
                   )}
@@ -10377,6 +10410,7 @@ function App() {
                       <b style={{ color: "#5B6572" }}>Nicht da:</b> {abwesend.map((x) => `${x.name} (${x.schicht})`).join(" · ")}
                     </div>
                   )}
+                  <button onClick={() => setTagesPerson(null)} aria-label="Zurück zu den Terminen" className="text-xs font-extrabold mt-2" style={{ color: "#C97A2B" }}>← zurück zu den Terminen</button>
                 </div>
               );
             };
@@ -10462,31 +10496,35 @@ function App() {
               )}
               </>
             );
-            const kopfKnopf = (x) => {
+            const schichtLabel = { FRUEH: "Früh", SPAET: "Spät", NACHT: "Nacht" };
+            const jetztTyp = jetztInDerWerkstatt.aktuell;
+            const offenText = (n) => (n === 0 ? "nichts offen" : n === 1 ? "1 Punkt offen" : n + " Punkte offen");
+            const gewaehltPunkte = gewaehlt ? punkteVon(gewaehlt) : null;
+            const offenGesamt = anwesend.reduce((s, x) => s + punkteVon(x.name).offen, 0);
+            const menueEintrag = (x) => {
               const f = kopfFarbe(x);
               const an = gewaehlt === x.name;
-              const offen = punkteVon(x.name).offen;
+              const p = punkteVon(x.name);
               return (
                 <button
                   key={x.name}
-                  onClick={() => setTagesPerson(an ? null : x.name)}
+                  role="menuitemradio"
+                  aria-checked={an}
                   aria-label={`Punkte von ${x.name}`}
-                  aria-pressed={an}
-                  title={`${x.name} · ${x.schicht || "Tagschicht"} · ${offen === 0 ? "nichts offen" : offen === 1 ? "1 Punkt offen" : offen + " Punkte offen"}`}
-                  className="relative inline-flex items-center justify-center rounded-full font-extrabold"
-                  style={{ width: "34px", height: "34px", fontSize: "0.68rem", backgroundColor: f.bg, color: f.text, border: "2px solid " + (an ? "#22262B" : "transparent"), boxShadow: an ? "0 0 0 2px #fff, 0 0 0 4px #C97A2B" : "none", flexShrink: 0 }}
+                  title={`${x.name} · ${x.schicht || "Tagschicht"} · ${offenText(p.offen)}`}
+                  onClick={() => { setTagesPerson(x.name); setTagesMenue(false); }}
+                  className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
+                  style={{ backgroundColor: an ? "#FDF3E7" : "transparent" }}
                 >
-                  {personKuerzel(x.name)}
-                  {offen > 0 && (
-                    <span aria-hidden="true" className="absolute inline-flex items-center justify-center rounded-full text-white font-black" style={{ top: "-4px", right: "-6px", minWidth: "16px", height: "16px", fontSize: "0.56rem", padding: "0 4px", backgroundColor: "#C0392B", border: "2px solid white" }}>{offen}</span>
-                  )}
+                  <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "24px", height: "24px", fontSize: "0.6rem", backgroundColor: f.bg, color: f.text }}>{personKuerzel(x.name)}</span>
+                  <span className="text-sm font-bold" style={{ color: "#22262B" }}>{x.name}</span>
+                  <span className="ml-auto font-mono text-xs" style={{ color: p.gesamt === 0 ? "#C3C7CB" : p.offen === 0 ? "#1F7A3D" : "#8A9099" }}>{p.gesamt === 0 ? "–" : `${p.gesamt - p.offen} / ${p.gesamt}`}</span>
                 </button>
               );
             };
-            const schichtLabel = { FRUEH: "Früh", SPAET: "Spät", NACHT: "Nacht" };
             return (
             <div>
-              <div className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B" }}>
+              <div className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B", position: "relative" }}>
                 Heute · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
                 {/* Kalender-Popup (24.08.): der TPM/R+I-Monatskalender als
                     kleines Fenster, ohne den Reiter zu wechseln. */}
@@ -10497,29 +10535,51 @@ function App() {
                   className="rounded border px-1.5"
                   style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px" }}
                 >📅</button>
+                {leiste.length > 0 && (
+                  <button
+                    onClick={() => setTagesMenue((o) => !o)}
+                    aria-label="Anwesende wählen"
+                    aria-haspopup="menu"
+                    aria-expanded={tagesMenue}
+                    title="Heute anwesende Kollegen und ihre geplanten Punkte"
+                    className="ml-auto inline-flex items-center gap-1.5 rounded border px-2.5 py-1 normal-case tracking-normal"
+                    style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px", color: "#22262B", fontWeight: 800 }}
+                  >
+                    <span aria-hidden="true">👷</span>
+                    {gewaehlt ? <>{gewaehlt} <span style={{ color: gewaehltPunkte.offen ? "#C97A2B" : "#1F7A3D" }}>{gewaehltPunkte.offen ? `${gewaehltPunkte.offen} offen` : "fertig"}</span></> : <>Anwesende <span style={{ color: "#8A9099" }}>{anwesend.length}{offenGesamt ? ` · ${offenGesamt} offen` : ""}</span></>}
+                    <span aria-hidden="true" style={{ fontSize: "0.6rem" }}>▾</span>
+                  </button>
+                )}
+                {tagesMenue && (
+                  <>
+                    <div style={{ position: "fixed", inset: 0, zIndex: 59 }} onClick={() => setTagesMenue(false)} />
+                    <div className="no-print normal-case tracking-normal" role="menu" aria-label="Heute anwesend" style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 60, backgroundColor: "white", borderRadius: "10px", padding: "6px", width: "300px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", border: "1px solid #E2E4E7", fontWeight: 600 }}>
+                      <button
+                        role="menuitemradio"
+                        aria-checked={!gewaehlt}
+                        aria-label="Termine anzeigen"
+                        onClick={() => { setTagesPerson(null); setTagesMenue(false); }}
+                        className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
+                        style={{ backgroundColor: gewaehlt ? "transparent" : "#FDF3E7" }}
+                      >
+                        <span aria-hidden="true">📋</span>
+                        <span className="text-sm font-bold" style={{ color: "#22262B" }}>Termine</span>
+                        <span className="ml-auto text-xs" style={{ color: "#8A9099" }}>PitStop · R+I · Termine</span>
+                      </button>
+                      {leiste.map(([typ, , crew]) => (
+                        <React.Fragment key={typ}>
+                          <div className="px-2 pt-2 pb-0.5" style={{ fontSize: "0.56rem", fontWeight: 900, color: "#8A9099", textTransform: "uppercase", letterSpacing: "0.4px" }}>{schichtLabel[typ] || typ}{typ === jetztTyp ? " · jetzt" : ""}</div>
+                          {crew.map(menueEintrag)}
+                        </React.Fragment>
+                      ))}
+                      {abwesend.length > 0 && (
+                        <div className="px-2 pt-2 pb-1" style={{ fontSize: "0.6rem", fontWeight: 800, color: "#B7BEC6", textTransform: "uppercase", letterSpacing: "0.3px" }}>Nicht da: {abwesend.map((x) => x.name).join(" · ")}</div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
-              {leiste.length === 0 ? termine : (
-                <div className="grid gap-3" style={{ gridTemplateColumns: "52px minmax(0, 1fr)" }}>
-                  <div className="flex flex-col items-center" style={{ gap: "6px", paddingTop: "2px" }} role="toolbar" aria-label="Heute anwesend">
-                    <button
-                      onClick={() => setTagesPerson(null)}
-                      aria-label="Termine anzeigen"
-                      aria-pressed={!gewaehlt}
-                      title="Termine des Tages"
-                      className="inline-flex items-center justify-center"
-                      style={{ width: "34px", height: "34px", borderRadius: "10px", fontSize: "15px", backgroundColor: gewaehlt ? "white" : "#22262B", border: gewaehlt ? "1px solid #D6D9DC" : "1px solid #22262B", flexShrink: 0 }}
-                    >📋</button>
-                    {leiste.map(([typ, , crew]) => (
-                      <React.Fragment key={typ}>
-                        <span aria-hidden="true" style={{ width: "24px", height: "1px", backgroundColor: "#D6D9DC", margin: "4px 0 2px" }} />
-                        <span style={{ fontSize: "0.5rem", fontWeight: 900, color: "#8A9099", textTransform: "uppercase", letterSpacing: "0.3px" }}>{schichtLabel[typ] || typ}</span>
-                        {crew.map(kopfKnopf)}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                  <div style={{ minWidth: 0 }}>{gewaehlt ? personenListe(gewaehlt) : termine}</div>
-                </div>
-              )}
+              {gewaehlt ? personenListe(gewaehlt) : termine}
             </div>
             );
         })();
@@ -11217,10 +11277,10 @@ function App() {
                                           onClick={() => { if (readerMode) return; setPlanNotiz({ person, datum: t.key, id: n.id, text: n.note }); }}
                                           disabled={readerMode}
                                           className="rounded font-semibold text-left"
-                                          style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: "#39414B", border: "1px solid #E5D77A", backgroundColor: "#FEF9C3", wordBreak: "break-word", cursor: readerMode ? "default" : "pointer" }}
-                                          title={n.note}
+                                          style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: n.status === "done" ? "#8A9099" : "#39414B", border: "1px solid #E5D77A", backgroundColor: n.status === "done" ? "#F7F5E6" : "#FEF9C3", wordBreak: "break-word", cursor: readerMode ? "default" : "pointer", textDecoration: n.status === "done" ? "line-through" : "none" }}
+                                          title={n.status === "done" ? `erledigt: ${n.note}` : n.note}
                                         >
-                                          📝 {String(n.note || "").length > 60 ? String(n.note || "").slice(0, 60) + "…" : String(n.note || "")}
+                                          {n.status === "done" ? "✓" : "📝"} {String(n.note || "").length > 60 ? String(n.note || "").slice(0, 60) + "…" : String(n.note || "")}
                                         </button>
                                       ))}
                                       {!abwesend && !readerMode && (
@@ -13636,6 +13696,49 @@ function App() {
                   </button>
                 )}
 
+                {/* Störberichte-Datei (Robertos Ansage vom 21.09.): dieselben
+                    Wege wie für die gemeinsame Datei - anlegen, öffnen,
+                    wechseln, trennen - hier in der Dateiverwaltung, nicht nur
+                    als Hinweisleiste im Schichtbuch. Sie steht bewusst auch
+                    Lesern offen: die Datei ist für alle beschreibbar. */}
+                <div className="rounded px-3 py-2.5" style={{ border: "1.5px solid #C0392B", backgroundColor: "#FDF7F6" }} role="region" aria-label="Störberichte-Datei">
+                  <div className="text-xs font-bold uppercase mb-1" style={{ color: "#9A2B22" }}>Störberichte-Datei</div>
+                  <div className="text-xs mb-2" style={{ color: "#8A9099", lineHeight: 1.5 }}>
+                    Die Störberichte (Schichtbuch) liegen in einer <strong>eigenen Datei</strong>, die <strong>alle</strong> bearbeiten
+                    dürfen – auch wer die Hauptdaten nur ansieht. Einmal anlegen, im selben Werkstatt-Ordner; danach auf
+                    jedem Gerät einmal öffnen.
+                  </div>
+                  {stoerState.status === "connected" ? (
+                    <div className="text-sm rounded px-3 py-2 mb-2" style={{ backgroundColor: "#E5F3EA", color: "#2F7D4F" }}>
+                      Verbunden mit <strong>{stoerState.name}</strong> ({stoerState.mode === "read" ? "nur ansehen" : "bearbeiten"}).
+                      <div className="mt-1" style={{ fontSize: "0.78rem", color: "#3F6B4E" }}>{dateiKennkarte(sharedFile.stoer.fileInfo()) || "—"}</div>
+                    </div>
+                  ) : (
+                    <div className="text-sm rounded px-3 py-2 mb-2" style={{ backgroundColor: "#F4F5F6", color: "#5B6572" }}>
+                      {stoerState.status === "needs-permission" ? `„${stoerState.name}" ist nach dem Browser-Neustart getrennt – unten „Vorhandene Störberichte-Datei öffnen …" und dieselbe Datei wählen.` : "Keine Störberichte-Datei verbunden – Störberichte bleiben auf diesem Rechner."}
+                    </div>
+                  )}
+                  {stoerErr && <div className="text-xs rounded px-2 py-1.5 mb-2" style={{ backgroundColor: "#FBEAE8", color: "#9A2B22" }}>{stoerErr}</div>}
+                  <div className="flex flex-col gap-2">
+                    <button onClick={() => connectStoer({ create: true })} className="text-sm font-bold py-2 rounded text-white" style={{ backgroundColor: "#22262B" }}>
+                      Neue Störberichte-Datei anlegen …
+                    </button>
+                    <button onClick={() => connectStoer()} className="text-sm font-bold py-2 rounded text-white" style={{ backgroundColor: "#2F6690" }}>
+                      Vorhandene Störberichte-Datei öffnen …
+                    </button>
+                    {stoerState.status === "connected" && stoerState.mode === "read" && (
+                      <button onClick={verbindeStoerMitSchreibrecht} className="text-sm font-bold py-2 rounded border" style={{ borderColor: "#5B6572", color: "#3A424B", backgroundColor: "#fff" }}>
+                        Mit Schreibrecht verbinden …
+                      </button>
+                    )}
+                    {stoerState.status === "connected" && (
+                      <button onClick={disconnectStoer} className="text-sm font-bold py-2 rounded bg-slate-100 text-slate-500">
+                        Störberichte-Datei trennen (dieser Rechner speichert Störberichte dann nur lokal)
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Konflikt-Wächter: Sync-Konfliktkopien automatisch einsammeln */}
                 {shareState.status === "connected" && shareState.mode !== "read" && (
                   <div className="rounded px-3 py-2.5" style={{ border: "1.5px solid #6B7280", backgroundColor: "#F7F8F9" }}>
@@ -14647,6 +14750,19 @@ function App() {
                   className="text-sm px-2 py-1.5 rounded border"
                   style={{ borderColor: "#D7DCE1", width: "150px" }}
                 />
+                {/* Link-Sammlung des Kontos (Robertos Ansage vom 21.09.): Kürzel
+                    der Sammlung im Linkstreifen, die dieser Benutzer sieht -
+                    leer = alle Sammlungen mit Umschalter (wie bisher). */}
+                <input
+                  value={b.links || ""}
+                  list="wk-link-kuerzel"
+                  aria-label={`Link-Sammlung ${idx + 1}`}
+                  onChange={(e) => { const v = e.target.value.toUpperCase(); setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, links: v } : x))); }}
+                  placeholder="Links: alle"
+                  title="Kürzel der Link-Sammlung, die dieser Benutzer im Linkstreifen sieht (leer = alle mit Umschalter)"
+                  className="text-sm px-2 py-1.5 rounded border font-mono uppercase"
+                  style={{ borderColor: "#D7DCE1", width: "96px" }}
+                />
                 <button
                   onClick={() => setSettingsBenutzer((prev) => prev.filter((_, i) => i !== idx))}
                   aria-label="Benutzer entfernen"
@@ -14654,13 +14770,21 @@ function App() {
                 ><X size={15} /></button>
               </div>
             ))}
+            <datalist id="wk-link-kuerzel">
+              {links.inhaber.map((k) => <option key={k} value={k} />)}
+            </datalist>
             <button
-              onClick={() => setSettingsBenutzer((prev) => [...prev, { name: "", rolle: prev.length === 0 ? "verwalter" : "bearbeiter", kennwortHash: "", kennwortNeu: "" }])}
+              onClick={() => setSettingsBenutzer((prev) => [...prev, { name: "", rolle: prev.length === 0 ? "verwalter" : "bearbeiter", kennwortHash: "", kennwortNeu: "", links: "" }])}
               className="text-xs font-bold mb-2"
               style={{ color: "#22262B" }}
             >
               + Benutzer hinzufügen
             </button>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              <strong>Link-Sammlung:</strong> Steht am Benutzer ein Kürzel (z. B. RC), sieht er im
+              Linkstreifen nur diese Sammlung – ohne Umschalter. Ein neues Kürzel legt eine leere
+              Sammlung an, die mit dem ersten Link entsteht. Leer = alle Sammlungen, wie bisher.
+            </div>
             <div className="text-xs mb-5" style={{ color: "#8A9099" }}>
               {settingsBenutzer.length === 0
                 ? "Ohne Benutzer verhält sich die App wie bisher (keine Anmeldung). Der erste Benutzer sollte der Verwalter sein."

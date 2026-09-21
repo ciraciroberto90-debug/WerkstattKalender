@@ -144,6 +144,12 @@ auch reine Leser der Hauptdaten.
 
 > Diese Datei nur **ein einziges Mal** anlegen. Bei App-Updates nichts neu machen.
 
+Seit dem 21.09. stehen dieselben Wege auch in der **Dateiverwaltung** (Ordner-Symbol
+oben rechts → Dialog „Gemeinsame Datei"), im Abschnitt **Störberichte-Datei**:
+neu anlegen, vorhandene öffnen (auch zum Wechseln auf eine andere Datei), mit
+Schreibrecht verbinden und trennen – mit Kennkarte der verbundenen Datei
+(Einträge, Größe, letzte Änderung). Der Abschnitt steht auch Lesern offen.
+
 ### 3.4 Namen eintragen (einmalig pro Gerät, wichtig)
 
 **⚙ → „Dein Name (dieses Gerät)"**, z. B. `R. Ciraci`.
@@ -365,6 +371,12 @@ Störungen, nicht den Rest.
   **auf der Übersicht**. Ein Klick auf einen Chip öffnet die Datei oder die Seite.
   Über **RC/AR** wird zwischen der eigenen Sammlung und der der Vertretung
   umgeschaltet; hinter **🔗 Links** stecken Anlegen, Ändern, Sortieren und Löschen.
+  **Ans Benutzerkonto gebunden (seit dem 21.09.):** Im Zahnrad unter
+  **Benutzer & Rechte** hat jeder Benutzer das Feld **Link-Sammlung** (Kürzel,
+  z. B. RC). Steht dort ein Kürzel, sieht der Benutzer im Streifen **nur diese
+  Sammlung** – der Umschalter verschwindet. Ein neues Kürzel legt eine leere
+  Sammlung an, die mit dem ersten Link entsteht. Leer = alle Sammlungen mit
+  Umschalter, wie bisher.
   Die Sammlung liegt in der gemeinsamen Datei – die Vertretung hat dieselbe Liste
   vor sich. Laufwerks- und Netzwerkpfade öffnen sich direkt, wenn das Cockpit über
   das Desktop-Symbol gestartet wurde; sonst wird der Pfad in die Zwischenablage
@@ -450,19 +462,22 @@ Störungen, nicht den Rest.
   **offene Störungen als Gedankenstütze**, Tagesliste und **Pinnwand**.
   Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌),
   auf den **Monitor** legen (📺) und **veröffentlichen** (🌐, dann auch für Nur-Leser sichtbar).
-- **Tagesliste mit Köpfen (seit dem 21.09.):** Links neben den Terminen des Tages
-  steht eine schmale Leiste – oben das Klemmbrett (📋 = die Termine), darunter
-  die **heute Anwesenden als Köpfe**, nach Früh / Spät / Nacht gruppiert. Wer
-  fehlt (Schule, Krank, Urlaub), hat keinen Kopf und steht grau unter der Liste.
-  Ein roter Punkt am Kopf zählt die offenen Punkte. Ein Klick auf einen Kopf
-  zeigt rechts, was für die Person **heute** eingeplant ist: Backlog-Arbeiten
-  (Person + „geplant für" = heute), fällige To-dos (Frist bis heute oder ohne
-  Frist; spätere nur als Zeile) und die Planungs-Notizen des Tages. Kästchen
-  hakt direkt ab (und wieder auf), der Stift öffnet den gewohnten Dialog.
-  Störungen haben keine Person – ihre Restarbeit erscheint erst, wenn sie als
-  Arbeit eingeplant ist. Rechte wie in den Bereichen: Arbeiten/Notizen nach
-  „Planung", To-dos nach „To-dos"; Leser sehen nur, was ihre Gruppe sehen darf.
-  Klemmbrett oder ✕ führen zu den Terminen zurück.
+- **Tagesliste mit „Anwesende"-Menü (seit dem 21.09.):** Rechts im Kopf der
+  Tagesliste steht der Knopf **👷 Anwesende** mit der Zahl der Kollegen und der
+  offenen Punkte. Sein Menü listet die **heute Anwesenden** nach Früh / Spät /
+  Nacht (die laufende Schicht heißt „jetzt") mit Fortschritt „erledigt / gesamt";
+  oben steht **Termine** (= die gewohnte Tagesliste). Wer fehlt (Schule, Krank,
+  Urlaub), ist kein Eintrag, sondern steht grau unter „Nicht da". Die Wahl einer
+  Person zeigt in der Kachel, was für sie **heute** eingeplant ist: Backlog-
+  Arbeiten (Person + „geplant für" = heute), fällige To-dos (Frist bis heute oder
+  ohne Frist; spätere nur als Zeile) und die Planungs-Notizen des Tages. Das
+  Kästchen hakt direkt ab (und wieder auf) – **auch Notizen**, abgehakt heißt
+  erledigt und bleibt durchgestrichen stehen (in der Planung mit ✓); der Stift
+  öffnet den gewohnten Dialog. Störungen haben keine Person – ihre Restarbeit
+  erscheint erst, wenn sie als Arbeit eingeplant ist. Rechte wie in den
+  Bereichen: Arbeiten/Notizen nach „Planung", To-dos nach „To-dos"; Leser sehen
+  nur, was ihre Gruppe sehen darf. „← zurück zu den Terminen" oder der
+  Menüpunkt **Termine** führen zurück.
 - **Schichtplan:** Monatsmatrix, je Person und Tag eine Schicht (Früh/Spät/Nacht u. a.).
   Zwei Ausdrucke: **Monat** (die Matrix, quer) und **Wochen** – je Kalenderwoche
   ein Blatt im Querformat, gedacht fürs Schwarze Brett.
