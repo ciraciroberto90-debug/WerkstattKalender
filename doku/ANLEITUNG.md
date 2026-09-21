@@ -271,6 +271,35 @@ eine andere JSON-Datei anwählen. Der Sinn der Liste: Die Rechtevergabe hängt
 damit **nicht an den Datei-Freigaben des Laufwerks** – alle bekommen dieselbe Datei, wer
 was darf, steht in der App.
 
+**Rechte je Gruppe frei einstellen (⚙ → Personalisieren, nur Verwalter).**
+Seit dem 21.09. legt der Verwalter je Bereich fest, was Bearbeiter und Leser
+dürfen: **ausgeblendet** (der Reiter fehlt), **nur ansehen** oder
+**bearbeiten** – für Schichtplan, Planung, To-do, Störungen, Backlog,
+Zeiterfassung, TPM, Pinnwand und Linkstreifen. Aktionen (Drucken,
+Werkstatt-Monitor, Datensicherung, Zahnrad, Störung melden) sind je Gruppe
+gesperrt oder erlaubt. Der Verwalter selbst ist nie eingeschränkt. Ein Leser
+bleibt Nur-Leser (Höchststufe „nur ansehen"); die eine Ausnahme sind
+Störberichte, die laut Grundregel auch Leser schreiben dürfen. Die Matrix liegt
+in der gemeinsamen Datei und gilt beim nächsten Abgleich auf jedem Rechner.
+Ohne eigene Einstellung gilt genau das bisherige Verhalten.
+
+**Übersicht je Rechner zusammenstellen (⚙ → Personalisieren, nur Verwalter).**
+Welche Bausteine die Übersicht zeigt und in welcher Reihenfolge, wird **je
+Rechner** gespeichert – der Morgenrunden-Rechner darf anders aussehen als der
+am Schreibtisch. Fünf Layout-Vorlagen (Standard, Morgenrunde, Leitstand,
+Planung, Schlank) als Einstieg, danach jeder Baustein einzeln an/aus
+(Hinweisleisten, Kennzahlen, TPM-Quote, OEE, Uhr, Heute da, offene Störungen,
+Tagesliste, Pinnwand, Linkstreifen) und die vier Abschnitte in der Reihenfolge
+tauschbar. „Auf Standard zurücksetzen" holt die gewohnte Übersicht zurück.
+
+Der direkte Weg: **„Übersicht direkt anordnen"** (oben im Reiter) friert die
+Übersicht ein. Jede Kachel bekommt einen orangen Rahmen mit Griff – am Griff
+ziehen oder mit den Pfeilen schieben, **✕** blendet aus, **⇄** tauscht
+Tagesliste und Pinnwand die Seiten, Ausgeblendetes steht oben in der Leiste
+als „+"-Chip zum Zurückholen. Solange der Modus an ist, nimmt der Inhalt
+keine Klicks an. **Fertig** oder **Esc** beendet ihn; jede Änderung ist sofort
+gespeichert.
+
 > **Ehrlich gesagt:** Die Benutzerliste ist eine **Leitplanke gegen Versehen,
 > kein Schloss.** Die App liegt offen auf dem Laufwerk; wer den Datenordner
 > öffnen darf, kommt an ihr vorbei, und ohne Kennwort kann jeder jeden Namen

@@ -175,7 +175,19 @@ async function verbindeHaupt(p) {
       await window.storage.set("werkstatt-kalender-entries", JSON.stringify(roh));
     }),
   ]);
-  await p.waitForTimeout(3000);
+  // Seit der Hintergrund-Warteschlange (16.09.) kehrt set() zurück, BEVOR die
+  // Datei geschrieben ist. Eine feste Wartezeit riet hier nur - gemessen am
+  // 21.09.: bei 5,2 s Gesamtdauer landete mal A, mal B erst nach 3 s (alter
+  // wie neuer Stand, 1 von 3 Läufen). Deshalb wird auf das Eintreffen
+  // gewartet; die Obergrenze bleibt die eigentliche Prüfung.
+  {
+    const frist = Date.now() + 25000;
+    while (Date.now() < frist) {
+      const ids = new Set(JSON.parse(platte["kalender-daten.json"]).entries.map((e) => e.id));
+      if (ids.has("gleichzeitig|A") && ids.has("gleichzeitig|B")) break;
+      await p.waitForTimeout(250);
+    }
+  }
   const speicherDauer = Date.now() - t0;
 
   const nachSchreiben = JSON.parse(platte["kalender-daten.json"]);

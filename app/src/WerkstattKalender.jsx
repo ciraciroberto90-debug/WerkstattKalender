@@ -1364,6 +1364,143 @@ function normalisiereMonitor(roh) {
   return b;
 }
 
+/* ---------- Rechte je Benutzergruppe (Robertos Auftrag vom 21.09.) ----------
+   Bis dahin waren die drei Gruppen fest verdrahtet: Leser sahen Übersicht,
+   Schichtplan und Berichte, Bearbeiter alles außer der Benutzerpflege.
+   Roberto will das als Verwalter selbst bestimmen - je Bereich, ob eine
+   Gruppe ihn gar nicht sieht, nur ansieht oder bearbeitet. Die Matrix liegt
+   in der GEMEINSAMEN Datei (config.rechte), gilt also auf jedem Rechner.
+   Der Verwalter selbst ist nie eingeschränkt - sonst könnte er sich aussperren.
+   Stufen: "aus" (Bereich ausgeblendet) · "sehen" (nur ansehen) · "bearbeiten".
+   Bei Aktionen (Drucken, Datensicherung, Zahnrad, Melden, Monitor) heißt
+   "sehen" schlicht "erlaubt" - es gibt dort nichts zu bearbeiten.
+   Ein Leser bleibt trotz Matrix Nur-Leser: "bearbeiten" wird für ihn auf
+   "sehen" gedrückt, damit die alte Sicherheitsklammer (readerMode) unberührt
+   bleibt. Störungen melden ist die eine bewusste Ausnahme (eigene Datei). */
+const RECHTE_BEREICHE = [
+  // [Schlüssel, Name, Erklärung, Art] - Art "bereich" kennt drei Stufen,
+  // "aktion" nur aus/erlaubt. leserMax: höchste Stufe, die ein Leser haben darf.
+  ["SCHICHTPLAN", "Schichtplan", "Werkstatt → Schichtplan", "bereich", "sehen"],
+  ["PLANUNG", "Planung", "Werkstatt → Planung (Arbeiten einplanen)", "bereich", "sehen"],
+  ["TODO", "To-do", "Berichte → To-do", "bereich", "sehen"],
+  ["STOERUNGEN", "Störungen", "Berichte → Störungen – eigene Datei, laut Grundregel auch für Leser beschreibbar", "bereich", "bearbeiten"],
+  ["BACKLOG", "Backlog", "Berichte → Backlog", "bereich", "sehen"],
+  ["ZEIT", "Zeiterfassung", "Berichte → Zeiterfassung", "bereich", "sehen"],
+  ["TPM", "TPM", "Wissen, Plan, Auswertung, Register", "bereich", "sehen"],
+  ["PINNWAND", "Pinnwand", "auf der Übersicht – Leser sehen nur veröffentlichte Zettel", "bereich", "sehen"],
+  ["LINKS", "Links & Dokumente", "Linkstreifen auf der Übersicht", "bereich", "sehen"],
+  ["MELDEN", "Störung melden", "neuen Störbericht erfassen – auch ohne Schreibrecht im Bereich", "aktion", "sehen"],
+  ["DRUCKEN", "Drucken", "Drucken-Knopf oben rechts", "aktion", "sehen"],
+  ["MONITOR", "Werkstatt-Monitor", "Vollbild-Knopf oben rechts", "aktion", "sehen"],
+  ["DATEN", "Datensicherung", "Import/Export oben rechts", "aktion", "aus"],
+  ["ZAHNRAD", "Verwalten (⚙)", "Anlagen, Team, Kostenstellen, OEE, Monitor – Benutzer & Rechte bleiben Verwaltersache", "aktion", "aus"],
+];
+// Standard = das Verhalten vor dem 21.09., damit ein Update nichts verändert.
+const RECHTE_STANDARD = {
+  bearbeiter: {
+    SCHICHTPLAN: "bearbeiten", PLANUNG: "bearbeiten", TODO: "bearbeiten", STOERUNGEN: "bearbeiten", BACKLOG: "bearbeiten",
+    ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten",
+    MELDEN: "sehen", DRUCKEN: "sehen", MONITOR: "sehen", DATEN: "sehen", ZAHNRAD: "sehen",
+  },
+  leser: {
+    SCHICHTPLAN: "sehen", PLANUNG: "aus", TODO: "sehen", STOERUNGEN: "bearbeiten", BACKLOG: "aus",
+    ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus",
+    MELDEN: "sehen", DRUCKEN: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
+  },
+};
+const RECHTE_STUFEN = ["aus", "sehen", "bearbeiten"];
+function normalisiereRechte(roh) {
+  const out = {};
+  for (const gruppe of ["bearbeiter", "leser"]) {
+    const quelle = roh && roh[gruppe] && typeof roh[gruppe] === "object" ? roh[gruppe] : {};
+    out[gruppe] = {};
+    for (const [key, , , art, leserMax] of RECHTE_BEREICHE) {
+      let s = RECHTE_STUFEN.includes(quelle[key]) ? quelle[key] : RECHTE_STANDARD[gruppe][key];
+      if (art === "aktion" && s === "bearbeiten") s = "sehen";
+      // Leser: nie über die erlaubte Höchststufe hinaus (Nur-Leser bleibt Nur-Leser)
+      if (gruppe === "leser" && RECHTE_STUFEN.indexOf(s) > RECHTE_STUFEN.indexOf(leserMax)) s = leserMax;
+      out[gruppe][key] = s;
+    }
+  }
+  return out;
+}
+
+/* ---------- Übersicht personalisieren (Robertos Auftrag vom 21.09.) ----------
+   Welche Bausteine die Übersicht zeigt und in welcher Reihenfolge, bestimmt
+   der Verwalter - und zwar JE RECHNER (localStorage), nicht in der
+   gemeinsamen Datei: Der Rechner in der Morgenrunde soll anders aussehen
+   dürfen als der am Schreibtisch. Vorlagen sind fertige Zusammenstellungen,
+   danach lässt sich jeder Haken einzeln setzen. */
+const UEBERSICHT_BAUSTEINE = [
+  ["neuigkeiten", "Seit deinem letzten Besuch", "Hinweisleiste zu Änderungen seit dem letzten Öffnen"],
+  ["rueckblick", "Wochen-Rückblick", "freitags ab 12 Uhr, je Woche einmal"],
+  ["geburtstag", "Geburtstags-Karte", "heute und demnächst"],
+  ["zahlen", "Kennzahlen", "Heute fällig · Heute erledigt · Überfällig · Diesen Monat"],
+  ["quote", "TPM-Quote", "Halbkreis für den laufenden Monat"],
+  ["oee", "OEE-Kachel", "aus der Excel-Tabelle im Datenordner"],
+  ["uhr", "Werkstatt-Uhr", "Uhrzeit, Datum, aktuelle Schicht"],
+  ["heuteDa", "Heute da", "Schicht-Spalten mit den anwesenden Kollegen"],
+  ["stoerungen", "Offene Störungen", "rote Gedankenstütze mit den ersten fünf"],
+  ["tagesliste", "Heute · Tagesliste", "fällige Wartungen, Termine, Liegengebliebenes, Archiv"],
+  ["pinnwand", "Pinnwand", "Zettel für alle, mit Suche"],
+  ["links", "Linkstreifen", "Links & Dokumente unter der Menüleiste"],
+];
+// Die vier großen Abschnitte lassen sich in der Reihenfolge tauschen. Die
+// Kennzahlen-Kacheln bilden eine Reihe, Tagesliste und Pinnwand eine Zeile.
+const UEBERSICHT_ABSCHNITTE = [
+  ["kennzahlen", "Kennzahlen-Reihe (Zahlen, Quote, OEE, Uhr)"],
+  ["heuteDa", "Heute da"],
+  ["stoerungen", "Offene Störungen"],
+  ["hauptzeile", "Tagesliste + Pinnwand"],
+];
+const UEBERSICHT_VORLAGEN = [
+  ["standard", "Standard", "Alles an, wie bisher – Kennzahlen, Heute da, Störungen, Tagesliste, Pinnwand.",
+    { aus: [], reihenfolge: ["kennzahlen", "heuteDa", "stoerungen", "hauptzeile"] }],
+  ["morgenrunde", "Morgenrunde", "Störungen ganz oben, dann wer da ist, Kennzahlen und Tagesliste – ohne Hinweisleisten und Links.",
+    { aus: ["neuigkeiten", "rueckblick", "geburtstag", "oee", "links"], reihenfolge: ["stoerungen", "heuteDa", "kennzahlen", "hauptzeile"] }],
+  ["leitstand", "Leitstand", "Nur Zahlen: Kennzahlen, Quote, OEE, Uhr und die offenen Störungen – keine Tagesliste, keine Pinnwand.",
+    { aus: ["neuigkeiten", "rueckblick", "geburtstag", "heuteDa", "tagesliste", "pinnwand", "links"], reihenfolge: ["kennzahlen", "stoerungen", "heuteDa", "hauptzeile"] }],
+  ["planung", "Planung", "Tagesliste und Pinnwand groß, darüber die Kennzahlen – Störungen und Anwesenheit weiter unten.",
+    { aus: ["neuigkeiten", "rueckblick", "geburtstag", "oee"], reihenfolge: ["kennzahlen", "hauptzeile", "stoerungen", "heuteDa"] }],
+  ["schlank", "Schlank", "Nur Kennzahlen und Tagesliste – für kleine Bildschirme oder den Vertreter.",
+    { aus: ["neuigkeiten", "rueckblick", "geburtstag", "quote", "oee", "uhr", "heuteDa", "stoerungen", "pinnwand", "links"], reihenfolge: ["kennzahlen", "hauptzeile", "heuteDa", "stoerungen"] }],
+];
+const UEBERSICHT_LAYOUT_KEY = "wk-uebersicht-layout";
+// Die Kacheln der Kennzahlen-Reihe - im Anordnen-Modus einzeln verschiebbar.
+const UEBERSICHT_KACHELN = ["zahlen", "quote", "oee", "uhr"];
+function normalisiereUebersichtLayout(roh) {
+  const bloecke = {};
+  UEBERSICHT_BAUSTEINE.forEach(([k]) => { bloecke[k] = !(roh && roh.bloecke && roh.bloecke[k] === false); });
+  const bekannt = UEBERSICHT_ABSCHNITTE.map(([k]) => k);
+  const gewuenscht = Array.isArray(roh && roh.reihenfolge) ? roh.reihenfolge.filter((k) => bekannt.includes(k)) : [];
+  // Fehlende Abschnitte hängen hinten an - so überlebt die Wahl neue Bausteine.
+  const reihenfolge = [...gewuenscht, ...bekannt.filter((k) => !gewuenscht.includes(k))];
+  const kGewuenscht = Array.isArray(roh && roh.kacheln) ? roh.kacheln.filter((k) => UEBERSICHT_KACHELN.includes(k)) : [];
+  const kacheln = [...kGewuenscht, ...UEBERSICHT_KACHELN.filter((k) => !kGewuenscht.includes(k))];
+  // tausch: Pinnwand links, Tagesliste rechts (Robertos "Kacheln tauschen")
+  const tausch = !!(roh && roh.tausch);
+  const vorlage = UEBERSICHT_VORLAGEN.some(([id]) => id === (roh && roh.vorlage)) ? roh.vorlage : "eigene";
+  return { bloecke, reihenfolge, kacheln, tausch, vorlage };
+}
+// Ein Element in einer Liste an eine andere Stelle schieben (Ziehen/Pfeile).
+function verschiebeIn(liste, von, nach) {
+  if (von < 0 || nach < 0 || von >= liste.length || nach >= liste.length || von === nach) return liste;
+  const r = [...liste];
+  const [x] = r.splice(von, 1);
+  r.splice(nach, 0, x);
+  return r;
+}
+function layoutAusVorlage(id) {
+  const v = UEBERSICHT_VORLAGEN.find(([vid]) => vid === id);
+  if (!v) return normalisiereUebersichtLayout(null);
+  const bloecke = {};
+  UEBERSICHT_BAUSTEINE.forEach(([k]) => { bloecke[k] = !v[3].aus.includes(k); });
+  return normalisiereUebersichtLayout({ bloecke, reihenfolge: v[3].reihenfolge, vorlage: id });
+}
+function leseUebersichtLayout() {
+  try { return normalisiereUebersichtLayout(JSON.parse(localStorage.getItem(nsKey(UEBERSICHT_LAYOUT_KEY)) || "null")); } catch (e) { return normalisiereUebersichtLayout(null); }
+}
+
 /* ---------- Zeiterfassung / Schichtbericht (Robertos Auftrag vom 09.09.) ----------
    Ersatz für das alte ikom-ZE: Jeder berechtigte Mitarbeiter schreibt täglich
    seine Stunden auf Kostenstellen, damit sie im Betrieb sauber aufgeteilt
@@ -2160,6 +2297,24 @@ function App() {
   const [stoerSuche, setStoerSuche] = useState(""); // Freitextsuche über alle Störberichte
   const [monitorOpen, setMonitorOpen] = useState(false); // Werkstatt-Monitor (Vollbild)
   const [monitorBausteine, setMonitorBausteine] = useState(() => normalisiereMonitor(null)); // was der Monitor zeigt (⚙, gemeinsame Datei)
+  const [rechte, setRechte] = useState(() => normalisiereRechte(null)); // Rechte je Benutzergruppe (⚙ Personalisieren, gemeinsame Datei)
+  const [uebersichtLayout, setUebersichtLayoutState] = useState(leseUebersichtLayout); // Übersichts-Bausteine DIESES Rechners
+  const setUebersichtLayout = (neu) => {
+    const n = normalisiereUebersichtLayout(neu);
+    setUebersichtLayoutState(n);
+    try { localStorage.setItem(nsKey(UEBERSICHT_LAYOUT_KEY), JSON.stringify(n)); } catch (e) { /* dann gilt die Wahl nur bis zum Neustart */ }
+  };
+  // Anordnen-Modus (Robertos Gedanke vom 21.09.): Die Übersicht selbst wird
+  // zum Bearbeitungsfeld - Kacheln ziehen, tauschen, ausblenden. Solange er
+  // an ist, ist der Inhalt eingefroren (keine Klicks in die Kacheln).
+  const [uebersichtBearbeiten, setUebersichtBearbeiten] = useState(false);
+  const [uebDrag, setUebDrag] = useState(null); // {art, k} - was gerade gezogen wird
+  useEffect(() => {
+    if (!uebersichtBearbeiten) return undefined;
+    const aufTaste = (ev) => { if (ev.key === "Escape") setUebersichtBearbeiten(false); };
+    window.addEventListener("keydown", aufTaste);
+    return () => window.removeEventListener("keydown", aufTaste);
+  }, [uebersichtBearbeiten]);
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
 
   /* ---------- Zeiterfassung / Schichtbericht (09.09.) ---------- */
@@ -2239,6 +2394,7 @@ function App() {
         if (typeof d.config.werkstattName === "string") setWerkstattName((alt) => (alt === d.config.werkstattName ? alt : d.config.werkstattName));
         if (d.config.monitor) setMonitorBausteine(stabil(normalisiereMonitor(d.config.monitor)));
         if (d.config.kostenstellen) setKostenstellen(stabil(normalisiereKostenstellen(d.config.kostenstellen)));
+        if (d.config.rechte) setRechte(stabil(normalisiereRechte(d.config.rechte)));
       }
       });
     };
@@ -2457,6 +2613,38 @@ function App() {
   // sich niemand jemals verbinden).
   const confirmedReadOnly = shareChecked && shareState.status === "connected" && shareState.mode === "read";
 
+  /* ---------- Rechte-Matrix anwenden (Robertos Auftrag vom 21.09.) ----------
+     rechteGruppe: die Gruppe des angemeldeten Benutzers - nur für Bearbeiter
+     und Leser greift die Matrix. Verwalter, Unangemeldete und Rechner ohne
+     Benutzerliste verhalten sich wie vor dem 21.09.: allein die Datei- und
+     Anmelde-Lage (readerMode) entscheidet, mit den Standard-Stufen.
+     Die Datei-Ebene bleibt oberste Instanz: Wer am Laufwerk nicht schreiben
+     darf, bekommt aus "bearbeiten" immer "sehen". */
+  const rechteGruppe = benutzerAktiv && meinBenutzer && (meinBenutzer.rolle === "bearbeiter" || meinBenutzer.rolle === "leser") ? meinBenutzer.rolle : null;
+  const stufeRoh = (key) => (rechteGruppe ? rechte[rechteGruppe][key] : (readerMode ? RECHTE_STANDARD.leser[key] : RECHTE_STANDARD.bearbeiter[key]));
+  const stufeFuer = (key) => {
+    const s = stufeRoh(key);
+    return readerMode && s === "bearbeiten" ? "sehen" : s;
+  };
+  // Sichtbarkeit: In der Start-Phase (Rechte noch ungeprüft) wird NICHTS
+  // versteckt - dieselbe Regel wie bei leserAnzeige, sonst rast jeder Start
+  // durch einen Leer-Zustand. Backlog bleibt davon unberührt streng (unten).
+  const sichtbar = (key) => !shareChecked || stufeFuer(key) !== "aus";
+  const nurLesen = (key) => readerMode || stufeFuer(key) !== "bearbeiten";
+  // Aktionen (Drucken, Monitor, Datensicherung, Zahnrad, Melden): erlaubt?
+  const erlaubt = (key) => stufeFuer(key) !== "aus";
+  // Für Knöpfe, die Leser bis zum 21.09. NIE sahen (Monitor, Linkstreifen):
+  // Leser erst nach der Rechte-Prüfung, Bearbeiter nach Matrix.
+  const leserSicher = (key) => (readerMode ? shareChecked && erlaubt(key) : sichtbar(key));
+  // Darf die aktuelle Ansicht überhaupt gezeigt werden? Grundlage für die
+  // Sicherheitsklammer (useEffect weiter unten) und die Bereichs-Knöpfe.
+  const ansichtErlaubt = (v, cTab, bTab) => {
+    if (v === "COCKPIT") return cTab === "UEBERSICHT" || sichtbar(cTab);
+    if (v === "BERICHTE") return bTab === "START" || sichtbar(bTab);
+    if (v === "REGISTER") return sichtbar("TPM") && !readerMode;
+    return sichtbar("TPM"); // TPMINFO, MONAT, JAHR
+  };
+
   /* Zurück-Pfeil in der Untermenü-Zeile (Robertos Ansage vom 14.09.): ein
      kleiner Ansichts-Verlauf über Hauptbereich + Unterreiter. Jede Änderung
      legt die vorige Ansicht auf den Stapel, Zurück holt sie wieder - auch
@@ -2509,6 +2697,12 @@ function App() {
   // Datei-Funktion (Solo/Firefox -> lokal). Sonst nur ansehen.
   const stoerConnected = stoerState.status === "connected";
   const stoerDarfSchreiben = stoerChecked && (stoerState.status === "unsupported" || (stoerConnected && stoerState.mode === "readwrite"));
+  // Rechte-Matrix (21.09.): Störungen sind die bewusste Ausnahme - eigene, für
+  // alle Melder beschreibbare Datei. Ob jemand Berichte BEARBEITEN darf,
+  // entscheidet die Matrix-Stufe ohne den readerMode-Deckel (der gilt für die
+  // Hauptdatei); ob er NEUE melden darf, zusätzlich die Aktion "Störung melden".
+  const stoerDarfBearbeiten = stoerDarfSchreiben && stufeRoh("STOERUNGEN") === "bearbeiten";
+  const stoerDarfMelden = stoerDarfSchreiben && (stoerDarfBearbeiten || erlaubt("MELDEN"));
   const stoerNurLesen = stoerConnected && stoerState.mode === "read";
   const persistStoer = async (next) => {
     const prev = stoerungen;
@@ -3499,23 +3693,28 @@ function App() {
   // zurückgesetzt (z. B. falls Schreibrechte während der Sitzung wegfallen,
   // oder direkt beim allerersten Laden, bevor überhaupt geprüft ist).
   useEffect(() => {
-    if (!readerMode) return;
-    // Backlog und Register sind wie eh und je STRENG gesperrt - auch in der
-    // unentschiedenen Start-Phase, bevor die Rechte geprüft sind.
-    if (view === "BERICHTE" && berichtTab === "BACKLOG") setBerichtTab("START");
-    if (leserAnzeige) {
-      // Rechte-Prüfung abgeschlossen, wirklich Nur-Leser: Übersicht,
-      // SCHICHTPLAN (Robertos Ansage vom 15.09. - zum Nachschauen, die
-      // Zellen sind für Leser stumm) und der Bereich Berichte.
-      if (view !== "COCKPIT" && view !== "BERICHTE") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
-      if (view === "COCKPIT" && cockpitTab !== "UEBERSICHT" && cockpitTab !== "SCHICHTPLAN") setCockpitTab("UEBERSICHT");
-    } else {
+    // Seit dem 21.09. greift die Klammer auch für Bearbeiter: Der Verwalter
+    // kann ihnen einzelne Bereiche ausblenden (Rechte-Matrix). Verwalter und
+    // Rechner ohne Benutzerliste bleiben wie bisher ungebremst.
+    if (!readerMode && rechteGruppe !== "bearbeiter") return;
+    // Backlog und Register sind für Leser wie eh und je STRENG gesperrt - auch
+    // in der unentschiedenen Start-Phase, bevor die Rechte geprüft sind.
+    if (readerMode && view === "BERICHTE" && berichtTab === "BACKLOG") setBerichtTab("START");
+    if (shareChecked) {
+      // Rechte-Prüfung abgeschlossen: Was die Gruppe laut Matrix nicht sehen
+      // darf, springt auf die Übersicht zurück. Für Leser mit Standard-Matrix
+      // ist das exakt die alte Regel (Übersicht, Schichtplan, Berichte).
+      if (!ansichtErlaubt(view, cockpitTab, berichtTab)) {
+        if (view === "BERICHTE") { setBerichtTab("START"); return; }
+        setView("COCKPIT"); setCockpitTab("UEBERSICHT");
+      }
+    } else if (readerMode) {
       // Start-Phase: die alten (milderen) Leser-Regeln, damit ein Bearbeiter
       // beim Laden nicht von seiner Ansicht geworfen wird.
       if (view !== "COCKPIT" && view !== "BERICHTE" && view !== "TPMINFO" && view !== "MONAT" && view !== "JAHR") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); return; }
       if (view === "COCKPIT" && !["UEBERSICHT", "SCHICHTPLAN", "PLANUNG"].includes(cockpitTab)) setCockpitTab("UEBERSICHT");
     }
-  }, [readerMode, leserAnzeige, view, cockpitTab, berichtTab]);
+  }, [readerMode, leserAnzeige, shareChecked, rechteGruppe, rechte, view, cockpitTab, berichtTab]);
 
   // ...html?monitor=1 kennzeichnet ein dediziertes Kiosk-Gerät (Bildschirm in der
   // Werkstatt ohne eigenen Arbeitsplatz). NUR dort ist der Werkstatt-Monitor auch
@@ -3624,6 +3823,7 @@ function App() {
           }
           if (parsed.monitor) setMonitorBausteine(normalisiereMonitor(parsed.monitor));
           if (parsed.kostenstellen) setKostenstellen(normalisiereKostenstellen(parsed.kostenstellen));
+          if (parsed.rechte) setRechte(normalisiereRechte(parsed.rechte));
           if (typeof parsed.werkstattName === "string") {
             setWerkstattName(parsed.werkstattName);
           }
@@ -3647,7 +3847,9 @@ function App() {
   // Überleben fremder Rechteänderungen aber strukturell sicher (das Feld wird
   // von Links-/OEE-/Einstellungs-Speichern gar nicht mehr berührt), statt es
   // der Zusammenführung zu überlassen.
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen) => {
+  // nextRechte: wie nextBenutzer ein Wächter-Feld - null heißt "nicht anfassen".
+  // Nur die Rechte-Matrix im ⚙ (Verwalter) übergibt eine Matrix.
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen, nextRechte = null) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -3660,11 +3862,12 @@ function App() {
     setWerkstattName(nextWerkstattName);
     setMonitorBausteine(nextMonitor);
     setKostenstellen(nextKostenstellen);
+    if (nextRechte) setRechte(nextRechte);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}) }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}), ...(nextRechte ? { rechte: nextRechte } : {}) }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -7515,10 +7718,19 @@ function App() {
                 und Berichte; die Sicherheits-Klammer setzt alles andere
                 zurück. */}
             <div className="flex rounded overflow-hidden border border-white/20 shrink-0">
-              {(leserAnzeige
-                ? [["UEBERSICHT", "Übersicht"], ["SCHICHTPLAN", "Schichtplan"], ["BERICHTE", "Berichte"]]
-                : [["UEBERSICHT", "Übersicht"], ["BERICHTE", "Berichte"], ["WERKSTATT", "Werkstatt"], ["TPM", "TPM"]]
-              ).map(([v, label]) => {
+              {(() => {
+                // Seit dem 21.09. entscheidet die Rechte-Matrix, welche Bereiche
+                // die Gruppe sieht. Standard-Leser bekommen damit exakt die alte
+                // Reihe (Übersicht · Schichtplan · Berichte), Bearbeiter die
+                // volle - und der Verwalter kann beides frei beschneiden.
+                const sp = sichtbar("SCHICHTPLAN"), pl = sichtbar("PLANUNG");
+                const tabs = [["UEBERSICHT", "Übersicht"]];
+                if (sp && !pl) tabs.push(["SCHICHTPLAN", "Schichtplan"]); // nur ein Reiter: ohne Untermenü direkt hin
+                else if (sp || pl) tabs.push(["WERKSTATT", "Werkstatt"]);
+                if (["TODO", "STOERUNGEN", "BACKLOG", "ZEIT"].some((k) => sichtbar(k))) tabs.push(["BERICHTE", "Berichte"]);
+                if (sichtbar("TPM")) tabs.push(["TPM", "TPM"]);
+                return tabs;
+              })().map(([v, label]) => {
                 const active =
                   v === "UEBERSICHT" ? (view === "COCKPIT" && cockpitTab === "UEBERSICHT")
                   : v === "SCHICHTPLAN" ? (view === "COCKPIT" && cockpitTab === "SCHICHTPLAN")
@@ -7533,7 +7745,7 @@ function App() {
                       if (v === "UEBERSICHT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
                       else if (v === "SCHICHTPLAN") { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }
                       else if (v === "BERICHTE") { setView("BERICHTE"); setBerichtTab("START"); }
-                      else if (v === "WERKSTATT") { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }
+                      else if (v === "WERKSTATT") { setView("COCKPIT"); setCockpitTab(sichtbar("SCHICHTPLAN") ? "SCHICHTPLAN" : "PLANUNG"); }
                       else setView("TPMINFO");
                     }}
                     className="px-3 py-1.5 text-xs font-black uppercase tracking-wide inline-flex items-center"
@@ -7600,7 +7812,7 @@ function App() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
-          {druckAngebot() && (
+          {druckAngebot() && erlaubt("DRUCKEN") && (
             <button
               /* Ein Knopf an einer Stelle - oben rechts, in jedem Bereich, in
                  dem es etwas zu drucken gibt. Was genau, wird im Dialog
@@ -7627,7 +7839,7 @@ function App() {
           >
             <Eye size={14} />
           </button>
-          {!readerMode && (
+          {!readerMode && erlaubt("ZAHNRAD") && (
             <button
               onClick={openSettings}
               className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
@@ -7638,7 +7850,7 @@ function App() {
               <Settings size={14} />
             </button>
           )}
-          {(!readerMode || kioskMonitor) && (
+          {(kioskMonitor || leserSicher("MONITOR")) && (
             <button
               onClick={() => setMonitorOpen(true)}
               className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
@@ -7649,7 +7861,7 @@ function App() {
               <Tv size={14} />
             </button>
           )}
-          {!readerMode && (
+          {!readerMode && erlaubt("DATEN") && (
             <>
               <button
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
@@ -7769,8 +7981,8 @@ function App() {
         <div className="w-px self-stretch shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.12)", margin: "3px 0" }} />
         {view === "BERICHTE" ? (
           <div className="flex" style={{ scrollbarWidth: "none" }}>
-            {[["START", "Alle Berichte"], ["TODO", "To-do"], ["STOERUNGEN", "Störungen"],
-              ...(leserAnzeige ? [] : [["BACKLOG", "Backlog"]]), ["ZEIT", "Zeiterfassung"]].map(([v, label]) => (
+            {[["START", "Alle Berichte"], ...[["TODO", "To-do"], ["STOERUNGEN", "Störungen"], ["BACKLOG", "Backlog"], ["ZEIT", "Zeiterfassung"]]
+              .filter(([v]) => sichtbar(v) && !(v === "BACKLOG" && leserAnzeige))].map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => setBerichtTab(v)}
@@ -7787,7 +7999,7 @@ function App() {
               </button>
             ))}
           </div>
-        ) : view === "COCKPIT" ? (leserAnzeige ? null : (
+        ) : view === "COCKPIT" ? (!(sichtbar("SCHICHTPLAN") && sichtbar("PLANUNG")) ? null : (
           <div className="flex" style={{ scrollbarWidth: "none" }}>
             {/* Störungen, Backlog und Zeiterfassung leben seit dem 10.09.
                 im Bereich Berichte - hier bleibt die eigentliche
@@ -7836,9 +8048,14 @@ function App() {
           vorhanden) - die Sammlung ist Arbeitsmittel der Bearbeiter.
           Ein Klick auf einen Chip öffnet, ohne vorher aufklappen zu müssen;
           Anlegen und Sortieren stecken im Feld hinter „Links". */}
-      {!readerMode && view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
+      {leserSicher("LINKS") && uebersichtLayout.bloecke.links && view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div style={{ backgroundColor: "#2C3137", borderTop: "1px solid rgba(255,255,255,0.08)", position: "relative" }}>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5">
+            {/* Anlegen/Sortieren nur mit Stufe "bearbeiten" (Rechte-Matrix) -
+                wer die Sammlung nur ansehen darf, sieht die Chips ohne Feld. */}
+            {nurLesen("LINKS") ? (
+              <span className="flex items-center gap-1.5 shrink-0"><span style={{ fontSize: "0.72rem" }}>🔗</span><span className="text-[11px] font-black uppercase tracking-wide" style={{ color: "#B7BEC6" }}>Links</span></span>
+            ) : (
             <button
               onClick={schalteLinks}
               aria-label="Links & Dokumente"
@@ -7851,6 +8068,7 @@ function App() {
               {/* Das Dreieck dreht sich - dieselbe Sprache wie im Schichtbuch */}
               <span style={{ color: "#8A9099", fontSize: "0.58rem", display: "inline-block", transform: linksOffen ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}>▶</span>
             </button>
+            )}
             {/* Kürzel-Umschalter: bestimmt, wessen Sammlung im Streifen steht */}
             <div className="flex items-center gap-1 shrink-0">
               {links.inhaber.map((k) => {
@@ -7903,7 +8121,7 @@ function App() {
             )}
           </div>
 
-          {linksOffen && (
+          {linksOffen && !nurLesen("LINKS") && (
               <div className="px-4 pb-3" style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20 }}>
                 {/* Robertos Fund vom 08.09.: Mit vielen Links plus Symbolraster
                     wuchs das Panel unter den Bildschirmrand - der Speichern-
@@ -8393,7 +8611,7 @@ function App() {
                 datum: s.date, ziel: () => { setStoerSuche(stoerNrLang(s)); setBerichtTab("STOERUNGEN"); } });
             }
           }
-          if (!leserAnzeige && artZu("BACKLOG")) {
+          if (!leserAnzeige && sichtbar("BACKLOG") && artZu("BACKLOG")) {
             for (const a of arbeiten) {
               if (!stZu(a.status !== "done") || !trifft(a.name, a.note, a.wer, a.melder)) continue;
               treffer.push({ art: "BACKLOG", id: a.id, titel: [a.name, a.note].filter(Boolean).join(" · "), offen: a.status !== "done",
@@ -8449,7 +8667,7 @@ function App() {
               <HalbkreisQuote prozent={quoteVon(todoUeberfaellige.length, todoOffene.length)} farben={["#4A81B4", "#2C5F8A"]}
                 label="Überfällige To-dos" sub={`${todoUeberfaellige.length} von ${todoOffene.length} offenen`}
                 titel="Anteil der offenen To-dos, deren Frist verstrichen ist" />
-              {!leserAnzeige && (
+              {!leserAnzeige && sichtbar("BACKLOG") && (
                 <HalbkreisQuote prozent={quoteVon(arbeitenOffen.length, backlogVon)} farben={["#E09141", "#A8641F"]}
                   label="Backlog offen" sub={`${arbeitenOffen.length} von ${backlogVon} (Jahr)`}
                   titel="Offene Backlog-Arbeiten, gemessen an den im laufenden Jahr aufgenommenen" />
@@ -8467,10 +8685,10 @@ function App() {
               <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
                 <span className="text-[10px] font-black uppercase mr-1" style={{ color: "#8A9099" }}>Art:</span>
                 {pille(berichtSucheArt === "ALLE", "Alle", () => setBerichtSucheArt("ALLE"))}
-                {pille(berichtSucheArt === "TODO", "To-dos", () => setBerichtSucheArt("TODO"), ART_FARBEN.TODO)}
-                {pille(berichtSucheArt === "STOERUNG", "Störungen", () => setBerichtSucheArt("STOERUNG"), ART_FARBEN.STOERUNG)}
-                {!leserAnzeige && pille(berichtSucheArt === "BACKLOG", "Backlog", () => setBerichtSucheArt("BACKLOG"), ART_FARBEN.BACKLOG)}
-                {pille(berichtSucheArt === "ZEIT", "Zeiterfassung", () => setBerichtSucheArt("ZEIT"), ART_FARBEN.ZEIT)}
+                {sichtbar("TODO") && pille(berichtSucheArt === "TODO", "To-dos", () => setBerichtSucheArt("TODO"), ART_FARBEN.TODO)}
+                {sichtbar("STOERUNGEN") && pille(berichtSucheArt === "STOERUNG", "Störungen", () => setBerichtSucheArt("STOERUNG"), ART_FARBEN.STOERUNG)}
+                {!leserAnzeige && sichtbar("BACKLOG") && pille(berichtSucheArt === "BACKLOG", "Backlog", () => setBerichtSucheArt("BACKLOG"), ART_FARBEN.BACKLOG)}
+                {sichtbar("ZEIT") && pille(berichtSucheArt === "ZEIT", "Zeiterfassung", () => setBerichtSucheArt("ZEIT"), ART_FARBEN.ZEIT)}
                 <span className="text-[10px] font-black uppercase ml-2 mr-1" style={{ color: "#8A9099" }}>Status:</span>
                 {pille(berichtSucheStatus === "ALLE", "Alle", () => setBerichtSucheStatus("ALLE"))}
                 {pille(berichtSucheStatus === "OFFEN", "Offen", () => setBerichtSucheStatus("OFFEN"))}
@@ -8512,13 +8730,13 @@ function App() {
               <>
                 <div className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#5B6572" }}>Berichte – was liegt an?</div>
                 <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-                  {kachel("TODO", "📋", "#EEF3F8", "To-do", "Aufgaben – erteilt, ohne Störungs-Bezug", todoOffene.length, "#2F6690",
+                  {sichtbar("TODO") && kachel("TODO", "📋", "#EEF3F8", "To-do", "Aufgaben – erteilt, ohne Störungs-Bezug", todoOffene.length, "#2F6690",
                     todoUeberfaellige.length ? [[`${todoUeberfaellige.length} überfällig`, "#FBEAE8", "#C0392B"]] : [])}
-                  {kachel("STOERUNGEN", "⚠️", "#FBEAE8", "Störungen", "Berichte ansehen & neue Störung melden", stoerOffenCount, "#C0392B",
+                  {sichtbar("STOERUNGEN") && kachel("STOERUNGEN", "⚠️", "#FBEAE8", "Störungen", "Berichte ansehen & neue Störung melden", stoerOffenCount, "#C0392B",
                     offeneNachbestellungen.length ? [[`${offeneNachbestellungen.length} Ersatzteil(e) nachbestellt`, "#FBF3DA", "#9A6B00"]] : [])}
-                  {!leserAnzeige && kachel("BACKLOG", "🧰", "#FDF0E2", "Backlog", "Arbeiten zum Einplanen", arbeitenOffen.length, "#C97A2B",
+                  {!leserAnzeige && sichtbar("BACKLOG") && kachel("BACKLOG", "🧰", "#FDF0E2", "Backlog", "Arbeiten zum Einplanen", arbeitenOffen.length, "#C97A2B",
                     prioHochZahl ? [[`${prioHochZahl} hohe Prio`, "#FBEAE8", "#C0392B"]] : [])}
-                  {kachel("ZEIT", "⏱️", "#F0F2F5", "Zeiterfassung", "Stunden auf Kostenstellen buchen", null, "#8A9099",
+                  {sichtbar("ZEIT") && kachel("ZEIT", "⏱️", "#F0F2F5", "Zeiterfassung", "Stunden auf Kostenstellen buchen", null, "#8A9099",
                     [["in Klärung – bleibt erreichbar", "#FBF3DA", "#9A6B00"]])}
                 </div>
               </>
@@ -8532,6 +8750,9 @@ function App() {
           Aufgabe - ohne Störungs- und ohne Zeitbezug. Gruppiert nach
           Überfällig / Offen / Zuletzt erledigt. */}
       {view === "BERICHTE" && berichtTab === "TODO" && (() => {
+        // Rechte-Matrix (21.09.): "nur ansehen" überdeckt hier bewusst den
+        // globalen Schalter - alle Knöpfe des Bereichs richten sich danach.
+        const readerMode = nurLesen("TODO");
         const meinName = String(angemeldet || "").toLowerCase();
         const passtFilter = (t) => todoFilter === "ALLE" || (todoFilter === "MEINE" && String(t.wer || "").toLowerCase() === meinName);
         const offene = todoOffene.filter(passtFilter).sort((a, b) => String(a.bis || "9999").localeCompare(String(b.bis || "9999")));
@@ -8676,6 +8897,7 @@ function App() {
           Eintragsliste (nach Tag) und die Jahres-Summen je Kostenstelle, die am
           Jahresende als CSV für Excel herausgegeben werden. */}
       {((view === "COCKPIT" && cockpitTab === "ZEIT") || (view === "BERICHTE" && berichtTab === "ZEIT")) && (() => {
+        const readerMode = nurLesen("ZEIT"); // Rechte-Matrix: Stufe des Bereichs statt globalem Schalter
         const mj = zeitCursor.getFullYear(), mi = zeitCursor.getMonth();
         const imMonat = zeitEintraege.filter((e) => {
           const d = String(e.date || "");
@@ -8936,7 +9158,11 @@ function App() {
         </div>
       )}
 
-      {((view === "COCKPIT" && cockpitTab === "STOERUNGEN") || (view === "BERICHTE" && berichtTab === "STOERUNGEN")) && (
+      {((view === "COCKPIT" && cockpitTab === "STOERUNGEN") || (view === "BERICHTE" && berichtTab === "STOERUNGEN")) && (() => {
+        // Rechte-Matrix (21.09.): Bearbeiten nach Stufe, Melden nach Aktion -
+        // der Name wird hier bewusst überdeckt, damit der ganze Bereich folgt.
+        const stoerDarfSchreiben = stoerDarfBearbeiten;
+        return (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
         <div className="flex gap-3 items-start">
           {/* ---- Filterleiste links ---------------------------------------
@@ -9031,7 +9257,7 @@ function App() {
               </span>
             )}
             {stoerModus === "liste" && stoerungen.length === 0 && <span className="ml-auto" />}
-            {stoerDarfSchreiben && (
+            {stoerDarfMelden && (
               <button
                 onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem(nsKey("werkstatt-kalender-name")) || "", fotos: [], fotosNeu: [], fotosWeg: [] }); setStoerModal({ mode: "add" }); }}
                 className="flex items-center gap-1.5 rounded-lg text-white font-bold shrink-0 ml-auto"
@@ -9299,7 +9525,7 @@ function App() {
           {/* Liste im Schichtbuch-Stil: nach Datum gruppiert, aufklappbar -> Schichten */}
           {stoerModus === "liste" && (() => {
             if (stoerungen.length === 0) {
-              return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störberichte erfasst. {stoerDarfSchreiben ? "Über den roten Knopf legst du den ersten an." : ""}</div>;
+              return <div className="text-sm italic mt-6 text-center" style={{ color: "#8A9099" }}>Keine Störberichte erfasst. {stoerDarfMelden ? "Über den roten Knopf legst du den ersten an." : ""}</div>;
             }
             // Bei aktiver Suche: flache Trefferliste quer durch die ganze Historie
             if (stoerSucheAktiv) {
@@ -9437,13 +9663,14 @@ function App() {
           </div>
         </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Cockpit: Übersicht (Kennzahlen + Tagesliste + Pinnwand) */}
       {/* "Seit deinem letzten Besuch" (QoL 19.08.): was sich seit dem letzten
           Öffnen getan hat - aus dem Verlauf der gemeinsamen Datei, der sonst
           im ⚙ verborgen ist. Wegklickbar, je Sitzung einmal. */}
-      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && !neuigkeitenZu && neuigkeiten.length > 0 && (
+      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && uebersichtLayout.bloecke.neuigkeiten && !neuigkeitenZu && neuigkeiten.length > 0 && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-3">
           <div className="rounded-xl px-4 py-2.5" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderLeft: "4px solid #2F6690", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
             <div className="flex items-center gap-3 flex-wrap">
@@ -9489,7 +9716,7 @@ function App() {
       )}
 
       {/* G8: Wochen-Rückblick - freitags ab 12 Uhr, je Woche einmal. */}
-      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && wochenRueckblick && (
+      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && uebersichtLayout.bloecke.rueckblick && wochenRueckblick && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-3">
           <div className="rounded-xl px-4 py-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", borderLeft: "4px solid #1F7A3D", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
             <div className="flex items-center gap-3 flex-wrap mb-2">
@@ -9527,7 +9754,7 @@ function App() {
 
       {/* Geburtstags-Karte (Variante A, Robertos Wahl vom 20.08.): dezent,
           wegklickbar je Tag und Gerät. Kein Konfetti, keine Sperre. */}
-      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && geburtstagsLage && (
+      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && uebersichtLayout.bloecke.geburtstag && geburtstagsLage && (
         <div className="no-print max-w-7xl mx-auto px-4 mt-3">
           <div className="rounded-xl px-4 py-2.5 flex items-center gap-3 flex-wrap" style={{ background: "linear-gradient(135deg,#FFF8EE,#FDF3E3)", border: "1px solid #E8D3AE", borderLeft: "4px solid #C97A2B", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
             <span aria-hidden="true" style={{ fontSize: "18px" }}>🎂</span>
@@ -9559,16 +9786,81 @@ function App() {
         </div>
       )}
 
-      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
-        <div className="no-print max-w-7xl mx-auto px-4 mt-4">
-          {/* Kennzahlen-Kacheln (Farbakzent links, ohne Icon) */}
-          {/* Sieben Felder nebeneinander gehen erst ab sehr breiten Bildschirmen
-              auf. Darunter brechen sie um, statt sich gegenseitig
-              zusammenzuquetschen. JEDE Kachel nimmt genau eine Spalte -
-              auto-rows-fr sorgt dafür, dass auch die umgebrochenen Reihen
-              dieselbe Höhe haben, sonst wären die Maße nur in einer Zeile gleich. */}
-          <div className="grid gap-2.5 mb-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-7 auto-rows-fr">
-            {[
+      {view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (() => {
+        /* Übersicht personalisieren (Robertos Auftrag vom 21.09.): Die vier
+           großen Abschnitte werden erst gebaut und dann in der Reihenfolge
+           DIESES Rechners ausgegeben (⚙ → Personalisieren). Ein abgewählter
+           Baustein wird gar nicht erst gerendert. Die Rechte-Matrix gilt
+           obendrein: Was die Gruppe nicht sehen darf, fehlt auch hier. */
+        const zeig = uebersichtLayout.bloecke;
+        const pinnwandAn = zeig.pinnwand && sichtbar("PINNWAND");
+        const abschnitt = {};
+        /* Anordnen-Modus (Robertos Gedanke vom 21.09.): Die Übersicht friert
+           ein, jede Kachel bekommt einen Rahmen mit Griff, Pfeilen und ✕.
+           Ziehen oder Pfeile schieben, ⇄ tauscht die Seiten, ausgeblendete
+           Kacheln stehen oben als "+"-Chips. Gespeichert wird sofort - je
+           Rechner (localStorage), wie der ganze Übersichts-Zuschnitt. */
+        const bearbeiten = uebersichtBearbeiten && istVerwalter;
+        const setzeBlock = (k, an) => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...uebersichtLayout.bloecke, [k]: an }, vorlage: "eigene" });
+        const knopf = { border: "1px solid #E3CE8F", borderRadius: "6px", backgroundColor: "white", color: "#A25E14", fontSize: "0.7rem", lineHeight: 1, padding: "3px 6px" };
+        const rahmen = (art, k, titel, inhalt, liste, setListe, extra = {}) => {
+          const idx = liste.indexOf(k);
+          const richtung = art === "kachel" ? ["links", "rechts"] : ["oben", "unten"];
+          const tauschen = () => setUebersichtLayout({ ...uebersichtLayout, tausch: !uebersichtLayout.tausch, vorlage: "eigene" });
+          const drop = (ev) => {
+            ev.preventDefault();
+            if (uebDrag && uebDrag.art === art && uebDrag.k !== k) {
+              if (art === "spalte") tauschen();
+              else setListe(verschiebeIn(liste, liste.indexOf(uebDrag.k), idx));
+            }
+            setUebDrag(null);
+          };
+          return (
+            <div
+              key={k}
+              draggable
+              onDragStart={(ev) => { ev.stopPropagation(); setUebDrag({ art, k }); }}
+              onDragOver={(ev) => ev.preventDefault()}
+              onDrop={(ev) => { ev.stopPropagation(); drop(ev); }}
+              data-anordnen={k}
+              aria-label={`Kachel ${titel}`}
+              style={{ position: "relative", border: "2px dashed #C97A2B", borderRadius: "12px", padding: "28px 6px 6px", marginBottom: art === "abschnitt" ? "16px" : 0, backgroundColor: "rgba(201,122,43,0.05)", cursor: "grab", gridColumn: extra.span }}
+            >
+              <div className="flex items-center gap-1" style={{ position: "absolute", top: "4px", left: "8px", right: "6px", fontSize: "0.66rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.4px", color: "#A25E14" }}>
+                <span>⠿ {titel}</span>
+                <span className="ml-auto" />
+                {extra.tausch && (
+                  <button onClick={tauschen} aria-label={`${titel} Seite tauschen`} title="Linke und rechte Spalte tauschen" style={knopf}>⇄</button>
+                )}
+                {liste.length > 1 && (<>
+                  <button onClick={() => setListe(verschiebeIn(liste, idx, idx - 1))} disabled={idx === 0} aria-label={`${titel} nach ${richtung[0]}`} style={{ ...knopf, opacity: idx === 0 ? 0.35 : 1 }}>{art === "kachel" ? "◀" : "▲"}</button>
+                  <button onClick={() => setListe(verschiebeIn(liste, idx, idx + 1))} disabled={idx === liste.length - 1} aria-label={`${titel} nach ${richtung[1]}`} style={{ ...knopf, opacity: idx === liste.length - 1 ? 0.35 : 1 }}>{art === "kachel" ? "▶" : "▼"}</button>
+                </>)}
+                <button onClick={() => (extra.aus ? extra.aus() : setzeBlock(k, false))} aria-label={`${titel} ausblenden`} title="Ausblenden – oben über den +-Chip wieder einblenden" style={knopf}>✕</button>
+              </div>
+              {/* Inhalt eingefroren: keine Klicks, kein Markieren - nur Anordnen.
+                  Abschnitte mit eigenen Unterrahmen (Kennzahlen, Tagesliste +
+                  Pinnwand) bleiben durchlässig - dort frieren die Unterrahmen. */}
+              <div style={extra.durchlaessig ? undefined : { pointerEvents: "none", userSelect: "none" }}>{inhalt}</div>
+            </div>
+          );
+        };
+        // Im Anordnen-Modus braucht jeder Abschnitt einen Platz - auch wenn er
+        // gerade nichts zu zeigen hätte (keine offene Störung, kein Team).
+        const platzhalter = (titel, text) => (
+          <div className="rounded-xl mb-4 px-4 py-3 text-xs" style={{ border: "1px dashed #C4CBD2", color: "#8A9099", backgroundColor: "white" }}>
+            <strong style={{ color: "#5B6572" }}>{titel}</strong> – {text}
+          </div>
+        );
+
+        /* Kennzahlen-Kacheln (Farbakzent links, ohne Icon)
+           Sieben Felder nebeneinander gehen erst ab sehr breiten Bildschirmen
+           auf. Darunter brechen sie um, statt sich gegenseitig
+           zusammenzuquetschen. JEDE Kachel nimmt genau eine Spalte -
+           auto-rows-fr sorgt dafür, dass auch die umgebrochenen Reihen
+           dieselbe Höhe haben, sonst wären die Maße nur in einer Zeile gleich. */
+        const kachel = {};
+        kachel.zahlen = [
               [heutePlan.length, "Heute fällig", "#22262B", "#C97A2B"],
               [heuteErledigtCount, "Heute erledigt", "#2F7D4F", "#2F7D4F"],
               [ueberfaellige.length, "Überfällig", ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F", ueberfaellige.length > 0 ? "#B23A34" : "#CBD1D8"],
@@ -9580,29 +9872,43 @@ function App() {
                 {/* Kleinbuchstaben statt Versalien - deutlich schneller zu lesen */}
                 <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{label}</div>
               </div>
-            ))}
-            <HalbkreisQuote prozent={quoteMonatHeute} label="TPM" sub={MONTHS[today.getMonth()]} titel="TPM-Quote: Anteil erledigter PitStops und R+I-Punkte im Monat" />
-            {/* OEE kommt aus der Excel-Tabelle im Datenordner - eingerichtet wird
-                sie in ⚙, angezeigt wird sie hier, wo die Schicht sie sieht. */}
+            ));
+        kachel.quote = <HalbkreisQuote prozent={quoteMonatHeute} label="TPM" sub={MONTHS[today.getMonth()]} titel="TPM-Quote: Anteil erledigter PitStops und R+I-Punkte im Monat" />;
+        /* OEE kommt aus der Excel-Tabelle im Datenordner - eingerichtet wird
+           sie in ⚙, angezeigt wird sie hier, wo die Schicht sie sieht. */
+        kachel.oee = (
             <OeeKachel
               stand={oeeStand}
-              darfEinrichten={!readerMode}
+              darfEinrichten={!readerMode && erlaubt("ZAHNRAD")}
               onKlick={() => {
                 // Steht eine Zahl da, will man wissen, welche Anlage sie drückt -
                 // nicht in die Einrichtung. Die erreicht man aus dem Popup heraus.
                 if (oeeStand.lage === "ok") setOeeUebersichtOffen(true);
-                else if (!readerMode) openSettings();
+                else if (!readerMode && erlaubt("ZAHNRAD")) openSettings();
               }}
             />
-            {/* Hier stand bis zuletzt ein zweiter, gleich beschrifteter Halbkreis für
-                das Jahr - die beiden waren kaum auseinanderzuhalten. Die Jahresquote
-                steht jetzt in der TPM-Übersicht neben der Monatsquote, wo der
-                Vergleich hingehört. An dieser Stelle sagt die Uhr mehr. */}
-            <WerkstattUhr />
+        );
+        /* Hier stand bis zuletzt ein zweiter, gleich beschrifteter Halbkreis für
+           das Jahr - die beiden waren kaum auseinanderzuhalten. Die Jahresquote
+           steht jetzt in der TPM-Übersicht neben der Monatsquote, wo der
+           Vergleich hingehört. An dieser Stelle sagt die Uhr mehr. */
+        kachel.uhr = <WerkstattUhr />;
+        const kachelTitel = { zahlen: "Kennzahlen", quote: "TPM-Quote", oee: "OEE", uhr: "Uhr" };
+        const setKacheln = (r) => setUebersichtLayout({ ...uebersichtLayout, kacheln: r, vorlage: "eigene" });
+        abschnitt.kennzahlen = UEBERSICHT_KACHELN.some((k) => zeig[k]) && (
+          <div className="grid gap-2.5 mb-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-7 auto-rows-fr">
+            {uebersichtLayout.kacheln.map((k) => {
+              if (!zeig[k]) return null;
+              if (!bearbeiten) return <React.Fragment key={k}>{kachel[k]}</React.Fragment>;
+              // Die vier Zahlen bleiben eine Gruppe und nehmen im Anordnen-Modus eine ganze Zeile
+              const inhalt = k === "zahlen" ? <div className="grid gap-2.5 grid-cols-2 md:grid-cols-4">{kachel.zahlen}</div> : kachel[k];
+              return rahmen("kachel", k, kachelTitel[k], inhalt, uebersichtLayout.kacheln, setKacheln, { span: k === "zahlen" ? "1 / -1" : undefined });
+            })}
           </div>
+        );
 
-          {/* Heute da: Schicht-Spalten mit farbigem Kopf + Avatar-Chips (aktuelle Schicht hervorgehoben) */}
-          {team.length > 0 && (() => {
+        /* Heute da: Schicht-Spalten mit farbigem Kopf + Avatar-Chips (aktuelle Schicht hervorgehoben) */
+        abschnitt.heuteDa = zeig.heuteDa && (team.length > 0 ? (() => {
             const { aktuell, SCHICHT_INFO, jetztCrew, spalten } = jetztInDerWerkstatt;
             const typFarbe = { FRUEH: { bg: "#F0C230", text: "#3A2E00" }, SPAET: { bg: "#1F7A3D", text: "#fff" }, NACHT: { bg: "#2F6690", text: "#fff" } };
             const initialen = (n) => n.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
@@ -9663,19 +9969,20 @@ function App() {
                 </div>
               </div>
             );
-          })()}
+          })() : (bearbeiten ? platzhalter("Heute da", "erscheint, sobald im ⚙ ein Team eingetragen ist") : null));
 
-          {/* Gedankenstütze: offene Störungen */}
-          {stoerOffeneListe.length > 0 && (
+        /* Gedankenstütze: offene Störungen - die Knöpfe führen in den Bereich
+           Berichte → Störungen (dort wohnt die Liste seit dem 10.09.). */
+        abschnitt.stoerungen = zeig.stoerungen && sichtbar("STOERUNGEN") && (stoerOffeneListe.length > 0 ? (
             <div className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7B9B3", borderLeft: "5px solid #C0392B" }}>
               <div className="flex items-center gap-2 px-4 py-2.5" style={{ backgroundColor: "#FBEAE8" }}>
                 <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#9A2B22" }}>⚠ Offene Störungen</span>
                 <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C0392B", fontSize: "0.62rem" }}>{stoerOffeneListe.length}</span>
-                <button onClick={() => setCockpitTab("STOERUNGEN")} className="ml-auto text-xs font-bold" style={{ color: "#C0392B" }}>➜ Störungen</button>
+                <button onClick={() => { setView("BERICHTE"); setBerichtTab("STOERUNGEN"); }} className="ml-auto text-xs font-bold" style={{ color: "#C0392B" }}>➜ Störungen</button>
               </div>
               <div className="px-2 py-1.5">
                 {stoerOffeneListe.slice(0, 5).map((s) => (
-                  <button key={s.id} onClick={() => setCockpitTab("STOERUNGEN")} className="w-full flex items-start gap-2.5 px-2 py-1.5 text-left rounded hover:bg-slate-50" style={{ borderLeft: "3px solid #C0392B", marginBottom: "2px" }}>
+                  <button key={s.id} onClick={() => { setView("BERICHTE"); setBerichtTab("STOERUNGEN"); }} className="w-full flex items-start gap-2.5 px-2 py-1.5 text-left rounded hover:bg-slate-50" style={{ borderLeft: "3px solid #C0392B", marginBottom: "2px" }}>
                     <span className="font-extrabold flex-shrink-0" style={{ fontSize: "0.82rem", color: "#22262B", minWidth: "0" }}>
                       {s.anlage || "—"}{s.anlagenteil ? <span style={{ fontWeight: 500, color: "#8A9099" }}> · {s.anlagenteil}</span> : ""}
                     </span>
@@ -9686,14 +9993,15 @@ function App() {
                   </button>
                 ))}
                 {stoerOffeneListe.length > 5 && (
-                  <button onClick={() => setCockpitTab("STOERUNGEN")} className="w-full text-center py-1.5 text-xs font-bold" style={{ color: "#8A9099" }}>+ {stoerOffeneListe.length - 5} weitere</button>
+                  <button onClick={() => { setView("BERICHTE"); setBerichtTab("STOERUNGEN"); }} className="w-full text-center py-1.5 text-xs font-bold" style={{ color: "#8A9099" }}>+ {stoerOffeneListe.length - 5} weitere</button>
                 )}
               </div>
             </div>
-          )}
+          ) : (bearbeiten ? platzhalter("Offene Störungen", "erscheint, sobald eine Störung offen ist") : null));
 
-          <div className="grid gap-4" style={{ gridTemplateColumns: "1.05fr 1fr" }}>
-            {/* Tagesliste */}
+        const spalten = {};
+        /* Tagesliste */
+        spalten.tagesliste = zeig.tagesliste && (
             <div>
               <div className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B" }}>
                 Heute · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
@@ -9786,8 +10094,13 @@ function App() {
                 </button>
               )}
             </div>
+        );
 
-            {/* Pinnwand */}
+        /* Pinnwand - readerMode hier bewusst überdeckt: Stufe "sehen" der
+           Rechte-Matrix nimmt die Schreib-Knöpfe, lässt aber alle Zettel. */
+        spalten.pinnwand = pinnwandAn && (() => {
+            const readerMode = nurLesen("PINNWAND");
+            return (
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>📌 Pinnwand</span>
@@ -9947,9 +10260,70 @@ function App() {
                 );
               })()}
             </div>
+            );
+            })();
+        // Tagesliste und Pinnwand nebeneinander - Seiten tauschbar (⇄)
+        const spaltenReihe = uebersichtLayout.tausch ? ["pinnwand", "tagesliste"] : ["tagesliste", "pinnwand"];
+        const spaltenTitel = { tagesliste: "Tagesliste", pinnwand: "Pinnwand" };
+        const beide = !!(spalten.tagesliste && spalten.pinnwand);
+        abschnitt.hauptzeile = (spalten.tagesliste || spalten.pinnwand) && (
+          <div className="grid gap-4" style={{ gridTemplateColumns: beide ? (uebersichtLayout.tausch ? "1fr 1.05fr" : "1.05fr 1fr") : "1fr" }}>
+            {spaltenReihe.map((k) => {
+              if (!spalten[k]) return null;
+              if (!bearbeiten) return <React.Fragment key={k}>{spalten[k]}</React.Fragment>;
+              return rahmen("spalte", k, spaltenTitel[k], spalten[k], [k], () => {}, { tausch: beide });
+            })}
           </div>
-        </div>
-      )}
+        );
+
+        const setReihenfolge = (r) => setUebersichtLayout({ ...uebersichtLayout, reihenfolge: r, vorlage: "eigene" });
+        const abschnittTitel = { kennzahlen: "Kennzahlen-Reihe", heuteDa: "Heute da", stoerungen: "Offene Störungen", hauptzeile: "Tagesliste + Pinnwand" };
+        const abschnittAus = {
+          kennzahlen: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, zahlen: false, quote: false, oee: false, uhr: false }, vorlage: "eigene" }),
+          heuteDa: () => setzeBlock("heuteDa", false),
+          stoerungen: () => setzeBlock("stoerungen", false),
+          hauptzeile: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, tagesliste: false, pinnwand: false }, vorlage: "eigene" }),
+        };
+        const versteckt = UEBERSICHT_BAUSTEINE.filter(([k]) => !zeig[k]);
+        return (
+          <div className="no-print max-w-7xl mx-auto px-4 mt-4">
+            {bearbeiten && (
+              <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "#FDF3E7", border: "1px solid #E3CE8F" }} role="region" aria-label="Übersicht anordnen">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-xs font-black uppercase tracking-wide" style={{ color: "#A25E14" }}>✎ Übersicht anordnen</span>
+                  <span className="text-xs" style={{ color: "#6B5000" }}>Kacheln am Griff ziehen oder mit den Pfeilen schieben · ✕ blendet aus · ⇄ tauscht die Seiten · gilt nur für diesen Rechner</span>
+                  <select
+                    value={uebersichtLayout.vorlage}
+                    onChange={(e) => { if (e.target.value !== "eigene") setUebersichtLayout(layoutAusVorlage(e.target.value)); }}
+                    aria-label="Layout-Vorlage"
+                    className="text-xs font-bold px-2 py-1 rounded border"
+                    style={{ borderColor: "#E3CE8F", backgroundColor: "white", color: "#A25E14" }}
+                  >
+                    <option value="eigene">Vorlage wählen …</option>
+                    {UEBERSICHT_VORLAGEN.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                  </select>
+                  <button onClick={() => setUebersichtLayout(layoutAusVorlage("standard"))} className="text-xs font-bold underline" style={{ color: "#8A5A1B" }}>Zurücksetzen</button>
+                  <button onClick={() => setUebersichtBearbeiten(false)} className="ml-auto text-white px-3 py-1.5 rounded font-bold text-sm" style={{ backgroundColor: "#1F7A3D" }} aria-label="Anordnen fertig">✓ Fertig</button>
+                </div>
+                {versteckt.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                    <span className="text-[11px] font-bold uppercase" style={{ color: "#8A5A1B" }}>Ausgeblendet:</span>
+                    {versteckt.map(([k, name]) => (
+                      <button key={k} onClick={() => setzeBlock(k, true)} aria-label={`${name} einblenden`} className="text-xs font-bold rounded-full px-2.5 py-1 border" style={{ borderColor: "#E3CE8F", backgroundColor: "white", color: "#A25E14" }}>+ {name}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {uebersichtLayout.reihenfolge.map((k) => {
+              const inhalt = abschnitt[k];
+              if (!bearbeiten) return <React.Fragment key={k}>{inhalt || null}</React.Fragment>;
+              if (!inhalt) return null; // ganz ausgeblendet - steht oben als "+"-Chip
+              return rahmen("abschnitt", k, abschnittTitel[k], inhalt, uebersichtLayout.reihenfolge, setReihenfolge, { aus: abschnittAus[k], durchlaessig: k === "kennzahlen" || k === "hauptzeile" });
+            })}
+          </div>
+        );
+      })()}
 
       {/* Der frühere Eingabe-Tageskalender ist seit dem 18.08. mit dem
           Plan-Kalender verschmolzen (ein Raster statt zwei): Der zeigt
@@ -9957,7 +10331,9 @@ function App() {
           freie Einträge an. */}
 
       {/* Cockpit: Backlog (Arbeiten aus dem Arbeitsbuch) */}
-      {((view === "COCKPIT" && cockpitTab === "BACKLOG") || (view === "BERICHTE" && berichtTab === "BACKLOG" && !readerMode)) && (
+      {((view === "COCKPIT" && cockpitTab === "BACKLOG") || (view === "BERICHTE" && berichtTab === "BACKLOG" && !readerMode)) && (() => {
+        const readerMode = nurLesen("BACKLOG"); // Rechte-Matrix: Stufe des Bereichs statt globalem Schalter
+        return (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
           {/* ---- Werkzeugzeile ----------------------------------------------
               Vorher standen hier elf Bedienelemente in zwei Reihen (109 Pixel),
@@ -10197,10 +10573,13 @@ function App() {
               : `${backlogListe.length} von ${arbeitenOffen.length} offenen Arbeiten angezeigt · Klick auf eine Zeile öffnet die Arbeit.`}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Cockpit: Arbeitsplanung (Wochenraster) */}
-      {view === "COCKPIT" && cockpitTab === "PLANUNG" && (
+      {view === "COCKPIT" && cockpitTab === "PLANUNG" && (() => {
+        const readerMode = nurLesen("PLANUNG"); // Rechte-Matrix: Stufe des Bereichs statt globalem Schalter
+        return (
         <div className="no-print max-w-7xl mx-auto px-4 mt-4">
           <div className="flex items-center gap-1.5 mb-3 flex-wrap">
             <button onClick={() => setPlanungCursor(addDays(planungMontag, -7))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Vorige Woche">‹</button>
@@ -10464,10 +10843,12 @@ function App() {
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Cockpit: Schichtplan-Matrix - Monat wie das Excel-Blatt "Daten", nur zum Schichten eintragen */}
       {view === "COCKPIT" && cockpitTab === "SCHICHTPLAN" && (() => {
+        const readerMode = nurLesen("SCHICHTPLAN"); // Rechte-Matrix: Stufe des Bereichs statt globalem Schalter
         const my = matrixCursor.getFullYear();
         const mm = matrixCursor.getMonth();
         const tageImMonat = new Date(my, mm + 1, 0).getDate();
@@ -11127,7 +11508,7 @@ function App() {
           neben dem Wochenplan und werden per Ziehen auf eine Person-Tag-Zeile
           zugewiesen. Zieht man einen Plan-Chip HIERHER, wird die Arbeit
           wieder ausgeplant (zurück in den offenen Vorrat). */}
-      {backlogPopout && view === "COCKPIT" && cockpitTab === "PLANUNG" && !readerMode && (
+      {backlogPopout && view === "COCKPIT" && cockpitTab === "PLANUNG" && !nurLesen("PLANUNG") && (
         <SchwebeFenster id="planung-backlog" titel="Backlog – ziehen zum Zuweisen" onZu={() => setBacklogPopout(false)} breite={360} hoehe={480}>
           <div
             className="p-2 flex flex-col gap-1"
@@ -11312,6 +11693,7 @@ function App() {
 
       {/* Störbericht erfassen / bearbeiten */}
       {stoerModal && sDraft && (() => {
+        const stoerDarfSchreiben = stoerDarfBearbeiten; // Rechte-Matrix: Bearbeiten-Knopf nur mit Stufe "bearbeiten"
         const offen = sDraft.status === "offen";
         const statusGewaehlt = sDraft.status === "offen" || sDraft.status === "erledigt";
         // Bei "Erledigt" gehört zur vollständigen Doku auch Ursache + Sofort Maßnahme.
@@ -12974,7 +13356,11 @@ function App() {
 
             {/* Reiterleiste: vier Themen statt einer langen Rolle */}
             <div className="flex gap-1 mb-4 pb-2 border-b" style={{ borderColor: "#E2E4E7" }}>
-              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"], ["kostenstellen", "Kostenstellen"], ["oee", "OEE"], ["monitor", "Monitor"], ["pflege", "Verlauf & Sicherung"]].map(([k, name]) => (
+              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"], ["kostenstellen", "Kostenstellen"], ["oee", "OEE"], ["monitor", "Monitor"],
+                // Personalisieren (21.09.): nur der Verwalter - Rechte der Gruppen
+                // und die Übersicht dieses Rechners.
+                ...(istVerwalter ? [["personalisieren", "Personalisieren"]] : []),
+                ["pflege", "Verlauf & Sicherung"]].map(([k, name]) => (
                 <button
                   key={k}
                   onClick={() => setSettingsTab(k)}
@@ -13596,7 +13982,8 @@ function App() {
               nur ansehen (Störungen melden bleibt erlaubt), <strong>Bearbeiter</strong> schreiben,
               <strong> Verwalter</strong> pflegen zusätzlich diese Liste. Kennwort ist freiwillig
               (leer lassen = Änderung/keins). Das ist eine Leitplanke gegen Versehen – echtes
-              Sperren leisten nur die Laufwerksrechte der IT.
+              Sperren leisten nur die Laufwerksrechte der IT. Was Bearbeiter und Leser je Bereich
+              sehen und tun dürfen, stellst du im Reiter <button onClick={() => setSettingsTab("personalisieren")} className="font-bold underline">Personalisieren</button> ein.
             </div>
             {settingsBenutzer.map((b, idx) => (
               <div key={idx} className="flex items-center gap-2 mb-1.5">
@@ -13803,6 +14190,165 @@ function App() {
                 className="text-xs font-bold mb-4" style={{ color: "#22262B" }}>
                 + Kostenstelle hinzufügen
               </button>
+            </>)}
+
+            {settingsTab === "personalisieren" && istVerwalter && (<>
+              {/* ---- A: Übersicht dieses Rechners -----------------------------
+                  Robertos Auftrag vom 21.09.: "frei wählbar, auf jedem
+                  Verwalter-PC unterschiedlich". Deshalb localStorage, nicht die
+                  gemeinsame Datei - und Vorlagen als Einstieg, Häkchen für den
+                  Feinschliff. */}
+              <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Übersicht zusammenstellen – nur dieser Rechner</div>
+              <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
+                Was die Übersicht zeigt und in welcher Reihenfolge. Gilt nur auf <strong>diesem Rechner</strong> –
+                der Morgenrunden-Rechner darf anders aussehen als der am Schreibtisch.
+              </div>
+              {/* Der direkte Weg (Robertos Gedanke): die Übersicht selbst
+                  anordnen - Kacheln ziehen, tauschen, ausblenden. Die Vorlagen
+                  und Häkchen darunter bleiben als zweiter Weg. */}
+              <button
+                onClick={() => { setSettingsOpen(false); setView("COCKPIT"); setCockpitTab("UEBERSICHT"); setUebersichtBearbeiten(true); }}
+                aria-label="Übersicht direkt anordnen"
+                className="w-full text-left rounded-lg px-4 py-3 mb-4 border"
+                style={{ borderColor: "#C97A2B", backgroundColor: "#FDF3E7" }}
+              >
+                <span className="block text-sm font-extrabold" style={{ color: "#A25E14" }}>✎ Übersicht direkt anordnen</span>
+                <span className="block text-xs mt-0.5" style={{ color: "#6B5000" }}>Friert die Übersicht ein: Kacheln am Griff ziehen oder mit Pfeilen schieben, ✕ blendet aus, ⇄ tauscht Tagesliste und Pinnwand. Mit „Fertig" oder Esc zurück.</span>
+              </button>
+              <div className="text-[11px] font-bold uppercase mb-1.5" style={{ color: "#8A9099" }}>Layout-Vorlagen</div>
+              <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
+                {UEBERSICHT_VORLAGEN.map(([id, name, text]) => {
+                  const aktiv = uebersichtLayout.vorlage === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setUebersichtLayout(layoutAusVorlage(id))}
+                      aria-label={`Vorlage ${name}`}
+                      aria-pressed={aktiv}
+                      className="text-left rounded-lg border px-3 py-2"
+                      style={{ borderColor: aktiv ? "#C97A2B" : "#E2E4E7", backgroundColor: aktiv ? "#FDF3E7" : "white", boxShadow: aktiv ? "inset 3px 0 0 0 #C97A2B" : "none" }}
+                    >
+                      <span className="block text-sm font-extrabold" style={{ color: "#22262B" }}>{name}{aktiv && <span className="ml-1.5 text-[10px] font-black uppercase" style={{ color: "#C97A2B" }}>aktiv</span>}</span>
+                      <span className="block text-xs mt-0.5" style={{ color: "#5B6572" }}>{text}</span>
+                    </button>
+                  );
+                })}
+                <div className="rounded-lg border px-3 py-2" style={{ borderColor: uebersichtLayout.vorlage === "eigene" ? "#C97A2B" : "#E2E4E7", backgroundColor: uebersichtLayout.vorlage === "eigene" ? "#FDF3E7" : "#FAFBFC" }}>
+                  <span className="block text-sm font-extrabold" style={{ color: "#22262B" }}>Eigene Zusammenstellung{uebersichtLayout.vorlage === "eigene" && <span className="ml-1.5 text-[10px] font-black uppercase" style={{ color: "#C97A2B" }}>aktiv</span>}</span>
+                  <span className="block text-xs mt-0.5" style={{ color: "#5B6572" }}>Entsteht von selbst, sobald du unten einen Haken änderst.</span>
+                </div>
+              </div>
+              <div className="text-[11px] font-bold uppercase mb-1.5" style={{ color: "#8A9099" }}>Bausteine</div>
+              <div className="grid gap-1.5 mb-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                {UEBERSICHT_BAUSTEINE.map(([k, name, text]) => {
+                  const an = !!uebersichtLayout.bloecke[k];
+                  return (
+                    <label key={k} className="flex items-start gap-2.5 px-2.5 py-1.5 rounded border cursor-pointer"
+                           style={{ borderColor: an ? "#2F6690" : "#E2E4E7", backgroundColor: an ? "#EEF3F8" : "white" }}>
+                      <input
+                        type="checkbox"
+                        checked={an}
+                        aria-label={`Übersicht: ${name}`}
+                        onChange={(ev) => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...uebersichtLayout.bloecke, [k]: ev.target.checked }, vorlage: "eigene" })}
+                        style={{ marginTop: "3px" }}
+                      />
+                      <span>
+                        <span className="block text-sm font-bold" style={{ color: "#22262B" }}>{name}</span>
+                        <span className="block text-[11px]" style={{ color: "#8A9099" }}>{text}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="text-[11px] font-bold uppercase mb-1.5" style={{ color: "#8A9099" }}>Reihenfolge der Abschnitte</div>
+              <div className="flex flex-col gap-1 mb-2">
+                {uebersichtLayout.reihenfolge.map((k, idx) => {
+                  const eintrag = UEBERSICHT_ABSCHNITTE.find(([id]) => id === k);
+                  const tausche = (a, b) => {
+                    const r = [...uebersichtLayout.reihenfolge];
+                    [r[a], r[b]] = [r[b], r[a]];
+                    setUebersichtLayout({ ...uebersichtLayout, reihenfolge: r, vorlage: "eigene" });
+                  };
+                  return (
+                    <div key={k} className="flex items-center gap-2 px-2.5 py-1.5 rounded border" style={{ borderColor: "#E2E4E7", backgroundColor: "white" }}>
+                      <span className="font-mono text-xs" style={{ color: "#8A9099", width: "16px" }}>{idx + 1}.</span>
+                      <span className="text-sm font-bold flex-1" style={{ color: "#22262B" }}>{eintrag ? eintrag[1] : k}</span>
+                      <button onClick={() => idx > 0 && tausche(idx, idx - 1)} disabled={idx === 0} aria-label={`${eintrag ? eintrag[1] : k} nach oben`}
+                        className="rounded border px-2 text-xs font-bold" style={{ borderColor: "#D7DCE1", color: idx === 0 ? "#C3C7CB" : "#22262B" }}>▲</button>
+                      <button onClick={() => idx < uebersichtLayout.reihenfolge.length - 1 && tausche(idx, idx + 1)} disabled={idx === uebersichtLayout.reihenfolge.length - 1} aria-label={`${eintrag ? eintrag[1] : k} nach unten`}
+                        className="rounded border px-2 text-xs font-bold" style={{ borderColor: "#D7DCE1", color: idx === uebersichtLayout.reihenfolge.length - 1 ? "#C3C7CB" : "#22262B" }}>▼</button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-xs mb-5" style={{ color: "#8A9099" }}>
+                Die Wahl wird sofort übernommen und bleibt auf diesem Rechner gespeichert. ·{" "}
+                <button onClick={() => setUebersichtLayout(layoutAusVorlage("standard"))} className="font-bold underline" style={{ color: "#5B6572" }}>Auf Standard zurücksetzen</button>
+              </div>
+
+              {/* ---- B: Rechte der Benutzergruppen (gemeinsame Datei) ----------
+                  Was Bearbeiter und Leser sehen und tun dürfen, je Bereich.
+                  Der Verwalter bleibt bewusst außen vor (kein Selbst-Aussperren).
+                  Jede Änderung wird sofort in die gemeinsame Datei geschrieben
+                  und gilt beim nächsten Abgleich auf jedem Rechner. */}
+              <div className="text-xs font-bold uppercase mb-1 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Rechte der Benutzergruppen – für alle Rechner</div>
+              <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
+                Je Bereich: <strong>ausgeblendet</strong> (der Reiter fehlt), <strong>nur ansehen</strong> oder <strong>bearbeiten</strong>.
+                Der Verwalter darf immer alles. Ein Leser bleibt Nur-Leser – nur Störberichte darf er laut Grundregel
+                schreiben (eigene Datei). Wer am Laufwerk kein Schreibrecht hat, sieht trotz „bearbeiten" nur an.
+                {!benutzerAktiv && <> <strong>Noch ohne Wirkung:</strong> Es sind keine Benutzer angelegt (Team &amp; Schichten → Benutzer &amp; Rechte).</>}
+              </div>
+              <div className="rounded-lg border overflow-hidden mb-2" style={{ borderColor: "#E2E4E7" }}>
+                <div className="grid text-[11px] font-black uppercase px-3 py-1.5" style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1fr", gap: "8px", backgroundColor: "#22262B", color: "#fff" }}>
+                  <span>Bereich / Aktion</span><span>Verwalter</span><span>Bearbeiter</span><span>Leser</span>
+                </div>
+                {RECHTE_BEREICHE.map(([key, name, text, art, leserMax], i) => {
+                  const optionen = (gruppe) => {
+                    const alle = art === "aktion" ? [["aus", "gesperrt"], ["sehen", "erlaubt"]] : [["aus", "ausgeblendet"], ["sehen", "nur ansehen"], ["bearbeiten", "bearbeiten"]];
+                    return gruppe === "leser" ? alle.filter(([v]) => RECHTE_STUFEN.indexOf(v) <= RECHTE_STUFEN.indexOf(leserMax)) : alle;
+                  };
+                  const setze = (gruppe, wert) => {
+                    const neu = normalisiereRechte({ ...rechte, [gruppe]: { ...rechte[gruppe], [key]: wert } });
+                    persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, neu);
+                  };
+                  const farbe = (v) => (v === "aus" ? "#8A9099" : v === "sehen" ? "#2F6690" : "#1F7A3D");
+                  return (
+                    <div key={key} className="grid items-center px-3 py-1.5" style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1fr", gap: "8px", backgroundColor: i % 2 ? "#FAFBFC" : "white", borderTop: "1px solid #EEF0F2" }}>
+                      <span>
+                        <span className="block text-sm font-bold" style={{ color: "#22262B" }}>{name}</span>
+                        <span className="block text-[11px]" style={{ color: "#8A9099" }}>{text}</span>
+                      </span>
+                      <span className="text-xs font-bold" style={{ color: "#1F7A3D" }}>{art === "aktion" ? "erlaubt" : "bearbeiten"}</span>
+                      {["bearbeiter", "leser"].map((gruppe) => {
+                        const opts = optionen(gruppe);
+                        const wert = rechte[gruppe][key];
+                        return opts.length === 1 ? (
+                          <span key={gruppe} className="text-xs font-bold" style={{ color: farbe(wert) }}>{opts[0][1]} <span className="font-normal" style={{ color: "#B0B6BC" }}>(fest)</span></span>
+                        ) : (
+                          <select
+                            key={gruppe}
+                            value={wert}
+                            aria-label={`${gruppe === "bearbeiter" ? "Bearbeiter" : "Leser"}: ${name}`}
+                            onChange={(e) => setze(gruppe, e.target.value)}
+                            className="text-xs font-bold px-1.5 py-1 rounded border"
+                            style={{ borderColor: "#D7DCE1", color: farbe(wert), backgroundColor: "white" }}
+                          >
+                            {opts.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                          </select>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-xs mb-4" style={{ color: "#8A9099" }}>
+                Änderungen gelten sofort und für alle Rechner (gemeinsame Datei). ·{" "}
+                <button
+                  onClick={() => persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, normalisiereRechte(null))}
+                  className="font-bold underline" style={{ color: "#5B6572" }}
+                >Standard wiederherstellen</button>
+                {" "}· Benutzer anlegen und Gruppen zuweisen: <button onClick={() => setSettingsTab("team")} className="font-bold underline" style={{ color: "#5B6572" }}>Team &amp; Schichten</button>
+              </div>
             </>)}
 
             {settingsTab === "monitor" && (<>
@@ -14305,7 +14851,9 @@ function App() {
           (weiter unten im Baum): Erst der Blick nach vorn, dann die Historie. */}
 
       {/* TPM-Übersicht: Wissens- & Sensibilisierungs-Ort (öffnet zuerst beim Klick auf TPM) */}
-      {view === "TPMINFO" && (
+      {view === "TPMINFO" && (() => {
+        const readerMode = nurLesen("TPM"); // Rechte-Matrix: Stufe des Bereichs statt globalem Schalter
+        return (
         <div className="no-print max-w-5xl mx-auto px-4 mt-4 mb-10">
           <div style={{ backgroundColor: "white", border: "1px solid #E7EAEE", borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 18px rgba(20,22,25,0.07)" }}>
 
@@ -14427,14 +14975,17 @@ function App() {
 
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Wartungsplan: fortlaufende Rotation für den gewählten Monat */}
       {/* Der frühere Plan-Reiter lebt seit dem 18.08. HIER in der Monats-
           Auswertung weiter (Robertos Ansage: "Plan und Auswertung sind im
           Sinne der Sache dasselbe") - gleicher Kalender, gleiche Farben
           (TPM orange, R+I blau), gleiches Abhaken per Klick. */}
-      {view === "MONAT" && (
+      {view === "MONAT" && (() => {
+        const readerMode = nurLesen("TPM"); // Rechte-Matrix: Stufe des Bereichs statt globalem Schalter
+        return (
         <div className="print-bg cal-card p-5 max-w-7xl mx-auto rounded-xl mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <div className="text-sm font-bold uppercase tracking-wide" style={{ color: "#22262B" }}>
@@ -14615,7 +15166,8 @@ function App() {
             Rotation läuft fortlaufend über Monatsgrenzen hinweg (Referenzpunkt 05.01.2026). Fällt ein Rotations-Montag auf einen Feiertag, entfällt der Slot diesen Zyklus.
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Ausklappleiste "Auswertung" (Robertos Ansage vom 18.08.): Der
           Plan-Kalender steht oben für den Alltag; wer Diagramm, Matrix oder
@@ -14723,7 +15275,9 @@ function App() {
       {((view === "MONAT" && auswertungOffen) || view === "JAHR") && heavyReady && <TermintreueTrend reihe={termintreueVerlauf} filter={filter} />}
 
       {/* Register: alle Anlagen & R+I-Punkte, anklickbar für die komplette Historie */}
-      {view === "REGISTER" && (
+      {view === "REGISTER" && (() => {
+        const readerMode = nurLesen("TPM"); // Rechte-Matrix: Stufe des Bereichs statt globalem Schalter
+        return (
         <div className="no-print cal-card p-5 max-w-7xl mx-auto rounded-xl mt-4" style={{ backgroundColor: "white", border: "1px solid #E2E4E7", boxShadow: "0 2px 8px rgba(20,22,25,0.06)" }}>
           {/* Register-Suche (QoL 19.08.): lohnt, sobald die Listen wachsen. */}
           <div className="flex items-center gap-3 mb-4">
@@ -14792,7 +15346,8 @@ function App() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Historie-Fenster: alle Termine einer einzelnen Anlage/eines R+I-Punkts.
           Robertos Wunsch vom 08.09.: Der Klick auf die Anlage soll ALLES

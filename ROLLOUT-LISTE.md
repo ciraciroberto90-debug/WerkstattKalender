@@ -936,6 +936,45 @@ Pfaden + Erklärung), `03-Anleitung/` (Aufsetz-PDF), `04-Download-Links/`.
       erzeugt - dann ist der Stick jederzeit reproduzierbar statt einmal
       von Hand gebaut.
 
+## Zahnrad „Personalisieren" (Robertos Auftrag vom 21.09.)
+
+Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
+
+- [x] **Rechte-Matrix je Benutzergruppe** (gemeinsame Datei, `config|rechte`):
+      je Bereich „ausgeblendet / nur ansehen / bearbeiten" für Bearbeiter
+      und Leser, Aktionen (Drucken, Monitor, Datensicherung, Zahnrad,
+      Störung melden) „gesperrt / erlaubt". Verwalter nie eingeschränkt.
+      Standard = Verhalten vor dem 21.09., ein Update ändert nichts. Leser
+      bleibt Nur-Leser (Höchststufe „nur ansehen"), Ausnahme Störungen
+      (eigene Datei, wie bisher). Härtetest harte-75.
+- [x] **Übersicht je Rechner** (localStorage `wk-uebersicht-layout`): fünf
+      Layout-Vorlagen (Standard, Morgenrunde, Leitstand, Planung, Schlank),
+      zwölf Bausteine einzeln an/aus, vier Abschnitte in der Reihenfolge
+      tauschbar. Gilt nur auf dem Rechner, an dem es gesetzt wurde.
+- [x] **Anordnen-Modus direkt auf der Übersicht** (Robertos Gedanke vom
+      21.09.): „Übersicht direkt anordnen" im Reiter friert die Übersicht
+      ein – jede Kachel bekommt einen orangen Rahmen mit Griff, Pfeilen und
+      ✕, Kacheln lassen sich ziehen, Kennzahl-Kacheln einzeln schieben,
+      Tagesliste/Pinnwand tauschen die Seiten (⇄), Ausgeblendetes steht
+      oben als „+"-Chip, Vorlagen-Auswahl in der Leiste. „Fertig" oder Esc
+      beendet den Modus. Alles sofort gespeichert, je Rechner.
+- [ ] **Roberto probiert es am Rechner:** Reiter Personalisieren aufrufen,
+      Vorlage „Morgenrunde" am Morgenrunden-Rechner setzen, einem
+      Bearbeiter testweise „Planung ausgeblendet" geben und am zweiten
+      Rechner nachsehen. Wünsche zu weiteren Vorlagen oder Bausteinen
+      hierher.
+- [x] **Zwei Prüfstände gehärtet (Fund aus der Suite vom 21.09.):**
+      harte-33 wartete nach dem gleichzeitigen Speichern feste 3 s – die
+      Hintergrund-Warteschlange braucht unter Last mal länger (alter wie
+      neuer Stand je 1 von 3 rot, gemessen). Jetzt wartet der Test auf das
+      Eintreffen in der Datei, Obergrenze 25 s bleibt die Prüfung. harte-20
+      ließ die Gegenprobe-Seite mit Schreibrecht offen, die dann nach dem
+      „Entzug" weiterschrieb; sie wird jetzt vorher geschlossen. Beides
+      Testfehler, keine App-Fehler – die App schrieb in allen Fällen richtig.
+- [ ] **Bewusst nicht drin:** Rechte je EINZELNEM Benutzer (nur je Gruppe)
+      und ein Verwalter-Layout, das für alle Rechner gilt – beides auf
+      Zuruf machbar.
+
 ## Vorstellung bei Soendgen Keramik am 22.09. (Robertos Auftrag vom 18.09.)
 
 Termin Dienstag 22.09.2026, 10–13 Uhr, vier Personen (Werkstattleiter SK,

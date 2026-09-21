@@ -166,6 +166,12 @@ async function macheLeser(browser) {
   check("(G) Der Original-Eintrag blieb dabei erhalten",
     String(globalThis.__datei).includes("Original-Arbeit"));
 
+  // Die Gegenprobe-Seite hat echtes Schreibrecht und gleicht im Hintergrund
+  // weiter ab - bleibt sie offen, schreibt SIE nach dem "Entzug" unten in die
+  // Datei und verfälscht den Vergleich (gemessen am 21.09.: 1 von 74 in der
+  // vollen Suite, im Stub-Protokoll Dateistände, die p3 nie geschrieben hat).
+  await ctx2.close();
+
   /* ---- Betriebsfall: Schreibrecht wird MITTEN IN DER SITZUNG entzogen ---- */
   // Realistischer als jeder Angriff: Die IT ändert die Freigabe, während
   // jemand die App offen hat. Ab da darf nichts mehr in die Datei gelangen,
@@ -207,6 +213,17 @@ async function macheLeser(browser) {
     await p3.waitForTimeout(600);
     check("(E) Solange das Recht besteht, wird geschrieben", String(globalThis.__datei).includes("Noch mit Recht"));
 
+    // Erst wenn die Datei 1,5 s lang unverändert bleibt, ist kein Schreibvorgang
+    // mehr unterwegs - ein angefangener (createWritable schon durch) würde
+    // sonst NACH dem Entzug noch landen und den Vergleich unten verfälschen.
+    // Gemessen am 21.09. in der vollen Suite: genau dieser Fall, 1 von 74.
+    {
+      let ruhe = 0, letzter = globalThis.__datei;
+      while (ruhe < 1500) {
+        await p3.waitForTimeout(250);
+        if (globalThis.__datei === letzter) ruhe += 250; else { ruhe = 0; letzter = globalThis.__datei; }
+      }
+    }
     const standVorEntzug = globalThis.__datei;
     schreibenErlaubt = false; // <- die IT entzieht das Recht
 
