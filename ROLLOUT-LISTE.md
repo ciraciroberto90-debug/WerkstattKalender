@@ -958,6 +958,12 @@ Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
       Tagesliste/Pinnwand tauschen die Seiten (⇄), Ausgeblendetes steht
       oben als „+"-Chip, Vorlagen-Auswahl in der Leiste. „Fertig" oder Esc
       beendet den Modus. Alles sofort gespeichert, je Rechner.
+- [x] **Nachschärfung 21.09.:** Benutzerliste und Rechte-Matrix an EINEM Ort
+      – eigener Zahnrad-Reiter „Benutzer & Rechte" (vorher gesplittet in
+      Team & Schichten und Personalisieren). Personalisieren behält nur die
+      Übersicht. Dazu je Schichtplan-Notiz die Wahl „Sichtbar für": Alle /
+      Bearbeiter und Verwalter / Nur Verwalter (Feld `sichtbarFuer` am
+      Eintrag; alte Notizen gelten für alle). harte-75 Teil D.
 - [ ] **Roberto probiert es am Rechner:** Reiter Personalisieren aufrufen,
       Vorlage „Morgenrunde" am Morgenrunden-Rechner setzen, einem
       Bearbeiter testweise „Planung ausgeblendet" geben und am zweiten

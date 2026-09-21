@@ -78,7 +78,7 @@ const ok = (n, c, zusatz) => {
   /* ---- (2) Verwalter legt Benutzer an - über die Oberfläche ---- */
   await p.locator('button[aria-label="Verwalten"]').click();
   await p.waitForTimeout(400);
-  await p.getByRole("button", { name: "Team & Schichten", exact: true }).click();
+  await p.getByRole("button", { name: "Benutzer & Rechte", exact: true }).click();
   await p.waitForTimeout(300);
   ok("(2) Die Benutzerverwaltung ist sichtbar (noch für alle - Liste ist leer)",
     /Benutzer & Rechte/i.test(await p.locator("body").innerText()));
@@ -214,7 +214,7 @@ const ok = (n, c, zusatz) => {
   /* ---- (8) Selbst-Aussperr-Wächter ---- */
   await p2.locator('button[aria-label="Verwalten"]').click();
   await p2.waitForTimeout(400);
-  await p2.getByRole("button", { name: "Team & Schichten", exact: true }).click();
+  await p2.getByRole("button", { name: "Benutzer & Rechte", exact: true }).click();
   await p2.waitForTimeout(300);
   await p2.locator('select[aria-label="Rolle 1"]').selectOption("leser"); // der EINZIGE Verwalter
   await p2.getByRole("button", { name: "Speichern", exact: true }).first().click();

@@ -242,8 +242,8 @@ Es gibt **zwei Ebenen**, und beide müssen schreiben erlauben:
 Wer die Daten-Datei nur ansehen darf, kann auch mit Tricks nichts speichern –
 das ist das echte Schloss.
 
-**Ebene 2 – die Benutzerliste in der App** (⚙ → Team & Schichten → **Benutzer &
-Rechte**). Sie ist freiwillig: Solange keine Benutzer angelegt sind, verhält
+**Ebene 2 – die Benutzerliste in der App** (⚙ → **Benutzer & Rechte**, eigener
+Reiter seit dem 21.09., nur für Verwalter). Sie ist freiwillig: Solange keine Benutzer angelegt sind, verhält
 sich die App wie immer. Legt der Werkstattleiter Benutzer an, fragt die App
 auf jedem Gerät **einmal** nach dem Benutzernamen (plus Kennwort, falls
 vergeben) und merkt sich die Wahl. Drei Rollen:
@@ -271,7 +271,7 @@ eine andere JSON-Datei anwählen. Der Sinn der Liste: Die Rechtevergabe hängt
 damit **nicht an den Datei-Freigaben des Laufwerks** – alle bekommen dieselbe Datei, wer
 was darf, steht in der App.
 
-**Rechte je Gruppe frei einstellen (⚙ → Personalisieren, nur Verwalter).**
+**Rechte je Gruppe frei einstellen (⚙ → Benutzer & Rechte, nur Verwalter).**
 Seit dem 21.09. legt der Verwalter je Bereich fest, was Bearbeiter und Leser
 dürfen: **ausgeblendet** (der Reiter fehlt), **nur ansehen** oder
 **bearbeiten** – für Schichtplan, Planung, To-do, Störungen, Backlog,
@@ -282,6 +282,12 @@ bleibt Nur-Leser (Höchststufe „nur ansehen"); die eine Ausnahme sind
 Störberichte, die laut Grundregel auch Leser schreiben dürfen. Die Matrix liegt
 in der gemeinsamen Datei und gilt beim nächsten Abgleich auf jedem Rechner.
 Ohne eigene Einstellung gilt genau das bisherige Verhalten.
+
+**Schichtplan-Notizen je Gruppe.** An jeder Zellen-Notiz im Schichtplan steht
+„Sichtbar für": **Alle** (auch Leser), **Bearbeiter und Verwalter** oder **Nur
+Verwalter**. Wer die Notiz nicht sehen darf, sieht weder das rote Eck noch den
+gelben Kasten. Bestehende Notizen gelten weiter für alle; der Verwalter sieht
+an eingeschränkten Notizen ein kleines Schloss.
 
 **Übersicht je Rechner zusammenstellen (⚙ → Personalisieren, nur Verwalter).**
 Welche Bausteine die Übersicht zeigt und in welcher Reihenfolge, wird **je

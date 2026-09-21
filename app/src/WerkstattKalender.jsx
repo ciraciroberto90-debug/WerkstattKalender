@@ -2621,6 +2621,15 @@ function App() {
      Die Datei-Ebene bleibt oberste Instanz: Wer am Laufwerk nicht schreiben
      darf, bekommt aus "bearbeiten" immer "sehen". */
   const rechteGruppe = benutzerAktiv && meinBenutzer && (meinBenutzer.rolle === "bearbeiter" || meinBenutzer.rolle === "leser") ? meinBenutzer.rolle : null;
+  // Meine Gruppe für Sichtbarkeits-Fragen (Schichtplan-Notizen, Robertos
+  // Ansage vom 21.09.): ohne Benutzerliste zählt allein die Datei-Lage.
+  const meineGruppe = benutzerAktiv ? (meinBenutzer ? meinBenutzer.rolle : "leser") : (readerMode ? "leser" : "verwalter");
+  // Eine Zellen-Notiz trägt "sichtbarFuer": alle | bearbeiter | verwalter.
+  // Alte Notizen ohne das Feld gelten wie bisher für alle.
+  const notizSichtbar = (e) => {
+    const s = e && e.sichtbarFuer ? e.sichtbarFuer : "alle";
+    return s === "alle" || (s === "bearbeiter" && meineGruppe !== "leser") || (s === "verwalter" && meineGruppe === "verwalter");
+  };
   const stufeRoh = (key) => (rechteGruppe ? rechte[rechteGruppe][key] : (readerMode ? RECHTE_STANDARD.leser[key] : RECHTE_STANDARD.bearbeiter[key]));
   const stufeFuer = (key) => {
     const s = stufeRoh(key);
@@ -6035,20 +6044,22 @@ function App() {
   const notizenFuer = (person, tagKey) =>
     entries.filter((e) => e.category === "PLANNOTIZ" && e.name === person && e.date === tagKey);
   const schichtNotizenFuer = (person, tagKey) =>
-    entries.filter((e) => e.category === "SCHICHTNOTIZ" && e.name === person && e.date === tagKey);
+    entries.filter((e) => e.category === "SCHICHTNOTIZ" && e.name === person && e.date === tagKey && notizSichtbar(e));
   const savePlanNotiz = async () => {
     if (readerMode || !planNotiz) return;
     const text = saeubere(planNotiz.text || "");
     if (!text) { setPlanNotiz(null); return; }
     let next;
     if (planNotiz.id) {
-      next = entries.map((e) => (e.id === planNotiz.id ? { ...e, note: text } : e));
+      next = entries.map((e) => (e.id === planNotiz.id ? { ...e, note: text, ...(planNotiz.art === "SCHICHT" ? { sichtbarFuer: planNotiz.sichtbarFuer || "alle" } : {}) } : e));
     } else {
       // "verfasser" wie der Excel-Kommentar-Kopf (Robertos Ansage vom 16.09.):
       // der Notiz-Kasten im Schichtplan zeigt, WER die Notiz hinterlassen hat.
       next = [...entries, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: planNotiz.datum,
         category: planNotiz.art === "SCHICHT" ? "SCHICHTNOTIZ" : "PLANNOTIZ",
-        name: planNotiz.person, note: text, verfasser: angemeldet || "" }];
+        name: planNotiz.person, note: text, verfasser: angemeldet || "",
+        // Wer die Notiz sehen darf (nur Schichtplan-Notizen, Robertos Ansage vom 21.09.)
+        ...(planNotiz.art === "SCHICHT" ? { sichtbarFuer: planNotiz.sichtbarFuer || "alle" } : {}) }];
     }
     await persist(next);
     setPlanNotiz(null);
@@ -10871,7 +10882,7 @@ function App() {
         // Draufzeigen; einmal je Render als Karte gebündelt.
         const zellNotizen = new Map();
         entries.forEach((e) => {
-          if (e.category !== "SCHICHTNOTIZ") return;
+          if (e.category !== "SCHICHTNOTIZ" || !notizSichtbar(e)) return;
           const k = `${e.name}|${e.date}`;
           const l = zellNotizen.get(k);
           if (l) l.push(e); else zellNotizen.set(k, [e]);
@@ -11081,7 +11092,7 @@ function App() {
               onClick={() => {
                 const n = schichtNotizenFuer(matrixPick.person, matrixPick.datum)[0];
                 setPlanNotiz(n
-                  ? { person: matrixPick.person, datum: matrixPick.datum, id: n.id, text: n.note, art: "SCHICHT" }
+                  ? { person: matrixPick.person, datum: matrixPick.datum, id: n.id, text: n.note, art: "SCHICHT", sichtbarFuer: n.sichtbarFuer || "alle" }
                   : { person: matrixPick.person, datum: matrixPick.datum, text: "", art: "SCHICHT" });
                 setMatrixPick(null);
               }}
@@ -11106,6 +11117,9 @@ function App() {
             <div key={n.id} className="mb-1 last:mb-0">
               {n.verfasser && <div className="font-black">{n.verfasser}:</div>}
               <div style={{ whiteSpace: "pre-wrap" }}>{n.note}</div>
+              {n.sichtbarFuer && n.sichtbarFuer !== "alle" && (
+                <div style={{ fontSize: "0.62rem", color: "#8A6508", fontWeight: 700 }}>🔒 {n.sichtbarFuer === "verwalter" ? "nur Verwalter" : "nur Bearbeiter und Verwalter"}</div>
+              )}
             </div>
           ))}
         </div>
@@ -11290,6 +11304,25 @@ function App() {
               className="w-full rounded border px-2.5 py-2 text-sm"
               style={{ borderColor: "#D6D9DC", backgroundColor: "#FEF9C3" }}
             />
+            {/* Schichtplan-Notizen: wer sie sehen darf (Robertos Ansage vom
+                21.09.). Planungs-Notizen bleiben ohne Wahl - die sieht ohnehin
+                nur, wer die Planung sieht. */}
+            {planNotiz.art === "SCHICHT" && (
+              <label className="flex items-center gap-2 mt-2 text-xs" style={{ color: "#5B6572" }}>
+                <span className="font-bold">Sichtbar für</span>
+                <select
+                  value={planNotiz.sichtbarFuer || "alle"}
+                  onChange={(ev) => setPlanNotiz({ ...planNotiz, sichtbarFuer: ev.target.value })}
+                  aria-label="Notiz sichtbar für"
+                  className="text-xs font-bold px-2 py-1 rounded border"
+                  style={{ borderColor: "#D6D9DC", backgroundColor: "white" }}
+                >
+                  <option value="alle">Alle – auch Leser</option>
+                  <option value="bearbeiter">Bearbeiter und Verwalter</option>
+                  <option value="verwalter">Nur Verwalter</option>
+                </select>
+              </label>
+            )}
             <div className="flex gap-2 mt-3">
               <button onClick={savePlanNotiz} className="flex-1 rounded px-3 py-2 text-sm font-bold text-white" style={{ backgroundColor: "#22262B" }}>Speichern</button>
               {planNotiz.id && (
@@ -13356,9 +13389,13 @@ function App() {
 
             {/* Reiterleiste: vier Themen statt einer langen Rolle */}
             <div className="flex gap-1 mb-4 pb-2 border-b" style={{ borderColor: "#E2E4E7" }}>
-              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"], ["kostenstellen", "Kostenstellen"], ["oee", "OEE"], ["monitor", "Monitor"],
-                // Personalisieren (21.09.): nur der Verwalter - Rechte der Gruppen
-                // und die Übersicht dieses Rechners.
+              {[["anlagen", "Anlagen & R+I"], ["team", "Team & Schichten"],
+                // Benutzer & Rechte (Robertos Ansage vom 21.09.): Liste und
+                // Rechte-Matrix an EINEM Ort, nur für Verwalter.
+                ...(istVerwalter ? [["benutzer", "Benutzer & Rechte"]] : []),
+                ["kostenstellen", "Kostenstellen"], ["oee", "OEE"], ["monitor", "Monitor"],
+                // Personalisieren (21.09.): nur der Verwalter - die Übersicht
+                // dieses Rechners (Rechte wohnen im Reiter "Benutzer & Rechte").
                 ...(istVerwalter ? [["personalisieren", "Personalisieren"]] : []),
                 ["pflege", "Verlauf & Sicherung"]].map(([k, name]) => (
                 <button
@@ -13969,75 +14006,7 @@ function App() {
               </>
             )}
 
-            {/* Benutzer & Rechte: sichtbar für Verwalter - und für alle,
-                solange noch KEINE Liste existiert (sonst könnte niemand die
-                erste anlegen). Die Rechte hängen nicht an den Datei-Freigaben:
-                Datei-Ebene gibt allen dieselbe Datei, die App entscheidet
-                nach Benutzername. */}
-            {istVerwalter && (<>
-            <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Benutzer &amp; Rechte (Anmeldung)</div>
-            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
-              Sobald hier Benutzer stehen, fragt die App beim ersten Start nach dem
-              Benutzernamen; das Gerät merkt sich die Wahl. <strong>Leser</strong> können
-              nur ansehen (Störungen melden bleibt erlaubt), <strong>Bearbeiter</strong> schreiben,
-              <strong> Verwalter</strong> pflegen zusätzlich diese Liste. Kennwort ist freiwillig
-              (leer lassen = Änderung/keins). Das ist eine Leitplanke gegen Versehen – echtes
-              Sperren leisten nur die Laufwerksrechte der IT. Was Bearbeiter und Leser je Bereich
-              sehen und tun dürfen, stellst du im Reiter <button onClick={() => setSettingsTab("personalisieren")} className="font-bold underline">Personalisieren</button> ein.
-            </div>
-            {settingsBenutzer.map((b, idx) => (
-              <div key={idx} className="flex items-center gap-2 mb-1.5">
-                <input
-                  value={b.name}
-                  aria-label={`Benutzername ${idx + 1}`}
-                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, name: v } : x))); }}
-                  placeholder="z. B. RobertoCiraci"
-                  className="flex-1 text-sm px-2 py-1.5 rounded border"
-                  style={{ borderColor: "#D7DCE1" }}
-                />
-                <select
-                  value={b.rolle}
-                  aria-label={`Rolle ${idx + 1}`}
-                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, rolle: v } : x))); }}
-                  className="text-sm px-2 py-1.5 rounded border"
-                  style={{ borderColor: "#D7DCE1", width: "130px" }}
-                >
-                  <option value="verwalter">Verwalter</option>
-                  <option value="bearbeiter">Bearbeiter</option>
-                  <option value="leser">Leser</option>
-                </select>
-                <input
-                  type="password"
-                  value={b.kennwortNeu}
-                  aria-label={`Kennwort ${idx + 1}`}
-                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, kennwortNeu: v } : x))); }}
-                  placeholder={b.kennwortHash ? "Kennwort gesetzt" : "Kennwort (optional)"}
-                  className="text-sm px-2 py-1.5 rounded border"
-                  style={{ borderColor: "#D7DCE1", width: "150px" }}
-                />
-                <button
-                  onClick={() => setSettingsBenutzer((prev) => prev.filter((_, i) => i !== idx))}
-                  aria-label="Benutzer entfernen"
-                  className="text-slate-400 hover:text-red-600"
-                ><X size={15} /></button>
-              </div>
-            ))}
-            <button
-              onClick={() => setSettingsBenutzer((prev) => [...prev, { name: "", rolle: prev.length === 0 ? "verwalter" : "bearbeiter", kennwortHash: "", kennwortNeu: "" }])}
-              className="text-xs font-bold mb-2"
-              style={{ color: "#22262B" }}
-            >
-              + Benutzer hinzufügen
-            </button>
-            <div className="text-xs mb-5" style={{ color: "#8A9099" }}>
-              {settingsBenutzer.length === 0
-                ? "Ohne Benutzer verhält sich die App wie bisher (keine Anmeldung). Der erste Benutzer sollte der Verwalter sein."
-                : "Mindestens ein Verwalter muss bleiben - das prüft die App beim Speichern."}
-              {benutzerAktiv && meinBenutzer && (
-                <> · <button onClick={() => { setSettingsOpen(false); abmelden(); }} className="font-bold underline" style={{ color: "#5B6572" }}>Benutzer wechseln …</button></>
-              )}
-            </div>
-            </>)}
+            {/* Benutzer & Rechte wohnen seit dem 21.09. im eigenen Reiter. */}
 
             </>)}
 
@@ -14192,6 +14161,139 @@ function App() {
               </button>
             </>)}
 
+            {settingsTab === "benutzer" && istVerwalter && (<>
+            {/* Benutzer & Rechte: sichtbar für Verwalter - und für alle,
+                solange noch KEINE Liste existiert (sonst könnte niemand die
+                erste anlegen). Die Rechte hängen nicht an den Datei-Freigaben:
+                Datei-Ebene gibt allen dieselbe Datei, die App entscheidet
+                nach Benutzername. */}
+            <div className="text-xs font-bold uppercase mb-2" style={{ color: "#5B6572" }}>Benutzer &amp; Rechte (Anmeldung)</div>
+            <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+              Sobald hier Benutzer stehen, fragt die App beim ersten Start nach dem
+              Benutzernamen; das Gerät merkt sich die Wahl. <strong>Leser</strong> können
+              nur ansehen (Störungen melden bleibt erlaubt), <strong>Bearbeiter</strong> schreiben,
+              <strong> Verwalter</strong> pflegen zusätzlich diese Liste. Kennwort ist freiwillig
+              (leer lassen = Änderung/keins). Das ist eine Leitplanke gegen Versehen – echtes
+              Sperren leisten nur die Laufwerksrechte der IT. Was jede Gruppe je Bereich sehen und
+              tun darf, steht darunter in der Rechte-Tabelle.
+            </div>
+            {settingsBenutzer.map((b, idx) => (
+              <div key={idx} className="flex items-center gap-2 mb-1.5">
+                <input
+                  value={b.name}
+                  aria-label={`Benutzername ${idx + 1}`}
+                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, name: v } : x))); }}
+                  placeholder="z. B. RobertoCiraci"
+                  className="flex-1 text-sm px-2 py-1.5 rounded border"
+                  style={{ borderColor: "#D7DCE1" }}
+                />
+                <select
+                  value={b.rolle}
+                  aria-label={`Rolle ${idx + 1}`}
+                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, rolle: v } : x))); }}
+                  className="text-sm px-2 py-1.5 rounded border"
+                  style={{ borderColor: "#D7DCE1", width: "130px" }}
+                >
+                  <option value="verwalter">Verwalter</option>
+                  <option value="bearbeiter">Bearbeiter</option>
+                  <option value="leser">Leser</option>
+                </select>
+                <input
+                  type="password"
+                  value={b.kennwortNeu}
+                  aria-label={`Kennwort ${idx + 1}`}
+                  onChange={(e) => { const v = e.target.value; setSettingsBenutzer((prev) => prev.map((x, i) => (i === idx ? { ...x, kennwortNeu: v } : x))); }}
+                  placeholder={b.kennwortHash ? "Kennwort gesetzt" : "Kennwort (optional)"}
+                  className="text-sm px-2 py-1.5 rounded border"
+                  style={{ borderColor: "#D7DCE1", width: "150px" }}
+                />
+                <button
+                  onClick={() => setSettingsBenutzer((prev) => prev.filter((_, i) => i !== idx))}
+                  aria-label="Benutzer entfernen"
+                  className="text-slate-400 hover:text-red-600"
+                ><X size={15} /></button>
+              </div>
+            ))}
+            <button
+              onClick={() => setSettingsBenutzer((prev) => [...prev, { name: "", rolle: prev.length === 0 ? "verwalter" : "bearbeiter", kennwortHash: "", kennwortNeu: "" }])}
+              className="text-xs font-bold mb-2"
+              style={{ color: "#22262B" }}
+            >
+              + Benutzer hinzufügen
+            </button>
+            <div className="text-xs mb-5" style={{ color: "#8A9099" }}>
+              {settingsBenutzer.length === 0
+                ? "Ohne Benutzer verhält sich die App wie bisher (keine Anmeldung). Der erste Benutzer sollte der Verwalter sein."
+                : "Mindestens ein Verwalter muss bleiben - das prüft die App beim Speichern."}
+              {benutzerAktiv && meinBenutzer && (
+                <> · <button onClick={() => { setSettingsOpen(false); abmelden(); }} className="font-bold underline" style={{ color: "#5B6572" }}>Benutzer wechseln …</button></>
+              )}
+            </div>
+              {/* ---- B: Rechte der Benutzergruppen (gemeinsame Datei) ----------
+                  Was Bearbeiter und Leser sehen und tun dürfen, je Bereich.
+                  Der Verwalter bleibt bewusst außen vor (kein Selbst-Aussperren).
+                  Jede Änderung wird sofort in die gemeinsame Datei geschrieben
+                  und gilt beim nächsten Abgleich auf jedem Rechner. */}
+              <div className="text-xs font-bold uppercase mb-1 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Rechte der Benutzergruppen – für alle Rechner</div>
+              <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
+                Je Bereich: <strong>ausgeblendet</strong> (der Reiter fehlt), <strong>nur ansehen</strong> oder <strong>bearbeiten</strong>.
+                Der Verwalter darf immer alles. Ein Leser bleibt Nur-Leser – nur Störberichte darf er laut Grundregel
+                schreiben (eigene Datei). Wer am Laufwerk kein Schreibrecht hat, sieht trotz „bearbeiten" nur an.
+                {!benutzerAktiv && <> <strong>Noch ohne Wirkung:</strong> Es sind keine Benutzer angelegt (oben in diesem Reiter).</>}
+              </div>
+              <div className="rounded-lg border overflow-hidden mb-2" style={{ borderColor: "#E2E4E7" }}>
+                <div className="grid text-[11px] font-black uppercase px-3 py-1.5" style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1fr", gap: "8px", backgroundColor: "#22262B", color: "#fff" }}>
+                  <span>Bereich / Aktion</span><span>Verwalter</span><span>Bearbeiter</span><span>Leser</span>
+                </div>
+                {RECHTE_BEREICHE.map(([key, name, text, art, leserMax], i) => {
+                  const optionen = (gruppe) => {
+                    const alle = art === "aktion" ? [["aus", "gesperrt"], ["sehen", "erlaubt"]] : [["aus", "ausgeblendet"], ["sehen", "nur ansehen"], ["bearbeiten", "bearbeiten"]];
+                    return gruppe === "leser" ? alle.filter(([v]) => RECHTE_STUFEN.indexOf(v) <= RECHTE_STUFEN.indexOf(leserMax)) : alle;
+                  };
+                  const setze = (gruppe, wert) => {
+                    const neu = normalisiereRechte({ ...rechte, [gruppe]: { ...rechte[gruppe], [key]: wert } });
+                    persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, neu);
+                  };
+                  const farbe = (v) => (v === "aus" ? "#8A9099" : v === "sehen" ? "#2F6690" : "#1F7A3D");
+                  return (
+                    <div key={key} className="grid items-center px-3 py-1.5" style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1fr", gap: "8px", backgroundColor: i % 2 ? "#FAFBFC" : "white", borderTop: "1px solid #EEF0F2" }}>
+                      <span>
+                        <span className="block text-sm font-bold" style={{ color: "#22262B" }}>{name}</span>
+                        <span className="block text-[11px]" style={{ color: "#8A9099" }}>{text}</span>
+                      </span>
+                      <span className="text-xs font-bold" style={{ color: "#1F7A3D" }}>{art === "aktion" ? "erlaubt" : "bearbeiten"}</span>
+                      {["bearbeiter", "leser"].map((gruppe) => {
+                        const opts = optionen(gruppe);
+                        const wert = rechte[gruppe][key];
+                        return opts.length === 1 ? (
+                          <span key={gruppe} className="text-xs font-bold" style={{ color: farbe(wert) }}>{opts[0][1]} <span className="font-normal" style={{ color: "#B0B6BC" }}>(fest)</span></span>
+                        ) : (
+                          <select
+                            key={gruppe}
+                            value={wert}
+                            aria-label={`${gruppe === "bearbeiter" ? "Bearbeiter" : "Leser"}: ${name}`}
+                            onChange={(e) => setze(gruppe, e.target.value)}
+                            className="text-xs font-bold px-1.5 py-1 rounded border"
+                            style={{ borderColor: "#D7DCE1", color: farbe(wert), backgroundColor: "white" }}
+                          >
+                            {opts.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                          </select>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-xs mb-4" style={{ color: "#8A9099" }}>
+                Änderungen gelten sofort und für alle Rechner (gemeinsame Datei). ·{" "}
+                <button
+                  onClick={() => persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, normalisiereRechte(null))}
+                  className="font-bold underline" style={{ color: "#5B6572" }}
+                >Standard wiederherstellen</button>
+                {" "}· Benutzer anlegen und Gruppen zuweisen: oben in diesem Reiter. · Schichtplan-Notizen: „Sichtbar für" wählst du direkt an der Notiz.
+              </div>
+            </>)}
+
             {settingsTab === "personalisieren" && istVerwalter && (<>
               {/* ---- A: Übersicht dieses Rechners -----------------------------
                   Robertos Auftrag vom 21.09.: "frei wählbar, auf jedem
@@ -14286,69 +14388,6 @@ function App() {
                 <button onClick={() => setUebersichtLayout(layoutAusVorlage("standard"))} className="font-bold underline" style={{ color: "#5B6572" }}>Auf Standard zurücksetzen</button>
               </div>
 
-              {/* ---- B: Rechte der Benutzergruppen (gemeinsame Datei) ----------
-                  Was Bearbeiter und Leser sehen und tun dürfen, je Bereich.
-                  Der Verwalter bleibt bewusst außen vor (kein Selbst-Aussperren).
-                  Jede Änderung wird sofort in die gemeinsame Datei geschrieben
-                  und gilt beim nächsten Abgleich auf jedem Rechner. */}
-              <div className="text-xs font-bold uppercase mb-1 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Rechte der Benutzergruppen – für alle Rechner</div>
-              <div className="text-xs mb-3" style={{ color: "#8A9099" }}>
-                Je Bereich: <strong>ausgeblendet</strong> (der Reiter fehlt), <strong>nur ansehen</strong> oder <strong>bearbeiten</strong>.
-                Der Verwalter darf immer alles. Ein Leser bleibt Nur-Leser – nur Störberichte darf er laut Grundregel
-                schreiben (eigene Datei). Wer am Laufwerk kein Schreibrecht hat, sieht trotz „bearbeiten" nur an.
-                {!benutzerAktiv && <> <strong>Noch ohne Wirkung:</strong> Es sind keine Benutzer angelegt (Team &amp; Schichten → Benutzer &amp; Rechte).</>}
-              </div>
-              <div className="rounded-lg border overflow-hidden mb-2" style={{ borderColor: "#E2E4E7" }}>
-                <div className="grid text-[11px] font-black uppercase px-3 py-1.5" style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1fr", gap: "8px", backgroundColor: "#22262B", color: "#fff" }}>
-                  <span>Bereich / Aktion</span><span>Verwalter</span><span>Bearbeiter</span><span>Leser</span>
-                </div>
-                {RECHTE_BEREICHE.map(([key, name, text, art, leserMax], i) => {
-                  const optionen = (gruppe) => {
-                    const alle = art === "aktion" ? [["aus", "gesperrt"], ["sehen", "erlaubt"]] : [["aus", "ausgeblendet"], ["sehen", "nur ansehen"], ["bearbeiten", "bearbeiten"]];
-                    return gruppe === "leser" ? alle.filter(([v]) => RECHTE_STUFEN.indexOf(v) <= RECHTE_STUFEN.indexOf(leserMax)) : alle;
-                  };
-                  const setze = (gruppe, wert) => {
-                    const neu = normalisiereRechte({ ...rechte, [gruppe]: { ...rechte[gruppe], [key]: wert } });
-                    persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, neu);
-                  };
-                  const farbe = (v) => (v === "aus" ? "#8A9099" : v === "sehen" ? "#2F6690" : "#1F7A3D");
-                  return (
-                    <div key={key} className="grid items-center px-3 py-1.5" style={{ gridTemplateColumns: "1.4fr 0.8fr 1fr 1fr", gap: "8px", backgroundColor: i % 2 ? "#FAFBFC" : "white", borderTop: "1px solid #EEF0F2" }}>
-                      <span>
-                        <span className="block text-sm font-bold" style={{ color: "#22262B" }}>{name}</span>
-                        <span className="block text-[11px]" style={{ color: "#8A9099" }}>{text}</span>
-                      </span>
-                      <span className="text-xs font-bold" style={{ color: "#1F7A3D" }}>{art === "aktion" ? "erlaubt" : "bearbeiten"}</span>
-                      {["bearbeiter", "leser"].map((gruppe) => {
-                        const opts = optionen(gruppe);
-                        const wert = rechte[gruppe][key];
-                        return opts.length === 1 ? (
-                          <span key={gruppe} className="text-xs font-bold" style={{ color: farbe(wert) }}>{opts[0][1]} <span className="font-normal" style={{ color: "#B0B6BC" }}>(fest)</span></span>
-                        ) : (
-                          <select
-                            key={gruppe}
-                            value={wert}
-                            aria-label={`${gruppe === "bearbeiter" ? "Bearbeiter" : "Leser"}: ${name}`}
-                            onChange={(e) => setze(gruppe, e.target.value)}
-                            className="text-xs font-bold px-1.5 py-1 rounded border"
-                            style={{ borderColor: "#D7DCE1", color: farbe(wert), backgroundColor: "white" }}
-                          >
-                            {opts.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                          </select>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="text-xs mb-4" style={{ color: "#8A9099" }}>
-                Änderungen gelten sofort und für alle Rechner (gemeinsame Datei). ·{" "}
-                <button
-                  onClick={() => persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, normalisiereRechte(null))}
-                  className="font-bold underline" style={{ color: "#5B6572" }}
-                >Standard wiederherstellen</button>
-                {" "}· Benutzer anlegen und Gruppen zuweisen: <button onClick={() => setSettingsTab("team")} className="font-bold underline" style={{ color: "#5B6572" }}>Team &amp; Schichten</button>
-              </div>
             </>)}
 
             {settingsTab === "monitor" && (<>

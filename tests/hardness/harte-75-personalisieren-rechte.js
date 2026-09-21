@@ -3,8 +3,8 @@
 //  (A) Rechte-Matrix je Benutzergruppe - liegt in der GEMEINSAMEN Datei:
 //      (A1) Standard = Verhalten vor dem 21.09.: Bearbeiter sieht Werkstatt,
 //           Berichte, TPM; Leser sieht Übersicht, Schichtplan, Berichte.
-//      (A2) Nur der Verwalter hat den Reiter "Personalisieren" - der Bearbeiter
-//           nicht (GEGENPROBE).
+//      (A2) Nur der Verwalter hat die Reiter "Personalisieren" und "Benutzer &
+//           Rechte" - der Bearbeiter keinen von beiden (GEGENPROBE).
 //      (A3) Verwalter stellt um: Bearbeiter Schichtplan "nur ansehen", Planung
 //           und TPM "ausgeblendet"; Leser TPM "nur ansehen", Störungen
 //           "ausgeblendet". Die Wahl steht als eigener Eintrag config|rechte
@@ -22,6 +22,10 @@
 //      (B3) Ein Haken ("Kennzahlen") macht daraus "Eigene Zusammenstellung".
 //      (B4) Reihenfolge: "Offene Störungen nach oben" -> steht vor den Kennzahlen.
 //      (B5) Ein ANDERER Rechner (frischer Kontext) hat weiter das Standard-Layout.
+//  (C) Anordnen-Modus direkt auf der Übersicht: Rahmen, ✕, Pfeile, ⇄, echtes
+//      Ziehen mit der Maus, Esc beendet - die Anordnung bleibt.
+//  (D) Schichtplan-Notizen je Gruppe: "Sichtbar für" an der Notiz; Leser,
+//      Bearbeiter und Verwalter sehen je nach Stufe eine, zwei oder drei.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
 
@@ -36,8 +40,16 @@ const ok = (n, c, zusatz) => {
 
   // Die gemeinsame Datei lebt in Node - so teilen sich alle "Rechner" denselben Stand.
   const jetztIso = new Date().toISOString();
+  const d = new Date();
+  const heuteKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   let dateiInhalt = JSON.stringify({
-    format: "werkstatt-kalender-v1", savedAt: jetztIso, entries: [], deleted: {},
+    format: "werkstatt-kalender-v1", savedAt: jetztIso, deleted: {},
+    // Drei Schichtplan-Notizen an derselben Zelle - je eine Sichtbarkeit (Teil D)
+    entries: [
+      { id: "n-alle", category: "SCHICHTNOTIZ", name: "T. Balles", date: heuteKey, note: "NOTIZ-ALLE Zahnarzt", verfasser: "Chef", sichtbarFuer: "alle", updatedAt: jetztIso },
+      { id: "n-bearb", category: "SCHICHTNOTIZ", name: "T. Balles", date: heuteKey, note: "NOTIZ-BEARBEITER Gespräch", verfasser: "Chef", sichtbarFuer: "bearbeiter", updatedAt: jetztIso },
+      { id: "n-verw", category: "SCHICHTNOTIZ", name: "T. Balles", date: heuteKey, note: "NOTIZ-VERWALTER Abmahnung", verfasser: "Chef", sichtbarFuer: "verwalter", updatedAt: jetztIso },
+    ],
     config: {
       tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItems: [],
       team: [{ name: "T. Balles", rolle: "mech" }],
@@ -107,8 +119,8 @@ const ok = (n, c, zusatz) => {
     /Offene Störungen/i.test(await bea0.p.locator("body").innerText()));
   await bea0.p.locator('button[aria-label="Verwalten"]').click();
   await bea0.p.waitForTimeout(400);
-  ok("(A2) GEGENPROBE: Der Bearbeiter hat KEINEN Reiter „Personalisieren“",
-    !(await hatTab(bea0.p, "Personalisieren")));
+  ok("(A2) GEGENPROBE: Der Bearbeiter hat weder „Personalisieren“ noch „Benutzer & Rechte“",
+    !(await hatTab(bea0.p, "Personalisieren")) && !(await hatTab(bea0.p, "Benutzer & Rechte")));
   await bea0.ctx.close();
 
   const lea0 = await neuerRechner("Lea");
@@ -121,12 +133,13 @@ const ok = (n, c, zusatz) => {
   const chef = await neuerRechner("Chef");
   await chef.p.locator('button[aria-label="Verwalten"]').click();
   await chef.p.waitForTimeout(400);
-  ok("(A2) Der Verwalter hat den Reiter „Personalisieren“", await hatTab(chef.p, "Personalisieren"));
-  await chef.p.getByRole("button", { name: "Personalisieren", exact: true }).click();
+  ok("(A2) Der Verwalter hat die Reiter „Personalisieren“ UND „Benutzer & Rechte“",
+    (await hatTab(chef.p, "Personalisieren")) && (await hatTab(chef.p, "Benutzer & Rechte")));
+  await chef.p.getByRole("button", { name: "Benutzer & Rechte", exact: true }).click();
   await chef.p.waitForTimeout(400);
   const seite = await chef.p.locator("body").innerText();
-  ok("(A3) Der Reiter zeigt beide Teile: Übersicht dieses Rechners und Rechte der Gruppen",
-    /Übersicht zusammenstellen/i.test(seite) && /Rechte der Benutzergruppen/i.test(seite));
+  ok("(A3) „Benutzer & Rechte“ vereint Benutzerliste und Rechte-Tabelle an einem Ort",
+    (await chef.p.locator('input[aria-label="Benutzername 1"]').count()) === 1 && /Rechte der Benutzergruppen/i.test(seite));
   ok("(A3) Leser-Auswahl bei Schichtplan kennt KEIN „bearbeiten“ (Nur-Leser bleibt Nur-Leser)",
     !(await chef.p.locator('select[aria-label="Leser: Schichtplan"] option').allInnerTexts()).includes("bearbeiten"));
   ok("(A3) Leser bei Störungen darf „bearbeiten“ (eigene Datei, Grundregel) - und steht als Standard so",
@@ -337,6 +350,51 @@ const ok = (n, c, zusatz) => {
   ok("(C6) Die Anordnung bleibt: Offene Störungen stehen vor „Heute fällig“, Pinnwand vor der Tagesliste",
     text2.search(/Offene Störungen/i) < text2.indexOf("Heute fällig") && text2.search(/📌 Pinnwand/i) < text2.search(/HEUTE · /i));
   await an.ctx.close();
+
+  /* ================= (D) Schichtplan-Notizen je Gruppe sichtbar =================
+     Robertos Ansage vom 21.09.: an jeder Zellen-Notiz wählbar, welche Gruppe
+     sie sehen darf. Drei Notizen an derselben Zelle - Leser, Bearbeiter und
+     Verwalter sehen je nach Stufe eine, zwei oder alle drei. */
+  const zelle = `button[aria-label="Matrix T. Balles ${heuteKey}"]`;
+  const kastenText = async (p, tabName) => {
+    await tab(p, tabName).click();
+    await p.waitForTimeout(600);
+    await p.locator(zelle).hover();
+    await p.waitForTimeout(400);
+    return await p.locator("body").innerText();
+  };
+  const lea3 = await neuerRechner("Lea");
+  const tL = await kastenText(lea3.p, "Schichtplan");
+  ok("(D1) Leser sieht NUR die Notiz „für alle“ - Bearbeiter- und Verwalter-Notiz bleiben unsichtbar",
+    /NOTIZ-ALLE/.test(tL) && !/NOTIZ-BEARBEITER/.test(tL) && !/NOTIZ-VERWALTER/.test(tL));
+  await lea3.ctx.close();
+  const bea3 = await neuerRechner("Bea");
+  const tB = await kastenText(bea3.p, "Werkstatt");
+  ok("(D2) Bearbeiter sieht „für alle“ und „Bearbeiter“, nicht die Verwalter-Notiz",
+    /NOTIZ-ALLE/.test(tB) && /NOTIZ-BEARBEITER/.test(tB) && !/NOTIZ-VERWALTER/.test(tB));
+  await bea3.ctx.close();
+  const chef3 = await neuerRechner("Chef");
+  const tC = await kastenText(chef3.p, "Werkstatt");
+  ok("(D3) Verwalter sieht alle drei, mit Schloss-Hinweis an den eingeschränkten",
+    /NOTIZ-ALLE/.test(tC) && /NOTIZ-BEARBEITER/.test(tC) && /NOTIZ-VERWALTER/.test(tC) && /nur Verwalter/.test(tC));
+  // Die Wahl sitzt direkt an der Notiz: Zelle anklicken -> Notiz ändern -> "Sichtbar für"
+  await chef3.p.locator(zelle).click();
+  await chef3.p.waitForTimeout(400);
+  await chef3.p.getByRole("button", { name: /Notiz ändern/ }).click();
+  await chef3.p.waitForTimeout(400);
+  const auswahl = chef3.p.locator('select[aria-label="Notiz sichtbar für"]');
+  ok("(D4) Der Notiz-Dialog hat die Auswahl „Sichtbar für“ mit drei Stufen",
+    (await auswahl.count()) === 1 && (await auswahl.locator("option").count()) === 3);
+  await auswahl.selectOption("verwalter");
+  await chef3.p.getByRole("button", { name: "Speichern", exact: true }).click();
+  await chef3.p.waitForTimeout(900);
+  {
+    const datei = JSON.parse(dateiInhalt);
+    const n = datei.entries.find((e) => e.id === "n-alle");
+    ok("(D4) Die Wahl steht am Eintrag in der gemeinsamen Datei (sichtbarFuer = verwalter)",
+      !!n && n.sichtbarFuer === "verwalter", n ? n.sichtbarFuer : "Eintrag fehlt");
+  }
+  await chef3.ctx.close();
 
   await browser.close();
   console.log(`\n${pass} bestanden, ${fail} durchgefallen`);
