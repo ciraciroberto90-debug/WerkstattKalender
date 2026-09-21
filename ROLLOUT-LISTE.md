@@ -992,14 +992,18 @@ Zwei Dinge in einem neuen Zahnrad-Reiter, nur für Verwalter:
       Härtetest harte-78.
 - [x] **Kopfzeile ohne Ortsnamen** („Scheurich" / „Soendgen Keramik" statt
       „… · Kleinheubach").
-- [ ] **Neue Kachel „Heute da & dran"** (anwesende Mitarbeiter je Schicht,
-      Abwesende – Schule, Krank, Urlaub – außen vor, die geplanten Punkte
-      der Anwesenden direkt abhaken oder bearbeiten): vier Vorlagen (A
-      Schicht-Spalten, B Personen-Zeilen, C Personen-Kacheln mit
-      Fortschritt, D Kompakt-Tabelle) an Roberto geschickt – gebaut wird
-      nach seiner Wahl. Datengrundlage: Backlog-Arbeiten mit `wer` +
-      `geplant` = heute, To-dos mit `wer`, Planungs-Notizen, Störungen mit
-      Restarbeit.
+- [ ] **Termin-Kachel „Heute · Montag" um die Anwesenden erweitern** (Robertos
+      Klarstellung: NICHT die „Heute da"-Kachel, sondern die Tagesliste
+      unten). Die Standard-Terminliste bleibt; zusätzlich lassen sich die
+      heute anwesenden Mitarbeiter (Früh/Spät/Nacht; Schule, Krank, Urlaub
+      außen vor) auswählen und ihre geplanten Punkte direkt abhaken oder
+      bearbeiten. Fünf Bedien-Vorlagen an Roberto geschickt (V1 Reiter in
+      der Kachel, V2 Dropdown im Kopf, V3 Chip-Leiste unter den Terminen,
+      V4 Seitenleiste mit Köpfen, V5 Schicht-Schalter Termine|Früh|Spät|
+      Nacht) – gebaut wird nach seiner Wahl. Datengrundlage: Backlog-
+      Arbeiten mit `wer` + `geplant` = heute, To-dos mit `wer`,
+      Planungs-Notizen, Störungen mit Restarbeit. (Die früheren Vorlagen
+      A–D für eine eigene Kachel sind damit hinfällig.)
 
 ## Gruppen-Verwalter (Robertos Ansage vom 21.09.)
 
