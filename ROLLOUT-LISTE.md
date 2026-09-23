@@ -1212,8 +1212,14 @@ Abstimmung). Die **Terminübersicht (Tagesplan) wandert nach oben**, **Heute
 da nach unten**; die Pinnwand heißt dort **Schwarzes Brett**; neu ist eine
 **große Kachel mit Statistiken des technischen Einkaufs**. Vorlagen U1–U6
 geschickt (`mock-uebersicht.html`): U1 Whiteboard 1:1, U2 Monitor dunkel,
-U3 Tagesplan als Säule je Schicht, U4 Tacho-Wand, U5 Schicht zuerst mit
-großer Einkauf-Kachel, U6 Ampel-Zeile. **Entscheidung offen.**
+U3 Tagesplan als Säule je Schicht, U4 Halbkreis-Wand, U5 Schicht zuerst mit
+großer Einkauf-Kachel, U6 Ampel-Zeile. Robertos Rückmeldung: „Gefällt mir,
+aber Halbkreise statt Tacho" → alle Vorlagen auf die Cockpit-Halbkreise
+(`HalbkreisQuote`) umgestellt und vier weitere geschickt: U7 zwei
+Kennzahl-Reihen + Wochenblick Mo–Fr, U8 Monitor blättert alle 20 s zwischen
+drei Seiten (Halbkreis-Reihe bleibt stehen), U9 Anlagen-Wand (Farbkachel je
+Anlage), U10 Zeitleiste des Tages 06–22 Uhr mit „jetzt"-Linie.
+**Entscheidung offen.**
 
 Was daraus für das Programm folgen könnte (noch nicht beauftragt): Übersicht
 nach der Whiteboard-Skizze als Vorlage (Kacheln Tagesplan/TPM-Effizienz/
