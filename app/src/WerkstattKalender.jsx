@@ -2465,6 +2465,9 @@ function App() {
   // nie nachbearbeitet, deshalb reicht fotosNeu (kein fotos/fotosWeg-Draft).
   const [zettelFotosNeu, setZettelFotosNeu] = useState([]);
   const [zettelSuche, setZettelSuche] = useState(""); // Mini-Suche in der Pinnwand
+  // Welcher Zettel hat sein ⋯-Menü offen? Robertos Wunsch vom 23.09.: Die
+  // Bearbeiter-Knöpfe machten die Wand unruhig - jetzt hinter EINEM Symbol.
+  const [zettelMenue, setZettelMenue] = useState(null);
   const [zettelText, setZettelText] = useState("");
   const [zettelName, setZettelName] = useState(() => localStorage.getItem(nsKey("werkstatt-kalender-name")) || "");
   // Benutzergruppen: Liste aus der gemeinsamen Datei; die Anmeldung merkt sich
@@ -10856,13 +10859,31 @@ function App() {
                         })}
                       </div>
                     )}
-                    <div className="text-right mt-1.5" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
-                      {z.name} · {z.zeit ? new Date(z.zeit).toLocaleDateString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : formatDateDE(z.date)}
+                    {/* Fußzeile: Verfasser · Zeit, davor stille Marken (📌 oben
+                        angeheftet, 📺 läuft im Monitor), rechts das ⋯ für die
+                        Bearbeiter-Funktionen - die Wand bleibt ruhig. */}
+                    <div className="flex items-center justify-end gap-1.5 mt-1.5" style={{ fontSize: "0.62rem", color: "#8A9099" }}>
+                      {z.angeheftet && <span title="Angeheftet: bleibt oben" aria-label="angeheftet">📌</span>}
+                      {z.monitor && zettelArtVon(z) === "alle" && <span title="Läuft im Werkstatt-Monitor" aria-label="im Monitor">📺</span>}
+                      <span>{z.name} · {z.zeit ? new Date(z.zeit).toLocaleDateString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : formatDateDE(z.date)}</span>
+                      {!readerMode && (
+                        <button
+                          onClick={() => setZettelMenue(zettelMenue === z.id ? null : z.id)}
+                          className="inline-flex items-center justify-center rounded font-black"
+                          style={{ width: "22px", height: "20px", marginLeft: "2px", fontSize: "0.85rem", lineHeight: 1, backgroundColor: zettelMenue === z.id ? "#22262B" : "rgba(0,0,0,0.07)", color: zettelMenue === z.id ? "white" : "#5B6572" }}
+                          title="Zettel bearbeiten: zur Arbeit machen, anheften, Monitor, Sichtbarkeit, Farbe, entfernen"
+                          aria-label="Zettel-Optionen"
+                          aria-expanded={zettelMenue === z.id}
+                        >
+                          ⋯
+                        </button>
+                      )}
                     </div>
-                    {!readerMode && (
-                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {!readerMode && zettelMenue === z.id && (
+                    <div className="mt-2 rounded p-2" role="group" aria-label="Zettel-Optionen" style={{ backgroundColor: "rgba(255,255,255,0.65)", border: "1px solid rgba(0,0,0,0.08)" }}>
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button
-                        onClick={() => zettelZuArbeit(z)}
+                        onClick={() => { setZettelMenue(null); zettelZuArbeit(z); }}
                         className="font-extrabold uppercase rounded text-white"
                         style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: "#22262B" }}
                       >
@@ -10881,12 +10902,23 @@ function App() {
                         onClick={() => toggleZettelMonitor(z.id)}
                         className="inline-flex items-center justify-center rounded"
                         style={iconStil(z.monitor)}
-                        title={z.monitor ? "Läuft im Werkstatt-Monitor - Klick schaltet aus" : "Auf dem Werkstatt-Monitor im Laufband anzeigen"}
+                        title={z.monitor ? "Läuft im Werkstatt-Monitor - Klick schaltet aus" : "Auf dem Werkstatt-Monitor im Laufband anzeigen (nur Zettel für Alle laufen dort)"}
                         aria-label={z.monitor ? "Nicht mehr im Monitor anzeigen" : "Im Monitor anzeigen"}
                       >
                         📺
                       </button>
-                      {darfAendern(z) && (
+                      <button
+                        onClick={() => { setZettelMenue(null); deleteZettel(z.id); }}
+                        className="inline-flex items-center justify-center rounded font-extrabold"
+                        style={{ ...iconStil(false), fontSize: "0.9rem" }}
+                        title="Zettel entfernen"
+                        aria-label="Zettel entfernen"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {darfAendern(z) && (
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <select
                           value={zettelArtVon(z)}
                           onChange={(e) => {
@@ -10910,17 +10942,9 @@ function App() {
                         >
                           {ZETTEL_SICHTBAR.map(([k, symbol, label]) => <option key={k} value={k}>{symbol} {label}</option>)}
                         </select>
-                      )}
-                      {darfAendern(z) && <ZettelFarbwahl klein wert={z.farbe || (zettelFarbeFuer(z) === ZETTEL_FARBEN.blau ? "blau" : "gelb")} onWert={(f) => setZettelFarbe(z.id, f)} />}
-                      <button
-                        onClick={() => deleteZettel(z.id)}
-                        className="inline-flex items-center justify-center rounded font-extrabold"
-                        style={{ ...iconStil(false), fontSize: "0.9rem" }}
-                        title="Zettel entfernen"
-                        aria-label="Zettel entfernen"
-                      >
-                        ×
-                      </button>
+                        <ZettelFarbwahl klein wert={z.farbe || (zettelFarbeFuer(z) === ZETTEL_FARBEN.blau ? "blau" : "gelb")} onWert={(f) => setZettelFarbe(z.id, f)} />
+                    </div>
+                    )}
                     </div>
                     )}
                   </div>

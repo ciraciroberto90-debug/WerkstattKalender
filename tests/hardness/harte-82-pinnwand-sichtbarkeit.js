@@ -32,6 +32,9 @@
 //  (C3) Bea darf fremde Zettel nicht umstellen, ihre eigenen schon.
 //  (C4) Monitor: nur "Alle"-Zettel laufen im Laufband, auch wenn 📺 an einem
 //       "Nur Verwalter"-Zettel gesetzt ist.
+//  (C5) Ruhige Wand (Robertos Nachtrag 23.09.): Die Bearbeiter-Funktionen
+//       stecken hinter EINEM ⋯-Knopf je Zettel; ohne Klick ist kein
+//       Dropdown, keine Farbwahl und kein "Zur Arbeit"-Knopf zu sehen.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
 
@@ -89,6 +92,14 @@ const altBestand = [
   const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]"));
   const wandText = (p) => p.locator('h2:has-text("Pinnwand"), h3:has-text("Pinnwand")').first().locator("xpath=ancestor::div[contains(@class,'rounded')][1]").innerText().catch(async () => p.locator("body").innerText());
   const sieht = async (p, text) => (await p.getByText(text, { exact: false }).count()) > 0;
+  // Karte zu einem Zettel-Text; ⋯ öffnet das Menü mit den Bearbeiter-Funktionen.
+  const karteVon = (p, re) => p.locator("div", { hasText: re }).filter({ has: p.locator('button[aria-label="Zettel-Optionen"]') }).last();
+  const menueAuf = async (p, re) => {
+    const k = karteVon(p, re);
+    if ((await k.getByRole("group", { name: "Zettel-Optionen" }).count()) === 0) await k.locator('button[aria-label="Zettel-Optionen"]').click();
+    await p.waitForTimeout(150);
+    return k;
+  };
   // Verfasser öffnen, Text und Sichtbarkeit setzen, anpinnen.
   const anpinnen = async (p, text, { sichtbar, farbe, gueltigBis, empfaenger } = {}) => {
     await p.locator('button[aria-label="Neue Notiz anpinnen"]').click();
@@ -184,11 +195,14 @@ const altBestand = [
     ok("(B1) Bea sieht NICHT: Nur Verwalter, Nur ich, für Max",
       !(await sieht(p, "NUR VERWALTER")) && !(await sieht(p, "NUR ICH")) && !(await sieht(p, "FUER MAX")));
     // (C3) Bea darf fremde Zettel nicht umstellen - eigene schon.
+    await menueAuf(p, /BEARBEITER Zeiterfassung/);
     const fremdeSelects = await p.locator('select[aria-label="Sichtbarkeit Zettel"]').count();
+    const fremdeKnoepfe = (await p.getByRole("button", { name: "➜ Zur Arbeit machen" }).count());
     await anpinnen(p, "BEAS ZETTEL Ölwechsel KUKA", { sichtbar: "bearbeiter" });
+    await menueAuf(p, /BEAS ZETTEL/);
     const eigeneSelects = await p.locator('select[aria-label="Sichtbarkeit Zettel"]').count();
-    ok("(C3) Bea hat an fremden Zetteln KEIN Sichtbarkeits-Dropdown, an ihrem eigenen schon",
-      fremdeSelects === 0 && eigeneSelects === 1, `fremd=${fremdeSelects} eigen=${eigeneSelects}`);
+    ok("(C3) Bea hat im Menü fremder Zettel KEIN Sichtbarkeits-Dropdown (wohl aber Zur Arbeit machen), im eigenen schon",
+      fremdeSelects === 0 && fremdeKnoepfe === 1 && eigeneSelects === 1, `fremd=${fremdeSelects} knoepfe=${fremdeKnoepfe} eigen=${eigeneSelects}`);
     await zu();
   }
   {
@@ -202,8 +216,9 @@ const altBestand = [
     ok("(B3) Lea (Leserin) sieht NUR die Alle-Zettel (neu + alt veröffentlicht)",
       (await sieht(p, "ALLE Sprinkler")) && (await sieht(p, "ALT OEFFENTLICH")) &&
       !(await sieht(p, "ALT INTERN")) && !(await sieht(p, "BEARBEITER Zeiterfassung")) && !(await sieht(p, "NUR VERWALTER")) && !(await sieht(p, "BEAS ZETTEL")));
-    ok("(B3) Lea hat keine Bedienknöpfe (kein +, kein Dropdown, keine Farbwahl)",
+    ok("(B3) Lea hat keine Bedienknöpfe (kein +, kein ⋯, kein Dropdown, keine Farbwahl)",
       (await p.locator('button[aria-label="Neue Notiz anpinnen"]').count()) === 0 &&
+      (await p.locator('button[aria-label="Zettel-Optionen"]').count()) === 0 &&
       (await p.locator('select[aria-label="Sichtbarkeit Zettel"]').count()) === 0 &&
       (await p.getByRole("radiogroup", { name: "Zettel-Farbe" }).count()) === 0);
     await zu();
@@ -224,8 +239,23 @@ const altBestand = [
     await p.getByRole("menuitemradio", { name: /Verwalter/ }).click();
     await p.waitForTimeout(500);
 
-    // (C1) Nur Verwalter -> Alle über das Zettel-Dropdown
-    const karte = p.locator("div", { hasText: /^.*NUR VERWALTER Kündigung/ }).filter({ has: p.locator('select[aria-label="Sichtbarkeit Zettel"]') }).last();
+    // (C5) Ruhige Wand: ohne Klick keine Bearbeiter-Funktionen sichtbar
+    const zettelZahl = await p.locator('button[aria-label="Zettel-Optionen"]').count();
+    ok("(C5) Ohne Klick: je Zettel nur ein ⋯, kein Dropdown, keine Farbwahl, kein „Zur Arbeit machen“",
+      zettelZahl >= 6 && (await p.locator('select[aria-label="Sichtbarkeit Zettel"]').count()) === 0 &&
+      (await p.getByRole("radiogroup", { name: "Zettel-Farbe" }).count()) === 0 &&
+      (await p.getByRole("button", { name: "➜ Zur Arbeit machen" }).count()) === 0, `⋯=${zettelZahl}`);
+
+    // (C1) Nur Verwalter -> Alle über das Zettel-Dropdown im ⋯-Menü
+    const karte = await menueAuf(p, /NUR VERWALTER Kündigung/);
+    ok("(C5) Nach dem Klick auf ⋯ ist GENAU EIN Menü offen (Zur Arbeit, 📌, 📺, ×, Dropdown, Farbe)",
+      (await p.getByRole("group", { name: "Zettel-Optionen" }).count()) === 1 &&
+      (await karte.getByRole("button", { name: "➜ Zur Arbeit machen" }).count()) === 1 &&
+      (await karte.locator('button[aria-label="Anheften"]').count()) === 1 &&
+      (await karte.locator('button[aria-label="Im Monitor anzeigen"]').count()) === 1 &&
+      (await karte.locator('button[aria-label="Zettel entfernen"]').count()) === 1 &&
+      (await karte.locator('select[aria-label="Sichtbarkeit Zettel"]').count()) === 1 &&
+      (await karte.getByRole("radiogroup", { name: "Zettel-Farbe" }).count()) === 1);
     await karte.locator('select[aria-label="Sichtbarkeit Zettel"]').selectOption("alle");
     await p.waitForTimeout(400);
     let z = (await gespeichert(p)).find((e) => /NUR VERWALTER/.test(e.note));
@@ -235,14 +265,15 @@ const altBestand = [
     await karte.getByRole("radio", { name: "Farbe Rosa" }).click();
     await p.waitForTimeout(400);
     z = (await gespeichert(p)).find((e) => /NUR VERWALTER/.test(e.note));
-    const hinter = await p.locator("div", { hasText: /NUR VERWALTER Kündigung/ }).filter({ has: p.locator('select[aria-label="Sichtbarkeit Zettel"]') }).last()
-      .evaluate((el) => getComputedStyle(el).backgroundColor);
+    const hinter = await karteVon(p, /NUR VERWALTER Kündigung/).evaluate((el) => getComputedStyle(el).backgroundColor);
     ok("(C2) Farbe Rosa: gespeichert und sofort auf dem Zettel (rgb(250, 220, 230))", z && z.farbe === "rosa" && hinter === "rgb(250, 220, 230)", `farbe=${z && z.farbe} bg=${hinter}`);
 
     // (C4) Monitor: 📺 am (jetzt Alle-)Zettel UND am Bearbeiter-Zettel - nur der Alle-Zettel läuft.
-    await karte.locator('button[aria-label="Im Monitor anzeigen"]').click();
+    await (await menueAuf(p, /NUR VERWALTER Kündigung/)).locator('button[aria-label="Im Monitor anzeigen"]').click();
     await p.waitForTimeout(300);
-    const karteB = p.locator("div", { hasText: /BEARBEITER Zeiterfassung/ }).filter({ has: p.locator('select[aria-label="Sichtbarkeit Zettel"]') }).last();
+    const karteB = await menueAuf(p, /BEARBEITER Zeiterfassung/);
+    ok("(C5) Das ⋯ eines zweiten Zettels schließt das erste Menü (nur eines offen)",
+      (await p.getByRole("group", { name: "Zettel-Optionen" }).count()) === 1);
     await karteB.locator('button[aria-label="Im Monitor anzeigen"]').click();
     await p.waitForTimeout(300);
     const monitorFlags = (await gespeichert(p)).filter((e) => e.monitor).map((e) => e.note.slice(0, 12));

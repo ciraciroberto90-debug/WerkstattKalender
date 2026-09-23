@@ -471,8 +471,11 @@ Störungen, nicht den Rest.
   den Angekreuzten sieht sie niemand, auch kein Verwalter. Dazu die
   **Zettel-Farbe** (7 Töne) und **„Gültig bis"**: Nach dem Tag hängt sich der
   Zettel selbst ab und bleibt über „abgelaufene Zettel · anzeigen" erreichbar.
-  Jeder Zettel zeigt oben rechts sein Schild (z. B. „👤 Max"); Sichtbarkeit und
-  Farbe lassen sich am Zettel nachträglich ändern (Verfasser oder Verwalter).
+  Jeder Zettel zeigt oben rechts sein Schild (z. B. „👤 Max"). Alle
+  Bearbeiter-Funktionen stecken hinter dem **⋯** rechts neben dem Verfasser:
+  Zur Arbeit machen, Anheften, Monitor, Entfernen sowie Sichtbarkeit und
+  Farbe nachträglich ändern (Letzteres nur Verfasser oder Verwalter). Ein
+  angehefteter Zettel zeigt ein kleines 📌, einer im Laufband ein 📺.
   Das Auge (Ansicht als Leser/Bearbeiter) zeigt genau, was diese Gruppe sieht.
 - **Tagesliste mit „Anwesende"-Menü (seit dem 21.09.):** Rechts im Kopf der
   Tagesliste steht der Knopf **👷 Anwesende** mit der Zahl der Kollegen und der

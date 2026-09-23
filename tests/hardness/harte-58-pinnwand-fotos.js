@@ -159,6 +159,9 @@ const verfasserAuf = async (p) => {
     await p.waitForTimeout(300);
 
     // (Z4) Zur Arbeit machen: Verweis wandert mit, Datei bleibt
+    // Seit dem 23.09. stecken die Zettel-Funktionen hinter dem ⋯-Knopf.
+    await p.locator('button[aria-label="Zettel-Optionen"]').first().click();
+    await p.waitForTimeout(200);
     await p.getByRole("button", { name: "➜ Zur Arbeit machen" }).click();
     await p.waitForTimeout(500);
     pruef("(Z4) Der Arbeit-Dialog zeigt das Zettel-Foto schon im Foto-Bereich",
@@ -201,6 +204,8 @@ const verfasserAuf = async (p) => {
     await p.locator('textarea[placeholder^="Was sollen die anderen wissen"]').fill("Kurzer Zettel mit Bild");
     await p.getByRole("button", { name: "Anpinnen", exact: true }).click();
     await p.waitForTimeout(900);
+    await p.locator('button[aria-label="Zettel-Optionen"]').first().click();
+    await p.waitForTimeout(200);
     await p.getByRole("button", { name: "Zettel entfernen" }).click();
     await p.waitForTimeout(900);
     pruef("(Z5) Zettel löschen räumt die Bilddatei mit weg",

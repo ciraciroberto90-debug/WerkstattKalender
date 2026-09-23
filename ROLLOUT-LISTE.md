@@ -1122,7 +1122,11 @@ im Chat; Bauskripte im Sitzungs-Scratchpad (`mock-*.html`).
       Auge-Simulation (Leser/Bearbeiter) zeigt genau deren Sicht. Alte
       Zettel: veröffentlicht = Alle, sonst Bearbeiter & Verwalter; das Feld
       `veroeffentlicht` wird für ältere Programmstände mitgeführt.
-      Nachweis harte-82 (22 Prüfungen), harte-58 nur im Locator angepasst.
+      Nachweis harte-82 (25 Prüfungen), harte-58 nur im Locator angepasst.
+      **Nachtrag (Robertos Rückmeldung zum ersten Stand):** Die Bearbeiter-
+      Knöpfe machten die Wand unruhig – jetzt stecken sie hinter EINEM
+      ⋯-Knopf je Zettel (Zur Arbeit, 📌, 📺, ×, Sichtbarkeit, Farbe); auf
+      der Wand bleiben nur Schild, Text, Verfasser und stille Marken 📌/📺.
 - [ ] **Schritt 4 – Kachel-Inhalt wählen:** im Anordnen-Modus je
       Kennzahl-Kachel ein ▾ mit allen Kennzahlen, die das Cockpit rechnet
       (Termine, Quoten TPM/PitStop/R+I Monat/Jahr, Störungen 30 Tage,
