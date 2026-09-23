@@ -602,7 +602,7 @@ function MonatsDiagramm({ tage, monatName, jahr, erledigt, basis, prozent, filte
   );
 }
 
-function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null }) {
+function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null, kennzeichen = null }) {
   const hatWert = prozent !== null && prozent !== undefined;
   // Zielwert (⚙ Regeln & Listen): liegt die Quote darunter, wird der Bogen
   // orange statt grün - nur für Aufrufer ohne eigene Farben (die Übersicht).
@@ -640,6 +640,7 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
         ? { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--wk-eck)", textAlign: "center" }
         : { background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", borderRadius: "var(--wk-eck)", textAlign: "center", boxShadow: "var(--wk-schatten)" }}
       title={(titel || "Anteil erledigter Wartungs- und R+I-Punkte") + (!farben && quoteZiel > 0 ? ` · Ziel ${quoteZiel} %` : "")}
+      {...(kennzeichen ? { "data-kachel-inhalt": kennzeichen.inhalt, "data-kachel-form": "halbkreis" } : {})}
     >
       <svg viewBox="0 0 84 50" style={{ width: "80px", height: "47px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
         <defs>
@@ -699,9 +700,10 @@ function KennzahlKachel({ def, d }) {
     <span className="font-black" style={{ fontSize: "0.7rem", color: d.delta.gut === null ? "#8A9099" : d.delta.gut ? "#2F7D4F" : "#B23A34", marginLeft: "6px" }}>{d.delta.text}</span>
   ) : null;
   if (def.form === "halbkreis") {
-    // display:contents - der Halbkreis bringt seine eigene Karte mit, das
-    // Kennzeichen (Inhalt/Form) hängt trotzdem an der Kachel.
-    return <div data-kachel-inhalt={def.inhalt} data-kachel-form="halbkreis" style={{ display: "contents" }}><HalbkreisQuote prozent={d.prozent} label={d.kurz || ""} sub={d.sub || ""} titel={d.titel || ""} /></div>;
+    // Der Halbkreis bringt seine eigene Karte mit - das Kennzeichen (Inhalt/
+    // Form) hängt direkt an ihr, damit die Kachel im Raster ein echtes Kind
+    // bleibt (harte-40 misst die Kachelmaße über die Raster-Kinder).
+    return <HalbkreisQuote prozent={d.prozent} label={d.kurz || ""} sub={d.sub || ""} titel={d.titel || ""} kennzeichen={{ inhalt: def.inhalt }} />;
   }
   if (def.form === "verlauf") {
     const punkte = Array.isArray(d.verlauf) ? d.verlauf : [];
