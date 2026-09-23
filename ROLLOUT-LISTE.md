@@ -1164,6 +1164,50 @@ Dateien, die es nicht mehr gibt.
       erwähnen den Backlog, vorneweg harte-25 (Backlog-Leiste) und
       harte-67 (Berichte + To-do).
 
+## Sammelstelle: Robertos offene Bearbeitungspunkte (Stand 23.09., „behalte sie, bis ich danach frage")
+
+Kurzliste, Details stehen in den jeweiligen Blöcken darunter:
+
+1. **Kachel-Inhalt der Übersicht** – Vorlagen K1/K3/K4/K5 geschickt, Wahl offen.
+2. **Gruppen-Vorlagen der Übersicht** (Leser-/Bearbeiter-Übersicht vom Verwalter gestalten) – Vorlage K2, noch nicht gewählt.
+3. **Termin-Kachel mit Anwesenden noch einmal wählen** – V1–V7 gezeigt (V2 gebaut).
+4. **Backlog wird To-do** – Vorlagen P1–P3, alle Kombis erhalten, Backlog nur ausblendbar.
+5. **Kacheln/Bereiche/Funktionen ein- und ausblendbar, je Benutzergruppe** (Teil von 2 und 4).
+6. **Technischer Einkauf** – Vorlagen E1–E5, offene Fragen; laut Flipchart Toni/Paul.
+7. **Meeting 23.09.: Whiteboard „SIMPTRW"-Übersicht und Flipchart „Nächste Schritte"** – Vorab-Notiz unten, Robertos Details folgen.
+8. **Robertos Handgriffe:** Release v1.1 anlegen, Programm-Ordner tauschen; Hauptpräsentation durchgehen.
+9. **Aufräumen überholter ROLLOUT-Punkte** nach „Erledigt" (Angebot, nicht bestätigt).
+10. **harte-23 (Umstieg von der Fassung vor dem 10.08.)** streichen, sobald feststeht, dass nirgends mehr ein Stand von vor August läuft.
+
+## Meeting vom 23.09. – Whiteboard und Flipchart (Vorab-Notiz aus dem Foto, Details folgen von Roberto)
+
+Gelesen aus dem Foto, Unsicheres mit (?) markiert:
+
+**Whiteboard – Skizze einer Übersicht („SIMPTRW"(?)):**
+- Kopfzeile mit Kacheln: **Tagesplan** (Soll / Ist / #, To-do), **TPM-Effizienz
+  Monat** (Soll / Ist / %), **Unfälle** (Total 2026 / Soll), **Backlog** (Uhr-
+  Symbol, Soll), **Kosten** (Tabelle), Symbole Wartung(?) / Instandhaltung(?).
+- Großer Block **Tagesplan: Datum – R+I, PitStop, To-do** mit „Neue Störung(?)".
+- Darunter drei Kästen: **Schwarzes Brett SK**, **techn. Einkauf SK**
+  (# Bedarfsmeldungen; Backlog > 48 h #, > 7 Tage #, > 14 Tage #;
+  # Bestellungen / Lieferungen: # offen, # überfällig), **Personal SK**
+  (FS / SS / NS = Früh-, Spät-, Nachtschicht).
+
+**Flipchart „Nächste Schritte":**
+- ☐ RC: Teams / Claude / BTA-Programm(?) … · ☐ RC … Projektteam
+- ☐ Bildschirm Werkstatt erarbeiten – 1.10. – RC
+- ☐ PSG / IT: Informationsportal BTA, 100 GB – SK (Core-Team: Roberto,
+  Thomas, Stefan, Toni, Paul, Alex)
+- ☐ SK Programm · ☐ SK Verwalter · ☐ Nächste Schritte:
+  – Bildschirm Werkstatt (%) – Schichtberichte (I, T, A) – TPM (Stefan Lott)
+  – Schichtplan (Th. Saedy) – Berichtsfunktionen – techn. Einkauf (Toni / Paul)
+
+Was daraus für das Programm folgen könnte (noch nicht beauftragt): Übersicht
+nach der Whiteboard-Skizze als Vorlage (Kacheln Tagesplan/TPM-Effizienz/
+Unfälle/Backlog-Alter/Kosten), Backlog-Alter (> 48 h / > 7 / > 14 Tage) als
+Kennzahl, Bereich Einkauf (E1–E5), Personal-Kachel je Schicht, Bildschirm
+Werkstatt = Hallenmonitor-Vorlage bis 1.10.
+
 ## Technischer Einkauf (Robertos Meeting vom 23.09.) – Vorlagen geschickt, Entscheidung offen
 
 Ausgangslage im Programm: Störberichte haben „Ersatzteile" + Haken
