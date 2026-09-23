@@ -72,7 +72,7 @@ const inPlan = async (p) => {
     await p.locator('input[aria-label="Name der Werkstatt"]').fill("Werkstatt Scheurich");
     await p.locator('input[aria-label="Name der Werkstatt"]').blur();
     await p.waitForTimeout(600);
-    await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+    await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
     await p.waitForTimeout(300);
     pruef("(G1) Die Kopfzeile trägt den eigenen Namen",
           /WERKSTATT SCHEURICH/i.test(await p.locator("body").innerText()));

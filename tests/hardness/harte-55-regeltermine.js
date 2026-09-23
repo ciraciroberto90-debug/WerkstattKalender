@@ -150,7 +150,7 @@ const leseEintraege = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("w
           !/Abteilungsversammlung/.test(blattText) && !/Schichtübergabe/.test(blattText),
           blattText.slice(0, 140));
     await popup.close();
-    await p.locator('button[aria-label="Schließen"]').last().click().catch(() => p.keyboard.press("Escape"));
+    await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape"));
     await p.waitForTimeout(400);
 
     // (R5) Ganze Reihe löschen aus dem Termin-Dialog.

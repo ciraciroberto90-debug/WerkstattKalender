@@ -57,7 +57,7 @@ const pruef = (n, c, zusatz) => {
   await p.waitForTimeout(300);
   await p.locator("tr", { hasText: /Spät/ }).last().click();
   await p.waitForTimeout(300);
-  await p.getByText("0002").first().click().catch(() => {});
+  await p.getByText("0002").first().click({ timeout: 3000 }).catch(() => {});
   await p.waitForTimeout(400);
   const bearb = p.getByRole("button", { name: /Bearbeiten/ }).first();
   if (await bearb.count()) { await bearb.click(); await p.waitForTimeout(400); }

@@ -70,7 +70,7 @@ const START = { format: "werkstatt-kalender-v1", standort: "scheurich", savedAt:
   await p.locator('button[aria-label="Gemeinsame Datei"]').click();
   await p.getByText("Vorhandene Datei öffnen …").click();
   await p.waitForFunction(() => /ERSTER ZETTEL/.test(document.body.innerText), null, { timeout: 30000 });
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
   await p.waitForTimeout(600);
   const poll = () => p.evaluate(() => window.__wkSharedTest.poll());
   const appZaehler = () => p.evaluate(() => window.__wkSharedTest.leseZaehler());

@@ -212,7 +212,7 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     await p.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
     await p.goto(APP);
     await p.waitForTimeout(1200);
-    await p.locator('button[aria-label="Gemeinsame Datei"]').click().catch(() => {});
+    await p.locator('button[aria-label="Gemeinsame Datei"]').click({ timeout: 3000 }).catch(() => {});
     const vo = p.getByText("Vorhandene Datei öffnen …");
     if (await vo.count()) await vo.click();
     await p.waitForTimeout(1300);

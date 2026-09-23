@@ -165,7 +165,7 @@ const eintraege = [
   ok("(4) Der Stift an der Notiz öffnet den Notiz-Dialog mit dem Text", (await notizFeld.count()) > 0 && /LTA2 mit Wiesner abstimmen/.test(await notizFeld.first().inputValue()));
   await p.keyboard.press("Escape");
   await p.waitForTimeout(300);
-  if (await p.locator("textarea").count()) { await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {}); await p.waitForTimeout(300); }
+  if (await p.locator("textarea").count()) { await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {}); await p.waitForTimeout(300); }
 
   /* ---- (5) Zurück ---- */
   await p.locator('button[aria-label="Zurück zu den Terminen"]').click();

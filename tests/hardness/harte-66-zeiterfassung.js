@@ -244,7 +244,7 @@ const pruef = (n, c, zusatz) => {
   await p.waitForTimeout(300);
   await p.locator("tr", { hasText: /Spät/ }).last().click();
   await p.waitForTimeout(300);
-  await p.locator("tr", { hasText: "0002" }).last().click().catch(() => {}); // tr-scoped: der Doppel-Hinweis oben enthält die Nummer auch
+  await p.locator("tr", { hasText: "0002" }).last().click({ timeout: 3000 }).catch(() => {}); // tr-scoped: der Doppel-Hinweis oben enthält die Nummer auch
   await p.waitForTimeout(400);
   await p.getByRole("button", { name: "→ Zeiterfassung", exact: true }).click();
   await p.waitForTimeout(400);

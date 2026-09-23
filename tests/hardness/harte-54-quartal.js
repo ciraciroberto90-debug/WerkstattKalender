@@ -101,7 +101,7 @@ async function quartalsBlatt(p, umfang) {
     await p.waitForTimeout(400);
     pruef("(Q1) Der Druckdialog bietet „Letzte 3 Monate“ im Aufklappfeld an",
           (await p.locator('select[aria-label="Blatt wählen"] option[value="diagramm-quartal"]').count()) === 1);
-    await p.locator('button[aria-label="Schließen"]').last().click().catch(() => p.keyboard.press("Escape"));
+    await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape"));
     await p.waitForTimeout(300);
 
     const { html, text } = await quartalsBlatt(p);

@@ -99,7 +99,7 @@ const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++;
   await page.locator('button[aria-label="Gemeinsame Datei"]').click();
   await page.getByText('Vorhandene Datei öffnen …').click();
   await page.waitForTimeout(900);
-  await page.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await page.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
   await page.waitForTimeout(200);
 
   // Ordner über den Test-Zugang übernehmen und Scan anstoßen

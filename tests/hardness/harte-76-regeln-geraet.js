@@ -122,7 +122,7 @@ const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0
   ok("(R3) Der Baustein steht im Feld", getan === "Sicherung getauscht, Anlage wieder frei", getan);
   ok("(R3) Das Pflichtfeld Fehlerart wird in der Pflichtfeld-Meldung genannt", /Laut Werkstatt-Regel außerdem: Fehlerart/.test(await p.locator("body").innerText()));
   await p.keyboard.press("Escape");
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
   await p.waitForTimeout(300);
 
   /* ================= (R4) To-do-Vorwarnung ================= */

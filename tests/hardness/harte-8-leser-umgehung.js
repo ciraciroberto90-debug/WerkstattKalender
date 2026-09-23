@@ -62,6 +62,10 @@ const check = (n, c) => { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok
   // Zur Sicherheit: der geheime Backlog-Eintrag darf nirgendwo im sichtbaren Text auftauchen
   const gesamtText = await page.locator('body').innerText();
   check('Geheimer Backlog-Eintrag ist nirgends im Leser-Bildschirm sichtbar', !gesamtText.includes('GEHEIME-ANLAGE'));
+  // Aus dem gestrichenen harte-7 übernommen (23.09.): Das Fernseher-Symbol ist
+  // für normale Leser nicht da - nur das Kiosk-Gerät (?monitor=1) darf über den
+  // Monitor Backlog-Zahlen, Anwesenheit und Notizen sehen.
+  check('Fernseher-Symbol (Werkstatt-Monitor) ist für normale Leser ausgeblendet', (await page.locator('button[aria-label="Werkstatt-Monitor"]').count()) === 0);
 
   console.log(`\n${ok} PASS / ${fail} FAIL`);
   await browser.close();

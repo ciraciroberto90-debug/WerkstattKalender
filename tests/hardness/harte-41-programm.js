@@ -165,7 +165,7 @@ const pruef = (n, c, zusatz) => {
     kennkarte && kennkarte.pfad === dateiPfad, (kennkarte && kennkarte.pfad) || "(leer)");
   // Der Verbinden-Dialog schliesst sich nach dem Verbinden - fuer die
   // Kennkarte einmal neu oeffnen, so wie es der Nutzer auch taete.
-  await page.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await page.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
   await page.waitForTimeout(200);
   await page.locator('button[aria-label="Gemeinsame Datei"]').click();
   await page.waitForTimeout(500);
@@ -174,7 +174,7 @@ const pruef = (n, c, zusatz) => {
     dialogText.includes(dateiPfad), dialogText.split("\n").find((z) => z.includes(ordner)) || "(nicht sichtbar)");
 
   // Speichern -> muss auf der Platte ankommen
-  await page.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await page.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
   await page.waitForTimeout(300);
   await page.evaluate(async () => {
     const alt = JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]");
@@ -259,7 +259,7 @@ const pruef = (n, c, zusatz) => {
 
   /* ---- (9) Laufwerks-Link öffnet sich über den Rahmen ---- */
   // Link anlegen (Linkstreifen ist nur auf der Übersicht sichtbar)
-  await page.getByRole("button", { name: "Links & Dokumente" }).click().catch(() => {});
+  await page.getByRole("button", { name: "Links & Dokumente" }).click({ timeout: 3000 }).catch(() => {});
   await page.waitForTimeout(400);
   await page.getByRole("button", { name: "＋ Link" }).click();
   await page.waitForTimeout(300);
@@ -275,7 +275,7 @@ const pruef = (n, c, zusatz) => {
   pruef("(9) Die Rückmeldung sagt 'geöffnet', nicht 'Pfad kopiert'",
     /✓ geöffnet/.test(await page.locator("body").innerText()));
   // Linkfeld wieder zuklappen - sonst ueberdeckt es die Update-Leiste
-  await page.getByRole("button", { name: "Links & Dokumente" }).click().catch(() => {});
+  await page.getByRole("button", { name: "Links & Dokumente" }).click({ timeout: 3000 }).catch(() => {});
   await page.waitForTimeout(300);
 
   /* ---- (10) OEE über eingefügten Pfad - direkt auf die .xlsx ---- */
@@ -303,7 +303,7 @@ const pruef = (n, c, zusatz) => {
     "erkannte OEE-Spalte: " + await page.locator('select[aria-label="Spalte für OEE"]').inputValue().catch(() => "—"));
   await page.getByRole("button", { name: "OEE-Quelle übernehmen" }).click();
   await page.waitForTimeout(900);
-  await page.getByRole("button", { name: "Abbrechen" }).first().click().catch(() => {});
+  await page.getByRole("button", { name: "Abbrechen" }).first().click({ timeout: 3000 }).catch(() => {});
   await page.waitForTimeout(900);
   pruef("(10) Die Kachel zeigt den Wert aus der Tabelle",
     /85,0/.test(await page.locator("button[title*='OEE']").first().innerText()),
@@ -343,7 +343,7 @@ const pruef = (n, c, zusatz) => {
     await p12.locator('button[aria-label="Gemeinsame Datei"]').click();
     await p12.getByText("Vorhandene Datei öffnen …").click();
     await p12.waitForTimeout(1500);
-    await p12.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+    await p12.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
     await p12.waitForTimeout(400);
     const leiste = await p12.locator("body").innerText();
     pruef("(12) Verweigert das Laufwerk das Schreiben, steht die App auf Schreibschutz",

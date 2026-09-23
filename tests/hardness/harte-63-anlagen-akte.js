@@ -88,7 +88,7 @@ async function start(browser, { leser = false } = {}) {
   pruef("(B) Der Druck-Umfang heißt „Nur PitStop“ / „Beide (PitStop & R+I)“",
         (await p.getByRole("button", { name: "Nur PitStop", exact: true }).count()) === 1 &&
         (await p.getByRole("button", { name: "Beide (PitStop & R+I)", exact: true }).count()) === 1);
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => p.keyboard.press("Escape"));
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape"));
   await p.waitForTimeout(300);
 
   /* ---- (A) Die Anlagen-Akte im Register ---- */

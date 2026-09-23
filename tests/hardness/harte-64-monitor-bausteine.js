@@ -82,7 +82,7 @@ const pruef = (n, c, zusatz) => {
   pruef("(M3) Die Wahl steht in der Konfiguration (crew aus, Laufband aus, Score an)",
         cfg.monitor && cfg.monitor.crew === false && cfg.monitor.stoerband === false && cfg.monitor.score === true,
         JSON.stringify(cfg.monitor));
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => p.keyboard.press("Escape"));
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape"));
   await p.waitForTimeout(400);
   await p.locator('button[aria-label="Werkstatt-Monitor"]').click();
   await p.waitForTimeout(800);
@@ -107,7 +107,7 @@ const pruef = (n, c, zusatz) => {
   }
   pruef("(M4) Der Reiter warnt: alles abgewählt = nur noch Uhr",
         /Alles abgewählt/.test(await p.locator("body").innerText()));
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => p.keyboard.press("Escape"));
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape"));
   await p.waitForTimeout(400);
   await p.locator('button[aria-label="Werkstatt-Monitor"]').click();
   await p.waitForTimeout(800);

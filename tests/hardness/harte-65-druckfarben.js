@@ -128,7 +128,7 @@ const fuellBefehl = (hex) => {
         fehlend.length ? "es fehlen: " + fehlend.join(", ") : inhalt.length + " Zeichen Zeichenbefehle");
 
   /* ---- (F4) Auch die TPM-Plan-Vorlage (Übersicht) trägt die Anweisung ---- */
-  await p.getByRole("button", { name: /^TPM$/ }).first().click().catch(() => {});
+  await p.getByRole("button", { name: /^TPM$/ }).first().click({ timeout: 3000 }).catch(() => {});
   await p.waitForTimeout(500);
   await p.evaluate(() => { window.__druckHTML = ""; });
   await p.locator('button[aria-label="Drucken"]').first().click();

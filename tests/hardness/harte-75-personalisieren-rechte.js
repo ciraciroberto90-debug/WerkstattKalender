@@ -95,7 +95,7 @@ const ok = (n, c, zusatz) => {
     await p.locator('button[aria-label="Gemeinsame Datei"]').click();
     await p.getByText("Vorhandene Datei öffnen …").click();
     await p.waitForTimeout(1100);
-    await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+    await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
     await p.waitForTimeout(400);
     return p;
   };
@@ -211,7 +211,7 @@ const ok = (n, c, zusatz) => {
 
   /* ================= (B) Übersicht je Rechner ================= */
   const vorher = await chef.p.locator("body").innerText();
-  await chef.p.locator('button[aria-label="Schließen"]').last().click().catch(() => chef.p.keyboard.press("Escape"));
+  await chef.p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => chef.p.keyboard.press("Escape"));
   await chef.p.waitForTimeout(400);
   const standardSicht = await chef.p.locator("body").innerText();
   ok("(B1) Vorher (Standard): Pinnwand und „Heute da“ stehen auf der Übersicht",
@@ -224,7 +224,7 @@ const ok = (n, c, zusatz) => {
   await chef.p.waitForTimeout(300);
   ok("(B1) Die Vorlage ist als „aktiv“ markiert",
     (await chef.p.locator('button[aria-label="Vorlage Leitstand"]').getAttribute("aria-pressed")) === "true");
-  await chef.p.locator('button[aria-label="Schließen"]').last().click().catch(() => chef.p.keyboard.press("Escape"));
+  await chef.p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => chef.p.keyboard.press("Escape"));
   await chef.p.waitForTimeout(500);
   const leitstand = await chef.p.locator("body").innerText();
   ok("(B1) Leitstand: Pinnwand und „Heute da“ sind weg, die Kennzahl „Heute fällig“ bleibt",
@@ -262,7 +262,7 @@ const ok = (n, c, zusatz) => {
   // Kennzahlen wieder an, damit sichtbar wird, ob die Störungen VOR ihnen stehen
   await chef.p.locator('input[aria-label="Übersicht: Kennzahlen"]').click();
   await chef.p.waitForTimeout(300);
-  await chef.p.locator('button[aria-label="Schließen"]').last().click().catch(() => chef.p.keyboard.press("Escape"));
+  await chef.p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => chef.p.keyboard.press("Escape"));
   await chef.p.waitForTimeout(500);
   const text = await chef.p.locator("body").innerText();
   ok("(B4) Auf der Übersicht kommt „Offene Störungen“ VOR „Heute fällig“",

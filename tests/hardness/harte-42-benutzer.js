@@ -65,7 +65,7 @@ const ok = (n, c, zusatz) => {
     await p.locator('button[aria-label="Gemeinsame Datei"]').click();
     await p.getByText("Vorhandene Datei öffnen …").click();
     await p.waitForTimeout(1000);
-    await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+    await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
     await p.waitForTimeout(300);
   };
 
@@ -248,7 +248,7 @@ const ok = (n, c, zusatz) => {
   await p2.waitForTimeout(300);
   ok("(9) Aber die Benutzerverwaltung sieht nur der Verwalter",
     !/Benutzer & Rechte/i.test(await p2.locator("body").innerText()));
-  await p2.getByRole("button", { name: "Abbrechen" }).first().click().catch(() => {});
+  await p2.getByRole("button", { name: "Abbrechen" }).first().click({ timeout: 3000 }).catch(() => {});
   await p2.waitForTimeout(400);
 
   /* ---- (10) WÄCHTER: Fremde Rechteänderungen überleben jedes andere

@@ -70,7 +70,7 @@ const ok = (n, c, zusatz) => {
     await p.locator('button[aria-label="Gemeinsame Datei"]').click();
     await p.getByText("Vorhandene Datei öffnen …").click();
     await p.waitForTimeout(1100);
-    await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+    await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
     await p.waitForTimeout(400);
   };
   const kopf = async (p) => (await p.locator("body").innerText()).slice(0, 400);
@@ -110,7 +110,7 @@ const ok = (n, c, zusatz) => {
   const teamText = await r.p.locator("body").innerText();
   ok("(3) Im Soendgen-Zahnrad steht das Soendgen-Team (K. Meier), nicht das Scheurich-Team (T. Balles)",
     /K\. Meier/.test(teamText) && !/T\. Balles/.test(teamText));
-  await r.p.locator('button[aria-label="Schließen"]').last().click().catch(() => r.p.keyboard.press("Escape"));
+  await r.p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => r.p.keyboard.press("Escape"));
   await r.p.waitForTimeout(300);
 
   /* ---- (4) Zurück nach Scheurich ---- */

@@ -88,7 +88,7 @@ const ok = (n, c, zusatz) => {
   await p.waitForTimeout(400);
   ok("(3) Im Zahnrad fehlen „Benutzer & Rechte“ und „Personalisieren“ - wie beim echten Bearbeiter",
     !(await hat(p, "Benutzer & Rechte")) && !(await hat(p, "Personalisieren")) && (await hat(p, "Team & Schichten")));
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => p.keyboard.press("Escape"));
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape"));
   await p.waitForTimeout(300);
 
   /* ---- (4) Zurück ---- */
@@ -99,7 +99,7 @@ const ok = (n, c, zusatz) => {
   await p.locator('button[aria-label="Verwalten"]').click();
   await p.waitForTimeout(400);
   ok("(4) Zahnrad wieder mit „Benutzer & Rechte“", await hat(p, "Benutzer & Rechte"));
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => p.keyboard.press("Escape"));
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape"));
   await p.waitForTimeout(300);
 
   /* ---- (5) Nachtmodus über das Menü ---- */

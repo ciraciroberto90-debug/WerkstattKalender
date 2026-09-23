@@ -169,7 +169,7 @@ async function starte(browser, { imDatenordner = {}, imQuellordner = null } = {}
   await p.locator('button[aria-label="Gemeinsame Datei"]').click();
   await p.getByText("Vorhandene Datei öffnen …").click();
   await p.waitForTimeout(900);
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
   await p.waitForTimeout(200);
   await p.evaluate(() => window.__wkSharedTest.adoptFolder(window.__ordnerHandle));
   return p;
@@ -194,7 +194,7 @@ async function richteEin(p, datei, { eigenerOrdner = false } = {}) {
   const zuordnung = await p.locator('select[aria-label="Spalte für OEE"]').inputValue().catch(() => "");
   await p.getByRole("button", { name: "OEE-Quelle übernehmen" }).click();
   await p.waitForTimeout(900);
-  await p.getByRole("button", { name: "Abbrechen" }).first().click().catch(() => {});
+  await p.getByRole("button", { name: "Abbrechen" }).first().click({ timeout: 3000 }).catch(() => {});
   await p.waitForTimeout(700);
   return zuordnung;
 }
@@ -366,7 +366,7 @@ const kachel = (p) => p.locator("button[title*='OEE']").first();
     await p.locator('select[aria-label="Excel-Tabelle wählen"]').selectOption("OEE_Auswertung.xlsx");
     await p.waitForTimeout(900);
     const datumSpalte = await p.locator('select[aria-label="Spalte für Datum"]').inputValue().catch(() => "");
-    await p.getByRole("button", { name: "Abbrechen" }).first().click().catch(() => {});
+    await p.getByRole("button", { name: "Abbrechen" }).first().click({ timeout: 3000 }).catch(() => {});
     await p.waitForTimeout(400);
     pruef("(11) Pivot: Auch die Datumsspalte (Zeilenbeschriftung)",
       datumSpalte === "1", "erkannte Spalte: " + datumSpalte);

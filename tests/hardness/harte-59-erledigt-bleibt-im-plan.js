@@ -82,7 +82,7 @@ const eintraege = [
   await p.waitForTimeout(400);
   await p.getByRole("button", { name: /Erledigt melden/ }).click();
   await p.waitForTimeout(800);
-  await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
   await p.waitForTimeout(400);
   pruef("(E2) Nach „Erledigt melden“ bleibt der Chip stehen - jetzt mit Haken",
         (await zelle.locator("button", { hasText: "✓ TS480: Ölstand prüfen" }).count()) === 1,

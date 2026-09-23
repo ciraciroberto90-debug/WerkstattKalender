@@ -127,7 +127,7 @@ const pruef = (n, c, zusatz) => {
   await page.locator('button[aria-label="Gemeinsame Datei"]').click();
   await page.getByText("Vorhandene Datei öffnen …").click();
   await page.waitForTimeout(1500);
-  await page.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await page.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
   const verbunden = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]").length);
   pruef("(0) Vorbedingung: Programm ist verbunden, Bestand da", verbunden >= 1, verbunden + " Einträge");

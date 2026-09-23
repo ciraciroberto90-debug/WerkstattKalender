@@ -205,7 +205,7 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     await p.locator('button[aria-label="Gemeinsame Datei"]').click();
     await p.getByText("Vorhandene Datei öffnen …").click();
     await p.waitForTimeout(1000);
-    await p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+    await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => {});
     await p.waitForTimeout(400);
     const text = await p.locator("body").innerText();
     pruef("(F) Die Übersicht meldet, was seit dem letzten Besuch geschah",

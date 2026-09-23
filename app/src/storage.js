@@ -77,7 +77,7 @@ async function inDateiSchreiben(key, value, prevRaw, laufNr, lokalFehlte) {
   // "lokalFehlte": der Zwischenspeicher war beim set() voll. Die Warnung
   // dazu kommt bewusst HIER, nach dem Datei-Schreiben - käme sie sofort,
   // würde die Entwarnung des erfolgreichen Datei-Speicherns sie eine
-  // Sekunde später wegwischen (harte-21 hat genau das gefangen).
+  // Sekunde später wegwischen (harte-34 hat genau das gefangen).
   let lokalImmerNochOffen = !!lokalFehlte;
   try {
     if (key === ENTRIES_KEY) {

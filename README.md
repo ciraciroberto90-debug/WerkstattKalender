@@ -77,7 +77,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 81 Härtetests und acht weitere Suiten | Entwicklung |
+| `tests/` | 74 Härtetests, fünf Browser-Reserve-Tests und weitere Suiten | Entwicklung |
 | `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
@@ -129,13 +129,12 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 81 Härtetests
+bash tests/run-hardness-tests.sh           # 74 Härtetests (vor jedem Push)
+bash tests/run-browser-reserve.sh          # 5 Browser-Reserve-Tests (vor einer Freigabe; Dateizugriff über den Browser)
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
-node tests/rollout-test.js                 # Verteilung: Paket, Dienst, Doku, Versionswechsel
 node tests/stress-15-jahre.js              # Messfahrt: 15 Jahrgänge à 4 500 Einträge (67 800+)
-node tests/veroeffentlichungs-test.js      # Veröffentlichung
 node tests/hardness/diagnose-ablauf.js     # die Diagnose-Seite selbst
 bash tests/pruefe-sicherung.sh             # Sicherungsskript (braucht PowerShell)
 pwsh -File tests/pruefe-verknuepfung.ps1   # Autostart-Zweig der Verknüpfung
