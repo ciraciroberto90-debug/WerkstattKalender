@@ -1202,6 +1202,19 @@ Gelesen aus dem Foto, Unsicheres mit (?) markiert:
   – Bildschirm Werkstatt (%) – Schichtberichte (I, T, A) – TPM (Stefan Lott)
   – Schichtplan (Th. Saedy) – Berichtsfunktionen – techn. Einkauf (Toni / Paul)
 
+**Robertos Erklärung (23.09., nach dem Foto):** Das Whiteboard links ist die
+Übersicht für Leser und Bearbeiter – und zugleich die Anzeige des
+Werkstattmonitors. Neue Kacheln oben, von links: **To-do-Punkte** (Soll/
+Ist mit Tacho bzw. Halbkreis), **TPM-Monatseffizienz**, **Unfälle Total
+Jahr**, **Backlog-Statistik** (nur Prozent, live als Tacho), **Kosten**
+(Prozent des in diesem Jahr Ausgegebenen – braucht wie der Einkauf noch
+Abstimmung). Die **Terminübersicht (Tagesplan) wandert nach oben**, **Heute
+da nach unten**; die Pinnwand heißt dort **Schwarzes Brett**; neu ist eine
+**große Kachel mit Statistiken des technischen Einkaufs**. Vorlagen U1–U6
+geschickt (`mock-uebersicht.html`): U1 Whiteboard 1:1, U2 Monitor dunkel,
+U3 Tagesplan als Säule je Schicht, U4 Tacho-Wand, U5 Schicht zuerst mit
+großer Einkauf-Kachel, U6 Ampel-Zeile. **Entscheidung offen.**
+
 Was daraus für das Programm folgen könnte (noch nicht beauftragt): Übersicht
 nach der Whiteboard-Skizze als Vorlage (Kacheln Tagesplan/TPM-Effizienz/
 Unfälle/Backlog-Alter/Kosten), Backlog-Alter (> 48 h / > 7 / > 14 Tage) als
