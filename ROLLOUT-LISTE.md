@@ -1084,7 +1084,20 @@ Ziele (5), Rechner-Einstellungen (6), Vorlagen und Pflichtfelder (8).
       eine eigene Fehlerart anlegen, am Hallenrechner Zoom und
       Nachtmodus-Automatik ausprobieren.
 
-## Prüfstand-Durchsicht (Robertos Frage vom 23.09.: „passt da noch alles, können wir auf etwas verzichten?") – Entscheidung offen
+## Prüfstand-Durchsicht (Robertos Frage vom 23.09.) – UMGESETZT („mach du es sinnvoll und sicher")
+
+**Ergebnis, gemessen am 23.09. nach dem Aufräumen:** 74 Härtetests in
+**25,8 min** (vorher 81 in 43,7 min), alle grün nach einer Korrektur an
+harte-81 (der Test hatte sich unbemerkt auf die 30-s-Wartezeit verlassen:
+In der Zeit las der Eigen-Abgleich der App einmal und legte die Kennkarte
+an, und die Datei alterte über die Kurzblick-Ruhefrist – jetzt macht der
+Test beides ausdrücklich: ein Abgleich zum Einpendeln, dann 5,5 s warten).
+Echtes Electron-Programm (`pruefe-programm.js`) 35/35. Browser-Reserve 5/5 in 156 s. Größte Gewinne:
+harte-75 409 → 86 s, harte-40 223 → 61 s, harte-77 164 → 29 s, harte-42 102 → 28 s. Gestrichen:
+harte-7, harte-21, vorschau-, veröffentlichungs-, rollout-, leistungs-test
+(Begründung unten). Neue Runner-Zeile in README/CLAUDE.md.
+
+Ursprünglicher Befund:
 
 Gemessen am 23.09. (Stoppuhr je Test, alle 81 nacheinander): **43,7 min
 Gesamtlaufzeit**, 80 grün, harte-42 in diesem Lauf rot, allein danach
@@ -1093,13 +1106,13 @@ Smoke 27/27, Sync-Fokus 17/17, Diagnose 48/48, **Veröffentlichung 7/10
 (veraltet)**, **Rollout 1 PASS + Abbruch (veraltet)**, Vorschau-Test lädt
 Dateien, die es nicht mehr gibt.
 
-- [ ] **Zeitfresser ohne Nutzen:** 26 Stellen in 18 Tests schließen
+- [x] **Zeitfresser ohne Nutzen:** 26 Stellen in 18 Tests schließen
       Dialoge mit „Schließen anklicken, Fehler verschlucken"; ist der
       Dialog schon zu, wartet Playwright 30 s. harte-75: 409 s Laufzeit bei
       19 s echter Wartezeit (Helfer für 13 Rechner). Vorschlag: Frist 1,5 s
       an diesen Stellen – reine Teständerung, geschätzt 10–15 min weniger
       (ungemessen, bis es umgesetzt ist).
-- [ ] **Verzichtbar (Vorschlag):** harte-7 (eine der drei Prüfungen ist
+- [x] **Verzichtbar (umgesetzt, harte-23 bleibt):** harte-7 (eine der drei Prüfungen ist
       leer: `count() >= 0`, der Rest steckt in harte-8/42/75); harte-21
       (dieselben vier Fragen wie harte-34, dort gründlicher);
       `tests/vorschau-test.js` (Vorschau-Dateien existieren nicht mehr);
@@ -1111,16 +1124,28 @@ Dateien, die es nicht mehr gibt.
       erhalten). harte-23 (Umstieg von der Fassung vor dem 10.08.; 455 kB
       Alt-Fassung im Repo) – nur streichen, wenn nirgends mehr ein Stand
       von vor August läuft.
-- [ ] **Browser-Reserve statt täglich:** harte-27/28/29/30/32 prüfen
+- [x] **Browser-Reserve statt täglich (`tests/run-browser-reserve.sh`):** harte-27/28/29/30/32 prüfen
       Nutzeraktivierung und tote Verweise des Browser-Dateizugriffs; im
       Programm liefert die Brücke „granted" ohne Nachfrage. Vorschlag:
       eigener Runner `run-browser-reserve.sh`, läuft vor einer Freigabe,
       nicht bei jedem Push (zusammen 155 s).
-- [ ] **Bleiben, auch wenn teuer:** harte-40 OEE-Excel 223 s (echte
+- [x] **Bleiben, auch wenn teuer:** harte-40 OEE-Excel 223 s (echte
       Excel-Datei, einzige Prüfung der Tabelle), harte-70 Doppel-Speichern
       96 s (12 s echte Wartezeit für die Kollision), harte-41 Programm 80 s,
       harte-33 Sieben Jahre 41 s.
-- [ ] **Wird beim To-do-Umbau (Schritt 5) sowieso angefasst:** 20 Tests
+- [ ] **Gleichzeitiges Bearbeiten DESSELBEN Eintrags (Sonde 23.09., Robertos
+      Frage):** Zwei Bearbeiter ändern denselben Zettel: exakt gleichzeitig
+      gewann Anna (Datei, beide Fenster, Verlauf eine Zeile); Bernd 3 s
+      später → Bernd gewinnt, beide Fenster zeigen seinen Text nach dem
+      nächsten Abgleich. Regel im Code (`mergeEntries`): der jüngere
+      Zeitstempel gewinnt den GANZEN Eintrag, kein Feld-für-Feld-Mischen,
+      keine Sperre beim Tippen; der Unterlegene bekommt „gespeichert" ohne
+      Hinweis (die Kontroll-Lesung akzeptiert eine fremde neuere Fassung).
+      Sicher gegen Verlust ist es bei VERSCHIEDENEN Einträgen (harte-3/13/
+      14/70, Sync-Fokus). Offen zur Entscheidung: soll der Unterlegene einen
+      Hinweis bekommen („Kollege X hat diesen Eintrag gerade geändert – dein
+      Text: …") oder reicht der Verlauf?
+- [ ] **Wird beim To-do-Umbau (Schritt 5) sowieso angefasst (Merkposten):** 20 Tests
       erwähnen den Backlog, vorneweg harte-25 (Backlog-Leiste) und
       harte-67 (Berichte + To-do).
 

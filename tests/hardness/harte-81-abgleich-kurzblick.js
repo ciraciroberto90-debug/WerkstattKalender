@@ -76,6 +76,18 @@ const START = { format: "werkstatt-kalender-v1", standort: "scheurich", savedAt:
   const appZaehler = () => p.evaluate(() => window.__wkSharedTest.leseZaehler());
 
   /* ---- (1) unverändert ---- */
+  // Das Verbinden hat die Datei eben geschrieben (mtime = jetzt). Die
+  // Vorsichtsregel liest alles, was jünger als die Ruhefrist (5 s) ist -
+  // für "unverändert" muss die Datei also erst altern. (Bis 23.09. besorgte
+  // das unbeabsichtigt die 30-s-Wartezeit auf einen längst geschlossenen
+  // Dialog; seit die Frist 3 s beträgt, wird hier ausdrücklich gewartet.
+  // Die mtime von Hand zurückzudrehen ginge nicht: Das wäre eine ÄNDERUNG
+  // gegenüber der Kennkarte, und die löst zu Recht eine Lesung aus. Außerdem
+  // braucht es EINEN Abgleich zum Einpendeln: Nach dem Verbinden liest der
+  // erste Abgleich den Inhalt und legt damit die Kennkarte an - in den 30 s
+  // hatte das früher der Eigen-Abgleich der App still erledigt.)
+  await poll();
+  await p.waitForTimeout(5500);
   const vor1 = zaehler.inhalt;
   for (let i = 0; i < 5; i++) await poll();
   await p.waitForTimeout(200);
