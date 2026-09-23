@@ -1258,6 +1258,7 @@ Abstände im 6-px-Raster. Robertos „Bauen" (23.09.) → **GEBAUT 23.09.**
   unten fest; ESC zurück. Damit ist „Bildschirm Werkstatt bis 1.10." vom
   Flipchart technisch da – Roberto muss nur die Leser-Vorlage auf Whiteboard
   setzen und das Häkchen setzen.
+- **Nachweis gesamt (23.09., endgültiger Bau):** volle Suite 78/78 grün.
 - Umbenennung „Pinnwand" → „Schwarzes Brett" nicht gemacht: der Name steckt
   in Tests und Anleitung, Roberto meinte „die Pinnwand ist das Schwarze
   Brett" – keine Umbenennung verlangt. Bei Bedarf ein Nachmittag.
