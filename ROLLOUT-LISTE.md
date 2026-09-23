@@ -1164,6 +1164,35 @@ Dateien, die es nicht mehr gibt.
       erwähnen den Backlog, vorneweg harte-25 (Backlog-Leiste) und
       harte-67 (Berichte + To-do).
 
+## Technischer Einkauf (Robertos Meeting vom 23.09.) – Vorlagen geschickt, Entscheidung offen
+
+Ausgangslage im Programm: Störberichte haben „Ersatzteile" + Haken
+„nachbestellt" + „eingetroffen", dazu die Liste offener Nachbestellungen
+und die Kostenstellen-Liste. Fünf Vorlagen E1–E5 (Scratchpad
+`mock-einkauf.html`, Bilder im Chat):
+
+- [ ] **E1 Bedarfsliste:** Bedarf entsteht an Störung, Arbeit oder Zettel
+      (Teil, Menge, Anlage, Grund, Melder, Dringlichkeit „Anlage steht");
+      eine Liste mit Weg Bedarf → Angefragt → Bestellt → Geliefert →
+      Eingebaut, Status als Chip auch im Störbericht.
+- [ ] **E2 Spalten (Kanban):** dieselben Bedarfe als Karten, Einkäufer
+      schiebt nach rechts; „Geliefert" legt Pinnwand-Zettel für den Melder an.
+- [ ] **E3 Bestellanforderung:** ausgewählte Bedarfe → A4-Blatt (Nr. BA-…,
+      Kostenstelle, Positionen mit Hersteller-Nr., Unterschriften) oder
+      Excel/CSV für SAP/zentralen Einkauf, „Als Text" für die Lieferanten-Mail.
+- [ ] **E4 Bestellvorlagen + Artikelkartei:** wiederkehrende Bestellungen
+      (Verbrauchsmaterial monatlich, PitStop-Verschleißset, Lager-Minimum)
+      per Klick; Kartei mit Hersteller-Nr., Lieferant, Lieferzeit, letzter
+      Preis, Lagerort/Mindestbestand, Historie je Anlage (Anlagen-Akte
+      Reiter „Ersatzteile" mit „nochmal bestellen").
+- [ ] **E5 Einkäufer-Sicht:** Benutzergruppe „Einkauf" mit eigener
+      Übersicht (Kacheln offene Bedarfe/dringend, bestellt/nächste Lieferung,
+      Bestellwert Monat), Rückfrage-Faden am Bedarf, Rechte über die Matrix.
+- [ ] **Offene Fragen:** eigene JSON „werkstatt-einkauf.json" wie die
+      Störungen (Einkauf arbeitet werkstattübergreifend Scheurich + Soendgen)?
+      Preise pflegen ja/nein? Wer legt Artikel an (Werkstatt oder Einkauf)?
+      Anbindung SAP nur per Excel-Export (keine IT nötig)?
+
 ## Großer Umbau in Schritten (Robertos Auftrag vom 23.09.) – Vorlagen geschickt, Bau nach Freigabe je Schritt
 
 Robertos Ansage: „sehr langsam, Schritt für Schritt, übersichtlich – bei
