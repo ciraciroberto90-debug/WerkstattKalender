@@ -478,6 +478,42 @@ Störungen, nicht den Rest.
   selbst; das Auge („Ansicht als Leser") zeigt dem Verwalter genau diese
   Vorlage. Ampel und Halbkreis lesen das Quoten-Ziel aus „Schwellen &
   Ziele"; ohne Ziel gilt grün ab 90 %, gelb ab 75 %.
+- **Whiteboard-Übersicht (Robertos Tafel vom 23.09.):** Die Layout-Vorlage
+  **„Whiteboard"** (⚙ → Personalisieren, auch im Anordnen-Modus unter „Vorlage
+  wählen") baut die Übersicht wie die Tafel aus dem Meeting: oben fünf gleich
+  gebaute Kacheln – Titel, Halbkreis mit der Prozentzahl in der Mitte, darunter
+  Soll/Ist – nämlich **To-dos Soll/Ist** (Soll = To-dos mit Frist im Zeitraum,
+  Ist = davon erledigt), **TPM-Effizienz** (Soll = geplante Termine, Ist =
+  erledigte), **Unfälle im Jahr** (als Zahl mit „Tage unfallfrei"), **Backlog
+  live** (erledigte Backlog-Arbeiten am Jahr gemessen) und **Kosten vom
+  Jahresbudget**. Darunter die Tagesliste in voller Breite, dann die
+  **Whiteboard-Zeile** mit Pinnwand, **Technischer Einkauf** und Heute da
+  nebeneinander. Alle fünf Kennzahlen stehen auch einzeln im ▾-Katalog, die
+  Whiteboard-Zeile ist ein eigenes Häkchen unter „Reihenfolge der Abschnitte",
+  die Einkauf-Kachel ein eigener Baustein (bei bestehenden Rechnern aus). Für
+  Leser und Bearbeiter gibt es im Zahnrad „Whiteboard anlegen" bzw. „Auf
+  Whiteboard setzen" – dann zeigt jeder Rechner der Gruppe ohne eigene
+  Anordnung die Tafel.
+  Die **Einkauf-Kachel** zählt aus den Störberichten: Bedarf gemeldet
+  (Ersatzteil eingetragen, nicht bestellt), bestellt und unterwegs, davon
+  länger als 7 Tage, eingetroffen in den letzten 30 Tagen. Kosten und
+  Bestellwege sind mit dem Einkauf noch abzustimmen.
+  **Unfälle und Kosten** haben im Programm keine Quelle – sie werden im ⚙
+  unter „Regeln & Listen" gepflegt: je Unfall ein Datum (Abschnitt
+  „Sicherheit"), Jahresbudget und bisher Ausgegebenes (Abschnitt „Kosten &
+  Budget"). Ohne Budget zeigt die Kosten-Kachel „Abstimmung Einkauf".
+  Nebenbei: Alle Zahl- und Halbkreis-Kacheln der Übersicht tragen den Titel
+  jetzt oben und stehen mittig – so wirkt die Reihe wie aus einem Guss.
+- **Werkstatt-Monitor als Tafel (seit dem 23.09.):** Im ⚙ unter „Monitor"
+  gibt es das Häkchen **„Monitor zeigt die Übersicht (Tafel)"**. Dann läuft
+  auf dem Hallenbildschirm statt der Karten die Übersicht in der
+  **Leser-Vorlage** (Personalisieren → Leser-Übersicht, z. B. Whiteboard):
+  oben nur eine schmale Leiste mit Uhr, Datum, Schicht und „Beenden", die
+  Menüleiste ist weg; unten laufen Störungs-Laufband und Pinnwand-Laufschrift
+  weiter, wenn ihre Häkchen gesetzt sind. ESC oder „Beenden" holt die Menüs
+  zurück. Ohne das Häkchen bleibt der Monitor, wie er war. Das Häkchen liegt
+  in der gemeinsamen Datei – ein Kiosk-Rechner (`?monitor=1`) übernimmt es von
+  selbst.
 - **Überschneidung: zwei Kollegen ändern denselben Eintrag (seit dem 23.09.):**
   Beim Zusammenführen gewinnt die zuletzt gespeicherte Fassung den ganzen
   Eintrag, es gibt keine Sperre beim Tippen. Wer dabei unterliegt, bekommt

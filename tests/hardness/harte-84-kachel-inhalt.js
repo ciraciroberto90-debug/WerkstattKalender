@@ -119,7 +119,7 @@ const stoer = [0, 1, 2, 3].map((i) => ({ id: `s${i}`, nr: 400 + i, date: `2026-0
 
     /* (A4) Darstellungen an der Quote-Kachel */
     const quoteRahmen = p.locator('[data-anordnen="quote"]');
-    await p.locator('button[aria-label="Inhalt TPM-Quote gesamt wählen"]').click();
+    await p.locator('button[aria-label="Inhalt TPM-Effizienz wählen"]').click();
     await p.waitForTimeout(250);
     await p.getByRole("menuitemradio", { name: /^PitStop-Quote/ }).click(); // Name trägt den Zeitraum-Hinweis mit
     await p.waitForTimeout(300);

@@ -602,7 +602,9 @@ function MonatsDiagramm({ tage, monatName, jahr, erledigt, basis, prozent, filte
   );
 }
 
-function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null, kennzeichen = null }) {
+// kopf (Whiteboard 23.09.): die Beschriftung steht ÜBER dem Bogen - so sind
+// alle Kacheln der Übersicht gleich gebaut (Titel · Halbkreis · Soll/Ist).
+function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null, kennzeichen = null, kopf = false }) {
   const hatWert = prozent !== null && prozent !== undefined;
   // Zielwert (⚙ Regeln & Listen): liegt die Quote darunter, wird der Bogen
   // orange statt grün - nur für Aufrufer ohne eigene Farben (die Übersicht).
@@ -642,7 +644,10 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
       title={(titel || "Anteil erledigter Wartungs- und R+I-Punkte") + (!farben && quoteZiel > 0 ? ` · Ziel ${quoteZiel} %` : "")}
       {...(kennzeichen ? { "data-kachel-inhalt": kennzeichen.inhalt, "data-kachel-form": "halbkreis" } : {})}
     >
-      <svg viewBox="0 0 84 50" style={{ width: "80px", height: "47px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
+      {/* Bewusst ohne CSS-Großschreibung: innerText trüge sie mit, und die
+          Prüfstände lesen die Kacheltitel im Klartext ("Heute fällig"). */}
+      {kopf && <div className="font-bold" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: "6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>}
+      <svg viewBox="0 0 84 50" style={{ width: kopf ? "100px" : "80px", height: kopf ? "59px" : "47px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor={gruenHell} />
@@ -672,10 +677,10 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
           {hatWert ? `${Math.round(anim)}%` : "–"}
         </text>
       </svg>
-      <div className="font-semibold" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: "var(--wk-txt-etikett)", lineHeight: 1.15 }}>{label}</div>
+      {!kopf && <div className="font-semibold" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: "var(--wk-txt-etikett)", lineHeight: 1.15 }}>{label}</div>}
       {/* Der Zeitraum stand bisher in 0,58 rem Hellgrau und war praktisch unsichtbar -
           man sah zwei gleich beschriftete Halbkreise und wusste nicht, welcher welcher ist. */}
-      {sub && <div style={{ color: dunkel ? "#fff" : "#22262B", fontSize: "0.76rem", fontWeight: 800, lineHeight: 1.25 }}>{sub}</div>}
+      {sub && <div style={{ color: dunkel ? "#fff" : "#22262B", fontSize: "0.76rem", fontWeight: kopf ? 600 : 800, lineHeight: 1.25, marginTop: kopf ? "4px" : 0 }}>{sub}</div>}
     </div>
   );
 }
@@ -689,12 +694,15 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
    gerechnet - so bleibt die Kachel eine reine Anzeige und ist leicht zu prüfen. */
 function KennzahlKachel({ def, d }) {
   const akzent = d.akzent || "#CBD1D8";
-  const karte = (inhalt, extraStyle) => (
-    <div className="wk-karte px-4 py-3.5 flex flex-col justify-center" data-kachel-inhalt={def.inhalt} data-kachel-form={def.form} style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)`, ...(extraStyle || {}) }} title={d.titel || ""}>
+  const karte = (inhalt, extraStyle, mittig = false) => (
+    <div className={mittig ? "wk-karte px-3.5 py-3 flex flex-col justify-start items-center text-center" : "wk-karte px-4 py-3.5 flex flex-col justify-center"} data-kachel-inhalt={def.inhalt} data-kachel-form={def.form} style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)`, ...(extraStyle || {}) }} title={d.titel || ""}>
       {inhalt}
     </div>
   );
   const etikett = (t) => <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{t}</div>;
+  // Kopfzeile der Zahl- und Halbkreis-Kacheln (Whiteboard 23.09.): gleiche
+  // Schrift wie der Halbkreis-Kopf, damit die Reihe "eine Sprache" spricht.
+  const kopfzeile = (t) => <div className="font-bold" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: "6px", maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</div>;
   const unterzeile = (t) => (t ? <div style={{ fontSize: "0.68rem", color: "#8A9099", marginTop: "2px" }}>{t}</div> : null);
   const delta = d.delta && d.delta.text ? (
     <span className="font-black" style={{ fontSize: "0.7rem", color: d.delta.gut === null ? "#8A9099" : d.delta.gut ? "#2F7D4F" : "#B23A34", marginLeft: "6px" }}>{d.delta.text}</span>
@@ -703,7 +711,7 @@ function KennzahlKachel({ def, d }) {
     // Der Halbkreis bringt seine eigene Karte mit - das Kennzeichen (Inhalt/
     // Form) hängt direkt an ihr, damit die Kachel im Raster ein echtes Kind
     // bleibt (harte-40 misst die Kachelmaße über die Raster-Kinder).
-    return <HalbkreisQuote prozent={d.prozent} label={d.kurz || ""} sub={d.sub || ""} titel={d.titel || ""} kennzeichen={{ inhalt: def.inhalt }} />;
+    return <HalbkreisQuote prozent={d.prozent} label={d.kurz || d.label || ""} sub={d.sub || ""} titel={d.titel || ""} farben={d.farben || null} kennzeichen={{ inhalt: def.inhalt }} kopf />;
   }
   if (def.form === "verlauf") {
     const punkte = Array.isArray(d.verlauf) ? d.verlauf : [];
@@ -744,14 +752,17 @@ function KennzahlKachel({ def, d }) {
       </ul>
     </>);
   }
-  // Standard: Zahl (oder Text)
+  // Standard: Zahl (oder Text) - seit dem Whiteboard (23.09.) mittig mit dem
+  // Titel oben, wie die Halbkreise: Titel · Zahl · Nebenzeile.
   const gross = d.text !== undefined && d.text !== null ? d.text : "–";
   const lang = String(gross).length > 6;
+  // Die Zahl steht in einem Feld von Halbkreis-Höhe (59 px), damit Titel und
+  // Nebenzeile in der Reihe auf gleicher Höhe liegen wie bei den Bögen.
   return karte(<>
-    <div className="font-extrabold" style={{ fontSize: lang ? "1.15rem" : "2.1rem", lineHeight: 1.05, letterSpacing: lang ? 0 : "-1.6px", fontVariantNumeric: "tabular-nums", color: d.farbe || "#22262B", wordBreak: "break-word" }}>{gross}</div>
-    {etikett(<>{d.label}{delta}</>)}
+    {kopfzeile(<>{d.label}{delta}</>)}
+    <div className="font-extrabold flex items-center justify-center" style={{ minHeight: "59px", fontSize: lang ? "1.15rem" : "2.1rem", lineHeight: 1.05, letterSpacing: lang ? 0 : "-1.6px", fontVariantNumeric: "tabular-nums", color: d.farbe || "#22262B", wordBreak: "break-word" }}>{gross}</div>
     {unterzeile(d.sub)}
-  </>);
+  </>, null, true);
 }
 
 function WerkstattUhr() {
@@ -1558,6 +1569,9 @@ const MONITOR_BAUSTEINE = [
 function normalisiereMonitor(roh) {
   const b = {};
   MONITOR_BAUSTEINE.forEach(([k]) => { b[k] = !(roh && roh[k] === false); });
+  // Whiteboard 23.09.: Der Monitor zeigt die Übersicht der Leser (Gruppen-
+  // Vorlage) statt seiner Karten. Neu und deshalb AUS, bis es jemand anschaltet.
+  b.uebersicht = !!(roh && roh.uebersicht === true);
   return b;
 }
 
@@ -1641,18 +1655,40 @@ const UEBERSICHT_BAUSTEINE = [
   ["tagesliste", "Heute · Tagesliste", "fällige Wartungen, Termine, Liegengebliebenes, Archiv"],
   ["pinnwand", "Pinnwand", "Zettel für alle, mit Suche"],
   ["links", "Linkstreifen", "Links & Dokumente unter der Menüleiste"],
+  // Whiteboard vom 23.09.: die Statistik-Kachel des technischen Einkaufs.
+  // Neu und deshalb AUS, bis sie jemand anschaltet - ein Update darf keine
+  // neue Kachel auf bestehende Rechner zaubern.
+  ["einkauf", "Technischer Einkauf", "Bedarf, Bestellungen, Lieferungen – aus den Störberichten"],
 ];
-// Die vier großen Abschnitte lassen sich in der Reihenfolge tauschen. Die
+const UEBERSICHT_BAUSTEINE_NEU_AUS = ["einkauf"];
+// Die großen Abschnitte lassen sich in der Reihenfolge tauschen. Die
 // Kennzahlen-Kacheln bilden eine Reihe, Tagesliste und Pinnwand eine Zeile.
+// "unten" ist die Whiteboard-Zeile: Pinnwand, Einkauf und Heute da
+// nebeneinander (zeileUnten) - oder nur der Einkauf, wenn die Zeile aus ist.
 const UEBERSICHT_ABSCHNITTE = [
   ["kennzahlen", "Kennzahlen-Reihe (Zahlen, Quote, OEE, Uhr)"],
   ["heuteDa", "Heute da"],
   ["stoerungen", "Offene Störungen"],
   ["hauptzeile", "Tagesliste + Pinnwand"],
+  ["unten", "Untere Zeile (Pinnwand · Einkauf · Heute da)"],
 ];
+/* Die fünf Whiteboard-Kacheln (Robertos Tafel vom 23.09., Vorlage U1) mit
+   festen Kennungen, damit die Gruppen-Vorlage auf jedem Rechner dieselben
+   Kacheln meint: To-dos Soll/Ist, TPM-Effizienz, Unfälle, Backlog, Kosten. */
+const WHITEBOARD_KACHELN = ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten"];
+const WHITEBOARD_KACHEL_DEF = {
+  "k-wbtodo": { inhalt: "todoSollIst", form: "halbkreis", zeitraum: "monat" },
+  "k-wbtpm": { inhalt: "tpmQuote", form: "halbkreis", zeitraum: "monat" },
+  "k-wbunfall": { inhalt: "unfaelle", form: "zahl" },
+  "k-wbbacklog": { inhalt: "backlogLive", form: "halbkreis" },
+  "k-wbkosten": { inhalt: "kosten", form: "halbkreis" },
+};
 const UEBERSICHT_VORLAGEN = [
   ["standard", "Standard", "Alles an, wie bisher – Kennzahlen, Heute da, Störungen, Tagesliste, Pinnwand.",
     { aus: [], reihenfolge: ["kennzahlen", "heuteDa", "stoerungen", "hauptzeile"] }],
+  ["whiteboard", "Whiteboard", "Robertos Tafel vom 23.09.: fünf Halbkreis-Kacheln (To-dos, TPM, Unfälle, Backlog, Kosten), Tagesplan groß, darunter Pinnwand, Technischer Einkauf und Heute da nebeneinander.",
+    { aus: ["neuigkeiten", "rueckblick", "zahlen", "quote", "oee", "uhr"], an: ["einkauf"], reihenfolge: ["kennzahlen", "hauptzeile", "stoerungen", "unten", "heuteDa"],
+      zeileUnten: true, kacheln: WHITEBOARD_KACHELN, kachelDef: WHITEBOARD_KACHEL_DEF }],
   ["morgenrunde", "Morgenrunde", "Störungen ganz oben, dann wer da ist, Kennzahlen und Tagesliste – ohne Hinweisleisten und Links.",
     { aus: ["neuigkeiten", "rueckblick", "geburtstag", "oee", "links"], reihenfolge: ["stoerungen", "heuteDa", "kennzahlen", "hauptzeile"] }],
   ["leitstand", "Leitstand", "Nur Zahlen: Kennzahlen, Quote, OEE, Uhr und die offenen Störungen – keine Tagesliste, keine Pinnwand.",
@@ -1679,7 +1715,7 @@ const KENNZAHLEN = [
   ["ueberfaellig", "Überfällig", "Termine", ["zahl", "top3"], null],
   ["terminePlan", "Termine im Plan", "Termine", ["zahl"], ["monat", "jahr"], "monat"],
   ["naechsterPitStop", "Nächster PitStop", "Termine", ["zahl", "top3"], null],
-  ["tpmQuote", "TPM-Quote gesamt", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
+  ["tpmQuote", "TPM-Effizienz", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
   ["pitstopQuote", "PitStop-Quote", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
   ["riQuote", "R+I-Quote", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
   ["stoerOffen", "Offene Störungen", "Störungen", ["zahl", "ampel", "top3"], null],
@@ -1687,10 +1723,18 @@ const KENNZAHLEN = [
   ["ausfallzeit", "Ausfallzeit", "Störungen", ["zahl", "verlauf", "top3"], ["tage30", "monat", "jahr"], "monat"],
   ["sorgenkind", "Anlage mit den meisten Störungen", "Störungen", ["zahl", "top3"], ["tage30", "monat", "jahr"], "tage30"],
   ["todoOffen", "To-dos offen", "To-dos & Team", ["zahl", "ampel", "top3"], null],
+  // Whiteboard 23.09.: Soll = To-dos mit Frist im Zeitraum, Ist = davon erledigt
+  ["todoSollIst", "To-dos Soll / Ist", "To-dos & Team", ["halbkreis", "zahl", "ampel"], ["woche", "monat", "jahr"], "monat"],
   ["erledigt", "Erledigte Arbeiten", "To-dos & Team", ["zahl", "verlauf"], ["woche", "monat"], "woche"],
+  // Whiteboard 23.09.: erledigte Backlog-Arbeiten des Jahres, live in Prozent
+  ["backlogLive", "Backlog erledigt (live)", "To-dos & Team", ["halbkreis", "zahl", "ampel"], null],
   ["stunden", "Stunden (Zeiterfassung)", "To-dos & Team", ["zahl", "verlauf", "top3"], ["woche", "monat"], "woche"],
   ["jetztDa", "Jetzt in der Werkstatt", "To-dos & Team", ["zahl"], null],
+  // Whiteboard 23.09.: Unfälle des Jahres (Liste im ⚙ Regeln & Listen)
+  ["unfaelle", "Unfälle im Jahr", "Sicherheit", ["zahl"], null],
   ["nachbestellungen", "Offene Nachbestellungen", "Einkauf", ["zahl", "top3"], null],
+  // Whiteboard 23.09.: ausgegebener Anteil des Jahresbudgets (⚙ Regeln & Listen, Abstimmung mit dem Einkauf offen)
+  ["kosten", "Kosten vom Jahresbudget", "Einkauf", ["halbkreis", "zahl"], null],
   ["oee", "OEE (Excel)", "Sonstiges", ["zahl"], null],
   ["uhr", "Uhr & Schicht", "Sonstiges", ["zahl"], null],
   ["text", "Freier Text", "Sonstiges", ["zahl"], null],
@@ -1718,7 +1762,11 @@ function normalisiereKachelDef(roh, standard) {
 }
 function normalisiereUebersichtLayout(roh) {
   const bloecke = {};
-  UEBERSICHT_BAUSTEINE.forEach(([k]) => { bloecke[k] = !(roh && roh.bloecke && roh.bloecke[k] === false); });
+  // Alte Bausteine: fehlend heißt an. Neue (Einkauf): fehlend heißt aus.
+  UEBERSICHT_BAUSTEINE.forEach(([k]) => {
+    const wert = roh && roh.bloecke ? roh.bloecke[k] : undefined;
+    bloecke[k] = UEBERSICHT_BAUSTEINE_NEU_AUS.includes(k) ? wert === true : wert !== false;
+  });
   const bekannt = UEBERSICHT_ABSCHNITTE.map(([k]) => k);
   const gewuenscht = Array.isArray(roh && roh.reihenfolge) ? roh.reihenfolge.filter((k) => bekannt.includes(k)) : [];
   // Fehlende Abschnitte hängen hinten an - so überlebt die Wahl neue Bausteine.
@@ -1738,8 +1786,11 @@ function normalisiereUebersichtLayout(roh) {
   kacheln.forEach((k) => { kachelDef[k] = normalisiereKachelDef(rohDef[k], KACHEL_STANDARD_DEF[k]); });
   // tausch: Pinnwand links, Tagesliste rechts (Robertos "Kacheln tauschen")
   const tausch = !!(roh && roh.tausch);
+  // zeileUnten (Whiteboard 23.09.): Pinnwand und Heute da wandern in die
+  // untere Zeile neben den Einkauf, die Tagesliste bekommt die ganze Breite.
+  const zeileUnten = !!(roh && roh.zeileUnten);
   const vorlage = UEBERSICHT_VORLAGEN.some(([id]) => id === (roh && roh.vorlage)) ? roh.vorlage : "eigene";
-  return { bloecke, reihenfolge, kacheln, kachelDef, tausch, vorlage };
+  return { bloecke, reihenfolge, kacheln, kachelDef, tausch, zeileUnten, vorlage };
 }
 /* Übersichts-Vorlagen je Benutzergruppe (23.09., Vorlage K5): liegen in der
    gemeinsamen Datei (config.uebersichtVorlagen) und gelten auf jedem Rechner
@@ -1764,8 +1815,9 @@ function layoutAusVorlage(id) {
   const v = UEBERSICHT_VORLAGEN.find(([vid]) => vid === id);
   if (!v) return normalisiereUebersichtLayout(null);
   const bloecke = {};
-  UEBERSICHT_BAUSTEINE.forEach(([k]) => { bloecke[k] = !v[3].aus.includes(k); });
-  return normalisiereUebersichtLayout({ bloecke, reihenfolge: v[3].reihenfolge, vorlage: id });
+  const an = v[3].an || [];
+  UEBERSICHT_BAUSTEINE.forEach(([k]) => { bloecke[k] = UEBERSICHT_BAUSTEINE_NEU_AUS.includes(k) ? an.includes(k) : !v[3].aus.includes(k); });
+  return normalisiereUebersichtLayout({ bloecke, reihenfolge: v[3].reihenfolge, zeileUnten: !!v[3].zeileUnten, kacheln: v[3].kacheln || [], kachelDef: v[3].kachelDef || {}, vorlage: id });
 }
 function leseUebersichtLayout() {
   try { return normalisiereUebersichtLayout(JSON.parse(localStorage.getItem(nsKey(UEBERSICHT_LAYOUT_KEY)) || "null")); } catch (e) { return normalisiereUebersichtLayout(null); }
@@ -1996,6 +2048,11 @@ const REGELN_STANDARD = () => ({
   // quoteZiel 0 = kein Ziel (Halbkreis bleibt grün wie bisher)
   schwellen: { ausfallHochMin: 60, todoWarnTage: 0, quoteZiel: 0, oeeGruen: 85, oeeGelb: 70, archivJahre: 3 },
   vorlagen: { zettel: [], stoerung: [], pflicht: { anlagenteil: false, gewerk: false, fehlerart: false, ausfallzeit: false, ursache: false, getan: false } },
+  // Whiteboard 23.09.: Unfälle als Datumsliste (die Kachel zählt je Jahr und
+  // rechnet die unfallfreien Tage); Kosten als Jahresbudget und bisher
+  // Ausgegebenes - bis der Einkauf eine Quelle liefert, von Hand gepflegt.
+  sicherheit: { unfaelle: [] },
+  kosten: { budgetJahr: 0, ausgegeben: 0, stand: "" },
 });
 const textListe = (roh, standard) => (Array.isArray(roh) ? roh.map((x) => String(x || "").trim()).filter(Boolean) : standard);
 const zahlOder = (v, standard, min, max) => { const n = Number(v); return v !== "" && v != null && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : standard; };
@@ -2025,6 +2082,16 @@ function normalisiereRegeln(roh) {
     vorlagen: {
       zettel: textListe(v.zettel, []), stoerung: textListe(v.stoerung, []),
       pflicht: Object.fromEntries(Object.keys(st.vorlagen.pflicht).map((k) => [k, !!pf[k]])),
+    },
+    sicherheit: {
+      unfaelle: (Array.isArray(r.sicherheit && r.sicherheit.unfaelle) ? r.sicherheit.unfaelle : [])
+        .filter((u) => u && tag.test(u.datum || ""))
+        .map((u) => ({ datum: u.datum, text: String(u.text || "").trim() }))
+        .sort((a, b) => a.datum.localeCompare(b.datum)),
+    },
+    kosten: {
+      budgetJahr: zahlOder(r.kosten && r.kosten.budgetJahr, 0, 0, 1e9), ausgegeben: zahlOder(r.kosten && r.kosten.ausgegeben, 0, 0, 1e9),
+      stand: tag.test(r.kosten && r.kosten.stand || "") ? r.kosten.stand : "",
     },
   };
 }
@@ -3115,7 +3182,12 @@ function App() {
   // Vorlage (Leser/Bearbeiter), sonst der Standard. In der simulierten
   // Ansicht (Auge) sieht der Verwalter so genau die Vorlage der Gruppe.
   const gruppenVorlage = (meineGruppe === "leser" || meineGruppe === "bearbeiter") ? uebersichtVorlagen[meineGruppe] : null;
-  const uebersichtLayout = (!eigenesLayout || ansichtSimuliert) && gruppenVorlage ? gruppenVorlage : uebersichtLokal;
+  // Monitor als Tafel (Whiteboard 23.09.): Der Hallenbildschirm zeigt die
+  // Übersicht, und zwar die der LESER - was dort läuft, sieht jeder in der
+  // Halle. Ohne Leser-Vorlage die Anordnung des Monitor-Rechners.
+  const monitorTafel = monitorOpen && !!monitorBausteine.uebersicht;
+  const uebersichtLayout = monitorTafel && uebersichtVorlagen.leser ? uebersichtVorlagen.leser
+    : (!eigenesLayout || ansichtSimuliert) && gruppenVorlage ? gruppenVorlage : uebersichtLokal;
   // Eine Zellen-Notiz trägt "sichtbarFuer": alle | bearbeiter | verwalter.
   // Alte Notizen ohne das Feld gelten wie bisher für alle.
   const notizSichtbar = (e) => {
@@ -4253,6 +4325,14 @@ function App() {
       if (wakeLock) wakeLock.release().catch(() => {});
     };
   }, [monitorOpen]);
+
+  // Monitor als Tafel: die Übersicht muss dann auch wirklich vorn liegen -
+  // Zahnrad, Anordnen-Modus und andere Bereiche gehen zu.
+  useEffect(() => {
+    if (!monitorOpen || !monitorBausteine.uebersicht) return;
+    setView("COCKPIT"); setCockpitTab("UEBERSICHT");
+    setUebersichtBearbeiten(false); setSettingsOpen(false);
+  }, [monitorOpen, monitorBausteine.uebersicht]);
 
   // Kiosk-Gerät: Monitor automatisch öffnen, sobald die gemeinsame Datei verbunden ist.
   useEffect(() => {
@@ -6037,14 +6117,19 @@ function App() {
     const ampelRegelQuote = quoteZiel > 0 ? `grün ab Ziel ${quoteZiel} %, gelb bis 10 % darunter` : "grün ab 90 %, gelb ab 75 %";
     const quoteKachel = (kat, kurz) => {
       const basis = kat ? kalenderEntries.filter((e) => e.category === kat) : kalenderEntries;
-      const p = quoteFuer(basis.filter((e) => imZeitraum(e.date)));
+      const imZr = basis.filter((e) => imZeitraum(e.date));
+      const p = quoteFuer(imZr);
+      // Soll = geplante Termine des Zeitraums (offen + erledigt), Ist = erledigt
+      // (Whiteboard 23.09.: "TPM-Monatseffizienz mit Soll/Ist")
+      const soll = imZr.filter((e) => e.status === "done" || e.status === "open").length;
+      const ist = imZr.filter((e) => e.status === "done").length;
       const vor = zr === "jahr"
         ? quoteFuer(basis.filter((e) => String(e.date).startsWith(String(Number(jahrKey) - 1) + "-")))
         : quoteFuer(basis.filter((e) => String(e.date).slice(0, 7) === monateRueck[4].key));
       const delta = p !== null && vor !== null ? { text: `${p - vor >= 0 ? "▲" : "▼"} ${Math.abs(p - vor)} %`, gut: p - vor === 0 ? null : p - vor > 0 } : null;
-      const sub = zr === "jahr" ? `Jahr ${jahrKey}` : MONTHS[today.getMonth()];
+      const wann = zr === "jahr" ? jahrKey : MONTHS_SHORT[today.getMonth()];
       return {
-        label, text: p === null ? "–" : `${p} %`, prozent: p, kurz, sub: `${sub}${quoteZiel > 0 ? " · Ziel " + quoteZiel + " %" : ""}`,
+        label, text: p === null ? "–" : `${p} %`, prozent: p, kurz: `${kurz} · ${wann}`, sub: `Soll ${soll} · Ist ${ist}${quoteZiel > 0 ? " · Ziel " + quoteZiel + " %" : ""}`,
         titel: `${label}: Anteil erledigter Termine (${zrLabel})`, farbe: p === null ? "#8A9099" : ampelQuote(p) === "rot" ? "#B23A34" : "#2F7D4F", akzent: p === null ? "#CBD1D8" : ampelQuote(p) === "rot" ? "#B23A34" : "#2F7D4F",
         delta, verlauf: verlaufMonate((f) => { const q = quoteFuer(basis.filter((e) => f(e.date))); return { wert: q === null ? 0 : q, text: q === null ? "–" : q + " %" }; }),
         ampel: ampelQuote(p), ampelRegel: ampelRegelQuote, trend: "",
@@ -6065,7 +6150,7 @@ function App() {
         return { label, text: n ? `${new Date(n.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short" })}, ${formatDateDE(n.date)}` : "keiner geplant", sub: n ? n.name : "", farbe: "#22262B", akzent: "#C97A2B",
           top3: kommende.slice(0, 3).map((e) => ({ name: e.name, text: formatDateDE(e.date) })) };
       }
-      case "tpmQuote": return quoteKachel(null, "TPM");
+      case "tpmQuote": return quoteKachel(null, "TPM-Effizienz");
       case "pitstopQuote": return quoteKachel("TPM", "PitStop");
       case "riQuote": return quoteKachel("RI", "R+I");
       case "stoerOffen": {
@@ -6120,6 +6205,52 @@ function App() {
       }
       case "nachbestellungen": return { label, text: offeneNachbestellungen.length, sub: offeneNachbestellungen.length > 0 ? "aus Störberichten" : "nichts offen", farbe: offeneNachbestellungen.length > 0 ? "#A25E14" : "#2F7D4F", akzent: offeneNachbestellungen.length > 0 ? "#C97A2B" : "#CBD1D8",
         top3: offeneNachbestellungen.slice(0, 3).map((s) => ({ name: String(s.ersatzteile || "").slice(0, 30), text: s.anlage || "" })) };
+      /* ---- Whiteboard-Kacheln (Robertos Tafel vom 23.09.) ---- */
+      case "todoSollIst": {
+        // Soll = To-dos mit Frist im Zeitraum, Ist = davon erledigt. Ohne Frist
+        // zählt ein To-do nicht - sonst wäre "Soll" nie erreichbar.
+        const soll = todos.filter((t) => t.bis && imZeitraum(t.bis));
+        const ist = soll.filter((t) => t.status === "done").length;
+        const p = soll.length > 0 ? Math.round((ist / soll.length) * 100) : null;
+        const ampel = p === null ? "" : p >= 90 ? "gruen" : p >= 70 ? "gelb" : "rot";
+        return { label: `To-dos · ${zrLabel}`, kurz: `To-dos · ${zrLabel}`, text: p === null ? "–" : `${ist} / ${soll.length}`, prozent: p, sub: `Soll ${soll.length} · Ist ${ist}`,
+          titel: `To-do-Punkte mit Frist ${zrLabel}: Soll = fällig, Ist = erledigt`, farbe: "#2F6690", akzent: p === null ? "#CBD1D8" : ampel === "rot" ? "#B23A34" : "#2F6690",
+          farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ["#5B8DB8", "#2F6690"], ampel, ampelRegel: "grün ab 90 % erledigt, gelb ab 70 %" };
+      }
+      case "backlogLive": {
+        // Gleiche Rechnung wie der Score auf der Berichte-Startseite, nur
+        // andersherum gelesen: erledigt statt offen, gemessen am Jahr.
+        const gesamt = Math.max(arbeiten.filter((a) => String(a.date || "").startsWith(jahrKey)).length, arbeitenOffen.length);
+        const erledigtZahl = Math.max(0, gesamt - arbeitenOffen.length);
+        const p = gesamt > 0 ? Math.round((erledigtZahl / gesamt) * 100) : null;
+        const ampel = p === null ? "" : p >= 75 ? "gruen" : p >= 50 ? "gelb" : "rot";
+        return { label: "Backlog · live", kurz: "Backlog · live", text: p === null ? "–" : `${p} %`, prozent: p, sub: `Erledigt ${erledigtZahl} · Gesamt ${gesamt}`,
+          titel: `Erledigte Backlog-Arbeiten, gemessen an den im Jahr ${jahrKey} aufgenommenen (live)`, farbe: "#22262B", akzent: p === null ? "#CBD1D8" : ampel === "rot" ? "#B23A34" : "#C97A2B",
+          farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ["#E8B33C", "#C97A2B"], ampel, ampelRegel: "grün ab 75 % erledigt, gelb ab 50 %" };
+      }
+      case "unfaelle": {
+        // Liste aus ⚙ Regeln & Listen → Sicherheit. Unfallfreie Tage ab dem
+        // letzten Unfall - ohne erfassten Unfall ab dem 1. Januar.
+        const alle = regeln.sicherheit.unfaelle;
+        const imJahr = alle.filter((u) => u.datum.startsWith(jahrKey + "-"));
+        const letzter = alle.length ? alle[alle.length - 1].datum : "";
+        const seit = letzter && letzter <= todayKey ? letzter : `${jahrKey}-01-01`;
+        const tage = Math.max(0, Math.round((new Date(todayKey + "T12:00:00") - new Date(seit + "T12:00:00")) / 86400000));
+        return { label: `Unfälle · ${jahrKey}`, text: imJahr.length, sub: `Ziel 0 · ${tage} Tage unfallfrei`,
+          titel: letzter ? `Unfälle im Jahr ${jahrKey} · letzter Unfall am ${formatDateDE(letzter)}` : `Unfälle im Jahr ${jahrKey} · keiner erfasst (⚙ Regeln & Listen → Sicherheit)`,
+          farbe: imJahr.length > 0 ? "#B23A34" : "#2F7D4F", akzent: imJahr.length > 0 ? "#B23A34" : "#2F7D4F" };
+      }
+      case "kosten": {
+        // Budget und Ausgegebenes aus ⚙ Regeln & Listen → Kosten. Ohne Budget
+        // bleibt die Kachel ehrlich leer: "Abstimmung Einkauf".
+        const { budgetJahr, ausgegeben, stand } = regeln.kosten;
+        const p = budgetJahr > 0 ? Math.round((ausgegeben / budgetJahr) * 100) : null;
+        const euro = (n) => `${Math.round(n).toLocaleString("de-DE")} €`;
+        return { label: `Kosten · ${jahrKey}`, kurz: `Kosten · ${jahrKey}`, text: p === null ? "–" : `${p} %`, prozent: p,
+          sub: p === null ? "Abstimmung Einkauf" : `${euro(ausgegeben)} von ${euro(budgetJahr)}`,
+          titel: p === null ? "Jahresbudget im ⚙ (Regeln & Listen → Kosten) eintragen - Quelle mit dem technischen Einkauf abstimmen" : `Ausgegebener Anteil des Jahresbudgets ${jahrKey}${stand ? " · Stand " + formatDateDE(stand) : ""}`,
+          farbe: "#22262B", akzent: p === null ? "#CBD1D8" : p > 100 ? "#B23A34" : "#2F6690", farben: p !== null && p > 100 ? ["#E06A64", "#B23A34"] : ["#7F8C9A", "#4B5D6E"] };
+      }
       case "text": return { label: "Freier Text", text: def.text || "…", farbe: "#A25E14", akzent: "#C97A2B" };
       default: return { label, text: "–" };
     }
@@ -8360,8 +8491,40 @@ function App() {
     );
   }
 
+  // Störungs-Laufband des Monitors: EIN Text für beide Monitor-Formen
+  // (Karten-Vollbild und Tafel), damit beide dasselbe sagen.
+  const monitorLaufbandText = () => stoerungenSortiert.filter((s) => s.offen).map((s) =>
+    `🔧 ${stoerNrLang(s) ? stoerNrKurz(s) + " · " : ""}${s.anlage || "—"}${s.anlagenteil ? " " + s.anlagenteil : ""} – ${s.stoerung || ""}${s.nochZuTun && String(s.nochZuTun).trim() ? " → " + s.nochZuTun : ""}`
+  ).join("   +++   ");
+  // Auf den Hallenmonitor nur Zettel für "Alle" und nicht abgelaufene -
+  // ein "Nur Verwalter"-Zettel darf dort nie laufen (23.09.).
+  const monitorZettelListe = () => zettelListe.filter((z) => z.monitor && zettelArtVon(z) === "alle" && !zettelAbgelaufen(z, todayKey));
+
   return (
     <div className="min-h-screen font-sans text-slate-800" style={{ backgroundColor: "#EBEDEF" }}>
+      {/* Monitor als Tafel (Whiteboard 23.09.): schmale dunkle Leiste mit Uhr,
+          Datum und Schicht statt der Menüleiste; darunter läuft die normale
+          Übersicht in der Leser-Vorlage. ESC oder "Beenden" holt die Menüs zurück. */}
+      {monitorTafel && (() => {
+        const { aktuell, SCHICHT_INFO } = jetztInDerWerkstatt;
+        return (
+          <div id="werkstatt-monitor-tafel" role="region" aria-label="Werkstatt-Monitor Tafel" className="no-print sticky top-0 z-10 flex items-center gap-5 flex-wrap" style={{ background: "#16181B", color: "#fff", padding: "10px 20px", fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ fontSize: "2.2rem", fontWeight: 900, fontFamily: "ui-monospace,Consolas,monospace", lineHeight: 1 }}>
+              {monitorUhr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+            <span style={{ fontSize: "0.9rem", color: "#9AA0A6", lineHeight: 1.25 }}>
+              {monitorUhr.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })} · KW {getISOWeek(monitorUhr)}<br />
+              {SCHICHT_INFO[aktuell].label} ({SCHICHT_INFO[aktuell].zeit})
+            </span>
+            <span className="ml-auto" style={{ fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "#9AA0A6" }}>
+              Werkstatt-Monitor · Übersicht{werkstattName ? ` · ${werkstattName}` : ""}
+            </span>
+            <button onClick={() => setMonitorOpen(false)} aria-label="Monitor beenden" className="rounded font-bold" style={{ backgroundColor: "#2E3238", color: "#fff", padding: "6px 12px", fontSize: "0.85rem" }}>
+              × Beenden (ESC)
+            </button>
+          </div>
+        );
+      })()}
       <style>{`
         .no-print { }
         .print-only { display: none; }
@@ -8384,7 +8547,7 @@ function App() {
           zusammen oben fest: Wäre nur die dunkle Leiste klebend, schöbe sich
           der Streifen beim Scrollen darunter weg - und die Links wären genau
           dann fort, wenn man weiter unten in einer Liste steht. */}
-      <div className="no-print sticky top-0 z-10">
+      <div className="no-print sticky top-0 z-10" style={monitorTafel ? { display: "none" } : undefined}>
       <div
         className="px-4 py-3 flex flex-wrap items-center gap-3 justify-between"
         style={{ backgroundColor: "#22262B" }}
@@ -10800,8 +10963,10 @@ function App() {
           );
         };
         const kachelnSichtbar = uebersichtLayout.kacheln.filter(kachelSichtbar);
+        // Spalten nach Platz: bei sieben Kacheln wie bisher sieben, bei fünf
+        // (Whiteboard) füllen fünf die Breite - leere Spalten fallen weg.
         abschnitt.kennzahlen = (kachelnSichtbar.length > 0 || bearbeiten) && (
-          <div className="grid gap-2.5 mb-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-7 auto-rows-fr">
+          <div className="grid gap-2.5 mb-4 auto-rows-fr" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
             {uebersichtLayout.kacheln.map((k) => {
               if (!kachelSichtbar(k)) return null;
               if (!bearbeiten) return <React.Fragment key={k}>{kachelInhalt(k)}</React.Fragment>;
@@ -10821,7 +10986,7 @@ function App() {
         );
 
         /* Heute da: Schicht-Spalten mit farbigem Kopf + Avatar-Chips (aktuelle Schicht hervorgehoben) */
-        abschnitt.heuteDa = zeig.heuteDa && (team.length > 0 ? (() => {
+        const heuteDaInhalt = zeig.heuteDa && (team.length > 0 ? (() => {
             const { aktuell, SCHICHT_INFO, jetztCrew, spalten } = jetztInDerWerkstatt;
             const typFarbe = { FRUEH: { bg: "#F0C230", text: "#3A2E00" }, SPAET: { bg: "#1F7A3D", text: "#fff" }, NACHT: { bg: "#2F6690", text: "#fff" } };
             const initialen = (n) => n.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
@@ -10883,6 +11048,8 @@ function App() {
               </div>
             );
           })() : (bearbeiten ? platzhalter("Heute da", "erscheint, sobald im ⚙ ein Team eingetragen ist") : null));
+        // Whiteboard-Zeile (23.09.): "Heute da" wohnt dann unten neben Pinnwand und Einkauf.
+        abschnitt.heuteDa = uebersichtLayout.zeileUnten ? null : heuteDaInhalt;
 
         /* Gedankenstütze: offene Störungen - die Knöpfe führen in den Bereich
            Berichte → Störungen (dort wohnt die Liste seit dem 10.09.). */
@@ -11437,10 +11604,13 @@ function App() {
             );
             })();
         // Tagesliste und Pinnwand nebeneinander - Seiten tauschbar (⇄)
-        const spaltenReihe = uebersichtLayout.tausch ? ["pinnwand", "tagesliste"] : ["tagesliste", "pinnwand"];
+        // Whiteboard-Zeile (23.09.): Pinnwand wandert nach unten, die Tagesliste
+        // bekommt die ganze Breite.
+        const dreier = uebersichtLayout.zeileUnten;
+        const spaltenReihe = (uebersichtLayout.tausch ? ["pinnwand", "tagesliste"] : ["tagesliste", "pinnwand"]).filter((k) => !(dreier && k === "pinnwand"));
         const spaltenTitel = { tagesliste: "Tagesliste", pinnwand: "Pinnwand" };
-        const beide = !!(spalten.tagesliste && spalten.pinnwand);
-        abschnitt.hauptzeile = (spalten.tagesliste || spalten.pinnwand) && (
+        const beide = !!(spalten.tagesliste && spalten.pinnwand) && !dreier;
+        abschnitt.hauptzeile = (spalten.tagesliste || (spalten.pinnwand && !dreier)) && (
           <div className="grid gap-4" style={{ gridTemplateColumns: beide ? (uebersichtLayout.tausch ? "1fr 1.05fr" : "1.05fr 1fr") : "1fr" }}>
             {spaltenReihe.map((k) => {
               if (!spalten[k]) return null;
@@ -11450,13 +11620,63 @@ function App() {
           </div>
         );
 
+        /* ---- Technischer Einkauf (Whiteboard 23.09., große Statistik-Kachel) ----
+           Alles aus den Störberichten: "Ersatzteile" eingetragen = Bedarf,
+           "nachbestellt" = bestellt, "eingetroffen" = geliefert. Kosten und
+           Bestellwege sind noch nicht mit dem Einkauf abgestimmt - das steht
+           ehrlich in der Fußzeile. */
+        const einkaufBlock = zeig.einkauf && sichtbar("STOERUNGEN") && (() => {
+          const tagVon = (iso) => String(iso || "").slice(0, 10);
+          const vorTagen = (n) => { const d = addDays(today, -n); return dateKey(d.getFullYear(), d.getMonth(), d.getDate()); };
+          const mitTeil = stoerungen.filter((s) => String(s.ersatzteile || "").trim());
+          const bedarf = mitTeil.filter((s) => s.offen && !s.nachbestellt && !s.eingetroffenAt);
+          const bestellt = mitTeil.filter((s) => s.nachbestellt && !s.eingetroffenAt);
+          const lange = bestellt.filter((s) => tagVon(s.date) < vorTagen(7));
+          const eingetroffen30 = mitTeil.filter((s) => s.eingetroffenAt && tagVon(s.eingetroffenAt) >= vorTagen(30));
+          const zeile = (text, zahl, farbe, hinweisText) => (
+            <div className="flex items-center gap-2 px-4" style={{ padding: "6px 16px", borderTop: "1px solid #F0F2F4", fontSize: "0.82rem", color: "#22262B" }}>
+              <span>{text}</span>
+              {hinweisText && <span style={{ fontSize: "0.66rem", color: "#8A9099" }}>{hinweisText}</span>}
+              <b className="ml-auto font-mono" style={{ color: farbe || "#22262B", fontSize: "0.95rem" }}>{zahl}</b>
+            </div>
+          );
+          return (
+            <div className="rounded-xl mb-4 overflow-hidden" role="region" aria-label="Technischer Einkauf" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>
+              <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: "1px solid #EEF0F2" }}>
+                <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>🛒 Technischer Einkauf</span>
+                <span className="inline-flex items-center rounded-full font-bold" style={{ backgroundColor: "#F1F3F5", color: "#5B6572", fontSize: "0.62rem", padding: "2px 8px" }}>aus Störberichten</span>
+                <button onClick={() => { setView("BERICHTE"); setBerichtTab("STOERUNGEN"); }} className="ml-auto text-xs font-bold" style={{ color: "#C97A2B" }}>➜ Störungen</button>
+              </div>
+              {zeile("Bedarf gemeldet", bedarf.length, bedarf.length > 0 ? "#A25E14" : "#2F7D4F", "Ersatzteil eingetragen, noch nicht bestellt")}
+              {zeile("Bestellt, unterwegs", bestellt.length, bestellt.length > 0 ? "#22262B" : "#2F7D4F")}
+              {zeile("Davon länger als 7 Tage", lange.length, lange.length > 0 ? "#B23A34" : "#2F7D4F")}
+              {zeile("Eingetroffen · 30 Tage", eingetroffen30.length, "#2F7D4F")}
+              <div style={{ padding: "6px 16px 8px", borderTop: "1px solid #F0F2F4", fontSize: "0.66rem", color: "#8A9099" }}>Kosten und Bestellwege: Abstimmung mit dem technischen Einkauf offen (E1–E5).</div>
+            </div>
+          );
+        })();
+        /* Untere Zeile: Pinnwand · Einkauf · Heute da nebeneinander (Whiteboard),
+           sonst nur der Einkauf, wenn er an ist. */
+        const untenTeile = [
+          dreier && spalten.pinnwand ? ["pinnwand", spalten.pinnwand] : null,
+          einkaufBlock ? ["einkauf", einkaufBlock] : null,
+          dreier && heuteDaInhalt ? ["heuteDa", heuteDaInhalt] : null,
+        ].filter(Boolean);
+        abschnitt.unten = untenTeile.length > 0 ? (
+          <div className="grid gap-4 mb-4" data-zeile="unten" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${untenTeile.length > 1 ? "280px" : "200px"}, 1fr))` }}>
+            {untenTeile.map(([k, inhalt]) => <div key={k} data-unten={k}>{inhalt}</div>)}
+          </div>
+        ) : (bearbeiten && dreier ? platzhalter("Untere Zeile", "zeigt Pinnwand, Technischen Einkauf und Heute da, sobald einer davon an ist") : null);
+
         const setReihenfolge = (r) => setUebersichtLayout({ ...uebersichtLayout, reihenfolge: r, vorlage: "eigene" });
-        const abschnittTitel = { kennzahlen: "Kennzahlen-Reihe", heuteDa: "Heute da", stoerungen: "Offene Störungen", hauptzeile: "Tagesliste + Pinnwand" };
+        const abschnittTitel = { kennzahlen: "Kennzahlen-Reihe", heuteDa: "Heute da", stoerungen: "Offene Störungen", hauptzeile: dreier ? "Tagesliste" : "Tagesliste + Pinnwand", unten: "Untere Zeile" };
         const abschnittAus = {
           kennzahlen: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, zahlen: false, quote: false, oee: false, uhr: false }, vorlage: "eigene" }),
           heuteDa: () => setzeBlock("heuteDa", false),
           stoerungen: () => setzeBlock("stoerungen", false),
-          hauptzeile: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, tagesliste: false, pinnwand: false }, vorlage: "eigene" }),
+          hauptzeile: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, tagesliste: false, pinnwand: dreier ? zeig.pinnwand : false }, vorlage: "eigene" }),
+          // ✕ an der unteren Zeile: Einkauf aus, Pinnwand und Heute da zurück an ihre alten Plätze
+          unten: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, einkauf: false }, zeileUnten: false, vorlage: "eigene" }),
         };
         const versteckt = UEBERSICHT_BAUSTEINE.filter(([k]) => !zeig[k]);
         return (
@@ -15631,6 +15851,30 @@ function App() {
               {zahl("OEE orange ab", ["schwellen", "oeeGelb"], r.schwellen.oeeGelb, "%", 0, 100, "darunter rot")}
               {zahl("Archiv-Erinnerung ab", ["schwellen", "archivJahre"], r.schwellen.archivJahre, "Jahren im Bestand", 1, 50)}
 
+              {/* Whiteboard-Kacheln (23.09.): Unfälle und Kosten haben im
+                  Programm keine Quelle - bis der Einkauf eine liefert, werden
+                  sie hier gepflegt. Gemeinsame Datei, gilt auf jedem Rechner. */}
+              {kopf("Sicherheit – Unfälle")}
+              {hinweis("Für die Kachel „Unfälle im Jahr“: je Unfall ein Datum. Die Kachel zählt je Jahr und rechnet die unfallfreien Tage seit dem letzten Eintrag.")}
+              {r.sicherheit.unfaelle.map((u, i) => (
+                <div key={i} className="flex items-center gap-2 mb-1 flex-wrap">
+                  <input type="date" value={u.datum} aria-label={`Unfall ${i + 1} Datum`} onChange={(ev) => setze(["sicherheit", "unfaelle"], r.sicherheit.unfaelle.map((x, j) => (j === i ? { ...x, datum: ev.target.value } : x)))} className="text-sm px-2 py-1 rounded border" style={eingabe} />
+                  <input value={u.text} aria-label={`Unfall ${i + 1} Text`} placeholder="kurz, was passiert ist (bleibt intern)" onChange={(ev) => setze(["sicherheit", "unfaelle"], r.sicherheit.unfaelle.map((x, j) => (j === i ? { ...x, text: ev.target.value } : x)))} className="flex-1 text-sm px-2 py-1 rounded border" style={{ ...eingabe, minWidth: "160px" }} />
+                  <button onClick={() => setze(["sicherheit", "unfaelle"], r.sicherheit.unfaelle.filter((_, j) => j !== i))} aria-label={`Unfall ${i + 1} entfernen`} className="text-slate-400 hover:text-red-600"><X size={15} /></button>
+                </div>
+              ))}
+              <button onClick={() => setze(["sicherheit", "unfaelle"], [...r.sicherheit.unfaelle, { datum: todayKey, text: "" }])} aria-label="Unfall hinzufügen" className="text-xs font-bold mb-2" style={{ color: "#22262B" }}>+ Unfall eintragen</button>
+
+              {kopf("Kosten & Budget")}
+              {hinweis("Für die Kachel „Kosten vom Jahresbudget“. Quelle und Bestellwege sind mit dem technischen Einkauf noch abzustimmen – bis dahin von Hand. Budget 0 = die Kachel zeigt „Abstimmung Einkauf“.")}
+              {zahl("Jahresbudget", ["kosten", "budgetJahr"], r.kosten.budgetJahr, "€", 0, 1000000000)}
+              {zahl("Bisher ausgegeben", ["kosten", "ausgegeben"], r.kosten.ausgegeben, "€", 0, 1000000000)}
+              <label className="flex items-center gap-3 mb-2 text-sm">
+                <span className="w-64 font-bold" style={{ color: "#22262B" }}>Stand vom</span>
+                <input type="date" value={r.kosten.stand} aria-label="Kosten Stand" onChange={(e) => setze(["kosten", "stand"], e.target.value)} className="text-sm px-2 py-1 rounded border" style={eingabe} />
+                <span className="text-xs" style={{ color: "#8A9099" }}>steht klein unter dem Halbkreis</span>
+              </label>
+
               {kopf("Textbausteine & Pflichtfelder")}
               {hinweis("Textbausteine erscheinen als Auswahl an der Pinnwand und im Störbericht (Beschreibung, Sofort Maßnahme). Pflichtfelder gelten zusätzlich zu Anlage, Beschreibung, Schicht und Status.")}
               <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
@@ -15739,6 +15983,15 @@ function App() {
                   );
                 })}
               </div>
+              <label className="flex items-start gap-2.5 px-2.5 py-1.5 rounded border cursor-pointer mb-2"
+                     style={{ borderColor: uebersichtLayout.zeileUnten ? "#2F6690" : "#E2E4E7", backgroundColor: uebersichtLayout.zeileUnten ? "#EEF3F8" : "white" }}>
+                <input type="checkbox" checked={!!uebersichtLayout.zeileUnten} aria-label="Übersicht: Whiteboard-Zeile" style={{ marginTop: "3px" }}
+                  onChange={(ev) => setUebersichtLayout({ ...uebersichtLayout, zeileUnten: ev.target.checked, vorlage: "eigene" })} />
+                <span>
+                  <span className="block text-sm font-bold" style={{ color: "#22262B" }}>Whiteboard-Zeile</span>
+                  <span className="block text-[11px]" style={{ color: "#8A9099" }}>Tagesliste in voller Breite, darunter Pinnwand, Technischer Einkauf und Heute da nebeneinander (Abschnitt „Untere Zeile")</span>
+                </span>
+              </label>
               <div className="text-xs mb-5" style={{ color: "#8A9099" }}>
                 Die Wahl wird sofort übernommen und bleibt auf diesem Rechner gespeichert. ·{" "}
                 <button onClick={() => setUebersichtLayout(layoutAusVorlage("standard"))} className="font-bold underline" style={{ color: "#5B6572" }}>Auf Standard zurücksetzen</button>
@@ -15779,6 +16032,7 @@ function App() {
                         Für diese Gruppe gibt es noch keine Vorlage – ihre Rechner zeigen den Standard.
                         <button onClick={() => schreibe(uebersichtLokal)} aria-label="Vorlage aus diesem Rechner anlegen" className="ml-2 font-bold underline" style={{ color: "#A25E14" }}>Von diesem Rechner übernehmen</button>
                         <button onClick={() => schreibe(normalisiereUebersichtLayout(null))} aria-label="Vorlage mit Standard anlegen" className="ml-2 font-bold underline" style={{ color: "#A25E14" }}>Mit Standard anlegen</button>
+                        <button onClick={() => schreibe(layoutAusVorlage("whiteboard"))} aria-label="Vorlage Whiteboard anlegen" className="ml-2 font-bold underline" style={{ color: "#A25E14" }}>Whiteboard anlegen</button>
                       </div>
                     ) : (<>
                       <table className="w-full text-xs" style={{ borderCollapse: "collapse" }} aria-label={`Kacheln ${ziel}`}>
@@ -15838,6 +16092,7 @@ function App() {
                         <button onClick={() => { const id = "k-" + Math.random().toString(36).slice(2, 8); schreibe({ ...layout, kacheln: [...layout.kacheln, id], kachelDef: { ...layout.kachelDef, [id]: { inhalt: "stoerOffen", form: "zahl" } }, vorlage: "eigene" }); }} aria-label={`Kachel hinzufügen ${ziel}`} className="font-bold rounded px-2.5 py-1" style={{ backgroundColor: "#22262B", color: "white" }}>+ Kachel hinzufügen</button>
                         {ziel !== "rechner" && (<>
                           <button onClick={() => schreibe(uebersichtLokal)} aria-label={`Vorlage ${ziel} von diesem Rechner übernehmen`} className="font-bold underline" style={{ color: "#5B6572" }}>Ganze Anordnung von diesem Rechner übernehmen</button>
+                          <button onClick={() => schreibe(layoutAusVorlage("whiteboard"))} aria-label={`Vorlage ${ziel} auf Whiteboard setzen`} className="font-bold underline" style={{ color: "#5B6572" }}>Auf Whiteboard setzen</button>
                           <button onClick={() => persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, null, null, { ...uebersichtVorlagen, [ziel]: null })} aria-label={`Vorlage ${ziel} löschen`} className="font-bold underline" style={{ color: "#B23A34" }}>Vorlage löschen</button>
                         </>)}
                       </div>
@@ -15893,6 +16148,25 @@ function App() {
                 jeder Monitor-Rechner übernimmt sie beim nächsten Abgleich von selbst. Uhr, Datum und Schicht
                 stehen immer im Kopf.
               </div>
+              {/* Whiteboard 23.09.: "diese Übersicht ist auch die Anzeige für den
+                  Werkstattmonitor" - Robertos Erklärung zur Tafel. */}
+              <label className="flex items-start gap-2.5 px-2.5 py-2 rounded border cursor-pointer mb-3"
+                     style={{ borderColor: monitorBausteine.uebersicht ? "#C97A2B" : "#E2E4E7", backgroundColor: monitorBausteine.uebersicht ? "#FDF3E7" : "white" }}>
+                <input
+                  type="checkbox"
+                  checked={!!monitorBausteine.uebersicht}
+                  onChange={(ev) => persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, { ...monitorBausteine, uebersicht: ev.target.checked })}
+                  aria-label="Monitor zeigt die Übersicht"
+                  style={{ marginTop: "3px" }}
+                />
+                <span>
+                  <span className="block text-sm font-bold" style={{ color: "#22262B" }}>Monitor zeigt die Übersicht (Tafel)</span>
+                  <span className="block text-[11px]" style={{ color: "#8A9099" }}>
+                    Statt der Karten läuft die Übersicht der Leser – die Vorlage „Leser-Übersicht" aus Personalisieren, z. B. Whiteboard. Oben nur Uhr, Datum und Schicht;
+                    Störungs-Laufband und Pinnwand-Laufschrift laufen unten weiter, wenn sie unten angehakt sind. Die übrigen Karten-Häkchen gelten nur ohne Tafel.
+                  </span>
+                </span>
+              </label>
               <div className="flex flex-col gap-1.5 mb-4">
                 {MONITOR_BAUSTEINE.map(([k, label]) => (
                   <label key={k} className="flex items-center gap-2.5 px-2.5 py-2 rounded border cursor-pointer"
@@ -15910,7 +16184,7 @@ function App() {
                   </label>
                 ))}
               </div>
-              {Object.values(monitorBausteine).every((v) => !v) && (
+              {MONITOR_BAUSTEINE.every(([k]) => !monitorBausteine[k]) && (
                 <div className="text-xs mb-3 px-2.5 py-2 rounded" style={{ backgroundColor: "#FDF6EC", color: "#8A5A1B" }}>
                   Alles abgewählt – der Monitor zeigt dann nur noch Uhr, Datum und Schicht.
                 </div>
@@ -17196,8 +17470,44 @@ function App() {
       </div>
       )}
 
+      {/* Monitor als Tafel: unten Störungs-Laufband und Pinnwand-Laufschrift
+          wie beim Karten-Monitor (nach den Häkchen im ⚙), fest am Rand. */}
+      {monitorTafel && (() => {
+        const b = monitorBausteine;
+        const zettel = monitorZettelListe();
+        const band = b.stoerband && stoerOffenCount > 0;
+        const schrift = b.zettel && zettel.length > 0;
+        if (!band && !schrift) return null;
+        const laufschriftText = zettel.map((z) => `${z.note} (${z.name})`).join("   +++   ");
+        const dauer = Math.max(15, laufschriftText.length * 0.13);
+        return (<>
+          <div aria-hidden="true" style={{ height: `${(band ? 48 : 0) + (schrift ? 44 : 0) + 8}px` }} />
+          <div className="no-print" data-monitor-fuss="tafel" style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 20 }}>
+            {schrift && (
+              <div style={{ height: "44px", background: "#1F2226", borderTop: "1px solid #2E3238", padding: "0 0 0 20px", overflow: "hidden", display: "flex", alignItems: "center" }}>
+                <style>{`@keyframes werkstattLaufschrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+                <div style={{ display: "inline-flex", whiteSpace: "nowrap", animation: `werkstattLaufschrift ${dauer}s linear infinite` }}>
+                  <span style={{ fontSize: "1.05rem", color: "#C9CDD2", paddingRight: "80px" }}>{laufschriftText}</span>
+                  <span style={{ fontSize: "1.05rem", color: "#C9CDD2", paddingRight: "80px" }}>{laufschriftText}</span>
+                </div>
+              </div>
+            )}
+            {band && (
+              <div style={{ height: "48px", backgroundColor: "#1a1e23", borderTop: "2px solid #C0392B", display: "flex", alignItems: "center", overflow: "hidden", color: "#fff" }}>
+                <span style={{ flexShrink: 0, backgroundColor: "#C0392B", color: "#fff", fontWeight: 900, fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.06em", padding: "0 16px", lineHeight: "48px", zIndex: 1 }}>
+                  {stoerOffenCount} offen
+                </span>
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <div className="wk-laufband" style={{ whiteSpace: "nowrap", fontSize: "16px", color: "#E8EAED" }}>{monitorLaufbandText()}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </>);
+      })()}
+
       {/* Werkstatt-Monitor: Vollbild-Dashboard für einen Monitor in der Werkstatt */}
-      {monitorOpen && (() => {
+      {monitorOpen && !monitorTafel && (() => {
         const { aktuell, SCHICHT_INFO, jetztCrew } = jetztInDerWerkstatt;
         const chip = (s) => s ? (
           <span className="inline-flex items-center justify-center rounded font-black" style={{ minWidth: "34px", height: "26px", padding: "0 8px", fontSize: "0.8rem", color: SCHICHTEN[s].text || "white", backgroundColor: SCHICHTEN[s].color, flexShrink: 0, marginRight: "10px" }}>{SCHICHTEN[s].kurz}</span>
@@ -17208,9 +17518,7 @@ function App() {
         const prioMittel = arbeitenOffen.filter((a) => a.prio === "mittel").length;
         const wocheGrenze = dateKey(addDays(monitorUhr, -7).getFullYear(), addDays(monitorUhr, -7).getMonth(), addDays(monitorUhr, -7).getDate());
         const erledigtWoche = arbeiten.filter((a) => a.status === "done" && a.erledigtAm && a.erledigtAm >= wocheGrenze).length;
-        // Auf den Hallenmonitor nur Zettel für "Alle" und nicht abgelaufene -
-        // ein "Nur Verwalter"-Zettel darf dort nie laufen (23.09.).
-        const monitorZettel = zettelListe.filter((z) => z.monitor && zettelArtVon(z) === "alle" && !zettelAbgelaufen(z, todayKey));
+        const monitorZettel = monitorZettelListe();
         // Was läuft, bestimmt das Zahnrad (Reiter "Monitor") - Robertos
         // Wunsch vom 08.09. Standard: alles an.
         const b = monitorBausteine;
@@ -17240,11 +17548,7 @@ function App() {
                   {stoerOffenCount} offen
                 </span>
                 <div style={{ flex: 1, overflow: "hidden" }}>
-                  <div className="wk-laufband" style={{ whiteSpace: "nowrap", fontSize: "16px", color: "#E8EAED" }}>
-                    {stoerungenSortiert.filter((s) => s.offen).map((s) =>
-                      `🔧 ${stoerNrLang(s) ? stoerNrKurz(s) + " · " : ""}${s.anlage || "—"}${s.anlagenteil ? " " + s.anlagenteil : ""} – ${s.stoerung || ""}${s.nochZuTun && String(s.nochZuTun).trim() ? " → " + s.nochZuTun : ""}`
-                    ).join("   +++   ")}
-                  </div>
+                  <div className="wk-laufband" style={{ whiteSpace: "nowrap", fontSize: "16px", color: "#E8EAED" }}>{monitorLaufbandText()}</div>
                 </div>
               </div>
             )}

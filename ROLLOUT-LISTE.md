@@ -1174,7 +1174,7 @@ Kurzliste, Details stehen in den jeweiligen Blöcken darunter:
 4. **Backlog wird To-do** – Vorlagen P1–P3, alle Kombis erhalten, Backlog nur ausblendbar.
 5. **Kacheln/Bereiche/Funktionen ein- und ausblendbar, je Benutzergruppe** (Teil von 2 und 4).
 6. **Technischer Einkauf** – Vorlagen E1–E5, offene Fragen; laut Flipchart Toni/Paul.
-7. **Meeting 23.09.: Whiteboard „SIMPTRW"-Übersicht und Flipchart „Nächste Schritte"** – Vorab-Notiz unten, Robertos Details folgen.
+7. ~~Meeting 23.09.: Whiteboard-Übersicht~~ – **GEBAUT 23.09.** (Vorlage „Whiteboard", fünf Kennzahlen, Whiteboard-Zeile, Einkauf-Kachel, harte-85; Monitor als Tafel = Leser-Übersicht, harte-86). Robertos Handgriff: Leser-Vorlage auf Whiteboard setzen + ⚙ Monitor → „Monitor zeigt die Übersicht".
 8. **Robertos Handgriffe:** Release v1.1 anlegen, Programm-Ordner tauschen; Hauptpräsentation durchgehen.
 9. **Aufräumen überholter ROLLOUT-Punkte** nach „Erledigt" (Angebot, nicht bestätigt).
 10. **harte-23 (Umstieg von der Fassung vor dem 10.08.)** streichen, sobald feststeht, dass nirgends mehr ein Stand von vor August läuft.
@@ -1226,13 +1226,44 @@ Titel oben, großer Halbkreis mit der Prozentzahl in der Mitte, Soll/Ist
 Schriftgrößen. Zweite Runde („kleiner, mehr Harmonie"): Kachelhöhe von
 158 auf 124 px, eine Schriftskala für die ganze Seite (Titel 10 px,
 Nebenzeile 11/13 px, Prozent 16 px, Kopfzeile und Blocktitel gleich),
-Abstände im 6-px-Raster. Bauplan folgt, sobald Roberto U1 freigibt.
+Abstände im 6-px-Raster. Robertos „Bauen" (23.09.) → **GEBAUT 23.09.**
+(harte-85, 28 Prüfungen):
+- Vorlage **„Whiteboard"** in den Layout-Vorlagen (Rechner) und als
+  Gruppen-Vorlage („Whiteboard anlegen" / „Auf Whiteboard setzen" für Leser
+  und Bearbeiter). Feste Kachel-Kennungen `k-wb…`, damit jeder Rechner
+  dieselben Kacheln meint.
+- Neue Kennzahlen im Katalog: **To-dos Soll/Ist** (Soll = To-dos mit Frist im
+  Zeitraum, Ist = erledigt), **Backlog erledigt (live)** (Rechnung wie der
+  Berichte-Score, nur als Erledigt-Anteil), **Unfälle im Jahr** (Datumsliste
+  im ⚙ Regeln & Listen → Sicherheit; Tage unfallfrei), **Kosten vom
+  Jahresbudget** (Budget/Ausgegeben/Stand im ⚙ → Kosten & Budget; ohne
+  Budget „Abstimmung Einkauf"). TPM-Quote heißt jetzt **TPM-Effizienz** und
+  zeigt Soll/Ist unter dem Bogen.
+- Layout-Feld **zeileUnten** („Whiteboard-Zeile"): Tagesliste in voller
+  Breite, darunter Abschnitt „Untere Zeile" mit Pinnwand · Technischer Einkauf
+  · Heute da. Neuer Baustein **einkauf** (bei bestehenden Layouts AUS – ein
+  Update zaubert keine Kachel auf fremde Rechner; Bestandsschutz in harte-85
+  D1). Einkauf-Kachel rechnet aus den Störberichten (Bedarf / bestellt /
+  > 7 Tage / eingetroffen 30 Tage), Fußzeile nennt die offene Abstimmung.
+- Alle Zahl- und Halbkreis-Kacheln: Titel oben, mittig, Halbkreis in
+  Kopf-Form größer (100 px) – die Kennzahlen-Reihe füllt die Breite nach
+  Kachelzahl (auto-fit), bei sieben Kacheln wie bisher sieben Spalten
+  (harte-40 misst weiter sieben). Bewusst ohne CSS-Großschreibung der Titel:
+  innerText trüge sie mit, harte-75 liest „Heute fällig" im Klartext.
+- **Werkstattmonitor = Leser-Übersicht** (harte-86): Häkchen „Monitor zeigt
+  die Übersicht (Tafel)" im ⚙ → Monitor (`config.monitor.uebersicht`, aus im
+  Standard, harte-64 zählt weiter sieben Karten-Häkchen). Angehakt zeigt der
+  Monitor die Leser-Vorlage mit schmaler Tafel-Leiste (Uhr/Datum/Schicht/
+  Beenden) statt Menüleiste; Störungs-Laufband und Pinnwand-Laufschrift
+  unten fest; ESC zurück. Damit ist „Bildschirm Werkstatt bis 1.10." vom
+  Flipchart technisch da – Roberto muss nur die Leser-Vorlage auf Whiteboard
+  setzen und das Häkchen setzen.
+- Umbenennung „Pinnwand" → „Schwarzes Brett" nicht gemacht: der Name steckt
+  in Tests und Anleitung, Roberto meinte „die Pinnwand ist das Schwarze
+  Brett" – keine Umbenennung verlangt. Bei Bedarf ein Nachmittag.
 
-Was daraus für das Programm folgen könnte (noch nicht beauftragt): Übersicht
-nach der Whiteboard-Skizze als Vorlage (Kacheln Tagesplan/TPM-Effizienz/
-Unfälle/Backlog-Alter/Kosten), Backlog-Alter (> 48 h / > 7 / > 14 Tage) als
-Kennzahl, Bereich Einkauf (E1–E5), Personal-Kachel je Schicht, Bildschirm
-Werkstatt = Hallenmonitor-Vorlage bis 1.10.
+Noch nicht gebaut (Vorschlag, nicht beauftragt): Backlog-Alter (> 48 h / > 7 /
+> 14 Tage) als Kennzahl, Bereich Einkauf (E1–E5).
 
 ## Technischer Einkauf (Robertos Meeting vom 23.09.) – Vorlagen geschickt, Entscheidung offen
 
