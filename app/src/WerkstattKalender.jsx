@@ -8942,7 +8942,9 @@ function App() {
             {(k.quelle === "haupt" ? !readerMode : stoerDarfSchreiben) && (
               <button
                 onClick={() => {
-                  const meins = Object.fromEntries(k.felder.map((f) => [f.feld, f.mein]));
+                  // _basis: die Wiederherstellung fußt auf MEINEM alten Stand, nicht
+                  // auf der Fassung des Kollegen - so bekommt er den Hinweis.
+                  const meins = { ...Object.fromEntries(k.felder.map((f) => [f.feld, f.mein])), _basis: k.meinEintrag && k.meinEintrag.basis !== undefined ? k.meinEintrag.basis : "" };
                   if (k.quelle === "haupt") persist(entries.map((e) => (e.id === k.id ? { ...e, ...meins } : e)));
                   else persistStoer(stoerungen.map((e) => (e.id === k.id ? { ...e, ...meins } : e)));
                   setKollisionen((alt) => alt.filter((x) => x !== k));

@@ -131,7 +131,7 @@ export function mergeEntries(a, b, deleted) {
 // ganze Bestand einen neuen Zeitstempel. Das Zusammenführen entscheidet nach
 // Zeitstempel; ein solcher Rundumschlag würde die Änderungen der anderen
 // verdrängen. Der Vergleich muss also blind für beide Felder sein.
-const OHNE_SPUR = ({ updatedAt, geaendertVon, ...rest }) => rest;
+const OHNE_SPUR = ({ updatedAt, geaendertVon, basis, _basis, ...rest }) => rest;
 
 /* Kollisions-Wächter (Robertos Entscheidung vom 23.09.): Ändern zwei
    Bearbeiter DENSELBEN Eintrag, gewinnt beim Zusammenführen der jüngere
@@ -189,7 +189,16 @@ export function stampEntries(nextEntries, prevEntries) {
     // Systemeinträge (Einstellungen, Verlaufszeilen) tragen ihren Urheber
     // bereits selbst bzw. gehören niemandem - sie bleiben unberührt.
     if (istSystemEintrag(e)) return { ...e, updatedAt: neuerStempel(t, prev) };
-    return { ...e, updatedAt: neuerStempel(t, prev), geaendertVon: ich };
+    // "basis" (23.09.): Auf welchem Stand fußt diese Änderung? Der Stempel
+    // der Fassung, die der Bearbeiter vor sich hatte. Damit kann der
+    // Kollisions-Wächter unterscheiden, ob ein Kollege meine Fassung
+    // GESEHEN und bewusst geändert hat (basis >= mein Stempel) oder ob er
+    // sie überschrieben hat, ohne sie zu kennen. "_basis" darf ein Aufrufer
+    // ausdrücklich setzen ("Meine Fassung wiederherstellen" trägt die
+    // ursprüngliche Basis weiter, damit der andere den Hinweis bekommt).
+    const { _basis, ...ohneMarker } = e;
+    const basis = _basis !== undefined ? _basis : (prev ? String(prev.updatedAt || "") : "");
+    return { ...ohneMarker, updatedAt: neuerStempel(t, prev), geaendertVon: ich, basis };
   });
   const removed = [];
   prevById.forEach((_, id) => {
@@ -735,6 +744,11 @@ function createSharedStore(cfg) {
       // schon bei der eigenen Bestätigung und erfuhr später nichts mehr,
       // wenn der Unterlegene seine Fassung wiederherstellte - harte-83 K2.)
       if (!fremd.geaendertVon || fremd.geaendertVon === ich) return;
+      // Kennt der fremde Stand seine Basis und liegt sie auf oder nach
+      // meiner Fassung, hat der Kollege meine Fassung gesehen - eine
+      // bewusste Änderung, keine Überschneidung. (Ältere Programmstände
+      // ohne "basis" fallen auf die Feld-Regel darunter zurück.)
+      if (fremd.basis !== undefined && String(fremd.basis) >= String(m.nachher.updatedAt || "")) { meineAenderungen.delete(id); return; }
       const verloren = m.felder.filter((f) => JSON.stringify(fremd[f]) !== JSON.stringify(m.nachher[f]));
       meineAenderungen.delete(id); // entschieden - entweder aufgebaut oder überschrieben
       if (verloren.length === 0) return; // der Kollege hat auf meiner Fassung weitergearbeitet

@@ -16,6 +16,10 @@
 //       die Farbe - Annas Notiz bleibt erhalten, Anna bekommt KEINEN Hinweis.
 //  (K4) "Verstanden" räumt den Hinweis weg.
 //  (K5) Keine Skriptfehler in beiden Fenstern.
+//  (K6) Jede Änderung trägt ihre "basis" (Stempel der Fassung, auf der sie
+//       fußt). Nur so ist K3 eindeutig: Ohne basis hing es vom Tempo ab, ob
+//       Annas bewusste Änderung nach Bernds Wiederherstellung als
+//       Überschneidung galt (in der vollen Suite einmal rot, allein grün).
 //
 // Hausregel (Rot-Nachweis): Gegen den Bau von VOR dem Umbau (APP_PFAD auf die
 // alte HTML) schlagen K1, K2 und K4 fehl - dort gibt es den Hinweis nicht.
@@ -124,6 +128,9 @@ const BESTAND = [{ id: "X", date: "2026-09-23", category: "NOTIZ", name: "RC", s
   ok("(K3) Anna bekommt KEINEN Hinweis (Bernd hat auf ihrer Fassung aufgebaut)", (await hinweis(A.p).count()) === 0);
   ok("(K3) Bernd bekommt ebenfalls keinen", (await hinweis(B.p).count()) === 0);
 
+  const x = inDatei();
+  ok("(K6) Der Eintrag trägt basis = Stempel der Fassung, auf der Bernds Farbe fußt (Annas dritte Runde)",
+    typeof x.basis === "string" && x.basis.length > 0 && x.basis < x.updatedAt && x.geaendertVon === "Bernd", JSON.stringify({ basis: x.basis, updatedAt: x.updatedAt }));
   ok("(K5) Keine Skriptfehler Anna", A.fehler.length === 0, A.fehler.slice(0, 2).join(" | "));
   ok("(K5) Keine Skriptfehler Bernd", B.fehler.length === 0, B.fehler.slice(0, 2).join(" | "));
 

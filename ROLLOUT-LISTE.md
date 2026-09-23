@@ -1151,7 +1151,15 @@ Dateien, die es nicht mehr gibt.
       Fassung wiederherstellen" und „Verstanden". Kein Hinweis, wenn der
       Kollege auf meiner Fassung aufbaut. Gleiche Millisekunde (Sonde!) gilt
       als Überschreiben, wenn Text und Urheber fremd sind. Gilt für Haupt-
-      und Störungs-Datei. Nachweis harte-83 (rot gegen den Bau davor).
+      und Störungs-Datei. Damit „gesehen und bewusst geändert" nicht als
+      Überschneidung gilt, trägt jede Änderung seit dem 23.09. das Feld
+      `basis` (Stempel der Fassung, auf der sie fußt): Liegt die Basis des
+      fremden Stands auf oder nach meiner Fassung, kein Hinweis. Die
+      Wiederherstellung fußt bewusst auf der alten Basis, damit der andere
+      den Hinweis bekommt. Ältere Programmstände ohne `basis` fallen auf die
+      Feld-Regel zurück. Nachweis harte-83 (15 Prüfungen, rot gegen den Bau
+      davor); in der vollen Suite war K3 vor der basis-Regel einmal rot
+      (Tempo-abhängig) – jetzt eindeutig.
 - [ ] **Wird beim To-do-Umbau (Schritt 5) sowieso angefasst (Merkposten):** 20 Tests
       erwähnen den Backlog, vorneweg harte-25 (Backlog-Leiste) und
       harte-67 (Berichte + To-do).
