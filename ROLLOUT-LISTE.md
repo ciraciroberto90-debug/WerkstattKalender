@@ -1223,7 +1223,10 @@ Anlage), U10 Zeitleiste des Tages 06–22 Uhr mit „jetzt"-Linie.
 und im Mockup umgesetzt: alle fünf Kacheln gleich aufgebaut und zentriert –
 Titel oben, großer Halbkreis mit der Prozentzahl in der Mitte, Soll/Ist
 (bzw. Ziel/Tage, Erledigt/Gesamt, Budget-Hinweis) darunter, gleiche
-Schriftgrößen. Bauplan folgt, sobald Roberto das überarbeitete U1 freigibt.
+Schriftgrößen. Zweite Runde („kleiner, mehr Harmonie"): Kachelhöhe von
+158 auf 124 px, eine Schriftskala für die ganze Seite (Titel 10 px,
+Nebenzeile 11/13 px, Prozent 16 px, Kopfzeile und Blocktitel gleich),
+Abstände im 6-px-Raster. Bauplan folgt, sobald Roberto U1 freigibt.
 
 Was daraus für das Programm folgen könnte (noch nicht beauftragt): Übersicht
 nach der Whiteboard-Skizze als Vorlage (Kacheln Tagesplan/TPM-Effizienz/
