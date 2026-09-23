@@ -462,6 +462,15 @@ Störungen, nicht den Rest.
   **offene Störungen als Gedankenstütze**, Tagesliste und **Pinnwand**.
   Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌)
   und auf den **Monitor** legen (📺, läuft nur bei Zetteln für „Alle").
+- **Überschneidung: zwei Kollegen ändern denselben Eintrag (seit dem 23.09.):**
+  Beim Zusammenführen gewinnt die zuletzt gespeicherte Fassung den ganzen
+  Eintrag, es gibt keine Sperre beim Tippen. Wer dabei unterliegt, bekommt
+  jetzt oben einen **gelben Hinweis**: wer gewonnen hat, welcher Eintrag,
+  und Feld für Feld „dein Wert · jetzt". Zwei Knöpfe: **Meine Fassung
+  wiederherstellen** schreibt die eigenen Felder zurück (dann bekommt der
+  Kollege denselben Hinweis), **Verstanden** räumt ihn weg. Kein Hinweis,
+  wenn ein Kollege auf deiner Fassung weiterarbeitet und nur andere Felder
+  ändert. Bei verschiedenen Einträgen geht ohnehin nichts verloren.
 - **Pinnwand: wer sieht den Zettel? (seit dem 23.09.):** Beim Schreiben wählt
   das Dropdown **„Sichtbar für"** – 🛡 **Nur Verwalter** (Standard),
   ✏️ Bearbeiter & Verwalter, 👥 Alle (auch Leser), 🔒 Nur ich oder

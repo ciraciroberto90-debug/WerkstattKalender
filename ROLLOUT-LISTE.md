@@ -1133,7 +1133,7 @@ Dateien, die es nicht mehr gibt.
       Excel-Datei, einzige Prüfung der Tabelle), harte-70 Doppel-Speichern
       96 s (12 s echte Wartezeit für die Kollision), harte-41 Programm 80 s,
       harte-33 Sieben Jahre 41 s.
-- [ ] **Gleichzeitiges Bearbeiten DESSELBEN Eintrags (Sonde 23.09., Robertos
+- [x] **Gleichzeitiges Bearbeiten DESSELBEN Eintrags (Sonde 23.09., Robertos
       Frage):** Zwei Bearbeiter ändern denselben Zettel: exakt gleichzeitig
       gewann Anna (Datei, beide Fenster, Verlauf eine Zeile); Bernd 3 s
       später → Bernd gewinnt, beide Fenster zeigen seinen Text nach dem
@@ -1142,9 +1142,16 @@ Dateien, die es nicht mehr gibt.
       keine Sperre beim Tippen; der Unterlegene bekommt „gespeichert" ohne
       Hinweis (die Kontroll-Lesung akzeptiert eine fremde neuere Fassung).
       Sicher gegen Verlust ist es bei VERSCHIEDENEN Einträgen (harte-3/13/
-      14/70, Sync-Fokus). Offen zur Entscheidung: soll der Unterlegene einen
-      Hinweis bekommen („Kollege X hat diesen Eintrag gerade geändert – dein
-      Text: …") oder reicht der Verlauf?
+      14/70, Sync-Fokus). **Robertos Entscheidung: Hinweis – GEBAUT
+      (23.09.):** Kollisions-Wächter im Sync-Kern (`pruefeKollisionen`):
+      Jedes Fenster merkt sich seine jüngsten Änderungen (Felder, alter und
+      neuer Wert, 30 min). Trägt ein eingehender FREMDER Stand meine
+      geänderten Felder nicht mehr, zeigt die App oben einen gelben Hinweis
+      (Gewinner, Eintrag, Feld für Feld „dein Wert · jetzt") mit „Meine
+      Fassung wiederherstellen" und „Verstanden". Kein Hinweis, wenn der
+      Kollege auf meiner Fassung aufbaut. Gleiche Millisekunde (Sonde!) gilt
+      als Überschreiben, wenn Text und Urheber fremd sind. Gilt für Haupt-
+      und Störungs-Datei. Nachweis harte-83 (rot gegen den Bau davor).
 - [ ] **Wird beim To-do-Umbau (Schritt 5) sowieso angefasst (Merkposten):** 20 Tests
       erwähnen den Backlog, vorneweg harte-25 (Backlog-Leiste) und
       harte-67 (Berichte + To-do).

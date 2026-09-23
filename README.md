@@ -77,7 +77,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 74 Härtetests, fünf Browser-Reserve-Tests und weitere Suiten | Entwicklung |
+| `tests/` | 75 Härtetests, fünf Browser-Reserve-Tests und weitere Suiten | Entwicklung |
 | `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
@@ -129,7 +129,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 74 Härtetests (vor jedem Push)
+bash tests/run-hardness-tests.sh           # 75 Härtetests (vor jedem Push)
 bash tests/run-browser-reserve.sh          # 5 Browser-Reserve-Tests (vor einer Freigabe; Dateizugriff über den Browser)
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen

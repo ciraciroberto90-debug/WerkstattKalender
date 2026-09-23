@@ -1920,6 +1920,38 @@ function pad(n) {
 function dateKey(y, m, d) {
   return `${y}-${pad(m + 1)}-${pad(d)}`;
 }
+// Für den Überschneidungs-Hinweis: Eintrag und Felder in Werkstattsprache.
+const FELD_NAMEN = {
+  note: "Notiz", name: "Bezeichnung", prio: "Priorität", wer: "Person", bis: "Frist", geplant: "Plan-Tag", status: "Status",
+  bemerkung: "Bemerkung", art: "Gewerk", anlagenteil: "Anlagenteil", wert: "Schicht", stunden: "Stunden", kostenstelle: "Kostenstelle",
+  taetigkeit: "Tätigkeit", stoerung: "Störung", ursache: "Ursache", getan: "Getan", nochZuTun: "Noch zu tun", ersatzteile: "Ersatzteile",
+  ausfallzeit: "Ausfallzeit", fehlerart: "Fehlerart", behobenAt: "Behoben am", melder: "Melder", schicht: "Schicht", anlage: "Anlage",
+  sichtbar: "Sichtbar für", farbe: "Farbe", gueltigBis: "Gültig bis", empfaenger: "Empfänger", date: "Datum", fotos: "Fotos",
+  erledigtAm: "Erledigt am", erledigtVon: "Erledigt von", angeheftet: "Angeheftet", monitor: "Monitor", azubi: "Azubi", stillstand: "Stillstand",
+};
+const feldName = (f) => FELD_NAMEN[f] || f;
+const wertText = (v) => {
+  if (v === undefined || v === null || v === "") return "leer";
+  if (v === true) return "ja";
+  if (v === false) return "nein";
+  const s = typeof v === "string" ? v : JSON.stringify(v);
+  return `„${s.length > 140 ? s.slice(0, 140) + " …" : s}“`;
+};
+function eintragTitel(e) {
+  if (!e) return "Eintrag";
+  const kurz = (t) => { const s = String(t || "").trim(); return s.length > 40 ? s.slice(0, 40) + " …" : s; };
+  switch (e.category) {
+    case "NOTIZ": return `Zettel ${kurz(e.note)}`;
+    case "ARBEIT": return `Arbeit ${e.name || ""}${e.note ? " – " + kurz(e.note) : ""}`;
+    case "TODO": return `To-do ${kurz(e.name)}`;
+    case "PLANNOTIZ": return `Planungsnotiz ${e.name || ""} ${formatDateDE(e.date)}`;
+    case "SCHICHT": return `Schicht ${e.name || ""} ${formatDateDE(e.date)}`;
+    case "ZEIT": return `Zeiterfassung ${e.name || ""} ${formatDateDE(e.date)}`;
+    case "TPM": return `PitStop ${e.name || ""} ${formatDateDE(e.date)}`;
+    case "RI": return `R+I ${e.name || ""} ${formatDateDE(e.date)}`;
+    default: return e.anlage ? `Störung ${e.anlage} ${formatDateDE(e.date)}` : `${e.category || "Eintrag"} ${e.name || ""}`;
+  }
+}
 function formatDateDE(iso) {
   const [y, m, d] = iso.split("-");
   return `${d}.${m}.${y}`;
@@ -2487,6 +2519,10 @@ function App() {
   const [anmeldungZu, setAnmeldungZu] = useState(false);
   const [shareErr, setShareErr] = useState(null); // bleibt stehen, bis das Speichern in die Datei wieder klappt
   const [shareInfo, setShareInfo] = useState(null); // grüne Hinweis-Meldung (z. B. Konfliktkopie eingesammelt), verschwindet von selbst
+  // Überschneidungen (23.09.): Ein Kollege hat denselben Eintrag gleichzeitig
+  // geändert und gewonnen - der Hinweis bleibt stehen, bis er weggeklickt
+  // oder die eigene Fassung wiederhergestellt wird. Je Eintrag höchstens einer.
+  const [kollisionen, setKollisionen] = useState([]);
   const [shareChecked, setShareChecked] = useState(false); // erst true, wenn die Wiederverbindung beim Start geprüft wurde
   // Störungen: eigene, für alle beschreibbare Datei (getrennt von den Hauptdaten)
   const [stoerungen, setStoerungen] = useState(() => {
@@ -2674,6 +2710,14 @@ function App() {
     window.addEventListener("werkstatt-shared-error", onShareError);
     window.addEventListener("werkstatt-shared-ok", onShareOk);
     window.addEventListener("werkstatt-shared-info", onShareInfo);
+    const onKollision = (ev) => {
+      const d = ev.detail;
+      if (!d || !d.id) return;
+      const quelle = String(ev.type).startsWith("werkstatt-stoer") ? "stoer" : "haupt";
+      setKollisionen((alt) => [...alt.filter((k) => !(k.id === d.id && k.quelle === quelle)), { ...d, quelle }]);
+    };
+    window.addEventListener("werkstatt-shared-kollision", onKollision);
+    window.addEventListener("werkstatt-stoer-kollision", onKollision);
 
     // ---- Störungen-Datei (eigene Instanz, gleiche Sync-Sicherheiten) ----
     sharedFile.stoer.tryRestore()
@@ -2713,6 +2757,8 @@ function App() {
       window.removeEventListener("werkstatt-shared-error", onShareError);
       window.removeEventListener("werkstatt-shared-ok", onShareOk);
       window.removeEventListener("werkstatt-shared-info", onShareInfo);
+      window.removeEventListener("werkstatt-shared-kollision", onKollision);
+      window.removeEventListener("werkstatt-stoer-kollision", onKollision);
       window.removeEventListener("werkstatt-stoer-update", onStoerUpdate);
       window.removeEventListener("werkstatt-stoer-error", onStoerError);
       window.removeEventListener("werkstatt-stoer-ok", onStoerOk);
@@ -8875,6 +8921,44 @@ function App() {
           ✓ {shareInfo}
         </div>
       )}
+      {/* Überschneidung (23.09.): Der Unterlegene erfährt es - mit seinem
+          Text, damit nichts abgetippt werden muss. "Meine Fassung
+          wiederherstellen" schreibt die eigenen Felder mit neuem Zeitstempel
+          zurück; der Kollege bekommt dann seinerseits diesen Hinweis. */}
+      {kollisionen.map((k) => (
+        <div key={`${k.quelle}-${k.id}`} role="alert" aria-label="Überschneidung" className="no-print px-4 py-2 text-xs" style={{ backgroundColor: "#FDF3E7", color: "#7A4A0E", borderBottom: "1px solid #F0D9B8" }}>
+          <div className="font-bold">
+            ⚠ Überschneidung: {k.wer} hat „{eintragTitel(k.fremdEintrag)}“ gleichzeitig geändert – seine Fassung gilt jetzt. Deine Eingabe wurde überschrieben:
+          </div>
+          <div className="mt-1 flex flex-col gap-0.5">
+            {k.felder.map((f) => (
+              <div key={f.feld}>
+                <span className="font-bold">{feldName(f.feld)}:</span> dein Wert <span className="font-bold" style={{ color: "#22262B" }}>{wertText(f.mein)}</span>
+                <span style={{ color: "#8A6508" }}> · jetzt: {wertText(f.fremd)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1.5 flex gap-2">
+            {(k.quelle === "haupt" ? !readerMode : stoerDarfSchreiben) && (
+              <button
+                onClick={() => {
+                  const meins = Object.fromEntries(k.felder.map((f) => [f.feld, f.mein]));
+                  if (k.quelle === "haupt") persist(entries.map((e) => (e.id === k.id ? { ...e, ...meins } : e)));
+                  else persistStoer(stoerungen.map((e) => (e.id === k.id ? { ...e, ...meins } : e)));
+                  setKollisionen((alt) => alt.filter((x) => x !== k));
+                }}
+                className="rounded px-2.5 py-1 font-bold text-white"
+                style={{ backgroundColor: "#22262B" }}
+              >
+                Meine Fassung wiederherstellen
+              </button>
+            )}
+            <button onClick={() => setKollisionen((alt) => alt.filter((x) => x !== k))} className="rounded px-2.5 py-1 font-bold" style={{ backgroundColor: "white", border: "1px solid #E0C79F", color: "#7A4A0E" }}>
+              Verstanden
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* Filter-Leiste: Seit dem 18.08. nur noch fürs Register - im Plan-Reiter
           sitzen Monat/Jahr und der Filter in der Auswertungs-Leiste unten

@@ -133,6 +133,23 @@ export function mergeEntries(a, b, deleted) {
 // verdrängen. Der Vergleich muss also blind für beide Felder sein.
 const OHNE_SPUR = ({ updatedAt, geaendertVon, ...rest }) => rest;
 
+/* Kollisions-Wächter (Robertos Entscheidung vom 23.09.): Ändern zwei
+   Bearbeiter DENSELBEN Eintrag, gewinnt beim Zusammenführen der jüngere
+   Zeitstempel - den ganzen Eintrag, ohne Feld-für-Feld-Mischen. Der
+   Unterlegene bekam bisher "gespeichert" und nie einen Hinweis (Sonde vom
+   23.09.: Bernds Text war stumm weg). Deshalb merkt sich jedes Fenster seine
+   jüngsten Änderungen (welche Felder, alter und neuer Wert) und prüft jeden
+   eingehenden Stand: Trägt der fremde Eintrag meine geänderten Felder NICHT
+   mehr, hat mich jemand überschrieben, der meine Fassung nicht gesehen hat.
+   Ein Kollege, der später auf meiner Fassung weiterarbeitet (meine Felder
+   bleiben, er ändert andere), löst keinen Hinweis aus. */
+const KOLLISION_MERKEN_MS = 30 * 60 * 1000;
+function geaenderteFelder(vorher, nachher) {
+  const a = OHNE_SPUR(vorher || {}), b = OHNE_SPUR(nachher || {});
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...keys].filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
+}
+
 // Versieht geänderte/neue Einträge mit Zeitstempel und Urheber und meldet
 // Löschungen. Der Urheber steht damit AM EINTRAG - dauerhaft, auch wenn die
 // Verlaufszeilen nach 90 Tagen herausaltern oder bei vielen Änderungen auf
@@ -685,8 +702,55 @@ function createSharedStore(cfg) {
     } catch (e) { return []; }
   }
 
+  /* ---------- Kollisions-Wächter (siehe geaenderteFelder) ---------- */
+  const meineAenderungen = new Map(); // id -> { vorher, nachher, felder, t }
+  function merkeMeineAenderungen(stamped, prevEntries) {
+    const prevById = new Map((prevEntries || []).map((e) => [e.id, e]));
+    const jetzt = Date.now();
+    for (const e of stamped) {
+      if (!e || istSystemEintrag(e)) continue;
+      const prev = prevById.get(e.id);
+      if (!prev) continue; // neu angelegt: da gibt es noch nichts zu überschreiben
+      const felder = geaenderteFelder(prev, e);
+      if (felder.length > 0) meineAenderungen.set(e.id, { vorher: prev, nachher: e, felder, t: jetzt });
+    }
+  }
+  function pruefeKollisionen(entries) {
+    if (meineAenderungen.size === 0 || !Array.isArray(entries)) return;
+    const jetzt = Date.now();
+    const byId = new Map(entries.map((e) => [e.id, e]));
+    const ich = werBinIch();
+    meineAenderungen.forEach((m, id) => {
+      if (jetzt - m.t > KOLLISION_MERKEN_MS) { meineAenderungen.delete(id); return; }
+      const fremd = byId.get(id);
+      if (!fremd) return; // gelöscht oder noch unterwegs - Löschen gegen Bearbeiten regelt der Merge
+      // Nur ÄLTERE fremde Stände sind harmlos. Gleicher Stempel kommt vor
+      // (Sonde 23.09.: beide Fenster stempelten dieselbe Millisekunde) - dann
+      // entscheidet der Inhalt: Steht ein anderer Text unter fremdem Namen,
+      // bin ich überschrieben worden.
+      if (String(fremd.updatedAt || "") < String(m.nachher.updatedAt || "")) return;
+      // Eigene Fassung (bestätigt) oder eigenes zweites Fenster: Der Merker
+      // bleibt - erst ein FREMDER Stand entscheidet, ob aufgebaut oder
+      // überschrieben wurde. (Ohne das verlor der Gewinner seinen Merker
+      // schon bei der eigenen Bestätigung und erfuhr später nichts mehr,
+      // wenn der Unterlegene seine Fassung wiederherstellte - harte-83 K2.)
+      if (!fremd.geaendertVon || fremd.geaendertVon === ich) return;
+      const verloren = m.felder.filter((f) => JSON.stringify(fremd[f]) !== JSON.stringify(m.nachher[f]));
+      meineAenderungen.delete(id); // entschieden - entweder aufgebaut oder überschrieben
+      if (verloren.length === 0) return; // der Kollege hat auf meiner Fassung weitergearbeitet
+      window.dispatchEvent(new CustomEvent(EV + "-kollision", {
+        detail: {
+          id, wer: fremd.geaendertVon || "Ein Kollege", zeit: nowISO(),
+          felder: verloren.map((f) => ({ feld: f, mein: m.nachher[f], fremd: fremd[f] })),
+          meinEintrag: m.nachher, fremdEintrag: fremd,
+        },
+      }));
+    });
+  }
+
   /* ---------- Ereignisse an die App ---------- */
   function dispatchUpdate(data) {
+    pruefeKollisionen(data.entries);
     window.dispatchEvent(new CustomEvent(EV + "-update", {
       detail: { entries: ohneSystemEntries(data.entries), config: configAusEintraegen(data.entries) || data.config, deleted: data.deleted, verlauf: extractLogEntries(data.entries) },
     }));
@@ -1564,6 +1628,7 @@ function createSharedStore(cfg) {
   async function saveEntries(nextEntries, prevEntries) {
     if (!fileHandle || accessMode !== "readwrite") return null;
     let { stamped, removed } = stampEntries(nextEntries, prevEntries);
+    merkeMeineAenderungen(stamped, prevEntries);
     // NOTBREMSE MASSENLÖSCHUNG (gefunden bei der 70.000er-Messfahrt, 11.09.):
     // Oberhalb der Browser-Speichergrenze bleibt der örtliche Spiegel leer,
     // der Vergleichsstand dieses Fensters kennt aber den vollen Bestand.
@@ -1660,6 +1725,10 @@ function createSharedStore(cfg) {
           const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
           await recordBackup(bestaetigt, null);
           nachpruefenUndHeilen(stamped, removed, delStamp, kontrolle.schreibMarke || kontrolle.savedAt);
+          // Wurde ich beim Schreiben von einer fremden neueren Fassung
+          // überholt, soll der Hinweis sofort kommen - nicht erst beim
+          // nächsten 30-s-Abgleich.
+          pruefeKollisionen(bestaetigt);
           dispatchConfigUpdate(bestaetigt);
           if (bremseMeldung) {
             // Die Arbeit IST gesichert - aber die Warnung darf nicht von der
@@ -2209,6 +2278,7 @@ function createSharedStore(cfg) {
     },
     poll: pollNow,
     leseZaehler: () => ({ ...leseZaehler }), // Messzähler des Abgleich-Kurzblicks
+    kollisionsMerker: () => [...meineAenderungen.entries()].map(([id, m]) => ({ id, felder: m.felder, stempel: m.nachher.updatedAt })), // Kollisions-Wächter (harte-83)
     canWrite, // nur lesende Statusabfrage - verleiht kein Recht
     save: saveEntries, // greift dieselbe Prüfung ab wie jeder andere Weg
     getLastSuccessfulSyncAt: () => lastSuccessfulSyncAt,
