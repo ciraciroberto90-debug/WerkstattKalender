@@ -1168,8 +1168,8 @@ Dateien, die es nicht mehr gibt.
 
 Kurzliste, Details stehen in den jeweiligen Blöcken darunter:
 
-1. **Kachel-Inhalt der Übersicht** – Vorlagen K1/K3/K4/K5 geschickt, Wahl offen.
-2. **Gruppen-Vorlagen der Übersicht** (Leser-/Bearbeiter-Übersicht vom Verwalter gestalten) – Vorlage K2, noch nicht gewählt.
+1. ~~Kachel-Inhalt der Übersicht~~ – **GEBAUT 23.09.** (K1 ▾-Menü + K4 fünf Darstellungen + K5 Tabelle im Zahnrad je Benutzergruppe, harte-84).
+2. ~~Gruppen-Vorlagen der Übersicht~~ – **mit 1 gebaut:** Reiter Leser-/Bearbeiter-Übersicht im Zahnrad, Vorlage in der gemeinsamen Datei, Rechner ohne eigene Anordnung folgen ihr.
 3. **Termin-Kachel mit Anwesenden noch einmal wählen** – V1–V7 gezeigt (V2 gebaut).
 4. **Backlog wird To-do** – Vorlagen P1–P3, alle Kombis erhalten, Backlog nur ausblendbar.
 5. **Kacheln/Bereiche/Funktionen ein- und ausblendbar, je Benutzergruppe** (Teil von 2 und 4).
@@ -1280,13 +1280,21 @@ im Chat; Bauskripte im Sitzungs-Scratchpad (`mock-*.html`).
       Knöpfe machten die Wand unruhig – jetzt stecken sie hinter EINEM
       ⋯-Knopf je Zettel (Zur Arbeit, 📌, 📺, ×, Sichtbarkeit, Farbe); auf
       der Wand bleiben nur Schild, Text, Verfasser und stille Marken 📌/📺.
-- [ ] **Schritt 4 – Kachel-Inhalt wählen:** im Anordnen-Modus je
+- [x] **Schritt 4 – Kachel-Inhalt wählen (GEBAUT 23.09., Robertos Wahl K1 + K4 + K5):**
+      ▾-Menü je Kachel im Anordnen-Modus (gruppiert, Darstellung und Zeitraum
+      als Chips), 20 Kennzahlen im Katalog, fünf Darstellungen (Zahl,
+      Halbkreis, Verlauf, Ampel, Top 3), „+ Kachel hinzufügen", Tabelle im
+      Zahnrad mit Reitern Dieser Rechner / Leser / Bearbeiter (Gruppen-
+      Vorlagen in der gemeinsamen Datei, `config.uebersichtVorlagen`; das
+      Auge zeigt die Gruppen-Vorlage). Alte Layouts („zahlen") lesen sich
+      weiter. Nachweis harte-84; harte-75 auf sieben Kachel-Rahmen angepasst.
+      Ursprünglicher Plan: im Anordnen-Modus je
       Kennzahl-Kachel ein ▾ mit allen Kennzahlen, die das Cockpit rechnet
       (Termine, Quoten TPM/PitStop/R+I Monat/Jahr, Störungen 30 Tage,
       Ausfallzeit, Anlage mit den meisten Störungen, To-dos, Erledigt diese
       Woche, Stunden diese Woche, Jetzt da, OEE, Uhr, nächster PitStop,
       freier Text) plus „+ Kachel hinzufügen" (Vorlage K1).
-- [ ] **Schritt 5 – Gruppen-Vorlagen der Übersicht:** Anordnen-Leiste mit
+- [x] **Schritt 5 – Gruppen-Vorlagen der Übersicht (mit Schritt 4 gebaut, 23.09.; offen bleibt nur das Zurückholen ausgeblendeter Bereiche und Funktionen per +-Chip, das kommt mit dem To-do-Umbau):** Anordnen-Leiste mit
       „Ich gestalte: diesen Rechner | Leser-Übersicht | Bearbeiter-
       Übersicht" – die Gruppen-Vorlage liegt in der gemeinsamen Datei und
       gilt für alle Rechner der Gruppe ohne eigene Anordnung; Zusammenspiel

@@ -462,6 +462,22 @@ Störungen, nicht den Rest.
   **offene Störungen als Gedankenstütze**, Tagesliste und **Pinnwand**.
   Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌)
   und auf den **Monitor** legen (📺, läuft nur bei Zetteln für „Alle").
+- **Kennzahlen-Kacheln selbst zusammenstellen (seit dem 23.09.):** Im
+  Anordnen-Modus (⚙ → Personalisieren → „Übersicht direkt anordnen") hat
+  jede Kachel der Kennzahlen-Reihe ein **▾** im Griff. Es öffnet die Liste
+  aller Kennzahlen, die das Cockpit rechnet, nach Themen gruppiert: Termine,
+  Quoten, Störungen, To-dos & Team, Einkauf, Sonstiges (auch ein freier
+  Text). Oben im Menü wählst du die **Darstellung** – Zahl, Halbkreis,
+  Verlauf (6 Monate bzw. Wochen), Ampel oder Top 3 – und den **Zeitraum**
+  (Monat, Jahr, 30 Tage, Woche). „+ Kachel hinzufügen" legt weitere Kacheln
+  an, ✕ entfernt eigene und blendet feste aus. Dieselbe Wahl gibt es als
+  **Tabelle im Zahnrad** (Personalisieren → „Kennzahlen-Kacheln") mit den
+  Reitern **Dieser Rechner / Leser-Übersicht / Bearbeiter-Übersicht**: Die
+  beiden Gruppen-Reiter sind Vorlagen in der gemeinsamen Datei – jeder
+  Leser- oder Bearbeiter-Rechner ohne eigene Anordnung übernimmt sie von
+  selbst; das Auge („Ansicht als Leser") zeigt dem Verwalter genau diese
+  Vorlage. Ampel und Halbkreis lesen das Quoten-Ziel aus „Schwellen &
+  Ziele"; ohne Ziel gilt grün ab 90 %, gelb ab 75 %.
 - **Überschneidung: zwei Kollegen ändern denselben Eintrag (seit dem 23.09.):**
   Beim Zusammenführen gewinnt die zuletzt gespeicherte Fassung den ganzen
   Eintrag, es gibt keine Sperre beim Tippen. Wer dabei unterliegt, bekommt

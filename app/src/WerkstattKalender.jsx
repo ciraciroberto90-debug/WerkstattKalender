@@ -682,6 +682,76 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
 // auch sagt - der Nutzen entsteht erst dadurch, dass sie die laufende Schicht
 // und die Übergabe mit nennt. Das steht sonst nirgends in der Übersicht.
 // Die Schichtgrenzen sind dieselben wie in "Heute da" (6 / 14 / 22 Uhr).
+/* ---------- Kennzahl-Kachel in fünf Darstellungen (23.09., Vorlage K4) ----------
+   Bekommt fertige Daten (aus kennzahlDaten im Hauptbauteil) und zeichnet sie
+   als Zahl, Halbkreis, Verlauf, Ampel oder Top-3-Liste. Nichts wird hier
+   gerechnet - so bleibt die Kachel eine reine Anzeige und ist leicht zu prüfen. */
+function KennzahlKachel({ def, d }) {
+  const akzent = d.akzent || "#CBD1D8";
+  const karte = (inhalt, extraStyle) => (
+    <div className="wk-karte px-4 py-3.5 flex flex-col justify-center" data-kachel-inhalt={def.inhalt} data-kachel-form={def.form} style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)`, ...(extraStyle || {}) }} title={d.titel || ""}>
+      {inhalt}
+    </div>
+  );
+  const etikett = (t) => <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{t}</div>;
+  const unterzeile = (t) => (t ? <div style={{ fontSize: "0.68rem", color: "#8A9099", marginTop: "2px" }}>{t}</div> : null);
+  const delta = d.delta && d.delta.text ? (
+    <span className="font-black" style={{ fontSize: "0.7rem", color: d.delta.gut === null ? "#8A9099" : d.delta.gut ? "#2F7D4F" : "#B23A34", marginLeft: "6px" }}>{d.delta.text}</span>
+  ) : null;
+  if (def.form === "halbkreis") {
+    // display:contents - der Halbkreis bringt seine eigene Karte mit, das
+    // Kennzeichen (Inhalt/Form) hängt trotzdem an der Kachel.
+    return <div data-kachel-inhalt={def.inhalt} data-kachel-form="halbkreis" style={{ display: "contents" }}><HalbkreisQuote prozent={d.prozent} label={d.kurz || ""} sub={d.sub || ""} titel={d.titel || ""} /></div>;
+  }
+  if (def.form === "verlauf") {
+    const punkte = Array.isArray(d.verlauf) ? d.verlauf : [];
+    const max = Math.max(1, ...punkte.map((p) => Number(p.wert) || 0));
+    return karte(<>
+      <div className="flex items-end gap-1" style={{ height: "34px" }} aria-label={`Verlauf ${d.label}`}>
+        {punkte.map((p, i) => (
+          <div key={p.label + i} title={`${p.label}: ${p.text || p.wert}`} style={{ flex: 1, height: `${Math.max(6, Math.round(((Number(p.wert) || 0) / max) * 100))}%`, backgroundColor: i === punkte.length - 1 ? akzent : "#C3CCD6", borderRadius: "3px 3px 0 0" }} />
+        ))}
+      </div>
+      {etikett(<>{d.label} · Verlauf{delta}</>)}
+      {unterzeile(punkte.length ? `${punkte[0].label} – ${punkte[punkte.length - 1].label}${d.trend ? " · " + d.trend : ""}` : "keine Daten")}
+    </>);
+  }
+  if (def.form === "ampel") {
+    const farbe = d.ampel === "gruen" ? "#2F7D4F" : d.ampel === "gelb" ? "#E0A100" : d.ampel === "rot" ? "#B23A34" : "#8A9099";
+    const wort = d.ampel === "gruen" ? "Gut" : d.ampel === "gelb" ? "Knapp" : d.ampel === "rot" ? "Kritisch" : "–";
+    return karte(<>
+      <div className="font-extrabold flex items-center gap-2" style={{ fontSize: "1.25rem", lineHeight: 1, color: "#22262B" }}>
+        <span aria-label={`Ampel ${wort}`} style={{ display: "inline-block", width: "16px", height: "16px", borderRadius: "50%", backgroundColor: farbe, flexShrink: 0 }} />
+        {wort}
+      </div>
+      {etikett(<>{d.label} · {d.text}{delta}</>)}
+      {unterzeile(d.ampelRegel)}
+    </>, { boxShadow: `inset 3px 0 0 0 ${farbe}, var(--wk-schatten)` });
+  }
+  if (def.form === "top3") {
+    const zeilen = Array.isArray(d.top3) ? d.top3.slice(0, 3) : [];
+    return karte(<>
+      {etikett(`Top 3 · ${d.label}${d.sub ? " · " + d.sub : ""}`)}
+      <ul className="mt-1" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {zeilen.length === 0 && <li style={{ fontSize: "0.72rem", color: "#8A9099" }}>nichts zu zeigen</li>}
+        {zeilen.map((z) => (
+          <li key={z.name} className="flex justify-between gap-2" style={{ fontSize: "0.74rem", color: "#22262B", borderBottom: "1px solid #F0F2F4", padding: "2px 0" }}>
+            <span className="truncate">{z.name}</span><b style={{ whiteSpace: "nowrap" }}>{z.text}</b>
+          </li>
+        ))}
+      </ul>
+    </>);
+  }
+  // Standard: Zahl (oder Text)
+  const gross = d.text !== undefined && d.text !== null ? d.text : "–";
+  const lang = String(gross).length > 6;
+  return karte(<>
+    <div className="font-extrabold" style={{ fontSize: lang ? "1.15rem" : "2.1rem", lineHeight: 1.05, letterSpacing: lang ? 0 : "-1.6px", fontVariantNumeric: "tabular-nums", color: d.farbe || "#22262B", wordBreak: "break-word" }}>{gross}</div>
+    {etikett(<>{d.label}{delta}</>)}
+    {unterzeile(d.sub)}
+  </>);
+}
+
 function WerkstattUhr() {
   const [jetzt, setJetzt] = React.useState(() => new Date());
   React.useEffect(() => {
@@ -1592,7 +1662,58 @@ const UEBERSICHT_VORLAGEN = [
 ];
 const UEBERSICHT_LAYOUT_KEY = "wk-uebersicht-layout";
 // Die Kacheln der Kennzahlen-Reihe - im Anordnen-Modus einzeln verschiebbar.
-const UEBERSICHT_KACHELN = ["zahlen", "quote", "oee", "uhr"];
+/* ---------- Kennzahlen-Katalog (Robertos Wahl vom 23.09.: K1 + K4 + K5) ----------
+   Jede Kachel der Kennzahlen-Reihe hat einen INHALT aus diesem Katalog, eine
+   DARSTELLUNG (Zahl, Halbkreis, Verlauf, Ampel, Top 3) und, wo es Sinn hat,
+   einen ZEITRAUM. Der Katalog sagt nur, was erlaubt ist - gerechnet wird im
+   Bauteil (kennzahlDaten), weil dort die Bestände liegen. Neue Kennzahlen
+   kommen hier dazu und stehen damit automatisch im Dropdown. */
+const KENNZAHL_FORMEN = [["zahl", "Zahl"], ["halbkreis", "Halbkreis"], ["verlauf", "Verlauf"], ["ampel", "Ampel"], ["top3", "Top 3"]];
+const KENNZAHL_ZEITRAEUME = { heute: "heute", woche: "diese Woche", monat: "Monat", jahr: "Jahr", tage30: "30 Tage" };
+const KENNZAHLEN = [
+  // id, Bezeichnung, Gruppe, erlaubte Darstellungen, erlaubte Zeiträume (null = ohne), Standard-Zeitraum
+  ["heuteFaellig", "Heute fällig", "Termine", ["zahl"], null],
+  ["heuteErledigt", "Heute erledigt", "Termine", ["zahl"], null],
+  ["ueberfaellig", "Überfällig", "Termine", ["zahl", "top3"], null],
+  ["terminePlan", "Termine im Plan", "Termine", ["zahl"], ["monat", "jahr"], "monat"],
+  ["naechsterPitStop", "Nächster PitStop", "Termine", ["zahl", "top3"], null],
+  ["tpmQuote", "TPM-Quote gesamt", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
+  ["pitstopQuote", "PitStop-Quote", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
+  ["riQuote", "R+I-Quote", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
+  ["stoerOffen", "Offene Störungen", "Störungen", ["zahl", "ampel", "top3"], null],
+  ["stoerAnzahl", "Störungen (Anzahl)", "Störungen", ["zahl", "verlauf", "top3"], ["tage30", "monat", "jahr"], "tage30"],
+  ["ausfallzeit", "Ausfallzeit", "Störungen", ["zahl", "verlauf", "top3"], ["tage30", "monat", "jahr"], "monat"],
+  ["sorgenkind", "Anlage mit den meisten Störungen", "Störungen", ["zahl", "top3"], ["tage30", "monat", "jahr"], "tage30"],
+  ["todoOffen", "To-dos offen", "To-dos & Team", ["zahl", "ampel", "top3"], null],
+  ["erledigt", "Erledigte Arbeiten", "To-dos & Team", ["zahl", "verlauf"], ["woche", "monat"], "woche"],
+  ["stunden", "Stunden (Zeiterfassung)", "To-dos & Team", ["zahl", "verlauf", "top3"], ["woche", "monat"], "woche"],
+  ["jetztDa", "Jetzt in der Werkstatt", "To-dos & Team", ["zahl"], null],
+  ["nachbestellungen", "Offene Nachbestellungen", "Einkauf", ["zahl", "top3"], null],
+  ["oee", "OEE (Excel)", "Sonstiges", ["zahl"], null],
+  ["uhr", "Uhr & Schicht", "Sonstiges", ["zahl"], null],
+  ["text", "Freier Text", "Sonstiges", ["zahl"], null],
+];
+const kennzahlInfo = (id) => KENNZAHLEN.find(([k]) => k === id) || null;
+// Die sieben festen Kacheln von früher (vier Zahlen, Quote, OEE, Uhr) sind
+// jetzt Katalog-Einträge mit Standard-Inhalt - alte Layouts lesen sich weiter.
+const UEBERSICHT_KACHELN = ["heuteFaellig", "heuteErledigt", "ueberfaellig", "terminePlan", "quote", "oee", "uhr"];
+const KACHEL_STANDARD_DEF = {
+  heuteFaellig: { inhalt: "heuteFaellig" }, heuteErledigt: { inhalt: "heuteErledigt" }, ueberfaellig: { inhalt: "ueberfaellig" },
+  terminePlan: { inhalt: "terminePlan", zeitraum: "monat" }, quote: { inhalt: "tpmQuote", form: "halbkreis", zeitraum: "monat" },
+  oee: { inhalt: "oee" }, uhr: { inhalt: "uhr" },
+};
+// Die vier Zahlen-Kacheln hängen am Haken "Kennzahlen", die anderen drei an
+// ihrem eigenen (Personalisieren-Häkchen von vorher bleiben gültig).
+const KACHEL_BLOCK = { heuteFaellig: "zahlen", heuteErledigt: "zahlen", ueberfaellig: "zahlen", terminePlan: "zahlen", quote: "quote", oee: "oee", uhr: "uhr" };
+function normalisiereKachelDef(roh, standard) {
+  const q = roh && typeof roh === "object" ? roh : (standard || {});
+  const info = kennzahlInfo(q.inhalt) || kennzahlInfo((standard || {}).inhalt) || kennzahlInfo("heuteFaellig");
+  const [id, , , formen, zeitraeume, standardZeitraum] = info;
+  const form = formen.includes(q.form) ? q.form : (formen.includes((standard || {}).form) && (standard || {}).inhalt === id ? standard.form : formen[0]);
+  const zeitraum = zeitraeume ? (zeitraeume.includes(q.zeitraum) ? q.zeitraum : standardZeitraum) : "";
+  const text = id === "text" ? String(q.text || "").slice(0, 120) : "";
+  return { inhalt: id, form, zeitraum, text };
+}
 function normalisiereUebersichtLayout(roh) {
   const bloecke = {};
   UEBERSICHT_BAUSTEINE.forEach(([k]) => { bloecke[k] = !(roh && roh.bloecke && roh.bloecke[k] === false); });
@@ -1600,13 +1721,35 @@ function normalisiereUebersichtLayout(roh) {
   const gewuenscht = Array.isArray(roh && roh.reihenfolge) ? roh.reihenfolge.filter((k) => bekannt.includes(k)) : [];
   // Fehlende Abschnitte hängen hinten an - so überlebt die Wahl neue Bausteine.
   const reihenfolge = [...gewuenscht, ...bekannt.filter((k) => !gewuenscht.includes(k))];
-  const kGewuenscht = Array.isArray(roh && roh.kacheln) ? roh.kacheln.filter((k) => UEBERSICHT_KACHELN.includes(k)) : [];
+  // Kacheln: feste Kennungen (immer da, ausblenden über die Häkchen) plus
+  // eigene "k-…"-Kacheln (23.09., "+ Kachel hinzufügen"). Das alte "zahlen"
+  // steht für die vier Zahlen-Kacheln an derselben Stelle.
+  const rohDef = roh && roh.kachelDef && typeof roh.kachelDef === "object" ? roh.kachelDef : {};
+  const rohListe = Array.isArray(roh && roh.kacheln) ? roh.kacheln : [];
+  const kGewuenscht = [];
+  rohListe.forEach((k) => {
+    if (k === "zahlen") { ["heuteFaellig", "heuteErledigt", "ueberfaellig", "terminePlan"].forEach((z) => { if (!kGewuenscht.includes(z)) kGewuenscht.push(z); }); return; }
+    if (UEBERSICHT_KACHELN.includes(k) || (/^k-[a-z0-9]+$/.test(String(k)) && rohDef[k])) { if (!kGewuenscht.includes(k)) kGewuenscht.push(k); }
+  });
   const kacheln = [...kGewuenscht, ...UEBERSICHT_KACHELN.filter((k) => !kGewuenscht.includes(k))];
+  const kachelDef = {};
+  kacheln.forEach((k) => { kachelDef[k] = normalisiereKachelDef(rohDef[k], KACHEL_STANDARD_DEF[k]); });
   // tausch: Pinnwand links, Tagesliste rechts (Robertos "Kacheln tauschen")
   const tausch = !!(roh && roh.tausch);
   const vorlage = UEBERSICHT_VORLAGEN.some(([id]) => id === (roh && roh.vorlage)) ? roh.vorlage : "eigene";
-  return { bloecke, reihenfolge, kacheln, tausch, vorlage };
+  return { bloecke, reihenfolge, kacheln, kachelDef, tausch, vorlage };
 }
+/* Übersichts-Vorlagen je Benutzergruppe (23.09., Vorlage K5): liegen in der
+   gemeinsamen Datei (config.uebersichtVorlagen) und gelten auf jedem Rechner
+   der Gruppe, der KEINE eigene Anordnung hat. null = keine Vorlage, dann
+   gilt der Standard wie bisher. Verwalter haben keine Gruppen-Vorlage - sie
+   gestalten ihren Rechner selbst. */
+function normalisiereUebersichtVorlagen(roh) {
+  const out = { leser: null, bearbeiter: null };
+  ["leser", "bearbeiter"].forEach((g) => { if (roh && roh[g] && typeof roh[g] === "object") out[g] = normalisiereUebersichtLayout(roh[g]); });
+  return out;
+}
+const hatEigenesUebersichtLayout = () => { try { return !!localStorage.getItem(nsKey(UEBERSICHT_LAYOUT_KEY)); } catch (e) { return false; } };
 // Ein Element in einer Liste an eine andere Stelle schieben (Ziehen/Pfeile).
 function verschiebeIn(liste, von, nach) {
   if (von < 0 || nach < 0 || von >= liste.length || nach >= liste.length || von === nach) return liste;
@@ -2586,16 +2729,30 @@ function App() {
   // sonst hinkte jedes erste Bild nach einer Änderung hinterher.
   REGELN = regeln;
   Object.keys(STOER_GEWERK).forEach((k) => { STOER_GEWERK[k].label = regeln.listen.gewerkNamen[k]; STOER_GEWERK[k].kurz = `${GEWERK_EMOJI[k]} ${regeln.listen.gewerkNamen[k]}`; });
-  const [uebersichtLayout, setUebersichtLayoutState] = useState(leseUebersichtLayout); // Übersichts-Bausteine DIESES Rechners
+  const [uebersichtLokal, setUebersichtLokalState] = useState(leseUebersichtLayout); // Übersichts-Bausteine DIESES Rechners
+  // Hat dieser Rechner eine eigene Anordnung? Ohne eigene folgt ein Leser-
+  // oder Bearbeiter-Rechner der Gruppen-Vorlage aus der gemeinsamen Datei
+  // (23.09., Vorlage K5) - der Verwalter braucht dafür keinen Rechner anzufassen.
+  const [eigenesLayout, setEigenesLayout] = useState(hatEigenesUebersichtLayout);
+  const [uebersichtVorlagen, setUebersichtVorlagen] = useState(() => normalisiereUebersichtVorlagen(null)); // je Gruppe (⚙, gemeinsame Datei)
   const setUebersichtLayout = (neu) => {
     const n = normalisiereUebersichtLayout(neu);
-    setUebersichtLayoutState(n);
+    setUebersichtLokalState(n);
+    setEigenesLayout(true);
     try { localStorage.setItem(nsKey(UEBERSICHT_LAYOUT_KEY), JSON.stringify(n)); } catch (e) { /* dann gilt die Wahl nur bis zum Neustart */ }
+  };
+  // Eigene Anordnung verwerfen: der Rechner folgt wieder seiner Gruppen-Vorlage.
+  const uebersichtLayoutVerwerfen = () => {
+    try { localStorage.removeItem(nsKey(UEBERSICHT_LAYOUT_KEY)); } catch (e) { /* egal */ }
+    setUebersichtLokalState(normalisiereUebersichtLayout(null));
+    setEigenesLayout(false);
   };
   // Anordnen-Modus (Robertos Gedanke vom 21.09.): Die Übersicht selbst wird
   // zum Bearbeitungsfeld - Kacheln ziehen, tauschen, ausblenden. Solange er
   // an ist, ist der Inhalt eingefroren (keine Klicks in die Kacheln).
   const [uebersichtBearbeiten, setUebersichtBearbeiten] = useState(false);
+  const [kachelMenue, setKachelMenue] = useState(null); // welche Kachel hat ihr ▾-Menü offen (Anordnen-Modus)
+  const [kachelTabelleZiel, setKachelTabelleZiel] = useState("rechner"); // ⚙ Kacheln-Tabelle: Dieser Rechner | Leser | Bearbeiter
   const [uebDrag, setUebDrag] = useState(null); // {art, k} - was gerade gezogen wird
   // Termin-Kachel, Dropdown im Kopf (Robertos Wahl vom 21.09., Vorlage 2 -
   // "macht das Ganze ruhiger"): null = die Termine des Tages, sonst der Name
@@ -2688,6 +2845,7 @@ function App() {
         if (Array.isArray(d.config.benutzer)) setBenutzerListe(stabil(normalisiereBenutzer(d.config.benutzer)));
         if (typeof d.config.werkstattName === "string") setWerkstattName((alt) => (alt === d.config.werkstattName ? alt : d.config.werkstattName));
         if (d.config.monitor) setMonitorBausteine(stabil(normalisiereMonitor(d.config.monitor)));
+        if (d.config.uebersichtVorlagen) setUebersichtVorlagen(stabil(normalisiereUebersichtVorlagen(d.config.uebersichtVorlagen)));
         if (d.config.kostenstellen) setKostenstellen(stabil(normalisiereKostenstellen(d.config.kostenstellen)));
         if (d.config.rechte) setRechte(stabil(normalisiereRechte(d.config.rechte)));
         if (d.config.regeln) setRegeln(stabil(normalisiereRegeln(d.config.regeln)));
@@ -2951,6 +3109,11 @@ function App() {
   // Meine Gruppe für Sichtbarkeits-Fragen (Schichtplan-Notizen, Robertos
   // Ansage vom 21.09.): ohne Benutzerliste zählt allein die Datei-Lage.
   const meineGruppe = ansichtSimuliert || (benutzerAktiv ? (meinBenutzer ? meinBenutzer.rolle : "leser") : (readerMode ? "leser" : "verwalter"));
+  // Wirksame Übersicht: eigene Anordnung dieses Rechners, sonst die Gruppen-
+  // Vorlage (Leser/Bearbeiter), sonst der Standard. In der simulierten
+  // Ansicht (Auge) sieht der Verwalter so genau die Vorlage der Gruppe.
+  const gruppenVorlage = (meineGruppe === "leser" || meineGruppe === "bearbeiter") ? uebersichtVorlagen[meineGruppe] : null;
+  const uebersichtLayout = (!eigenesLayout || ansichtSimuliert) && gruppenVorlage ? gruppenVorlage : uebersichtLokal;
   // Eine Zellen-Notiz trägt "sichtbarFuer": alle | bearbeiter | verwalter.
   // Alte Notizen ohne das Feld gelten wie bisher für alle.
   const notizSichtbar = (e) => {
@@ -4160,6 +4323,7 @@ function App() {
             setBenutzerListe(normalisiereBenutzer(parsed.benutzer));
           }
           if (parsed.monitor) setMonitorBausteine(normalisiereMonitor(parsed.monitor));
+          if (parsed.uebersichtVorlagen) setUebersichtVorlagen(normalisiereUebersichtVorlagen(parsed.uebersichtVorlagen));
           if (parsed.kostenstellen) setKostenstellen(normalisiereKostenstellen(parsed.kostenstellen));
           if (parsed.rechte) setRechte(normalisiereRechte(parsed.rechte));
           if (parsed.regeln) setRegeln(normalisiereRegeln(parsed.regeln));
@@ -4188,7 +4352,7 @@ function App() {
   // der Zusammenführung zu überlassen.
   // nextRechte: wie nextBenutzer ein Wächter-Feld - null heißt "nicht anfassen".
   // Nur die Rechte-Matrix im ⚙ (Verwalter) übergibt eine Matrix.
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen, nextRechte = null, nextRegeln = null) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen, nextRechte = null, nextRegeln = null, nextUebersichtVorlagen = uebersichtVorlagen) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
@@ -4203,11 +4367,12 @@ function App() {
     setKostenstellen(nextKostenstellen);
     if (nextRechte) setRechte(nextRechte);
     if (nextRegeln) setRegeln(nextRegeln);
+    setUebersichtVorlagen(nextUebersichtVorlagen);
     const attempt = async (retriesLeft) => {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}), ...(nextRechte ? { rechte: nextRechte } : {}), ...(nextRegeln ? { regeln: nextRegeln } : {}) }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}), ...(nextRechte ? { rechte: nextRechte } : {}), ...(nextRegeln ? { regeln: nextRegeln } : {}), uebersichtVorlagen: nextUebersichtVorlagen }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -5822,6 +5987,141 @@ function App() {
   };
   const quoteMonatHeute = quoteFuer(kalenderEntries.filter((e) => e.date.startsWith(todayKey.slice(0, 7))));
   const quoteJahrHeute = quoteFuer(kalenderEntries.filter((e) => e.date.startsWith(todayKey.slice(0, 4) + "-")));
+
+  /* Kennzahl-Rechnung für die Kacheln der Übersicht (23.09.). Liefert je
+     Inhalt und Zeitraum alles, was die fünf Darstellungen brauchen: Zahl/Text,
+     Prozent (Halbkreis), sechs Verlaufspunkte, Ampel-Lage und Top 3. Es wird
+     bewusst aus den Beständen gerechnet, die es schon gibt - nichts muss
+     zusätzlich gepflegt werden. */
+  const kennzahlDaten = (def) => {
+    const info = kennzahlInfo(def.inhalt) || kennzahlInfo("heuteFaellig");
+    const label = info[1];
+    const zr = def.zeitraum || info[5] || "";
+    const monatKey = todayKey.slice(0, 7);
+    const jahrKey = todayKey.slice(0, 4);
+    const tage30Ab = (() => { const d = addDays(today, -30); return dateKey(d.getFullYear(), d.getMonth(), d.getDate()); })();
+    const wocheVon = (d) => `${d.getFullYear()}-W${String(getISOWeek(d)).padStart(2, "0")}`;
+    const wocheKey = wocheVon(today);
+    const wocheEines = (iso) => { const t = new Date(String(iso).slice(0, 10) + "T12:00:00"); return Number.isNaN(t.getTime()) ? "" : wocheVon(t); };
+    const zrLabel = KENNZAHL_ZEITRAEUME[zr] || "";
+    // Filter je Zeitraum auf ein Datumsfeld (YYYY-MM-DD)
+    const imZeitraum = (datum) => {
+      const s = String(datum || "").slice(0, 10);
+      if (zr === "monat") return s.startsWith(monatKey);
+      if (zr === "jahr") return s.startsWith(jahrKey + "-");
+      if (zr === "tage30") return s >= tage30Ab && s <= todayKey;
+      if (zr === "woche") return wocheEines(s) === wocheKey;
+      if (zr === "heute") return s === todayKey;
+      return true;
+    };
+    // Verlauf: sechs Monate (oder sechs Wochen) rückwärts, jeweils mit Filter
+    const monateRueck = Array.from({ length: 6 }, (_, i) => { const d = new Date(today.getFullYear(), today.getMonth() - (5 - i), 1); return { key: dateKey(d.getFullYear(), d.getMonth(), 1).slice(0, 7), label: MONTHS_SHORT[d.getMonth()] }; });
+    const wochenRueck = Array.from({ length: 6 }, (_, i) => { const d = addDays(today, -7 * (5 - i)); return { key: wocheVon(d), label: "KW " + getISOWeek(d) }; });
+    const verlaufMonate = (fn) => monateRueck.map((m) => ({ label: m.label, ...fn((s) => String(s || "").slice(0, 7) === m.key) }));
+    const verlaufWochen = (fn) => wochenRueck.map((w) => ({ label: w.label, ...fn((s) => wocheEines(s) === w.key) }));
+    const trendText = (punkte) => {
+      if (punkte.length < 2) return "";
+      const a = Number(punkte[punkte.length - 2].wert) || 0, b = Number(punkte[punkte.length - 1].wert) || 0;
+      return b > a ? "Trend steigend" : b < a ? "Trend fallend" : "unverändert";
+    };
+    const top = (liste, name, wertVon, textVon) => {
+      const m = new Map();
+      liste.forEach((x) => { const n = name(x) || "–"; m.set(n, (m.get(n) || 0) + wertVon(x)); });
+      return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n, w]) => ({ name: n, wert: w, text: textVon(w) }));
+    };
+    const min = (n) => `${Math.round(n)} min`;
+    const quoteZiel = regeln.schwellen.quoteZiel;
+    const ampelQuote = (p) => (p === null || p === undefined ? "" : quoteZiel > 0 ? (p >= quoteZiel ? "gruen" : p >= quoteZiel - 10 ? "gelb" : "rot") : (p >= 90 ? "gruen" : p >= 75 ? "gelb" : "rot"));
+    const ampelRegelQuote = quoteZiel > 0 ? `grün ab Ziel ${quoteZiel} %, gelb bis 10 % darunter` : "grün ab 90 %, gelb ab 75 %";
+    const quoteKachel = (kat, kurz) => {
+      const basis = kat ? kalenderEntries.filter((e) => e.category === kat) : kalenderEntries;
+      const p = quoteFuer(basis.filter((e) => imZeitraum(e.date)));
+      const vor = zr === "jahr"
+        ? quoteFuer(basis.filter((e) => String(e.date).startsWith(String(Number(jahrKey) - 1) + "-")))
+        : quoteFuer(basis.filter((e) => String(e.date).slice(0, 7) === monateRueck[4].key));
+      const delta = p !== null && vor !== null ? { text: `${p - vor >= 0 ? "▲" : "▼"} ${Math.abs(p - vor)} %`, gut: p - vor === 0 ? null : p - vor > 0 } : null;
+      const sub = zr === "jahr" ? `Jahr ${jahrKey}` : MONTHS[today.getMonth()];
+      return {
+        label, text: p === null ? "–" : `${p} %`, prozent: p, kurz, sub: `${sub}${quoteZiel > 0 ? " · Ziel " + quoteZiel + " %" : ""}`,
+        titel: `${label}: Anteil erledigter Termine (${zrLabel})`, farbe: p === null ? "#8A9099" : ampelQuote(p) === "rot" ? "#B23A34" : "#2F7D4F", akzent: p === null ? "#CBD1D8" : ampelQuote(p) === "rot" ? "#B23A34" : "#2F7D4F",
+        delta, verlauf: verlaufMonate((f) => { const q = quoteFuer(basis.filter((e) => f(e.date))); return { wert: q === null ? 0 : q, text: q === null ? "–" : q + " %" }; }),
+        ampel: ampelQuote(p), ampelRegel: ampelRegelQuote, trend: "",
+      };
+    };
+    switch (info[0]) {
+      case "heuteFaellig": return { label, text: heutePlan.length, farbe: "#22262B", akzent: "#C97A2B", titel: "Heute fällige PitStops und R+I-Punkte" };
+      case "heuteErledigt": return { label, text: heuteErledigtCount, farbe: "#2F7D4F", akzent: "#2F7D4F" };
+      case "ueberfaellig": return { label, text: ueberfaellige.length, farbe: ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F", akzent: ueberfaellige.length > 0 ? "#B23A34" : "#CBD1D8",
+        top3: [...ueberfaellige].sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 3).map((e) => ({ name: e.name, text: formatDateDE(e.date) })) };
+      case "terminePlan": {
+        const n = zr === "jahr" ? kalenderEntries.filter((e) => imZeitraum(e.date)).length : todayPlanResult.assignments.length;
+        return { label: zr === "jahr" ? "Termine dieses Jahr" : "Diesen Monat", text: n, farbe: "#22262B", akzent: "#8A9099" };
+      }
+      case "naechsterPitStop": {
+        const kommende = kalenderEntries.filter((e) => e.status === "open" && String(e.date) >= todayKey).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        const n = kommende[0];
+        return { label, text: n ? `${new Date(n.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short" })}, ${formatDateDE(n.date)}` : "keiner geplant", sub: n ? n.name : "", farbe: "#22262B", akzent: "#C97A2B",
+          top3: kommende.slice(0, 3).map((e) => ({ name: e.name, text: formatDateDE(e.date) })) };
+      }
+      case "tpmQuote": return quoteKachel(null, "TPM");
+      case "pitstopQuote": return quoteKachel("TPM", "PitStop");
+      case "riQuote": return quoteKachel("RI", "R+I");
+      case "stoerOffen": {
+        const offen = stoerungen.filter((s) => s.offen);
+        const heuteMin = stoerungen.filter((s) => String(s.date).slice(0, 10) === todayKey).reduce((a, s) => a + (Number(s.ausfallzeit) || 0), 0);
+        const ampel = offen.length === 0 ? "gruen" : offen.length <= 2 ? "gelb" : "rot";
+        return { label, text: offen.length, sub: heuteMin > 0 ? `${min(heuteMin)} Ausfall heute` : "", farbe: offen.length > 0 ? "#B23A34" : "#2F7D4F", akzent: offen.length > 0 ? "#B23A34" : "#CBD1D8",
+          ampel, ampelRegel: "grün: keine offen · gelb: bis 2 · rot: mehr", top3: top(offen, (s) => s.anlage, () => 1, (w) => `${w} offen`) };
+      }
+      case "stoerAnzahl": {
+        const liste = stoerungen.filter((s) => imZeitraum(s.date));
+        const vorherige = zr === "tage30" ? stoerungen.filter((s) => { const d = String(s.date).slice(0, 10); const ab = (() => { const x = addDays(today, -60); return dateKey(x.getFullYear(), x.getMonth(), x.getDate()); })(); return d >= ab && d < tage30Ab; }).length : null;
+        const delta = vorherige === null ? null : { text: `${liste.length - vorherige >= 0 ? "▲" : "▼"} ${Math.abs(liste.length - vorherige)} zu den 30 Tagen davor`, gut: liste.length - vorherige === 0 ? null : liste.length < vorherige };
+        const verlauf = verlaufMonate((f) => { const n = stoerungen.filter((s) => f(s.date)).length; return { wert: n, text: String(n) }; });
+        return { label: `Störungen · ${zrLabel}`, text: liste.length, sub: "", farbe: "#22262B", akzent: "#B23A34", delta, verlauf, trend: trendText(verlauf), top3: top(liste, (s) => s.anlage, () => 1, (w) => `${w}×`) };
+      }
+      case "ausfallzeit": {
+        const liste = stoerungen.filter((s) => imZeitraum(s.date));
+        const summe = liste.reduce((a, s) => a + (Number(s.ausfallzeit) || 0), 0);
+        const verlauf = verlaufMonate((f) => { const n = stoerungen.filter((s) => f(s.date)).reduce((a, s) => a + (Number(s.ausfallzeit) || 0), 0); return { wert: n, text: min(n) }; });
+        return { label: `Ausfallzeit · ${zrLabel}`, text: min(summe), sub: `${liste.length} Störungen`, farbe: summe >= regeln.schwellen.ausfallHochMin ? "#B23A34" : "#22262B", akzent: "#B23A34", verlauf, trend: trendText(verlauf), top3: top(liste, (s) => s.anlage, (s) => Number(s.ausfallzeit) || 0, min) };
+      }
+      case "sorgenkind": {
+        const liste = stoerungen.filter((s) => imZeitraum(s.date));
+        const t3 = top(liste, (s) => s.anlage, () => 1, (w) => `${w} Berichte`);
+        const erste = t3[0];
+        const minErste = erste ? liste.filter((s) => (s.anlage || "–") === erste.name).reduce((a, s) => a + (Number(s.ausfallzeit) || 0), 0) : 0;
+        return { label: `Sorgenkind · ${zrLabel}`, text: erste ? erste.name : "keins", sub: erste ? `${erste.text} · ${min(minErste)}` : "keine Störungen", farbe: "#22262B", akzent: erste ? "#B23A34" : "#CBD1D8", top3: t3 };
+      }
+      case "todoOffen": {
+        const ampel = todoUeberfaellige.length === 0 ? "gruen" : todoUeberfaellige.length <= 2 ? "gelb" : "rot";
+        return { label, text: todoOffene.length, sub: todoUeberfaellige.length > 0 ? `${todoUeberfaellige.length} überfällig` : "nichts überfällig", farbe: "#2F6690", akzent: todoUeberfaellige.length > 0 ? "#B23A34" : "#2F6690",
+          ampel, ampelRegel: "nach überfälligen To-dos: grün keins, gelb bis 2", top3: [...todoUeberfaellige].sort((a, b) => String(a.bis).localeCompare(String(b.bis))).slice(0, 3).map((t) => ({ name: t.name, text: `seit ${formatDateDE(t.bis)}` })) };
+      }
+      case "erledigt": {
+        const fertig = arbeiten.filter((a) => a.status === "done" && a.erledigtAm);
+        const n = fertig.filter((a) => imZeitraum(a.erledigtAm)).length;
+        const verlauf = zr === "monat" ? verlaufMonate((f) => { const z = fertig.filter((a) => f(a.erledigtAm)).length; return { wert: z, text: String(z) }; }) : verlaufWochen((f) => { const z = fertig.filter((a) => f(a.erledigtAm)).length; return { wert: z, text: String(z) }; });
+        return { label: `Erledigt · ${zrLabel}`, text: n, sub: "Backlog-Arbeiten", farbe: "#2F7D4F", akzent: "#2F7D4F", verlauf, trend: trendText(verlauf) };
+      }
+      case "stunden": {
+        const arbeit = zeitEintraege.filter((e) => e.art !== "abwesend" && Number(e.stunden) > 0);
+        const liste = arbeit.filter((e) => imZeitraum(e.date));
+        const summe = liste.reduce((a, e) => a + (Number(e.stunden) || 0), 0);
+        const std = (h) => `${(Math.round(h * 10) / 10).toLocaleString("de-DE")} h`;
+        const verlauf = zr === "monat" ? verlaufMonate((f) => { const h = arbeit.filter((e) => f(e.date)).reduce((a, e) => a + (Number(e.stunden) || 0), 0); return { wert: h, text: std(h) }; }) : verlaufWochen((f) => { const h = arbeit.filter((e) => f(e.date)).reduce((a, e) => a + (Number(e.stunden) || 0), 0); return { wert: h, text: std(h) }; });
+        return { label: `Stunden · ${zrLabel}`, text: std(summe), sub: `${new Set(liste.map((e) => e.name)).size} Kollegen`, farbe: "#22262B", akzent: "#2F6690", verlauf, trend: trendText(verlauf), top3: top(liste, (e) => e.name, (e) => Number(e.stunden) || 0, std) };
+      }
+      case "jetztDa": {
+        const { aktuell, SCHICHT_INFO, jetztCrew } = jetztInDerWerkstatt;
+        return { label, text: jetztCrew.length, sub: `${SCHICHT_INFO[aktuell].label} · ${SCHICHT_INFO[aktuell].zeit}`, farbe: "#22262B", akzent: "#1F7A3D" };
+      }
+      case "nachbestellungen": return { label, text: offeneNachbestellungen.length, sub: offeneNachbestellungen.length > 0 ? "aus Störberichten" : "nichts offen", farbe: offeneNachbestellungen.length > 0 ? "#A25E14" : "#2F7D4F", akzent: offeneNachbestellungen.length > 0 ? "#C97A2B" : "#CBD1D8",
+        top3: offeneNachbestellungen.slice(0, 3).map((s) => ({ name: String(s.ersatzteile || "").slice(0, 30), text: s.anlage || "" })) };
+      case "text": return { label: "Freier Text", text: def.text || "…", farbe: "#A25E14", akzent: "#C97A2B" };
+      default: return { label, text: "–" };
+    }
+  };
 
   // Farbe: Seit dem 23.09. wählt der Verfasser sie selbst (7 Töne). Alte
   // Zettel ohne Sichtbarkeits-Angabe behalten die frühere Regel (Roberto
@@ -10347,7 +10647,8 @@ function App() {
               style={{ position: "relative", border: "2px dashed #C97A2B", borderRadius: "12px", padding: "28px 6px 6px", marginBottom: art === "abschnitt" ? "16px" : 0, backgroundColor: "rgba(201,122,43,0.05)", cursor: "grab", gridColumn: extra.span }}
             >
               <div className="flex items-center gap-1" style={{ position: "absolute", top: "4px", left: "8px", right: "6px", fontSize: "0.66rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.4px", color: "#A25E14" }}>
-                <span>⠿ {titel}</span>
+                <span className="truncate">⠿ {extra.anzeige || titel}</span>
+                {extra.kopf}
                 <span className="ml-auto" />
                 {extra.tausch && (
                   <button onClick={tauschen} aria-label={`${titel} Seite tauschen`} title="Linke und rechte Spalte tauschen" style={knopf}>⇄</button>
@@ -10361,6 +10662,9 @@ function App() {
               {/* Inhalt eingefroren: keine Klicks, kein Markieren - nur Anordnen.
                   Abschnitte mit eigenen Unterrahmen (Kennzahlen, Tagesliste +
                   Pinnwand) bleiben durchlässig - dort frieren die Unterrahmen. */}
+              {/* Kachel-Wahl (23.09., Vorlage K1): das ▾ im Griff klappt die
+                  gruppierte Kennzahl-Liste samt Darstellung und Zeitraum auf. */}
+              {extra.menue}
               <div style={extra.durchlaessig ? undefined : { pointerEvents: "none", userSelect: "none" }}>{inhalt}</div>
             </div>
           );
@@ -10379,51 +10683,138 @@ function App() {
            zusammenzuquetschen. JEDE Kachel nimmt genau eine Spalte -
            auto-rows-fr sorgt dafür, dass auch die umgebrochenen Reihen
            dieselbe Höhe haben, sonst wären die Maße nur in einer Zeile gleich. */
-        const kachel = {};
-        kachel.zahlen = [
-              [heutePlan.length, "Heute fällig", "#22262B", "#C97A2B"],
-              [heuteErledigtCount, "Heute erledigt", "#2F7D4F", "#2F7D4F"],
-              [ueberfaellige.length, "Überfällig", ueberfaellige.length > 0 ? "#B23A34" : "#2F7D4F", ueberfaellige.length > 0 ? "#B23A34" : "#CBD1D8"],
-              [todayPlanResult.assignments.length, "Diesen Monat", "#22262B", "#8A9099"],
-            ].map(([num, label, color, akzent]) => (
-              <div key={label} className="wk-karte px-4 py-3.5 flex flex-col justify-center" style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)` }}>
-                {/* Ziffern gleicher Breite: sonst springt die Zahl beim Hochzählen */}
-                <div className="font-extrabold" style={{ fontSize: "2.1rem", lineHeight: 1, letterSpacing: "-1.6px", fontVariantNumeric: "tabular-nums", color }}>{num}</div>
-                {/* Kleinbuchstaben statt Versalien - deutlich schneller zu lesen */}
-                <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{label}</div>
-              </div>
-            ));
-        kachel.quote = <HalbkreisQuote prozent={quoteMonatHeute} label="TPM" sub={MONTHS[today.getMonth()]} titel="TPM-Quote: Anteil erledigter PitStops und R+I-Punkte im Monat" />;
-        /* OEE kommt aus der Excel-Tabelle im Datenordner - eingerichtet wird
-           sie in ⚙, angezeigt wird sie hier, wo die Schicht sie sieht. */
-        kachel.oee = (
-            <OeeKachel
-              stand={oeeStand}
-              darfEinrichten={!readerMode && erlaubt("ZAHNRAD")}
-              onKlick={() => {
-                // Steht eine Zahl da, will man wissen, welche Anlage sie drückt -
-                // nicht in die Einrichtung. Die erreicht man aus dem Popup heraus.
-                if (oeeStand.lage === "ok") setOeeUebersichtOffen(true);
-                else if (!readerMode && erlaubt("ZAHNRAD")) openSettings();
-              }}
-            />
-        );
-        /* Hier stand bis zuletzt ein zweiter, gleich beschrifteter Halbkreis für
-           das Jahr - die beiden waren kaum auseinanderzuhalten. Die Jahresquote
-           steht jetzt in der TPM-Übersicht neben der Monatsquote, wo der
-           Vergleich hingehört. An dieser Stelle sagt die Uhr mehr. */
-        kachel.uhr = <WerkstattUhr />;
-        const kachelTitel = { zahlen: "Kennzahlen", quote: "TPM-Quote", oee: "OEE", uhr: "Uhr" };
+        /* Kennzahlen-Reihe (23.09., Robertos Wahl K1 + K4): Jede Kachel hat
+           einen Inhalt aus dem Katalog und eine Darstellung. Gerechnet wird
+           hier, wo die Bestände liegen; gezeichnet wird in KennzahlKachel. */
+        const kachelInhalt = (k) => {
+          const def = uebersichtLayout.kachelDef[k] || KACHEL_STANDARD_DEF[k] || { inhalt: "heuteFaellig", form: "zahl" };
+          if (def.inhalt === "oee") {
+            /* OEE kommt aus der Excel-Tabelle im Datenordner - eingerichtet wird
+               sie in ⚙, angezeigt wird sie hier, wo die Schicht sie sieht. */
+            return (
+              <OeeKachel
+                stand={oeeStand}
+                darfEinrichten={!readerMode && erlaubt("ZAHNRAD")}
+                onKlick={() => {
+                  if (oeeStand.lage === "ok") setOeeUebersichtOffen(true);
+                  else if (!readerMode && erlaubt("ZAHNRAD")) openSettings();
+                }}
+              />
+            );
+          }
+          if (def.inhalt === "uhr") return <WerkstattUhr />;
+          return <KennzahlKachel def={def} d={kennzahlDaten(def)} />;
+        };
+        const kachelTitel = (k) => {
+          const def = uebersichtLayout.kachelDef[k];
+          const info = def && kennzahlInfo(def.inhalt);
+          return info ? info[1] : k;
+        };
         const setKacheln = (r) => setUebersichtLayout({ ...uebersichtLayout, kacheln: r, vorlage: "eigene" });
-        abschnitt.kennzahlen = UEBERSICHT_KACHELN.some((k) => zeig[k]) && (
+        const setKachelDef = (k, patch) => setUebersichtLayout({ ...uebersichtLayout, kachelDef: { ...uebersichtLayout.kachelDef, [k]: { ...(uebersichtLayout.kachelDef[k] || {}), ...patch } }, vorlage: "eigene" });
+        const kachelDazu = () => {
+          const id = "k-" + Math.random().toString(36).slice(2, 8);
+          setUebersichtLayout({ ...uebersichtLayout, kacheln: [...uebersichtLayout.kacheln, id], kachelDef: { ...uebersichtLayout.kachelDef, [id]: { inhalt: "stoerOffen", form: "zahl" } }, vorlage: "eigene" });
+        };
+        const kachelWeg = (k) => {
+          // Feste Kacheln gehen über ihr Häkchen aus (und kommen über den
+          // +-Chip zurück), eigene Kacheln werden wirklich entfernt.
+          if (KACHEL_BLOCK[k]) { setzeBlock(KACHEL_BLOCK[k], false); return; }
+          const { [k]: weg, ...rest } = uebersichtLayout.kachelDef;
+          setUebersichtLayout({ ...uebersichtLayout, kacheln: uebersichtLayout.kacheln.filter((x) => x !== k), kachelDef: rest, vorlage: "eigene" });
+        };
+        const kachelSichtbar = (k) => (KACHEL_BLOCK[k] ? !!zeig[KACHEL_BLOCK[k]] : true);
+        // ▾ im Griff (Vorlage K1, Robertos Bild vom 23.09.): EIN Knopf, die
+        // Liste aller Kennzahlen gruppiert, rechts der Zeitraum als Hinweis;
+        // oben Darstellung und Zeitraum als Chips. Ein Klick auf eine Kennzahl
+        // setzt sie und schließt das Menü.
+        const kachelKnopf = (k) => (
+          <button
+            onClick={(ev) => { ev.stopPropagation(); setKachelMenue(kachelMenue === k ? null : k); }}
+            aria-label={`Inhalt ${kachelTitel(k)} wählen`}
+            aria-expanded={kachelMenue === k}
+            title="Inhalt, Darstellung und Zeitraum der Kachel wählen"
+            style={{ ...knopf, marginLeft: "4px", backgroundColor: kachelMenue === k ? "#22262B" : "white", color: kachelMenue === k ? "white" : "#A25E14", fontWeight: 900 }}
+          >▾</button>
+        );
+        const kachelMenueFuer = (k) => {
+          if (kachelMenue !== k) return null;
+          const def = uebersichtLayout.kachelDef[k];
+          const info = kennzahlInfo(def.inhalt);
+          const gruppen = [...new Set(KENNZAHLEN.map(([, , g]) => g))];
+          const chip = (an) => ({ fontSize: "0.66rem", fontWeight: 800, padding: "2px 8px", borderRadius: "999px", border: `1px solid ${an ? "#22262B" : "#D6D9DC"}`, backgroundColor: an ? "#22262B" : "white", color: an ? "white" : "#5B6572" });
+          return (
+            <div
+              role="menu"
+              aria-label={`Kachel-Inhalt ${kachelTitel(k)}`}
+              onClick={(ev) => ev.stopPropagation()}
+              onDragStart={(ev) => { ev.preventDefault(); ev.stopPropagation(); }}
+              draggable={false}
+              style={{ position: "absolute", top: "26px", left: "6px", zIndex: 30, width: "270px", maxHeight: "420px", overflowY: "auto", backgroundColor: "white", border: "1px solid #E2E4E7", borderRadius: "10px", boxShadow: "0 12px 30px rgba(0,0,0,0.25)", padding: "6px", cursor: "default", textTransform: "none", letterSpacing: 0, fontWeight: 500 }}
+            >
+              {info && info[3].length > 1 && (
+                <div className="flex items-center gap-1 flex-wrap px-1.5 pt-1 pb-1.5">
+                  <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#8A9099", marginRight: "2px" }}>Darstellung</span>
+                  {KENNZAHL_FORMEN.filter(([f]) => info[3].includes(f)).map(([f, name]) => (
+                    <button key={f} role="menuitemradio" aria-checked={def.form === f} aria-label={`Darstellung ${name}`} onClick={() => setKachelDef(k, { form: f })} style={chip(def.form === f)}>{name}</button>
+                  ))}
+                </div>
+              )}
+              {info && info[4] && (
+                <div className="flex items-center gap-1 flex-wrap px-1.5 pb-1.5" style={{ borderBottom: "1px solid #F0F2F4" }}>
+                  <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#8A9099", marginRight: "2px" }}>Zeitraum</span>
+                  {info[4].map((z) => (
+                    <button key={z} role="menuitemradio" aria-checked={def.zeitraum === z} aria-label={`Zeitraum ${KENNZAHL_ZEITRAEUME[z]}`} onClick={() => setKachelDef(k, { zeitraum: z })} style={chip(def.zeitraum === z)}>{KENNZAHL_ZEITRAEUME[z]}</button>
+                  ))}
+                </div>
+              )}
+              {def.inhalt === "text" && (
+                <div className="px-1.5 pt-1.5 pb-1">
+                  <input value={def.text || ""} aria-label={`Text ${kachelTitel(k)}`} placeholder="Text der Kachel …" onChange={(e) => setKachelDef(k, { text: e.target.value })} className="w-full border rounded px-2 py-1" style={{ fontSize: "0.75rem", borderColor: "#D6D9DC" }} />
+                </div>
+              )}
+              {gruppen.map((g) => (
+                <div key={g}>
+                  <div style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.4px", color: "#8A9099", padding: "7px 8px 2px" }}>{g}</div>
+                  {KENNZAHLEN.filter(([, , gg]) => gg === g).map(([id, name, , , zeitraeume, standardZeitraum]) => {
+                    const an = def.inhalt === id;
+                    return (
+                      <button
+                        key={id}
+                        role="menuitemradio"
+                        aria-checked={an}
+                        onClick={() => { setKachelDef(k, { inhalt: id }); setKachelMenue(null); }}
+                        className="w-full text-left flex items-center gap-2 rounded"
+                        style={{ padding: "4px 8px", fontSize: "0.78rem", fontWeight: an ? 800 : 500, color: "#22262B", backgroundColor: an ? "#FDF3E7" : "transparent" }}
+                      >
+                        <span className="truncate">{name}</span>
+                        {zeitraeume && <span className="ml-auto" style={{ fontSize: "0.62rem", color: "#8A9099" }}>{KENNZAHL_ZEITRAEUME[an ? def.zeitraum : standardZeitraum]}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          );
+        };
+        const kachelnSichtbar = uebersichtLayout.kacheln.filter(kachelSichtbar);
+        abschnitt.kennzahlen = (kachelnSichtbar.length > 0 || bearbeiten) && (
           <div className="grid gap-2.5 mb-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-7 auto-rows-fr">
             {uebersichtLayout.kacheln.map((k) => {
-              if (!zeig[k]) return null;
-              if (!bearbeiten) return <React.Fragment key={k}>{kachel[k]}</React.Fragment>;
-              // Die vier Zahlen bleiben eine Gruppe und nehmen im Anordnen-Modus eine ganze Zeile
-              const inhalt = k === "zahlen" ? <div className="grid gap-2.5 grid-cols-2 md:grid-cols-4">{kachel.zahlen}</div> : kachel[k];
-              return rahmen("kachel", k, kachelTitel[k], inhalt, uebersichtLayout.kacheln, setKacheln, { span: k === "zahlen" ? "1 / -1" : undefined });
+              if (!kachelSichtbar(k)) return null;
+              if (!bearbeiten) return <React.Fragment key={k}>{kachelInhalt(k)}</React.Fragment>;
+              return rahmen("kachel", k, kachelTitel(k), kachelInhalt(k), uebersichtLayout.kacheln, setKacheln, { aus: () => kachelWeg(k), kopf: kachelKnopf(k), menue: kachelMenueFuer(k), anzeige: `Kachel ${uebersichtLayout.kacheln.indexOf(k) + 1}` });
             })}
+            {bearbeiten && (
+              <button
+                onClick={kachelDazu}
+                aria-label="Kachel hinzufügen"
+                className="rounded-xl font-black flex flex-col items-center justify-center"
+                style={{ border: "2px dotted #C97A2B", color: "#C97A2B", backgroundColor: "transparent", minHeight: "88px", fontSize: "1.6rem", lineHeight: 1 }}
+              >
+                +<span style={{ fontSize: "0.62rem", marginTop: "4px", textTransform: "uppercase", letterSpacing: "0.4px" }}>Kachel hinzufügen</span>
+              </button>
+            )}
           </div>
         );
 
@@ -15350,6 +15741,108 @@ function App() {
                 Die Wahl wird sofort übernommen und bleibt auf diesem Rechner gespeichert. ·{" "}
                 <button onClick={() => setUebersichtLayout(layoutAusVorlage("standard"))} className="font-bold underline" style={{ color: "#5B6572" }}>Auf Standard zurücksetzen</button>
               </div>
+
+              {/* ---- Kennzahlen-Kacheln als Tabelle, je Benutzergruppe (23.09., Vorlage K5) ----
+                  Dieselbe Wahrheit wie der Anordnen-Modus, nur als Tabelle -
+                  und mit Reitern für die Gruppen-Vorlagen (gemeinsame Datei):
+                  Leser- und Bearbeiter-Rechner ohne eigene Anordnung folgen ihr. */}
+              {(() => {
+                const ziel = kachelTabelleZiel; // "rechner" | "leser" | "bearbeiter"
+                const layout = ziel === "rechner" ? uebersichtLokal : uebersichtVorlagen[ziel];
+                const schreibe = (neu) => {
+                  const n = normalisiereUebersichtLayout(neu);
+                  if (ziel === "rechner") setUebersichtLayout(n);
+                  else persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, null, null, { ...uebersichtVorlagen, [ziel]: n });
+                };
+                const gruppen = [...new Set(KENNZAHLEN.map(([, , g]) => g))];
+                const sel = { fontSize: "0.72rem", padding: "2px 20px 2px 6px", backgroundPosition: "right 6px center", backgroundSize: "9px" };
+                return (
+                  <div className="mb-5 pt-3 border-t" style={{ borderColor: "#E2E4E7" }} role="region" aria-label="Kennzahlen-Kacheln">
+                    <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Kennzahlen-Kacheln – Inhalt, Darstellung, Zeitraum</div>
+                    <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+                      Jede Kachel zeigt eine Kennzahl aus dem Katalog als Zahl, Halbkreis, Verlauf, Ampel oder Top 3. „Dieser Rechner" gilt nur hier;
+                      die Reiter <strong>Leser-Übersicht</strong> und <strong>Bearbeiter-Übersicht</strong> sind Vorlagen in der gemeinsamen Datei – jeder Rechner der Gruppe ohne eigene Anordnung übernimmt sie.
+                    </div>
+                    <div className="flex gap-1.5 mb-2 flex-wrap">
+                      {[["rechner", "Dieser Rechner"], ["leser", "👁 Leser-Übersicht"], ["bearbeiter", "Bearbeiter-Übersicht"]].map(([id, name]) => (
+                        <button key={id} onClick={() => setKachelTabelleZiel(id)} aria-label={`Kacheln für ${name.replace("👁 ", "")}`} aria-pressed={ziel === id}
+                          className="text-xs font-bold px-3 py-1.5 rounded border"
+                          style={ziel === id ? { backgroundColor: "#C97A2B", color: "white", borderColor: "#C97A2B" } : { backgroundColor: "white", color: "#5B6572", borderColor: "#D6D9DC" }}>
+                          {name}{id !== "rechner" && !uebersichtVorlagen[id] && <span className="ml-1 font-normal" style={{ opacity: 0.7 }}>(keine Vorlage)</span>}
+                        </button>
+                      ))}
+                    </div>
+                    {!layout ? (
+                      <div className="rounded border px-3 py-2 mb-2 text-xs" style={{ borderColor: "#E3CE8F", backgroundColor: "#FDF3E7", color: "#6B5000" }}>
+                        Für diese Gruppe gibt es noch keine Vorlage – ihre Rechner zeigen den Standard.
+                        <button onClick={() => schreibe(uebersichtLokal)} aria-label="Vorlage aus diesem Rechner anlegen" className="ml-2 font-bold underline" style={{ color: "#A25E14" }}>Von diesem Rechner übernehmen</button>
+                        <button onClick={() => schreibe(normalisiereUebersichtLayout(null))} aria-label="Vorlage mit Standard anlegen" className="ml-2 font-bold underline" style={{ color: "#A25E14" }}>Mit Standard anlegen</button>
+                      </div>
+                    ) : (<>
+                      <table className="w-full text-xs" style={{ borderCollapse: "collapse" }} aria-label={`Kacheln ${ziel}`}>
+                        <thead>
+                          <tr style={{ color: "#8A9099", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                            <th className="text-left py-1 pr-2">#</th><th className="text-left py-1 pr-2">Inhalt</th><th className="text-left py-1 pr-2">Darstellung</th><th className="text-left py-1 pr-2">Zeitraum</th><th className="text-left py-1 pr-2">Sichtbar</th><th />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {layout.kacheln.map((k, idx) => {
+                            const def = layout.kachelDef[k];
+                            const info = kennzahlInfo(def.inhalt);
+                            const an = KACHEL_BLOCK[k] ? !!layout.bloecke[KACHEL_BLOCK[k]] : true;
+                            const setDef = (patch) => schreibe({ ...layout, kachelDef: { ...layout.kachelDef, [k]: { ...def, ...patch } }, vorlage: "eigene" });
+                            const schieb = (nach) => schreibe({ ...layout, kacheln: verschiebeIn(layout.kacheln, idx, nach), vorlage: "eigene" });
+                            return (
+                              <tr key={k} style={{ borderTop: "1px solid #F0F2F4", opacity: an ? 1 : 0.55 }}>
+                                <td className="py-1 pr-2 font-mono" style={{ color: "#8A9099" }}>{idx + 1}</td>
+                                <td className="py-1 pr-2">
+                                  <select value={def.inhalt} aria-label={`Inhalt Kachel ${idx + 1} ${ziel}`} onChange={(e) => setDef({ inhalt: e.target.value })} style={sel}>
+                                    {gruppen.map((g) => <optgroup key={g} label={g}>{KENNZAHLEN.filter(([, , gg]) => gg === g).map(([id, name]) => <option key={id} value={id}>{name}</option>)}</optgroup>)}
+                                  </select>
+                                  {def.inhalt === "text" && <input value={def.text || ""} aria-label={`Text Kachel ${idx + 1} ${ziel}`} placeholder="Text …" onChange={(e) => setDef({ text: e.target.value })} className="ml-1 border rounded px-1" style={{ fontSize: "0.72rem", width: "120px", borderColor: "#D6D9DC" }} />}
+                                </td>
+                                <td className="py-1 pr-2">
+                                  {info && info[3].length > 1 ? (
+                                    <select value={def.form} aria-label={`Darstellung Kachel ${idx + 1} ${ziel}`} onChange={(e) => setDef({ form: e.target.value })} style={sel}>
+                                      {KENNZAHL_FORMEN.filter(([f]) => info[3].includes(f)).map(([f, name]) => <option key={f} value={f}>{name}</option>)}
+                                    </select>
+                                  ) : <span style={{ color: "#8A9099" }}>{def.inhalt === "oee" || def.inhalt === "uhr" ? "eigene" : "Zahl"}</span>}
+                                </td>
+                                <td className="py-1 pr-2">
+                                  {info && info[4] ? (
+                                    <select value={def.zeitraum} aria-label={`Zeitraum Kachel ${idx + 1} ${ziel}`} onChange={(e) => setDef({ zeitraum: e.target.value })} style={sel}>
+                                      {info[4].map((z) => <option key={z} value={z}>{KENNZAHL_ZEITRAEUME[z]}</option>)}
+                                    </select>
+                                  ) : <span style={{ color: "#8A9099" }}>—</span>}
+                                </td>
+                                <td className="py-1 pr-2">
+                                  {KACHEL_BLOCK[k]
+                                    ? <input type="checkbox" checked={an} aria-label={`Kachel ${idx + 1} sichtbar ${ziel}`} onChange={(e) => schreibe({ ...layout, bloecke: { ...layout.bloecke, [KACHEL_BLOCK[k]]: e.target.checked }, vorlage: "eigene" })} />
+                                    : <span style={{ color: "#8A9099" }}>eigene</span>}
+                                </td>
+                                <td className="py-1 whitespace-nowrap">
+                                  <button onClick={() => schieb(idx - 1)} disabled={idx === 0} aria-label={`Kachel ${idx + 1} nach oben ${ziel}`} className="rounded border px-1.5" style={{ borderColor: "#D7DCE1", color: idx === 0 ? "#C3C7CB" : "#22262B" }}>▲</button>
+                                  <button onClick={() => schieb(idx + 1)} disabled={idx === layout.kacheln.length - 1} aria-label={`Kachel ${idx + 1} nach unten ${ziel}`} className="rounded border px-1.5 ml-1" style={{ borderColor: "#D7DCE1", color: idx === layout.kacheln.length - 1 ? "#C3C7CB" : "#22262B" }}>▼</button>
+                                  {!KACHEL_BLOCK[k] && (
+                                    <button onClick={() => { const { [k]: weg, ...rest } = layout.kachelDef; schreibe({ ...layout, kacheln: layout.kacheln.filter((x) => x !== k), kachelDef: rest, vorlage: "eigene" }); }} aria-label={`Kachel ${idx + 1} entfernen ${ziel}`} className="rounded border px-1.5 ml-1 font-bold" style={{ borderColor: "#D7DCE1", color: "#B23A34" }}>✕</button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      <div className="flex items-center gap-3 mt-2 text-xs flex-wrap">
+                        <button onClick={() => { const id = "k-" + Math.random().toString(36).slice(2, 8); schreibe({ ...layout, kacheln: [...layout.kacheln, id], kachelDef: { ...layout.kachelDef, [id]: { inhalt: "stoerOffen", form: "zahl" } }, vorlage: "eigene" }); }} aria-label={`Kachel hinzufügen ${ziel}`} className="font-bold rounded px-2.5 py-1" style={{ backgroundColor: "#22262B", color: "white" }}>+ Kachel hinzufügen</button>
+                        {ziel !== "rechner" && (<>
+                          <button onClick={() => schreibe(uebersichtLokal)} aria-label={`Vorlage ${ziel} von diesem Rechner übernehmen`} className="font-bold underline" style={{ color: "#5B6572" }}>Ganze Anordnung von diesem Rechner übernehmen</button>
+                          <button onClick={() => persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, null, null, { ...uebersichtVorlagen, [ziel]: null })} aria-label={`Vorlage ${ziel} löschen`} className="font-bold underline" style={{ color: "#B23A34" }}>Vorlage löschen</button>
+                        </>)}
+                      </div>
+                    </>)}
+                  </div>
+                );
+              })()}
 
               {/* ---- Dieser Rechner (Robertos Wahl vom 21.09., Punkt 6) ----
                   Startansicht, Zoom, Nachtmodus-Automatik, Leser-Rücksprung -

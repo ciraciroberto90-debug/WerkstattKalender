@@ -291,8 +291,10 @@ const ok = (n, c, zusatz) => {
     (await ap.locator('[role="region"][aria-label="Übersicht anordnen"]').count()) === 1
     && (await ap.locator('button[aria-label="Verwalten"]').count()) === 1);
   const rahmenZahl = await ap.locator("[data-anordnen]").count();
-  ok("(C1) Jede Kachel hat einen Rahmen: 4 Abschnitte + 4 Kennzahl-Kacheln + 2 Spalten",
-    rahmenZahl === 10, String(rahmenZahl));
+  // Seit dem 23.09. (Kachel-Inhalt wählbar) sind die vier Zahlen eigene
+  // Kacheln: 4 Abschnitte + 7 Kennzahl-Kacheln + 2 Spalten.
+  ok("(C1) Jede Kachel hat einen Rahmen: 4 Abschnitte + 7 Kennzahl-Kacheln + 2 Spalten",
+    rahmenZahl === 13, String(rahmenZahl));
   ok("(C1) Der Inhalt ist eingefroren: das Pinnwand-Plus nimmt keine Klicks mehr an",
     (await ap.locator('button[aria-label="Neue Notiz anpinnen"]').evaluate((el) => {
       let n = el; while (n) { if (getComputedStyle(n).pointerEvents === "none") return true; n = n.parentElement; } return false;
@@ -316,7 +318,7 @@ const ok = (n, c, zusatz) => {
   await ap.waitForTimeout(300);
   const lay1 = await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout")));
   ok("(C3) Zweimal ▲: „Offene Störungen“ steht ganz oben", lay1.reihenfolge[0] === "stoerungen", lay1.reihenfolge.join(" > "));
-  await ap.locator('button[aria-label="Uhr nach links"]').click();
+  await ap.locator('button[aria-label="Uhr & Schicht nach links"]').click();
   await ap.waitForTimeout(300);
   const lay2 = await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout")));
   ok("(C3) ◀ an der Uhr: sie steht jetzt vor der OEE-Kachel",
