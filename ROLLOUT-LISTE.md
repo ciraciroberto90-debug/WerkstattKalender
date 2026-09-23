@@ -1219,7 +1219,11 @@ aber Halbkreise statt Tacho" → alle Vorlagen auf die Cockpit-Halbkreise
 Kennzahl-Reihen + Wochenblick Mo–Fr, U8 Monitor blättert alle 20 s zwischen
 drei Seiten (Halbkreis-Reihe bleibt stehen), U9 Anlagen-Wand (Farbkachel je
 Anlage), U10 Zeitleiste des Tages 06–22 Uhr mit „jetzt"-Linie.
-**Entscheidung offen.**
+**Entscheidung Roberto (23.09.): U1 Whiteboard.** Nachbesserung gewünscht
+und im Mockup umgesetzt: alle fünf Kacheln gleich aufgebaut und zentriert –
+Titel oben, großer Halbkreis mit der Prozentzahl in der Mitte, Soll/Ist
+(bzw. Ziel/Tage, Erledigt/Gesamt, Budget-Hinweis) darunter, gleiche
+Schriftgrößen. Bauplan folgt, sobald Roberto das überarbeitete U1 freigibt.
 
 Was daraus für das Programm folgen könnte (noch nicht beauftragt): Übersicht
 nach der Whiteboard-Skizze als Vorlage (Kacheln Tagesplan/TPM-Effizienz/
