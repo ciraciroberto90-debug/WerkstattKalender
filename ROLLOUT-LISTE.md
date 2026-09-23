@@ -1105,10 +1105,24 @@ im Chat; Bauskripte im Sitzungs-Scratchpad (`mock-*.html`).
       Übersicht-Kachel, Rechte-Matrix (BACKLOG-Zeile wird „Vorrat"). Alte
       Bestände (ARBEIT-Einträge) werden beim Laden verlustfrei als Punkte
       gelesen – nichts wird umgeschrieben, bis der Umbau steht.
-- [ ] **Schritt 3 – Pinnwand:** Sichtbarkeit je Zettel (Alle / Nur ich /
-      bestimmte Person / Gruppe) und Farbe (7 Töne), Farbe nachträglich
-      änderbar, private und persönliche Zettel nie auf dem Monitor, Leser
-      sehen nur „Alle" (Vorlagen Z1, Z2).
+- [x] **Schritt 3 – Pinnwand (als Erstes gebaut, 23.09.):** Roberto wählte
+      Vorlage Z3, wollte aber „alles in einem Dropdown mit Symbolen" und als
+      Standard die Gruppe **Nur Verwalter**. Gebaut: Dropdown „Sichtbar für"
+      mit 🛡 Nur Verwalter (Standard) · ✏️ Bearbeiter & Verwalter · 👥 Alle
+      (auch Leser) · 🔒 Nur ich · 👤 Bestimmte Personen (Benutzer als
+      ankreuzbare Chips, Anpinnen erst nach dem Ankreuzen); Gruppen gelten
+      aufwärts (Verwalter sieht alles, was Bearbeiter sehen), „Nur ich" und
+      „Bestimmte Personen" sieht außer den Angekreuzten nur der Verfasser –
+      auch kein Verwalter. Farbe (7 Töne) beim Schreiben und nachträglich am
+      Zettel, Sichtbarkeit nachträglich per Dropdown am Zettel (nur Verfasser
+      oder Verwalter). **Gültig bis** (Tag): danach hängt sich der Zettel ab,
+      bleibt über „N abgelaufene Zettel · anzeigen" einsehbar. Jeder Zettel
+      trägt oben rechts sein Schild (z. B. „👤 Max"). Monitor-Laufband und
+      Übergabeblatt zeigen **nur „Alle"-Zettel** und nichts Abgelaufenes.
+      Auge-Simulation (Leser/Bearbeiter) zeigt genau deren Sicht. Alte
+      Zettel: veröffentlicht = Alle, sonst Bearbeiter & Verwalter; das Feld
+      `veroeffentlicht` wird für ältere Programmstände mitgeführt.
+      Nachweis harte-82 (22 Prüfungen), harte-58 nur im Locator angepasst.
 - [ ] **Schritt 4 – Kachel-Inhalt wählen:** im Anordnen-Modus je
       Kennzahl-Kachel ein ▾ mit allen Kennzahlen, die das Cockpit rechnet
       (Termine, Quoten TPM/PitStop/R+I Monat/Jahr, Störungen 30 Tage,
@@ -1125,7 +1139,10 @@ im Chat; Bauskripte im Sitzungs-Scratchpad (`mock-*.html`).
       bleiben oder V6/V7? (b) Soll „Vorrat" als Reiter im To-do-Bereich
       leben oder als eigener Bereich, der nur ausgeblendet ist? (c) Pinnwand
       „bestimmte Person": Zettel auch für den Verfasser sichtbar (ja, so
-      vorgesehen)? (d) Reihenfolge der Schritte wie oben (1→5) oder anders?
+      vorgesehen)? – **beantwortet 23.09.:** ja, der Verfasser sieht sie;
+      (d) Reihenfolge der Schritte: Roberto begann mit der Pinnwand; die
+      übrigen (Termin-Kachel, Kachel-Inhalt, Gruppen-Vorlagen, To-do)
+      folgen je mit neuen Vorlagen vor dem Bau.
 
 ## Gedankenspiel „71.000 Einträge je Jahr statt je 15 Jahre" (Robertos Frage vom 21.09.)
 

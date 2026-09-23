@@ -30,9 +30,60 @@ function SyncAnzeige({ style }) {
    Tastendruck ~60 ms Vollzeichnung der ganzen Oberfläche - das war Robertos
    "Nachhängen beim Eintragen". Erst das Anpinnen reicht den fertigen Text
    nach oben. */
-function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen, fotoLeiste, bausteine = [] }) {
+/* Pinnwand-Sichtbarkeit (Robertos Auftrag vom 23.09., Vorlage Z3 als
+   Dropdown): Wer einen Zettel sieht, steht AM Zettel. Gruppen gelten
+   "aufwärts" - was Bearbeiter sehen, sehen Verwalter auch. "Nur ich" und
+   "Bestimmte Personen" sind persönlich: außer dem Verfasser sieht sie nur, wer
+   angekreuzt ist - auch kein Verwalter. Standard ist "Nur Verwalter". Alte
+   Zettel ohne Angabe: veröffentlicht = Alle, sonst Bearbeiter (wie bisher). */
+const ZETTEL_SICHTBAR = [
+  ["verwalter", "🛡", "Nur Verwalter"],
+  ["bearbeiter", "✏️", "Bearbeiter & Verwalter"],
+  ["alle", "👥", "Alle (auch Leser)"],
+  ["ich", "🔒", "Nur ich"],
+  ["personen", "👤", "Bestimmte Personen …"],
+];
+const zettelArtVon = (z) => (ZETTEL_SICHTBAR.some(([k]) => k === z.sichtbar) ? z.sichtbar : (z.veroeffentlicht ? "alle" : "bearbeiter"));
+const zettelSichtbarLabel = (z) => {
+  const art = zettelArtVon(z);
+  const [, symbol, label] = ZETTEL_SICHTBAR.find(([k]) => k === art);
+  if (art === "personen") return `${symbol} ${(z.empfaenger || []).join(", ") || "niemand"}`;
+  return `${symbol} ${label.replace(" …", "")}`;
+};
+// Ein Zettel mit "Gültig bis" hängt sich nach dem Tag selbst ab (bleibt im Bestand).
+const zettelAbgelaufen = (z, heuteKey) => !!z.gueltigBis && String(z.gueltigBis) < heuteKey;
+// Farben mit Namen - die Vorgabe "gelb" ist der klassische Zettel.
+const ZETTEL_FARBEN = { gelb: "#FEF3B5", gruen: "#D9F0DC", blau: "#DCEAF7", rosa: "#FADCE6", orange: "#FCE3C6", grau: "#E6E8EB", weiss: "#FFFFFF" };
+const ZETTEL_FARBE_NAMEN = { gelb: "Gelb", gruen: "Grün", blau: "Blau", rosa: "Rosa", orange: "Orange", grau: "Grau", weiss: "Weiß" };
+
+function ZettelFarbwahl({ wert, onWert, klein = false }) {
+  const d = klein ? 16 : 24;
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap" role="radiogroup" aria-label="Zettel-Farbe">
+      {Object.keys(ZETTEL_FARBEN).map((k) => (
+        <button
+          key={k}
+          type="button"
+          role="radio"
+          aria-checked={wert === k}
+          aria-label={`Farbe ${ZETTEL_FARBE_NAMEN[k]}`}
+          title={ZETTEL_FARBE_NAMEN[k]}
+          onClick={() => onWert(k)}
+          style={{ width: d, height: d, borderRadius: klein ? "50%" : "7px", backgroundColor: ZETTEL_FARBEN[k], border: wert === k ? "2px solid #22262B" : "1px solid rgba(0,0,0,0.15)", boxShadow: wert === k ? "0 0 0 2px #fff inset" : "none", flexShrink: 0 }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen, fotoLeiste, bausteine = [], personen = [], sichtbarStart = "verwalter" }) {
   const [text, setText] = useState("");
   const [name, setName] = useState(startName || "");
+  const [sichtbar, setSichtbar] = useState(sichtbarStart);
+  const [empfaenger, setEmpfaenger] = useState([]);
+  const [farbe, setFarbe] = useState("gelb");
+  const [gueltigBis, setGueltigBis] = useState("");
+  const bereit = text.trim() && name.trim() && (sichtbar !== "personen" || empfaenger.length > 0);
   return (
     <div className="rounded-lg p-3 mb-3" style={{ backgroundColor: "white", border: "1px solid #E2E4E7" }}>
       {/* Textbausteine (⚙ Regeln & Listen): ein Klick setzt den Standardtext
@@ -64,6 +115,58 @@ function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen, fotoLeiste, bau
           Verfasser bleibt eine Tipp-Insel, die Foto-Helfer leben im Haupt-
           Bauteil (Eindampfen, Draft, Großansicht wie bei Arbeit/Störung). */}
       {fotoLeiste}
+      {/* Sichtbarkeit als EIN Dropdown mit Symbolen (Robertos Wahl: "der
+          Übersicht halber"), Standard "Nur Verwalter". Bei "Bestimmte
+          Personen" klappen die Benutzer als ankreuzbare Chips auf. */}
+      <div className="flex items-center gap-2 flex-wrap mb-2">
+        <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Sichtbar für</label>
+        <select
+          value={sichtbar}
+          onChange={(e) => setSichtbar(e.target.value)}
+          aria-label="Sichtbar für"
+          className="text-sm border rounded px-2 py-1.5 font-bold"
+          style={{ borderColor: "#D6D9DC", backgroundColor: "white" }}
+        >
+          {ZETTEL_SICHTBAR.map(([k, symbol, label]) => <option key={k} value={k}>{symbol} {label}</option>)}
+        </select>
+        <label className="text-xs font-bold ml-2" style={{ color: "#5B6572" }}>Gültig bis</label>
+        <input
+          type="date"
+          value={gueltigBis}
+          onChange={(e) => setGueltigBis(e.target.value)}
+          aria-label="Gültig bis"
+          title="Leer = unbegrenzt. Nach dem Tag hängt sich der Zettel selbst ab."
+          className="text-sm border rounded px-2 py-1"
+          style={{ borderColor: "#D6D9DC" }}
+        />
+      </div>
+      {sichtbar === "personen" && (
+        <div className="flex items-center gap-1.5 flex-wrap mb-2" role="group" aria-label="Empfänger">
+          {personen.length === 0 && <span className="text-xs italic" style={{ color: "#8A9099" }}>Keine Benutzer angelegt (⚙ → Benutzer & Rechte).</span>}
+          {personen.map((n) => {
+            const an = empfaenger.includes(n);
+            return (
+              <button
+                key={n}
+                type="button"
+                role="checkbox"
+                aria-checked={an}
+                aria-label={`Empfänger ${n}`}
+                onClick={() => setEmpfaenger((prev) => (an ? prev.filter((x) => x !== n) : [...prev, n]))}
+                className="inline-flex items-center gap-1.5 rounded-full text-xs font-bold"
+                style={{ padding: "3px 10px 3px 4px", border: `1px solid ${an ? "#2F6690" : "#D6D9DC"}`, backgroundColor: an ? "#E9F0F6" : "white", color: an ? "#28587C" : "#5B6572" }}
+              >
+                <span className="inline-flex items-center justify-center rounded-full text-white font-black" style={{ width: "18px", height: "18px", fontSize: "0.55rem", backgroundColor: an ? "#2F6690" : "#B7BEC6" }}>{String(n).trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
+                {n}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs font-bold" style={{ color: "#5B6572" }}>Farbe</span>
+        <ZettelFarbwahl wert={farbe} onWert={setFarbe} />
+      </div>
       <div className="flex gap-2">
         <input
           value={name}
@@ -73,8 +176,8 @@ function PinnwandVerfasser({ startName, onAnpinnen, onAbbrechen, fotoLeiste, bau
           style={{ borderColor: "#D6D9DC", width: "160px" }}
         />
         <button
-          onClick={() => onAnpinnen(text, name)}
-          disabled={!text.trim() || !name.trim()}
+          onClick={() => onAnpinnen(text, name, { sichtbar, empfaenger: sichtbar === "personen" ? empfaenger : [], farbe, gueltigBis })}
+          disabled={!bereit}
           className="text-sm font-bold px-4 py-1.5 rounded text-white disabled:opacity-40"
           style={{ backgroundColor: "#2F7D4F" }}
         >
@@ -3152,8 +3255,10 @@ function App() {
     const heutigeTermine = entries
       .filter((e) => (e.category === "TPM" || e.category === "RI") && e.date === todayKey)
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    // Nur "Alle"-Zettel gehören auf den Hallenmonitor - nie Gruppen-,
+    // persönliche oder abgelaufene Zettel (Robertos Regel vom 23.09.).
     const zettelSichtbar = entries
-      .filter((e) => e.category === "NOTIZ" && e.veroeffentlicht)
+      .filter((e) => e.category === "NOTIZ" && zettelArtVon(e) === "alle" && !zettelAbgelaufen(e, todayKey))
       .sort((a, b) => String(b.zeit || b.date).localeCompare(String(a.zeit || a.date)))
       .slice(0, 6);
 
@@ -4952,7 +5057,7 @@ function App() {
       neu.push({
         id: neueId(), date: todayKey, category: "NOTIZ", name: wer, status: "open",
         note: `📅 ${entry.name} ab ${formatDateDE(modal.date)}${wdhText}${draftBis && draftWdh !== "einmal" ? ` (bis ${formatDateDE(draftBis)})` : ""}`,
-        zeit: new Date().toISOString(), farbe: "blau", monitor: false, veroeffentlicht: true,
+        zeit: new Date().toISOString(), farbe: "blau", monitor: false, veroeffentlicht: true, sichtbar: "alle", konto: angemeldet || wer,
       });
     }
     await persist([...entries, ...neu]);
@@ -5669,18 +5774,36 @@ function App() {
   const quoteMonatHeute = quoteFuer(kalenderEntries.filter((e) => e.date.startsWith(todayKey.slice(0, 7))));
   const quoteJahrHeute = quoteFuer(kalenderEntries.filter((e) => e.date.startsWith(todayKey.slice(0, 4) + "-")));
 
-  const ZETTEL_FARBEN = { gelb: "#FEF9C3", blau: "#E0F2FE", gruen: "#DCFCE7" };
-  // Feste Farben je Verfasser (Wunsch: Roberto immer blau, Alexander immer
-  // gelb), alle anderen behalten die abwechselnde Zufallsfarbe des Zettels.
-  // Seit der Benutzer-Anmeldung heißen die Urheber mit vollem Benutzernamen
-  // (RobertoCiraci statt RC) - beide Schreibweisen zählen, sonst wären die
-  // alten Zettel anders gefärbt als die neuen desselben Verfassers.
+  // Farbe: Seit dem 23.09. wählt der Verfasser sie selbst (7 Töne). Alte
+  // Zettel ohne Sichtbarkeits-Angabe behalten die frühere Regel (Roberto
+  // immer blau, Alexander immer gelb, sonst die abwechselnde Zettelfarbe) -
+  // beide Schreibweisen der Urheber zählen (RC / RobertoCiraci).
   const zettelFarbeFuer = (z) => {
+    if (z.sichtbar && ZETTEL_FARBEN[z.farbe]) return ZETTEL_FARBEN[z.farbe];
     const wer = String(z.name || "").trim().toUpperCase();
     if (wer === "RC" || wer === "ROBERTOCIRACI") return ZETTEL_FARBEN.blau;
     if (wer === "AR" || wer === "ALEXANDERRADKE") return ZETTEL_FARBEN.gelb;
     return ZETTEL_FARBEN[z.farbe] || ZETTEL_FARBEN.gelb;
   };
+  /* Darf ICH diesen Zettel sehen? Gruppen aufwärts (Verwalter sieht alles,
+     was Bearbeiter sehen), "Nur ich" nur der Verfasser, "Personen" nur die
+     Angekreuzten und der Verfasser. Verfasser = angemeldetes Konto (seit
+     23.09. am Zettel als "konto"), sonst der getippte Name. In der
+     simulierten Ansicht (Auge) gilt die simulierte Gruppe - so sieht der
+     Verwalter wirklich, was ein Leser sieht. */
+  const zettelDarfSehen = (z) => {
+    const art = zettelArtVon(z);
+    const ich = String(angemeldet || zettelName || "").trim();
+    // In der simulierten Ansicht zählt auch die Verfasser-Rolle nicht - das
+    // Auge soll zeigen, was ein FREMDER Leser/Bearbeiter sieht.
+    const istVerfasser = !ansichtSimuliert && !!ich && (String(z.konto || z.name || "").trim() === ich);
+    if (art === "ich") return istVerfasser;
+    if (art === "personen") return istVerfasser || (Array.isArray(z.empfaenger) && z.empfaenger.includes(ich));
+    if (art === "alle") return true;
+    if (art === "bearbeiter") return meineGruppe === "bearbeiter" || meineGruppe === "verwalter";
+    return meineGruppe === "verwalter"; // "verwalter"
+  };
+  const [zettelAbgelaufeneZeigen, setZettelAbgelaufeneZeigen] = useState(false);
   // Draft-Adapter für die Foto-Helfer: Sie arbeiten auf {fotosNeu}-Drafts -
   // so bleiben Eindampfen, Anhängen, Entfernen und Großansicht EIN Code für
   // Arbeit, Störung und Pinnwand.
@@ -5694,11 +5817,11 @@ function App() {
     setZettelFotosNeu([]);
     setZettelOpen(false);
   };
-  const addZettel = async (text, name) => {
+  const addZettel = async (text, name, extras = {}) => {
     if (!String(text || "").trim() || !String(name || "").trim()) return;
     setZettelName(String(name).trim());
     localStorage.setItem(nsKey("werkstatt-kalender-name"), String(name).trim());
-    const farben = Object.keys(ZETTEL_FARBEN);
+    const sichtbar = ZETTEL_SICHTBAR.some(([k]) => k === extras.sichtbar) ? extras.sichtbar : "verwalter";
     // Erst die angehängten Fotos in den Datenordner schreiben - am Zettel
     // steht wie bei Arbeit und Störung nur der Verweis, die JSON bleibt klein.
     const { verweise: fotos, fotoFehler } = await fotosVerarbeiten({ fotos: [], fotosNeu: zettelFotosNeu });
@@ -5710,8 +5833,15 @@ function App() {
       status: "open",
       note: String(text).trim(),
       zeit: new Date().toISOString(),
-      farbe: farben[zettelListe.length % farben.length],
+      farbe: ZETTEL_FARBEN[extras.farbe] ? extras.farbe : "gelb",
       monitor: false,
+      // Sichtbarkeit (23.09.): Art, Empfänger, Verfasser-Konto, Ablauftag.
+      // "veroeffentlicht" bleibt für ältere Programmstände gepflegt (= Alle).
+      sichtbar,
+      empfaenger: sichtbar === "personen" ? (extras.empfaenger || []).filter(Boolean) : [],
+      konto: angemeldet || String(name).trim(),
+      gueltigBis: extras.gueltigBis || "",
+      veroeffentlicht: sichtbar === "alle",
       ...(fotos.length > 0 ? { fotos } : {}),
     };
     await persist([...entries, zettel]);
@@ -5729,10 +5859,17 @@ function App() {
   const toggleZettelMonitor = async (id) => {
     await persist(entries.map((e) => (e.id === id ? { ...e, monitor: !e.monitor } : e)));
   };
-  // Veröffentlichen = auch für Nur-Leser sichtbar. Unveröffentlichte Zettel
-  // sind intern - nur für Personen mit Bearbeiter-Rechten gedacht.
-  const toggleZettelVeroeffentlicht = async (id) => {
-    await persist(entries.map((e) => (e.id === id ? { ...e, veroeffentlicht: !e.veroeffentlicht } : e)));
+  // Sichtbarkeit und Farbe nachträglich ändern (ersetzt das frühere
+  // 🌐 "Veröffentlichen"). "veroeffentlicht" wird für ältere Stände mitgeführt.
+  const setZettelSichtbar = async (id, art, empfaenger) => {
+    if (!ZETTEL_SICHTBAR.some(([k]) => k === art)) return;
+    await persist(entries.map((e) => (e.id === id
+      ? { ...e, sichtbar: art, empfaenger: art === "personen" ? (empfaenger || e.empfaenger || []) : [], veroeffentlicht: art === "alle", konto: e.konto || angemeldet || e.name }
+      : e)));
+  };
+  const setZettelFarbe = async (id, farbe) => {
+    if (!ZETTEL_FARBEN[farbe]) return;
+    await persist(entries.map((e) => (e.id === id ? { ...e, farbe, sichtbar: zettelArtVon(e) } : e)));
   };
   const toggleZettelAngeheftet = async (id) => {
     await persist(entries.map((e) => (e.id === id ? { ...e, angeheftet: !e.angeheftet } : e)));
@@ -10620,6 +10757,8 @@ function App() {
                   onAnpinnen={addZettel}
                   onAbbrechen={zettelVerfasserZu}
                   bausteine={regeln.vorlagen.zettel}
+                  personen={benutzerListe.map((b) => b.name)}
+                  sichtbarStart="verwalter"
                   fotoLeiste={(
                     <div className="flex gap-2 items-center flex-wrap mb-2">
                       {zettelFotosNeu.map((n, i) => (
@@ -10658,18 +10797,42 @@ function App() {
               )}
               {(() => {
                 const q = zettelSuche.trim().toLowerCase();
-                // Nur-Leser sehen ausschließlich veröffentlichte Zettel (🌐) -
-                // alle anderen Notizen sind intern für die Bearbeiter gedacht.
-                const basis = readerMode ? zettelListe.filter((z) => z.veroeffentlicht) : zettelListe;
+                // Sichtbarkeit je Zettel (23.09.): Jeder sieht nur, was für
+                // seine Gruppe bzw. ihn persönlich bestimmt ist. Abgelaufene
+                // Zettel hängen sich ab, bleiben aber auf Wunsch einsehbar.
+                const erlaubt = zettelListe.filter(zettelDarfSehen);
+                const abgelaufene = erlaubt.filter((z) => zettelAbgelaufen(z, todayKey));
+                const basis = zettelAbgelaufeneZeigen ? erlaubt : erlaubt.filter((z) => !zettelAbgelaufen(z, todayKey));
                 const sichtbar = q ? basis.filter((z) => `${z.note} ${z.name}`.toLowerCase().includes(q)) : basis;
+                const abgelaufenZeile = abgelaufene.length > 0 && (
+                  <button
+                    onClick={() => setZettelAbgelaufeneZeigen((v) => !v)}
+                    className="text-xs mt-2"
+                    style={{ color: "#8A9099", textDecoration: "underline" }}
+                    aria-label={zettelAbgelaufeneZeigen ? "Abgelaufene Zettel ausblenden" : "Abgelaufene Zettel anzeigen"}
+                  >
+                    🗄 {abgelaufene.length} abgelaufene{abgelaufene.length === 1 ? "r" : ""} Zettel · {zettelAbgelaufeneZeigen ? "ausblenden" : "anzeigen"}
+                  </button>
+                );
                 if (q && sichtbar.length === 0) return <div className="text-xs italic text-slate-400">Kein Zettel passt zur Suche.</div>;
                 const iconStil = (aktiv) => aktiv
                   ? { fontSize: "0.78rem", width: "26px", height: "24px", backgroundColor: "#22262B", color: "white" }
                   : { fontSize: "0.78rem", width: "26px", height: "24px", backgroundColor: "rgba(0,0,0,0.07)", color: "#5B6572" };
+                // Nachträglich ändern darf nur der Verfasser oder ein Verwalter -
+                // sonst könnte ein Bearbeiter einen "Nur ich"-Zettel freischalten.
+                const ich = String(angemeldet || zettelName || "").trim();
+                const darfAendern = (z) => meineGruppe === "verwalter" || (!!ich && String(z.konto || z.name || "").trim() === ich);
                 return (
+                <>
               <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
                 {sichtbar.map((z) => (
-                  <div key={z.id} className="relative p-3" style={{ backgroundColor: zettelFarbeFuer(z), borderRadius: "4px 4px 12px 4px", boxShadow: "2px 3px 8px rgba(20,22,25,0.12)" }}>
+                  <div key={z.id} className="relative p-3" style={{ backgroundColor: zettelFarbeFuer(z), borderRadius: "4px 4px 12px 4px", boxShadow: "2px 3px 8px rgba(20,22,25,0.12)", border: z.farbe === "weiss" && z.sichtbar ? "1px solid #E2E4E7" : "none", opacity: zettelAbgelaufen(z, todayKey) ? 0.6 : 1 }}>
+                    {/* Wer sieht den Zettel? Klein oben rechts - der Verfasser
+                        sieht sofort, ob er im richtigen Kreis hängt. */}
+                    <div className="flex items-center justify-between gap-2 mb-1" style={{ fontSize: "0.58rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".04em", color: "#5B6572" }}>
+                      <span>{z.gueltigBis ? (zettelAbgelaufen(z, todayKey) ? `abgelaufen am ${formatDateDE(z.gueltigBis)}` : `gilt bis ${formatDateDE(z.gueltigBis)}`) : ""}</span>
+                      <span className="rounded" style={{ padding: "1px 6px", backgroundColor: "rgba(0,0,0,0.08)", textTransform: "none", letterSpacing: 0 }} title="Sichtbar für">{zettelSichtbarLabel(z)}</span>
+                    </div>
                     <div className="text-sm" style={{ color: "#39414B", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{z.note}</div>
                     {/* Fotos am Zettel (26.08.): kleine Vorschau direkt auf der
                         Pinnwand, Klick öffnet die Großansicht - auch für Leser
@@ -10723,15 +10886,29 @@ function App() {
                       >
                         📺
                       </button>
-                      <button
-                        onClick={() => toggleZettelVeroeffentlicht(z.id)}
-                        className="inline-flex items-center justify-center rounded"
-                        style={iconStil(z.veroeffentlicht)}
-                        title={z.veroeffentlicht ? "Veröffentlicht: auch Nur-Leser sehen diesen Zettel - Klick macht ihn wieder intern" : "Veröffentlichen: auch für Nur-Leser sichtbar machen (sonst nur für Bearbeiter)"}
-                        aria-label={z.veroeffentlicht ? "Veröffentlichung zurücknehmen" : "Veröffentlichen"}
-                      >
-                        🌐
-                      </button>
+                      {darfAendern(z) && (
+                        <select
+                          value={zettelArtVon(z)}
+                          onChange={(e) => {
+                            const art = e.target.value;
+                            if (art !== "personen") { setZettelSichtbar(z.id, art); return; }
+                            // "Bestimmte Personen": Namen per Abfrage - die
+                            // Benutzer stehen als Vorschlag im Hinweis.
+                            const namen = benutzerListe.map((b) => b.name);
+                            const antwort = window.prompt(`Für wen? Namen mit Komma trennen.\nBenutzer: ${namen.join(", ") || "keine angelegt"}`, (z.empfaenger || []).join(", "));
+                            if (antwort === null) return;
+                            const liste = antwort.split(",").map((s) => s.trim()).filter(Boolean);
+                            if (liste.length > 0) setZettelSichtbar(z.id, "personen", liste);
+                          }}
+                          className="text-xs border rounded px-1 py-0.5 font-bold"
+                          style={{ borderColor: "rgba(0,0,0,0.15)", backgroundColor: "rgba(255,255,255,0.7)", height: "24px", color: "#39414B" }}
+                          aria-label="Sichtbarkeit Zettel"
+                          title="Wer darf diesen Zettel sehen?"
+                        >
+                          {ZETTEL_SICHTBAR.map(([k, symbol, label]) => <option key={k} value={k}>{symbol} {label}</option>)}
+                        </select>
+                      )}
+                      {darfAendern(z) && <ZettelFarbwahl klein wert={z.farbe || (zettelFarbeFuer(z) === ZETTEL_FARBEN.blau ? "blau" : "gelb")} onWert={(f) => setZettelFarbe(z.id, f)} />}
                       <button
                         onClick={() => deleteZettel(z.id)}
                         className="inline-flex items-center justify-center rounded font-extrabold"
@@ -10746,6 +10923,8 @@ function App() {
                   </div>
                 ))}
               </div>
+                {abgelaufenZeile}
+                </>
                 );
               })()}
             </div>
@@ -16421,7 +16600,9 @@ function App() {
         const prioMittel = arbeitenOffen.filter((a) => a.prio === "mittel").length;
         const wocheGrenze = dateKey(addDays(monitorUhr, -7).getFullYear(), addDays(monitorUhr, -7).getMonth(), addDays(monitorUhr, -7).getDate());
         const erledigtWoche = arbeiten.filter((a) => a.status === "done" && a.erledigtAm && a.erledigtAm >= wocheGrenze).length;
-        const monitorZettel = zettelListe.filter((z) => z.monitor);
+        // Auf den Hallenmonitor nur Zettel für "Alle" und nicht abgelaufene -
+        // ein "Nur Verwalter"-Zettel darf dort nie laufen (23.09.).
+        const monitorZettel = zettelListe.filter((z) => z.monitor && zettelArtVon(z) === "alle" && !zettelAbgelaufen(z, todayKey));
         // Was läuft, bestimmt das Zahnrad (Reiter "Monitor") - Robertos
         // Wunsch vom 08.09. Standard: alles an.
         const b = monitorBausteine;

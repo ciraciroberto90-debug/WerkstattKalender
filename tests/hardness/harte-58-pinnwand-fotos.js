@@ -163,7 +163,9 @@ const verfasserAuf = async (p) => {
     await p.waitForTimeout(500);
     pruef("(Z4) Der Arbeit-Dialog zeigt das Zettel-Foto schon im Foto-Bereich",
           (await p.getByRole("button", { name: /^Foto 1 groß ansehen$/ }).count()) === 1);
-    await p.locator('div[role="dialog"] select').first().selectOption("TS480").catch(() => p.locator("select").first().selectOption("TS480"));
+    // Seit dem 23.09. hat jeder Zettel ein eigenes Dropdown (Sichtbarkeit) -
+    // darum gezielt das Aufklappfeld, das die Anlage TS480 anbietet.
+    await p.locator('select:has(option[value="TS480"])').first().selectOption("TS480");
     await p.getByRole("button", { name: "Speichern & Zettel entfernen", exact: true }).click();
     await p.waitForTimeout(900);
     const nachher = await gespeichert(p);

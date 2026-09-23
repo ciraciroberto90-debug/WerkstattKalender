@@ -460,8 +460,20 @@ Störungen, nicht den Rest.
   Jahresquote als Halbkreis **mit ausgeschriebenem Monatsnamen**), eine **analoge Uhr**
   mit der laufenden Schicht (z. B. *Do., 23.07. · Spät ab 14:00*), „Heute da",
   **offene Störungen als Gedankenstütze**, Tagesliste und **Pinnwand**.
-  Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌),
-  auf den **Monitor** legen (📺) und **veröffentlichen** (🌐, dann auch für Nur-Leser sichtbar).
+  Neue Pinnwand-Notizen über das **+**; Notizen lassen sich **anheften** (📌)
+  und auf den **Monitor** legen (📺, läuft nur bei Zetteln für „Alle").
+- **Pinnwand: wer sieht den Zettel? (seit dem 23.09.):** Beim Schreiben wählt
+  das Dropdown **„Sichtbar für"** – 🛡 **Nur Verwalter** (Standard),
+  ✏️ Bearbeiter & Verwalter, 👥 Alle (auch Leser), 🔒 Nur ich oder
+  👤 Bestimmte Personen (die Benutzer aus „Benutzer & Rechte" zum Ankreuzen).
+  Gruppen gelten nach oben: Was Bearbeiter sehen, sieht auch der Verwalter.
+  „Nur ich" und „Bestimmte Personen" sind persönlich – außer dem Verfasser und
+  den Angekreuzten sieht sie niemand, auch kein Verwalter. Dazu die
+  **Zettel-Farbe** (7 Töne) und **„Gültig bis"**: Nach dem Tag hängt sich der
+  Zettel selbst ab und bleibt über „abgelaufene Zettel · anzeigen" erreichbar.
+  Jeder Zettel zeigt oben rechts sein Schild (z. B. „👤 Max"); Sichtbarkeit und
+  Farbe lassen sich am Zettel nachträglich ändern (Verfasser oder Verwalter).
+  Das Auge (Ansicht als Leser/Bearbeiter) zeigt genau, was diese Gruppe sieht.
 - **Tagesliste mit „Anwesende"-Menü (seit dem 21.09.):** Rechts im Kopf der
   Tagesliste steht der Knopf **👷 Anwesende** mit der Zahl der Kollegen und der
   offenen Punkte. Sein Menü listet die **heute Anwesenden** nach Früh / Spät /
