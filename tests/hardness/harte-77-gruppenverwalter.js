@@ -84,7 +84,10 @@ const ok = (n, c, zusatz) => {
 
   /* ---- (2) Wechsel nach Soendgen ---- */
   await r.p.locator('button[aria-label="Wechseln zu Soendgen Keramik"]').click();
-  await r.p.waitForTimeout(1500);
+  // Der Wechsel lädt die Seite neu - auf den Rückwechsel-Knopf warten statt
+  // auf die Uhr (unter Last der vollen Suite dauerte das Neuladen > 1,5 s).
+  await r.p.locator('button[aria-label="Wechseln zu Scheurich"]').waitFor({ timeout: 20000 });
+  await r.p.waitForTimeout(500);
   ok("(2) Die App läuft jetzt als Soendgen Keramik", /Soendgen Keramik/i.test(await kopf(r.p)));
   await verbinde(r.p);
   ok("(2) KEIN Anmelde-Dialog - der Pass gilt", (await r.p.locator('[aria-label="Anmelden"]').count()) === 0);
@@ -112,7 +115,8 @@ const ok = (n, c, zusatz) => {
 
   /* ---- (4) Zurück nach Scheurich ---- */
   await r.p.locator('button[aria-label="Wechseln zu Scheurich"]').click();
-  await r.p.waitForTimeout(1500);
+  await r.p.locator('button[aria-label="Wechseln zu Soendgen Keramik"]').waitFor({ timeout: 20000 });
+  await r.p.waitForTimeout(500);
   await verbinde(r.p);
   ok("(4) Zurück in Scheurich: gemerkte Anmeldung gilt, kein Dialog, Zahnrad da",
     /Scheurich(?! Group)/i.test(await kopf(r.p)) && (await r.p.locator('[aria-label="Anmelden"]').count()) === 0 && (await r.p.locator('button[aria-label="Verwalten"]').count()) === 1);
@@ -127,7 +131,10 @@ const ok = (n, c, zusatz) => {
 
   /* ---- (6) Abmelden in Soendgen nimmt den Pass ---- */
   await r.p.locator('button[aria-label="Wechseln zu Soendgen Keramik"]').click();
-  await r.p.waitForTimeout(1500);
+  // Der Wechsel lädt die Seite neu - auf den Rückwechsel-Knopf warten statt
+  // auf die Uhr (unter Last der vollen Suite dauerte das Neuladen > 1,5 s).
+  await r.p.locator('button[aria-label="Wechseln zu Scheurich"]').waitFor({ timeout: 20000 });
+  await r.p.waitForTimeout(500);
   await verbinde(r.p);
   await r.p.locator('button[aria-label="Abmelden"]').click();
   await r.p.waitForTimeout(500);

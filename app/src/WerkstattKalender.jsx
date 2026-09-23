@@ -10900,8 +10900,11 @@ function App() {
                             const liste = antwort.split(",").map((s) => s.trim()).filter(Boolean);
                             if (liste.length > 0) setZettelSichtbar(z.id, "personen", liste);
                           }}
-                          className="text-xs border rounded px-1 py-0.5 font-bold"
-                          style={{ borderColor: "rgba(0,0,0,0.15)", backgroundColor: "rgba(255,255,255,0.7)", height: "24px", color: "#39414B" }}
+                          className="rounded font-bold"
+                          /* Maße inline: Die globale Auswahllisten-Regel (index.css)
+                             schlägt Tailwind-Klassen, gemessen 16 px / 6 px Abstand -
+                             am Zettel soll das Feld klein bleiben. */
+                          style={{ fontSize: "0.72rem", padding: "3px 24px 3px 8px", backgroundPosition: "right 7px center", backgroundSize: "9px", borderColor: "rgba(0,0,0,0.15)", backgroundColor: "rgba(255,255,255,0.7)", color: "#39414B", maxWidth: "100%" }}
                           aria-label="Sichtbarkeit Zettel"
                           title="Wer darf diesen Zettel sehen?"
                         >
