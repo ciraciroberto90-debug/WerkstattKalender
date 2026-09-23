@@ -1084,6 +1084,49 @@ Ziele (5), Rechner-Einstellungen (6), Vorlagen und Pflichtfelder (8).
       eine eigene Fehlerart anlegen, am Hallenrechner Zoom und
       Nachtmodus-Automatik ausprobieren.
 
+## Großer Umbau in Schritten (Robertos Auftrag vom 23.09.) – Vorlagen geschickt, Bau nach Freigabe je Schritt
+
+Robertos Ansage: „sehr langsam, Schritt für Schritt, übersichtlich – bei
+Fragen fragen, erst Vorlagen zeigen". Vorlagen (Bildschirmfotos) am 23.09.
+im Chat; Bauskripte im Sitzungs-Scratchpad (`mock-*.html`).
+
+- [ ] **Schritt 1 – Termin-Kachel mit Anwesenden noch einmal wählen:** die
+      fünf Vorlagen V1–V5 erneut gezeigt (V2 Dropdown ist gebaut), dazu neu
+      V6 (zwei Spalten: Termine links, alle Anwesenden mit Punkten rechts)
+      und V7 (Personen-Karten mit Fortschrittsbalken). Roberto wählt.
+- [ ] **Schritt 2 – Backlog wird To-do:** ein Datensatz „Punkt" statt
+      ARBEIT + TODO getrennt; ein Dialog „Neuer Punkt" (Aufgabe / Arbeit an
+      einer Anlage) mit Anlage, Anlagenteil, Gewerk, Priorität, Person,
+      Frist, Plan-Tag, Azubi/Stillstand/Ersatzteil, Bemerkung, Fotos
+      (Vorlage P1). Bereich To-dos mit Reitern Offen / Vorrat (= bisheriger
+      Backlog, ausblendbar, nicht gelöscht) / Nach Anlage / Meine /
+      Erledigt (P2, P3). Alle Kombis bleiben: Ziehen in den Wochenplan,
+      Anlagen-Akte, Störung → als To-do, Pinnwand → zum To-do, Suche,
+      Übersicht-Kachel, Rechte-Matrix (BACKLOG-Zeile wird „Vorrat"). Alte
+      Bestände (ARBEIT-Einträge) werden beim Laden verlustfrei als Punkte
+      gelesen – nichts wird umgeschrieben, bis der Umbau steht.
+- [ ] **Schritt 3 – Pinnwand:** Sichtbarkeit je Zettel (Alle / Nur ich /
+      bestimmte Person / Gruppe) und Farbe (7 Töne), Farbe nachträglich
+      änderbar, private und persönliche Zettel nie auf dem Monitor, Leser
+      sehen nur „Alle" (Vorlagen Z1, Z2).
+- [ ] **Schritt 4 – Kachel-Inhalt wählen:** im Anordnen-Modus je
+      Kennzahl-Kachel ein ▾ mit allen Kennzahlen, die das Cockpit rechnet
+      (Termine, Quoten TPM/PitStop/R+I Monat/Jahr, Störungen 30 Tage,
+      Ausfallzeit, Anlage mit den meisten Störungen, To-dos, Erledigt diese
+      Woche, Stunden diese Woche, Jetzt da, OEE, Uhr, nächster PitStop,
+      freier Text) plus „+ Kachel hinzufügen" (Vorlage K1).
+- [ ] **Schritt 5 – Gruppen-Vorlagen der Übersicht:** Anordnen-Leiste mit
+      „Ich gestalte: diesen Rechner | Leser-Übersicht | Bearbeiter-
+      Übersicht" – die Gruppen-Vorlage liegt in der gemeinsamen Datei und
+      gilt für alle Rechner der Gruppe ohne eigene Anordnung; Zusammenspiel
+      mit Rechte-Tabelle (darf) und Rechner-Layout (weicht ab); ausgeblendete
+      Kacheln/Bereiche/Funktionen als „+ Chips" zurückholbar (Vorlage K2).
+- [ ] **Offene Fragen an Roberto (23.09.):** (a) Termin-Kachel: bei V2
+      bleiben oder V6/V7? (b) Soll „Vorrat" als Reiter im To-do-Bereich
+      leben oder als eigener Bereich, der nur ausgeblendet ist? (c) Pinnwand
+      „bestimmte Person": Zettel auch für den Verfasser sichtbar (ja, so
+      vorgesehen)? (d) Reihenfolge der Schritte wie oben (1→5) oder anders?
+
 ## Gedankenspiel „71.000 Einträge je Jahr statt je 15 Jahre" (Robertos Frage vom 21.09.)
 
 Einschätzung auf Basis der Messfahrt vom 11.09. (71.084 Einträge, 15,2 MB):
