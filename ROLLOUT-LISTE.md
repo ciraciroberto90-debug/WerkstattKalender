@@ -1084,6 +1084,46 @@ Ziele (5), Rechner-Einstellungen (6), Vorlagen und Pflichtfelder (8).
       eine eigene Fehlerart anlegen, am Hallenrechner Zoom und
       Nachtmodus-Automatik ausprobieren.
 
+## Prüfstand-Durchsicht (Robertos Frage vom 23.09.: „passt da noch alles, können wir auf etwas verzichten?") – Entscheidung offen
+
+Gemessen am 23.09. (Stoppuhr je Test, alle 81 nacheinander): **43,7 min
+Gesamtlaufzeit**, 80 grün, harte-42 in diesem Lauf rot, allein danach
+38/38 (Zeitproblem unter Last, wie harte-77 am selben Tag). Nebensuiten:
+Smoke 27/27, Sync-Fokus 17/17, Diagnose 48/48, **Veröffentlichung 7/10
+(veraltet)**, **Rollout 1 PASS + Abbruch (veraltet)**, Vorschau-Test lädt
+Dateien, die es nicht mehr gibt.
+
+- [ ] **Zeitfresser ohne Nutzen:** 26 Stellen in 18 Tests schließen
+      Dialoge mit „Schließen anklicken, Fehler verschlucken"; ist der
+      Dialog schon zu, wartet Playwright 30 s. harte-75: 409 s Laufzeit bei
+      19 s echter Wartezeit (Helfer für 13 Rechner). Vorschlag: Frist 1,5 s
+      an diesen Stellen – reine Teständerung, geschätzt 10–15 min weniger
+      (ungemessen, bis es umgesetzt ist).
+- [ ] **Verzichtbar (Vorschlag):** harte-7 (eine der drei Prüfungen ist
+      leer: `count() >= 0`, der Rest steckt in harte-8/42/75); harte-21
+      (dieselben vier Fragen wie harte-34, dort gründlicher);
+      `tests/vorschau-test.js` (Vorschau-Dateien existieren nicht mehr);
+      `tests/veroeffentlichungs-test.js` (schreibt ohne Zeitstempel am
+      Speicherweg vorbei; dieselben Fragen beantworten Sync-Fokus,
+      harte-13/14/70 grün); `tests/rollout-test.js` (Stand 20.08., kennt
+      weder Werkstatt-Wahl noch die Hauptleiste vom 10.09. – Abschnitt H
+      „Startpaket aktuell?" ist als `startpaket-bauen.js --pruefen`
+      erhalten). harte-23 (Umstieg von der Fassung vor dem 10.08.; 455 kB
+      Alt-Fassung im Repo) – nur streichen, wenn nirgends mehr ein Stand
+      von vor August läuft.
+- [ ] **Browser-Reserve statt täglich:** harte-27/28/29/30/32 prüfen
+      Nutzeraktivierung und tote Verweise des Browser-Dateizugriffs; im
+      Programm liefert die Brücke „granted" ohne Nachfrage. Vorschlag:
+      eigener Runner `run-browser-reserve.sh`, läuft vor einer Freigabe,
+      nicht bei jedem Push (zusammen 155 s).
+- [ ] **Bleiben, auch wenn teuer:** harte-40 OEE-Excel 223 s (echte
+      Excel-Datei, einzige Prüfung der Tabelle), harte-70 Doppel-Speichern
+      96 s (12 s echte Wartezeit für die Kollision), harte-41 Programm 80 s,
+      harte-33 Sieben Jahre 41 s.
+- [ ] **Wird beim To-do-Umbau (Schritt 5) sowieso angefasst:** 20 Tests
+      erwähnen den Backlog, vorneweg harte-25 (Backlog-Leiste) und
+      harte-67 (Berichte + To-do).
+
 ## Großer Umbau in Schritten (Robertos Auftrag vom 23.09.) – Vorlagen geschickt, Bau nach Freigabe je Schritt
 
 Robertos Ansage: „sehr langsam, Schritt für Schritt, übersichtlich – bei
