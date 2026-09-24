@@ -237,18 +237,15 @@ const ok = (n, c, zusatz) => {
   await p2.locator('input[aria-label="Kennwort"]').fill("Leser");
   await p2.getByRole("button", { name: "Anmelden", exact: true }).click();
   await p2.waitForTimeout(600);
-  ok("(9) Als Bearbeiter ist das Zahnrad wieder da",
-    (await p2.locator('button[aria-label="Verwalten"]').count()) === 1);
+  // Seit dem 24.09. (Robertos Ansage) bleibt das Zahnrad dem Verwalter - der
+  // Bearbeiter sieht oben rechts nur Ordner und Abmelden (harte-89 misst es).
+  ok("(9) Als Bearbeiter gibt es KEIN Zahnrad (Verwaltersache seit 24.09.), wohl aber Abmelden",
+    (await p2.locator('button[aria-label="Verwalten"]').count()) === 0 && (await p2.locator('button[aria-label="Abmelden"]').count()) === 1);
   const bearbeiterSicht = await p2.locator("body").innerText();
   ok("(9) Der Bearbeiter sieht auch den INTERNEN Pinnwand-Zettel",
     /INTERN Gehaltsrunde/.test(bearbeiterSicht) && /AUSHANG Sommerfest/.test(bearbeiterSicht));
-  await p2.locator('button[aria-label="Verwalten"]').click();
-  await p2.waitForTimeout(400);
-  await p2.getByRole("button", { name: "Team & Schichten", exact: true }).click();
-  await p2.waitForTimeout(300);
-  ok("(9) Aber die Benutzerverwaltung sieht nur der Verwalter",
-    !/Benutzer & Rechte/i.test(await p2.locator("body").innerText()));
-  await p2.getByRole("button", { name: "Abbrechen" }).first().click({ timeout: 3000 }).catch(() => {});
+  ok("(9) Die Benutzerverwaltung sieht nur der Verwalter (dem Bearbeiter fehlt schon das Zahnrad)",
+    !/Benutzer & Rechte/i.test(bearbeiterSicht));
   await p2.waitForTimeout(400);
 
   /* ---- (10) WÄCHTER: Fremde Rechteänderungen überleben jedes andere

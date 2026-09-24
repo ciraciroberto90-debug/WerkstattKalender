@@ -117,10 +117,10 @@ const ok = (n, c, zusatz) => {
     (await hauptReihe(bea0.p)).join(" · "));
   ok("(A1) Bearbeiter (Standard) sieht die rote Störungs-Kachel auf der Übersicht",
     /Offene Störungen/i.test(await bea0.p.locator("body").innerText()));
-  await bea0.p.locator('button[aria-label="Verwalten"]').click();
-  await bea0.p.waitForTimeout(400);
-  ok("(A2) GEGENPROBE: Der Bearbeiter hat weder „Personalisieren“ noch „Benutzer & Rechte“",
-    !(await hatTab(bea0.p, "Personalisieren")) && !(await hatTab(bea0.p, "Benutzer & Rechte")));
+  // Seit dem 24.09. (Robertos Ansage) hat der Bearbeiter gar kein Zahnrad mehr -
+  // Personalisieren und Benutzer & Rechte sind damit erst recht unerreichbar.
+  ok("(A2) GEGENPROBE: Der Bearbeiter hat kein Zahnrad (und damit weder „Personalisieren“ noch „Benutzer & Rechte“)",
+    (await bea0.p.locator('button[aria-label="Verwalten"]').count()) === 0 && !(await hatTab(bea0.p, "Personalisieren")) && !(await hatTab(bea0.p, "Benutzer & Rechte")));
   await bea0.ctx.close();
 
   const lea0 = await neuerRechner("Lea");
@@ -175,8 +175,11 @@ const ok = (n, c, zusatz) => {
   await bea.p.waitForTimeout(600);
   ok("(A4) Im Schichtplan ist der Bearbeiter STUMM („nur ansehen“) - obwohl er schreiben dürfte",
     /Werkstattschichtplan – nur ansehen/.test(await bea.p.locator("body").innerText()));
-  ok("(A4) Das Zahnrad bleibt dem Bearbeiter (Aktion „Verwalten“ steht auf erlaubt)",
-    (await bea.p.locator('button[aria-label="Verwalten"]').count()) === 1);
+  // Seit dem 24.09. (Robertos Ansage): oben rechts sieht ein Bearbeiter nur
+  // Ordner und Abmelden - Zahnrad, Drucken, Auge, Monitor, Import/Export gehören
+  // allein dem Verwalter, egal was die Matrix sagt (harte-89 misst es genau).
+  ok("(A4) Das Zahnrad fehlt dem Bearbeiter (Aktionen oben rechts sind seit dem 24.09. Verwaltersache)",
+    (await bea.p.locator('button[aria-label="Verwalten"]').count()) === 0 && (await bea.p.locator('button[aria-label="Abmelden"]').count()) === 1);
   await bea.ctx.close();
 
   /* ================= (A5) Zweiter Rechner: Leser ================= */

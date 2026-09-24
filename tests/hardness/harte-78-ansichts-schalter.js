@@ -14,7 +14,7 @@
 //      Bearbeiters greift (Planung ausgeblendet -> kein Untermenü Planung).
 //  (4) "Zurück zur Verwalter-Ansicht": alles wieder da.
 //  (5) Nachtmodus über das Menü schaltbar.
-//  (6) GEGENPROBE Bearbeiter: das Auge ist der Nachtschicht-Modus, kein Menü.
+//  (6) GEGENPROBE Bearbeiter: oben rechts kein Auge (seit 24.09. Verwaltersache).
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
 const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
 
@@ -78,18 +78,17 @@ const ok = (n, c, zusatz) => {
   await p.waitForTimeout(600);
   // Mit "Planung ausgeblendet" steht dem Bearbeiter statt "Werkstatt" der
   // Schichtplan direkt in der Hauptreihe (so baut es die Rechte-Matrix).
-  ok("(3) Als Bearbeiter: TPM zurück, Zahnrad da - und die Rechte-Matrix greift (Schichtplan direkt, keine Planung)",
-    (await hat(p, "TPM")) && (await p.locator('button[aria-label="Verwalten"]').count()) === 1
+  // Seit dem 24.09.: auch der simulierte Bearbeiter hat kein Zahnrad mehr -
+  // oben rechts bleiben ihm nur Ordner und Abmelden, dem Verwalter das Auge.
+  ok("(3) Als Bearbeiter: TPM zurück, KEIN Zahnrad (Verwaltersache seit 24.09.) - und die Rechte-Matrix greift (Schichtplan direkt, keine Planung)",
+    (await hat(p, "TPM")) && (await p.locator('button[aria-label="Verwalten"]').count()) === 0
     && (await hat(p, "Schichtplan")) && !(await hat(p, "Werkstatt")) && !(await hat(p, "Planung")));
   await tab(p, "Schichtplan").click();
   await p.waitForTimeout(400);
   ok("(3) Der Schichtplan öffnet sich für den simulierten Bearbeiter", /Werkstattschichtplan/.test(await p.locator("body").innerText()));
-  await p.locator('button[aria-label="Verwalten"]').click();
-  await p.waitForTimeout(400);
-  ok("(3) Im Zahnrad fehlen „Benutzer & Rechte“ und „Personalisieren“ - wie beim echten Bearbeiter",
-    !(await hat(p, "Benutzer & Rechte")) && !(await hat(p, "Personalisieren")) && (await hat(p, "Team & Schichten")));
-  await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape"));
-  await p.waitForTimeout(300);
+  ok("(3) Das Auge bleibt dem Verwalter auch in der Bearbeiter-Ansicht; Drucken, Monitor, Import/Export sind weg",
+    (await p.locator('button[aria-label="Ansicht wechseln"]').count()) === 1 && (await p.locator('button[aria-label="Drucken"]').count()) === 0
+    && (await p.locator('button[aria-label="Werkstatt-Monitor"]').count()) === 0 && (await p.locator('button[aria-label="Export"]').count()) === 0);
 
   /* ---- (4) Zurück ---- */
   await p.locator('button[aria-label="Zurück zur Verwalter-Ansicht"]').click();
@@ -112,8 +111,10 @@ const ok = (n, c, zusatz) => {
 
   /* ---- (6) Bearbeiter: Auge = Nachtmodus ---- */
   const b = await seite("Bea");
-  ok("(6) GEGENPROBE Bearbeiter: das Auge ist der Nachtschicht-Modus, kein Ansichts-Menü",
-    (await b.p.locator('button[aria-label="Nachtschicht-Modus"]').count()) === 1 && (await b.p.locator('button[aria-label="Ansicht wechseln"]').count()) === 0);
+  // Seit dem 24.09. hat der Bearbeiter oben rechts gar kein Auge mehr (nur
+  // Ordner und Abmelden) - der Nachtmodus ist Verwaltersache (Gerät/Auge-Menü).
+  ok("(6) GEGENPROBE Bearbeiter: kein Auge oben rechts - weder Nachtmodus noch Ansichts-Menü",
+    (await b.p.locator('button[aria-label="Nachtschicht-Modus"]').count()) === 0 && (await b.p.locator('button[aria-label="Ansicht wechseln"]').count()) === 0);
   await b.ctx.close();
 
   await browser.close();

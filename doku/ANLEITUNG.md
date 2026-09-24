@@ -504,6 +504,29 @@ Störungen, nicht den Rest.
   Budget"). Ohne Budget zeigt die Kosten-Kachel „Abstimmung Einkauf".
   Nebenbei: Alle Zahl- und Halbkreis-Kacheln der Übersicht tragen den Titel
   jetzt oben und stehen mittig – so wirkt die Reihe wie aus einem Guss.
+- **Kachel-Größe ziehen (seit dem 24.09.):** Im Anordnen-Modus hat jede
+  Kennzahl-Kachel unten rechts dieselbe Ecke wie die Pop-out-Fenster. Ziehen
+  macht die Kachel breiter (bis 4 Spalten) oder höher (bis 3 Reihen), sie
+  rastet auf ganze Rasterfelder, die Nachbarn rücken nach. Höhere Kacheln
+  zeigen Bogen und Zahl größer. Ohne Maus: im ▾-Menü die Chips **Größe 1×1
+  … 4×2**, im Zahnrad die Spalte **Größe** der Kachel-Tabelle (auch für die
+  Leser- und Bearbeiter-Vorlage).
+- **Termin-Archiv als Aufklapper (seit dem 24.09.):** Die eine Zeile
+  „Termin-Archiv" in der Tagesliste sammelt alles Versäumte: das rote Schild
+  nennt die **liegengebliebenen** Termine (bis eine Woche), rechts steht das
+  Ältere („über eine Woche versäumt", bis 30 Tage). Ein Klick klappt die
+  Termine darunter auf – zuerst Liegengeblieben, dann PitStop und R+I mit
+  „vor N Tagen"; ein Klick auf einen Termin öffnet ihn zum Erledigen oder
+  Verschieben (Leser: nur ansehen). Liegengebliebenes steht damit nicht mehr
+  offen in der Tagesliste, der Dialog von früher ist weg.
+- **Kopfzeile oben rechts nur für den Verwalter (seit dem 24.09.):**
+  Bearbeiter und Leser sehen dort nur noch das **Ordner-Symbol** (gemeinsame
+  Datei) und **Abmelden**. Drucken, das Auge (Ansicht / Nachtmodus), das
+  Zahnrad, der Werkstatt-Monitor und Import/Export gehören allein dem
+  Verwalter – in der Rechte-Tabelle stehen diese vier Aktionen fest auf „nur
+  Verwalter", eine ältere Einstellung in der Datei zieht nicht mehr. Der
+  Kiosk-Rechner (`?monitor=1`) behält seinen Monitor-Knopf. „Störung melden"
+  bleibt wie gehabt je Gruppe wählbar.
 - **Werkstatt-Monitor als Tafel (seit dem 23.09.):** Im ⚙ unter „Monitor"
   gibt es das Häkchen **„Monitor zeigt die Übersicht (Tafel)"**. Dann läuft
   auf dem Hallenbildschirm statt der Karten die Übersicht in der

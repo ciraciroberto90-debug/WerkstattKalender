@@ -604,7 +604,9 @@ function MonatsDiagramm({ tage, monatName, jahr, erledigt, basis, prozent, filte
 
 // kopf (Whiteboard 23.09.): die Beschriftung steht ÜBER dem Bogen - so sind
 // alle Kacheln der Übersicht gleich gebaut (Titel · Halbkreis · Soll/Ist).
-function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null, kennzeichen = null, kopf = false }) {
+// skala (24.09.): größere Kachel, größerer Bogen - 1 = wie immer, 1,5 / 2 bei
+// doppelt bzw. dreifach hohen Kacheln (kachelSkala).
+function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null, kennzeichen = null, kopf = false, skala = 1 }) {
   const hatWert = prozent !== null && prozent !== undefined;
   // Zielwert (⚙ Regeln & Listen): liegt die Quote darunter, wird der Bogen
   // orange statt grün - nur für Aufrufer ohne eigene Farben (die Übersicht).
@@ -646,8 +648,8 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
     >
       {/* Bewusst ohne CSS-Großschreibung: innerText trüge sie mit, und die
           Prüfstände lesen die Kacheltitel im Klartext ("Heute fällig"). */}
-      {kopf && <div className="font-bold" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: "6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>}
-      <svg viewBox="0 0 84 50" style={{ width: kopf ? "100px" : "80px", height: kopf ? "59px" : "47px", display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
+      {kopf && <div className="font-bold" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: `${6 * skala}px`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>}
+      <svg viewBox="0 0 84 50" style={{ width: `${(kopf ? 100 : 80) * skala}px`, height: `${(kopf ? 59 : 47) * skala}px`, display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor={gruenHell} />
@@ -680,7 +682,7 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
       {!kopf && <div className="font-semibold" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: "var(--wk-txt-etikett)", lineHeight: 1.15 }}>{label}</div>}
       {/* Der Zeitraum stand bisher in 0,58 rem Hellgrau und war praktisch unsichtbar -
           man sah zwei gleich beschriftete Halbkreise und wusste nicht, welcher welcher ist. */}
-      {sub && <div style={{ color: dunkel ? "#fff" : "#22262B", fontSize: "0.76rem", fontWeight: kopf ? 600 : 800, lineHeight: 1.25, marginTop: kopf ? "4px" : 0 }}>{sub}</div>}
+      {sub && <div style={{ color: dunkel ? "#fff" : "#22262B", fontSize: `${0.76 * skala}rem`, fontWeight: kopf ? 600 : 800, lineHeight: 1.25, marginTop: kopf ? `${4 * skala}px` : 0 }}>{sub}</div>}
     </div>
   );
 }
@@ -694,6 +696,7 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
    gerechnet - so bleibt die Kachel eine reine Anzeige und ist leicht zu prüfen. */
 function KennzahlKachel({ def, d }) {
   const akzent = d.akzent || "#CBD1D8";
+  const skala = kachelSkala(def);
   const karte = (inhalt, extraStyle, mittig = false) => (
     <div className={mittig ? "wk-karte px-3.5 py-3 flex flex-col justify-start items-center text-center" : "wk-karte px-4 py-3.5 flex flex-col justify-center"} data-kachel-inhalt={def.inhalt} data-kachel-form={def.form} style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)`, ...(extraStyle || {}) }} title={d.titel || ""}>
       {inhalt}
@@ -702,8 +705,8 @@ function KennzahlKachel({ def, d }) {
   const etikett = (t) => <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{t}</div>;
   // Kopfzeile der Zahl- und Halbkreis-Kacheln (Whiteboard 23.09.): gleiche
   // Schrift wie der Halbkreis-Kopf, damit die Reihe "eine Sprache" spricht.
-  const kopfzeile = (t) => <div className="font-bold" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: "6px", maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</div>;
-  const unterzeile = (t) => (t ? <div style={{ fontSize: "0.68rem", color: "#8A9099", marginTop: "2px" }}>{t}</div> : null);
+  const kopfzeile = (t) => <div className="font-bold" style={{ color: "#6B7480", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: `${6 * skala}px`, maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</div>;
+  const unterzeile = (t) => (t ? <div style={{ fontSize: `${0.68 * skala}rem`, color: "#8A9099", marginTop: "2px" }}>{t}</div> : null);
   const delta = d.delta && d.delta.text ? (
     <span className="font-black" style={{ fontSize: "0.7rem", color: d.delta.gut === null ? "#8A9099" : d.delta.gut ? "#2F7D4F" : "#B23A34", marginLeft: "6px" }}>{d.delta.text}</span>
   ) : null;
@@ -711,7 +714,7 @@ function KennzahlKachel({ def, d }) {
     // Der Halbkreis bringt seine eigene Karte mit - das Kennzeichen (Inhalt/
     // Form) hängt direkt an ihr, damit die Kachel im Raster ein echtes Kind
     // bleibt (harte-40 misst die Kachelmaße über die Raster-Kinder).
-    return <HalbkreisQuote prozent={d.prozent} label={d.kurz || d.label || ""} sub={d.sub || ""} titel={d.titel || ""} farben={d.farben || null} kennzeichen={{ inhalt: def.inhalt }} kopf />;
+    return <HalbkreisQuote prozent={d.prozent} label={d.kurz || d.label || ""} sub={d.sub || ""} titel={d.titel || ""} farben={d.farben || null} kennzeichen={{ inhalt: def.inhalt }} kopf skala={skala} />;
   }
   if (def.form === "verlauf") {
     const punkte = Array.isArray(d.verlauf) ? d.verlauf : [];
@@ -760,7 +763,7 @@ function KennzahlKachel({ def, d }) {
   // Nebenzeile in der Reihe auf gleicher Höhe liegen wie bei den Bögen.
   return karte(<>
     {kopfzeile(<>{d.label}{delta}</>)}
-    <div className="font-extrabold flex items-center justify-center" style={{ minHeight: "59px", fontSize: lang ? "1.15rem" : "2.1rem", lineHeight: 1.05, letterSpacing: lang ? 0 : "-1.6px", fontVariantNumeric: "tabular-nums", color: d.farbe || "#22262B", wordBreak: "break-word" }}>{gross}</div>
+    <div className="font-extrabold flex items-center justify-center" style={{ minHeight: `${59 * skala}px`, fontSize: `${(lang ? 1.15 : 2.1) * skala}rem`, lineHeight: 1.05, letterSpacing: lang ? 0 : "-1.6px", fontVariantNumeric: "tabular-nums", color: d.farbe || "#22262B", wordBreak: "break-word" }}>{gross}</div>
     {unterzeile(d.sub)}
   </>, null, true);
 }
@@ -1601,22 +1604,27 @@ const RECHTE_BEREICHE = [
   ["PINNWAND", "Pinnwand", "auf der Übersicht – Leser sehen nur veröffentlichte Zettel", "bereich", "sehen"],
   ["LINKS", "Links & Dokumente", "Linkstreifen auf der Übersicht", "bereich", "sehen"],
   ["MELDEN", "Störung melden", "neuen Störbericht erfassen – auch ohne Schreibrecht im Bereich", "aktion", "sehen"],
-  ["DRUCKEN", "Drucken", "Drucken-Knopf oben rechts", "aktion", "sehen"],
-  ["MONITOR", "Werkstatt-Monitor", "Vollbild-Knopf oben rechts", "aktion", "sehen"],
-  ["DATEN", "Datensicherung", "Import/Export oben rechts", "aktion", "aus"],
-  ["ZAHNRAD", "Verwalten (⚙)", "Anlagen, Team, Kostenstellen, OEE, Monitor – Benutzer & Rechte bleiben Verwaltersache", "aktion", "aus"],
+  // Seit dem 24.09. (Robertos Ansage) nur noch Verwaltersache - die Zeilen
+  // bleiben in der Tabelle stehen, damit man sieht, dass es so gewollt ist.
+  ["DRUCKEN", "Drucken", "Drucken-Knopf oben rechts – nur Verwalter", "aktion", "aus"],
+  ["MONITOR", "Werkstatt-Monitor", "Vollbild-Knopf oben rechts – nur Verwalter (und der Kiosk-Rechner ?monitor=1)", "aktion", "aus"],
+  ["DATEN", "Datensicherung", "Import/Export oben rechts – nur Verwalter", "aktion", "aus"],
+  ["ZAHNRAD", "Verwalten (⚙)", "Anlagen, Team, Kostenstellen, OEE, Monitor, Benutzer & Rechte – nur Verwalter", "aktion", "aus"],
 ];
+// Aktionen, die seit dem 24.09. allein dem Verwalter gehören - egal, was eine
+// ältere Rechte-Matrix in der gemeinsamen Datei noch sagt.
+const NUR_VERWALTER_AKTIONEN = ["DRUCKEN", "MONITOR", "DATEN", "ZAHNRAD"];
 // Standard = das Verhalten vor dem 21.09., damit ein Update nichts verändert.
 const RECHTE_STANDARD = {
   bearbeiter: {
     SCHICHTPLAN: "bearbeiten", PLANUNG: "bearbeiten", TODO: "bearbeiten", STOERUNGEN: "bearbeiten", BACKLOG: "bearbeiten",
     ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten",
-    MELDEN: "sehen", DRUCKEN: "sehen", MONITOR: "sehen", DATEN: "sehen", ZAHNRAD: "sehen",
+    MELDEN: "sehen", DRUCKEN: "aus", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
   leser: {
     SCHICHTPLAN: "sehen", PLANUNG: "aus", TODO: "sehen", STOERUNGEN: "bearbeiten", BACKLOG: "aus",
     ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus",
-    MELDEN: "sehen", DRUCKEN: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
+    MELDEN: "sehen", DRUCKEN: "aus", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
 };
 const RECHTE_STUFEN = ["aus", "sehen", "bearbeiten"];
@@ -1628,6 +1636,7 @@ function normalisiereRechte(roh) {
     for (const [key, , , art, leserMax] of RECHTE_BEREICHE) {
       let s = RECHTE_STUFEN.includes(quelle[key]) ? quelle[key] : RECHTE_STANDARD[gruppe][key];
       if (art === "aktion" && s === "bearbeiten") s = "sehen";
+      if (NUR_VERWALTER_AKTIONEN.includes(key)) s = "aus";
       // Leser: nie über die erlaubte Höchststufe hinaus (Nur-Leser bleibt Nur-Leser)
       if (gruppe === "leser" && RECHTE_STUFEN.indexOf(s) > RECHTE_STUFEN.indexOf(leserMax)) s = leserMax;
       out[gruppe][key] = s;
@@ -1758,8 +1767,18 @@ function normalisiereKachelDef(roh, standard) {
   const form = formen.includes(q.form) ? q.form : (formen.includes((standard || {}).form) && (standard || {}).inhalt === id ? standard.form : formen[0]);
   const zeitraum = zeitraeume ? (zeitraeume.includes(q.zeitraum) ? q.zeitraum : standardZeitraum) : "";
   const text = id === "text" ? String(q.text || "").slice(0, 120) : "";
-  return { inhalt: id, form, zeitraum, text };
+  // Größe in Rasterfeldern (Robertos Wunsch 24.09.: "wie bei den Pop-outs
+  // ziehen, die Kacheln passen sich an"): Breite 1-4 Spalten, Höhe 1-3 Reihen.
+  const breite = zahlOder(q.breite, 1, 1, KACHEL_MAX_BREITE);
+  const hoehe = zahlOder(q.hoehe, 1, 1, KACHEL_MAX_HOEHE);
+  return { inhalt: id, form, zeitraum, text, breite, hoehe };
 }
+const KACHEL_MAX_BREITE = 4, KACHEL_MAX_HOEHE = 3;
+// Vorgeschlagene Größen im ▾-Menü und in der Zahnrad-Tabelle (Breite × Höhe)
+const KACHEL_GROESSEN = [[1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2], [4, 2]];
+// Inhalt wächst mit der Höhe: eine doppelt hohe Kachel zeigt Bogen und Zahl
+// anderthalbfach, eine dreifach hohe doppelt. Breite allein gibt nur Luft.
+const kachelSkala = (def) => (def && def.hoehe >= 3 ? 2 : def && def.hoehe >= 2 ? 1.5 : 1);
 function normalisiereUebersichtLayout(roh) {
   const bloecke = {};
   // Alte Bausteine: fehlend heißt an. Neue (Einkauf): fehlend heißt aus.
@@ -3194,7 +3213,14 @@ function App() {
     const s = e && e.sichtbarFuer ? e.sichtbarFuer : "alle";
     return s === "alle" || (s === "bearbeiter" && meineGruppe !== "leser") || (s === "verwalter" && meineGruppe === "verwalter");
   };
-  const stufeRoh = (key) => (rechteGruppe ? rechte[rechteGruppe][key] : (readerMode ? RECHTE_STANDARD.leser[key] : RECHTE_STANDARD.bearbeiter[key]));
+  // Ohne Gruppe (Verwalter oder keine Benutzerliste): mit Schreibrecht die
+  // Bearbeiter-Vorgabe plus die Nur-Verwalter-Aktionen; im Schreibschutz die
+  // Leser-Vorgabe, Drucken bleibt wie vor dem 24.09. erlaubt.
+  const stufeRoh = (key) => {
+    if (rechteGruppe) return rechte[rechteGruppe][key];
+    if (readerMode) return key === "DRUCKEN" ? "sehen" : RECHTE_STANDARD.leser[key];
+    return NUR_VERWALTER_AKTIONEN.includes(key) ? "sehen" : RECHTE_STANDARD.bearbeiter[key];
+  };
   const stufeFuer = (key) => {
     const s = stufeRoh(key);
     return readerMode && s === "bearbeiten" ? "sehen" : s;
@@ -8697,7 +8723,12 @@ function App() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
-          {druckAngebot() && erlaubt("DRUCKEN") && (
+          {/* Kopfzeile oben rechts (Robertos Ansage vom 24.09.): Für Bearbeiter
+              und Leser bleiben nur Ordner und Abmelden - Drucken, Auge, Zahnrad,
+              Monitor und Datensicherung sieht allein der Verwalter (auch in der
+              simulierten Ansicht verschwinden sie, das Auge bleibt ihm). Der
+              Kiosk-Monitor (?monitor=1) ist die eine Ausnahme. */}
+          {istVerwalter && druckAngebot() && erlaubt("DRUCKEN") && (
             <button
               /* Ein Knopf an einer Stelle - oben rechts, in jedem Bereich, in
                  dem es etwas zu drucken gibt. Was genau, wird im Dialog
@@ -8758,19 +8789,8 @@ function App() {
                 </>
               )}
             </div>
-          ) : (
-          <button
-            onClick={() => setNachtModus((n) => !n)}
-            className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: nachtModus ? "#C97A2B" : "#4B5259" }}
-            title={nachtModus ? "Nachtschicht-Modus ausschalten" : "Nachtschicht-Modus (dunkle Darstellung)"}
-            aria-label="Nachtschicht-Modus"
-            aria-pressed={nachtModus}
-          >
-            <Eye size={14} />
-          </button>
-          )}
-          {!readerMode && erlaubt("ZAHNRAD") && (
+          ) : null}
+          {istVerwalter && !readerMode && erlaubt("ZAHNRAD") && (
             <button
               onClick={openSettings}
               className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
@@ -8781,7 +8801,7 @@ function App() {
               <Settings size={14} />
             </button>
           )}
-          {(kioskMonitor || leserSicher("MONITOR")) && (
+          {(kioskMonitor || (istVerwalter && leserSicher("MONITOR"))) && (
             <button
               onClick={() => setMonitorOpen(true)}
               className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
@@ -8792,7 +8812,7 @@ function App() {
               <Tv size={14} />
             </button>
           )}
-          {!readerMode && erlaubt("DATEN") && (
+          {istVerwalter && !readerMode && erlaubt("DATEN") && (
             <>
               <button
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
@@ -10809,7 +10829,9 @@ function App() {
               onDrop={(ev) => { ev.stopPropagation(); drop(ev); }}
               data-anordnen={k}
               aria-label={`Kachel ${titel}`}
-              style={{ position: "relative", border: "2px dashed #C97A2B", borderRadius: "12px", padding: "28px 6px 6px", marginBottom: art === "abschnitt" ? "16px" : 0, backgroundColor: "rgba(201,122,43,0.05)", cursor: "grab", gridColumn: extra.span }}
+              style={{ position: "relative", border: "2px dashed #C97A2B", borderRadius: "12px", padding: "28px 6px 6px", marginBottom: art === "abschnitt" ? "16px" : 0, backgroundColor: "rgba(201,122,43,0.05)", cursor: "grab", gridColumn: extra.span, gridRow: extra.rowSpan,
+                // Kachel-Rahmen: Inhalt füllt den Rahmen auch bei doppelter Höhe
+                ...(art === "kachel" ? { display: "flex", flexDirection: "column" } : {}) }}
             >
               <div className="flex items-center gap-1" style={{ position: "absolute", top: "4px", left: "8px", right: "6px", fontSize: "0.66rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.4px", color: "#A25E14" }}>
                 <span className="truncate">⠿ {extra.anzeige || titel}</span>
@@ -10830,7 +10852,20 @@ function App() {
               {/* Kachel-Wahl (23.09., Vorlage K1): das ▾ im Griff klappt die
                   gruppierte Kennzahl-Liste samt Darstellung und Zeitraum auf. */}
               {extra.menue}
-              <div style={extra.durchlaessig ? undefined : { pointerEvents: "none", userSelect: "none" }}>{inhalt}</div>
+              <div style={{ ...(extra.durchlaessig ? {} : { pointerEvents: "none", userSelect: "none" }), ...(art === "kachel" ? { flex: 1, display: "grid" } : {}) }}>{inhalt}</div>
+              {/* Größe ziehen (24.09.): dieselbe Ecke wie an den Pop-out-Fenstern.
+                  Die Kachel rastet auf ganze Spalten und Reihen, die Nachbarn
+                  rücken nach. Tastatur/Klick: die Größen-Chips im ▾-Menü. */}
+              {extra.groesse && (
+                <div
+                  onPointerDown={extra.groesse}
+                  draggable={false}
+                  data-groesse-griff={k}
+                  aria-hidden="true"
+                  title="Größe ändern – Ecke ziehen (rastet auf Spalten und Reihen)"
+                  style={{ position: "absolute", right: 0, bottom: 0, width: "20px", height: "20px", cursor: "nwse-resize", touchAction: "none", background: "linear-gradient(135deg, transparent 50%, #C97A2B 50%)", borderBottomRightRadius: "10px", zIndex: 2 }}
+                />
+              )}
             </div>
           );
         };
@@ -10889,6 +10924,40 @@ function App() {
           setUebersichtLayout({ ...uebersichtLayout, kacheln: uebersichtLayout.kacheln.filter((x) => x !== k), kachelDef: rest, vorlage: "eigene" });
         };
         const kachelSichtbar = (k) => (KACHEL_BLOCK[k] ? !!zeig[KACHEL_BLOCK[k]] : true);
+        // Rasterfelder der Kachel (Breite × Höhe) als grid-span - für die
+        // Anzeige und für den Anordnen-Rahmen gleich.
+        const kachelSpan = (k) => {
+          const def = uebersichtLayout.kachelDef[k] || {};
+          return { span: def.breite > 1 ? `span ${def.breite}` : undefined, rowSpan: def.hoehe > 1 ? `span ${def.hoehe}` : undefined };
+        };
+        /* Größe ziehen (Robertos Wunsch 24.09., "wie bei unseren Pop-outs"):
+           Ecke fassen, ziehen, die Kachel rastet auf ganze Spalten/Reihen des
+           Rasters, gespeichert wird jede Raststufe sofort - so sieht man beim
+           Ziehen, wie die Nachbarn nachrücken. Spaltenbreite kommt aus dem
+           echten Raster, Reihenhöhe aus der Kachel selbst (Höhe / Reihen). */
+        const kachelGroesseZiehen = (ev, k) => {
+          if (ev.button !== undefined && ev.button !== 0) return;
+          ev.preventDefault(); ev.stopPropagation();
+          const rahmenEl = ev.currentTarget.closest("[data-anordnen]");
+          const raster = rahmenEl && rahmenEl.parentElement;
+          if (!rahmenEl || !raster) return;
+          const def = uebersichtLayout.kachelDef[k] || { breite: 1, hoehe: 1 };
+          const r = rahmenEl.getBoundingClientRect();
+          const spalten = getComputedStyle(raster).gridTemplateColumns.split(" ").length || 1;
+          const luecke = parseFloat(getComputedStyle(raster).columnGap) || 10;
+          const spaltenBreite = (raster.getBoundingClientRect().width + luecke) / spalten;
+          const reihenHoehe = r.height / (def.hoehe || 1);
+          const x0 = ev.clientX, y0 = ev.clientY;
+          let zuletzt = { b: def.breite || 1, h: def.hoehe || 1 };
+          const move = (e) => {
+            const b = Math.min(KACHEL_MAX_BREITE, Math.max(1, Math.round((r.width + (e.clientX - x0)) / spaltenBreite)));
+            const h = Math.min(KACHEL_MAX_HOEHE, Math.max(1, Math.round((r.height + (e.clientY - y0)) / reihenHoehe)));
+            if (b !== zuletzt.b || h !== zuletzt.h) { zuletzt = { b, h }; setKachelDef(k, { breite: b, hoehe: h }); }
+          };
+          const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", up);
+        };
         // ▾ im Griff (Vorlage K1, Robertos Bild vom 23.09.): EIN Knopf, die
         // Liste aller Kennzahlen gruppiert, rechts der Zeitraum als Hinweis;
         // oben Darstellung und Zeitraum als Chips. Ein Klick auf eine Kennzahl
@@ -10933,6 +11002,15 @@ function App() {
                   ))}
                 </div>
               )}
+              {/* Größe (24.09.): Breite × Höhe in Rasterfeldern - der Klick-Weg
+                  neben dem Ziehen an der Ecke. */}
+              <div className="flex items-center gap-1 flex-wrap px-1.5 pb-1.5" style={{ borderBottom: "1px solid #F0F2F4" }}>
+                <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#8A9099", marginRight: "2px" }}>Größe</span>
+                {KACHEL_GROESSEN.map(([b, h]) => {
+                  const an = def.breite === b && def.hoehe === h;
+                  return <button key={`${b}x${h}`} role="menuitemradio" aria-checked={an} aria-label={`Größe ${b}×${h}`} title={`${b} Spalte${b > 1 ? "n" : ""} breit, ${h} Reihe${h > 1 ? "n" : ""} hoch`} onClick={() => setKachelDef(k, { breite: b, hoehe: h })} style={chip(an)}>{b}×{h}</button>;
+                })}
+              </div>
               {def.inhalt === "text" && (
                 <div className="px-1.5 pt-1.5 pb-1">
                   <input value={def.text || ""} aria-label={`Text ${kachelTitel(k)}`} placeholder="Text der Kachel …" onChange={(e) => setKachelDef(k, { text: e.target.value })} className="w-full border rounded px-2 py-1" style={{ fontSize: "0.75rem", borderColor: "#D6D9DC" }} />
@@ -10969,8 +11047,11 @@ function App() {
           <div className="grid gap-2.5 mb-4 auto-rows-fr" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
             {uebersichtLayout.kacheln.map((k) => {
               if (!kachelSichtbar(k)) return null;
-              if (!bearbeiten) return <React.Fragment key={k}>{kachelInhalt(k)}</React.Fragment>;
-              return rahmen("kachel", k, kachelTitel(k), kachelInhalt(k), uebersichtLayout.kacheln, setKacheln, { aus: () => kachelWeg(k), kopf: kachelKnopf(k), menue: kachelMenueFuer(k), anzeige: `Kachel ${uebersichtLayout.kacheln.indexOf(k) + 1}` });
+              const { span, rowSpan } = kachelSpan(k);
+              // Hülle als Ein-Feld-Raster: die Kachel füllt ihre Spalten und
+              // Reihen ganz aus (harte-40 misst die Breite an dieser Hülle).
+              if (!bearbeiten) return <div key={k} data-kachel-huelle={k} style={{ display: "grid", gridColumn: span, gridRow: rowSpan }}>{kachelInhalt(k)}</div>;
+              return rahmen("kachel", k, kachelTitel(k), kachelInhalt(k), uebersichtLayout.kacheln, setKacheln, { aus: () => kachelWeg(k), kopf: kachelKnopf(k), menue: kachelMenueFuer(k), anzeige: `Kachel ${uebersichtLayout.kacheln.indexOf(k) + 1}`, span, rowSpan, groesse: (ev) => kachelGroesseZiehen(ev, k) });
             })}
             {bearbeiten && (
               <button
@@ -11243,43 +11324,76 @@ function App() {
                 </button>
               ))}
 
-              {ueberfaellige.length > 0 && (
-                <>
-                  <div className="text-xs font-extrabold uppercase tracking-wide mt-4 mb-2" style={{ color: "#B23A34" }}>Liegengeblieben ({ueberfaellige.length})</div>
-                  {ueberfaellige.slice(0, 8).map((e) => (
-                    <button
-                      key={e.id}
-                      onClick={() => openEditModal(e)}
-                      className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
-                      style={{ backgroundColor: "#FDF6F5", boxShadow: "inset 3px 0 0 0 #B23A34, var(--wk-schatten)" }}
-                    >
-                      <span style={{ width: "20px", height: "20px", borderRadius: "7px", border: "2px solid #C3C7CB", backgroundColor: "white", flexShrink: 0 }} />
-                      <span className={`wk-chip wk-chip-${String(e.category).toLowerCase()}`}>{CATS[e.category].label}</span>
-                      <strong className="flex-1" style={{ fontSize: "var(--wk-txt)" }}>{e.name}</strong>
-                      <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#B23A34" }}>{formatDateDE(e.date)}</span>
-                    </button>
-                  ))}
-                  {ueberfaellige.length > 8 && <div className="text-xs text-slate-400">… und {ueberfaellige.length - 8} weitere (siehe TPM → Auswertung)</div>}
-                </>
-              )}
-              {/* Was länger als eine Woche versäumt ist, liegt im Archiv -
-                  die Übersicht bleibt frei für das, was jetzt zählt.
+              {/* Termin-Archiv als Aufklapper (Robertos Wunsch vom 24.09.): EINE
+                  Zeile sammelt alles Versäumte - Liegengebliebenes (bis eine
+                  Woche) und das Archiv (älter, bis 30 Tage). Ein Klick klappt
+                  die Termine darunter auf. Vorher stand Liegengebliebenes offen
+                  in der Tagesliste und das Archiv in einem eigenen Dialog.
                   Seit dem 24.08. sehen auch LESER das Archiv (nur ansehen) -
-                  Robertos Ansage aus dem Betrieb: sonst listet sich
-                  Versäumtes bei ihnen ohne Ausweg auf. Nach 30 Tagen
-                  räumt sich das Archiv von selbst. */}
-              {terminArchiv.length > 0 && (
-                <button
-                  onClick={() => setTerminArchivOffen(true)}
-                  className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mt-2 text-left"
-                  style={{ backgroundColor: "#F5F6F8", boxShadow: "inset 3px 0 0 0 #8A9099, var(--wk-schatten)" }}
-                  aria-label="Termin-Archiv öffnen"
-                >
-                  <span style={{ fontSize: "0.95rem" }}>🗄</span>
-                  <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", color: "#5B6572" }}>Termin-Archiv</strong>
-                  <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099" }}>{terminArchiv.length} über eine Woche versäumt</span>
-                </button>
-              )}
+                  sonst listete sich Versäumtes bei ihnen ohne Ausweg auf.
+                  Nach 30 Tagen räumt sich das Archiv von selbst. */}
+              {(ueberfaellige.length > 0 || terminArchiv.length > 0) && (() => {
+                const liegen = ueberfaellige.length > 0;
+                const karte = (e, hintergrund, rest) => (
+                  <button
+                    key={e.id}
+                    onClick={() => { if (readerMode) return; openEditModal(e); }}
+                    disabled={readerMode}
+                    className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
+                    style={{ backgroundColor: hintergrund, boxShadow: `inset 3px 0 0 0 ${liegen && rest === null ? "#B23A34" : "#8A9099"}, var(--wk-schatten)`, cursor: readerMode ? "default" : "pointer" }}
+                  >
+                    <span style={{ width: "20px", height: "20px", borderRadius: "7px", border: "2px solid #C3C7CB", backgroundColor: "white", flexShrink: 0 }} />
+                    <span className={`wk-chip wk-chip-${String(e.category).toLowerCase()}`}>{CATS[e.category].label}</span>
+                    <strong className="flex-1" style={{ fontSize: "var(--wk-txt)" }}>{e.name}</strong>
+                    <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#B23A34" }}>{formatDateDE(e.date)}</span>
+                    {rest !== null && <span style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099", whiteSpace: "nowrap" }}>vor {rest} Tagen</span>}
+                  </button>
+                );
+                const tageSeit = (e) => Math.round((new Date(todayKey + "T00:00:00") - new Date(e.date + "T00:00:00")) / 86400000);
+                return (
+                  <>
+                    <button
+                      onClick={() => setTerminArchivOffen(!terminArchivOffen)}
+                      className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mt-3 text-left"
+                      style={{ backgroundColor: liegen ? "#FDF6F5" : "#F5F6F8", boxShadow: `inset 3px 0 0 0 ${liegen ? "#B23A34" : "#8A9099"}, var(--wk-schatten)` }}
+                      aria-label="Termin-Archiv öffnen"
+                      aria-expanded={terminArchivOffen}
+                      title={terminArchivOffen ? "Zuklappen" : "Aufklappen: liegengebliebene und versäumte Termine"}
+                    >
+                      <span style={{ fontSize: "0.95rem" }}>🗄</span>
+                      <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", color: "#5B6572" }}>Termin-Archiv</strong>
+                      {liegen && <span className="rounded-full font-bold text-white" style={{ backgroundColor: "#B23A34", fontSize: "0.66rem", padding: "2px 9px", whiteSpace: "nowrap" }}>{ueberfaellige.length} liegengeblieben</span>}
+                      <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099" }}>{terminArchiv.length} über eine Woche versäumt</span>
+                      <span aria-hidden="true" style={{ color: "#8A9099", fontSize: "0.8rem" }}>{terminArchivOffen ? "▴" : "▾"}</span>
+                    </button>
+                    {terminArchivOffen && (
+                      <div role="region" aria-label="Termin-Archiv" className="mt-2 px-3 pt-2.5 pb-1 rounded-xl" style={{ backgroundColor: "#F9FAFB", border: "1px solid #E7EAEE" }}>
+                        <div className="text-xs mb-2.5" style={{ color: "#8A9099" }}>
+                          Liegengebliebenes bleibt eine Woche hier vorn, danach steht es unter „über eine Woche versäumt". Alles bleibt offen und zählt im Prüfnachweis
+                          weiter als versäumt{readerMode ? "" : " – ein Klick öffnet den Termin zum Erledigen oder Verschieben"}.
+                          Nach <strong>30 Tagen</strong> verschwindet es aus diesem Archiv – nachvollziehbar bleibt es in der TPM-Auswertung und auf den gedruckten Blättern.
+                        </div>
+                        {liegen && (
+                          <>
+                            <div className="text-[11px] font-black uppercase tracking-wide mb-2" style={{ color: "#B23A34" }}>Liegengeblieben ({ueberfaellige.length}) · bis eine Woche</div>
+                            {ueberfaellige.map((e) => karte(e, "#FDF6F5", null))}
+                          </>
+                        )}
+                        {[["TPM", "PitStop – geplante Wartung"], ["RI", "R+I – Rundgang & Inspektion"]].map(([kat, titel]) => {
+                          const liste = terminArchiv.filter((e) => e.category === kat);
+                          if (liste.length === 0) return null;
+                          return (
+                            <div key={kat}>
+                              <div className="text-[11px] font-black uppercase tracking-wide mb-2 mt-1" style={{ color: "#8A9099" }}>{titel} ({liste.length}) · über eine Woche</div>
+                              {liste.map((e) => karte(e, "#F3F4F6", tageSeit(e)))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               </>
             );
             const schichtLabel = { FRUEH: "Früh", SPAET: "Spät", NACHT: "Nacht" };
@@ -11611,7 +11725,8 @@ function App() {
         const spaltenTitel = { tagesliste: "Tagesliste", pinnwand: "Pinnwand" };
         const beide = !!(spalten.tagesliste && spalten.pinnwand) && !dreier;
         abschnitt.hauptzeile = (spalten.tagesliste || (spalten.pinnwand && !dreier)) && (
-          <div className="grid gap-4" style={{ gridTemplateColumns: beide ? (uebersichtLayout.tausch ? "1fr 1.05fr" : "1.05fr 1fr") : "1fr" }}>
+          // mb-4 wie jeder andere Abschnitt - sonst klebt die untere Zeile am Termin-Archiv (Robertos Fund 24.09.)
+          <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: beide ? (uebersichtLayout.tausch ? "1fr 1.05fr" : "1.05fr 1fr") : "1fr" }}>
             {spaltenReihe.map((k) => {
               if (!spalten[k]) return null;
               if (!bearbeiten) return <React.Fragment key={k}>{spalten[k]}</React.Fragment>;
@@ -11658,7 +11773,10 @@ function App() {
         /* Untere Zeile: Pinnwand · Einkauf · Heute da nebeneinander (Whiteboard),
            sonst nur der Einkauf, wenn er an ist. */
         const untenTeile = [
-          dreier && spalten.pinnwand ? ["pinnwand", spalten.pinnwand] : null,
+          // Pinnwand in der unteren Zeile in derselben weißen Karte wie
+          // Einkauf und Heute da - ohne Karte hing der Kopf tiefer als die
+          // Nachbarn (Robertos Fund 24.09., "Abstände passen nicht").
+          dreier && spalten.pinnwand ? ["pinnwand", <div className="rounded-xl px-4 py-3" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>{spalten.pinnwand}</div>] : null,
           einkaufBlock ? ["einkauf", einkaufBlock] : null,
           dreier && heuteDaInhalt ? ["heuteDa", heuteDaInhalt] : null,
         ].filter(Boolean);
@@ -14228,61 +14346,8 @@ function App() {
         </div>
       )}
 
-      {/* Termin-Archiv: versäumte TPM-/R+I-Termine, die älter als eine Woche
-          sind. Nur eine andere Sicht auf dieselben offenen Einträge - Klick
-          öffnet den Termin wie aus der Übersicht, dort wird erledigt oder
-          verschoben. */}
-      {terminArchivOffen && (
-        <div
-          className="no-print"
-          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
-          onClick={() => setTerminArchivOffen(false)}
-        >
-          <ZiehbareKarte
-            role="dialog"
-            aria-label="Termin-Archiv"
-            style={{ backgroundColor: "white", borderRadius: "10px", padding: "22px", width: "680px", maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
-            onClick={(ev) => ev.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <div className="font-bold text-sm">🗄 Termin-Archiv</div>
-              <button onClick={() => setTerminArchivOffen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
-            </div>
-            <div className="text-xs mb-4" style={{ color: "#8A9099" }}>
-              Versäumte Termine, die älter als eine Woche sind. Sie bleiben offen und zählen im Prüfnachweis
-              weiter als versäumt{readerMode ? "" : " – ein Klick öffnet den Termin zum Erledigen oder Verschieben"}.
-              Nach <strong>30 Tagen</strong> verschwinden sie aus diesem Archiv – nachvollziehbar bleiben sie
-              in der TPM-Auswertung und auf den gedruckten Blättern.
-            </div>
-            {[["TPM", "PitStop – geplante Wartung"], ["RI", "R+I – Rundgang & Inspektion"]].map(([kat, titel]) => {
-              const liste = terminArchiv.filter((e) => e.category === kat);
-              return (
-                <div key={kat} className="mb-4">
-                  <div className="text-[11px] font-black uppercase tracking-wide mb-2" style={{ color: "#8A9099" }}>{titel} ({liste.length})</div>
-                  {liste.length === 0 && <div className="text-xs italic" style={{ color: "#B7BEC6" }}>nichts im Archiv</div>}
-                  {liste.map((e) => {
-                    const tage = Math.round((new Date(todayKey + "T00:00:00") - new Date(e.date + "T00:00:00")) / 86400000);
-                    return (
-                      <button
-                        key={e.id}
-                        onClick={() => { if (readerMode) return; setTerminArchivOffen(false); openEditModal(e); }}
-                        disabled={readerMode}
-                        className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
-                        style={{ backgroundColor: "#F9FAFB", boxShadow: "inset 3px 0 0 0 #8A9099, var(--wk-schatten)", cursor: readerMode ? "default" : "pointer" }}
-                      >
-                        <span className={`wk-chip wk-chip-${String(e.category).toLowerCase()}`}>{CATS[e.category].label}</span>
-                        <strong className="flex-1" style={{ fontSize: "var(--wk-txt)" }}>{e.name}</strong>
-                        <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#B23A34" }}>{formatDateDE(e.date)}</span>
-                        <span style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099", whiteSpace: "nowrap" }}>vor {tage} Tagen</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </ZiehbareKarte>
-        </div>
-      )}
+      {/* Das Termin-Archiv ist seit dem 24.09. ein Aufklapper in der
+          Tagesliste (Liegengeblieben + Archiv), kein eigener Dialog mehr. */}
 
       {druckWahlOffen && druckAngebot() && (() => {
         const angebot = druckAngebot();
@@ -15734,6 +15799,8 @@ function App() {
                       {["bearbeiter", "leser"].map((gruppe) => {
                         const opts = optionen(gruppe);
                         const wert = rechte[gruppe][key];
+                        // Nur-Verwalter-Aktionen (24.09.): keine Auswahl, nur die Aussage.
+                        if (NUR_VERWALTER_AKTIONEN.includes(key)) return <span key={gruppe} className="text-xs font-bold" style={{ color: "#8A9099" }}>nur Verwalter <span className="font-normal" style={{ color: "#B0B6BC" }}>(fest)</span></span>;
                         return opts.length === 1 ? (
                           <span key={gruppe} className="text-xs font-bold" style={{ color: farbe(wert) }}>{opts[0][1]} <span className="font-normal" style={{ color: "#B0B6BC" }}>(fest)</span></span>
                         ) : (
@@ -16038,7 +16105,7 @@ function App() {
                       <table className="w-full text-xs" style={{ borderCollapse: "collapse" }} aria-label={`Kacheln ${ziel}`}>
                         <thead>
                           <tr style={{ color: "#8A9099", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.4px" }}>
-                            <th className="text-left py-1 pr-2">#</th><th className="text-left py-1 pr-2">Inhalt</th><th className="text-left py-1 pr-2">Darstellung</th><th className="text-left py-1 pr-2">Zeitraum</th><th className="text-left py-1 pr-2">Sichtbar</th><th />
+                            <th className="text-left py-1 pr-2">#</th><th className="text-left py-1 pr-2">Inhalt</th><th className="text-left py-1 pr-2">Darstellung</th><th className="text-left py-1 pr-2">Zeitraum</th><th className="text-left py-1 pr-2" title="Breite × Höhe in Rasterfeldern">Größe</th><th className="text-left py-1 pr-2">Sichtbar</th><th />
                           </tr>
                         </thead>
                         <tbody>
@@ -16070,6 +16137,11 @@ function App() {
                                       {info[4].map((z) => <option key={z} value={z}>{KENNZAHL_ZEITRAEUME[z]}</option>)}
                                     </select>
                                   ) : <span style={{ color: "#8A9099" }}>—</span>}
+                                </td>
+                                <td className="py-1 pr-2">
+                                  <select value={`${def.breite}x${def.hoehe}`} aria-label={`Größe Kachel ${idx + 1} ${ziel}`} onChange={(e) => { const [b, h] = e.target.value.split("x").map(Number); setDef({ breite: b, hoehe: h }); }} style={sel}>
+                                    {(KACHEL_GROESSEN.some(([b, h]) => b === def.breite && h === def.hoehe) ? KACHEL_GROESSEN : [...KACHEL_GROESSEN, [def.breite, def.hoehe]]).map(([b, h]) => <option key={`${b}x${h}`} value={`${b}x${h}`}>{b} × {h}</option>)}
+                                  </select>
                                 </td>
                                 <td className="py-1 pr-2">
                                   {KACHEL_BLOCK[k]

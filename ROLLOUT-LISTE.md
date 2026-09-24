@@ -1178,6 +1178,8 @@ Kurzliste, Details stehen in den jeweiligen Blöcken darunter:
 8. **Robertos Handgriffe:** Release v1.1 anlegen, Programm-Ordner tauschen; Hauptpräsentation durchgehen.
 9. **Aufräumen überholter ROLLOUT-Punkte** nach „Erledigt" (Angebot, nicht bestätigt).
 10. **harte-23 (Umstieg von der Fassung vor dem 10.08.)** streichen, sobald feststeht, dass nirgends mehr ein Stand von vor August läuft.
+11. **Baukasten-Übersicht** (24.09.): jeder Bereich und jede Kachel personalisierbar – Vorschlag in drei Stufen unter „Meeting vom 23.09.", wartet auf Robertos Freigabe.
+12. ~~Kachel-Größe ziehen, Termin-Archiv-Aufklapper, Abstände, Kopfzeile nur Verwalter~~ – **GEBAUT 24.09.** (harte-87/88/89).
 
 ## Meeting vom 23.09. – Whiteboard und Flipchart (Vorab-Notiz aus dem Foto, Details folgen von Roberto)
 
@@ -1259,6 +1261,44 @@ Abstände im 6-px-Raster. Robertos „Bauen" (23.09.) → **GEBAUT 23.09.**
   Flipchart technisch da – Roberto muss nur die Leser-Vorlage auf Whiteboard
   setzen und das Häkchen setzen.
 - **Nachweis gesamt (23.09., endgültiger Bau):** volle Suite 78/78 grün.
+
+**Robertos Nachbesserungen vom 24.09. – GEBAUT:**
+- **Kachel-Größe ziehen** (harte-87, 19 Prüfungen): Ecke wie an den Pop-outs
+  (`SchwebeFenster`), rastet auf Spalten (1–4) und Reihen (1–3) des Rasters,
+  Nachbarn rücken nach; `kachelDef.breite/hoehe`, Hülle mit grid-span,
+  Inhalt skaliert mit der Höhe (`kachelSkala`); Chips „Größe" im ▾-Menü,
+  Spalte „Größe" in der Zahnrad-Tabelle (auch Gruppen-Vorlagen). Alte
+  Layouts lesen sich als 1×1, Unsinn wird geklemmt.
+- **Termin-Archiv als Aufklapper** (harte-88): eine Zeile sammelt
+  Liegengebliebenes (rotes Schild) und Archiv (> 1 Woche, < 30 Tage), Klick
+  klappt die Termine darunter auf; der Dialog ist weg. harte-55 läuft
+  unverändert (gleiche Kennungen).
+- **Abstände**: Hauptzeile mit `mb-4`, Pinnwand in der unteren Zeile in
+  derselben weißen Karte wie Einkauf und Heute da (harte-88 A5 misst).
+- **Kopfzeile nur Verwalter** (harte-89): Drucken, Auge, Zahnrad, Monitor,
+  Import/Export nur für `istVerwalter`; Bearbeiter/Leser behalten Ordner und
+  Abmelden; `NUR_VERWALTER_AKTIONEN` drückt DRUCKEN/MONITOR/DATEN/ZAHNRAD in
+  jeder Matrix auf „aus", die Tabelle zeigt „nur Verwalter (fest)".
+  harte-75 A4 und harte-78 (3)/(6) entsprechend umgestellt. Folge: der
+  Nachtmodus ist für Bearbeiter/Leser nur noch über die Geräte-Automatik
+  (Verwalter stellt sie) erreichbar – bei Bedarf ein eigener Knopf im Ordner-
+  Menü, Roberto entscheidet.
+
+**Nächster großer Schritt (Robertos Richtung vom 24.09., noch nicht
+beauftragt): „Baukasten" – jeder Bereich und jede Kachel personalisierbar.**
+Vorschlag in drei Stufen, jede einzeln freigebbar:
+1. **Bereiche wie Kacheln:** Tagesliste, Pinnwand, Einkauf, Heute da,
+   Störungen bekommen dieselbe Zieh-Ecke und dieselben Größen-Chips (Breite in
+   Spalten eines 4er-Rasters, Höhe frei) – statt der festen Zeilen
+   (Hauptzeile/untere Zeile) EIN Raster für alles, Reihenfolge per Ziehen wie
+   heute. Whiteboard-Vorlage bleibt als fertige Anordnung.
+2. **Inhalt je Bereich wählbar:** ▾ am Bereich wie an der Kachel – z. B.
+   Tagesliste „nur Termine / mit Personen / mit Liegengebliebenem", Pinnwand
+   „nur Alle-Zettel / alle", Einkauf „Zahlen / Liste".
+3. **Bausteine hinzufügen:** „+ Bereich hinzufügen" wie „+ Kachel" – zweite
+   Pinnwand, zweite Kennzahlen-Reihe, freier Text, Link-Kachel.
+Aufwand grob: Stufe 1 ein Tag mit Tests (Umbau der Abschnitts-Logik,
+harte-75/84/85/87 anpassen), Stufe 2 ein halber Tag, Stufe 3 ein halber Tag.
 - Umbenennung „Pinnwand" → „Schwarzes Brett" nicht gemacht: der Name steckt
   in Tests und Anleitung, Roberto meinte „die Pinnwand ist das Schwarze
   Brett" – keine Umbenennung verlangt. Bei Bedarf ein Nachmittag.
