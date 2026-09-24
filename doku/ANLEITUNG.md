@@ -521,12 +521,15 @@ Störungen, nicht den Rest.
   offen in der Tagesliste, der Dialog von früher ist weg.
 - **Kopfzeile oben rechts nur für den Verwalter (seit dem 24.09.):**
   Bearbeiter und Leser sehen dort nur noch das **Ordner-Symbol** (gemeinsame
-  Datei) und **Abmelden**. Drucken, das Auge (Ansicht / Nachtmodus), das
-  Zahnrad, der Werkstatt-Monitor und Import/Export gehören allein dem
-  Verwalter – in der Rechte-Tabelle stehen diese vier Aktionen fest auf „nur
-  Verwalter", eine ältere Einstellung in der Datei zieht nicht mehr. Der
-  Kiosk-Rechner (`?monitor=1`) behält seinen Monitor-Knopf. „Störung melden"
-  bleibt wie gehabt je Gruppe wählbar.
+  Datei), **Abmelden** und – wo es etwas zu drucken gibt – **Drucken** (nach
+  der Rechte-Tabelle, Standard erlaubt; so bleibt der Schichtbericht der
+  letzten drei Schichten für die Morgenrunde am Bearbeiter-Rechner
+  erreichbar). Das Auge (Ansicht / Nachtmodus), das Zahnrad, der Werkstatt-
+  Monitor und Import/Export gehören allein dem Verwalter – in der
+  Rechte-Tabelle stehen diese drei Aktionen fest auf „nur Verwalter", eine
+  ältere Einstellung in der Datei zieht nicht mehr. Der Kiosk-Rechner
+  (`?monitor=1`) behält seinen Monitor-Knopf. „Störung melden" und
+  „Drucken" bleiben wie gehabt je Gruppe wählbar.
 - **Werkstatt-Monitor als Tafel (seit dem 23.09.):** Im ⚙ unter „Monitor"
   gibt es das Häkchen **„Monitor zeigt die Übersicht (Tafel)"**. Dann läuft
   auf dem Hallenbildschirm statt der Karten die Übersicht in der

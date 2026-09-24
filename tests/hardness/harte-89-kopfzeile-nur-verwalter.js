@@ -5,15 +5,15 @@
 //
 //  (K1) Verwalter: Drucken, Auge, Zahnrad, Monitor, Import, Export, Abmelden,
 //       Ordner - alles da.
-//  (K2) Bearbeiter: nur Ordner und Abmelden - kein Drucken, kein Auge (auch
-//       kein Nachtmodus-Auge), kein Zahnrad, kein Monitor, kein Import/Export.
-//       Die Bereiche darunter (Schichtplan, TPM …) bleiben ihm.
-//  (K3) Leser: dasselbe wie der Bearbeiter (Ordner + Abmelden).
-//  (K4) Eine ältere Rechte-Matrix in der Datei, die dem Bearbeiter Drucken,
-//       Monitor, Datensicherung und Zahnrad erlaubte, zieht nicht mehr: beim
-//       Lesen wird alles vier auf "aus" gedrückt.
-//  (K5) Rechte-Tabelle im Zahnrad: die vier Zeilen zeigen "nur Verwalter
-//       (fest)" statt einer Auswahl; "Störung melden" bleibt wählbar.
+//  (K2) Bearbeiter: Ordner, Abmelden und Drucken (Morgenrunde: Schichtbericht) -
+//       kein Auge (auch kein Nachtmodus-Auge), kein Zahnrad, kein Monitor,
+//       kein Import/Export. Die Bereiche darunter (Schichtplan, TPM …) bleiben.
+//  (K3) Leser: dasselbe wie der Bearbeiter (Ordner + Abmelden + Drucken).
+//  (K4) Eine ältere Rechte-Matrix in der Datei, die dem Bearbeiter Monitor,
+//       Datensicherung und Zahnrad erlaubte, zieht nicht mehr: beim Lesen
+//       werden die drei auf "aus" gedrückt.
+//  (K5) Rechte-Tabelle im Zahnrad: die drei Zeilen zeigen "nur Verwalter
+//       (fest)" statt einer Auswahl; "Drucken" und "Störung melden" bleiben wählbar.
 //  (E)  Keine Skriptfehler.
 //
 // Rot-Nachweis: Gegen den Bau davor hat der Bearbeiter Zahnrad, Drucken und
@@ -74,9 +74,9 @@ const KNOEPFE = ["Drucken", "Ansicht wechseln", "Nachtschicht-Modus", "Verwalten
     await p.getByRole("button", { name: "Benutzer & Rechte", exact: true }).click();
     await p.waitForTimeout(400);
     const matrix = await p.locator("body").innerText();
-    ok("(K5) Rechte-Tabelle: Drucken, Monitor, Datensicherung und Zahnrad stehen fest auf „nur Verwalter“, Störung melden bleibt wählbar",
-      (matrix.match(/nur Verwalter \(fest\)/g) || []).length === 8
-      && (await p.locator('select[aria-label="Bearbeiter: Drucken"]').count()) === 0 && (await p.locator('select[aria-label="Bearbeiter: Verwalten (⚙)"]').count()) === 0
+    ok("(K5) Rechte-Tabelle: Monitor, Datensicherung und Zahnrad stehen fest auf „nur Verwalter“, Drucken und Störung melden bleiben wählbar",
+      (matrix.match(/nur Verwalter \(fest\)/g) || []).length === 6
+      && (await p.locator('select[aria-label="Bearbeiter: Drucken"]').count()) === 1 && (await p.locator('select[aria-label="Bearbeiter: Verwalten (⚙)"]').count()) === 0
       && (await p.locator('select[aria-label="Bearbeiter: Störung melden"]').count()) === 1, String((matrix.match(/nur Verwalter \(fest\)/g) || []).length));
     ok("(E) Keine Skriptfehler (Verwalter)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await zu();
@@ -84,18 +84,28 @@ const KNOEPFE = ["Drucken", "Ansicht wechseln", "Nachtschicht-Modus", "Verwalten
   {
     const { p, fehler, zu } = await seite("Bea");
     const o = await knoepfe(p);
-    ok("(K2) Bearbeiter: oben rechts nur Ordner und Abmelden", nur(o, ["Abmelden", "Gemeinsame Datei"]), JSON.stringify(o));
+    ok("(K2) Bearbeiter: oben rechts nur Ordner und Abmelden (Drucken erst in einem Bereich mit Vorlage)", nur(o, ["Abmelden", "Gemeinsame Datei"]), JSON.stringify(o));
     ok("(K2) Die Bereiche bleiben ihm (TPM, Berichte)", (await tab(p, "TPM").count()) > 0 && (await tab(p, "Berichte").count()) > 0);
     await tab(p, "TPM").first().click();
     await p.waitForTimeout(400);
-    ok("(K2/K4) Auch im TPM-Bereich kein Drucken - die alte Matrix („sehen“) zieht nicht mehr", (await p.locator('button[aria-label="Drucken"]').count()) === 0);
+    ok("(K2) Im TPM-Bereich hat der Bearbeiter Drucken (Matrix „sehen“) - der Schichtbericht der Morgenrunde bleibt erreichbar", (await p.locator('button[aria-label="Drucken"]').count()) === 1);
+    await tab(p, "Berichte").first().click();
+    await p.waitForTimeout(400);
+    await tab(p, "Störungen").first().click();
+    await p.waitForTimeout(400);
+    ok("(K2) Berichte → Störungen: Drucken da, das Angebot nennt den Schichtbericht der letzten 3 Schichten",
+      (await p.locator('button[aria-label="Drucken"]').count()) === 1 && (await (async () => { await p.locator('button[aria-label="Drucken"]').click(); await p.waitForTimeout(400); return /letzte 3 Schichten/.test(await p.locator("body").innerText()); })()));
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(200);
+    ok("(K4) Zahnrad, Monitor, Import/Export bleiben trotz alter Matrix („sehen“) weg",
+      (await p.locator('button[aria-label="Verwalten"]').count()) === 0 && (await p.locator('button[aria-label="Werkstatt-Monitor"]').count()) === 0 && (await p.locator('button[aria-label="Export"]').count()) === 0);
     ok("(E) Keine Skriptfehler (Bearbeiter)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await zu();
   }
   {
     const { p, fehler, zu } = await seite("Lea");
     const o = await knoepfe(p);
-    ok("(K3) Leser: oben rechts nur Ordner und Abmelden", nur(o, ["Abmelden", "Gemeinsame Datei"]), JSON.stringify(o));
+    ok("(K3) Leser: oben rechts nur Ordner und Abmelden (auf der Übersicht gibt es nichts zu drucken)", nur(o, ["Abmelden", "Gemeinsame Datei"]), JSON.stringify(o));
     ok("(E) Keine Skriptfehler (Leser)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await zu();
   }

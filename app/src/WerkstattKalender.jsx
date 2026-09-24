@@ -1606,25 +1606,28 @@ const RECHTE_BEREICHE = [
   ["MELDEN", "Störung melden", "neuen Störbericht erfassen – auch ohne Schreibrecht im Bereich", "aktion", "sehen"],
   // Seit dem 24.09. (Robertos Ansage) nur noch Verwaltersache - die Zeilen
   // bleiben in der Tabelle stehen, damit man sieht, dass es so gewollt ist.
-  ["DRUCKEN", "Drucken", "Drucken-Knopf oben rechts – nur Verwalter", "aktion", "aus"],
+  // Drucken bleibt je Gruppe wählbar (Morgenrunde 24.09.: der Schichtbericht
+  // der letzten drei Schichten wird am Bearbeiter-Rechner gedruckt).
+  ["DRUCKEN", "Drucken", "Drucken-Knopf oben rechts (Schichtbericht, Schichtplan, Nachweis …)", "aktion", "sehen"],
   ["MONITOR", "Werkstatt-Monitor", "Vollbild-Knopf oben rechts – nur Verwalter (und der Kiosk-Rechner ?monitor=1)", "aktion", "aus"],
   ["DATEN", "Datensicherung", "Import/Export oben rechts – nur Verwalter", "aktion", "aus"],
   ["ZAHNRAD", "Verwalten (⚙)", "Anlagen, Team, Kostenstellen, OEE, Monitor, Benutzer & Rechte – nur Verwalter", "aktion", "aus"],
 ];
 // Aktionen, die seit dem 24.09. allein dem Verwalter gehören - egal, was eine
-// ältere Rechte-Matrix in der gemeinsamen Datei noch sagt.
-const NUR_VERWALTER_AKTIONEN = ["DRUCKEN", "MONITOR", "DATEN", "ZAHNRAD"];
+// ältere Rechte-Matrix in der gemeinsamen Datei noch sagt. Drucken ist
+// bewusst NICHT dabei: ein Bericht ist keine Einstellung.
+const NUR_VERWALTER_AKTIONEN = ["MONITOR", "DATEN", "ZAHNRAD"];
 // Standard = das Verhalten vor dem 21.09., damit ein Update nichts verändert.
 const RECHTE_STANDARD = {
   bearbeiter: {
     SCHICHTPLAN: "bearbeiten", PLANUNG: "bearbeiten", TODO: "bearbeiten", STOERUNGEN: "bearbeiten", BACKLOG: "bearbeiten",
     ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten",
-    MELDEN: "sehen", DRUCKEN: "aus", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
+    MELDEN: "sehen", DRUCKEN: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
   leser: {
     SCHICHTPLAN: "sehen", PLANUNG: "aus", TODO: "sehen", STOERUNGEN: "bearbeiten", BACKLOG: "aus",
     ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus",
-    MELDEN: "sehen", DRUCKEN: "aus", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
+    MELDEN: "sehen", DRUCKEN: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
 };
 const RECHTE_STUFEN = ["aus", "sehen", "bearbeiten"];
@@ -3218,7 +3221,7 @@ function App() {
   // Leser-Vorgabe, Drucken bleibt wie vor dem 24.09. erlaubt.
   const stufeRoh = (key) => {
     if (rechteGruppe) return rechte[rechteGruppe][key];
-    if (readerMode) return key === "DRUCKEN" ? "sehen" : RECHTE_STANDARD.leser[key];
+    if (readerMode) return RECHTE_STANDARD.leser[key];
     return NUR_VERWALTER_AKTIONEN.includes(key) ? "sehen" : RECHTE_STANDARD.bearbeiter[key];
   };
   const stufeFuer = (key) => {
@@ -8724,11 +8727,12 @@ function App() {
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} />
           {/* Kopfzeile oben rechts (Robertos Ansage vom 24.09.): Für Bearbeiter
-              und Leser bleiben nur Ordner und Abmelden - Drucken, Auge, Zahnrad,
-              Monitor und Datensicherung sieht allein der Verwalter (auch in der
-              simulierten Ansicht verschwinden sie, das Auge bleibt ihm). Der
-              Kiosk-Monitor (?monitor=1) ist die eine Ausnahme. */}
-          {istVerwalter && druckAngebot() && erlaubt("DRUCKEN") && (
+              und Leser bleiben Ordner, Abmelden und - nach der Rechte-Matrix -
+              Drucken (Morgenrunde: Schichtbericht am Bearbeiter-Rechner). Auge,
+              Zahnrad, Monitor und Datensicherung sieht allein der Verwalter
+              (auch in der simulierten Ansicht verschwinden sie, das Auge bleibt
+              ihm). Der Kiosk-Monitor (?monitor=1) ist die eine Ausnahme. */}
+          {druckAngebot() && erlaubt("DRUCKEN") && (
             <button
               /* Ein Knopf an einer Stelle - oben rechts, in jedem Bereich, in
                  dem es etwas zu drucken gibt. Was genau, wird im Dialog

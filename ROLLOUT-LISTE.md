@@ -1181,7 +1181,7 @@ Kurzliste, Details stehen in den jeweiligen Blöcken darunter:
 11. **Baukasten-Übersicht** (24.09.): jeder Bereich und jede Kachel personalisierbar – Vorschlag in drei Stufen unter „Meeting vom 23.09.", wartet auf Robertos Freigabe.
 12. ~~Kachel-Größe ziehen, Termin-Archiv-Aufklapper, Abstände, Kopfzeile nur Verwalter~~ – **GEBAUT 24.09.** (harte-87/88/89).
 13. **Schichtprotokoll-Scan vom 24.09.** (Roberto: „machen wir gleich"): PDF aus dem alten System – Spalten SB-Nr./Datum, Schicht, Status, Abweichung, „Was wurde unternommen und warum?", „Was müssen andere unternehmen?", Infos; Zeilen je Störbericht (z. B. SB 31349 Nacht, Heimsoth Rollenofen, Lichtschranke verstellt). Vermutlich Vorlage für den gedruckten Schichtbericht / Vergleich mit unserem Störungs-Ausdruck – Auftrag folgt.
-14. **Morgenrunde 24.09.:** Roberto brauchte „seine Berichte wie gehabt" – Stand von gestern (23.09.) als Datei mitgeschickt; welcher Bericht gemeint ist, klärt sich nach der Runde (Verdacht: Drucken am Bearbeiter-Rechner durch die neue Kopfzeilen-Regel weg, oder Liegengebliebenes im Termin-Archiv statt in der Tagesliste).
+14. ~~Morgenrunde 24.09.~~ – Roberto meinte den **Schichtbericht der letzten 3 Schichten als PDF** (Berichte → Störungen → Drucken). Der war am Bearbeiter-Rechner durch die Kopfzeilen-Regel weg. **Behoben 24.09.:** Drucken ist wieder je Gruppe wählbar (Standard erlaubt), nur Auge, Zahnrad, Monitor, Import/Export bleiben Verwaltersache (`NUR_VERWALTER_AKTIONEN` ohne DRUCKEN; harte-89/78 angepasst). Stand von gestern als Datei war die Überbrückung.
 
 ## Meeting vom 23.09. – Whiteboard und Flipchart (Vorab-Notiz aus dem Foto, Details folgen von Roberto)
 

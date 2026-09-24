@@ -86,8 +86,8 @@ const ok = (n, c, zusatz) => {
   await tab(p, "Schichtplan").click();
   await p.waitForTimeout(400);
   ok("(3) Der Schichtplan öffnet sich für den simulierten Bearbeiter", /Werkstattschichtplan/.test(await p.locator("body").innerText()));
-  ok("(3) Das Auge bleibt dem Verwalter auch in der Bearbeiter-Ansicht; Drucken, Monitor, Import/Export sind weg",
-    (await p.locator('button[aria-label="Ansicht wechseln"]').count()) === 1 && (await p.locator('button[aria-label="Drucken"]').count()) === 0
+  ok("(3) Das Auge bleibt dem Verwalter auch in der Bearbeiter-Ansicht; Drucken (Schichtplan) bleibt nach Matrix, Monitor und Import/Export sind weg",
+    (await p.locator('button[aria-label="Ansicht wechseln"]').count()) === 1 && (await p.locator('button[aria-label="Drucken"]').count()) === 1
     && (await p.locator('button[aria-label="Werkstatt-Monitor"]').count()) === 0 && (await p.locator('button[aria-label="Export"]').count()) === 0);
 
   /* ---- (4) Zurück ---- */
