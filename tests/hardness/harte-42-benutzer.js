@@ -184,6 +184,10 @@ const ok = (n, c, zusatz) => {
   await p.locator('input[aria-label="Benutzername"]').fill("MWerkstatt");
   await p.locator('input[aria-label="Kennwort"]').fill("Leser");
   await p.getByRole("button", { name: "Anmelden", exact: true }).click();
+  // Nicht auf Zeit warten, sondern bis die Anmeldung wirklich durch ist: unter
+  // Suiten-Last reichten 500 ms einmal nicht (24.09., allein 38/38 grün), und
+  // der Neustart fand dann keinen gemerkten Benutzer.
+  await p.locator('[aria-label="Anmelden"]').waitFor({ state: "hidden", timeout: 10000 });
   await p.waitForTimeout(500);
 
   /* ---- (6) Neustart: Das Gerät erinnert sich ---- */
