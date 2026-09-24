@@ -100,14 +100,14 @@ const whiteboard = {
     ok("(A3) Zweiter Klick klappt zu", (await panel(p).count()) === 0 && (await zeile(p).getAttribute("aria-expanded")) === "false");
 
     /* (A5) Abstände in der unteren Zeile */
-    const pinn = p.locator('[data-unten="pinnwand"] > div').first();
+    const pinn = p.locator('[data-baustein="pinnwand"] > div').first();
     const pinnStil = await pinn.evaluate((el) => { const s = getComputedStyle(el); return { bg: s.backgroundColor, radius: s.borderTopLeftRadius }; });
     const abstand = await p.evaluate(() => {
       const archiv = document.querySelector('button[aria-label="Termin-Archiv öffnen"]').getBoundingClientRect();
-      const unten = document.querySelector('[data-zeile="unten"]').getBoundingClientRect();
+      const unten = document.querySelector('[data-baustein="pinnwand"]').getBoundingClientRect();
       return Math.round(unten.top - archiv.bottom);
     });
-    const koepfe = await p.evaluate(() => ["pinnwand", "einkauf", "heuteDa"].map((k) => Math.round(document.querySelector(`[data-unten="${k}"] > div`).getBoundingClientRect().top)));
+    const koepfe = await p.evaluate(() => ["pinnwand", "einkauf", "heuteDa"].map((k) => Math.round(document.querySelector(`[data-baustein="${k}"] > div`).getBoundingClientRect().top)));
     ok("(A5) Die Pinnwand steckt unten in einer weißen Karte, alle drei Karten beginnen auf gleicher Höhe",
       pinnStil.bg === "rgb(255, 255, 255)" && parseFloat(pinnStil.radius) >= 10 && new Set(koepfe).size === 1, JSON.stringify({ pinnStil, koepfe }));
     ok("(A5) Zwischen Termin-Archiv und unterer Zeile liegen mindestens 12 px", abstand >= 12, `${abstand} px`);

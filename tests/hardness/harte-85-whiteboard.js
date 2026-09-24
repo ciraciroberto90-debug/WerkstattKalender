@@ -105,7 +105,7 @@ const stoer = [
     const { p, fehler, zu } = await seite("Chef", null);
     const vorher = await kacheln(p);
     ok("(A1) Standard vor dem Umschalten: sieben Kacheln, keine Whiteboard-Kachel, keine untere Zeile",
-      vorher.length === 5 && !vorher.some((k) => /todoSollIst|unfaelle|backlogLive|kosten/.test(k)) && (await p.locator('[data-zeile="unten"]').count()) === 0, vorher.join(","));
+      vorher.length === 5 && !vorher.some((k) => /todoSollIst|unfaelle|backlogLive|kosten/.test(k)) && (await p.locator('[data-baustein="einkauf"]').count()) === 0, vorher.join(","));
     await p.locator('button[aria-label="Verwalten"]').click();
     await p.waitForTimeout(300);
     await p.getByRole("button", { name: "Personalisieren", exact: true }).click();
@@ -113,12 +113,14 @@ const stoer = [
     ok("(A1) Die Layout-Vorlagen kennen „Whiteboard“", (await p.locator('button[aria-label="Vorlage Whiteboard"]').count()) === 1);
     await p.locator('button[aria-label="Vorlage Whiteboard"]').click();
     await p.waitForTimeout(300);
-    ok("(A1) Das Häkchen „Whiteboard-Zeile“ ist durch die Vorlage gesetzt", await p.locator('input[aria-label="Übersicht: Whiteboard-Zeile"]').isChecked());
+    ok("(A1) Die Bausteine-Liste im Zahnrad zeigt Pinnwand, Einkauf und Heute da mit 4 von 12 Spalten",
+      (await p.locator('select[aria-label="Breite Pinnwand"]').inputValue()) === "4" && (await p.locator('select[aria-label="Breite Technischer Einkauf"]').inputValue()) === "4" && (await p.locator('select[aria-label="Breite Heute da"]').inputValue()) === "4");
     await zahnradZu(p);
     await p.waitForTimeout(1700); // Halbkreise laufen 1,4 s ein - erst dann sind die Prozente endgültig
     const lay = await p.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout") || "null"));
-    ok("(A1) Layout gespeichert: Vorlage whiteboard, zeileUnten, Einkauf an, fünf Whiteboard-Kacheln vorn",
-      lay && lay.vorlage === "whiteboard" && lay.zeileUnten === true && lay.bloecke.einkauf === true && lay.kacheln.slice(0, 5).join(",") === "k-wbtodo,k-wbtpm,k-wbunfall,k-wbbacklog,k-wbkosten", JSON.stringify(lay && lay.kacheln));
+    const bs = (l) => l.bausteine.map((b) => `${b.id}:${b.breite}`).join(",");
+    ok("(A1) Layout gespeichert: Vorlage whiteboard, Bausteine kennzahlen 12 · tagesliste 12 · stoerungen 12 · pinnwand 4 · einkauf 4 · heuteDa 4, Einkauf an, fünf Whiteboard-Kacheln vorn",
+      lay && lay.vorlage === "whiteboard" && bs(lay) === "kennzahlen:12,tagesliste:12,stoerungen:12,pinnwand:4,einkauf:4,heuteDa:4" && lay.bloecke.einkauf === true && lay.kacheln.slice(0, 5).join(",") === "k-wbtodo,k-wbtpm,k-wbunfall,k-wbbacklog,k-wbkosten", lay && bs(lay));
     const reihe = await kacheln(p);
     ok("(A1) Die Reihe zeigt genau die fünf Kacheln: To-dos, TPM, Unfälle (Zahl), Backlog, Kosten - alle anderen ausgeblendet",
       reihe.join(",") === "todoSollIst:halbkreis,tpmQuote:halbkreis,unfaelle:zahl,backlogLive:halbkreis,kosten:halbkreis", reihe.join(","));
@@ -134,11 +136,12 @@ const stoer = [
     const ko = await kachelText(p, "kosten");
     ok("(A2) Kosten ohne Budget: Bogen leer, „Abstimmung Einkauf“", /Abstimmung Einkauf/.test(ko) && /–/.test(ko), ko.replace(/\n/g, " | "));
 
-    const hauptzeileHatPinnwand = await p.locator('input[aria-label="Pinnwand durchsuchen"]').evaluate((el) => !!el.closest('[data-zeile="unten"]'));
-    ok("(A3) Untere Zeile da, Pinnwand steht darin (nicht neben der Tagesliste)", (await p.locator('[data-zeile="unten"]').count()) === 1 && hauptzeileHatPinnwand);
-    const untenTeile = await p.locator('[data-zeile="unten"] [data-unten]').evaluateAll((els) => els.map((e) => e.getAttribute("data-unten")));
-    ok("(A3) Reihenfolge unten: Pinnwand · Einkauf · Heute da", untenTeile.join(",") === "pinnwand,einkauf,heuteDa", untenTeile.join(","));
-    ok("(A3) „Heute da“ gibt es nur einmal (unten), nicht mehr als eigener Abschnitt", (await p.getByText("👷 Heute da").count()) === 1 && (await p.locator('[data-unten="heuteDa"]').count()) === 1);
+    // Baukasten: die untere Zeile sind drei Bausteine à 4 Spalten auf gleicher Höhe
+    const untenTeile = await p.locator('[data-baukasten] > [data-baustein]').evaluateAll((els) => els.map((e) => e.getAttribute("data-baustein")));
+    const oben = await p.evaluate(() => ["pinnwand", "einkauf", "heuteDa"].map((k) => Math.round(document.querySelector(`[data-baustein="${k}"]`).getBoundingClientRect().top)));
+    ok("(A3) Bausteine in der Reihenfolge Kennzahlen · Tagesliste · Störungen · Pinnwand · Einkauf · Heute da", untenTeile.join(",") === "kennzahlen,tagesliste,stoerungen,pinnwand,einkauf,heuteDa", untenTeile.join(","));
+    ok("(A3) Pinnwand, Einkauf und Heute da stehen nebeneinander auf gleicher Höhe", new Set(oben).size === 1, oben.join(","));
+    ok("(A3) „Heute da“ gibt es nur einmal", (await p.getByText("👷 Heute da").count()) === 1 && (await p.locator('[data-baustein="heuteDa"]').count()) === 1);
     const eink = await p.locator('[role="region"][aria-label="Technischer Einkauf"]').innerText();
     // Zahl = die nächste rein numerische Zeile nach der Beschriftung (dazwischen darf ein Hinweis stehen)
     const zeilen = eink.split("\n").map((z) => z.trim());
@@ -185,8 +188,8 @@ const stoer = [
     await region.locator('button[aria-label="Vorlage Whiteboard anlegen"]').click();
     await p.waitForTimeout(700);
     const v = await p.evaluate(() => { const c = JSON.parse(localStorage.getItem("werkstatt-kalender-config") || "{}"); return c.uebersichtVorlagen && c.uebersichtVorlagen.leser; });
-    ok("(C1) Die Leser-Vorlage ist das Whiteboard (zeileUnten, Einkauf, fünf Kacheln)",
-      !!v && v.zeileUnten === true && v.bloecke.einkauf === true && v.kacheln.slice(0, 5).join(",") === "k-wbtodo,k-wbtpm,k-wbunfall,k-wbbacklog,k-wbkosten", JSON.stringify(v && v.kacheln));
+    ok("(C1) Die Leser-Vorlage ist das Whiteboard (Bausteine mit 4er-Zeile, Einkauf, fünf Kacheln)",
+      !!v && bs(v) === "kennzahlen:12,tagesliste:12,stoerungen:12,pinnwand:4,einkauf:4,heuteDa:4" && v.bloecke.einkauf === true && v.kacheln.slice(0, 5).join(",") === "k-wbtodo,k-wbtpm,k-wbunfall,k-wbbacklog,k-wbkosten", v && bs(v));
     ok("(C1) Mit Vorlage gibt es „Auf Whiteboard setzen“ in der Fußzeile", (await region.locator('button[aria-label="Vorlage leser auf Whiteboard setzen"]').count()) === 1);
     ok("(E) Keine Skriptfehler (Verwalter)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await zu();
@@ -199,8 +202,8 @@ const stoer = [
     const reihe = await kacheln(p);
     ok("(C1) Lea ohne eigene Anordnung sieht die fünf Whiteboard-Kacheln",
       reihe.join(",") === "todoSollIst:halbkreis,tpmQuote:halbkreis,unfaelle:zahl,backlogLive:halbkreis,kosten:halbkreis", reihe.join(","));
-    const untenTeile = await p.locator('[data-zeile="unten"] [data-unten]').evaluateAll((els) => els.map((e) => e.getAttribute("data-unten")));
-    ok("(C1) … und die untere Zeile mit Pinnwand · Einkauf · Heute da", untenTeile.join(",") === "pinnwand,einkauf,heuteDa", untenTeile.join(","));
+    const untenTeile = await p.locator('[data-baukasten] > [data-baustein]').evaluateAll((els) => els.map((e) => e.getAttribute("data-baustein")));
+    ok("(C1) … und die Bausteine in Whiteboard-Folge (Pinnwand · Einkauf · Heute da unten)", untenTeile.slice(-3).join(",") === "pinnwand,einkauf,heuteDa", untenTeile.join(","));
     const ko = await kachelText(p, "kosten");
     ok("(C1) Die Kosten-Kachel liest Budget und Ausgaben aus der gemeinsamen Einstellung (61 %)", /61\s*%/.test(ko), ko.replace(/\n/g, " | "));
     ok("(E) Keine Skriptfehler (Leser)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
@@ -213,7 +216,7 @@ const stoer = [
     await p.waitForTimeout(1700);
     const reihe = await kacheln(p);
     ok("(D1) Altes Layout: die fünf bekannten Kennzahl-Kacheln, kein Einkauf, keine untere Zeile, Pinnwand neben der Tagesliste",
-      reihe.length === 5 && !reihe.some((k) => /todoSollIst|unfaelle|backlogLive|kosten/.test(k)) && (await p.locator('[data-zeile="unten"]').count()) === 0
+      reihe.length === 5 && !reihe.some((k) => /todoSollIst|unfaelle|backlogLive|kosten/.test(k)) && (await p.locator('[data-baustein="einkauf"]').count()) === 0
       && (await p.locator('[role="region"][aria-label="Technischer Einkauf"]').count()) === 0 && (await p.locator('input[aria-label="Pinnwand durchsuchen"]').count()) === 1, reihe.join(","));
     ok("(D1) TPM-Kachel im alten Layout zeigt Soll/Ist unter dem Bogen (Soll 4 · Ist 3)", /Soll 4 · Ist 3/.test(await kachelText(p, "tpmQuote")));
     ok("(E) Keine Skriptfehler (altes Layout)", fehler.length === 0, fehler.slice(0, 2).join(" | "));

@@ -504,6 +504,21 @@ Störungen, nicht den Rest.
   Budget"). Ohne Budget zeigt die Kosten-Kachel „Abstimmung Einkauf".
   Nebenbei: Alle Zahl- und Halbkreis-Kacheln der Übersicht tragen den Titel
   jetzt oben und stehen mittig – so wirkt die Reihe wie aus einem Guss.
+- **Baukasten-Übersicht, Stufe 1 (seit dem 24.09.):** Die Übersicht ist ein
+  Raster mit 12 Spalten. Jeder Bereich – Kennzahlen-Reihe, Heute da, Offene
+  Störungen, Tagesliste, Pinnwand, Technischer Einkauf – ist ein Baustein mit
+  Platz und Breite. Im Anordnen-Modus hat jeder Bereich denselben Rahmen wie
+  eine Kachel: Griff zum Ziehen, ◀ ▶ für vor und zurück, ✕ zum Ausblenden,
+  ▾ mit den Breiten-Chips 3 · 4 · 6 · 8 · 9 · 12 und unten rechts die
+  Zieh-Ecke, die auf ganze Spalten rastet. Die Nachbarn rücken nach, was
+  nicht mehr in die Zeile passt, rutscht in die nächste. Die Kennzahlen
+  bleiben ein Block, ihre Kacheln ordnen sich innen wie bisher. Im Zahnrad
+  steht dieselbe Wahrheit als Liste „Bausteine" mit Breite und ▲▼; die
+  Leser- und Bearbeiter-Vorlagen tragen Reihenfolge und Breiten mit. Alte
+  Anordnungen werden beim Öffnen übersetzt, niemand sieht nach dem Update
+  einen Unterschied: Tagesliste und Pinnwand je halbe Breite, die frühere
+  Whiteboard-Zeile wird zu Pinnwand · Einkauf · Heute da mit je 4 Spalten.
+  Auf schmalen Bildschirmen stehen alle Bausteine untereinander.
 - **Kachel-Größe ziehen (seit dem 24.09.):** Im Anordnen-Modus hat jede
   Kennzahl-Kachel unten rechts dieselbe Ecke wie die Pop-out-Fenster. Ziehen
   macht die Kachel breiter (bis 4 Spalten) oder höher (bis 3 Reihen), sie

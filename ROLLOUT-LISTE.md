@@ -1178,7 +1178,7 @@ Kurzliste, Details stehen in den jeweiligen Blöcken darunter:
 8. **Robertos Handgriffe:** Release v1.1 anlegen, Programm-Ordner tauschen; Hauptpräsentation durchgehen.
 9. **Aufräumen überholter ROLLOUT-Punkte** nach „Erledigt" (Angebot, nicht bestätigt).
 10. **harte-23 (Umstieg von der Fassung vor dem 10.08.)** streichen, sobald feststeht, dass nirgends mehr ein Stand von vor August läuft.
-11. **Baukasten-Übersicht** (24.09.): jeder Bereich und jede Kachel personalisierbar – Vorschlag in drei Stufen unter „Meeting vom 23.09.", wartet auf Robertos Freigabe.
+11. **Baukasten-Übersicht** (24.09.): Stufe 1 **GEBAUT 24.09.** (harte-90, 17 Prüfungen) – ein 12er-Raster, jeder Bereich mit Zieh-Ecke, ◀ ▶, ▾ Breite; Kennzahlen als Block (Robertos Entscheidung); alte Anordnungen werden übersetzt. Offen: Stufe 2 (▾ Inhalt je Bereich) und Stufe 3 (+ Bereich hinzufügen); Robertos Anordnungen legt er später selbst fest.
 12. ~~Kachel-Größe ziehen, Termin-Archiv-Aufklapper, Abstände, Kopfzeile nur Verwalter~~ – **GEBAUT 24.09.** (harte-87/88/89).
 13. **Schichtprotokoll-Scan vom 24.09.** (Roberto: „machen wir gleich"): PDF aus dem alten System – Spalten SB-Nr./Datum, Schicht, Status, Abweichung, „Was wurde unternommen und warum?", „Was müssen andere unternehmen?", Infos; Zeilen je Störbericht (z. B. SB 31349 Nacht, Heimsoth Rollenofen, Lichtschranke verstellt). Vermutlich Vorlage für den gedruckten Schichtbericht / Vergleich mit unserem Störungs-Ausdruck – Auftrag folgt.
 14. ~~Morgenrunde 24.09.~~ – Roberto meinte den **Schichtbericht der letzten 3 Schichten als PDF** (Berichte → Störungen → Drucken). Der war am Bearbeiter-Rechner durch die Kopfzeilen-Regel weg. **Behoben 24.09.:** Drucken ist wieder je Gruppe wählbar (Standard erlaubt), nur Auge, Zahnrad, Monitor, Import/Export bleiben Verwaltersache (`NUR_VERWALTER_AKTIONEN` ohne DRUCKEN; harte-89/78 angepasst). Stand von gestern als Datei war die Überbrückung. **Volle Suite zum Drucken-Bau: 81/81 grün.** Dazu die PDF „Schichtbericht 23.09." aus dem Scan (13 Berichte) über die Druckvorlage erzeugt und geschickt; die Berichte stehen NICHT in der gemeinsamen Datei – auf Wunsch als Import vorbereiten.
@@ -1290,9 +1290,15 @@ Abstände im 6-px-Raster. Robertos „Bauen" (23.09.) → **GEBAUT 23.09.**
   liegengebliebenen Alt-Eintrag aus der Tagesliste und klappt jetzt zuerst
   das Termin-Archiv auf; danach beide grün → **81/81**.
 
-**Nächster großer Schritt (Robertos Richtung vom 24.09., noch nicht
-beauftragt): „Baukasten" – jeder Bereich und jede Kachel personalisierbar.**
-Vorschlag in drei Stufen, jede einzeln freigebbar:
+**Baukasten (Robertos Richtung vom 24.09.) – Bilder B1–B4 gezeigt, Roberto:
+„als Block verschiebbar, die Anordnungen lege ich dann später fest". Stufe 1
+GEBAUT 24.09.:** `layout.bausteine` = [{id, breite}] im 12er-Raster
+(`BAUKASTEN_BEREICHE`, Breiten 3–12), Migration `bausteineAusAlt` aus
+reihenfolge/tausch/zeileUnten, Rückweg `reihenfolgeAusBausteinen` für ältere
+Stände; Rahmen-Art „baustein" mit Ecke (`bausteinGroesseZiehen`), ▾-Chips,
+Zahnrad-Liste „Bausteine"; CSS `.wk-baukasten` stellt unter 880 px alles
+untereinander. harte-75/85/86/87/88 nachgezogen, harte-90 neu. Die alten
+Felder tausch/zeileUnten bleiben nur zum Übersetzen. Die drei Stufen:
 1. **Bereiche wie Kacheln:** Tagesliste, Pinnwand, Einkauf, Heute da,
    Störungen bekommen dieselbe Zieh-Ecke und dieselben Größen-Chips (Breite in
    Spalten eines 4er-Rasters, Höhe frei) – statt der festen Zeilen

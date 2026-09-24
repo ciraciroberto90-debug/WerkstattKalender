@@ -80,7 +80,8 @@ const entries = [
     await p.waitForTimeout(300);
     await p.locator('button[aria-label="Übersicht direkt anordnen"]').click();
     await p.waitForTimeout(600);
-    const griffe = await p.locator("[data-groesse-griff]").count();
+    // Die Ecke des Kennzahlen-Blocks selbst (Baukasten) zählt nicht mit - nur die sieben Kacheln.
+    const griffe = await p.locator('[data-anordnen="kennzahlen"] [data-groesse-griff]').evaluateAll((els) => els.filter((e) => e.getAttribute("data-groesse-griff") !== "kennzahlen").length);
     ok("(G2) Im Anordnen-Modus hat jede der sieben Kacheln eine Zieh-Ecke", griffe === 7, String(griffe));
     const vorher = await rahmenMasse(p);
     const spalte = vorher[1].x - vorher[0].x; // Spaltenbreite inkl. Lücke

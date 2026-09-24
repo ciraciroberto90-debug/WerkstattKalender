@@ -1684,6 +1684,47 @@ const UEBERSICHT_ABSCHNITTE = [
   ["hauptzeile", "Tagesliste + Pinnwand"],
   ["unten", "Untere Zeile (Pinnwand · Einkauf · Heute da)"],
 ];
+/* ---------- Baukasten, Stufe 1 (Robertos Richtung vom 24.09.) ----------
+   Ein Raster für alles: 12 Spalten, jeder Bereich ist ein Baustein mit Platz
+   (Reihenfolge) und Breite in Spalten. Die Kennzahlen bleiben EIN Block
+   (Robertos Entscheidung), ihre Kacheln ordnen sich innen wie bisher.
+   Die alten Felder reihenfolge/tausch/zeileUnten bleiben lesbar - ein
+   bestehender Rechner sieht nach dem Update dieselbe Anordnung
+   (bausteineAusAlt), und ältere Programmstände lesen die abgeleitete
+   reihenfolge weiter. */
+const BAUKASTEN_BEREICHE = [
+  ["kennzahlen", "Kennzahlen-Reihe"], ["heuteDa", "Heute da"], ["stoerungen", "Offene Störungen"],
+  ["tagesliste", "Tagesliste"], ["pinnwand", "Pinnwand"], ["einkauf", "Technischer Einkauf"],
+];
+const BAUSTEIN_BREITEN = [3, 4, 6, 8, 9, 12];
+const BAUSTEIN_MIN = 3, BAUSTEIN_MAX = 12;
+// Alte Anordnung (Abschnitte + Tausch + Whiteboard-Zeile) in Bausteine übersetzen.
+function bausteineAusAlt(reihenfolge, tausch, zeileUnten) {
+  const out = [];
+  const dazu = (id, breite) => { if (!out.some((b) => b.id === id)) out.push({ id, breite }); };
+  reihenfolge.forEach((k) => {
+    if (k === "kennzahlen" || k === "stoerungen") dazu(k, 12);
+    else if (k === "heuteDa") { if (!zeileUnten) dazu("heuteDa", 12); }
+    else if (k === "hauptzeile") {
+      if (zeileUnten) dazu("tagesliste", 12);
+      else if (tausch) { dazu("pinnwand", 6); dazu("tagesliste", 6); }
+      else { dazu("tagesliste", 6); dazu("pinnwand", 6); }
+    } else if (k === "unten") {
+      if (zeileUnten) { dazu("pinnwand", 4); dazu("einkauf", 4); dazu("heuteDa", 4); }
+      else dazu("einkauf", 12);
+    }
+  });
+  BAUKASTEN_BEREICHE.forEach(([id]) => dazu(id, id === "pinnwand" ? 6 : 12));
+  return out;
+}
+// Rückweg für ältere Programmstände: aus den Bausteinen die alte Abschnitts-Folge.
+function reihenfolgeAusBausteinen(bausteine) {
+  const zu = { kennzahlen: "kennzahlen", heuteDa: "heuteDa", stoerungen: "stoerungen", tagesliste: "hauptzeile", pinnwand: "hauptzeile", einkauf: "unten" };
+  const out = [];
+  bausteine.forEach((b) => { const a = zu[b.id]; if (a && !out.includes(a)) out.push(a); });
+  UEBERSICHT_ABSCHNITTE.forEach(([k]) => { if (!out.includes(k)) out.push(k); });
+  return out;
+}
 /* Die fünf Whiteboard-Kacheln (Robertos Tafel vom 23.09., Vorlage U1) mit
    festen Kennungen, damit die Gruppen-Vorlage auf jedem Rechner dieselben
    Kacheln meint: To-dos Soll/Ist, TPM-Effizienz, Unfälle, Backlog, Kosten. */
@@ -1700,7 +1741,8 @@ const UEBERSICHT_VORLAGEN = [
     { aus: [], reihenfolge: ["kennzahlen", "heuteDa", "stoerungen", "hauptzeile"] }],
   ["whiteboard", "Whiteboard", "Robertos Tafel vom 23.09.: fünf Halbkreis-Kacheln (To-dos, TPM, Unfälle, Backlog, Kosten), Tagesplan groß, darunter Pinnwand, Technischer Einkauf und Heute da nebeneinander.",
     { aus: ["neuigkeiten", "rueckblick", "zahlen", "quote", "oee", "uhr"], an: ["einkauf"], reihenfolge: ["kennzahlen", "hauptzeile", "stoerungen", "unten", "heuteDa"],
-      zeileUnten: true, kacheln: WHITEBOARD_KACHELN, kachelDef: WHITEBOARD_KACHEL_DEF }],
+      zeileUnten: true, kacheln: WHITEBOARD_KACHELN, kachelDef: WHITEBOARD_KACHEL_DEF,
+      bausteine: [{ id: "kennzahlen", breite: 12 }, { id: "tagesliste", breite: 12 }, { id: "stoerungen", breite: 12 }, { id: "pinnwand", breite: 4 }, { id: "einkauf", breite: 4 }, { id: "heuteDa", breite: 4 }] }],
   ["morgenrunde", "Morgenrunde", "Störungen ganz oben, dann wer da ist, Kennzahlen und Tagesliste – ohne Hinweisleisten und Links.",
     { aus: ["neuigkeiten", "rueckblick", "geburtstag", "oee", "links"], reihenfolge: ["stoerungen", "heuteDa", "kennzahlen", "hauptzeile"] }],
   ["leitstand", "Leitstand", "Nur Zahlen: Kennzahlen, Quote, OEE, Uhr und die offenen Störungen – keine Tagesliste, keine Pinnwand.",
@@ -1806,13 +1848,28 @@ function normalisiereUebersichtLayout(roh) {
   const kacheln = [...kGewuenscht, ...UEBERSICHT_KACHELN.filter((k) => !kGewuenscht.includes(k))];
   const kachelDef = {};
   kacheln.forEach((k) => { kachelDef[k] = normalisiereKachelDef(rohDef[k], KACHEL_STANDARD_DEF[k]); });
-  // tausch: Pinnwand links, Tagesliste rechts (Robertos "Kacheln tauschen")
+  // tausch / zeileUnten: die alten Stellschrauben von vor dem Baukasten -
+  // sie werden nur noch gelesen, um alte Anordnungen zu übersetzen.
   const tausch = !!(roh && roh.tausch);
-  // zeileUnten (Whiteboard 23.09.): Pinnwand und Heute da wandern in die
-  // untere Zeile neben den Einkauf, die Tagesliste bekommt die ganze Breite.
   const zeileUnten = !!(roh && roh.zeileUnten);
+  // Baukasten (24.09.): Bausteine mit Platz und Breite. Fehlt das Feld, wird
+  // die alte Anordnung übersetzt; Unbekanntes fliegt raus, Fehlendes hängt
+  // hinten an, Breiten werden auf 3-12 geklemmt.
+  const bekannteBausteine = BAUKASTEN_BEREICHE.map(([id]) => id);
+  const rohBausteine = Array.isArray(roh && roh.bausteine) ? roh.bausteine : null;
+  let bausteine;
+  if (rohBausteine) {
+    bausteine = [];
+    rohBausteine.forEach((b) => {
+      const id = b && typeof b === "object" ? b.id : b;
+      if (bekannteBausteine.includes(id) && !bausteine.some((x) => x.id === id)) bausteine.push({ id, breite: zahlOder(b && b.breite, 12, BAUSTEIN_MIN, BAUSTEIN_MAX) });
+    });
+    bekannteBausteine.forEach((id) => { if (!bausteine.some((x) => x.id === id)) bausteine.push({ id, breite: id === "pinnwand" ? 6 : 12 }); });
+  } else {
+    bausteine = bausteineAusAlt(reihenfolge, tausch, zeileUnten);
+  }
   const vorlage = UEBERSICHT_VORLAGEN.some(([id]) => id === (roh && roh.vorlage)) ? roh.vorlage : "eigene";
-  return { bloecke, reihenfolge, kacheln, kachelDef, tausch, zeileUnten, vorlage };
+  return { bloecke, reihenfolge: reihenfolgeAusBausteinen(bausteine), bausteine, kacheln, kachelDef, tausch, zeileUnten, vorlage };
 }
 /* Übersichts-Vorlagen je Benutzergruppe (23.09., Vorlage K5): liegen in der
    gemeinsamen Datei (config.uebersichtVorlagen) und gelten auf jedem Rechner
@@ -1839,7 +1896,7 @@ function layoutAusVorlage(id) {
   const bloecke = {};
   const an = v[3].an || [];
   UEBERSICHT_BAUSTEINE.forEach(([k]) => { bloecke[k] = UEBERSICHT_BAUSTEINE_NEU_AUS.includes(k) ? an.includes(k) : !v[3].aus.includes(k); });
-  return normalisiereUebersichtLayout({ bloecke, reihenfolge: v[3].reihenfolge, zeileUnten: !!v[3].zeileUnten, kacheln: v[3].kacheln || [], kachelDef: v[3].kachelDef || {}, vorlage: id });
+  return normalisiereUebersichtLayout({ bloecke, reihenfolge: v[3].reihenfolge, zeileUnten: !!v[3].zeileUnten, bausteine: v[3].bausteine, kacheln: v[3].kacheln || [], kachelDef: v[3].kachelDef || {}, vorlage: id });
 }
 function leseUebersichtLayout() {
   try { return normalisiereUebersichtLayout(JSON.parse(localStorage.getItem(nsKey(UEBERSICHT_LAYOUT_KEY)) || "null")); } catch (e) { return normalisiereUebersichtLayout(null); }
@@ -10814,14 +10871,12 @@ function App() {
         const knopf = { border: "1px solid #E3CE8F", borderRadius: "6px", backgroundColor: "white", color: "#A25E14", fontSize: "0.7rem", lineHeight: 1, padding: "3px 6px" };
         const rahmen = (art, k, titel, inhalt, liste, setListe, extra = {}) => {
           const idx = liste.indexOf(k);
-          const richtung = art === "kachel" ? ["links", "rechts"] : ["oben", "unten"];
-          const tauschen = () => setUebersichtLayout({ ...uebersichtLayout, tausch: !uebersichtLayout.tausch, vorlage: "eigene" });
+          // Kacheln rücken links/rechts, Bausteine im Raster vor/zurück.
+          const richtung = art === "kachel" ? ["links", "rechts"] : art === "baustein" ? ["vorn", "hinten"] : ["oben", "unten"];
+          const waagerecht = art === "kachel" || art === "baustein";
           const drop = (ev) => {
             ev.preventDefault();
-            if (uebDrag && uebDrag.art === art && uebDrag.k !== k) {
-              if (art === "spalte") tauschen();
-              else setListe(verschiebeIn(liste, liste.indexOf(uebDrag.k), idx));
-            }
+            if (uebDrag && uebDrag.art === art && uebDrag.k !== k) setListe(verschiebeIn(liste, liste.indexOf(uebDrag.k), idx));
             setUebDrag(null);
           };
           return (
@@ -10830,23 +10885,22 @@ function App() {
               draggable
               onDragStart={(ev) => { ev.stopPropagation(); setUebDrag({ art, k }); }}
               onDragOver={(ev) => ev.preventDefault()}
-              onDrop={(ev) => { ev.stopPropagation(); drop(ev); }}
+              // Fällt ein Baustein auf eine Kachel im Kennzahlen-Block, gehört
+              // der Ablegepunkt dem Block - das Ereignis steigt dann weiter.
+              onDrop={(ev) => { if (uebDrag && uebDrag.art !== art) return; ev.stopPropagation(); drop(ev); }}
               data-anordnen={k}
               aria-label={`Kachel ${titel}`}
-              style={{ position: "relative", border: "2px dashed #C97A2B", borderRadius: "12px", padding: "28px 6px 6px", marginBottom: art === "abschnitt" ? "16px" : 0, backgroundColor: "rgba(201,122,43,0.05)", cursor: "grab", gridColumn: extra.span, gridRow: extra.rowSpan,
-                // Kachel-Rahmen: Inhalt füllt den Rahmen auch bei doppelter Höhe
-                ...(art === "kachel" ? { display: "flex", flexDirection: "column" } : {}) }}
+              style={{ position: "relative", border: "2px dashed #C97A2B", borderRadius: "12px", padding: "28px 6px 6px", marginBottom: art === "abschnitt" ? "16px" : 0, backgroundColor: "rgba(201,122,43,0.05)", cursor: "grab", gridColumn: extra.span, gridRow: extra.rowSpan, minWidth: 0,
+                // Kachel- und Baustein-Rahmen: Inhalt füllt den Rahmen auch bei doppelter Höhe
+                ...(waagerecht ? { display: "flex", flexDirection: "column" } : {}) }}
             >
               <div className="flex items-center gap-1" style={{ position: "absolute", top: "4px", left: "8px", right: "6px", fontSize: "0.66rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.4px", color: "#A25E14" }}>
                 <span className="truncate">⠿ {extra.anzeige || titel}</span>
                 {extra.kopf}
                 <span className="ml-auto" />
-                {extra.tausch && (
-                  <button onClick={tauschen} aria-label={`${titel} Seite tauschen`} title="Linke und rechte Spalte tauschen" style={knopf}>⇄</button>
-                )}
                 {liste.length > 1 && (<>
-                  <button onClick={() => setListe(verschiebeIn(liste, idx, idx - 1))} disabled={idx === 0} aria-label={`${titel} nach ${richtung[0]}`} style={{ ...knopf, opacity: idx === 0 ? 0.35 : 1 }}>{art === "kachel" ? "◀" : "▲"}</button>
-                  <button onClick={() => setListe(verschiebeIn(liste, idx, idx + 1))} disabled={idx === liste.length - 1} aria-label={`${titel} nach ${richtung[1]}`} style={{ ...knopf, opacity: idx === liste.length - 1 ? 0.35 : 1 }}>{art === "kachel" ? "▶" : "▼"}</button>
+                  <button onClick={() => setListe(verschiebeIn(liste, idx, idx - 1))} disabled={idx === 0} aria-label={`${titel} nach ${richtung[0]}`} style={{ ...knopf, opacity: idx === 0 ? 0.35 : 1 }}>{waagerecht ? "◀" : "▲"}</button>
+                  <button onClick={() => setListe(verschiebeIn(liste, idx, idx + 1))} disabled={idx === liste.length - 1} aria-label={`${titel} nach ${richtung[1]}`} style={{ ...knopf, opacity: idx === liste.length - 1 ? 0.35 : 1 }}>{waagerecht ? "▶" : "▼"}</button>
                 </>)}
                 <button onClick={() => (extra.aus ? extra.aus() : setzeBlock(k, false))} aria-label={`${titel} ausblenden`} title="Ausblenden – oben über den +-Chip wieder einblenden" style={knopf}>✕</button>
               </div>
@@ -10856,7 +10910,7 @@ function App() {
               {/* Kachel-Wahl (23.09., Vorlage K1): das ▾ im Griff klappt die
                   gruppierte Kennzahl-Liste samt Darstellung und Zeitraum auf. */}
               {extra.menue}
-              <div style={{ ...(extra.durchlaessig ? {} : { pointerEvents: "none", userSelect: "none" }), ...(art === "kachel" ? { flex: 1, display: "grid" } : {}) }}>{inhalt}</div>
+              <div style={{ ...(extra.durchlaessig ? {} : { pointerEvents: "none", userSelect: "none" }), ...(waagerecht ? { flex: 1, display: "grid", minWidth: 0 } : {}) }}>{inhalt}</div>
               {/* Größe ziehen (24.09.): dieselbe Ecke wie an den Pop-out-Fenstern.
                   Die Kachel rastet auf ganze Spalten und Reihen, die Nachbarn
                   rücken nach. Tastatur/Klick: die Größen-Chips im ▾-Menü. */}
@@ -10876,7 +10930,7 @@ function App() {
         // Im Anordnen-Modus braucht jeder Abschnitt einen Platz - auch wenn er
         // gerade nichts zu zeigen hätte (keine offene Störung, kein Team).
         const platzhalter = (titel, text) => (
-          <div className="rounded-xl mb-4 px-4 py-3 text-xs" style={{ border: "1px dashed #C4CBD2", color: "#8A9099", backgroundColor: "white" }}>
+          <div className="rounded-xl px-4 py-3 text-xs" style={{ border: "1px dashed #C4CBD2", color: "#8A9099", backgroundColor: "white" }}>
             <strong style={{ color: "#5B6572" }}>{titel}</strong> – {text}
           </div>
         );
@@ -11048,7 +11102,7 @@ function App() {
         // Spalten nach Platz: bei sieben Kacheln wie bisher sieben, bei fünf
         // (Whiteboard) füllen fünf die Breite - leere Spalten fallen weg.
         abschnitt.kennzahlen = (kachelnSichtbar.length > 0 || bearbeiten) && (
-          <div className="grid gap-2.5 mb-4 auto-rows-fr" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+          <div className="grid gap-2.5 auto-rows-fr" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
             {uebersichtLayout.kacheln.map((k) => {
               if (!kachelSichtbar(k)) return null;
               const { span, rowSpan } = kachelSpan(k);
@@ -11076,7 +11130,7 @@ function App() {
             const typFarbe = { FRUEH: { bg: "#F0C230", text: "#3A2E00" }, SPAET: { bg: "#1F7A3D", text: "#fff" }, NACHT: { bg: "#2F6690", text: "#fff" } };
             const initialen = (n) => n.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
             return (
-              <div className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>
                 <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: "1px solid #EEF0F2" }}>
                   <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>👷 Heute da</span>
                   <span className="font-mono text-xs" style={{ color: "#8A9099" }}>({SCHICHT_INFO[aktuell].zeit})</span>
@@ -11133,13 +11187,11 @@ function App() {
               </div>
             );
           })() : (bearbeiten ? platzhalter("Heute da", "erscheint, sobald im ⚙ ein Team eingetragen ist") : null));
-        // Whiteboard-Zeile (23.09.): "Heute da" wohnt dann unten neben Pinnwand und Einkauf.
-        abschnitt.heuteDa = uebersichtLayout.zeileUnten ? null : heuteDaInhalt;
 
         /* Gedankenstütze: offene Störungen - die Knöpfe führen in den Bereich
            Berichte → Störungen (dort wohnt die Liste seit dem 10.09.). */
         abschnitt.stoerungen = zeig.stoerungen && sichtbar("STOERUNGEN") && (stoerOffeneListe.length > 0 ? (
-            <div className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7B9B3", borderLeft: "5px solid #C0392B" }}>
+            <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "white", border: "1px solid #E7B9B3", borderLeft: "5px solid #C0392B" }}>
               <div className="flex items-center gap-2 px-4 py-2.5" style={{ backgroundColor: "#FBEAE8" }}>
                 <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#9A2B22" }}>⚠ Offene Störungen</span>
                 <span className="inline-flex items-center justify-center rounded-full text-white font-bold" style={{ minWidth: "18px", height: "18px", padding: "0 6px", backgroundColor: "#C0392B", fontSize: "0.62rem" }}>{stoerOffeneListe.length}</span>
@@ -11721,24 +11773,6 @@ function App() {
             </div>
             );
             })();
-        // Tagesliste und Pinnwand nebeneinander - Seiten tauschbar (⇄)
-        // Whiteboard-Zeile (23.09.): Pinnwand wandert nach unten, die Tagesliste
-        // bekommt die ganze Breite.
-        const dreier = uebersichtLayout.zeileUnten;
-        const spaltenReihe = (uebersichtLayout.tausch ? ["pinnwand", "tagesliste"] : ["tagesliste", "pinnwand"]).filter((k) => !(dreier && k === "pinnwand"));
-        const spaltenTitel = { tagesliste: "Tagesliste", pinnwand: "Pinnwand" };
-        const beide = !!(spalten.tagesliste && spalten.pinnwand) && !dreier;
-        abschnitt.hauptzeile = (spalten.tagesliste || (spalten.pinnwand && !dreier)) && (
-          // mb-4 wie jeder andere Abschnitt - sonst klebt die untere Zeile am Termin-Archiv (Robertos Fund 24.09.)
-          <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: beide ? (uebersichtLayout.tausch ? "1fr 1.05fr" : "1.05fr 1fr") : "1fr" }}>
-            {spaltenReihe.map((k) => {
-              if (!spalten[k]) return null;
-              if (!bearbeiten) return <React.Fragment key={k}>{spalten[k]}</React.Fragment>;
-              return rahmen("spalte", k, spaltenTitel[k], spalten[k], [k], () => {}, { tausch: beide });
-            })}
-          </div>
-        );
-
         /* ---- Technischer Einkauf (Whiteboard 23.09., große Statistik-Kachel) ----
            Alles aus den Störberichten: "Ersatzteile" eingetragen = Bedarf,
            "nachbestellt" = bestellt, "eingetroffen" = geliefert. Kosten und
@@ -11760,7 +11794,7 @@ function App() {
             </div>
           );
           return (
-            <div className="rounded-xl mb-4 overflow-hidden" role="region" aria-label="Technischer Einkauf" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>
+            <div className="rounded-xl overflow-hidden" role="region" aria-label="Technischer Einkauf" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>
               <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: "1px solid #EEF0F2" }}>
                 <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "#22262B" }}>🛒 Technischer Einkauf</span>
                 <span className="inline-flex items-center rounded-full font-bold" style={{ backgroundColor: "#F1F3F5", color: "#5B6572", fontSize: "0.62rem", padding: "2px 8px" }}>aus Störberichten</span>
@@ -11774,31 +11808,74 @@ function App() {
             </div>
           );
         })();
-        /* Untere Zeile: Pinnwand · Einkauf · Heute da nebeneinander (Whiteboard),
-           sonst nur der Einkauf, wenn er an ist. */
-        const untenTeile = [
-          // Pinnwand in der unteren Zeile in derselben weißen Karte wie
-          // Einkauf und Heute da - ohne Karte hing der Kopf tiefer als die
-          // Nachbarn (Robertos Fund 24.09., "Abstände passen nicht").
-          dreier && spalten.pinnwand ? ["pinnwand", <div className="rounded-xl px-4 py-3" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>{spalten.pinnwand}</div>] : null,
-          einkaufBlock ? ["einkauf", einkaufBlock] : null,
-          dreier && heuteDaInhalt ? ["heuteDa", heuteDaInhalt] : null,
-        ].filter(Boolean);
-        abschnitt.unten = untenTeile.length > 0 ? (
-          <div className="grid gap-4 mb-4" data-zeile="unten" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${untenTeile.length > 1 ? "280px" : "200px"}, 1fr))` }}>
-            {untenTeile.map(([k, inhalt]) => <div key={k} data-unten={k}>{inhalt}</div>)}
-          </div>
-        ) : (bearbeiten && dreier ? platzhalter("Untere Zeile", "zeigt Pinnwand, Technischen Einkauf und Heute da, sobald einer davon an ist") : null);
-
-        const setReihenfolge = (r) => setUebersichtLayout({ ...uebersichtLayout, reihenfolge: r, vorlage: "eigene" });
-        const abschnittTitel = { kennzahlen: "Kennzahlen-Reihe", heuteDa: "Heute da", stoerungen: "Offene Störungen", hauptzeile: dreier ? "Tagesliste" : "Tagesliste + Pinnwand", unten: "Untere Zeile" };
-        const abschnittAus = {
+        /* ---- Baukasten, Stufe 1 (24.09.): EIN Raster mit 12 Spalten ----
+           Jeder Bereich ist ein Baustein mit Platz und Breite - dieselbe
+           Zieh-Ecke, dieselben Pfeile wie an den Kacheln. Die Pinnwand steckt
+           in derselben weißen Karte wie Einkauf und Heute da, damit die
+           Köpfe in einer Zeile auf gleicher Höhe liegen. */
+        const bausteinInhalt = {
+          kennzahlen: abschnitt.kennzahlen,
+          heuteDa: heuteDaInhalt,
+          stoerungen: abschnitt.stoerungen,
+          tagesliste: spalten.tagesliste,
+          pinnwand: spalten.pinnwand ? <div className="rounded-xl px-4 py-3" style={{ backgroundColor: "white", border: "1px solid #E7EAEE" }}>{spalten.pinnwand}</div> : null,
+          einkauf: einkaufBlock,
+        };
+        const bausteinTitel = Object.fromEntries(BAUKASTEN_BEREICHE);
+        const bausteinAus = {
           kennzahlen: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, zahlen: false, quote: false, oee: false, uhr: false }, vorlage: "eigene" }),
-          heuteDa: () => setzeBlock("heuteDa", false),
-          stoerungen: () => setzeBlock("stoerungen", false),
-          hauptzeile: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, tagesliste: false, pinnwand: dreier ? zeig.pinnwand : false }, vorlage: "eigene" }),
-          // ✕ an der unteren Zeile: Einkauf aus, Pinnwand und Heute da zurück an ihre alten Plätze
-          unten: () => setUebersichtLayout({ ...uebersichtLayout, bloecke: { ...zeig, einkauf: false }, zeileUnten: false, vorlage: "eigene" }),
+          heuteDa: () => setzeBlock("heuteDa", false), stoerungen: () => setzeBlock("stoerungen", false),
+          tagesliste: () => setzeBlock("tagesliste", false), pinnwand: () => setzeBlock("pinnwand", false), einkauf: () => setzeBlock("einkauf", false),
+        };
+        const bausteinIds = uebersichtLayout.bausteine.map((b) => b.id);
+        const setBausteinIds = (ids) => setUebersichtLayout({ ...uebersichtLayout, bausteine: ids.map((id) => uebersichtLayout.bausteine.find((b) => b.id === id)).filter(Boolean), vorlage: "eigene" });
+        const setBausteinBreite = (id, breite) => setUebersichtLayout({ ...uebersichtLayout, bausteine: uebersichtLayout.bausteine.map((b) => (b.id === id ? { ...b, breite } : b)), vorlage: "eigene" });
+        // Ecke ziehen: rastet auf ganze Spalten des 12er-Rasters (3-12).
+        const bausteinGroesseZiehen = (ev, id) => {
+          if (ev.button !== undefined && ev.button !== 0) return;
+          ev.preventDefault(); ev.stopPropagation();
+          const rahmenEl = ev.currentTarget.closest("[data-anordnen]");
+          const raster = rahmenEl && rahmenEl.parentElement;
+          if (!rahmenEl || !raster) return;
+          const r = rahmenEl.getBoundingClientRect();
+          const luecke = parseFloat(getComputedStyle(raster).columnGap) || 16;
+          const spaltenBreite = (raster.getBoundingClientRect().width + luecke) / 12;
+          const x0 = ev.clientX;
+          let zuletzt = (uebersichtLayout.bausteine.find((b) => b.id === id) || {}).breite || 12;
+          const move = (e) => {
+            const b = Math.min(BAUSTEIN_MAX, Math.max(BAUSTEIN_MIN, Math.round((r.width + (e.clientX - x0)) / spaltenBreite)));
+            if (b !== zuletzt) { zuletzt = b; setBausteinBreite(id, b); }
+          };
+          const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", up);
+        };
+        // ▾ am Baustein: die Breite als Chips (der Klick-Weg neben der Ecke).
+        const bausteinKnopf = (id) => (
+          <button
+            onClick={(ev) => { ev.stopPropagation(); setKachelMenue(kachelMenue === "b:" + id ? null : "b:" + id); }}
+            aria-label={`Breite ${bausteinTitel[id]} wählen`}
+            aria-expanded={kachelMenue === "b:" + id}
+            title="Breite des Bereichs in Spalten wählen"
+            style={{ ...knopf, marginLeft: "4px", backgroundColor: kachelMenue === "b:" + id ? "#22262B" : "white", color: kachelMenue === "b:" + id ? "white" : "#A25E14", fontWeight: 900 }}
+          >▾</button>
+        );
+        const bausteinMenueFuer = (id) => {
+          if (kachelMenue !== "b:" + id) return null;
+          const b = uebersichtLayout.bausteine.find((x) => x.id === id) || { breite: 12 };
+          const chip = (an) => ({ fontSize: "0.66rem", fontWeight: 800, padding: "2px 8px", borderRadius: "999px", border: `1px solid ${an ? "#22262B" : "#D6D9DC"}`, backgroundColor: an ? "#22262B" : "white", color: an ? "white" : "#5B6572" });
+          return (
+            <div role="menu" aria-label={`Baustein ${bausteinTitel[id]}`} onClick={(ev) => ev.stopPropagation()} onDragStart={(ev) => { ev.preventDefault(); ev.stopPropagation(); }} draggable={false}
+              style={{ position: "absolute", top: "26px", left: "6px", zIndex: 30, width: "250px", backgroundColor: "white", border: "1px solid #E2E4E7", borderRadius: "10px", boxShadow: "0 12px 30px rgba(0,0,0,0.25)", padding: "6px", cursor: "default", textTransform: "none", letterSpacing: 0, fontWeight: 500 }}>
+              <div className="flex items-center gap-1 flex-wrap px-1.5 pt-1 pb-1.5">
+                <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#8A9099", marginRight: "2px" }}>Breite</span>
+                {BAUSTEIN_BREITEN.map((n) => (
+                  <button key={n} role="menuitemradio" aria-checked={b.breite === n} aria-label={`Breite ${n} Spalten`} title={`${n} von 12 Spalten`} onClick={() => setBausteinBreite(id, n)} style={chip(b.breite === n)}>{n}</button>
+                ))}
+                <span style={{ fontSize: "0.6rem", color: "#8A9099" }}>von 12</span>
+              </div>
+            </div>
+          );
         };
         const versteckt = UEBERSICHT_BAUSTEINE.filter(([k]) => !zeig[k]);
         return (
@@ -11807,7 +11884,7 @@ function App() {
               <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "#FDF3E7", border: "1px solid #E3CE8F" }} role="region" aria-label="Übersicht anordnen">
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-xs font-black uppercase tracking-wide" style={{ color: "#A25E14" }}>✎ Übersicht anordnen</span>
-                  <span className="text-xs" style={{ color: "#6B5000" }}>Kacheln am Griff ziehen oder mit den Pfeilen schieben · ✕ blendet aus · ⇄ tauscht die Seiten · gilt nur für diesen Rechner</span>
+                  <span className="text-xs" style={{ color: "#6B5000" }}>Griff ziehen = Platz · Ecke ziehen = Breite (12 Spalten) · ▾ = Inhalt und Breite · ✕ blendet aus · gilt nur für diesen Rechner</span>
                   <select
                     value={uebersichtLayout.vorlage}
                     onChange={(e) => { if (e.target.value !== "eigene") setUebersichtLayout(layoutAusVorlage(e.target.value)); }}
@@ -11831,12 +11908,20 @@ function App() {
                 )}
               </div>
             )}
-            {uebersichtLayout.reihenfolge.map((k) => {
-              const inhalt = abschnitt[k];
-              if (!bearbeiten) return <React.Fragment key={k}>{inhalt || null}</React.Fragment>;
-              if (!inhalt) return null; // ganz ausgeblendet - steht oben als "+"-Chip
-              return rahmen("abschnitt", k, abschnittTitel[k], inhalt, uebersichtLayout.reihenfolge, setReihenfolge, { aus: abschnittAus[k], durchlaessig: k === "kennzahlen" || k === "hauptzeile" });
-            })}
+            {/* Das 12er-Raster: Bausteine in Reihenfolge, jeder so breit wie
+                eingestellt; auf schmalen Bildschirmen stellt index.css
+                (.wk-baukasten) alle untereinander. */}
+            <div className="grid gap-4 wk-baukasten" data-baukasten style={{ gridTemplateColumns: "repeat(12, minmax(0, 1fr))", alignItems: "stretch" }}>
+              {uebersichtLayout.bausteine.map((b) => {
+                const inhalt = bausteinInhalt[b.id];
+                if (!inhalt) return null; // ausgeblendet oder leer - im Anordnen-Modus steht oben der "+"-Chip
+                const span = `span ${b.breite}`;
+                if (!bearbeiten) return <div key={b.id} data-baustein={b.id} style={{ gridColumn: span, minWidth: 0, display: "grid" }}>{inhalt}</div>;
+                return rahmen("baustein", b.id, bausteinTitel[b.id], inhalt, bausteinIds, setBausteinIds, {
+                  aus: bausteinAus[b.id], span, durchlaessig: b.id === "kennzahlen", kopf: bausteinKnopf(b.id), menue: bausteinMenueFuer(b.id), groesse: (ev) => bausteinGroesseZiehen(ev, b.id),
+                });
+              })}
+            </div>
           </div>
         );
       })()}
@@ -16033,36 +16118,30 @@ function App() {
                   );
                 })}
               </div>
-              <div className="text-[11px] font-bold uppercase mb-1.5" style={{ color: "#8A9099" }}>Reihenfolge der Abschnitte</div>
-              <div className="flex flex-col gap-1 mb-2">
-                {uebersichtLayout.reihenfolge.map((k, idx) => {
-                  const eintrag = UEBERSICHT_ABSCHNITTE.find(([id]) => id === k);
-                  const tausche = (a, b) => {
-                    const r = [...uebersichtLayout.reihenfolge];
-                    [r[a], r[b]] = [r[b], r[a]];
-                    setUebersichtLayout({ ...uebersichtLayout, reihenfolge: r, vorlage: "eigene" });
-                  };
+              {/* Baukasten (24.09.): Reihenfolge und Breite je Baustein - dieselbe
+                  Wahrheit wie die Ecke und das ▾ im Anordnen-Modus. */}
+              <div className="text-[11px] font-bold uppercase mb-1.5" style={{ color: "#8A9099" }}>Bausteine – Reihenfolge und Breite (12 Spalten)</div>
+              <div className="flex flex-col gap-1 mb-2" role="list" aria-label="Bausteine">
+                {uebersichtLayout.bausteine.map((b, idx) => {
+                  const name = (BAUKASTEN_BEREICHE.find(([id]) => id === b.id) || [b.id, b.id])[1];
+                  const an = b.id === "kennzahlen" ? (uebersichtLayout.bloecke.zahlen || uebersichtLayout.bloecke.quote || uebersichtLayout.bloecke.oee || uebersichtLayout.bloecke.uhr) : !!uebersichtLayout.bloecke[b.id];
+                  const schieb = (nach) => setUebersichtLayout({ ...uebersichtLayout, bausteine: verschiebeIn(uebersichtLayout.bausteine, idx, nach), vorlage: "eigene" });
                   return (
-                    <div key={k} className="flex items-center gap-2 px-2.5 py-1.5 rounded border" style={{ borderColor: "#E2E4E7", backgroundColor: "white" }}>
+                    <div key={b.id} role="listitem" className="flex items-center gap-2 px-2.5 py-1.5 rounded border" style={{ borderColor: "#E2E4E7", backgroundColor: "white", opacity: an ? 1 : 0.55 }}>
                       <span className="font-mono text-xs" style={{ color: "#8A9099", width: "16px" }}>{idx + 1}.</span>
-                      <span className="text-sm font-bold flex-1" style={{ color: "#22262B" }}>{eintrag ? eintrag[1] : k}</span>
-                      <button onClick={() => idx > 0 && tausche(idx, idx - 1)} disabled={idx === 0} aria-label={`${eintrag ? eintrag[1] : k} nach oben`}
+                      <span className="text-sm font-bold flex-1" style={{ color: "#22262B" }}>{name}{!an && <span className="ml-1.5 text-[10px] font-normal" style={{ color: "#8A9099" }}>(ausgeblendet)</span>}</span>
+                      <select value={b.breite} aria-label={`Breite ${name}`} onChange={(e) => setUebersichtLayout({ ...uebersichtLayout, bausteine: uebersichtLayout.bausteine.map((x) => (x.id === b.id ? { ...x, breite: Number(e.target.value) } : x)), vorlage: "eigene" })}
+                        style={{ fontSize: "0.72rem", padding: "2px 20px 2px 6px", backgroundPosition: "right 6px center", backgroundSize: "9px" }}>
+                        {(BAUSTEIN_BREITEN.includes(b.breite) ? BAUSTEIN_BREITEN : [...BAUSTEIN_BREITEN, b.breite].sort((x, y) => x - y)).map((n) => <option key={n} value={n}>{n} / 12</option>)}
+                      </select>
+                      <button onClick={() => idx > 0 && schieb(idx - 1)} disabled={idx === 0} aria-label={`${name} nach oben`}
                         className="rounded border px-2 text-xs font-bold" style={{ borderColor: "#D7DCE1", color: idx === 0 ? "#C3C7CB" : "#22262B" }}>▲</button>
-                      <button onClick={() => idx < uebersichtLayout.reihenfolge.length - 1 && tausche(idx, idx + 1)} disabled={idx === uebersichtLayout.reihenfolge.length - 1} aria-label={`${eintrag ? eintrag[1] : k} nach unten`}
-                        className="rounded border px-2 text-xs font-bold" style={{ borderColor: "#D7DCE1", color: idx === uebersichtLayout.reihenfolge.length - 1 ? "#C3C7CB" : "#22262B" }}>▼</button>
+                      <button onClick={() => idx < uebersichtLayout.bausteine.length - 1 && schieb(idx + 1)} disabled={idx === uebersichtLayout.bausteine.length - 1} aria-label={`${name} nach unten`}
+                        className="rounded border px-2 text-xs font-bold" style={{ borderColor: "#D7DCE1", color: idx === uebersichtLayout.bausteine.length - 1 ? "#C3C7CB" : "#22262B" }}>▼</button>
                     </div>
                   );
                 })}
               </div>
-              <label className="flex items-start gap-2.5 px-2.5 py-1.5 rounded border cursor-pointer mb-2"
-                     style={{ borderColor: uebersichtLayout.zeileUnten ? "#2F6690" : "#E2E4E7", backgroundColor: uebersichtLayout.zeileUnten ? "#EEF3F8" : "white" }}>
-                <input type="checkbox" checked={!!uebersichtLayout.zeileUnten} aria-label="Übersicht: Whiteboard-Zeile" style={{ marginTop: "3px" }}
-                  onChange={(ev) => setUebersichtLayout({ ...uebersichtLayout, zeileUnten: ev.target.checked, vorlage: "eigene" })} />
-                <span>
-                  <span className="block text-sm font-bold" style={{ color: "#22262B" }}>Whiteboard-Zeile</span>
-                  <span className="block text-[11px]" style={{ color: "#8A9099" }}>Tagesliste in voller Breite, darunter Pinnwand, Technischer Einkauf und Heute da nebeneinander (Abschnitt „Untere Zeile")</span>
-                </span>
-              </label>
               <div className="text-xs mb-5" style={{ color: "#8A9099" }}>
                 Die Wahl wird sofort übernommen und bleibt auf diesem Rechner gespeichert. ·{" "}
                 <button onClick={() => setUebersichtLayout(layoutAusVorlage("standard"))} className="font-bold underline" style={{ color: "#5B6572" }}>Auf Standard zurücksetzen</button>

@@ -294,10 +294,10 @@ const ok = (n, c, zusatz) => {
     (await ap.locator('[role="region"][aria-label="Übersicht anordnen"]').count()) === 1
     && (await ap.locator('button[aria-label="Verwalten"]').count()) === 1);
   const rahmenZahl = await ap.locator("[data-anordnen]").count();
-  // Seit dem 23.09. (Kachel-Inhalt wählbar) sind die vier Zahlen eigene
-  // Kacheln: 4 Abschnitte + 7 Kennzahl-Kacheln + 2 Spalten.
-  ok("(C1) Jede Kachel hat einen Rahmen: 4 Abschnitte + 7 Kennzahl-Kacheln + 2 Spalten",
-    rahmenZahl === 13, String(rahmenZahl));
+  // Seit dem Baukasten (24.09.) sind Tagesliste und Pinnwand eigene
+  // Bausteine im 12er-Raster: 5 Bausteine + 7 Kennzahl-Kacheln.
+  ok("(C1) Jede Kachel hat einen Rahmen: 5 Bausteine + 7 Kennzahl-Kacheln",
+    rahmenZahl === 12, String(rahmenZahl));
   ok("(C1) Der Inhalt ist eingefroren: das Pinnwand-Plus nimmt keine Klicks mehr an",
     (await ap.locator('button[aria-label="Neue Notiz anpinnen"]').evaluate((el) => {
       let n = el; while (n) { if (getComputedStyle(n).pointerEvents === "none") return true; n = n.parentElement; } return false;
@@ -314,13 +314,15 @@ const ok = (n, c, zusatz) => {
   await ap.waitForTimeout(300);
   ok("(C2) Der Chip holt „Heute da“ zurück", (await ap.locator('[data-anordnen="heuteDa"]').count()) === 1);
 
-  /* ---- (C3) Pfeile: Abschnitt und Kachel ---- */
-  await ap.locator('button[aria-label="Offene Störungen nach oben"]').click();
+  /* ---- (C3) Pfeile: Baustein und Kachel ---- */
+  // Im Raster heißen die Pfeile "nach vorn/hinten" (◀ ▶) - ein Baustein rückt im Fluss.
+  await ap.locator('button[aria-label="Offene Störungen nach vorn"]').click();
   await ap.waitForTimeout(200);
-  await ap.locator('button[aria-label="Offene Störungen nach oben"]').click();
+  await ap.locator('button[aria-label="Offene Störungen nach vorn"]').click();
   await ap.waitForTimeout(300);
   const lay1 = await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout")));
-  ok("(C3) Zweimal ▲: „Offene Störungen“ steht ganz oben", lay1.reihenfolge[0] === "stoerungen", lay1.reihenfolge.join(" > "));
+  ok("(C3) Zweimal ◀: „Offene Störungen“ steht ganz vorn (Bausteine und abgeleitete Abschnitts-Folge)",
+    lay1.bausteine[0].id === "stoerungen" && lay1.reihenfolge[0] === "stoerungen", lay1.bausteine.map((b) => b.id).join(" > "));
   await ap.locator('button[aria-label="Uhr & Schicht nach links"]').click();
   await ap.waitForTimeout(300);
   const lay2 = await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout")));
@@ -329,20 +331,21 @@ const ok = (n, c, zusatz) => {
   const reiheDom = await ap.locator('[data-anordnen="kennzahlen"] [data-anordnen]').evaluateAll((els) => els.map((e) => e.getAttribute("data-anordnen")));
   ok("(C3) Die Kennzahlen-Reihe zeichnet in der neuen Reihenfolge", reiheDom.join(",") === lay2.kacheln.join(","), reiheDom.join(","));
 
-  /* ---- (C4) Seiten tauschen ---- */
-  await ap.locator('button[aria-label="Pinnwand Seite tauschen"]').click();
+  /* ---- (C4) Pinnwand vor die Tagesliste (früher ⇄, jetzt ◀ am Baustein) ---- */
+  await ap.locator('button[aria-label="Pinnwand nach vorn"]').click();
   await ap.waitForTimeout(300);
-  const spaltenDom = await ap.locator('[data-anordnen="hauptzeile"] [data-anordnen]').evaluateAll((els) => els.map((e) => e.getAttribute("data-anordnen")));
-  ok("(C4) ⇄ tauscht die Seiten: Pinnwand links, Tagesliste rechts",
-    spaltenDom.join(",") === "pinnwand,tagesliste"
-    && (await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout")).tausch)) === true, spaltenDom.join(","));
+  const bausteineDom = await ap.locator('[data-baukasten] > [data-anordnen]').evaluateAll((els) => els.map((e) => e.getAttribute("data-anordnen")));
+  ok("(C4) ◀ an der Pinnwand: Pinnwand steht vor der Tagesliste, beide 6 von 12 Spalten breit",
+    bausteineDom.indexOf("pinnwand") === bausteineDom.indexOf("tagesliste") - 1
+    && (await ap.evaluate(() => { const l = JSON.parse(localStorage.getItem("wk-uebersicht-layout")); return l.bausteine.find((b) => b.id === "pinnwand").breite === 6 && l.bausteine.find((b) => b.id === "tagesliste").breite === 6; })), bausteineDom.join(","));
 
   /* ---- (C5) Ziehen: „Heute da“ auf die Kennzahlen-Reihe ziehen ---- */
-  const vorZug = (await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout")))).reihenfolge;
+  const ids = (l) => l.bausteine.map((b) => b.id);
+  const vorZug = ids(await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout"))));
   await ap.locator('[data-anordnen="heuteDa"]').dragTo(ap.locator('[data-anordnen="kennzahlen"]'));
   await ap.waitForTimeout(400);
-  const nachZug = (await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout")))).reihenfolge;
-  ok("(C5) Ziehen mit der Maus verschiebt den Abschnitt (Heute da auf den Platz der Kennzahlen)",
+  const nachZug = ids(await ap.evaluate(() => JSON.parse(localStorage.getItem("wk-uebersicht-layout"))));
+  ok("(C5) Ziehen mit der Maus verschiebt den Baustein (Heute da auf den Platz der Kennzahlen)",
     nachZug.indexOf("heuteDa") === vorZug.indexOf("kennzahlen") && nachZug.join() !== vorZug.join(),
     vorZug.join(">") + " -> " + nachZug.join(">"));
 

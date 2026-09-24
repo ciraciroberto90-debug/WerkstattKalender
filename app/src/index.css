@@ -213,3 +213,11 @@ html.wk-nacht img { filter: invert(1) hue-rotate(180deg); }
 @keyframes wk-laufband-zug {
   to { transform: translateX(-100%); }
 }
+
+/* Baukasten-Raster der Übersicht (24.09.): 12 Spalten am Schreibtisch; auf
+   schmalen Bildschirmen (Tablet hochkant, Telefon) stehen alle Bausteine
+   untereinander - ein 3-Spalten-Bereich wäre dort unlesbar schmal. */
+.wk-baukasten > * { min-width: 0; }
+@media (max-width: 880px) {
+  .wk-baukasten > * { grid-column: 1 / -1 !important; }
+}

@@ -96,7 +96,7 @@ const stoer = [
     !(await p.locator('button[aria-label="Verwalten"]').isVisible()) && !(await p.locator('button[aria-label="Werkstatt-Monitor"]').isVisible()));
   const imMonitor = await kacheln();
   ok("(M3) Auf der Tafel läuft die LESER-Vorlage: die fünf Whiteboard-Kacheln und die untere Zeile",
-    imMonitor.join(",") === WHITEBOARD && (await p.locator('[data-zeile="unten"]').count()) === 1, imMonitor.join(","));
+    imMonitor.join(",") === WHITEBOARD && (await p.locator('[data-baustein="einkauf"]').count()) === 1, imMonitor.join(","));
   const fuss = p.locator('[data-monitor-fuss="tafel"]');
   const fussText = (await fuss.count()) ? await fuss.innerText() : "";
   ok("(M3) Unten laufen Störungs-Laufband (Testlauf-Störung) und Pinnwand-Laufschrift (Zettel für Alle mit 📺)",
