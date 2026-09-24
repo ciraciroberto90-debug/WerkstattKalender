@@ -519,6 +519,14 @@ Störungen, nicht den Rest.
   einen Unterschied: Tagesliste und Pinnwand je halbe Breite, die frühere
   Whiteboard-Zeile wird zu Pinnwand · Einkauf · Heute da mit je 4 Spalten.
   Auf schmalen Bildschirmen stehen alle Bausteine untereinander.
+- **Klick auf eine Kachel öffnet ihre Pflegestelle (seit dem 24.09.):** Jede
+  Kennzahl-Kachel ist ein Knopf, der Hinweis steht im Tooltip. Unfälle und
+  Kosten öffnen das ⚙ unter „Regeln & Listen" direkt am passenden Abschnitt
+  (nur Verwalter). Störungs-Kacheln führen zu Berichte → Störungen, To-dos zu
+  Berichte → To-do, Backlog und Erledigt zu Berichte → Backlog, Stunden zur
+  Zeiterfassung, „Jetzt in der Werkstatt" zum Schichtplan, Termin- und
+  Quoten-Kacheln zum TPM-Plan. Was die Gruppe nicht sehen darf, bleibt stumm;
+  im Anordnen-Modus sind die Kacheln eingefroren.
 - **Kachel-Größe ziehen (seit dem 24.09.):** Im Anordnen-Modus hat jede
   Kennzahl-Kachel unten rechts dieselbe Ecke wie die Pop-out-Fenster. Ziehen
   macht die Kachel breiter (bis 4 Spalten) oder höher (bis 3 Reihen), sie

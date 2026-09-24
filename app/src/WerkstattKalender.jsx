@@ -606,7 +606,9 @@ function MonatsDiagramm({ tage, monatName, jahr, erledigt, basis, prozent, filte
 // alle Kacheln der Übersicht gleich gebaut (Titel · Halbkreis · Soll/Ist).
 // skala (24.09.): größere Kachel, größerer Bogen - 1 = wie immer, 1,5 / 2 bei
 // doppelt bzw. dreifach hohen Kacheln (kachelSkala).
-function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null, kennzeichen = null, kopf = false, skala = 1 }) {
+// onKlick (24.09.): Klick auf die Kachel öffnet die Stelle, an der ihre
+// Zahlen bearbeitet werden (Robertos Wunsch) - ohne onKlick bleibt sie stumm.
+function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null, kennzeichen = null, kopf = false, skala = 1, onKlick = null, klickHinweis = "" }) {
   const hatWert = prozent !== null && prozent !== undefined;
   // Zielwert (⚙ Regeln & Listen): liegt die Quote darunter, wird der Bogen
   // orange statt grün - nur für Aufrufer ohne eigene Farben (die Übersicht).
@@ -639,12 +641,13 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
   const [gruenHell, gruenDunkel] = farben || (unterZiel ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"]); // Vorgabe grün (Übersicht); der Berichte-Score färbt je Bereich
   return (
     <div
-      className="px-3.5 py-3 flex flex-col justify-center"
-      style={dunkel
+      className={`px-3.5 py-3 flex flex-col justify-center${onKlick ? " wk-karte-hebt" : ""}`}
+      style={{ ...(dunkel
         ? { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--wk-eck)", textAlign: "center" }
-        : { background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", borderRadius: "var(--wk-eck)", textAlign: "center", boxShadow: "var(--wk-schatten)" }}
-      title={(titel || "Anteil erledigter Wartungs- und R+I-Punkte") + (!farben && quoteZiel > 0 ? ` · Ziel ${quoteZiel} %` : "")}
+        : { background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", borderRadius: "var(--wk-eck)", textAlign: "center", boxShadow: "var(--wk-schatten)" }), ...(onKlick ? { cursor: "pointer" } : {}) }}
+      title={(titel || "Anteil erledigter Wartungs- und R+I-Punkte") + (!farben && quoteZiel > 0 ? ` · Ziel ${quoteZiel} %` : "") + (onKlick && klickHinweis ? ` · Klick: ${klickHinweis}` : "")}
       {...(kennzeichen ? { "data-kachel-inhalt": kennzeichen.inhalt, "data-kachel-form": "halbkreis" } : {})}
+      {...(onKlick ? { role: "button", tabIndex: 0, onClick: onKlick, onKeyDown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onKlick(); } }, "aria-label": `${label}${klickHinweis ? " – " + klickHinweis : ""}` } : {})}
     >
       {/* Bewusst ohne CSS-Großschreibung: innerText trüge sie mit, und die
           Prüfstände lesen die Kacheltitel im Klartext ("Heute fällig"). */}
@@ -694,11 +697,15 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
    Bekommt fertige Daten (aus kennzahlDaten im Hauptbauteil) und zeichnet sie
    als Zahl, Halbkreis, Verlauf, Ampel oder Top-3-Liste. Nichts wird hier
    gerechnet - so bleibt die Kachel eine reine Anzeige und ist leicht zu prüfen. */
-function KennzahlKachel({ def, d }) {
+// onKlick (24.09.): die Kachel öffnet die Stelle, an der ihre Zahlen
+// bearbeitet werden (Unfälle -> ⚙ Sicherheit, Störungen -> Berichte …).
+function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   const akzent = d.akzent || "#CBD1D8";
   const skala = kachelSkala(def);
+  const klick = onKlick ? { role: "button", tabIndex: 0, onClick: onKlick, onKeyDown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onKlick(); } }, "aria-label": `${d.label || ""}${klickHinweis ? " – " + klickHinweis : ""}` } : {};
   const karte = (inhalt, extraStyle, mittig = false) => (
-    <div className={mittig ? "wk-karte px-3.5 py-3 flex flex-col justify-start items-center text-center" : "wk-karte px-4 py-3.5 flex flex-col justify-center"} data-kachel-inhalt={def.inhalt} data-kachel-form={def.form} style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)`, ...(extraStyle || {}) }} title={d.titel || ""}>
+    <div className={`${mittig ? "wk-karte px-3.5 py-3 flex flex-col justify-start items-center text-center" : "wk-karte px-4 py-3.5 flex flex-col justify-center"}${onKlick ? " wk-karte-hebt" : ""}`} data-kachel-inhalt={def.inhalt} data-kachel-form={def.form}
+      style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)`, ...(onKlick ? { cursor: "pointer" } : {}), ...(extraStyle || {}) }} title={(d.titel || "") + (onKlick && klickHinweis ? `${d.titel ? " · " : ""}Klick: ${klickHinweis}` : "")} {...klick}>
       {inhalt}
     </div>
   );
@@ -714,7 +721,7 @@ function KennzahlKachel({ def, d }) {
     // Der Halbkreis bringt seine eigene Karte mit - das Kennzeichen (Inhalt/
     // Form) hängt direkt an ihr, damit die Kachel im Raster ein echtes Kind
     // bleibt (harte-40 misst die Kachelmaße über die Raster-Kinder).
-    return <HalbkreisQuote prozent={d.prozent} label={d.kurz || d.label || ""} sub={d.sub || ""} titel={d.titel || ""} farben={d.farben || null} kennzeichen={{ inhalt: def.inhalt }} kopf skala={skala} />;
+    return <HalbkreisQuote prozent={d.prozent} label={d.kurz || d.label || ""} sub={d.sub || ""} titel={d.titel || ""} farben={d.farben || null} kennzeichen={{ inhalt: def.inhalt }} kopf skala={skala} onKlick={onKlick} klickHinweis={klickHinweis} />;
   }
   if (def.form === "verlauf") {
     const punkte = Array.isArray(d.verlauf) ? d.verlauf : [];
@@ -2588,6 +2595,9 @@ function App() {
   /* ⚙ in Reitern statt einer langen Rolle - Robertos Wunsch vom 07.08.
      ("nicht sortiert, mache eine kleine Menüleiste oben"). */
   const [settingsTab, setSettingsTab] = useState("anlagen"); // anlagen | team | oee | pflege
+  // Sprungziel im ⚙ (24.09.): ein Klick auf eine Kachel öffnet die Stelle,
+  // an der ihre Zahlen gepflegt werden - z. B. Unfälle unter Regeln & Listen.
+  const [settingsSprung, setSettingsSprung] = useState(null);
   /* Programm-Update: Der Rahmen meldet, wenn im Update-Ordner eine neuere
      App-HTML liegt. Bleibender Zustand statt fluechtiger Meldung - ein
      Update soll nicht von der naechsten Erfolgsmeldung weggewischt werden. */
@@ -2639,6 +2649,17 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Sprung zum Abschnitt, sobald das ⚙ steht (steht bewusst hinter settingsOpen:
+  // die Abhängigkeitsliste liest den Zustand schon beim ersten Zeichnen).
+  useEffect(() => {
+    if (!settingsOpen || !settingsSprung) return undefined;
+    const t = setTimeout(() => {
+      const el = document.getElementById(settingsSprung);
+      if (el) el.scrollIntoView({ block: "start" });
+      setSettingsSprung(null);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [settingsOpen, settingsSprung, settingsTab]);
   const [heavyReady, setHeavyReady] = useState(false);
   const [registerItem, setRegisterItem] = useState(null); // { category, name } | null
   const [settingsTpm, setSettingsTpm] = useState([]);
@@ -4767,7 +4788,9 @@ function App() {
   }, [entries]);
   const registerStats = (category, name) => registerIndex.get(`${category}|${name}`) || { done: 0, open: 0 };
 
-  const openSettings = () => {
+  // tab/sprung (24.09.): Kachel-Klick öffnet den passenden Reiter und rollt
+  // zur Stelle (Kennung des Abschnitts, siehe kopf(...) im Regeln-Reiter).
+  const openSettings = (tab = "anlagen", sprung = null) => {
     setSettingsTpm(tpmAnlagen.map((a) => ({ ...a })));
     setSettingsRi(riItems.map((r) => ({ ...r })));
     // _orig merkt sich den Namen beim Öffnen - so bleiben Umbenennungen auch
@@ -4783,7 +4806,8 @@ function App() {
     setNeueSchichtName("");
     setNeuesTeilAnlage("");
     setNeuesTeilName("");
-    setSettingsTab("anlagen");
+    setSettingsTab(typeof tab === "string" ? tab : "anlagen");
+    setSettingsSprung(typeof sprung === "string" ? sprung : null);
     setSettingsOpen(true);
     // OEE-Einrichtung als Entwurf: erst beim Übernehmen wandert sie in die
     // gemeinsame Datei - sonst würde jedes Herumprobieren sofort bei allen
@@ -10961,7 +10985,30 @@ function App() {
             );
           }
           if (def.inhalt === "uhr") return <WerkstattUhr />;
-          return <KennzahlKachel def={def} d={kennzahlDaten(def)} />;
+          const ziel = bearbeiten ? null : kachelZiel(def.inhalt);
+          return <KennzahlKachel def={def} d={kennzahlDaten(def)} onKlick={ziel ? ziel.mach : null} klickHinweis={ziel ? ziel.hinweis : ""} />;
+        };
+        /* Klick auf eine Kachel (Robertos Wunsch 24.09.): "lässt mich die
+           Details dazu bearbeiten". Jede Kennzahl kennt ihre Pflegestelle -
+           Unfälle und Kosten im ⚙ (nur Verwalter), alles andere im Bereich,
+           in dem die Zahlen entstehen. Was die Gruppe nicht sehen darf,
+           bleibt stumm. Im Anordnen-Modus ist die Kachel eingefroren. */
+        const kachelZiel = (inhalt) => {
+          const bericht = (tab, hinweis) => (sichtbar(tab === "TODO" ? "TODO" : tab === "BACKLOG" ? "BACKLOG" : tab === "ZEIT" ? "ZEIT" : "STOERUNGEN") ? { mach: () => { setView("BERICHTE"); setBerichtTab(tab); }, hinweis } : null);
+          const zahnrad = (sprung, hinweis) => (istVerwalter && !readerMode ? { mach: () => openSettings("regeln", sprung), hinweis } : null);
+          switch (inhalt) {
+            case "unfaelle": return zahnrad("regeln-sicherheit", "Unfälle im ⚙ eintragen");
+            case "kosten": return zahnrad("regeln-kosten", "Budget und Ausgaben im ⚙ pflegen");
+            case "stoerOffen": case "stoerAnzahl": case "ausfallzeit": case "sorgenkind": case "nachbestellungen": return bericht("STOERUNGEN", "Störungen öffnen");
+            case "todoOffen": case "todoSollIst": return bericht("TODO", "To-dos öffnen");
+            case "erledigt": case "backlogLive": return bericht("BACKLOG", "Backlog öffnen");
+            case "stunden": return bericht("ZEIT", "Zeiterfassung öffnen");
+            case "jetztDa": return sichtbar("SCHICHTPLAN") ? { mach: () => { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }, hinweis: "Schichtplan öffnen" } : null;
+            case "heuteFaellig": case "heuteErledigt": case "ueberfaellig": case "terminePlan": case "naechsterPitStop":
+            case "tpmQuote": case "pitstopQuote": case "riQuote":
+              return sichtbar("TPM") ? { mach: () => setView("MONAT"), hinweis: "TPM-Plan öffnen" } : null;
+            default: return null;
+          }
         };
         const kachelTitel = (k) => {
           const def = uebersichtLayout.kachelDef[k];
@@ -15933,7 +15980,7 @@ function App() {
                 return neu;
               });
               const eingabe = { borderColor: "#D7DCE1" };
-              const kopf = (text) => <div className="text-xs font-bold uppercase mb-1 mt-4 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>{text}</div>;
+              const kopf = (text, id) => <div id={id} className="text-xs font-bold uppercase mb-1 mt-4 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7", scrollMarginTop: "12px" }}>{text}</div>;
               const hinweis = (text) => <div className="text-xs mb-2" style={{ color: "#8A9099" }}>{text}</div>;
               // Einfache Textliste: ein Feld je Eintrag, ✕ entfernt, + hängt an
               const liste = (titel, pfad, werte, platzhalter) => (
@@ -16010,7 +16057,7 @@ function App() {
               {/* Whiteboard-Kacheln (23.09.): Unfälle und Kosten haben im
                   Programm keine Quelle - bis der Einkauf eine liefert, werden
                   sie hier gepflegt. Gemeinsame Datei, gilt auf jedem Rechner. */}
-              {kopf("Sicherheit – Unfälle")}
+              {kopf("Sicherheit – Unfälle", "regeln-sicherheit")}
               {hinweis("Für die Kachel „Unfälle im Jahr“: je Unfall ein Datum. Die Kachel zählt je Jahr und rechnet die unfallfreien Tage seit dem letzten Eintrag.")}
               {r.sicherheit.unfaelle.map((u, i) => (
                 <div key={i} className="flex items-center gap-2 mb-1 flex-wrap">
@@ -16021,7 +16068,7 @@ function App() {
               ))}
               <button onClick={() => setze(["sicherheit", "unfaelle"], [...r.sicherheit.unfaelle, { datum: todayKey, text: "" }])} aria-label="Unfall hinzufügen" className="text-xs font-bold mb-2" style={{ color: "#22262B" }}>+ Unfall eintragen</button>
 
-              {kopf("Kosten & Budget")}
+              {kopf("Kosten & Budget", "regeln-kosten")}
               {hinweis("Für die Kachel „Kosten vom Jahresbudget“. Quelle und Bestellwege sind mit dem technischen Einkauf noch abzustimmen – bis dahin von Hand. Budget 0 = die Kachel zeigt „Abstimmung Einkauf“.")}
               {zahl("Jahresbudget", ["kosten", "budgetJahr"], r.kosten.budgetJahr, "€", 0, 1000000000)}
               {zahl("Bisher ausgegeben", ["kosten", "ausgegeben"], r.kosten.ausgegeben, "€", 0, 1000000000)}
