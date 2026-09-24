@@ -1283,6 +1283,10 @@ Abstände im 6-px-Raster. Robertos „Bauen" (23.09.) → **GEBAUT 23.09.**
   Nachtmodus ist für Bearbeiter/Leser nur noch über die Geräte-Automatik
   (Verwalter stellt sie) erreichbar – bei Bedarf ein eigener Knopf im Ordner-
   Menü, Roberto entscheidet.
+- **Nachweis gesamt (24.09., endgültiger Bau):** volle Suite 79/81 im ersten
+  Lauf – harte-4 war ein Zeitläufer (allein grün), harte-68 S4b las den
+  liegengebliebenen Alt-Eintrag aus der Tagesliste und klappt jetzt zuerst
+  das Termin-Archiv auf; danach beide grün → **81/81**.
 
 **Nächster großer Schritt (Robertos Richtung vom 24.09., noch nicht
 beauftragt): „Baukasten" – jeder Bereich und jede Kachel personalisierbar.**

@@ -202,6 +202,10 @@ async function seite(browser, init) {
     await p.locator('button[aria-label="Gemeinsame Datei"]').click();
     await p.getByText("Vorhandene Datei öffnen …").click();
     await p.waitForTimeout(1200);
+    // Der Eintrag liegt drei Tage zurück - seit dem 24.09. steckt Liegen-
+    // gebliebenes im Termin-Archiv-Aufklapper, also erst aufklappen.
+    const archiv = p.locator('button[aria-label="Termin-Archiv öffnen"]');
+    if (await archiv.count()) { await archiv.click(); await p.waitForTimeout(400); }
     const t = await p.locator("body").innerText();
     pruef("(S4b) Eine Alt-Datei ohne Kennung verbindet sich in Scheurich normal",
           !/gehört zur Werkstatt/.test(t) && /ALT-DATEI-EINTRAG/.test(t));
