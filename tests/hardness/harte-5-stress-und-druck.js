@@ -55,7 +55,9 @@ function grosserBestand() {
 
   const t1 = Date.now();
   await page.getByRole("button", { name: /^Berichte/ }).first().click().then(() => page.waitForTimeout(350)).then(() => page.getByRole("button", { name: "Backlog", exact: true }).first().click());
-  await page.waitForTimeout(600);
+  // Auf den Inhalt warten statt auf die Uhr: unter Suiten-Last reichten 600 ms
+  // am 28.09. nicht (allein 14/14 grün). Die 5-s-Grenze bleibt die Messung.
+  await page.waitForFunction(() => document.body.innerText.includes('Testarbeit Nummer'), null, { timeout: 5000 }).catch(() => {});
   ok('Backlog mit 400 Arbeiten öffnet zügig (< 5s)', Date.now() - t1 < 5000);
   ok('Backlog zeigt Einträge', (await page.locator('body').innerText()).includes('Testarbeit Nummer'));
 
@@ -63,7 +65,7 @@ function grosserBestand() {
   // Aus dem Bereich Berichte heraus: erst zurück in den Bereich Werkstatt
   // (der Hauptknopf landet direkt auf dem Schichtplan).
   await page.getByRole("button", { name: "Werkstatt", exact: true }).click();
-  await page.waitForTimeout(600);
+  await page.waitForFunction(() => document.querySelectorAll('tbody tr').length >= 46, null, { timeout: 5000 }).catch(() => {});
   ok('Schichtplan-Matrix mit 60 Zeilen öffnet zügig (< 5s)', Date.now() - t2 < 5000);
   // 45 mit Gewerk direkt sichtbar + 1 "Sonstige"-Aufklapp-Zeile (15 ohne Gewerk sind zunächst eingeklappt)
   ok('45 Personenzeilen + 1 "Sonstige"-Zeile in der Matrix (eingeklappt)', await page.locator('tbody tr').count() === 46);
