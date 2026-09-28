@@ -7,15 +7,15 @@
 //       Bereich; Klick öffnet das bekannte Blatt ohne Druck-Dialog mit den
 //       drei Schichten von jetzt (Mi Früh, Di Nacht, Di Spät) - kein Hinweis.
 //  (S2) Montag 08:00, Wochenende leer: das Blatt zeigt die drei Freitag-
-//       Schichten, dazu der Hinweis "Nach Wochenende oder Feiertag …"; kein
-//       Sonntag im Blatt.
+//       Schichten; kein Sonntag im Blatt. Der frühere Wochenend-Hinweis ist
+//       weg (Roberto 28.09.), in der Zeile steht der nächste PitStop.
 //  (S3) Montag, ein Bericht am Samstag Früh: er zählt mit (Sa Früh, Fr Nacht,
 //       Fr Spät) - der Freitag Früh fällt heraus.
 //  (S4) Dienstag nach Pfingstmontag (25.05.2026): die letzten drei Schichten
 //       mit Einträgen liegen am Freitag/Donnerstag davor; kein 25.05. im Blatt.
 //  (S5) Montag mit einem Bericht in der laufenden Frühschicht: sie zählt mit.
 //  (S6) Montag ohne einen einzigen Bericht in 30 Tagen: das Blatt bleibt beim
-//       Fenster von jetzt (kein Hinweis).
+//       Fenster von jetzt.
 //  (S7) Leser: der Knopf ist da (Anschauen ist Lesen).
 //  (E)  Keine Skriptfehler.
 //
@@ -97,7 +97,7 @@ const MAI = [bericht("2026-05-21", "Nacht", "MaiDoNacht"), bericht("2026-05-22",
     const g = gruppen(h);
     ok("(S2) Montag: die drei Freitag-Schichten statt Sonntag Nacht/Spät",
       g.join(",") === "25.09.2026 Früh,25.09.2026 Spät,25.09.2026 Nacht" && /FrFrueh/.test(h) && /FrSpaet/.test(h) && /FrNacht/.test(h) && !/27\.09\.2026/.test(h), g.join(","));
-    ok("(S2) Der Hinweis „Nach Wochenende oder Feiertag …“ steht im Blatt", hinweis(h) && /Nach Wochenende oder Feiertag/.test(h));
+    ok("(S2) Kein Wochenend-Hinweis mehr (Roberto 28.09.), stattdessen die PitStop-Zeile", !hinweis(h) && !/Nach Wochenende oder Feiertag/.test(h) && /data-pitstop/.test(h) && /Nächster PitStop: <b>keiner geplant/.test(h));
     ok("(E) Keine Skriptfehler (Montag)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await zu();
   }
@@ -116,7 +116,7 @@ const MAI = [bericht("2026-05-21", "Nacht", "MaiDoNacht"), bericht("2026-05-22",
     const h = await blatt(p);
     const g = gruppen(h);
     ok("(S4) Nach dem Feiertag: Fr Früh, Fr Spät, Do Nacht - kein Pfingstmontag im Blatt",
-      g.join(",") === "22.05.2026 Früh,22.05.2026 Spät,21.05.2026 Nacht" && hinweis(h) && !/25\.05\.2026/.test(h), g.join(","));
+      g.join(",") === "22.05.2026 Früh,22.05.2026 Spät,21.05.2026 Nacht" && !/25\.05\.2026/.test(h), g.join(","));
     await zu();
   }
   /* (S5) Montag mit Bericht in der laufenden Frühschicht */

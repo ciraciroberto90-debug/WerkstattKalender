@@ -77,7 +77,11 @@ const pruef = (n, c, zusatz) => {
   await p.locator('input[aria-label="Bis wann"]').fill("2026-09-18");
   await p.getByRole("button", { name: "hoch", exact: true }).click();
   await p.getByRole("button", { name: "Speichern", exact: true }).click();
-  await p.waitForTimeout(600);
+  // Nicht auf Zeit warten, sondern bis der Eintrag im Spiegel steht: die
+  // Speicherung läuft in der Hintergrund-Warteschlange, 600 ms reichten am
+  // 28.09. einmal nicht (allein und in der Suite), mit Wartebedingung grün.
+  await p.waitForFunction(() => /Werkzeugschrank aufräumen/.test(localStorage.getItem("werkstatt-kalender-entries") || ""), null, { timeout: 10000 }).catch(() => {});
+  await p.waitForTimeout(300);
   await p.reload();
   await p.waitForTimeout(1300);
   const bestand = JSON.parse(await p.evaluate(() => localStorage.getItem("werkstatt-kalender-entries")));

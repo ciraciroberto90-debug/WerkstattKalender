@@ -1616,6 +1616,9 @@ const RECHTE_BEREICHE = [
   // Drucken bleibt je Gruppe wählbar (Morgenrunde 24.09.: der Schichtbericht
   // der letzten drei Schichten wird am Bearbeiter-Rechner gedruckt).
   ["DRUCKEN", "Drucken", "Drucken-Knopf oben rechts (Schichtbericht, Schichtplan, Nachweis …)", "aktion", "sehen"],
+  // 28.09. (Robertos Ansage): wer den Knopf „Schichtbericht" bei den Störungen
+  // sieht, legt der Verwalter je Gruppe fest.
+  ["SCHICHTBERICHT", "Schichtbericht", "Knopf „📄 Schichtbericht“ bei den Störungen – das Blatt der Morgenrunde mit Top 3", "aktion", "sehen"],
   ["MONITOR", "Werkstatt-Monitor", "Vollbild-Knopf oben rechts – nur Verwalter (und der Kiosk-Rechner ?monitor=1)", "aktion", "aus"],
   ["DATEN", "Datensicherung", "Import/Export oben rechts – nur Verwalter", "aktion", "aus"],
   ["ZAHNRAD", "Verwalten (⚙)", "Anlagen, Team, Kostenstellen, OEE, Monitor, Benutzer & Rechte – nur Verwalter", "aktion", "aus"],
@@ -1624,17 +1627,32 @@ const RECHTE_BEREICHE = [
 // ältere Rechte-Matrix in der gemeinsamen Datei noch sagt. Drucken ist
 // bewusst NICHT dabei: ein Bericht ist keine Einstellung.
 const NUR_VERWALTER_AKTIONEN = ["MONITOR", "DATEN", "ZAHNRAD"];
+/* Programm-Stand je Benutzer (28.09., Robertos Ansage: "der Verwalter muss
+   sehen, welche Benutzer auf unserem letzten Stand sind"). Jeder Rechner
+   meldet beim Start "Benutzer X läuft mit der Fassung vom …" in die
+   gemeinsame Datei (Feld programmStand: Name -> {fassung, gesehen}). Kein
+   Handgriff, keine Verlaufszeile - nur eine Landkarte für das Zahnrad. */
+function normalisiereProgrammStand(roh) {
+  const out = {};
+  if (!roh || typeof roh !== "object") return out;
+  Object.keys(roh).forEach((name) => {
+    const v = roh[name];
+    if (!name || !v || typeof v !== "object" || typeof v.fassung !== "string" || !v.fassung) return;
+    out[name] = { fassung: v.fassung, gesehen: typeof v.gesehen === "string" ? v.gesehen : "" };
+  });
+  return out;
+}
 // Standard = das Verhalten vor dem 21.09., damit ein Update nichts verändert.
 const RECHTE_STANDARD = {
   bearbeiter: {
     SCHICHTPLAN: "bearbeiten", PLANUNG: "bearbeiten", TODO: "bearbeiten", STOERUNGEN: "bearbeiten", BACKLOG: "bearbeiten",
     ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten",
-    MELDEN: "sehen", DRUCKEN: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
+    MELDEN: "sehen", DRUCKEN: "sehen", SCHICHTBERICHT: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
   leser: {
     SCHICHTPLAN: "sehen", PLANUNG: "aus", TODO: "sehen", STOERUNGEN: "bearbeiten", BACKLOG: "aus",
     ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus",
-    MELDEN: "sehen", DRUCKEN: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
+    MELDEN: "sehen", DRUCKEN: "sehen", SCHICHTBERICHT: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
 };
 const RECHTE_STUFEN = ["aus", "sehen", "bearbeiten"];
@@ -2875,6 +2893,9 @@ function App() {
   const [monitorBausteine, setMonitorBausteine] = useState(() => normalisiereMonitor(null)); // was der Monitor zeigt (⚙, gemeinsame Datei)
   const [rechte, setRechte] = useState(() => normalisiereRechte(null)); // Rechte je Benutzergruppe (⚙ Benutzer & Rechte, gemeinsame Datei)
   const [regeln, setRegeln] = useState(() => normalisiereRegeln(null)); // Werkstatt-Regeln (⚙ Regeln & Listen, gemeinsame Datei)
+  // Programm-Stand je Benutzer (28.09.): wer läuft mit welcher Fassung -
+  // jeder Rechner meldet beim Start seine Bau-Zeit in die gemeinsame Datei.
+  const [programmStand, setProgrammStand] = useState(() => normalisiereProgrammStand(null));
   const [settingsRegeln, setSettingsRegeln] = useState(() => normalisiereRegeln(null)); // Entwurf im ⚙, gespeichert mit "Speichern"
   const [geraet, setGeraetState] = useState(leseGeraet); // Einstellungen NUR dieses Rechners
   const setGeraet = (neu) => {
@@ -3018,6 +3039,7 @@ function App() {
         if (d.config.kostenstellen) setKostenstellen(stabil(normalisiereKostenstellen(d.config.kostenstellen)));
         if (d.config.rechte) setRechte(stabil(normalisiereRechte(d.config.rechte)));
         if (d.config.regeln) setRegeln(stabil(normalisiereRegeln(d.config.regeln)));
+        if (d.config.programmStand) setProgrammStand(stabil(normalisiereProgrammStand(d.config.programmStand)));
       }
       });
     };
@@ -3754,6 +3776,73 @@ function App() {
     const alle = proSlot.flatMap((x) => x.liste);
     const ausfallGesamt = alle.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
     const offene = alle.filter((s) => s.offen).length;
+    /* Top 3 (Robertos Ansage 28.09.): die drei Störungen DIESES Blatts, die
+       sich am meisten wiederholen. Gruppiert nach Anlage · Teil, gezählt über
+       alle Berichte der letzten 7 Tage (nicht nur die des Blatts) - so wird
+       aus "Hubeinleger fährt nicht hoch" das "4× in 7 Tagen", das die
+       Morgenrunde braucht. Reihenfolge: Anzahl 7 Tage, dann Ausfallzeit 7
+       Tage, dann Ausfallzeit im Blatt. Dazu eine kleine Analyse je Karte
+       (30 Tage, offen, häufigste Ursache, zuletzt) und sieben Tagesbalken. */
+    const isoVor = (n) => { const d = new Date(todayKey + "T00:00:00"); d.setDate(d.getDate() - n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+    const ab7 = isoVor(6), ab30 = isoVor(29);
+    const schluessel = (s) => `${String(s.anlage || "").trim().toLowerCase()}|${String(s.anlagenteil || "").trim().toLowerCase()}`;
+    const gruppenTop = new Map();
+    alle.forEach((s) => {
+      const k = schluessel(s);
+      if (!gruppenTop.has(k)) gruppenTop.set(k, { k, anlage: s.anlage || "—", teil: s.anlagenteil || "", blatt: [] });
+      gruppenTop.get(k).blatt.push(s);
+    });
+    const top3 = [...gruppenTop.values()].map((g) => {
+      const woche = stoerungen.filter((x) => schluessel(x) === g.k && x.date >= ab7 && x.date <= todayKey);
+      const monat = stoerungen.filter((x) => schluessel(x) === g.k && x.date >= ab30 && x.date <= todayKey);
+      const summe = (l) => l.reduce((m, x) => m + (Number(x.ausfallzeit) || 0), 0);
+      const zaehl = new Map();
+      woche.forEach((x) => { const u = String(x.ursache || "").trim(); if (u) zaehl.set(u, (zaehl.get(u) || 0) + 1); });
+      const ursache = [...zaehl.entries()].sort((a, b) => b[1] - a[1])[0];
+      const proTag = [6, 5, 4, 3, 2, 1, 0].map((n) => { const t = isoVor(n); return { tag: t, n: woche.filter((x) => x.date === t).length }; });
+      const zuletzt = [...woche, ...g.blatt].sort((a, b) => String(b.date + STOER_SCHICHTEN.indexOf(b.schicht)).localeCompare(String(a.date + STOER_SCHICHTEN.indexOf(a.schicht))))[0];
+      const neuester = [...g.blatt].sort((a, b) => String(b.gemeldetAt || "").localeCompare(String(a.gemeldetAt || "")))[0];
+      return { ...g, woche, monat, ausfall7: summe(woche), ausfallBlatt: summe(g.blatt), offen7: woche.filter((x) => x.offen).length, ursache, proTag, zuletzt, neuester };
+    }).sort((a, b) => (b.woche.length - a.woche.length) || (b.ausfall7 - a.ausfall7) || (b.ausfallBlatt - a.ausfallBlatt)).slice(0, 3);
+    const top3Karte = (g, i) => {
+      const n7 = g.woche.length;
+      const analyse = [];
+      analyse.push(n7 >= 3 ? `Wiederholt sich: ${n7} Berichte in 7 Tagen` : n7 === 2 ? `Zweimal in 7 Tagen` : `Einmalig in den letzten 7 Tagen`);
+      if (g.monat.length > n7) analyse.push(`30 Tage: ${g.monat.length}×`);
+      if (g.offen7 > 0) analyse.push(`<span class="rot">${g.offen7} offen</span>`);
+      if (g.ursache) analyse.push(`Häufigste Ursache: <b>${esc(g.ursache[0])}</b>${g.ursache[1] > 1 ? ` (${g.ursache[1]}×)` : ""}`);
+      if (g.zuletzt) analyse.push(`Zuletzt: ${new Date(g.zuletzt.date + "T00:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} ${esc(g.zuletzt.schicht || "")}`);
+      const maxTag = Math.max(1, ...g.proTag.map((t) => t.n));
+      const balken = g.proTag.map((t) => `<span class="tb1" title="${esc(t.tag)}: ${t.n}"><i style="height:${Math.round((t.n / maxTag) * 100)}%"></i><em>${new Date(t.tag + "T00:00:00").toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2)}</em></span>`).join("");
+      return `<div class="tk" data-top3-karte>
+        <div class="tk-rang">${i + 1}</div>
+        <div class="tk-mitte">
+          <div class="tk-anlage">${esc(g.anlage)}${g.teil ? ` <span class="tk-teil">${esc(g.teil)}</span>` : ""}</div>
+          <div class="tk-stoer">${esc((g.neuester && g.neuester.stoerung) || "")}${g.neuester && g.neuester.ursache ? ` <span class="tk-urs">– ${esc(g.neuester.ursache)}</span>` : ""}</div>
+          <div class="tk-analyse">${analyse.join(" · ")}</div>
+        </div>
+        <div class="tk-rechts">
+          <div class="tk-zahl">${n7}×</div>
+          <div class="tk-label">letzte 7 Tage</div>
+          <div class="tk-ausfall">${g.ausfall7 > 0 ? esc(minutenText(g.ausfall7)) + " Ausfall" : "kein Ausfall"}</div>
+          <div class="tk-balken">${balken}</div>
+        </div>
+      </div>`;
+    };
+    // Statt des Wochenend-Hinweises (Roberto 28.09.: "kann raus, es zeigt ja
+    // immer die letzten drei Schichten") steht in der Zeile der nächste
+    // PitStop mit Anlage - das, was die Morgenrunde als Nächstes plant.
+    const kommendePit = entries
+      .filter((e) => e.category === "TPM" && e.status === "open" && String(e.date) >= todayKey)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.name).localeCompare(String(b.name)));
+    const pitDatum = (d, lang) => new Date(d + "T12:00:00").toLocaleDateString("de-DE", lang ? { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" } : { day: "2-digit", month: "2-digit" });
+    const pitZeile = kommendePit.length
+      ? `<div class="hinweis pit" data-pitstop>🔧 Nächster PitStop: <b>${pitDatum(kommendePit[0].date, true)}</b> · <b>${esc(kommendePit[0].name)}</b>${kommendePit.length > 1 ? `<span class="pit-weiter"> · danach: ${kommendePit.slice(1, 3).map((e) => `${pitDatum(e.date)} ${esc(e.name)}`).join(" · ")}</span>` : ""}</div>`
+      : `<div class="hinweis pit" data-pitstop>🔧 Nächster PitStop: <b>keiner geplant</b></div>`;
+    const top3Html = `<section id="top3" data-top3 hidden>
+        <div class="top3-kopf"><span>Top 3 dieses Schichtberichts</span><span class="top3-sub">nach Häufigkeit in den letzten 7 Tagen (${new Date(ab7 + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${new Date(todayKey + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })})</span></div>
+        ${top3.length ? `<div class="top3-raster">${top3.map(top3Karte).join("")}</div>` : `<div class="top3-leer">Keine Störungen im Blatt – nichts zu bewerten.</div>`}
+      </section>`;
     // Schicht -> CSS-Klasse fuer die Schichtfarbe (Balken + erste Spalte).
     const tbCls = { "Früh": "frueh", "Spät": "spaet", "Nacht": "nacht" };
     const chip = (sch) => {
@@ -3811,6 +3900,38 @@ function App() {
         .kopf .stand .fett { font-size: 10.5pt; font-weight: 800; color: #1f2430; }
         /* Tagesblick: Schicht-Summen auf einen Blick */
         .hinweis { font-size: 8pt; color: #8A4B00; background: #FBF3DA; border: 0.8pt solid #E3CE8F; border-radius: 1.5mm; padding: 0.8mm 2mm; margin-bottom: 1.5mm; font-weight: 600; }
+        .hinweis.pit { font-size: 9.5pt; color: #1f2430; background: #EEF3F8; border-color: #A9C2D8; padding: 1.4mm 2.5mm; }
+        .hinweis.pit .pit-weiter { color: #5B6572; font-weight: 600; font-size: 8.5pt; }
+        /* Am Bildschirm (28.09.): das Blatt nutzt die volle Fensterbreite und
+           wird nie schmaler als eine A4-Querseite - lieber waagerecht rollen
+           als Spalten zerdrücken. */
+        @media screen { html { min-width: 1120px; } body { padding: 4mm 6mm; } }
+        /* Top 3 (28.09.): Knopf nur am Bildschirm, drei große Karten */
+        .top3knopf { margin-left: auto; margin-right: 6mm; align-self: center; font: inherit; font-weight: 800; font-size: 10pt; color: #fff; background: #22262B; border: 0; border-radius: 2mm; padding: 2mm 5mm; cursor: pointer; }
+        .top3knopf:hover { background: #E85D10; }
+        @media print { .nurbild { display: none !important; } }
+        #top3 { margin: 0 0 3mm; padding: 3mm; border: 1pt solid #22262B; border-radius: 2.5mm; background: #FAFBFC; page-break-inside: avoid; }
+        #top3[hidden] { display: none; }
+        .top3-kopf { display: flex; justify-content: space-between; align-items: baseline; font-size: 12pt; font-weight: 900; margin-bottom: 2.5mm; }
+        .top3-sub { font-size: 8.5pt; font-weight: 600; color: #5B6572; }
+        .top3-raster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3mm; }
+        .top3-leer { font-size: 10pt; color: #8A9099; font-style: italic; }
+        .tk { display: grid; grid-template-columns: 11mm minmax(0, 1fr) 30mm; gap: 2.5mm; background: #fff; border: 0.8pt solid #C4CBD2; border-radius: 2mm; padding: 3mm; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .tk-rang { font-size: 24pt; font-weight: 900; line-height: 1; color: #E85D10; font-family: ui-monospace, Consolas, monospace; }
+        .tk-anlage { font-size: 14pt; font-weight: 900; line-height: 1.15; }
+        .tk-teil { font-size: 9.5pt; font-weight: 700; color: #5B6572; }
+        .tk-stoer { font-size: 9.5pt; margin-top: 1.2mm; }
+        .tk-urs { color: #5B6572; }
+        .tk-analyse { font-size: 8.5pt; color: #3C444C; margin-top: 2mm; line-height: 1.5; }
+        .tk-analyse .rot { color: #C0392B; font-weight: 800; }
+        .tk-rechts { text-align: center; border-left: 0.8pt solid #E2E4E7; padding-left: 2.5mm; }
+        .tk-zahl { font-size: 26pt; font-weight: 900; line-height: 1; color: #22262B; font-family: ui-monospace, Consolas, monospace; }
+        .tk-label { font-size: 8pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5pt; color: #5B6572; margin-top: 1mm; }
+        .tk-ausfall { font-size: 8.5pt; font-weight: 700; color: #8A4B00; margin-top: 1.5mm; }
+        .tk-balken { display: flex; gap: 1mm; align-items: flex-end; height: 12mm; margin-top: 2mm; }
+        .tk-balken .tb1 { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+        .tk-balken .tb1 i { display: block; background: #E85D10; border-radius: 0.6mm 0.6mm 0 0; min-height: 0.6mm; }
+        .tk-balken .tb1 em { font-style: normal; font-size: 6pt; color: #8A9099; margin-top: 0.6mm; }
         .tagesblick { display: flex; gap: 2mm; margin-bottom: 1.8mm; }
         .tb { flex: 1; border: 0.8pt solid #C4CBD2; border-radius: 1.5mm; padding: 0.9mm 2mm; font-size: 8pt; color: #5B6572; white-space: nowrap; }
         .tb .tbz { font-size: 9.5pt; font-weight: 900; color: #1f2430; font-family: ui-monospace, Consolas, monospace; }
@@ -3851,9 +3972,11 @@ function App() {
       </style></head><body>
       <div class="kopf">
         <h1>Schichtbericht Störungen</h1>
+        <button type="button" class="top3knopf nurbild" data-top3-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('top3');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ Top 3 schließen':'🏆 Top 3';})(this)">🏆 Top 3</button>
         <div class="stand">Stand: <strong>${esc(stand)}</strong><br><span class="fett">${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}</span> · <span class="fett" style="color:${offene > 0 ? "#C0392B" : "#1F7A3D"}">${offene} offen</span>${ausfallGesamt > 0 ? ` · <span class="fett">Ausfallzeit ${esc(minutenText(ausfallGesamt))}</span>` : ""}</div>
       </div>
-      ${wahl.nachFrei ? `<div class="hinweis" data-nach-frei>Nach Wochenende oder Feiertag: die letzten drei Schichten mit Einträgen.</div>` : ""}
+      ${pitZeile}
+      ${top3Html}
       ${tagesblick}
       <table>
       <thead><tr><th style="width:17mm">Nr. / Ausfall</th><th style="width:32mm">Anlage · Teil</th><th style="width:40mm">Abweichung / Störung</th><th style="width:48mm">Störungsursache</th><th style="width:50mm">Was wurde unternommen?</th><th style="width:38mm">Was muss die nächste Schicht tun?</th><th style="width:12mm">Status</th><th style="width:17mm">Melder</th></tr></thead>
@@ -4542,6 +4665,7 @@ function App() {
           if (parsed.kostenstellen) setKostenstellen(normalisiereKostenstellen(parsed.kostenstellen));
           if (parsed.rechte) setRechte(normalisiereRechte(parsed.rechte));
           if (parsed.regeln) setRegeln(normalisiereRegeln(parsed.regeln));
+          if (parsed.programmStand) setProgrammStand(normalisiereProgrammStand(parsed.programmStand));
           if (typeof parsed.werkstattName === "string") {
             setWerkstattName(parsed.werkstattName);
           }
@@ -4567,8 +4691,9 @@ function App() {
   // der Zusammenführung zu überlassen.
   // nextRechte: wie nextBenutzer ein Wächter-Feld - null heißt "nicht anfassen".
   // Nur die Rechte-Matrix im ⚙ (Verwalter) übergibt eine Matrix.
-  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen, nextRechte = null, nextRegeln = null, nextUebersichtVorlagen = uebersichtVorlagen) => {
+  const persistConfig = async (nextTpm, nextRi, nextTeam = team, nextExtraSchichten = extraSchichten, nextAnlagenteile = anlagenteile, nextLinks = links, nextOee = oeeQuelle, nextBenutzer = null, nextWerkstattName = werkstattName, nextMonitor = monitorBausteine, nextKostenstellen = kostenstellen, nextRechte = null, nextRegeln = null, nextUebersichtVorlagen = uebersichtVorlagen, nextProgrammStand = null) => {
     if (readerMode) return; // letzte Sicherheitsebene - Nur-Leser dürfen nie irgendetwas schreiben
+    if (nextProgrammStand) setProgrammStand(nextProgrammStand);
     setTpmAnlagen(nextTpm);
     setRiItems(nextRi);
     setTeam(nextTeam);
@@ -4587,7 +4712,7 @@ function App() {
       try {
         const result = await window.storage.set(
           CONFIG_STORAGE_KEY,
-          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}), ...(nextRechte ? { rechte: nextRechte } : {}), ...(nextRegeln ? { regeln: nextRegeln } : {}), uebersichtVorlagen: nextUebersichtVorlagen }),
+          JSON.stringify({ tpmAnlagen: nextTpm, riItems: nextRi, team: nextTeam, extraSchichten: nextExtraSchichten, anlagenteile: nextAnlagenteile, links: nextLinks, oee: nextOee, werkstattName: nextWerkstattName, monitor: nextMonitor, kostenstellen: nextKostenstellen, ...(nextBenutzer ? { benutzer: nextBenutzer } : {}), ...(nextRechte ? { rechte: nextRechte } : {}), ...(nextRegeln ? { regeln: nextRegeln } : {}), ...(nextProgrammStand ? { programmStand: nextProgrammStand } : {}), uebersichtVorlagen: nextUebersichtVorlagen }),
           false
         );
         if (!result) throw new Error("Kein Ergebnis vom Speicher");
@@ -4816,6 +4941,19 @@ function App() {
 
   // tab/sprung (24.09.): Kachel-Klick öffnet den passenden Reiter und rollt
   // zur Stelle (Kennung des Abschnitts, siehe kopf(...) im Regeln-Reiter).
+  /* Programm-Stand melden (28.09.): einmal je Fassung und höchstens alle
+     12 Stunden, erst wenn die Datei geprüft und die Einstellungen geladen
+     sind. Der Schreibweg stempelt nur das Feld programmStand neu, alle
+     anderen Felder behalten ihren Zeitstempel (unverändert gegen den
+     eigenen letzten Stand) - nichts anderes wird überschrieben. */
+  useEffect(() => {
+    if (!angemeldet || readerMode || !shareChecked || loading) return;
+    if (typeof __BUILD_ZEIT__ !== "string" || !__BUILD_ZEIT__) return;
+    const alt = programmStand[angemeldet];
+    if (alt && alt.fassung === __BUILD_ZEIT__ && alt.gesehen && Date.now() - Date.parse(alt.gesehen) < 12 * 3600 * 1000) return;
+    persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, null, null, uebersichtVorlagen,
+      { ...programmStand, [angemeldet]: { fassung: __BUILD_ZEIT__, gesehen: new Date().toISOString() } });
+  }, [angemeldet, readerMode, shareChecked, loading, programmStand]);
   const openSettings = (tab = "anlagen", sprung = null) => {
     setSettingsTpm(tpmAnlagen.map((a) => ({ ...a })));
     setSettingsRi(riItems.map((r) => ({ ...r })));
@@ -8506,7 +8644,12 @@ function App() {
   const oeffneSchichtbericht = () => zeigeBlatt(buildStoerSchichtberichtHTML());
   const zeigeBlatt = (html) => {
     let w = null;
-    try { w = window.open("", "_blank"); } catch (e) { w = null; }
+    // So groß wie der Bildschirm hergibt (Robertos Ansage 28.09.: "das Fenster
+    // muss groß sein"): ein Fenster ohne Maßangabe öffnete das Programm als
+    // schmales Kästchen, in dem die Spalten zerdrückt wurden.
+    const b = Math.max(800, (window.screen && window.screen.availWidth) || 1400);
+    const h = Math.max(600, (window.screen && window.screen.availHeight) || 900);
+    try { w = window.open("", "_blank", `popup=yes,width=${b},height=${h},left=0,top=0,resizable=yes,scrollbars=yes`); } catch (e) { w = null; }
     if (!w) { setErr("Zum Anzeigen bitte Pop-ups für diese Seite erlauben."); return; }
     w.document.open();
     w.document.write(html);
@@ -10380,18 +10523,20 @@ function App() {
               </span>
             )}
             {/* Schichtbericht sofort zeigen (28.09.): das Blatt der Morgenrunde
-                mit einem Klick, ganz rechts neben dem Erfassen-Knopf. Für alle
-                Gruppen, denn Anschauen ist Lesen; die Rechte-Matrix regelt nur
-                den Drucken-Knopf oben. */}
-            <button
-              onClick={oeffneSchichtbericht}
-              aria-label="Schichtbericht anzeigen"
-              title="Schichtbericht der letzten 3 Schichten zum Anschauen öffnen – nach Wochenende oder Feiertag die letzten 3 Schichten mit Einträgen"
-              className="flex items-center gap-1.5 rounded-lg font-bold shrink-0 ml-auto border"
-              style={{ borderColor: "#22262B", color: "#22262B", backgroundColor: "#fff", padding: "5px 12px", fontSize: "0.78rem" }}
-            >
-              📄 Schichtbericht
-            </button>
+                mit einem Klick, ganz rechts neben dem Erfassen-Knopf. Wer ihn
+                sieht, steht in der Rechte-Tabelle (Aktion "Schichtbericht"). */}
+            <span className="ml-auto" />
+            {sichtbar("SCHICHTBERICHT") && (
+              <button
+                onClick={oeffneSchichtbericht}
+                aria-label="Schichtbericht anzeigen"
+                title="Schichtbericht der letzten 3 Schichten zum Anschauen öffnen – nach Wochenende oder Feiertag die letzten 3 Schichten mit Einträgen; im Blatt: Top 3"
+                className="flex items-center gap-1.5 rounded-lg font-bold shrink-0 border"
+                style={{ borderColor: "#22262B", color: "#22262B", backgroundColor: "#fff", padding: "5px 12px", fontSize: "0.78rem" }}
+              >
+                📄 Schichtbericht
+              </button>
+            )}
             {stoerDarfMelden && (
               <button
                 onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem(nsKey("werkstatt-kalender-name")) || "", fotos: [], fotosNeu: [], fotosWeg: [] }); setStoerModal({ mode: "add" }); }}
@@ -15921,6 +16066,44 @@ function App() {
                 ><X size={15} /></button>
               </div>
             ))}
+            {/* Programm-Stand der Benutzer (28.09., Robertos Ansage): Wer hat
+                das Update schon? Jeder Rechner meldet beim Start seine
+                Fassung; hier steht je Benutzer die gemeldete Fassung, wann sie
+                zuletzt lief und ob sie die neueste ist. */}
+            {(() => {
+              const eigene = typeof __BUILD_ZEIT__ === "string" ? __BUILD_ZEIT__ : "";
+              const neueste = [eigene, sharedFile.fassungVeraltet() || "", ...Object.values(programmStand).map((v) => v.fassung)].filter(Boolean).sort().slice(-1)[0] || "";
+              const fmt = (iso) => (iso ? new Date(iso).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–");
+              const namen = [...new Set([...settingsBenutzer.map((b) => String(b.name || "").trim()).filter(Boolean), ...Object.keys(programmStand)])];
+              const zeile = (n) => {
+                const v = programmStand[n];
+                const status = !v ? "offen" : v.fassung === neueste ? "aktuell" : "veraltet";
+                const farbe = status === "aktuell" ? "#1F7A3D" : status === "veraltet" ? "#B23A34" : "#8A9099";
+                return (
+                  <tr key={n} data-programmstand-zeile={n} data-stand={status} style={{ borderTop: "1px solid #E2E4E7" }}>
+                    <td className="py-1 pr-3 font-bold">{n}</td>
+                    <td className="py-1 pr-3 font-mono" style={{ color: "#3C444C" }}>{v ? fmt(v.fassung) : "–"}</td>
+                    <td className="py-1 pr-3" style={{ color: "#5B6572" }}>{v && v.gesehen ? fmt(v.gesehen) : "–"}</td>
+                    <td className="py-1 font-bold" style={{ color: farbe }}>{status === "aktuell" ? "✓ aktuell" : status === "veraltet" ? "⚠ veraltet" : "– noch nicht gemeldet"}</td>
+                  </tr>
+                );
+              };
+              const aktuell = namen.filter((n) => programmStand[n] && programmStand[n].fassung === neueste).length;
+              return (
+                <div className="mt-4 mb-4 rounded-lg border p-3" style={{ borderColor: "#E2E4E7", backgroundColor: "#FAFBFC" }} data-programmstand>
+                  <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Programm-Stand der Benutzer</div>
+                  <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+                    Jeder Rechner meldet beim Start, mit welcher Fassung er läuft. Neueste Fassung: <b style={{ color: "#22262B" }}>{fmt(neueste)} Uhr</b> ·{" "}
+                    <b style={{ color: aktuell === namen.length ? "#1F7A3D" : "#B23A34" }}>{aktuell} von {namen.length} aktuell</b>.
+                    Wer „noch nicht gemeldet" ist, hat sich seit dem Update nicht angemeldet oder arbeitet an einer schreibgeschützten Datei.
+                  </div>
+                  <table className="text-xs w-full" aria-label="Programm-Stand der Benutzer">
+                    <thead><tr style={{ color: "#8A9099" }}><th className="text-left font-semibold pr-3">Benutzer</th><th className="text-left font-semibold pr-3">Fassung vom</th><th className="text-left font-semibold pr-3">zuletzt gemeldet</th><th className="text-left font-semibold">Stand</th></tr></thead>
+                    <tbody>{namen.length ? namen.map(zeile) : <tr><td colSpan={4} className="py-1" style={{ color: "#8A9099" }}>Noch keine Benutzer.</td></tr>}</tbody>
+                  </table>
+                </div>
+              );
+            })()}
             <datalist id="wk-link-kuerzel">
               {links.inhaber.map((k) => <option key={k} value={k} />)}
             </datalist>

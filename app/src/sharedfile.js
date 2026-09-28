@@ -1884,9 +1884,12 @@ function createSharedStore(cfg) {
     // Was geändert wurde, ergibt sich allein aus vorher/nachher dieses
     // Bearbeiters - dafür muss die Datei nicht gelesen werden.
     const benennung = { tpmAnlagen: "Anlagen", riItems: "R+I-Punkte", team: "Team", extraSchichten: "Schichtarten", anlagenteile: "Anlagenteile" };
+    // programmStand (28.09.) ist kein Handgriff eines Menschen, sondern die
+    // Meldung "ich laufe mit Fassung X" beim Start - die gehört nicht in den
+    // Verlauf, sonst stünde dort jeden Morgen eine Zeile je Rechner.
     const geaenderteFelder = prevConfigObj && typeof prevConfigObj === "object"
       ? Object.keys(configObj || {})
-          .filter((k) => k !== "updatedAt" && JSON.stringify(prevConfigObj[k]) !== JSON.stringify(configObj[k]))
+          .filter((k) => k !== "updatedAt" && k !== "programmStand" && JSON.stringify(prevConfigObj[k]) !== JSON.stringify(configObj[k]))
           .map((k) => benennung[k] || k)
       : [];
     const logZeilen = geaenderteFelder.length

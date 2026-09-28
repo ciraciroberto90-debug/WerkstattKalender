@@ -528,8 +528,32 @@ Störungen, nicht den Rest.
   eine davon auf Samstag, Sonntag oder einen Feiertag (montags, nach
   Pfingstmontag …), zeigt es stattdessen die **letzten drei Schichten mit
   Einträgen** – ein Wochenend-Bericht zählt dabei mit, die laufende Schicht
-  auch, sobald sie einen Eintrag hat. Ein gelber Hinweis im Blatt sagt, dass
-  diese Regel gegriffen hat. Dieselbe Wahl gilt für das Blatt im Druck-Dialog.
+  auch, sobald sie einen Eintrag hat. Dieselbe Wahl gilt für das Blatt im
+  Druck-Dialog. Unter dem Kopf steht die Zeile **„Nächster PitStop: Datum ·
+  Anlage"** (dazu die zwei danach). Das Fenster öffnet so groß, wie der
+  Bildschirm hergibt, und wird nie schmaler als eine A4-Querseite. **Wer den
+  Knopf sieht**, legt der Verwalter in der Rechte-Tabelle fest (Zeile
+  „Schichtbericht", Standard: Bearbeiter und Leser sehen ihn).
+- **Programm-Stand der Benutzer (seit dem 28.09.):** Unter ⚙ → Benutzer &
+  Rechte steht unter der Benutzerliste die Tabelle **„Programm-Stand der
+  Benutzer"**. Jeder Rechner meldet beim Start in die gemeinsame Datei, mit
+  welcher Fassung er läuft (einmal je Fassung, höchstens alle 12 Stunden,
+  ohne Verlaufszeile). Die Tabelle zeigt je Benutzer die Fassung, wann sie
+  zuletzt gemeldet wurde und **✓ aktuell**, **⚠ veraltet** oder **noch nicht
+  gemeldet** – oben „n von m aktuell". Wer nach einem Update auf „Jetzt
+  aktualisieren" geklickt hat, steht beim nächsten Start auf aktuell. Leser an
+  einer schreibgeschützten Datei können nichts melden und bleiben auf „noch
+  nicht gemeldet".
+- **Top 3 im Schichtbericht (seit dem 28.09.):** Oben im geöffneten Blatt
+  steht der Knopf **🏆 Top 3**. Er klappt drei große Karten auf: die drei
+  Störungen dieses Blatts, die sich am meisten wiederholen, gruppiert nach
+  Anlage · Teil und gezählt über alle Berichte der letzten 7 Tage. Jede Karte
+  zeigt rechts groß die Zahl („4×", „letzte 7 Tage") mit der Ausfallzeit der
+  Woche und sieben Tagesbalken, links die Störung mit einer kleinen Analyse:
+  wiederholt sich oder einmalig, Anzahl in 30 Tagen, wie viele offen, die
+  häufigste Ursache, zuletzt wann. Reihenfolge: Anzahl in 7 Tagen, dann
+  Ausfallzeit. Der Knopf ist nur am Bildschirm da; sind die Top 3
+  aufgeklappt, kommen sie mit auf den Ausdruck.
 - **Klick auf eine Kachel öffnet ihre Pflegestelle (seit dem 24.09.):** Jede
   Kennzahl-Kachel ist ein Knopf, der Hinweis steht im Tooltip. Unfälle und
   Kosten öffnen das ⚙ unter „Regeln & Listen" direkt am passenden Abschnitt
