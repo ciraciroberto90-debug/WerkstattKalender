@@ -244,7 +244,9 @@ const ok = (n, c, zusatz) => {
   chef.p = await neueSeite(chef.ctx, "Chef");
   const nachNeustart = await chef.p.locator("body").innerText();
   ok("(B2) Nach dem Neustart bleibt der Leitstand (keine Pinnwand)",
-    !/📌 Pinnwand/i.test(nachNeustart) && /Heute fällig/.test(nachNeustart));
+    !/📌 Pinnwand/i.test(nachNeustart) && /Heute fällig/.test(nachNeustart),
+    // Diagnose (28.09.): in der vollen Suite rot, allein grün - was stand da?
+    (!/📌 Pinnwand/i.test(nachNeustart) && /Heute fällig/.test(nachNeustart)) ? "" : "Seite: " + nachNeustart.slice(0, 260).replace(/\n+/g, " / ") + " || localStorage: " + (await chef.p.evaluate(() => Object.keys(localStorage).map((k) => k + "=" + String(localStorage.getItem(k)).slice(0, 40)).join(" ; "))).slice(0, 700));
 
   /* ---- (B3) Einzelner Haken -> eigene Zusammenstellung ---- */
   await chef.p.locator('button[aria-label="Verwalten"]').click();

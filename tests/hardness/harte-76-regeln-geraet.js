@@ -156,8 +156,10 @@ const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0
   await p.close();
   const p2 = await neueSeite(ctx);
   const t2 = await p2.locator("body").innerText();
-  ok("(G1) Derselbe Rechner öffnet beim nächsten Mal im Schichtplan, mit Zoom",
-    /Werkstattschichtplan/.test(t2) && (await p2.evaluate(() => document.documentElement.style.fontSize)) === "125%");
+  const g1 = /Werkstattschichtplan/.test(t2) && (await p2.evaluate(() => document.documentElement.style.fontSize)) === "125%";
+  ok("(G1) Derselbe Rechner öffnet beim nächsten Mal im Schichtplan, mit Zoom", g1,
+    // Diagnose (28.09.): in der vollen Suite rot, allein grün - was stand da?
+    g1 ? "" : "Seite: " + t2.slice(0, 200).replace(/\n+/g, " / ") + " || fontSize=" + (await p2.evaluate(() => document.documentElement.style.fontSize)) + " || localStorage: " + (await p2.evaluate(() => Object.keys(localStorage).map((k) => k + "=" + String(localStorage.getItem(k)).slice(0, 40)).join(" ; "))).slice(0, 600));
   await p2.close();
   const ctxAnders = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const p3 = await neueSeite(ctxAnders);
