@@ -122,13 +122,13 @@ const stoerBericht = (nr, tage, anlage, extra = {}) => ({
     await zuStoerungen(p);
     await p.getByRole("button", { name: /Störbericht erfassen/ }).click();
     await p.waitForTimeout(500);
-    await p.locator('input[list="stoer-anlagen"]').fill("TS320");
+    await p.locator('input[aria-label="Anlage / Bereich"]').fill("TS320");
     await p.waitForTimeout(400);
     const text = await p.locator("body").innerText();
     pruef("(6) Ab der dritten Störung in 30 Tagen erscheint der Hinweis",
           /3\. Störung an TS320 innerhalb von 30 Tagen/.test(text));
     pruef("(6) Er fragt nach der Ursache statt zu schimpfen", /Ursache/.test(text));
-    await p.locator('input[list="stoer-anlagen"]').fill("TS480");
+    await p.locator('input[aria-label="Anlage / Bereich"]').fill("TS480");
     await p.waitForTimeout(400);
     pruef("(6) Für eine unauffällige Anlage bleibt es still",
           !/innerhalb von 30 Tagen/.test(await p.locator("body").innerText()));
@@ -232,7 +232,7 @@ const stoerBericht = (nr, tage, anlage, extra = {}) => ({
     await zuStoerungen(p);
     await p.getByRole("button", { name: /Störbericht erfassen/ }).click();
     await p.waitForTimeout(500);
-    await p.locator('input[list="stoer-anlagen"]').fill("TS480");
+    await p.locator('input[aria-label="Anlage / Bereich"]').fill("TS480");
     await p.waitForTimeout(400);
     pruef("(1) Der Störungs-Dialog nennt Partner und Ersatzteile zur Anlage",
           /Trumpf Service.*Ersatzteile: Dichtsatz DN25/.test(await p.locator("body").innerText()));

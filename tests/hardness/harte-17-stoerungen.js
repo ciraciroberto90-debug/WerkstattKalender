@@ -70,8 +70,10 @@ async function meldeStoerung(page, anlage, text) {
   const dlg = page.locator('div[style*="z-index: 60"]');
   await dlg.getByRole('button', { name: 'Früh', exact: true }).click(); // Schicht ist Pflicht
   await dlg.getByRole('button', { name: /Offen/ }).first().click(); // Status ist Pflicht (nicht vorausgewählt)
-  await page.locator('input[list="stoer-anlagen"]').fill(anlage);
+  await page.locator('input[aria-label="Anlage / Bereich"]').fill(anlage);
   await page.locator('textarea[placeholder*="funktioniert"]').fill(text);
+  // Seit dem 28.09. (Robertos Vorgabe): das Bearbeiter-Kürzel ist Pflicht und nicht vorausgefüllt.
+  await page.locator('input[aria-label="Bearbeiter (Kürzel)"]').fill('TB');
   await page.getByRole('button', { name: /^Speichern$/ }).click();
   await page.waitForTimeout(400);
 }

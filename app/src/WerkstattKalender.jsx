@@ -2876,6 +2876,7 @@ function App() {
   const [stoerChecked, setStoerChecked] = useState(false);
   const [stoerErr, setStoerErr] = useState(null); // Fehler der Störungen-Datei (eigener Banner)
   const [stoerModal, setStoerModal] = useState(null); // null | {mode:'add'} | {mode:'edit', id}
+  const [anlageListeOffen, setAnlageListeOffen] = useState(false); // Störbericht: aufgeklappte, scrollbare Anlagen-Liste (28.09.)
   /* Schutz vor stillem Überschreiben: Beim Öffnen der Bearbeiten-Maske wird
      festgehalten, auf welchem Stand der Bericht war. Hat ihn in der Zwischen-
      zeit jemand anderes geändert, wird beim Speichern gefragt statt einfach
@@ -3493,6 +3494,15 @@ function App() {
   };
 
   // Eine Störung anlegen/ändern/löschen (Kürzel wird wie bei der Pinnwand gemerkt)
+  /* Neuer Störbericht (Robertos Vorgaben 28.09.): Status steht auf Erledigt
+     (der Normalfall - die Störung ist behoben, wenn der Bericht entsteht),
+     die Schicht folgt der Uhr (Früh 6-14, Spät 14-22, sonst Nacht), das
+     Bearbeiter-Kürzel bleibt LEER - wer schreibt, trägt sich selbst ein. */
+  const neuerStoerEntwurf = () => {
+    const h = new Date().getHours();
+    const schicht = h >= 6 && h < 14 ? "Früh" : h >= 14 && h < 22 ? "Spät" : "Nacht";
+    return { date: todayKey, schicht, anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "erledigt", melder: "", fotos: [], fotosNeu: [], fotosWeg: [] };
+  };
   const speichereStoerung = async (draft, erzwingen = false) => {
     // Hat jemand anderes den Bericht angefasst, seit die Maske offen ist?
     if (draft.id && !erzwingen && stoerBasis && stoerBasis.id === draft.id) {
@@ -8758,7 +8768,7 @@ function App() {
       if (!stoerDarfSchreiben) return;
       setView("COCKPIT");
       setCockpitTab("STOERUNGEN");
-      setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem(nsKey("werkstatt-kalender-name")) || "", fotos: [], fotosNeu: [], fotosWeg: [] });
+      setSDraft(neuerStoerEntwurf());
       setStoerModal({ mode: "add" });
     },
     spickzettel: () => setKuerzelOffen((o) => !o),
@@ -10619,7 +10629,7 @@ function App() {
             )}
             {stoerDarfMelden && (
               <button
-                onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem(nsKey("werkstatt-kalender-name")) || "", fotos: [], fotosNeu: [], fotosWeg: [] }); setStoerModal({ mode: "add" }); }}
+                onClick={() => { setSDraft(neuerStoerEntwurf()); setStoerModal({ mode: "add" }); }}
                 className="flex items-center gap-1.5 rounded-lg text-white font-bold shrink-0"
                 style={{ backgroundColor: "#C0392B", padding: "6px 12px", fontSize: "0.78rem" }}
               >
@@ -13647,7 +13657,9 @@ function App() {
         if (pf.ausfallzeit && !(Number(sDraft.ausfallzeit) > 0)) pflichtFehlt.push("Ausfallzeit");
         if (pf.ursache && !String(sDraft.ursache || "").trim()) pflichtFehlt.push("Ursache");
         if (pf.getan && !String(sDraft.getan || "").trim()) pflichtFehlt.push("Sofort Maßnahme");
-        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim() && statusGewaehlt && erledigtVollstaendig && pflichtFehlt.length === 0;
+        // Bearbeiter-Kürzel ist Pflicht (Roberto 28.09.) - nicht vorausgefüllt, jeder trägt sich selbst ein.
+        const kuerzelDa = !!String(sDraft.melder || "").trim();
+        const kannSpeichern = String(sDraft.anlage || "").trim() && String(sDraft.stoerung || "").trim() && String(sDraft.schicht || "").trim() && statusGewaehlt && erledigtVollstaendig && kuerzelDa && pflichtFehlt.length === 0;
         const anlagenVorschlaege = Array.from(new Set([
           ...tpmAnlagen.map((a) => a.name),
           ...stoerungen.map((s) => s.anlage).filter(Boolean),
@@ -13774,76 +13786,118 @@ function App() {
           );
         }
 
+        // ---- Erfassen / Bearbeiten (Robertos Vorgaben 28.09.): breiter, ruhiger ----
+        const etikett = (text, pflicht, farbe) => (
+          <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: farbe || "#5B6572", letterSpacing: "0.3px" }}>
+            {text}{pflicht && <span style={{ color: "#C0392B" }}> *</span>}
+          </label>
+        );
+        const bald = <span style={{ fontSize: "0.56rem", backgroundColor: "#FBF3DA", color: "#9A6B00", padding: "1px 6px", borderRadius: "10px", marginLeft: "6px", verticalAlign: "middle", letterSpacing: "0.3px" }}>BALD</span>;
+        const feldRand = { borderColor: "#D6D9DC" };
+        const tipp = String(sDraft.anlage || "").trim().toLowerCase();
+        const anlagenTreffer = anlagenVorschlaege
+          .filter((n) => !tipp || n.toLowerCase().includes(tipp))
+          .sort((a, b) => a.localeCompare(b, "de"))
+          .slice(0, 60);
+        const fehlend = [];
+        if (!String(sDraft.anlage || "").trim()) fehlend.push("Anlage");
+        if (!String(sDraft.stoerung || "").trim()) fehlend.push("Beschreibung");
+        if (!String(sDraft.schicht || "").trim()) fehlend.push("Schicht");
+        if (!statusGewaehlt) fehlend.push("Status");
+        if (sDraft.status === "erledigt" && !String(sDraft.ursache || "").trim()) fehlend.push("Ursache");
+        if (sDraft.status === "erledigt" && !String(sDraft.getan || "").trim()) fehlend.push("Maßnahme");
+        if (!kuerzelDa) fehlend.push("Bearbeiter-Kürzel");
         return (
           <div
             className="no-print"
             style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}
             onClick={schliessen}
           >
+            {/* Breite 880 px (Roberto 28.09.: "darf nicht so schmal sein") - die
+                Kopfzeilen (Status, Datum, Schicht; Anlage, Teil; Gewerk,
+                Fehlerart, Ausfallzeit) stehen nebeneinander, der Bericht
+                selbst (Beschreibung, Ursache, Maßnahme) bleibt in voller Breite. */}
             <ZiehbareKarte
-              style={{ backgroundColor: "white", borderRadius: "12px", padding: "20px", width: "540px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
+              style={{ backgroundColor: "white", borderRadius: "14px", padding: "0", width: "880px", maxWidth: "100%", maxHeight: "92vh", overflowY: "auto", overflowX: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }}
               onClick={(ev) => ev.stopPropagation()}
             >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="font-black text-base" style={{ color: "#22262B" }}>{stoerModal.mode === "add" ? "📝 Störbericht erfassen" : "Störbericht bearbeiten"}</div>
-                {/* Die Nummer steht am gespeicherten Bericht, nicht im Entwurf */}
+              {/* Kopfband */}
+              <div className="px-6 py-3 flex items-center gap-3" style={{ backgroundColor: "#22262B", color: "#fff", borderRadius: "14px 14px 0 0" }}>
+                <div className="font-black" style={{ fontSize: "1.05rem" }}>{stoerModal.mode === "add" ? "📝 Störbericht erfassen" : "✏️ Störbericht bearbeiten"}</div>
                 {stoerModal.mode === "edit" && stoerNrLang(stoerungen.find((x) => x.id === stoerModal.id) || {}) && (
-                  <span className="font-mono font-extrabold" style={{ fontSize: "0.95rem", color: "#8A9099" }}>{stoerNrLang(stoerungen.find((x) => x.id === stoerModal.id) || {})}</span>
+                  <span className="font-mono font-extrabold" style={{ fontSize: "0.95rem", color: "#E0A45B" }}>{stoerNrLang(stoerungen.find((x) => x.id === stoerModal.id) || {})}</span>
                 )}
                 <span className="ml-auto" />
-                <button onClick={schliessen} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
+                <button onClick={schliessen} className="text-slate-300 hover:text-white" aria-label="Schließen"><X size={18} /></button>
               </div>
 
-              {/* Status-Umschalter (Pflicht, nicht vorausgewählt) */}
-              <div className="flex items-center gap-2 my-3">
-                <span className="text-xs font-bold uppercase" style={{ color: "#8A9099" }}>Status<span style={{ color: "#C0392B" }}> *</span>:</span>
-                <div className="inline-flex rounded-lg overflow-hidden" style={{ border: `1.5px solid ${statusGewaehlt ? "#E2E4E7" : "#E7B9B3"}` }}>
-                  <button onClick={() => setSDraft({ ...sDraft, status: "offen" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: sDraft.status === "offen" ? "#C0392B" : "transparent", color: sDraft.status === "offen" ? "#fff" : "#5B6572" }}>● Offen</button>
-                  <button onClick={() => setSDraft({ ...sDraft, status: "erledigt" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "6px 16px", backgroundColor: sDraft.status === "erledigt" ? "#1F7A3D" : "transparent", color: sDraft.status === "erledigt" ? "#fff" : "#5B6572" }}>● Erledigt</button>
-                </div>
-                {/* Datum in derselben Zeile (Design-Runde 10.09.): Status und
-                    Datum sind beide klein - untereinander verschenkten sie
-                    zwei Zeilen und die Maske wurde zur Bildlauf-Wurst. */}
-                <span className="ml-auto" />
-                <label className="text-xs font-extrabold uppercase" style={{ color: "#5B6572" }}>Datum</label>
-                <input type="date" value={sDraft.date || ""} onChange={(ev) => setSDraft({ ...sDraft, date: ev.target.value })} aria-label="Datum" className="text-sm border rounded-lg px-3 py-1.5" style={{ borderColor: "#D6D9DC" }} />
-              </div>
-
-              <div className="flex flex-col gap-3">
-                {/* Schicht (Pflicht, wie im Schichtbuch) - volle Breite, große Knöpfe */}
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Schicht<span style={{ color: "#C0392B" }}> *</span></label>
-                  <div className="flex gap-2">
-                    {STOER_SCHICHTEN.map((sch) => {
-                      const aktiv = sDraft.schicht === sch;
-                      const farbe = SCHICHTEN[sch] || {};
-                      return (
-                        <button key={sch} onClick={() => setSDraft({ ...sDraft, schicht: sch })}
-                          className="flex-1 rounded-lg font-bold text-center"
-                          style={{ padding: "8px 6px", fontSize: "0.82rem", border: `2px solid ${aktiv ? (farbe.color || "#22262B") : "#E2E4E7"}`, backgroundColor: aktiv ? (farbe.color || "#22262B") : "transparent", color: aktiv ? (farbe.text || "#fff") : "#5B6572" }}>
-                          {sch}
-                        </button>
-                      );
-                    })}
+              <div className="px-6 py-4 flex flex-col gap-4">
+                {/* Zeile 1: Status · Datum · Schicht */}
+                <div className="flex gap-4 flex-wrap items-end">
+                  <div>
+                    {etikett("Status", true)}
+                    <div className="inline-flex rounded-lg overflow-hidden" style={{ border: `1.5px solid ${statusGewaehlt ? "#E2E4E7" : "#E7B9B3"}` }}>
+                      <button onClick={() => setSDraft({ ...sDraft, status: "offen" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "8px 18px", backgroundColor: sDraft.status === "offen" ? "#C0392B" : "transparent", color: sDraft.status === "offen" ? "#fff" : "#5B6572" }}>● Offen</button>
+                      <button onClick={() => setSDraft({ ...sDraft, status: "erledigt" })} className="font-bold" style={{ fontSize: "0.84rem", padding: "8px 18px", backgroundColor: sDraft.status === "erledigt" ? "#1F7A3D" : "transparent", color: sDraft.status === "erledigt" ? "#fff" : "#5B6572" }}>● Erledigt</button>
+                    </div>
+                  </div>
+                  <div>
+                    {etikett("Datum")}
+                    <input type="date" value={sDraft.date || ""} onChange={(ev) => setSDraft({ ...sDraft, date: ev.target.value })} aria-label="Datum" className="text-sm border rounded-lg px-3 py-2" style={feldRand} />
+                  </div>
+                  <div className="flex-1" style={{ minWidth: "280px" }}>
+                    {etikett("Schicht", true)}
+                    <div className="flex gap-2">
+                      {STOER_SCHICHTEN.map((sch) => {
+                        const aktiv = sDraft.schicht === sch;
+                        const farbe = SCHICHTEN[sch] || {};
+                        return (
+                          <button key={sch} onClick={() => setSDraft({ ...sDraft, schicht: sch })}
+                            className="flex-1 rounded-lg font-bold text-center"
+                            style={{ padding: "8px 6px", fontSize: "0.82rem", border: `2px solid ${aktiv ? (farbe.color || "#22262B") : "#E2E4E7"}`, backgroundColor: aktiv ? (farbe.color || "#22262B") : "transparent", color: aktiv ? (farbe.text || "#fff") : "#5B6572" }}>
+                            {sch}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
-                {/* Anlage + Anlagenteil nebeneinander */}
-                <div className="flex gap-3 flex-wrap">
-                  <div className="flex-1" style={{ minWidth: "200px" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlage / Bereich<span style={{ color: "#C0392B" }}> *</span></label>
+                {/* Zeile 2: Anlage (scrollbare Liste) · Anlagenteil */}
+                <div className="flex gap-4 flex-wrap">
+                  <div className="flex-1" style={{ minWidth: "260px", position: "relative" }}>
+                    {etikett("Anlage / Bereich", true)}
+                    {/* Eigene, scrollbare Vorschlagsliste statt der Browser-Liste
+                        (Roberto 28.09.: "Dropdown lässt sich nicht scrollen"). */}
                     <input
-                      list="stoer-anlagen"
                       value={sDraft.anlage}
-                      onChange={(ev) => setSDraft({ ...sDraft, anlage: ev.target.value, anlagenteil: "" })}
+                      role="combobox"
+                      aria-label="Anlage / Bereich"
+                      aria-expanded={anlageListeOffen}
+                      aria-controls="stoer-anlagen-liste"
+                      autoComplete="off"
+                      onFocus={() => setAnlageListeOffen(true)}
+                      onBlur={() => setTimeout(() => setAnlageListeOffen(false), 150)}
+                      onKeyDown={(ev) => { if (ev.key === "Escape") setAnlageListeOffen(false); if (ev.key === "Enter" && anlagenTreffer.length === 1) { setSDraft({ ...sDraft, anlage: anlagenTreffer[0], anlagenteil: "" }); setAnlageListeOffen(false); } }}
+                      onChange={(ev) => { setSDraft({ ...sDraft, anlage: ev.target.value, anlagenteil: "" }); setAnlageListeOffen(true); }}
                       placeholder="z. B. Presse 3"
                       className="w-full text-sm border rounded-lg px-3 py-2"
-                      style={{ borderColor: "#D6D9DC" }}
+                      style={feldRand}
                     />
-                    <datalist id="stoer-anlagen">{anlagenVorschlaege.map((n) => <option key={n} value={n} />)}</datalist>
-                    {/* Steckbrief-Zeile (QoL Runde 3): Wartungspartner und
-                        Ersatzteile direkt neben der Anlage - wer nachts vor
-                        der Maschine steht, sucht nicht erst im Register. */}
+                    {anlageListeOffen && anlagenTreffer.length > 0 && (
+                      <div id="stoer-anlagen-liste" role="listbox" aria-label="Anlagen-Vorschläge"
+                        style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 5, maxHeight: "220px", overflowY: "auto", backgroundColor: "#fff", border: "1px solid #D6D9DC", borderRadius: "8px", boxShadow: "0 10px 28px rgba(0,0,0,0.14)", marginTop: "2px" }}>
+                        {anlagenTreffer.map((n) => (
+                          <button type="button" role="option" aria-selected={n === sDraft.anlage} key={n}
+                            onMouseDown={(ev) => ev.preventDefault()}
+                            onClick={() => { setSDraft({ ...sDraft, anlage: n, anlagenteil: "" }); setAnlageListeOffen(false); }}
+                            className="w-full text-left text-sm px-3 py-1.5 hover:bg-slate-100"
+                            style={{ color: "#22262B", backgroundColor: n === sDraft.anlage ? "#F0F2F5" : "transparent" }}>
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {(() => {
                       const st = registerEintragVon("TPM", String(sDraft.anlage || "").trim())?.steckbrief;
                       const teile = [st?.partner, st?.ersatzteile && `Ersatzteile: ${st.ersatzteile}`].filter(Boolean);
@@ -13852,10 +13906,10 @@ function App() {
                       ) : null;
                     })()}
                   </div>
-                  <div className="flex-1" style={{ minWidth: "200px" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Anlagenteil</label>
+                  <div className="flex-1" style={{ minWidth: "260px" }}>
+                    {etikett("Anlagenteil")}
                     {teileZurAnlage.length > 0 ? (
-                      <select value={sDraft.anlagenteil || ""} onChange={(ev) => setSDraft({ ...sDraft, anlagenteil: ev.target.value })} className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }}>
+                      <select value={sDraft.anlagenteil || ""} onChange={(ev) => setSDraft({ ...sDraft, anlagenteil: ev.target.value })} className="w-full text-sm border rounded-lg px-3 py-2" style={feldRand}>
                         <option value="">– kein bestimmtes Teil –</option>
                         {teileZurAnlage.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
                       </select>
@@ -13867,9 +13921,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* Häufungs-Hinweis (QoL Runde 3): Blick auf die Ursache statt
-                    nur aufs Symptom. Zählt Störungen derselben Anlage in den
-                    30 Tagen vor dem Berichts-Datum. */}
+                {/* Häufungs-Hinweis (QoL Runde 3) */}
                 {(() => {
                   const anlage = String(sDraft.anlage || "").trim();
                   if (!anlage) return null;
@@ -13896,141 +13948,125 @@ function App() {
                   );
                 })()}
 
-                {/* Einordnung in EINER Ecke (Design-Runde 10.09.): Gewerk als
-                    breite Knopfreihe, darunter Fehlerart, Ausfallzeit und
-                    Behoben-am nebeneinander - vorher stand jeder Kasten allein
-                    in seiner Zeile und die Maske wurde unnötig lang. */}
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Gewerk</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {Object.entries(STOER_GEWERK).map(([key, g]) => {
-                      const aktiv = sDraft.gewerk === key;
-                      return (
-                        <button key={key} onClick={() => setSDraft({ ...sDraft, gewerk: aktiv ? "" : key })}
-                          className="flex-1 rounded-lg font-bold text-center"
-                          style={{ minWidth: "90px", padding: "8px 6px", fontSize: "0.78rem", border: `2px solid ${aktiv ? g.color : "#E2E4E7"}`, backgroundColor: aktiv ? g.bg : "transparent", color: aktiv ? g.color : "#5B6572" }}>
-                          {g.kurz}
-                        </button>
-                      );
-                    })}
+                {/* Zeile 3: Gewerk · Fehlerart · Ausfallzeit */}
+                <div className="flex gap-4 flex-wrap items-end">
+                  <div className="flex-1" style={{ minWidth: "300px" }}>
+                    {etikett("Gewerk")}
+                    <div className="flex gap-2">
+                      {Object.entries(STOER_GEWERK).map(([key, g]) => {
+                        const aktiv = sDraft.gewerk === key;
+                        return (
+                          <button key={key} onClick={() => setSDraft({ ...sDraft, gewerk: aktiv ? "" : key })}
+                            className="flex-1 rounded-lg font-bold text-center"
+                            style={{ minWidth: "90px", padding: "8px 6px", fontSize: "0.78rem", border: `2px solid ${aktiv ? g.color : "#E2E4E7"}`, backgroundColor: aktiv ? g.bg : "transparent", color: aktiv ? g.color : "#5B6572" }}>
+                            {g.kurz}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-3 flex-wrap items-end">
                   <div>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Fehlerart</label>
-                    <select value={sDraft.fehlerart || ""} onChange={(ev) => setSDraft({ ...sDraft, fehlerart: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", minWidth: "180px" }}>
+                    {etikett("Fehlerart")}
+                    <select value={sDraft.fehlerart || ""} onChange={(ev) => setSDraft({ ...sDraft, fehlerart: ev.target.value })} className="text-sm border rounded-lg px-3 py-2" style={{ ...feldRand, minWidth: "180px" }}>
                       <option value="">– keine Angabe –</option>
                       {[...regeln.listen.fehlerarten, ...(sDraft.fehlerart && !regeln.listen.fehlerarten.includes(sDraft.fehlerart) ? [sDraft.fehlerart] : [])].map((f) => <option key={f} value={f}>{f}</option>)}
                     </select>
                   </div>
                   <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7CF8F" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#9A6B00" }}>⏱ Ausfallzeit (Minuten)</label>
-                    <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" className="text-sm border rounded-lg px-3 py-1.5" style={{ borderColor: "#E7CF8F", width: "110px", backgroundColor: "#fff" }} />
+                    {etikett("⏱ Ausfallzeit (Minuten)", false, "#9A6B00")}
+                    <input type="number" min="0" step="5" value={sDraft.ausfallzeit ?? ""} onChange={(ev) => setSDraft({ ...sDraft, ausfallzeit: ev.target.value })} placeholder="0" aria-label="Ausfallzeit (Minuten)" className="text-sm border rounded-lg px-3 py-1.5" style={{ borderColor: "#E7CF8F", width: "110px", backgroundColor: "#fff" }} />
                   </div>
-                  {sDraft.status === "erledigt" && (
-                    <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "#EAF3EC", border: "1px solid #BFE0C6" }}>
-                      <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#1F7A3D" }}>✓ Behoben am <span className="normal-case font-normal" style={{ color: "#6B9576" }}>(leer = jetzt)</span></label>
-                      <input type="datetime-local" value={sDraft.behobenAt || ""} onChange={(ev) => setSDraft({ ...sDraft, behobenAt: ev.target.value })} className="text-sm border rounded-lg px-3 py-1.5" style={{ borderColor: "#BFE0C6", backgroundColor: "#fff" }} />
+                </div>
+
+                {/* Der Bericht: Beschreibung, Ursache, Maßnahme - volle Breite */}
+                <div className="rounded-xl p-4 flex flex-col gap-3" style={{ backgroundColor: "#F7F8F9", border: "1px solid #E7EAED" }}>
+                  <div>
+                    {etikett("⚠ Störungs Beschreibung", true)}
+                    <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Was funktioniert nicht?" className="w-full text-sm border rounded-lg px-3 py-2" style={feldRand} />
+                    {regeln.vorlagen.stoerung.length > 0 && (
+                      <select value="" onChange={(ev) => { if (ev.target.value) setSDraft({ ...sDraft, stoerung: [String(sDraft.stoerung || "").trim(), ev.target.value].filter(Boolean).join(" ") }); }} aria-label="Textbaustein Beschreibung" className="text-xs border rounded px-2 py-1 mt-1" style={feldRand}>
+                        <option value="">📋 Textbaustein einfügen …</option>
+                        {regeln.vorlagen.stoerung.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    )}
+                  </div>
+                  <div>
+                    {etikett("🔍 Störungs Ursache", sDraft.status === "erledigt")}
+                    <input value={sDraft.ursache} onChange={(ev) => setSDraft({ ...sDraft, ursache: ev.target.value })} placeholder="falls bekannt" aria-label="Störungs Ursache" className="w-full text-sm border rounded-lg px-3 py-2" style={feldRand} />
+                  </div>
+                  <div>
+                    {etikett("🔧 Sofort Maßnahme", sDraft.status === "erledigt")}
+                    <textarea value={sDraft.getan} onChange={(ev) => setSDraft({ ...sDraft, getan: ev.target.value })} rows={2} placeholder="Was wurde sofort getan?" aria-label="Sofort Maßnahme" className="w-full text-sm border rounded-lg px-3 py-2" style={feldRand} />
+                    {regeln.vorlagen.stoerung.length > 0 && (
+                      <select value="" onChange={(ev) => { if (ev.target.value) setSDraft({ ...sDraft, getan: [String(sDraft.getan || "").trim(), ev.target.value].filter(Boolean).join(" ") }); }} aria-label="Textbaustein Sofort Maßnahme" className="text-xs border rounded px-2 py-1 mt-1" style={feldRand}>
+                        <option value="">📋 Textbaustein einfügen …</option>
+                        {regeln.vorlagen.stoerung.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    )}
+                  </div>
+                  {offen && (
+                    <div className="rounded-lg p-3" style={{ backgroundColor: "#FBEAE8", border: "1px solid #E7B9B3" }}>
+                      {etikett("📌 Zu Planende Maßnahme", false, "#C0392B")}
+                      <textarea value={sDraft.nochZuTun} onChange={(ev) => setSDraft({ ...sDraft, nochZuTun: ev.target.value })} rows={2} placeholder="Was muss noch geplant/erledigt werden?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D8A9A2" }} />
                     </div>
                   )}
                 </div>
 
-                {/* Der eigentliche Bericht - Beschreibung, Ursache, Maßnahme
-                    stehen jetzt UNUNTERBROCHEN untereinander (die Fotos sind
-                    ans Ende gerückt, ihr Freigabe-Hinweis riss vorher die
-                    Erzähl-Reihenfolge mitten auseinander). */}
-                <div style={{ borderTop: "1px solid #EFF1F3", marginTop: "2px" }} />
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>⚠ Störungs Beschreibung<span style={{ color: "#C0392B" }}> *</span></label>
-                  <textarea value={sDraft.stoerung} onChange={(ev) => setSDraft({ ...sDraft, stoerung: ev.target.value })} rows={2} placeholder="Was funktioniert nicht?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
-                  {regeln.vorlagen.stoerung.length > 0 && (
-                    <select value="" onChange={(ev) => { if (ev.target.value) setSDraft({ ...sDraft, stoerung: [String(sDraft.stoerung || "").trim(), ev.target.value].filter(Boolean).join(" ") }); }} aria-label="Textbaustein Beschreibung" className="text-xs border rounded px-2 py-1 mt-1" style={{ borderColor: "#D6D9DC" }}>
-                      <option value="">📋 Textbaustein einfügen …</option>
-                      {regeln.vorlagen.stoerung.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔍 Störungs Ursache</label>
-                  <input value={sDraft.ursache} onChange={(ev) => setSDraft({ ...sDraft, ursache: ev.target.value })} placeholder="falls bekannt" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🔧 Sofort Maßnahme</label>
-                  <textarea value={sDraft.getan} onChange={(ev) => setSDraft({ ...sDraft, getan: ev.target.value })} rows={2} placeholder="Was wurde sofort getan?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
-                  {regeln.vorlagen.stoerung.length > 0 && (
-                    <select value="" onChange={(ev) => { if (ev.target.value) setSDraft({ ...sDraft, getan: [String(sDraft.getan || "").trim(), ev.target.value].filter(Boolean).join(" ") }); }} aria-label="Textbaustein Sofort Maßnahme" className="text-xs border rounded px-2 py-1 mt-1" style={{ borderColor: "#D6D9DC" }}>
-                      <option value="">📋 Textbaustein einfügen …</option>
-                      {regeln.vorlagen.stoerung.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>🧩 Ersatzteile / Material</label>
-                  <input value={sDraft.ersatzteile} onChange={(ev) => setSDraft({ ...sDraft, ersatzteile: ev.target.value })} placeholder="verbaute / benötigte Teile" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC" }} />
-                  <label className="flex items-center gap-2 mt-1.5 text-xs" style={{ color: "#5B6572" }}>
-                    <input type="checkbox" checked={!!sDraft.nachbestellt} onChange={(ev) => setSDraft({ ...sDraft, nachbestellt: ev.target.checked })} />
-                    Ersatzteil nachbestellt
-                  </label>
-                </div>
-
-                {/* Nur bei Offen: Zu Planende Maßnahme */}
-                {offen && (
-                  <div className="rounded-lg p-3" style={{ backgroundColor: "#FBEAE8", border: "1px solid #E7B9B3" }}>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#C0392B" }}>📌 Zu Planende Maßnahme</label>
-                    <textarea value={sDraft.nochZuTun} onChange={(ev) => setSDraft({ ...sDraft, nochZuTun: ev.target.value })} rows={2} placeholder="Was muss noch geplant/erledigt werden?" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D8A9A2" }} />
-                  </div>
-                )}
-
-                {/* Fotos zur Störung (21.08.): die nächste Schicht sieht den
-                    Schaden, nicht nur drei Sätze. Seit dem 10.09. am ENDE des
-                    Berichts - der Freigabe-Hinweis stand vorher mitten
-                    zwischen Beschreibung und Ursache. */}
-                <div style={{ borderTop: "1px solid #EFF1F3", marginTop: "2px" }} />
-                {fotoFeld(sDraft, setSDraft)}
-
-                <div className="flex gap-3 items-end">
+                {/* Zeile 4: Bearbeiter (Pflicht, leer) · Ersatzteile (bald) · Fotos (bald) */}
+                <div className="flex gap-4 flex-wrap items-start">
                   <div>
-                    <label className="block text-xs font-extrabold uppercase mb-1" style={{ color: "#5B6572" }}>Bearbeiter (Kürzel)</label>
-                    <input value={sDraft.melder} onChange={(ev) => setSDraft({ ...sDraft, melder: ev.target.value })} placeholder="z. B. RC" className="w-full text-sm border rounded-lg px-3 py-2" style={{ borderColor: "#D6D9DC", maxWidth: "160px" }} />
+                    {etikett("Bearbeiter (Kürzel)", true)}
+                    <input value={sDraft.melder} onChange={(ev) => setSDraft({ ...sDraft, melder: ev.target.value })} placeholder="z. B. RC" aria-label="Bearbeiter (Kürzel)" className="text-sm border rounded-lg px-3 py-2" style={{ ...feldRand, width: "160px", borderColor: kuerzelDa ? "#D6D9DC" : "#E7B9B3" }} />
+                  </div>
+                  {/* Ersatzteile und Fotos: ausgegraut mit "Bald" (Roberto 28.09.) -
+                      der Technische Einkauf und der Foto-Weg kommen als eigener
+                      Schritt; vorhandene Angaben älterer Berichte bleiben lesbar. */}
+                  <div className="flex-1" style={{ minWidth: "220px", opacity: 0.55 }} data-bald="ersatzteile">
+                    {etikett(<>🧩 Ersatzteile / Material{bald}</>)}
+                    <input value={sDraft.ersatzteile || ""} disabled readOnly placeholder="kommt mit dem Technischen Einkauf" aria-label="Ersatzteile / Material (bald)" className="w-full text-sm border rounded-lg px-3 py-2" style={{ ...feldRand, backgroundColor: "#F4F5F6", cursor: "not-allowed" }} />
+                  </div>
+                  <div className="flex-1" style={{ minWidth: "220px", opacity: 0.55 }} data-bald="fotos">
+                    {etikett(<>📷 Fotos{bald}</>)}
+                    <div className="text-sm rounded-lg px-3 py-2 border" style={{ ...feldRand, backgroundColor: "#F4F5F6", color: "#A6AEB6", cursor: "not-allowed" }} aria-label="Fotos (bald)">
+                      {(sDraft.fotos || []).length > 0 ? `${sDraft.fotos.length} Foto(s) am Bericht` : "kommt in einem späteren Schritt"}
+                    </div>
                   </div>
                 </div>
 
                 {!kannSpeichern && (
-                  <div className="text-xs" style={{ color: "#C0392B" }}>
-                    Bitte die Pflichtfelder <strong>*</strong> ausfüllen: Anlage, Beschreibung, Schicht und Status.
-                    {sDraft.status === "erledigt" && !erledigtVollstaendig && " Bei Erledigt zusätzlich Ursache und Sofort Maßnahme."}
-                    {pflichtFehlt.length > 0 && ` Laut Werkstatt-Regel außerdem: ${pflichtFehlt.join(", ")}.`}
+                  <div className="text-xs rounded-lg px-3 py-2" style={{ color: "#B23A34", backgroundColor: "#FBEAE8" }}>
+                    Bitte die Pflichtfelder <strong>*</strong> ausfüllen: {fehlend.length ? fehlend.join(", ") : "–"}.{pflichtFehlt.length > 0 ? ` Laut Werkstatt-Regel außerdem: ${pflichtFehlt.join(", ")}.` : ""}
                   </div>
                 )}
-                <div className="flex gap-2 items-center mt-1 flex-wrap">
-                  <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#22262B" : "#B7BEC6", minWidth: "120px" }}>Speichern</button>
-                  {/* Robertos Wunsch 09.09.: direkt beim Erstellen des Berichts
-                      die eigenen Stunden buchen. Erst speichern (dann steht die
-                      Nummer fest), dann öffnet die Zeiterfassung vorbefüllt. */}
-                  {!readerMode && (
-                    <button
-                      onClick={async () => { const s = await speichereStoerung(sDraft); if (s) stoerungZurZeiterfassung(s); }}
-                      disabled={!kannSpeichern}
-                      className="text-sm font-bold py-2.5 px-3 rounded-lg"
-                      style={{ backgroundColor: kannSpeichern ? "#FDF0E2" : "#F4F5F6", color: kannSpeichern ? "#A25E14" : "#B7BEC6" }}
-                      title="Bericht speichern und die Stunden dazu gleich in der Zeiterfassung buchen"
-                    >
-                      Speichern + zur Zeiterfassung
-                    </button>
-                  )}
+              </div>
+
+              {/* Fuß */}
+              <div className="px-6 py-3 flex gap-2 items-center flex-wrap" style={{ borderTop: "1px solid #EFF1F3", backgroundColor: "#FAFBFC", borderRadius: "0 0 14px 14px" }}>
+                <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern} className="text-sm font-bold py-2.5 px-6 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#1F7A3D" : "#B7BEC6", minWidth: "140px" }}>Speichern</button>
+                {!readerMode && (
                   <button
-                    disabled
-                    title="Weiterleiten kommt in einer späteren Version"
-                    className="rounded-lg font-bold inline-flex items-center gap-1"
-                    style={{ fontSize: "0.78rem", padding: "9px 12px", border: "1.5px dashed #C4CBD2", color: "#A6AEB6", cursor: "not-allowed" }}
+                    onClick={async () => { const s = await speichereStoerung(sDraft); if (s) stoerungZurZeiterfassung(s); }}
+                    disabled={!kannSpeichern}
+                    className="text-sm font-bold py-2.5 px-3 rounded-lg"
+                    style={{ backgroundColor: kannSpeichern ? "#FDF0E2" : "#F4F5F6", color: kannSpeichern ? "#A25E14" : "#B7BEC6" }}
+                    title="Bericht speichern und die Stunden dazu gleich in der Zeiterfassung buchen"
                   >
-                    📤 Weiterleiten <span style={{ fontSize: "0.56rem", backgroundColor: "#FBF3DA", color: "#9A6B00", padding: "1px 5px", borderRadius: "10px" }}>bald</span>
+                    Speichern + zur Zeiterfassung
                   </button>
-                  {stoerModal.mode === "edit" && (
-                    <button onClick={() => loescheStoerung(stoerModal.id)} className="text-sm font-bold py-2.5 px-4 rounded-lg" style={{ backgroundColor: "#FBEAE8", color: "#C0392B" }}>Löschen</button>
-                  )}
-                  <button onClick={() => { if (stoerModal.mode === "edit" && stoerModal.id) { setStoerModal({ mode: "view", id: stoerModal.id }); } else { schliessen(); } }} className="text-sm font-bold py-2.5 px-4 rounded-lg bg-slate-100 text-slate-500">Abbrechen</button>
-                </div>
+                )}
+                <button
+                  disabled
+                  title="Weiterleiten kommt in einer späteren Version"
+                  className="rounded-lg font-bold inline-flex items-center gap-1"
+                  style={{ fontSize: "0.78rem", padding: "9px 12px", border: "1.5px dashed #C4CBD2", color: "#A6AEB6", cursor: "not-allowed" }}
+                >
+                  📤 Weiterleiten{bald}
+                </button>
+                <span className="ml-auto" />
+                {stoerModal.mode === "edit" && (
+                  <button onClick={() => loescheStoerung(stoerModal.id)} className="text-sm font-bold py-2.5 px-4 rounded-lg" style={{ backgroundColor: "#FBEAE8", color: "#C0392B" }}>Löschen</button>
+                )}
+                <button onClick={() => { if (stoerModal.mode === "edit" && stoerModal.id) { setStoerModal({ mode: "view", id: stoerModal.id }); } else { schliessen(); } }} className="text-sm font-bold py-2.5 px-4 rounded-lg bg-slate-100 text-slate-500">Abbrechen</button>
               </div>
             </ZiehbareKarte>
           </div>

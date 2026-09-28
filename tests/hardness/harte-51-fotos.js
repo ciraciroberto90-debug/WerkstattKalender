@@ -235,48 +235,31 @@ const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("wer
     await ctx.close();
   }
 
-  /* ---- (F) Störbericht mit Foto ---- */
+  /* ---- (F) Störbericht: Fotos im Erfassen-Dialog sind "bald" (Roberto 28.09.) ----
+     Der Foto-Weg am Störbericht kommt als eigener Schritt; bis dahin steht das
+     Feld ausgegraut mit "BALD" und ohne Foto-hinzufügen-Knopf. Vorhandene
+     Fotos älterer Berichte bleiben in der Ansicht sichtbar (siehe A-E für den
+     Foto-Weg selbst am Backlog). */
   {
     const { p, ctx, fehler } = await start(browser, {});
-    const foto = await handyFoto(p);
     await p.getByRole("button", { name: /^Berichte/ }).first().click().then(() => p.waitForTimeout(350)).then(() => p.getByRole("button", { name: /^Störungen/ }).first().click());
     await p.waitForTimeout(500);
     await p.getByRole("button", { name: "📝 Störbericht erfassen" }).first().click();
     await p.waitForTimeout(500);
+    pruef("(F) Im Erfassen-Dialog steht das Foto-Feld ausgegraut mit „BALD“ - kein Foto-hinzufügen-Knopf",
+          (await p.locator('[data-bald="fotos"]').count()) === 1 && /BALD/.test(await p.locator('[data-bald="fotos"]').innerText()) &&
+          (await p.locator('input[aria-label="Foto hinzufügen"]').count()) === 0);
     await p.getByRole("button", { name: "● Offen" }).click();
     await p.getByPlaceholder("z. B. Presse 3").fill("TS480");
     await p.getByRole("button", { name: "Früh", exact: true }).click();
     await p.getByPlaceholder("Was funktioniert nicht?").fill("Halter der Umlenkrolle gebrochen");
-    await p.locator('input[aria-label="Foto hinzufügen"]').setInputFiles({ name: "bruch.jpg", mimeType: "image/jpeg", buffer: foto });
-    await p.waitForTimeout(1200);
+    await p.locator('input[aria-label="Bearbeiter (Kürzel)"]').fill("MW");
     await p.getByRole("button", { name: "Speichern", exact: true }).click();
     await p.waitForTimeout(900);
     const stoer = await p.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-stoerungen-entries") || "[]"));
-    const dateien = await p.evaluate(() => window.__fotoDateien());
-    pruef("(F) Der Störbericht trägt den Foto-Verweis, die Datei liegt im Ordner",
-          stoer.length === 1 && Array.isArray(stoer[0].fotos) && stoer[0].fotos.length === 1 &&
-          dateien.length === 1 && stoer[0].fotos[0].datei === dateien[0].name,
+    pruef("(F) Der Bericht wird ohne Foto gespeichert (kein Foto-Verweis, keine Datei im Ordner)",
+          stoer.length === 1 && (!Array.isArray(stoer[0].fotos) || stoer[0].fotos.length === 0) && (await p.evaluate(() => window.__fotoDateien())).length === 0,
           JSON.stringify((stoer[0] || {}).fotos));
-    // Ansicht (nur lesend): Kachel ja, ✕ nein.
-    // Die Liste gruppiert zweistufig (Tag -> Schicht), beides erst aufklappen.
-    await p.locator("tr", { hasText: /21\.08\.2026/ }).first().click();
-    await p.waitForTimeout(400);
-    await p.locator("tr", { hasText: /Früh/ }).last().click();
-    await p.waitForTimeout(400);
-    await p.getByText("Halter der Umlenkrolle gebrochen").first().click();
-    await p.waitForTimeout(600);
-    pruef("(F) Die Ansicht zeigt das Foto (Großansicht per Klick), aber kein ✕",
-          (await p.getByRole("button", { name: "Foto 1 groß ansehen" }).count()) === 1 &&
-          (await p.getByRole("button", { name: "Foto 1 entfernen" }).count()) === 0);
-    await p.getByRole("button", { name: "Foto 1 groß ansehen" }).click();
-    await p.waitForTimeout(400);
-    pruef("(F) Großansicht aus der Ansicht heraus funktioniert",
-          (await p.locator('div[role="dialog"][aria-label="Foto-Großansicht"]').count()) === 1);
-    await p.keyboard.press("Escape");
-    await p.waitForTimeout(300);
-    pruef("(F) Esc schließt NUR die Großansicht, der Bericht bleibt offen",
-          (await p.locator('div[role="dialog"][aria-label="Foto-Großansicht"]').count()) === 0 &&
-          (await p.getByText("Halter der Umlenkrolle gebrochen").count()) > 0);
     pruef("(F) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await ctx.close();
   }

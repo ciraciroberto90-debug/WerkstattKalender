@@ -227,6 +227,8 @@ const klappeAlles = async (p) => {
       // Ursache und Sofortmassnahme - hier geht es um die Nummernvergabe,
       // nicht um die Pflichtfelder.
       await p.getByRole("button", { name: "● Offen" }).click();
+      // Seit dem 28.09.: Bearbeiter-Kürzel ist Pflicht und nicht vorausgefüllt.
+      await p.locator('input[aria-label="Bearbeiter (Kürzel)"]').fill("TB");
       await p.waitForTimeout(250);
       // exact, denn seit dem 09.09. steht daneben "Speichern + zur
       // Zeiterfassung" - ein unscharfes Muster träfe beide Knöpfe.

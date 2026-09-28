@@ -563,6 +563,18 @@ Störungen, nicht den Rest.
   Zwischendatei weggeräumt und die Meldung nennt den Schritt („Zwischendatei
   anlegen"). Alte 0-KB-Zwischendateien im Ordner werden vor dem Schreiben
   aufgeräumt.
+- **Störbericht-Dialog neu (seit dem 28.09.):** Die Karte ist breiter (880
+  px), Status, Datum und Schicht stehen in einer Zeile, Anlage und Teil in der
+  nächsten, Gewerk, Fehlerart und Ausfallzeit darunter; der Bericht selbst
+  (Beschreibung, Ursache, Maßnahme) hat volle Breite. Vorbelegt: **Status
+  Erledigt**, **Schicht nach Uhrzeit** (Früh 6–14, Spät 14–22, sonst Nacht),
+  **Bearbeiter-Kürzel leer** (jeder trägt sich selbst ein). Pflicht:
+  Anlage, Beschreibung, Schicht, Status, Kürzel; bei Erledigt zusätzlich
+  Ursache und Maßnahme (bei Offen dürfen die noch fehlen). „Behoben am" ist
+  weg, die Uhrzeit des Speicherns gilt. Ersatzteile und Fotos stehen
+  ausgegraut mit **BALD**, Weiterleiten ebenso. Die Anlagen-Liste ist eine
+  eigene, scrollbare Liste: Klick ins Feld öffnet sie, Tippen filtert, Klick
+  übernimmt.
 - **Import-Reste aufräumen (seit dem 28.09.):** Der ikom-Einleser überspringt
   jetzt leere Dokumente (keine Anlage, keine Beschreibung, nur eine Nummer)
   und Dokumente mit Datum in der Zukunft; die Bilanz nennt beides. Was ein
