@@ -535,6 +535,21 @@ Störungen, nicht den Rest.
   Bildschirm hergibt, und wird nie schmaler als eine A4-Querseite. **Wer den
   Knopf sieht**, legt der Verwalter in der Rechte-Tabelle fest (Zeile
   „Schichtbericht", Standard: Bearbeiter und Leser sehen ihn).
+- **Schneller Start mit der gemeinsamen Datei (seit dem 28.09.):** Beim
+  Verbinden wird die Datei nur noch geschrieben, wenn das Zusammenführen
+  etwas geändert hat (örtliche Einträge, neue Fassung). Vorher schrieb jeder
+  Start die ganze Datei neu – auf dem Netzlaufwerk Sekunden, und wenn zwei
+  Rechner gleichzeitig starteten, stufte sich einer dauerhaft auf „nur
+  ansehen" zurück. Die örtliche Sicherung läuft im Hintergrund. Unter ⚙ →
+  Verlauf & Sicherung steht **„Verbindung beim Start (gemessen)"**: gesamt,
+  Verweis, Rechte, Lesen (mit Dateigröße), Abgleich und ob geschrieben wurde,
+  für die gemeinsame und die Störungs-Datei. Dauert ein Rechner lange, steht
+  dort, wo die Zeit hingeht; über 5 s ist rot.
+- **Links nur mit zugeteilter Sammlung (seit dem 28.09.):** Ein Bearbeiter
+  oder Leser ohne Kürzel in „Link-Sammlung" (⚙ → Benutzer & Rechte) sieht
+  keinen Linkstreifen mehr, also auch keine fremde Sammlung. Mit Kürzel sieht
+  er genau seine Sammlung. Der Umschalter über alle Sammlungen bleibt dem
+  Verwalter.
 - **Programm-Stand der Benutzer (seit dem 28.09.):** Unter ⚙ → Benutzer &
   Rechte steht unter der Benutzerliste die Tabelle **„Programm-Stand der
   Benutzer"**. Jeder Rechner meldet beim Start in die gemeinsame Datei, mit

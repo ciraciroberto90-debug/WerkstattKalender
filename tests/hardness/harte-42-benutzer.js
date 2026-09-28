@@ -231,6 +231,10 @@ const ok = (n, c, zusatz) => {
   /* ---- (9) Bearbeiter: schreiben ja, Benutzer pflegen nein ---- */
   await p2.locator('select[aria-label="Rolle 1"]').selectOption("verwalter"); // zurück
   await p2.locator('select[aria-label="Rolle 2"]').selectOption("bearbeiter");
+  // Seit dem 28.09. (Robertos Ansage) sieht ein Bearbeiter ohne zugeteilte
+  // Link-Sammlung keinen Linkstreifen - für den Link-Wächter in (10) bekommt
+  // MWerkstatt deshalb hier seine eigene Sammlung "MW".
+  await p2.locator('input[aria-label="Link-Sammlung 2"]').fill("MW");
   await p2.getByRole("button", { name: "Speichern", exact: true }).first().click();
   await p2.waitForTimeout(900);
   await p2.locator('button[aria-label="Gemeinsame Datei"]').click();

@@ -477,6 +477,12 @@ function createSharedStore(cfg) {
   // dann ist die optimistische Sperre blind (unter der fixierten Test-Uhr
   // war sie es IMMER). Die Zufallsmarke ist uhr-unabhängig eindeutig.
   const neueSchreibMarke = () => Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  // Zeitmessung des Starts (28.09., "Messen statt behaupten"): Wie lange
+  // dauern Verweis holen, Rechte fragen, Datei lesen, Zusammenführen und ein
+  // etwaiges Schreiben? Steht danach im Zahnrad, damit ein langsamer Rechner
+  // sagt, WO er langsam ist (Netzlaufwerk, Rechte, Größe).
+  const startMessung = { begonnen: null, verweis: null, rechte: null, lesen: null, abgleich: null, gesamt: null, geschrieben: null, groesse: null, status: null };
+  function startZeiten() { return startMessung.begonnen ? { ...startMessung } : null; }
 
   let fileHandle = null;
   // Beim Start gemerkter Verweis auf die zuletzt benutzte Datei.
@@ -994,7 +1000,11 @@ function createSharedStore(cfg) {
     // Pfad des Verweises; im Browser geht es nur ueber den freigegebenen
     // Ordner. Hier ist der eine Punkt, durch den JEDER Verbindungsweg laeuft.
     ermittlePfad();
+    const tLesen = Date.now();
     let data = justCreated ? emptyData() : await readFileData();
+    startMessung.lesen = Date.now() - tLesen;
+    startMessung.groesse = dateiInfo && dateiInfo.groesse ? dateiInfo.groesse : null;
+    const tAbgleich = Date.now();
 
     if (accessMode === "readwrite") {
       // Lokalen Bestand in die Datei einpflegen (erste Übernahme bzw. Wiederverbinden).
@@ -1013,8 +1023,28 @@ function createSharedStore(cfg) {
         });
       }
       const candidate = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: nowISO(), entries: merged, deleted: data.deleted, config: configAusEintraegen(merged) || data.config, bauStand: bauStandFuer(data.bauStand) };
+      /* Nur schreiben, wenn das Zusammenführen etwas geändert hat (Robertos
+         Befund 28.09.: "Verbinden dauert auf einigen Rechnern lange, Bearbeiter
+         sind dann im Lesemodus"). Bisher wurde die Datei bei JEDEM Start
+         komplett neu geschrieben - bei einer großen Datei auf dem Netzlaufwerk
+         Sekunden, und starteten zwei Rechner gleichzeitig, scheiterte einer
+         zweimal am belegten Schloss und stufte sich DAUERHAFT auf "nur
+         ansehen" zurück. Unverändert heißt: gleiche Einträge (Kennung +
+         Zeitstempel), keine nachgetragenen Einstellungen, Kopf (Format,
+         Standort, Bau-Stand) schon richtig. Der Bau-Stand sorgt dafür, dass
+         eine neue Fassung genau einmal je Datei schreibt - der Veraltet-
+         Wächter der Kollegen braucht ihn. */
+      // Reihenfolge-unabhängig: Das Zusammenführen sortiert, die Datei nicht.
+      const dateiStempel = new Map((Array.isArray(data.entries) ? data.entries : []).map((e) => [e.id, e.updatedAt]));
+      const unveraendert = !justCreated
+        && data.format === FORMAT && data.standort === STANDORT_DATEI
+        && (data.bauStand || null) === candidate.bauStand
+        && merged.length === dateiStempel.size
+        && merged.every((e) => dateiStempel.has(e.id) && dateiStempel.get(e.id) === e.updatedAt);
       let geschrieben = false;
       let letzterFehler = null;
+      if (unveraendert) { geschrieben = true; startMessung.geschrieben = false; }
+      else startMessung.geschrieben = true;
       // Zwei Anläufe: Der erste kann an einer belegten Datei scheitern (zweites
       // Fenster, Kopiervorgang, Virenscanner). Erst wenn auch der zweite
       // scheitert, fehlt das Recht wirklich.
@@ -1028,7 +1058,12 @@ function createSharedStore(cfg) {
           if (justCreated) throw e; // neue Datei ließ sich gar nicht anlegen -> echter Fehler
         }
       }
-      if (geschrieben) {
+      if (geschrieben && unveraendert) {
+        // Nichts geschrieben: Der gelesene Stand bleibt der maßgebliche
+        // (savedAt der Datei), sonst hielte der nächste Abgleich die eigene,
+        // nie geschriebene Marke für den Stand der Datei.
+        lastWriteError = null;
+      } else if (geschrieben) {
         data = candidate;
         lastWriteError = null;
       } else {
@@ -1045,7 +1080,10 @@ function createSharedStore(cfg) {
     lastSavedAt = data.savedAt;
     syncLocal(data);
     dispatchUpdate(data);
-    await recordBackup(data.entries, data.config);
+    startMessung.abgleich = Date.now() - tAbgleich;
+    // Die örtliche Sicherung (IndexedDB) ist ein Zusatz - sie läuft im
+    // Hintergrund und hält den Start nicht mehr auf (28.09.).
+    recordBackup(data.entries, data.config).catch(() => {});
     return data;
   }
 
@@ -1096,20 +1134,28 @@ function createSharedStore(cfg) {
       // Verweis lässt sich nicht merken (z. B. IndexedDB blockiert) – Verbindung gilt
       // trotzdem für diese Sitzung, nach dem Neustart muss die Datei neu gewählt werden.
     }
+    // Auch das Verbinden über den Dialog wird gemessen (dieselbe Anzeige im ⚙).
+    const t0 = Date.now();
+    startMessung.begonnen = nowISO(); startMessung.verweis = 0; startMessung.rechte = 0;
     const data = await adoptCurrentFile(create);
+    startMessung.gesamt = Date.now() - t0; startMessung.status = "connected";
     startPolling();
     return data;
   }
 
   async function tryRestore() {
-    if (!isSupported()) return { status: "unsupported" };
+    const t0 = Date.now();
+    startMessung.begonnen = nowISO();
+    const fertig = (st) => { startMessung.gesamt = Date.now() - t0; startMessung.status = st.status; return st; };
+    if (!isSupported()) return fertig({ status: "unsupported" });
     let handle = null;
     let mode = "readwrite";
     try {
       handle = await holeVerweis("handle");
       mode = (await idbGet("mode")) || "readwrite";
     } catch (e) { /* IndexedDB nicht verfügbar */ }
-    if (!handle) return { status: "none" };
+    startMessung.verweis = Date.now() - t0;
+    if (!handle) return fertig({ status: "none" });
     gemerkterHandle = handle;   // fuer den spaeteren Klick auf "Jetzt verbinden"
     gemerkterModus = mode;
     // Konflikt-Wächter: gemerkten Ordner mit wiederherstellen (falls eingerichtet)
@@ -1142,8 +1188,9 @@ function createSharedStore(cfg) {
     // der am Arbeitsplatz gemessene Fall. Vorher war er auch bei "prompt" aktiv
     // und hat damit das Wiederverbinden nach dem Browser-Neustart uebergangen.
     const perm = await rechteFragen(handle, mode);
+    startMessung.rechte = Date.now() - t0;
     if (perm !== "granted" && perm !== "unbekannt") {
-      return { status: "needs-permission", name: handle.name, mode };
+      return fertig({ status: "needs-permission", name: handle.name, mode });
     }
 
     if (perm === "unbekannt") {
@@ -1157,10 +1204,10 @@ function createSharedStore(cfg) {
           // Der Verweis ist tot: Der Browser gibt ihn weder frei noch lehnt er
           // ihn ab. Kein Klick der Welt loest das - die Datei muss neu gewaehlt
           // werden. Frueher blieb die App genau hier haengen.
-          return { status: "verweis-tot", name: handle.name, mode };
+          return fertig({ status: "verweis-tot", name: handle.name, mode });
         }
         // Echte Ablehnung (NotAllowedError) oder Laufwerk weg -> ein Klick hilft.
-        return { status: "needs-permission", name: handle.name, mode };
+        return fertig({ status: "needs-permission", name: handle.name, mode });
       }
     }
 
@@ -1192,7 +1239,7 @@ function createSharedStore(cfg) {
         ? leseFehlerBeimStart.message
         : "Gemeinsame Datei konnte nicht gelesen werden (Laufwerk erreichbar?).");
     }
-    return { status: "connected", name: handle.name, mode: accessMode };
+    return fertig({ status: "connected", name: handle.name, mode: accessMode });
   }
 
   // Zugriff nach Browser-Neustart wieder freigeben (braucht einen Klick des Nutzers).
@@ -1930,7 +1977,11 @@ function createSharedStore(cfg) {
         });
         const t = nowISO();
         const merged = pruneLogs(mergeEntries(fileData.entries, stamped.concat(logZeilen), fileData.deleted));
-        const out = { format: FORMAT, savedAt: t, entries: merged, deleted: fileData.deleted, config: configAusEintraegen(merged) || fileData.config, bauStand: bauStandFuer(fileData.bauStand) };
+        // standort und schreibMarke gehören in JEDEN Dateikopf (28.09., beim
+        // Zählen der Schreibvorgänge aufgefallen): Ohne Standort-Kennung galt
+        // die Datei nach dem nächsten Lesen als Scheurich-Erbe, und ohne
+        // Marke fehlte der Sperre die eindeutige Kennung dieses Schreibens.
+        const out = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: t, entries: merged, deleted: fileData.deleted, config: configAusEintraegen(merged) || fileData.config, bauStand: bauStandFuer(fileData.bauStand) };
 
         // Optimistische Sperre wie bei saveEntries: nicht auf Basis eines
         // veralteten Stands schreiben, sonst könnte eine zeitgleiche
@@ -2312,7 +2363,7 @@ function createSharedStore(cfg) {
   };
 
   return {
-    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, fassungVeraltet, getLastWriteError, getLastSuccessfulSyncAt,
+    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, fassungVeraltet, startZeiten, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
@@ -2350,6 +2401,7 @@ export const fileName = main.fileName;
 export const fileInfo = main.fileInfo;
 export const uhrVersatz = main.uhrVersatz;
 export const fassungVeraltet = main.fassungVeraltet;
+export const startZeiten = main.startZeiten;
 export const getLastWriteError = main.getLastWriteError;
 export const getLastSuccessfulSyncAt = main.getLastSuccessfulSyncAt;
 export const listBackups = main.listBackups;

@@ -4841,6 +4841,11 @@ function App() {
   // der Umschalter wie bisher. Das Kürzel muss nicht in der Liste stehen:
   // die erste Sammlung eines neuen Kontos entsteht mit dem ersten Link.
   const linkGebunden = !!(benutzerAktiv && meinBenutzer && meinBenutzer.links);
+  // Ohne zugeteilte Sammlung sieht ein Bearbeiter oder Leser KEINE fremden
+  // Links (Roberto 28.09.: "Bearbeiter hat meinen Hyperlink, obwohl keiner
+  // zugeteilt ist"). Der Umschalter über alle Sammlungen bleibt dem
+  // Verwalter (und dem Betrieb ohne Benutzerliste).
+  const linkOhneSammlung = !!(benutzerAktiv && meinBenutzer && !meinBenutzer.gruppenGast && meinBenutzer.rolle !== "verwalter" && !meinBenutzer.links);
   const linkInhaberAktiv = linkGebunden ? meinBenutzer.links
     : links.inhaber.includes(linkInhaber) ? linkInhaber : (links.inhaber[0] || LINK_INHABER_VORGABE[0]);
   const linkListe = links.eintraege.filter((l) => l.inhaber === linkInhaberAktiv);
@@ -4959,9 +4964,8 @@ function App() {
   useEffect(() => {
     if (!angemeldet || readerMode || !shareChecked || loading) return;
     if (typeof __BUILD_ZEIT__ !== "string" || !__BUILD_ZEIT__) return;
-    const alt = programmStand[angemeldet];
-    if (alt && alt.fassung === __BUILD_ZEIT__ && alt.gesehen && Date.now() - Date.parse(alt.gesehen) < 12 * 3600 * 1000) return;
-    const neu = { ...programmStand, [angemeldet]: { fassung: __BUILD_ZEIT__, gesehen: new Date().toISOString() } };
+    const aktuell = (v) => !!(v && v.fassung === __BUILD_ZEIT__ && v.gesehen && Date.now() - Date.parse(v.gesehen) < 12 * 3600 * 1000);
+    if (aktuell(programmStand[angemeldet])) return;
     let abgebrochen = false;
     (async () => {
       try {
@@ -4975,6 +4979,13 @@ function App() {
         let alt2 = {};
         try { alt2 = roh && roh.value ? JSON.parse(roh.value) : {}; } catch (e) { alt2 = {}; }
         if (!alt2 || typeof alt2 !== "object") alt2 = {};
+        // Entscheidend ist der Spiegel, nicht der Zustand: Die Datei füllt den
+        // Spiegel VOR dem Ereignis, das den Zustand nachzieht - sonst schriebe
+        // jeder Start einmal, obwohl der eigene Eintrag längst aktuell ist
+        // (harte-95 zählt die Schreibvorgänge beim Verbinden).
+        const inDatei = normalisiereProgrammStand(alt2.programmStand);
+        if (aktuell(inDatei[angemeldet])) { if (!abgebrochen) setProgrammStand(inDatei); return; }
+        const neu = { ...inDatei, [angemeldet]: { fassung: __BUILD_ZEIT__, gesehen: new Date().toISOString() } };
         await window.storage.set(CONFIG_STORAGE_KEY, JSON.stringify({ ...alt2, programmStand: neu }), false);
         if (!abgebrochen) setProgrammStand(neu);
       } catch (e) { /* Meldung ist Beiwerk - beim nächsten Start noch einmal */ }
@@ -9287,7 +9298,7 @@ function App() {
           vorhanden) - die Sammlung ist Arbeitsmittel der Bearbeiter.
           Ein Klick auf einen Chip öffnet, ohne vorher aufklappen zu müssen;
           Anlegen und Sortieren stecken im Feld hinter „Links". */}
-      {leserSicher("LINKS") && uebersichtLayout.bloecke.links && view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
+      {leserSicher("LINKS") && !linkOhneSammlung && uebersichtLayout.bloecke.links && view === "COCKPIT" && cockpitTab === "UEBERSICHT" && (
         <div style={{ backgroundColor: "#2C3137", borderTop: "1px solid rgba(255,255,255,0.08)", position: "relative" }}>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5">
             {/* Anlegen/Sortieren nur mit Stufe "bearbeiten" (Rechte-Matrix) -
@@ -15926,6 +15937,28 @@ function App() {
                 schaut in diesem Ordner nach neuen App-HTML-Dateien - dem
                 selben Ordner, in den heute schon jede neue Version gelegt
                 wird. Der Update-Ablauf der Werkstatt bleibt also derselbe. */}
+                {/* Zeitmessung des Starts (28.09., Robertos Befund "Verbinden dauert
+                    auf einigen Rechnern lange"): Wo geht die Zeit hin? */}
+                {(() => {
+                  const teile = [["Gemeinsame Datei", sharedFile.startZeiten ? sharedFile.startZeiten() : null], ["Störungs-Datei", sharedFile.stoer && sharedFile.stoer.startZeiten ? sharedFile.stoer.startZeiten() : null]];
+                  const s = (ms) => (ms === null || ms === undefined ? "–" : ms >= 1000 ? `${(ms / 1000).toFixed(1).replace(".", ",")} s` : `${ms} ms`);
+                  const mb = (b) => (b ? (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(b / 1024))} KB`) : "–");
+                  const zeile = ([name, z]) => (
+                    <div key={name} data-startzeit={name} className="text-xs mb-1" style={{ color: "#3C444C" }}>
+                      <b>{name}:</b>{" "}
+                      {!z ? <span style={{ color: "#8A9099" }}>noch keine Messung (keine gemerkte Datei)</span> : (
+                        <>gesamt <b style={{ color: z.gesamt > 5000 ? "#B23A34" : "#1F7A3D" }}>{s(z.gesamt)}</b> · Verweis {s(z.verweis)} · Rechte {s(z.rechte === null ? null : z.rechte - (z.verweis || 0))} · Lesen {s(z.lesen)} ({mb(z.groesse)}) · Abgleich {s(z.abgleich)}{z.geschrieben ? " · Datei neu geschrieben" : z.geschrieben === false ? " · nichts zu schreiben" : ""} · Ergebnis {z.status || "–"}</>
+                      )}
+                    </div>
+                  );
+                  return (
+                    <div className="mb-3 pt-3 border-t" style={{ borderColor: "#E2E4E7" }} data-startzeiten>
+                      <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Verbindung beim Start (gemessen)</div>
+                      <div className="text-xs mb-2" style={{ color: "#8A9099" }}>Dauert der Start auf einem Rechner lange, steht hier, wo die Zeit hingeht: Netzlaufwerk (Lesen), Rechte oder Größe der Datei. Über 5 s ist rot.</div>
+                      {teile.map(zeile)}
+                    </div>
+                  );
+                })()}
             {programmUpdateStatus !== null && (
               <>
                 <div className="text-xs font-bold uppercase mb-2 pt-3 border-t" style={{ color: "#5B6572", borderColor: "#E2E4E7" }}>Programm-Updates</div>
