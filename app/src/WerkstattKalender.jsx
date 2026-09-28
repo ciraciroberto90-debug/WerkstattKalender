@@ -9604,6 +9604,15 @@ function App() {
           <button onClick={reconnectShared} className="px-2.5 py-1 rounded text-white" style={{ backgroundColor: "#B8791F" }}>
             Jetzt verbinden
           </button>
+          {/* Robertos Befund 28.09. ("man muss den Schreibzugriff immer wieder
+              neu aufbauen"): Im Browser fragt Chrome/Edge nach jedem Neustart
+              neu - das ist Browser-Regel, keine App-Einstellung. Als Programm
+              bleibt der Pfad gemerkt und die Datei ist beim Start verbunden. */}
+          {typeof window !== "undefined" && !window.__werkstattDesktop && (
+            <span className="font-normal" style={{ color: "#8A5320" }} data-browser-hinweis>
+              Das fragt der Browser nach jedem Neustart neu. Als Programm (Werkstatt-Cockpit vom USB-Stick) bleibt die Datei von selbst verbunden.
+            </span>
+          )}
           {verbindenBlockiert && (
             <button
               onClick={verbindeMitSchreibrecht}
@@ -16039,6 +16048,16 @@ function App() {
                       <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Verbindung beim Start (gemessen)</div>
                       <div className="text-xs mb-2" style={{ color: "#8A9099" }}>Dauert der Start auf einem Rechner lange, steht hier, wo die Zeit hingeht: Netzlaufwerk (Lesen), Rechte oder Größe der Datei. Über 5 s ist rot.</div>
                       {teile.map(zeile)}
+                      {/* Zwischendateien-Reste (28.09.): jede ist ein fehlgeschlagener
+                          Schreibversuch des Programms auf diesem Rechner. */}
+                      {[["Gemeinsame Datei", sharedFile.zwischenResteStand ? sharedFile.zwischenResteStand() : null], ["Störungs-Datei", sharedFile.stoer && sharedFile.stoer.zwischenResteStand ? sharedFile.stoer.zwischenResteStand() : null]]
+                        .filter(([, z]) => z && z.geprueft && z.gefunden > 0)
+                        .map(([name, z]) => (
+                          <div key={name} data-zwischenreste={name} className="text-xs mt-1 font-bold" style={{ color: z.offen > 0 ? "#B23A34" : "#1F7A3D" }}>
+                            {z.offen > 0 ? "⚠" : "✓"} Zwischendateien im Datenordner ({name}): {z.gefunden} gefunden, {z.geraeumt} weggeräumt{z.offen > 0 ? `, ${z.offen} noch da${z.jung ? ` (${z.jung} jünger als 10 min)` : ""}` : ""}.
+                            {" "}Jede davon war ein Schreibversuch des Programms, der auf diesem Rechner scheiterte{z.aeltesteMin !== null ? ` (ältester vor ${z.aeltesteMin} min)` : ""}.
+                          </div>
+                        ))}
                     </div>
                   );
                 })()}

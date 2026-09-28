@@ -992,6 +992,51 @@ function createSharedStore(cfg) {
     return inhalt;
   }
 
+  /* Zwischendateien-Reste wegräumen (28.09., Robertos Explorer-Bild: fünf
+     Kennungen an einem Tag, je zwei 0-KB-Dateien "…schreibe-<pid>.json").
+     Jede solche Datei ist ein fehlgeschlagener Schreibversuch des Programms
+     auf diesem Rechner. Das Programm selbst räumt seit atomar.js auf - aber
+     nur mit neuer Programm-ZIP. Das Cockpit räumt hier zusätzlich über die
+     Brücke, die es schon gibt (liste/stat/entferne): alte Reste des eigenen
+     Dateistamms, älter als 10 Minuten (eine junge könnte einem anderen
+     Fenster gehören, das gerade schreibt). Was übrig bleibt, steht im ⚙ als
+     Befund. Ohne stat (ältere Rahmen) wird nichts gelöscht, nur gezählt. */
+  const ZWISCHEN_ALT_MS = 10 * 60 * 1000;
+  const zwischenReste = { geprueft: false, gefunden: 0, geraeumt: 0, offen: 0, aeltesteMin: null, jung: 0 };
+  function zwischenResteStand() { return { ...zwischenReste }; }
+  async function raeumeZwischendateien() {
+    const d = desktopBruecke();
+    if (!d || !fileHandle || !fileHandle.pfad || typeof d.liste !== "function" || typeof d.entferne !== "function") return;
+    const pfad = String(fileHandle.pfad);
+    const trenner = pfad.includes("\\") ? "\\" : "/";
+    const ordner = pfad.slice(0, pfad.lastIndexOf(trenner));
+    const name = pfad.slice(pfad.lastIndexOf(trenner) + 1);
+    const m = name.match(/^(.*)(\.[^.]+)$/);
+    const stamm = m ? m[1] : name;
+    const endung = m ? m[2] : "";
+    const muster = stamm + ".schreibe-";
+    try {
+      const eintraege = await mitFrist(() => d.liste(ordner), FRIST_LESEN, "Der Blick in den Datenordner");
+      const reste = (eintraege || []).filter((e) => e && typeof e.name === "string" && e.name.startsWith(muster) && e.name.endsWith(endung));
+      zwischenReste.geprueft = true;
+      zwischenReste.gefunden = reste.length; zwischenReste.geraeumt = 0; zwischenReste.jung = 0; zwischenReste.aeltesteMin = null;
+      for (const r of reste) {
+        let alter = null;
+        if (typeof d.stat === "function") {
+          try { const st = await d.stat(r.pfad); if (st && st.geaendert) alter = Date.now() - Number(st.geaendert); } catch (e) { /* weg oder gesperrt */ }
+        }
+        if (alter === null) continue;
+        if (zwischenReste.aeltesteMin === null || alter > zwischenReste.aeltesteMin * 60000) zwischenReste.aeltesteMin = Math.round(alter / 60000);
+        if (alter > ZWISCHEN_ALT_MS) {
+          try { await d.entferne(r.pfad); zwischenReste.geraeumt++; } catch (e) { /* gesperrt - bleibt liegen */ }
+        } else {
+          zwischenReste.jung++;
+        }
+      }
+      zwischenReste.offen = zwischenReste.gefunden - zwischenReste.geraeumt;
+    } catch (e) { /* Ordner nicht lesbar - der Befund bleibt "ungeprüft" */ }
+  }
+
   /* Schreibprobe beim Verbinden (28.09.): Darf dieser Rechner in den Ordner
      schreiben? Im Programm: eine winzige Probedatei neben der Datei anlegen
      (über denselben atomaren Weg, mit der Endung .json wegen der Dateityp-
@@ -1220,6 +1265,7 @@ function createSharedStore(cfg) {
     startMessung.gesamt = Date.now() - t0; startMessung.status = "connected";
     merkePhase("fertig");
     startPolling();
+    raeumeZwischendateien().catch(() => {});
     return data;
   }
 
@@ -1310,6 +1356,7 @@ function createSharedStore(cfg) {
       leseFehlerBeimStart = e;
     }
     startPolling();
+    raeumeZwischendateien().catch(() => {});
     if (leseFehlerBeimStart) {
       // Robertos Fund vom 17.08.: Ohne dieses Flag gab der spätere
       // erfolgreiche Abgleich KEINE Entwarnung - die Meldung klebte, obwohl
@@ -2449,7 +2496,7 @@ function createSharedStore(cfg) {
   };
 
   return {
-    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, fassungVeraltet, startZeiten, phaseName, getLastWriteError, getLastSuccessfulSyncAt,
+    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, fassungVeraltet, startZeiten, phaseName, zwischenResteStand, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
@@ -2489,6 +2536,7 @@ export const uhrVersatz = main.uhrVersatz;
 export const fassungVeraltet = main.fassungVeraltet;
 export const startZeiten = main.startZeiten;
 export const phaseName = main.phaseName;
+export const zwischenResteStand = main.zwischenResteStand;
 export const getLastWriteError = main.getLastWriteError;
 export const getLastSuccessfulSyncAt = main.getLastSuccessfulSyncAt;
 export const listBackups = main.listBackups;

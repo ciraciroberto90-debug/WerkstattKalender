@@ -575,6 +575,20 @@ Störungen, nicht den Rest.
   ausgegraut mit **BALD**, Weiterleiten ebenso. Die Anlagen-Liste ist eine
   eigene, scrollbare Liste: Klick ins Feld öffnet sie, Tippen filtert, Klick
   übernimmt.
+- **Zwischendateien-Reste im Datenordner (seit dem 28.09.):** Dateien wie
+  „werkstatt-kalender-daten.schreibe-22784.json" mit 0 KB sind
+  fehlgeschlagene Schreibversuche des Programms auf diesem Rechner (die
+  Zahl ist die Prozess-Kennung des Programmstarts). Das Cockpit räumt beim
+  Verbinden die alten Reste seines Dateistamms (älter als 10 Minuten) weg
+  und nennt den Befund unter ⚙ → Verlauf & Sicherung („2 gefunden, 1
+  weggeräumt, 1 noch da"). Häufen sie sich, kann dieser Rechner nicht
+  zuverlässig speichern: ⚙ → Diagnose starten, Rechte des Windows-Kontos
+  auf den Ordner und den Virenscanner prüfen.
+- **„Jetzt verbinden" nach jedem Start (Browser):** Läuft das Cockpit im
+  Browser (Chrome/Edge), fragt der Browser nach jedem Neustart neu nach
+  der Datei. Das ist Browser-Regel. Als Programm (Werkstatt-Cockpit vom
+  USB-Stick) bleibt der Pfad gemerkt und die Datei ist beim Start verbunden;
+  die Leiste sagt das jetzt dazu.
 - **Import-Reste aufräumen (seit dem 28.09.):** Der ikom-Einleser überspringt
   jetzt leere Dokumente (keine Anlage, keine Beschreibung, nur eine Nummer)
   und Dokumente mit Datum in der Zukunft; die Bilanz nennt beides. Was ein

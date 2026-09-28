@@ -85,6 +85,10 @@ const pruef = (n, c, zusatz) => {
   });
 
   /* ---- (D1)+(D2): direkt nach Ansicht -> Bearbeiten ---- */
+  // Seit dem 28.09. ist die Karte breiter und kürzer - bei 1000 px Höhe passt
+  // der Inhalt hinein. Die Messung braucht Überlauf, also ein niedriges Fenster.
+  await p.setViewportSize({ width: 900, height: 560 });
+  await p.waitForTimeout(300);
   const m1 = await messen();
   pruef("(D1) Die Karte hat nach Ansicht->Bearbeiten wirklich overflow-y:auto",
         m1.overflowY === "auto", m1.overflowY);
