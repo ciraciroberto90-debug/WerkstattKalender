@@ -18,6 +18,7 @@ const fs = require("fs/promises");
 const fssync = require("fs");
 const path = require("path");
 const { zwischenName } = require("./zwischenname.js");
+const { schreibeAtomar } = require("./atomar.js");
 
 /* ---------- Einstellungen (gemerkte Pfade) ---------- */
 function einstellungsPfad() {
@@ -134,23 +135,10 @@ ipcMain.handle("schreibe", async (ev, pfad, text) => {
   // Rechner mittendrin ab, ist die Zieldatei unangetastet. Die Namensregel
   // steckt in zwischenname.js - samt der Lehre von Robertos Laufwerk
   // (Dateityp-Filter weisen unbekannte Endungen mit EPERM ab).
-  const ziel = String(pfad);
-  const tmp = zwischenName(ziel, process.pid);
-  await fs.writeFile(tmp, String(text), "utf8");
-  try {
-    await fs.rename(tmp, ziel);
-  } catch (e) {
-    // Windows: rename über eine gerade gelesene Datei kann EPERM werfen -
-    // dann einmal kurz warten und erneut, danach aufräumen und Fehler melden.
-    await new Promise((r) => setTimeout(r, 150));
-    try {
-      await fs.rename(tmp, ziel);
-    } catch (e2) {
-      try { await fs.unlink(tmp); } catch (e3) { /* Zwischendatei blieb liegen */ }
-      throw e2;
-    }
-  }
-  return true;
+  // Seit dem 28.09. in atomar.js: mehrere Anläufe je Schritt (Anlegen UND
+  // Umbenennen), Aufräumen der Zwischendatei in jedem Fehlerfall, alte
+  // Zwischendateien werden weggeräumt, der Fehler nennt den Schritt.
+  return schreibeAtomar(fs, String(pfad), String(text), process.pid);
 });
 
 /* Fotos (26.08.): Die App legt Bilddateien im Unterordner "Fotos" des
@@ -166,21 +154,7 @@ ipcMain.handle("schreibe-bytes", async (ev, pfad, bytes) => {
   // Gleicher atomarer Weg wie beim Text-Schreiben: Zwischendatei mit der
   // ENDUNG DES ZIELS (.jpg), dann Umbenennen - die Dateityp-Filter des
   // Laufwerks (EPERM-Lehre vom 10.08.) gelten für Bilder genauso.
-  const ziel = String(pfad);
-  const tmp = zwischenName(ziel, process.pid);
-  await fs.writeFile(tmp, Buffer.from(bytes));
-  try {
-    await fs.rename(tmp, ziel);
-  } catch (e) {
-    await new Promise((r) => setTimeout(r, 150));
-    try {
-      await fs.rename(tmp, ziel);
-    } catch (e2) {
-      try { await fs.unlink(tmp); } catch (e3) { /* Zwischendatei blieb liegen */ }
-      throw e2;
-    }
-  }
-  return true;
+  return schreibeAtomar(fs, String(pfad), Buffer.from(bytes), process.pid);
 });
 
 ipcMain.handle("liste", async (ev, ordnerPfad) => {

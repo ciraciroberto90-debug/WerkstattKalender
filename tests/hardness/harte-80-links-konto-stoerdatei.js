@@ -102,10 +102,11 @@ const config = {
 
   /* ---- (A2) Bea ohne Kürzel (Ausgangs-Konfiguration, eigener Rechner) ---- */
   const b = await seite("Bea");
-  ok("(A2) Bea (ohne Kürzel): Umschalter RC und AR wie bisher", (await chip(b.p, "RC").count()) === 1 && (await chip(b.p, "AR").count()) === 1);
-  await chip(b.p, "AR").click();
-  await b.p.waitForTimeout(300);
-  ok("(A2) Umschalten auf AR zeigt „Plan AR“", /Plan AR/.test(await b.p.locator("body").innerText()));
+  // Seit dem 28.09. (Robertos Ansage: "Bearbeiter hat meinen Hyperlink, obwohl
+  // keiner zugeteilt ist"): ohne Kürzel KEIN Linkstreifen, keine fremde Sammlung.
+  ok("(A2) Bea (ohne Kürzel): kein Linkstreifen, keine Sammlung RC/AR (seit 28.09.)",
+    (await chip(b.p, "RC").count()) === 0 && (await chip(b.p, "AR").count()) === 0 && (await b.p.getByRole("button", { name: "Links & Dokumente" }).count()) === 0);
+  ok("(A2) Bea sieht auch keinen Link-Inhalt („Plan AR“ bleibt verborgen)", !/Plan AR/.test(await b.p.locator("body").innerText()));
   await b.ctx.close();
 
   /* ---- (A3) Max -> MK (noch ohne Sammlung) ---- */

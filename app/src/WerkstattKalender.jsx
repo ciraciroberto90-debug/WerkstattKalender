@@ -2980,14 +2980,37 @@ function App() {
     // stehen - shareChecked würde nie true, also erschiene weder eine
     // Verbindungsleiste noch eine Meldung. Dieselbe Sorte Stillstand wie ein
     // Aufruf ohne Frist, nur eine Ebene höher.
-    sharedFile.tryRestore()
-      .catch((e) => ({ status: "none", fehler: e && e.message ? e.message : String(e) }))
-      .then((st) => {
-        if (cancelled) return;
-        setShareState(st);
-        setShareChecked(true);
-        if (st.fehler) setShareErr("Gemeinsame Datei: Die gemerkte Datei ließ sich nicht prüfen – " + st.fehler + " Bitte über das Ordner-Symbol neu verbinden.");
-      });
+    /* Wachhund für den Start (28.09., Robertos Befund "die App hängt sich beim
+       Verbinden auf"): Antwortet das Wiederverbinden nach 30 s nicht, läuft
+       die App mit dem örtlichen Stand weiter und sagt, in welcher Phase es
+       hängt - statt für immer beim grauen Symbol zu stehen. Kommt die echte
+       Antwort später doch, wird sie übernommen. Jeder Einzelschritt hat
+       zwar seine Frist; der Wachhund ist die Klammer darum. */
+    const STARTFRIST_MS = 30000;
+    const wachhund = (versprechen, name, zeiten) => new Promise((ok) => {
+      let erledigt = false;
+      const uhr = setTimeout(() => {
+        if (erledigt) return;
+        const z = zeiten ? zeiten() : null;
+        ok({ status: "none", haengt: true, fehler: `${name}: Das Verbinden antwortet seit ${Math.round(STARTFRIST_MS / 1000)} s nicht (hängt bei: ${sharedFile.phaseName(z && z.phase)}). Die App läuft mit dem örtlichen Stand weiter – bitte über das Ordner-Symbol neu verbinden oder die Seite neu laden.` });
+      }, STARTFRIST_MS);
+      versprechen.then((st) => { erledigt = true; clearTimeout(uhr); ok(st); });
+    });
+    const aufShareStart = (st, spaet) => {
+      if (cancelled) return;
+      setShareState(st);
+      setShareChecked(true);
+      if (st.fehler) setShareErr((st.haengt ? "" : "Gemeinsame Datei: Die gemerkte Datei ließ sich nicht prüfen – ") + st.fehler + (st.haengt ? "" : " Bitte über das Ordner-Symbol neu verbinden."));
+      // Nur die SPÄTE echte Antwort räumt die Wachhund-Meldung weg - eine
+      // Meldung des Start-Pfads selbst (unlesbares Laufwerk, harte-43) bleibt.
+      else if (spaet && st.status === "connected") setShareErr(null);
+    };
+    const shareStart = sharedFile.tryRestore()
+      .catch((e) => ({ status: "none", fehler: e && e.message ? e.message : String(e) }));
+    wachhund(shareStart, "Gemeinsame Datei", sharedFile.startZeiten).then((st) => {
+      aufShareStart(st);
+      if (st.haengt) shareStart.then((echt) => aufShareStart(echt, true));
+    });
     const onUpdate = (ev) => {
       const d = ev.detail || {};
       // ALLES hier ist Hintergrund-Arbeit (Abgleich alle 30 s bzw. Rücklauf
@@ -3069,14 +3092,19 @@ function App() {
     window.addEventListener("werkstatt-stoer-kollision", onKollision);
 
     // ---- Störungen-Datei (eigene Instanz, gleiche Sync-Sicherheiten) ----
-    sharedFile.stoer.tryRestore()
-      .catch((e) => ({ status: "none", fehler: e && e.message ? e.message : String(e) }))
-      .then((st) => {
-        if (cancelled) return;
-        setStoerState(st);
-        setStoerChecked(true);
-        if (st.fehler) setStoerErr("Störungen-Datei: Die gemerkte Datei ließ sich nicht prüfen – " + st.fehler + " Bitte im Schichtbuch neu verbinden.");
-      });
+    const aufStoerStart = (st, spaet) => {
+      if (cancelled) return;
+      setStoerState(st);
+      setStoerChecked(true);
+      if (st.fehler) setStoerErr((st.haengt ? "" : "Störungen-Datei: Die gemerkte Datei ließ sich nicht prüfen – ") + st.fehler + (st.haengt ? "" : " Bitte im Schichtbuch neu verbinden."));
+      else if (spaet && st.status === "connected") setStoerErr(null);
+    };
+    const stoerStart = sharedFile.stoer.tryRestore()
+      .catch((e) => ({ status: "none", fehler: e && e.message ? e.message : String(e) }));
+    wachhund(stoerStart, "Störungen-Datei", sharedFile.stoer.startZeiten).then((st) => {
+      aufStoerStart(st);
+      if (st.haengt) stoerStart.then((echt) => aufStoerStart(echt, true));
+    });
     const onStoerUpdate = (ev) => {
       const d = ev.detail || {};
       if (Array.isArray(d.entries)) {
@@ -15947,7 +15975,12 @@ function App() {
                     <div key={name} data-startzeit={name} className="text-xs mb-1" style={{ color: "#3C444C" }}>
                       <b>{name}:</b>{" "}
                       {!z ? <span style={{ color: "#8A9099" }}>noch keine Messung (keine gemerkte Datei)</span> : (
-                        <>gesamt <b style={{ color: z.gesamt > 5000 ? "#B23A34" : "#1F7A3D" }}>{s(z.gesamt)}</b> · Verweis {s(z.verweis)} · Rechte {s(z.rechte === null ? null : z.rechte - (z.verweis || 0))} · Lesen {s(z.lesen)} ({mb(z.groesse)}) · Abgleich {s(z.abgleich)}{z.geschrieben ? " · Datei neu geschrieben" : z.geschrieben === false ? " · nichts zu schreiben" : ""} · Ergebnis {z.status || "–"}</>
+                        <>gesamt <b style={{ color: z.gesamt > 5000 ? "#B23A34" : "#1F7A3D" }}>{z.gesamt === null ? `läuft noch (${sharedFile.phaseName(z.phase)})` : s(z.gesamt)}</b> · Verweis {s(z.verweis)} · Rechte {s(z.rechte === null ? null : z.rechte - (z.verweis || 0))} · Lesen {s(z.lesen)} ({mb(z.groesse)}) · Abgleich {s(z.abgleich)}{z.geschrieben ? " · Datei neu geschrieben" : z.geschrieben === false ? " · nichts zu schreiben" : ""} · Ergebnis {z.status || "–"}</>
+                      )}
+                      {z && z.vorher && (
+                        <div data-start-haenger className="font-bold mt-0.5" style={{ color: "#B23A34" }}>
+                          ⚠ Der Start davor ({new Date(z.vorher.begonnen).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}) kam nicht ans Ziel – er blieb bei „{sharedFile.phaseName(z.vorher.phase)}“ hängen, nach {s(z.vorher.seit)}.
+                        </div>
                       )}
                     </div>
                   );

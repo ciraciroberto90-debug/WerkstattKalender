@@ -53,6 +53,7 @@ const FRIST_NACHFRAGE = 60000; // Rechte erfragen: hier darf ein Dialog auf eine
 const FRIST_LESEN = 15000;   // Datei lesen: Netzlaufwerke duerfen langsam sein
 const FRIST_PROBE = 6000;    // nur die Frage "lebt der gemerkte Verweis noch?" beim Start
 const FRIST_SCHREIBEN = 30000; // Datei schreiben: dito, mit Reserve
+const FRIST_MERKLISTE = 4000;  // Merkliste des Browsers (IndexedDB) / Programm-Einstellungen: reine Auskunft, darf den Start nie anhalten
 
 export function keineAntwort(e) {
   return !!(e && e.keineAntwort);
@@ -481,8 +482,28 @@ function createSharedStore(cfg) {
   // dauern Verweis holen, Rechte fragen, Datei lesen, Zusammenführen und ein
   // etwaiges Schreiben? Steht danach im Zahnrad, damit ein langsamer Rechner
   // sagt, WO er langsam ist (Netzlaufwerk, Rechte, Größe).
-  const startMessung = { begonnen: null, verweis: null, rechte: null, lesen: null, abgleich: null, gesamt: null, geschrieben: null, groesse: null, status: null };
+  const startMessung = { begonnen: null, verweis: null, rechte: null, lesen: null, abgleich: null, gesamt: null, geschrieben: null, groesse: null, status: null, phase: null, vorher: null };
   function startZeiten() { return startMessung.begonnen ? { ...startMessung } : null; }
+  /* Start-Protokoll (28.09.): Jede Phase wird SOFORT örtlich vermerkt. Bleibt
+     ein Start hängen, steht beim nächsten Start, WO er hing ("Datei lesen,
+     nach 14 s") - das ist der Befund, den ein Rechner sonst nie liefert,
+     weil man ihn im Hängen nur neu startet. */
+  const START_KEY = DB_NAME + ":start-protokoll";
+  function merkePhase(phase) {
+    startMessung.phase = phase;
+    try {
+      const t0 = startMessung.begonnen ? Date.parse(startMessung.begonnen) : Date.now();
+      localStorage.setItem(START_KEY, JSON.stringify({ begonnen: startMessung.begonnen, phase, seit: Date.now() - t0, fertig: phase === "fertig" }));
+    } catch (e) { /* Speicher voll o. ä. - das Protokoll ist Beiwerk */ }
+  }
+  function letztenStartLesen() {
+    try {
+      const roh = JSON.parse(localStorage.getItem(START_KEY) || "null");
+      if (roh && typeof roh === "object" && roh.begonnen && !roh.fertig) startMessung.vorher = { begonnen: roh.begonnen, phase: roh.phase || "?", seit: Number(roh.seit) || 0 };
+    } catch (e) { /* egal */ }
+  }
+  const PHASEN_NAMEN = { verweis: "gemerkten Verweis holen", rechte: "Rechte fragen", probe: "Verweis prüfen", lesen: "Datei lesen", abgleich: "Zusammenführen", schreiben: "Datei schreiben", verbinden: "Datei wählen", fertig: "fertig" };
+  function phaseName(p) { return PHASEN_NAMEN[p] || p || "?"; }
 
   let fileHandle = null;
   // Beim Start gemerkter Verweis auf die zuletzt benutzte Datei.
@@ -505,6 +526,16 @@ function createSharedStore(cfg) {
   let accessMode = null; // "readwrite" | "read"
   let lastWriteError = null; // technischer Grund, warum das Schreiben zuletzt scheiterte
   let lastSavedAt = null;
+  /* Kennung des zuletzt bekannten Dateistands (28.09.): savedAt ist nur
+     millisekundengenau und kommt von fremden Uhren - zwei Schreibvorgänge
+     können denselben Stempel tragen (unter fester Prüfuhr IMMER, harte-38
+     fiel so um, nachdem das Verbinden nicht mehr schreibt). Die Schreibmarke
+     ist je Schreibvorgang eindeutig; Dateien älterer Fassungen ohne Marke
+     fallen auf savedAt zurück. */
+  let lastMarke = null;
+  // Marke UND Stempel: Ein Werkzeug (oder Prüfstand), das die Datei von Hand
+  // ändert und die alte Marke stehen lässt, fällt so trotzdem auf.
+  const standKennung = (d) => "m:" + String((d && d.schreibMarke) || "") + "|t:" + String((d && d.savedAt) || "");
   let pollTimer = null;
   // Konflikt-Wächter: Ordner-Zugriff, um Sync-Konfliktkopien automatisch einzusammeln
   let folderHandle = null;
@@ -575,8 +606,16 @@ function createSharedStore(cfg) {
   function getLastWriteError() { return lastWriteError; }
 
   /* ---------- IndexedDB (merkt sich die gewählte Datei) ---------- */
+  /* Die Merkliste des Browsers (IndexedDB) darf den Start NIE anhalten
+     (Robertos Befund 28.09.: "die App hängt sich beim Verbinden auf, auf
+     manchen Rechnern"). Genau hier war die einzige Stelle ohne Frist:
+     indexedDB.open wartet stumm, solange ein anderes Fenster derselben App
+     die Datenbank festhält ("blocked") - und mit ihm der ganze Start. Jetzt:
+     "blocked" ist ein Fehler, und jede Merklisten-Frage hat eine Frist. Ohne
+     Merkliste läuft die App wie ohne gemerkte Datei weiter, mit dem
+     Ordner-Symbol zum Verbinden - statt für immer beim grauen Symbol. */
   function idbOpen() {
-    return new Promise((resolve, reject) => {
+    return mitFrist(() => new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, 2);
       req.onupgradeneeded = () => {
         const db = req.result;
@@ -585,7 +624,8 @@ function createSharedStore(cfg) {
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
-    });
+      req.onblocked = () => { const e = new Error("Die Merkliste des Browsers ist durch ein anderes Fenster der App blockiert."); e.name = "Blockiert"; reject(e); };
+    }), FRIST_MERKLISTE, "Die Merkliste des Browsers");
   }
   async function idbSet(key, value) {
     const db = await idbOpen();
@@ -952,6 +992,29 @@ function createSharedStore(cfg) {
     return inhalt;
   }
 
+  /* Schreibprobe beim Verbinden (28.09.): Darf dieser Rechner in den Ordner
+     schreiben? Im Programm: eine winzige Probedatei neben der Datei anlegen
+     (über denselben atomaren Weg, mit der Endung .json wegen der Dateityp-
+     Filter des Laufwerks) und wieder entfernen. Im Browser: den Schreib-
+     handgriff öffnen und sofort verwerfen - der Browser legt dafür seine
+     Wechseldatei an und wirft sie weg, die Datei bleibt unangetastet.
+     Attrappen der Prüfstände ohne abort() schreiben und schließen nichts. */
+  async function schreibProbe() {
+    const d = desktopBruecke();
+    if (d && fileHandle && fileHandle.pfad) {
+      const probe = String(fileHandle.pfad).replace(/(\.[^./\\]+)?$/, (endung) => `.probe-${Math.random().toString(36).slice(2, 8)}${endung || ".json"}`);
+      await mitFrist(() => d.schreibe(probe, "{}"), FRIST_SCHREIBEN, "Die Schreibprobe");
+      if (typeof d.entferne === "function") {
+        try { await mitFrist(() => d.entferne(probe), FRIST_SCHREIBEN, "Das Entfernen der Probedatei"); } catch (e) { /* winzige Probedatei blieb liegen - unschädlich */ }
+      }
+      return;
+    }
+    const w = await mitFrist(() => fileHandle.createWritable({ keepExistingData: false }), FRIST_SCHREIBEN, "Die Schreibprobe");
+    if (w && typeof w.abort === "function") {
+      try { await mitFrist(() => w.abort(), 2000, "Der Abbruch der Schreibprobe"); } catch (e) { /* dann eben nicht */ }
+    }
+  }
+
   // Nur den DATEIKOPF ansehen statt die ganze Datei zu zerlegen: savedAt
   // steht seit jeher in den ersten Zeilen der JSON (Schreib-Reihenfolge
   // format → standort → savedAt). Für den Sperren-Vergleich reicht das -
@@ -1000,10 +1063,12 @@ function createSharedStore(cfg) {
     // Pfad des Verweises; im Browser geht es nur ueber den freigegebenen
     // Ordner. Hier ist der eine Punkt, durch den JEDER Verbindungsweg laeuft.
     ermittlePfad();
+    merkePhase("lesen");
     const tLesen = Date.now();
     let data = justCreated ? emptyData() : await readFileData();
     startMessung.lesen = Date.now() - tLesen;
     startMessung.groesse = dateiInfo && dateiInfo.groesse ? dateiInfo.groesse : null;
+    merkePhase("abgleich");
     const tAbgleich = Date.now();
 
     if (accessMode === "readwrite") {
@@ -1043,8 +1108,19 @@ function createSharedStore(cfg) {
         && merged.every((e) => dateiStempel.has(e.id) && dateiStempel.get(e.id) === e.updatedAt);
       let geschrieben = false;
       let letzterFehler = null;
-      if (unveraendert) { geschrieben = true; startMessung.geschrieben = false; }
-      else startMessung.geschrieben = true;
+      if (unveraendert) {
+        /* Kleine Schreibprobe statt der ganzen Datei (28.09.): Ob das Laufwerk
+           das Schreiben erlaubt, entscheidet nach wie vor ein echter Versuch -
+           aber nicht mehr mit 5 MB, sondern mit einer winzigen Datei bzw.
+           einem Schreibhandgriff ohne Inhalt. Verweigert das Laufwerk, steht
+           die App wie bisher auf Schreibschutz (harte-41 misst das). */
+        startMessung.geschrieben = false;
+        merkePhase("probe");
+        for (let versuch = 0; versuch < 2 && !geschrieben; versuch++) {
+          if (versuch > 0) await new Promise((r) => setTimeout(r, ZWEITER_VERSUCH_MS));
+          try { await schreibProbe(); geschrieben = true; } catch (e) { letzterFehler = e; }
+        }
+      } else { startMessung.geschrieben = true; merkePhase("schreiben"); }
       // Zwei Anläufe: Der erste kann an einer belegten Datei scheitern (zweites
       // Fenster, Kopiervorgang, Virenscanner). Erst wenn auch der zweite
       // scheitert, fehlt das Recht wirklich.
@@ -1077,13 +1153,14 @@ function createSharedStore(cfg) {
       }
     }
 
-    lastSavedAt = data.savedAt;
+    lastSavedAt = data.savedAt; lastMarke = standKennung(data);
     syncLocal(data);
     dispatchUpdate(data);
     startMessung.abgleich = Date.now() - tAbgleich;
-    // Die örtliche Sicherung (IndexedDB) ist ein Zusatz - sie läuft im
-    // Hintergrund und hält den Start nicht mehr auf (28.09.).
-    recordBackup(data.entries, data.config).catch(() => {});
+    // Die örtliche Sicherung (IndexedDB) gehört zum Verbinden dazu - je
+    // Kalendertag ein Stand (harte-9); sie wartet nur auf die Merkliste
+    // dieses Rechners, nicht auf das Laufwerk.
+    await recordBackup(data.entries, data.config);
     return data;
   }
 
@@ -1136,26 +1213,33 @@ function createSharedStore(cfg) {
     }
     // Auch das Verbinden über den Dialog wird gemessen (dieselbe Anzeige im ⚙).
     const t0 = Date.now();
+    letztenStartLesen();
     startMessung.begonnen = nowISO(); startMessung.verweis = 0; startMessung.rechte = 0;
+    merkePhase("verbinden");
     const data = await adoptCurrentFile(create);
     startMessung.gesamt = Date.now() - t0; startMessung.status = "connected";
+    merkePhase("fertig");
     startPolling();
     return data;
   }
 
   async function tryRestore() {
     const t0 = Date.now();
+    letztenStartLesen();
     startMessung.begonnen = nowISO();
-    const fertig = (st) => { startMessung.gesamt = Date.now() - t0; startMessung.status = st.status; return st; };
+    const fertig = (st) => { startMessung.gesamt = Date.now() - t0; startMessung.status = st.status; merkePhase("fertig"); return st; };
     if (!isSupported()) return fertig({ status: "unsupported" });
     let handle = null;
     let mode = "readwrite";
+    let merklisteFehler = null;
+    merkePhase("verweis");
     try {
-      handle = await holeVerweis("handle");
-      mode = (await idbGet("mode")) || "readwrite";
-    } catch (e) { /* IndexedDB nicht verfügbar */ }
+      // Mit Frist: Die Merkliste darf den Start nie anhalten (siehe idbOpen).
+      handle = await mitFrist(() => holeVerweis("handle"), FRIST_MERKLISTE, "Die Merkliste des Browsers");
+      mode = (await mitFrist(() => idbGet("mode"), FRIST_MERKLISTE, "Die Merkliste des Browsers")) || "readwrite";
+    } catch (e) { merklisteFehler = e; /* IndexedDB nicht verfügbar oder blockiert */ }
     startMessung.verweis = Date.now() - t0;
-    if (!handle) return fertig({ status: "none" });
+    if (!handle) return fertig(merklisteFehler ? { status: "none", fehler: (merklisteFehler.message || String(merklisteFehler)) + " Läuft die App in einem zweiten Fenster? Dieses schließen und neu laden, sonst über das Ordner-Symbol verbinden." } : { status: "none" });
     gemerkterHandle = handle;   // fuer den spaeteren Klick auf "Jetzt verbinden"
     gemerkterModus = mode;
     // Konflikt-Wächter: gemerkten Ordner mit wiederherstellen (falls eingerichtet)
@@ -1187,6 +1271,7 @@ function createSharedStore(cfg) {
     // Der Probelauf greift ausschliesslich dann, wenn GAR KEINE Antwort kommt -
     // der am Arbeitsplatz gemessene Fall. Vorher war er auch bei "prompt" aktiv
     // und hat damit das Wiederverbinden nach dem Browser-Neustart uebergangen.
+    merkePhase("rechte");
     const perm = await rechteFragen(handle, mode);
     startMessung.rechte = Date.now() - t0;
     if (perm !== "granted" && perm !== "unbekannt") {
@@ -1194,6 +1279,7 @@ function createSharedStore(cfg) {
     }
 
     if (perm === "unbekannt") {
+      merkePhase("probe");
       try {
         // Kuerzere Frist als beim normalen Lesen: Hier geht es nur um die Frage,
         // ob der Verweis ueberhaupt noch lebt. Der Nutzer soll beim Start nicht
@@ -1219,7 +1305,7 @@ function createSharedStore(cfg) {
     } catch (e) {
       if (keineAntwort(e)) {
         fileHandle = null;
-        return { status: "verweis-tot", name: handle.name, mode };
+        return fertig({ status: "verweis-tot", name: handle.name, mode });
       }
       leseFehlerBeimStart = e;
     }
@@ -1330,7 +1416,7 @@ function createSharedStore(cfg) {
     stopPolling();
     fileHandle = null;
     accessMode = null;
-    lastSavedAt = null;
+    lastSavedAt = null; lastMarke = null;
     dateiInfo = null;       // sonst hielte der Kurzblick eine andere Datei für "unverändert"
     zuletztGelesen = null;
     folderHandle = null;
@@ -1584,7 +1670,7 @@ function createSharedStore(cfg) {
           throw new Error("Kollision: Datei wurde zwischenzeitlich geändert");
         }
         await writeFileData(out);
-        lastSavedAt = out.savedAt;
+        lastSavedAt = out.savedAt; lastMarke = standKennung(out);
         const kontrolle = await readFileData();
         if (String(kontrolle.savedAt || "") !== String(out.savedAt || "")) {
           throw new Error("Kontroll-Lesung stimmt nicht überein");
@@ -1753,7 +1839,7 @@ function createSharedStore(cfg) {
         }
 
         const geschrieben = await writeFileData(out);
-        lastSavedAt = out.savedAt;
+        lastSavedAt = out.savedAt; lastMarke = standKennung(out);
 
         // VERLORENES-UPDATE-SCHUTZ (Fund der Kollisions-Sonde, 11.09.):
         // Zwischen Sperren-Prüfung und Schreiben liegt ein unvermeidbares
@@ -1782,7 +1868,7 @@ function createSharedStore(cfg) {
         }
         if (changesConfirmed(kontrolle, stamped, removed, delStamp) && keinVerlustGegenueber(fileData, kontrolle, removed)) {
           // Frischesten Stand zurückgeben (enthält ggf. auch gerade eingetroffene Änderungen der anderen)
-          lastSavedAt = kontrolle.savedAt;
+          lastSavedAt = kontrolle.savedAt; lastMarke = standKennung(kontrolle);
           const bestaetigt = mergeEntries(kontrolle.entries, [], kontrolle.deleted);
           await recordBackup(bestaetigt, null);
           nachpruefenUndHeilen(stamped, removed, delStamp, kontrolle.schreibMarke || kontrolle.savedAt);
@@ -1863,10 +1949,10 @@ function createSharedStore(cfg) {
           const merged = mergeEntries(data.entries, stamped, deleted);
           const out = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: nowISO(), entries: merged, deleted, config: data.config, bauStand: bauStandFuer(data.bauStand) };
           await writeFileData(out);
-          lastSavedAt = out.savedAt;
+          lastSavedAt = out.savedAt; lastMarke = standKennung(out);
           const kontrolle = await readFileData();
           if (changesConfirmed(kontrolle, stamped, removed, delStamp)) {
-            lastSavedAt = kontrolle.savedAt;
+            lastSavedAt = kontrolle.savedAt; lastMarke = standKennung(kontrolle);
             meinStand = String(kontrolle.schreibMarke || kontrolle.savedAt || "");
             syncLocal(kontrolle);
             dispatchUpdate(kontrolle);
@@ -1992,7 +2078,7 @@ function createSharedStore(cfg) {
         }
 
         await writeFileData(out);
-        lastSavedAt = t;
+        lastSavedAt = t; lastMarke = standKennung(out);
         const kontrolle = await readFileData();
         const bestaetigt = extractConfigEntries(kontrolle.entries);
         const allesDa = stamped.every((s) => {
@@ -2088,7 +2174,7 @@ function createSharedStore(cfg) {
     const out = { format: FORMAT, standort: STANDORT_DATEI, schreibMarke: neueSchreibMarke(), savedAt: nowISO(), entries: merged, deleted: {}, config: configAusEintraegen(merged), bauStand: bauStandFuer(null) };
     await writeFileData(out);
     const kontrolle = await readFileData(); // muss jetzt wieder sauber lesbar sein
-    lastSavedAt = kontrolle.savedAt;
+    lastSavedAt = kontrolle.savedAt; lastMarke = standKennung(kontrolle);
     syncLocal(kontrolle);
     dispatchUpdate(kontrolle);
     await recordBackup(kontrolle.entries, kontrolle.config);
@@ -2277,8 +2363,8 @@ function createSharedStore(cfg) {
       }
       pollFehlerFolge = 0;
       kaputtFolge = 0;
-      if (data.savedAt && data.savedAt !== lastSavedAt) {
-        lastSavedAt = data.savedAt;
+      if (data.savedAt && standKennung(data) !== lastMarke) {
+        lastSavedAt = data.savedAt; lastMarke = standKennung(data);
         syncLocal(data);
         dispatchUpdate(data);
         await recordBackup(data.entries, data.config);
@@ -2363,7 +2449,7 @@ function createSharedStore(cfg) {
   };
 
   return {
-    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, fassungVeraltet, startZeiten, getLastWriteError, getLastSuccessfulSyncAt,
+    isSupported, isConnected, canWrite, fileName, fileInfo, ermittlePfad, uhrVersatz, fassungVeraltet, startZeiten, phaseName, getLastWriteError, getLastSuccessfulSyncAt,
     listBackups, pickShared, tryRestore, reconnect, retryWrite, disconnect,
     schreibfrageOffen: () => schreibfrageOffen,
     pickWritable, umgebung,
@@ -2402,6 +2488,7 @@ export const fileInfo = main.fileInfo;
 export const uhrVersatz = main.uhrVersatz;
 export const fassungVeraltet = main.fassungVeraltet;
 export const startZeiten = main.startZeiten;
+export const phaseName = main.phaseName;
 export const getLastWriteError = main.getLastWriteError;
 export const getLastSuccessfulSyncAt = main.getLastSuccessfulSyncAt;
 export const listBackups = main.listBackups;

@@ -545,6 +545,24 @@ Störungen, nicht den Rest.
   Verweis, Rechte, Lesen (mit Dateigröße), Abgleich und ob geschrieben wurde,
   für die gemeinsame und die Störungs-Datei. Dauert ein Rechner lange, steht
   dort, wo die Zeit hingeht; über 5 s ist rot.
+- **Der Start hängt nie mehr (seit dem 28.09.):** Jede Frage an die Merkliste
+  des Browsers hat eine Frist von 4 s. Hält ein zweites Fenster der App die
+  Merkliste fest, läuft die App ohne gemerkte Datei weiter und sagt es
+  („Läuft die App in einem zweiten Fenster?"), statt beim grauen Symbol zu
+  stehen. Antwortet das Wiederverbinden insgesamt 30 s nicht, läuft die App
+  mit dem örtlichen Stand weiter und nennt die Phase, in der es hängt. Ein
+  **Start-Protokoll** vermerkt jede Phase sofort; blieb der vorige Start
+  hängen, steht unter ⚙ → Verlauf & Sicherung rot, wo („Datei lesen, nach
+  14 s"). Beim Verbinden prüft eine **Schreibprobe** (winzige Probedatei
+  statt Rückschreiben der ganzen Datei), ob das Laufwerk schreiben lässt.
+- **Schreibweg des Programms mit Anläufen (seit dem 28.09., neue
+  Programm-ZIP nötig):** Das Programm schreibt die Datei über eine
+  Zwischendatei und Umbenennen. Beide Schritte bekommen jetzt bis zu vier
+  Anläufe (150 bis 1800 ms Pause), weil ein Virenscanner oder ein lesender
+  Kollege die Datei kurz festhalten kann. Scheitert es endgültig, wird die
+  Zwischendatei weggeräumt und die Meldung nennt den Schritt („Zwischendatei
+  anlegen"). Alte 0-KB-Zwischendateien im Ordner werden vor dem Schreiben
+  aufgeräumt.
 - **Links nur mit zugeteilter Sammlung (seit dem 28.09.):** Ein Bearbeiter
   oder Leser ohne Kürzel in „Link-Sammlung" (⚙ → Benutzer & Rechte) sieht
   keinen Linkstreifen mehr, also auch keine fremde Sammlung. Mit Kürzel sieht
