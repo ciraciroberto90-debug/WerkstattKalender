@@ -529,8 +529,9 @@ Störungen, nicht den Rest.
   Pfingstmontag …), zeigt es stattdessen die **letzten drei Schichten mit
   Einträgen** – ein Wochenend-Bericht zählt dabei mit, die laufende Schicht
   auch, sobald sie einen Eintrag hat. Dieselbe Wahl gilt für das Blatt im
-  Druck-Dialog. Unter dem Kopf steht die Zeile **„Nächster PitStop: Datum ·
-  Anlage"** (dazu die zwei danach). Das Fenster öffnet so groß, wie der
+  Druck-Dialog. Unter dem Kopf steht die Zeile **„Aktuell PitStop: Anlage |
+  Nächster PitStop: Datum · Anlage"** – links, was heute ansteht (erledigte
+  mit ✓), rechts der erste Tag nach heute, dazu die zwei danach. Das Fenster öffnet so groß, wie der
   Bildschirm hergibt, und wird nie schmaler als eine A4-Querseite. **Wer den
   Knopf sieht**, legt der Verwalter in der Rechte-Tabelle fest (Zeile
   „Schichtbericht", Standard: Bearbeiter und Leser sehen ihn).
@@ -545,7 +546,7 @@ Störungen, nicht den Rest.
   einer schreibgeschützten Datei können nichts melden und bleiben auf „noch
   nicht gemeldet".
 - **Top 3 im Schichtbericht (seit dem 28.09.):** Oben im geöffneten Blatt
-  steht der Knopf **🏆 Top 3**. Er klappt drei große Karten auf: die drei
+  steht der Knopf **⚠ Top 3**. Er klappt drei große Karten auf: die drei
   Störungen dieses Blatts, die sich am meisten wiederholen, gruppiert nach
   Anlage · Teil und gezählt über alle Berichte der letzten 7 Tage. Jede Karte
   zeigt rechts groß die Zahl („4×", „letzte 7 Tage") mit der Ausfallzeit der

@@ -12,6 +12,8 @@
 //       Platz 2 KUKA „2×“; Platz 3 Rollenofen „1×“ „Einmalig“.
 //  (T3) Im Druck ist der Knopf unsichtbar (nur am Bildschirm).
 //  (T4) Leeres Blatt: „Keine Störungen im Blatt“.
+//  (T5) PitStop-Zeile: „Aktuell PitStop“ (heute, erledigte mit ✓) und
+//       „Nächster PitStop“ (erster Tag nach heute, dazu die zwei danach).
 //  (R1) Rechte-Tabelle: Zeile „Schichtbericht“ für Bearbeiter und Leser,
 //       Standard „sehen“; Verwalter stellt Leser auf „aus“ -> Leser ohne Knopf,
 //       Verwalter behält ihn.
@@ -48,22 +50,22 @@ const STOER = [
 
 (async () => {
   const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
-  const seite = async (benutzer, stoer, konfig) => {
+  const seite = async (benutzer, stoer, konfig, termine) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
     const p = await ctx.newPage();
     const fehler = [];
     p.on("pageerror", (e) => { fehler.push(e.message); console.log("PAGEERROR:", e.message); });
     await p.clock.setFixedTime(new Date("2026-09-28T08:00:00"));
-    await p.addInitScript(({ c, s, benutzer }) => {
+    await p.addInitScript(({ c, s, benutzer, t }) => {
       delete window.showOpenFilePicker; delete window.showSaveFilePicker;
       localStorage.setItem("bta-standort", "scheurich");
       localStorage.setItem("werkstatt-kalender-config", c);
-      localStorage.setItem("werkstatt-kalender-entries", "[]");
+      localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(t || []));
       localStorage.setItem("werkstatt-stoerungen-entries", JSON.stringify(s));
       localStorage.setItem("werkstatt-kalender-benutzer", benutzer);
       window.__blatt = "";
       window.open = function () { return { document: { open() {}, write(h) { window.__blatt += h; }, close() {} }, focus() {}, print() {} }; };
-    }, { c: konfig || JSON.stringify(config), s: stoer, benutzer });
+    }, { c: konfig || JSON.stringify(config), s: stoer, benutzer, t: termine || [] });
     await p.goto(APP);
     await p.waitForTimeout(1300);
     return { p, ctx, fehler, zu: () => ctx.close() };
@@ -112,6 +114,23 @@ const STOER = [
     ok("(T3) Im Druck ist der Knopf unsichtbar", !(await kn.isVisible()));
     await b2.emulateMedia({ media: "screen" });
     ok("(E) Keine Skriptfehler (Blatt)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+    await zu();
+  }
+  /* ---------- PitStop-Zeile: Aktuell (heute) und Nächster (Roberto 28.09.) ---------- */
+  {
+    const termine = [
+      { id: "p1", date: "2026-09-28", category: "TPM", name: "RRO", status: "open" },
+      { id: "p2", date: "2026-09-28", category: "TPM", name: "VSM2", status: "done" },
+      { id: "p3", date: "2026-10-01", category: "TPM", name: "B1", status: "open" },
+      { id: "p4", date: "2026-10-02", category: "TPM", name: "VSM2", status: "open" },
+      { id: "p5", date: "2026-09-25", category: "TPM", name: "ALT", status: "open" },
+    ];
+    const { p, zu } = await seite("Chef", STOER, null, termine);
+    await zuStoerungen(p);
+    const html = await blatt(p);
+    const zeile = (html.match(/<div class="hinweis pit"[\s\S]*?<\/div>/) || [""])[0];
+    ok("(T5) Die Zeile nennt den heutigen PitStop („Aktuell PitStop: RRO, VSM2 ✓“) UND den nächsten („Do., 01.10.2026 · B1 · danach: 02.10. VSM2“)",
+      /Aktuell PitStop: <b>RRO<\/b>, <b>VSM2<\/b> ✓/.test(zeile) && /Nächster PitStop: <b>Do\., 01\.10\.2026<\/b> · <b>B1<\/b>/.test(zeile) && /danach: 02\.10\. VSM2/.test(zeile) && !/ALT/.test(zeile) && !/Nach Wochenende/.test(html), zeile.replace(/<[^>]+>/g, "").slice(0, 160));
     await zu();
   }
   /* ---------- Leeres Blatt ---------- */

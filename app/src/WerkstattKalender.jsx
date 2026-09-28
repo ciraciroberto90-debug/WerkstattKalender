@@ -3832,13 +3832,21 @@ function App() {
     // Statt des Wochenend-Hinweises (Roberto 28.09.: "kann raus, es zeigt ja
     // immer die letzten drei Schichten") steht in der Zeile der nächste
     // PitStop mit Anlage - das, was die Morgenrunde als Nächstes plant.
-    const kommendePit = entries
-      .filter((e) => e.category === "TPM" && e.status === "open" && String(e.date) >= todayKey)
+    // Roberto 28.09.: beides zählt - was HEUTE ansteht ("Aktuell PitStop") und
+    // was als Nächstes kommt ("Nächster PitStop", der erste Tag nach heute).
+    const pitAlle = entries
+      .filter((e) => e.category === "TPM" && String(e.date) >= todayKey)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.name).localeCompare(String(b.name)));
+    const pitHeute = pitAlle.filter((e) => String(e.date) === todayKey);
+    const pitKommend = pitAlle.filter((e) => String(e.date) > todayKey && e.status === "open");
     const pitDatum = (d, lang) => new Date(d + "T12:00:00").toLocaleDateString("de-DE", lang ? { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" } : { day: "2-digit", month: "2-digit" });
-    const pitZeile = kommendePit.length
-      ? `<div class="hinweis pit" data-pitstop>🔧 Nächster PitStop: <b>${pitDatum(kommendePit[0].date, true)}</b> · <b>${esc(kommendePit[0].name)}</b>${kommendePit.length > 1 ? `<span class="pit-weiter"> · danach: ${kommendePit.slice(1, 3).map((e) => `${pitDatum(e.date)} ${esc(e.name)}`).join(" · ")}</span>` : ""}</div>`
-      : `<div class="hinweis pit" data-pitstop>🔧 Nächster PitStop: <b>keiner geplant</b></div>`;
+    const heuteText = pitHeute.length
+      ? pitHeute.map((e) => `<b>${esc(e.name)}</b>${e.status === "done" ? " ✓" : ""}`).join(", ")
+      : `<span class="pit-leer">keiner heute</span>`;
+    const naechsterText = pitKommend.length
+      ? `<b>${pitDatum(pitKommend[0].date, true)}</b> · <b>${esc(pitKommend[0].name)}</b>${pitKommend.length > 1 ? `<span class="pit-weiter"> · danach: ${pitKommend.slice(1, 3).map((e) => `${pitDatum(e.date)} ${esc(e.name)}`).join(" · ")}</span>` : ""}`
+      : `<span class="pit-leer">keiner geplant</span>`;
+    const pitZeile = `<div class="hinweis pit" data-pitstop><span data-pit-heute>🔧 Aktuell PitStop: ${heuteText}</span><span class="pit-trenner">|</span><span data-pit-naechster>Nächster PitStop: ${naechsterText}</span></div>`;
     const top3Html = `<section id="top3" data-top3 hidden>
         <div class="top3-kopf"><span>Top 3 dieses Schichtberichts</span><span class="top3-sub">nach Häufigkeit in den letzten 7 Tagen (${new Date(ab7 + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${new Date(todayKey + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })})</span></div>
         ${top3.length ? `<div class="top3-raster">${top3.map(top3Karte).join("")}</div>` : `<div class="top3-leer">Keine Störungen im Blatt – nichts zu bewerten.</div>`}
@@ -3902,6 +3910,8 @@ function App() {
         .hinweis { font-size: 8pt; color: #8A4B00; background: #FBF3DA; border: 0.8pt solid #E3CE8F; border-radius: 1.5mm; padding: 0.8mm 2mm; margin-bottom: 1.5mm; font-weight: 600; }
         .hinweis.pit { font-size: 9.5pt; color: #1f2430; background: #EEF3F8; border-color: #A9C2D8; padding: 1.4mm 2.5mm; }
         .hinweis.pit .pit-weiter { color: #5B6572; font-weight: 600; font-size: 8.5pt; }
+        .hinweis.pit .pit-leer { color: #8A9099; font-style: italic; font-weight: 600; }
+        .hinweis.pit .pit-trenner { color: #A9C2D8; margin: 0 3mm; font-weight: 400; }
         /* Am Bildschirm (28.09.): das Blatt nutzt die volle Fensterbreite und
            wird nie schmaler als eine A4-Querseite - lieber waagerecht rollen
            als Spalten zerdrücken. */
@@ -3972,7 +3982,7 @@ function App() {
       </style></head><body>
       <div class="kopf">
         <h1>Schichtbericht Störungen</h1>
-        <button type="button" class="top3knopf nurbild" data-top3-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('top3');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ Top 3 schließen':'🏆 Top 3';})(this)">🏆 Top 3</button>
+        <button type="button" class="top3knopf nurbild" data-top3-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('top3');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ Top 3 schließen':'⚠ Top 3';})(this)">⚠ Top 3</button>
         <div class="stand">Stand: <strong>${esc(stand)}</strong><br><span class="fett">${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}</span> · <span class="fett" style="color:${offene > 0 ? "#C0392B" : "#1F7A3D"}">${offene} offen</span>${ausfallGesamt > 0 ? ` · <span class="fett">Ausfallzeit ${esc(minutenText(ausfallGesamt))}</span>` : ""}</div>
       </div>
       ${pitZeile}
@@ -4951,8 +4961,25 @@ function App() {
     if (typeof __BUILD_ZEIT__ !== "string" || !__BUILD_ZEIT__) return;
     const alt = programmStand[angemeldet];
     if (alt && alt.fassung === __BUILD_ZEIT__ && alt.gesehen && Date.now() - Date.parse(alt.gesehen) < 12 * 3600 * 1000) return;
-    persistConfig(tpmAnlagen, riItems, team, extraSchichten, anlagenteile, links, oeeQuelle, null, werkstattName, monitorBausteine, kostenstellen, null, null, uebersichtVorlagen,
-      { ...programmStand, [angemeldet]: { fassung: __BUILD_ZEIT__, gesehen: new Date().toISOString() } });
+    const neu = { ...programmStand, [angemeldet]: { fassung: __BUILD_ZEIT__, gesehen: new Date().toISOString() } };
+    let abgebrochen = false;
+    (async () => {
+      try {
+        // Bewusst NICHT über persistConfig: das schriebe alle Einstellungen aus
+        // dem Zustand mit - beim Start sind die noch nicht aus der Datei
+        // geladen, und der örtliche Spiegel (mit Benutzerliste) würde
+        // überschrieben (harte-77 fiel genau daran um). Stattdessen den eigenen
+        // letzten Stand lesen und nur das eine Feld ergänzen: Der Speicherweg
+        // stempelt dann allein programmStand neu, alles andere ist unverändert.
+        const roh = await window.storage.get(CONFIG_STORAGE_KEY);
+        let alt2 = {};
+        try { alt2 = roh && roh.value ? JSON.parse(roh.value) : {}; } catch (e) { alt2 = {}; }
+        if (!alt2 || typeof alt2 !== "object") alt2 = {};
+        await window.storage.set(CONFIG_STORAGE_KEY, JSON.stringify({ ...alt2, programmStand: neu }), false);
+        if (!abgebrochen) setProgrammStand(neu);
+      } catch (e) { /* Meldung ist Beiwerk - beim nächsten Start noch einmal */ }
+    })();
+    return () => { abgebrochen = true; };
   }, [angemeldet, readerMode, shareChecked, loading, programmStand]);
   const openSettings = (tab = "anlagen", sprung = null) => {
     setSettingsTpm(tpmAnlagen.map((a) => ({ ...a })));
