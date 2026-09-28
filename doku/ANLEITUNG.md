@@ -793,20 +793,31 @@ die Treffer als flache Liste.
   (nur mit Schreibrecht auf die Hauptdaten).
 
 ### Einen Störbericht erfassen
-Über **„📝 Störbericht erfassen"**. Felder (**\*** = Pflicht):
-- **Status \*** Offen / Erledigt – **nicht vorausgewählt**, muss aktiv gewählt werden.
-- **Datum** (Vorgabe heute) und **Schicht \*** Früh/Spät/Nacht.
-- **Anlage \*** und **Anlagenteil** (Teile werden im ⚙-Dialog gepflegt).
+Über **„📝 Störbericht erfassen"** (Stand 28.09.). Felder (**\*** = Pflicht):
+- **Status \*** Offen / Erledigt – **Erledigt ist vorbelegt** (der Normalfall: die
+  Störung ist behoben, wenn der Bericht entsteht). Die Uhrzeit des Speicherns gilt
+  als „behoben am".
+- **Datum** (Vorgabe heute) und **Schicht \*** – vorbelegt nach der Uhr
+  (Früh 6–14, Spät 14–22, sonst Nacht).
+- **Anlage / Bereich \*** – eigene Liste zum Scrollen, Tippen filtert, Klick übernimmt;
+  **Anlagenteil** (Teile werden im ⚙-Dialog gepflegt).
 - **Gewerk** 🔧 Mechanik / ⚡ Elektrik / 🔧⚡ Beide und **Fehlerart**
   (Hydraulisch, Elektrisch, Pneumatisch, Verschleiß, Steuerung/Software …).
-- **⏱ Ausfallzeit** in Minuten (orange) – bei *Erledigt* zusätzlich **✓ Behoben am** (frei setzbar).
-- **Störungs Beschreibung \***, **Störungs Ursache**, **Sofort Maßnahme**.
-- **🧩 Ersatzteile / Material** (+ Haken „nachbestellt").
+- **⏱ Ausfallzeit** in Minuten.
+- **Störungs Beschreibung \***, **Störungs Ursache \***, **Sofort Maßnahme \***
+  (Ursache und Maßnahme Pflicht bei *Erledigt*; bei *Offen* dürfen sie noch fehlen).
 - bei Status *Offen* zusätzlich **Zu Planende Maßnahme**.
-- **Bearbeiter (Kürzel)** – wird für das nächste Mal gemerkt.
+- **Bearbeiter (Kürzel) \*** – bleibt leer, wer schreibt trägt sich selbst ein.
+- **Ersatzteile / Material**, **Fotos** und **Weiterleiten** sind ausgegraut mit
+  „BALD" – sie kommen als eigener Schritt.
 
-Bei Status **Erledigt** sind **Ursache** und **Sofort Maßnahme** Pflicht, damit die
-Dokumentation vollständig ist.
+**Speichern schließt die Maske sofort.** Der Bericht steht auf der Stelle in der
+Liste; in die gemeinsame Störungs-Datei wird er im Hintergrund geschrieben
+(auf einem zähen Netzlaufwerk dauert das Sekunden – darauf muss niemand warten).
+Ein zweiter Klick auf „Speichern" in dieser Zeit legt **keinen** zweiten Bericht an;
+bis zum 28.09. konnte genau das passieren („Berichte speichern teilweise doppelt").
+Scheitert das Schreiben, erscheint die bekannte Meldung, der Bericht bleibt örtlich
+gesichert.
 
 ### Auswertung
 Umschalter **Liste | Auswertung**, Zeitraum wählbar (Monat / Jahr / Alle):

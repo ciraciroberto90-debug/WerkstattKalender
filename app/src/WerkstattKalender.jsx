@@ -3449,6 +3449,9 @@ function App() {
   const stoerDarfBearbeiten = stoerDarfSchreiben && stufeRoh("STOERUNGEN") === "bearbeiten";
   const stoerDarfMelden = stoerDarfSchreiben && (stoerDarfBearbeiten || erlaubt("MELDEN"));
   const stoerNurLesen = stoerConnected && stoerState.mode === "read";
+  // Sperre gegen den Doppelklick auf "Speichern" (siehe speichereStoerung).
+  const stoerSpeichertRef = useRef(false);
+  const [stoerSpeichert, setStoerSpeichert] = useState(false);
   const persistStoer = async (next) => {
     const prev = stoerungen;
     setStoerungen(next);
@@ -3503,13 +3506,33 @@ function App() {
     const schicht = h >= 6 && h < 14 ? "Früh" : h >= 14 && h < 22 ? "Spät" : "Nacht";
     return { date: todayKey, schicht, anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "erledigt", melder: "", fotos: [], fotosNeu: [], fotosWeg: [] };
   };
+  /* Robertos Befund 28.09.: "Berichte speichern teilweise doppelt, Klick auf
+     Speichern beendet das Popout etwas langsam." Beides hatte eine Ursache:
+     Die Maske blieb offen, bis die Störungs-Datei auf dem Netzlaufwerk
+     geschrieben war (Sekunden), und der Knopf blieb dabei klickbar - der
+     zweite Klick legte denselben Bericht mit neuer Kennung noch einmal an.
+     Jetzt: Ein laufendes Speichern sperrt weitere Klicks (Ref, nicht State -
+     der zweite Klick kommt vor dem nächsten Render), und die Maske schließt,
+     sobald der Bericht örtlich steht; die Datei wird im Hintergrund
+     geschrieben, ein Fehler dort meldet sich wie bisher über stoerErr. */
   const speichereStoerung = async (draft, erzwingen = false) => {
+    if (stoerSpeichertRef.current) return null;
+    stoerSpeichertRef.current = true;
+    setStoerSpeichert(true);
+    try {
+      return await speichereStoerungInnen(draft, erzwingen);
+    } finally {
+      stoerSpeichertRef.current = false;
+      setStoerSpeichert(false);
+    }
+  };
+  const speichereStoerungInnen = async (draft, erzwingen) => {
     // Hat jemand anderes den Bericht angefasst, seit die Maske offen ist?
     if (draft.id && !erzwingen && stoerBasis && stoerBasis.id === draft.id) {
       const fremd = await frischerStoerStand(draft.id);
       if (fremd && fremd.updatedAt && fremd.updatedAt !== stoerBasis.updatedAt) {
         setStoerKonflikt({ draft, fremd });
-        return;
+        return null;
       }
     }
     const jetzt = new Date().toISOString();
@@ -3539,6 +3562,10 @@ function App() {
     // Der gespeicherte Bericht wird zurückgegeben (mit endgültiger Nummer) -
     // "Speichern + zur Zeiterfassung" braucht ihn zum Vorbefüllen.
     let ergebnis = null;
+    // Maske JETZT schließen - persistStoer setzt den örtlichen Stand sofort,
+    // nur das Schreiben in die Datei dauert. Darauf muss niemand warten.
+    setStoerModal(null);
+    setSDraft(null);
     if (draft.id) {
       const vorher = stoerungen.find((s) => s.id === draft.id);
       const behobenAt = offen ? null : (behobenAusFeld() || (vorher && vorher.behobenAt) || jetzt);
@@ -3570,8 +3597,6 @@ function App() {
     }
     fotosAufraeumen(draft.fotosWeg);
     if (fotoFehler) setErr(fotoFehler); // nach dem persist, sonst räumt der Erfolg die Warnung weg
-    setStoerModal(null);
-    setSDraft(null);
     return ergebnis;
   };
   const stoerStatusUmschalten = async (id) => {
@@ -14051,11 +14076,11 @@ function App() {
 
               {/* Fuß */}
               <div className="px-6 py-3 flex gap-2 items-center flex-wrap" style={{ borderTop: "1px solid #EFF1F3", backgroundColor: "#FAFBFC", borderRadius: "0 0 14px 14px" }}>
-                <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern} className="text-sm font-bold py-2.5 px-6 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#1F7A3D" : "#B7BEC6", minWidth: "140px" }}>Speichern</button>
+                <button onClick={() => speichereStoerung(sDraft)} disabled={!kannSpeichern || stoerSpeichert} className="text-sm font-bold py-2.5 px-6 rounded-lg text-white" style={{ backgroundColor: kannSpeichern ? "#1F7A3D" : "#B7BEC6", minWidth: "140px" }}>{stoerSpeichert ? "Speichert …" : "Speichern"}</button>
                 {!readerMode && (
                   <button
                     onClick={async () => { const s = await speichereStoerung(sDraft); if (s) stoerungZurZeiterfassung(s); }}
-                    disabled={!kannSpeichern}
+                    disabled={!kannSpeichern || stoerSpeichert}
                     className="text-sm font-bold py-2.5 px-3 rounded-lg"
                     style={{ backgroundColor: kannSpeichern ? "#FDF0E2" : "#F4F5F6", color: kannSpeichern ? "#A25E14" : "#B7BEC6" }}
                     title="Bericht speichern und die Stunden dazu gleich in der Zeiterfassung buchen"
