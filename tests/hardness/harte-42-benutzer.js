@@ -197,8 +197,10 @@ const ok = (n, c, zusatz) => {
   const p2 = await neueSeite();
   await verbinde(p2);
   await p2.waitForTimeout(600);
-  ok("(6) Nach dem Neustart KEINE erneute Anmelde-Frage",
-    (await p2.locator('[aria-label="Anmelden"]').count()) === 0);
+  const keinDialog = (await p2.locator('[aria-label="Anmelden"]').count()) === 0;
+  ok("(6) Nach dem Neustart KEINE erneute Anmelde-Frage", keinDialog,
+    // Diagnose (28.09.): in der vollen Suite rot, allein grün - was stand da?
+    keinDialog ? "" : "Seite: " + (await p2.locator("body").innerText()).slice(0, 200).replace(/\n+/g, " / ") + " || localStorage: " + (await p2.evaluate(() => Object.keys(localStorage).map((k) => k + "=" + String(localStorage.getItem(k)).slice(0, 40)).join(" ; "))).slice(0, 600));
   ok("(6) Und der Leser bleibt Nur-Leser (kein Zahnrad)",
     (await p2.locator('button[aria-label="Verwalten"]').count()) === 0);
 
