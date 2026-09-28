@@ -3625,7 +3625,30 @@ function App() {
       slots.push({ datum: tagKey(datum), schicht: STOER_SCHICHTEN[idx] });
       idx--; if (idx < 0) { idx = 2; datum.setDate(datum.getDate() - 1); }
     }
-    return slots; // [laufende Schicht, die davor, die davor]
+    // Montag oder der Tag nach einem Feiertag (Robertos Ansage 28.09.): die
+    // zwei vorigen Schichten liegen dann am Wochenende oder Feiertag und sind
+    // leer - die Morgenrunde will aber sehen, was seit der letzten Runde
+    // passiert ist. Fällt eine der drei Schichten auf einen freien Tag,
+    // zeigt das Blatt stattdessen die letzten drei Schichten MIT Einträgen
+    // (rückwärts ab der laufenden Schicht, höchstens 30 Tage). Ein
+    // Wochenend-Bericht zählt dabei mit - was eingetragen ist, wird gezeigt.
+    const freierTag = (key) => {
+      const d = new Date(key + "T00:00:00");
+      return d.getDay() === 0 || d.getDay() === 6 || getHolidays(d.getFullYear()).has(key);
+    };
+    if (!slots.some((s) => freierTag(s.datum))) return { slots, nachFrei: false };
+    const hatEintrag = (s) => stoerungen.some((x) => x.date === s.datum && x.schicht === s.schicht);
+    const mit = [];
+    let lauf = { ...slots[0] };
+    let idx2 = STOER_SCHICHTEN.indexOf(lauf.schicht);
+    const d2 = new Date(lauf.datum + "T00:00:00");
+    for (let i = 0; i < 3 * 30 && mit.length < 3; i++) {
+      const s = { datum: tagKey(d2), schicht: STOER_SCHICHTEN[idx2] };
+      if (hatEintrag(s)) mit.push(s);
+      idx2--; if (idx2 < 0) { idx2 = 2; d2.setDate(d2.getDate() - 1); }
+    }
+    // Ohne einen einzigen Eintrag in 30 Tagen bleibt es beim Fenster von jetzt.
+    return mit.length > 0 ? { slots: mit, nachFrei: true } : { slots, nachFrei: false };
   };
 
   /* ---- Schichtübergabe-Blatt (QoL Runde 3) ----
@@ -3715,7 +3738,8 @@ function App() {
     const zeitVon = { "Früh": "06:00–14:00", "Spät": "14:00–22:00", "Nacht": "22:00–06:00" };
     // Die drei Zeitfenster kommen aus der Uhr; ANGEZEIGT wird in der festen
     // Folge Früh -> Spät -> Nacht (Robertos Ansage), nicht chronologisch.
-    const slots = [...stoerSchichtSlots()].sort((a, b) => STOER_SCHICHTEN.indexOf(a.schicht) - STOER_SCHICHTEN.indexOf(b.schicht));
+    const wahl = stoerSchichtSlots();
+    const slots = [...wahl.slots].sort((a, b) => STOER_SCHICHTEN.indexOf(a.schicht) - STOER_SCHICHTEN.indexOf(b.schicht));
     const jetzt = new Date();
     const stand = jetzt.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     // Robertos Ansage vom 17.09. (in der Morgenrunde abgestimmt): OFFENE
@@ -3786,6 +3810,7 @@ function App() {
         .kopf .stand { text-align: right; color: #5B6572; font-size: 8.5pt; line-height: 1.4; }
         .kopf .stand .fett { font-size: 10.5pt; font-weight: 800; color: #1f2430; }
         /* Tagesblick: Schicht-Summen auf einen Blick */
+        .hinweis { font-size: 8pt; color: #8A4B00; background: #FBF3DA; border: 0.8pt solid #E3CE8F; border-radius: 1.5mm; padding: 0.8mm 2mm; margin-bottom: 1.5mm; font-weight: 600; }
         .tagesblick { display: flex; gap: 2mm; margin-bottom: 1.8mm; }
         .tb { flex: 1; border: 0.8pt solid #C4CBD2; border-radius: 1.5mm; padding: 0.9mm 2mm; font-size: 8pt; color: #5B6572; white-space: nowrap; }
         .tb .tbz { font-size: 9.5pt; font-weight: 900; color: #1f2430; font-family: ui-monospace, Consolas, monospace; }
@@ -3828,6 +3853,7 @@ function App() {
         <h1>Schichtbericht Störungen</h1>
         <div class="stand">Stand: <strong>${esc(stand)}</strong><br><span class="fett">${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}</span> · <span class="fett" style="color:${offene > 0 ? "#C0392B" : "#1F7A3D"}">${offene} offen</span>${ausfallGesamt > 0 ? ` · <span class="fett">Ausfallzeit ${esc(minutenText(ausfallGesamt))}</span>` : ""}</div>
       </div>
+      ${wahl.nachFrei ? `<div class="hinweis" data-nach-frei>Nach Wochenende oder Feiertag: die letzten drei Schichten mit Einträgen.</div>` : ""}
       ${tagesblick}
       <table>
       <thead><tr><th style="width:17mm">Nr. / Ausfall</th><th style="width:32mm">Anlage · Teil</th><th style="width:40mm">Abweichung / Störung</th><th style="width:48mm">Störungsursache</th><th style="width:50mm">Was wurde unternommen?</th><th style="width:38mm">Was muss die nächste Schicht tun?</th><th style="width:12mm">Status</th><th style="width:17mm">Melder</th></tr></thead>
@@ -8343,7 +8369,7 @@ function App() {
         anzeige: true, // zusätzlich zum Drucker: am Bildschirm zeigen (Monitor/Besprechung)
         optionen: [
           { id: "stoer-schichtbericht", text: "Schichtbericht – letzte 3 Schichten",
-            erklaerung: "Alle Störungen der laufenden und der zwei vorigen Schichten, Stand jetzt – A4 quer, Tagesblick, eigene Störungsursache-Spalte, offene zuerst, Ausfallzeit als Plakette" },
+            erklaerung: "Alle Störungen der laufenden und der zwei vorigen Schichten, Stand jetzt; nach Wochenende oder Feiertag die letzten drei Schichten mit Einträgen – A4 quer, Tagesblick, eigene Störungsursache-Spalte, offene zuerst, Ausfallzeit als Plakette" },
           { id: "stoer-monat", text: "Monats-Auswertung", monatsWahl: true,
             erklaerung: "Diagramm und Anlagen-Liste nach Anzahl der Störungen, darunter die Ausfälle mit Notizen – A4 hoch" },
           { id: "uebergabe", text: "Schichtübergabe – Stand jetzt",
@@ -8471,7 +8497,14 @@ function App() {
      wählt „Als PDF speichern" - dafür braucht es keinen eigenen Weg. */
   const handleDruckAnzeige = () => {
     setDruckWahlOffen(false);
-    const { html } = druckVorlage(druckOption);
+    zeigeBlatt(druckVorlage(druckOption).html);
+  };
+  /* Schichtbericht mit einem Klick (Robertos Ansage 28.09.): der Knopf oben
+     rechts im Störungs-Bereich öffnet das bekannte Blatt sofort zum
+     Anschauen - ohne Druck-Dialog, ohne Blattwahl. Drucken oder „Als PDF
+     speichern" geht aus dem Fenster heraus wie bisher. */
+  const oeffneSchichtbericht = () => zeigeBlatt(buildStoerSchichtberichtHTML());
+  const zeigeBlatt = (html) => {
     let w = null;
     try { w = window.open("", "_blank"); } catch (e) { w = null; }
     if (!w) { setErr("Zum Anzeigen bitte Pop-ups für diese Seite erlauben."); return; }
@@ -10346,11 +10379,23 @@ function App() {
                 {stoerSucheAktiv ? `${stoerTreffer.length} Treffer` : `${stoerOffenCount} offen · ${stoerungen.length - stoerOffenCount} behoben`}
               </span>
             )}
-            {stoerModus === "liste" && stoerungen.length === 0 && <span className="ml-auto" />}
+            {/* Schichtbericht sofort zeigen (28.09.): das Blatt der Morgenrunde
+                mit einem Klick, ganz rechts neben dem Erfassen-Knopf. Für alle
+                Gruppen, denn Anschauen ist Lesen; die Rechte-Matrix regelt nur
+                den Drucken-Knopf oben. */}
+            <button
+              onClick={oeffneSchichtbericht}
+              aria-label="Schichtbericht anzeigen"
+              title="Schichtbericht der letzten 3 Schichten zum Anschauen öffnen – nach Wochenende oder Feiertag die letzten 3 Schichten mit Einträgen"
+              className="flex items-center gap-1.5 rounded-lg font-bold shrink-0 ml-auto border"
+              style={{ borderColor: "#22262B", color: "#22262B", backgroundColor: "#fff", padding: "5px 12px", fontSize: "0.78rem" }}
+            >
+              📄 Schichtbericht
+            </button>
             {stoerDarfMelden && (
               <button
                 onClick={() => { setSDraft({ date: todayKey, schicht: "", anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "", melder: localStorage.getItem(nsKey("werkstatt-kalender-name")) || "", fotos: [], fotosNeu: [], fotosWeg: [] }); setStoerModal({ mode: "add" }); }}
-                className="flex items-center gap-1.5 rounded-lg text-white font-bold shrink-0 ml-auto"
+                className="flex items-center gap-1.5 rounded-lg text-white font-bold shrink-0"
                 style={{ backgroundColor: "#C0392B", padding: "6px 12px", fontSize: "0.78rem" }}
               >
                 📝 Störbericht erfassen

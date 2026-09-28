@@ -519,6 +519,17 @@ Störungen, nicht den Rest.
   einen Unterschied: Tagesliste und Pinnwand je halbe Breite, die frühere
   Whiteboard-Zeile wird zu Pinnwand · Einkauf · Heute da mit je 4 Spalten.
   Auf schmalen Bildschirmen stehen alle Bausteine untereinander.
+- **Schichtbericht mit einem Klick (seit dem 28.09.):** Unter Berichte →
+  Störungen steht oben rechts der Knopf **📄 Schichtbericht**. Ein Klick
+  öffnet das bekannte Blatt der Morgenrunde sofort zum Anschauen – ohne
+  Druck-Dialog, ohne Blattwahl; Drucken oder „Als PDF speichern" geht aus dem
+  Fenster heraus wie bisher. Der Knopf steht allen Gruppen offen, Anschauen ist
+  Lesen. Das Blatt zeigt die laufende und die zwei vorigen Schichten. Fällt
+  eine davon auf Samstag, Sonntag oder einen Feiertag (montags, nach
+  Pfingstmontag …), zeigt es stattdessen die **letzten drei Schichten mit
+  Einträgen** – ein Wochenend-Bericht zählt dabei mit, die laufende Schicht
+  auch, sobald sie einen Eintrag hat. Ein gelber Hinweis im Blatt sagt, dass
+  diese Regel gegriffen hat. Dieselbe Wahl gilt für das Blatt im Druck-Dialog.
 - **Klick auf eine Kachel öffnet ihre Pflegestelle (seit dem 24.09.):** Jede
   Kennzahl-Kachel ist ein Knopf, der Hinweis steht im Tooltip. Unfälle und
   Kosten öffnen das ⚙ unter „Regeln & Listen" direkt am passenden Abschnitt
