@@ -188,6 +188,9 @@ const ok = (n, c, zusatz) => {
   // Suiten-Last reichten 500 ms einmal nicht (24.09., allein 38/38 grün), und
   // der Neustart fand dann keinen gemerkten Benutzer.
   await p.locator('[aria-label="Anmelden"]').waitFor({ state: "hidden", timeout: 10000 });
+  // … und bis die gemerkte Anmeldung wirklich im Speicher steht (28.09.: unter
+  // Suiten-Last reichte das Schließen des Dialogs allein noch nicht).
+  await p.waitForFunction(() => localStorage.getItem("werkstatt-kalender-benutzer") === "MWerkstatt", null, { timeout: 10000 }).catch(() => {});
   await p.waitForTimeout(500);
 
   /* ---- (6) Neustart: Das Gerät erinnert sich ---- */
