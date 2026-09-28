@@ -2017,7 +2017,13 @@ const ksAnzeige = (k) => (k.nr ? `${k.name} (${k.nr})` : k.name);
    Zeiterfassungs-Eintrag; die Kostenstelle steckt im Maschinen-Feld
    ("B3 Be- und Entladeanlage 2036223" = Name + Nummer).
    Dieselbe Logik liegt als Kommandozeilen-Werkzeug in tools/ikom-import.js. */
-function leseIkomExport(text) {
+function leseIkomExport(text, heuteKey) {
+  // Robertos Befund vom 28.09.: Der erste Import trug Dokumente ohne Anlage
+  // und ohne Beschreibung (nur eine laufende Nummer) und Dokumente mit Datum
+  // in der Zukunft als Störberichte ein - "wir können keine Berichte haben,
+  // die in der Zukunft liegen". Beides wird jetzt übersprungen und in der
+  // Bilanz genannt; aufräumen lässt sich der Bestand im ⚙ (Import-Reste).
+  const heute = heuteKey || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const datumISO = (s) => {
     const m = String(s || "").match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?/);
     if (!m) return null;
@@ -2067,6 +2073,14 @@ function leseIkomExport(text) {
     if (!sd) { uebersprungen.push({ grund: "kein lesbares Datum", VorgangsID: d.VorgangsID || "?", block: i }); return; }
     const kennung = d.VorgangsID || `ohne-vorgangsid-${i}`;
     const masch = maschineZerlegen(d.Maschine);
+    if (!masch.name && !String(d.ST_Beschreibung || "").trim()) {
+      uebersprungen.push({ grund: "leeres Dokument (keine Anlage, keine Beschreibung)", VorgangsID: d.VorgangsID || "?", block: i });
+      return;
+    }
+    if (sd.tag > heute) {
+      uebersprungen.push({ grund: `Datum in der Zukunft (${sd.tag.split("-").reverse().join(".")})`, VorgangsID: d.VorgangsID || "?", block: i });
+      return;
+    }
     const schicht = ["Früh", "Spät", "Nacht"].includes(d.Schicht) ? d.Schicht : "Früh";
     stoer.push({
       id: `ikom-${kennung}`,
@@ -16986,6 +17000,39 @@ function App() {
               </div>
             )}
 
+            {/* Import-Reste aufräumen (28.09., Robertos Befund): leere Berichte
+                (keine Anlage, keine Beschreibung) und Berichte mit Datum in der
+                Zukunft haben in der Werkstatt nichts verloren - von Hand
+                aussortieren ist bei Tausenden "heftig". Ein Knopf, eine Bilanz. */}
+            {(() => {
+              const leer = (x) => !String(x.anlage || "").trim() && !String(x.stoerung || "").trim();
+              const zukunft = (x) => String(x.date || "") > todayKey;
+              const reste = stoerungen.filter((x) => leer(x) || zukunft(x));
+              const nLeer = reste.filter(leer).length, nZukunft = reste.filter((x) => !leer(x) && zukunft(x)).length;
+              return (
+                <div className="rounded-lg px-3 py-2 mb-3" style={{ backgroundColor: reste.length ? "#FBF3DA" : "#F7F8F9", border: `1px solid ${reste.length ? "#E3CE8F" : "#E2E4E7"}` }} data-import-reste={reste.length}>
+                  <div className="text-xs font-bold mb-1" style={{ color: "#5B6572" }}>Import-Reste aufräumen</div>
+                  <div className="text-xs" style={{ color: "#39414B" }}>
+                    {reste.length === 0
+                      ? "Keine leeren Berichte und keine Berichte mit Datum in der Zukunft im Bestand."
+                      : <><b>{reste.length}</b> Störberichte gehören nicht in den Bestand: <b>{nLeer}</b> ohne Anlage und Beschreibung (nur eine Nummer), <b>{nZukunft}</b> mit Datum nach heute.</>}
+                  </div>
+                  {reste.length > 0 && stoerDarfSchreiben && !readerMode && istVerwalter && (
+                    <button
+                      aria-label="Import-Reste entfernen"
+                      onClick={async () => {
+                        if (!window.confirm(`${reste.length} Störberichte entfernen?\n\n${nLeer} ohne Anlage und Beschreibung, ${nZukunft} mit Datum in der Zukunft.\nEchte Berichte bleiben unangetastet.`)) return;
+                        const weg = new Set(reste.map((x) => x.id));
+                        const nach = await persistStoer(stoerungen.filter((x) => !weg.has(x.id)));
+                        setIkomMeldung(Array.isArray(nach) ? `${reste.length} Import-Reste entfernt.` : "Entfernen unvollständig - bitte Meldungen oben beachten.");
+                      }}
+                      className="text-xs font-bold text-white rounded px-3 py-1.5 mt-2" style={{ backgroundColor: "#B23A34" }}>
+                      {reste.length} Berichte entfernen
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
             {/* Jahres-Archiv von Hand: dieselbe Karte wie die automatische
                 Erinnerung, jederzeit aufrufbar (Robertos Richtwert: ab
                 5-8 MB Altbestand gezielt auslagern). */}

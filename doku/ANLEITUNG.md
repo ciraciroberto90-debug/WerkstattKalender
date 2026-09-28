@@ -563,6 +563,13 @@ Störungen, nicht den Rest.
   Zwischendatei weggeräumt und die Meldung nennt den Schritt („Zwischendatei
   anlegen"). Alte 0-KB-Zwischendateien im Ordner werden vor dem Schreiben
   aufgeräumt.
+- **Import-Reste aufräumen (seit dem 28.09.):** Der ikom-Einleser überspringt
+  jetzt leere Dokumente (keine Anlage, keine Beschreibung, nur eine Nummer)
+  und Dokumente mit Datum in der Zukunft; die Bilanz nennt beides. Was ein
+  früherer Import schon eingetragen hat, zeigt die Karte **„Import-Reste
+  aufräumen"** unter ⚙ → Verlauf & Sicherung: so viele Berichte ohne Anlage
+  und Beschreibung, so viele mit Datum nach heute. Ein Klick des Verwalters
+  entfernt genau diese, echte Berichte bleiben.
 - **Links nur mit zugeteilter Sammlung (seit dem 28.09.):** Ein Bearbeiter
   oder Leser ohne Kürzel in „Link-Sammlung" (⚙ → Benutzer & Rechte) sieht
   keinen Linkstreifen mehr, also auch keine fremde Sammlung. Mit Kürzel sieht
