@@ -4,7 +4,7 @@
 
 Hier muss die Datei
 
-   Werkstatt-Cockpit-Programm-win64.zip   (ca. 110 MB)
+   Werkstatt-Cockpit-Programm-win64.zip   (ca. 110 MB, Stand 1.2 vom 29.09.2026)
 
 liegen. Sie war zu gross fuer die Chat-Lieferung und wird
 einmalig heruntergeladen:
@@ -19,5 +19,5 @@ einmalig heruntergeladen:
 4. Danach diesen Zettel loeschen - fertig ist der Stick.
 
 Wer das Programm-ZIP schon von frueher hat (gleiche Groesse:
-115.557.118 Bytes), kann es direkt hierher kopieren und
+115.584.828 Bytes), kann es direkt hierher kopieren und
 Schritt 1-2 ueberspringen.

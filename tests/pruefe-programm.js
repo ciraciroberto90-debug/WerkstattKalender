@@ -16,6 +16,7 @@ const os = require("os");
 const path = require("path");
 
 let ok = 0, fail = 0;
+let kindLog = ""; // Electron-Ausgabe, auch fuer den Absturz-Fall unten lesbar
 const pruef = (n, c, zusatz) => {
   console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
   c ? ok++ : fail++;
@@ -89,7 +90,6 @@ const pruef = (n, c, zusatz) => {
     env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: "1" },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let kindLog = "";
   kind.stdout.on("data", (d) => { kindLog += d; });
   kind.stderr.on("data", (d) => { kindLog += d; });
 
@@ -396,4 +396,4 @@ const pruef = (n, c, zusatz) => {
   console.log(`\n==== ECHTES PROGRAMM: ${ok} PASS / ${fail} FAIL ====`);
   fs.rmSync(ordner, { recursive: true, force: true });
   process.exit(fail > 0 ? 1 : 0);
-})().catch((e) => { console.error("CRASH:", e.message); process.exit(1); });
+})().catch((e) => { console.error("CRASH:", e.message); console.error("Electron-Log (Ende):\n" + kindLog.slice(-3000)); try { execSync("for p in $(ps -eo pid,args | grep -E '[e]lectron/dist|[X]vfb' | awk '{print $1}'); do kill -9 $p; done", { shell: "/bin/bash" }); } catch (x) {} process.exit(1); });

@@ -1,11 +1,21 @@
 WERKSTATT-COCKPIT ALS PROGRAMM (Probefassung)
 =============================================
 
+Stand 1.2 (29.09.2026): Schreibweg mit Anlaeufen. Bekommt das Programm
+beim Anlegen oder Umbenennen der Zwischendatei ein "EPERM"/"EBUSY"
+(Virenscanner, Kollege liest gerade, Laufwerk zoegert), versucht es
+bis zu viermal (150/400/900/1800 ms), raeumt die Zwischendatei in jedem
+Fehlerfall weg und nennt im Fehler den Schritt. Alte 0-KB-Reste
+"...schreibe-<Nr>.json" werden vor dem Schreiben aufgeraeumt. Dazu die
+App-HTML vom 29.09. (Schichtbericht-Knopf, Top 3, Programm-Stand der
+Benutzer, schneller Start, Stoerbericht-Dialog, Doppelklick-Sperre).
+Wer noch die ZIP vom 21.09. oder 31.08. hat, tauscht den Programm-
+Ordner einmal aus - die Daten und die gemerkten Pfade bleiben.
+
 Stand 1.1 (21.09.2026): Programm-Rahmen mit Abgleich-Kurzblick (der
 30-Sekunden-Abgleich liest die Datei nur noch bei Aenderung - Bruecken-
 Funktion "stat") und dem Vollbild-Schalter --vollbild fuer den
-Hallenmonitor. Wer noch die ZIP vom 31.08. hat, tauscht den Programm-
-Ordner einmal aus - die Daten und die gemerkten Pfade bleiben.
+Hallenmonitor.
 
 Was ist das?
   Dieselbe App wie die HTML - aber als eigenstaendiges Programm.
