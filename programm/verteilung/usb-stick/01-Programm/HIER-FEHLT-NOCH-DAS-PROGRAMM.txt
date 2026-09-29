@@ -7,7 +7,15 @@ Hier muss die Datei
    Werkstatt-Cockpit-Programm-win64.zip   (ca. 110 MB, Stand 1.2 vom 29.09.2026)
 
 liegen. Sie war zu gross fuer die Chat-Lieferung und wird
-einmalig heruntergeladen:
+einmalig heruntergeladen.
+
+DER EINFACHE WEG: BTA-Cockpit-Werkzeug.cmd doppelklicken und
+"Programm herunterladen" druecken - das Werkzeug holt sie vom
+Release oder (falls es das noch nicht gibt) ueber die zwei
+Teil-Dateien und legt sie hierher. Danach diesen Zettel
+loeschen.
+
+DER HAND-WEG:
 
 1. Die drei Adressen aus 04-Download-Links\DOWNLOAD-LINKS.txt
    im Browser oeffnen und alle drei Dateien in EINEN Ordner

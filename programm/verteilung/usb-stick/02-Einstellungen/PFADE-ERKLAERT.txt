@@ -48,8 +48,8 @@ beide:
 ----------------------------------------------------------
 Die beiliegende standard-einstellungen.json ist fuer die
 Werkstatt Scheurich FERTIG AUSGEFUELLT. Die DATEINAMEN der
-beiden Datendateien (kalender-daten.json und
-werkstatt-stoerungen.json) sind die Standard-Namen der
-App - falls die Dateien auf dem Laufwerk anders heissen,
-bitte die zwei Zeilen anpassen. Der Update-Ordner-Pfad ist
+beiden Datendateien (werkstatt-kalender-daten.json und
+werkstatt-stoerungen.json) sind die Namen auf dem Laufwerk
+(von Roberto am 29.09. bestaetigt) - heissen sie einmal
+anders, bitte die zwei Zeilen anpassen. Der Update-Ordner-Pfad ist
 derselbe wie im laufenden Betrieb.

@@ -1,7 +1,7 @@
 ==========================================================
  BTA-COCKPIT - KOMPLETTPAKET (Download oder USB-Stick)
 ==========================================================
-Stand: 17.09.2026
+Stand: 29.09.2026 (Programm 1.2)
 
 Dieser Ordner enthaelt ALLES, um das BTA-Cockpit auf einem
 neuen Windows-Rechner einzurichten - egal ob er als Download
@@ -20,7 +20,10 @@ Adminrechte, keine IT-Anfrage noetig.
    Bedarf mit "Waehlen..." aendern. Darunter die Knoepfe:
 
      Einrichten              Programm + Pfade + Verknuepfung
-     Programm herunterladen  neuester Stand vom Release
+     Programm herunterladen  neuester Stand vom Release; gibt es
+                             das Release nicht, holt das Werkzeug
+                             die zwei Teil-Dateien und setzt sie
+                             selbst zusammen
      Verbindung pruefen      kommt der Rechner ans Laufwerk?
      Pfade speichern         gemerkte Pfade richten
      Vom Rechner entfernen   sauber aufraeumen
@@ -48,8 +51,8 @@ entfernen" raeumt einen Rechner sauber ab.
    NEBEN die Werkstatt-Cockpit.exe legen (Pfade vorher pruefen,
    siehe 02-Einstellungen\PFADE-ERKLAERT.txt).
 3. Werkstatt-Cockpit.exe doppelklicken.
-Die ausfuehrliche Anleitung mit Bildern liegt unter
-03-Anleitung (PDF, 4 Seiten - auch fuer den Aushang).
+Die Anleitung liegt unter 03-Anleitung (PDF, 3 Seiten - auch
+fuer den Aushang).
 
 ----------------------------------------------------------
  WAS LIEGT WO?
@@ -72,4 +75,8 @@ werkzeug\             das Skript hinter dem Fenster
 - Updates kommen NICHT ueber dieses Paket: Sobald eine neue
   Werkstatt_Kalender_TPM.html im Update-Ordner liegt, meldet
   sich im Programm der gruene Balken.
+- Rechner mit einer aelteren Programm-Fassung (ZIP vom 31.08.
+  oder 21.09.): Werkzeug -> Reiter Wartung -> "Vom Rechner
+  entfernen", dann "Einrichten" - oder von Hand den Programm-
+  Ordner tauschen. Daten und gemerkte Pfade bleiben im Profil.
 - Fragen und Rueckmeldungen an Roberto Ciraci (Werkstatt).

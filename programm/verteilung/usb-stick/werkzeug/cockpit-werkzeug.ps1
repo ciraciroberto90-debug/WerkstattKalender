@@ -1,7 +1,9 @@
 # BTA-Cockpit: Das Werkzeug - Fenster-Programm mit Reitern
 # ========================================================
 #
-# Stand 17.09. (Robertos Wahl): Design mit Farb-Kopfband und drei Reitern
+# Stand 29.09. (Dateiname der Hauptdatei bestaetigt, Ersatzweg fuer den
+# Programm-Download ueber die Teil-Dateien). Design vom 17.09. (Robertos
+# Wahl): Farb-Kopfband und drei Reiter
 # (Einrichten / Selbsttest / Wartung). Unter den Reitern liegt ein
 # DAUERHAFT sichtbares Protokoll mit Zeitstempel plus Ladebalken - jede
 # Aktion schreibt dort mit, und ueber "Protokoll speichern..." laesst sich
@@ -32,15 +34,22 @@ Add-Type -AssemblyName System.Drawing
 # ist fuer BEIDE Standorte derselbe - so bekommt Soendgen Keramik dieselben
 # Programm-Updates wie Scheurich (Robertos Ansage vom 17.09.).
 $WerkstattOrdnerVorgabe = "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender"
-$DatenDateiName = "kalender-daten.json"
+$DatenDateiName = "werkstatt-kalender-daten.json"   # Robertos Bestaetigung 29.09. (bis dahin stand hier kalender-daten.json)
 $StoerDateiName = "werkstatt-stoerungen.json"
 # Soendgen Keramik nutzt DENSELBEN Update-Ordner, hat aber EIGENE Daten- und
 # Stoerungs-Dateien (getrennte Daten je Standort). Die Namen sind ein
 # Vorschlag im selben Ordner - Ort/Name beim ersten SK-Rechner bestaetigen.
-$SK_DatenName = "kalender-daten-soendgen.json"
-$SK_StoerName = "werkstatt-stoerungen-soendgen.json"
+$SK_DatenName = "soendgen-kalender-daten.json"
+$SK_StoerName = "soendgen-stoerungen.json"
 $ZielVorgabe    = Join-Path $env:LOCALAPPDATA "Werkstatt-Cockpit"
 $ProgrammZipUrl = "https://github.com/ciraciroberto90-debug/WerkstattKalender/releases/latest/download/Werkstatt-Cockpit-Programm-win64.zip"
+# Ersatzweg (29.09., Robertos Wahl): Gibt es das Release (noch) nicht, holt das
+# Werkzeug die zwei Teil-Dateien vom Arbeits-Zweig und setzt sie selbst
+# zusammen (reines Aneinanderhaengen der Bytes, wie Zusammenfuegen.cmd).
+$TeilUrls = @(
+  "https://github.com/ciraciroberto90-debug/WerkstattKalender/raw/claude/jolly-bell-qmnsv0/programm/verteilung/WC-Programm-1.teil",
+  "https://github.com/ciraciroberto90-debug/WerkstattKalender/raw/claude/jolly-bell-qmnsv0/programm/verteilung/WC-Programm-2.teil"
+)
 
 $hier  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $paket = Split-Path -Parent $hier
@@ -582,6 +591,24 @@ $kEinrichten.Add_Click({
 # =============================================================================
 #  Aktion: PROGRAMM HERUNTERLADEN
 # =============================================================================
+# Laedt eine Adresse mit curl.exe nach $ziel und zeigt die MB im Fortschritt.
+# Rueckgabe: $true bei Erfolg (Exit 0 und Datei groesser als $mindestMB).
+function Lade-Datei([string]$url, [string]$ziel, [int]$mindestMB) {
+  if (Test-Path -LiteralPath $ziel) { Remove-Item -LiteralPath $ziel -Force -ErrorAction SilentlyContinue }
+  $lauf = Start-Process -FilePath "curl.exe" -ArgumentList @("-L", "-f", "-sS", "-o", ('"' + $ziel + '"'), $url) -WindowStyle Hidden -PassThru
+  while (-not $lauf.HasExited) {
+    if (Test-Path -LiteralPath $ziel) {
+      $mb = [Math]::Round((Get-Item -LiteralPath $ziel).Length / 1MB)
+      $lblFortschritt.Text = "$mb MB"
+    }
+    [System.Windows.Forms.Application]::DoEvents()
+    Start-Sleep -Milliseconds 250
+  }
+  $gut = ($lauf.ExitCode -eq 0) -and (Test-Path -LiteralPath $ziel) -and ((Get-Item -LiteralPath $ziel).Length -gt ($mindestMB * 1MB))
+  if (-not $gut -and (Test-Path -LiteralPath $ziel)) { Remove-Item -LiteralPath $ziel -Force -ErrorAction SilentlyContinue }
+  return $gut
+}
+
 $kLaden.Add_Click({
   try {
     $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
@@ -596,23 +623,41 @@ $kLaden.Add_Click({
     $zielOrdner = Split-Path -Parent $programmZip
     if (-not (Test-Path -LiteralPath $zielOrdner)) { New-Item -ItemType Directory -Path $zielOrdner -Force | Out-Null }
     Arbeit-Beginnt
-    Schreibe-Log "Lade den neuesten Stand vom Release (ca. 110 MB) ..."
+
+    # Weg 1: das Release (ein Link, eine Datei)
+    Schreibe-Log "Weg 1: Lade den neuesten Stand vom Release (ca. 110 MB) ..."
     Schreibe-Log $ProgrammZipUrl
-    $lauf = Start-Process -FilePath "curl.exe" -ArgumentList @("-L", "-f", "-sS", "-o", ('"' + $programmZip + '"'), $ProgrammZipUrl) -WindowStyle Hidden -PassThru
-    while (-not $lauf.HasExited) {
-      if (Test-Path -LiteralPath $programmZip) {
-        $mb = [Math]::Round((Get-Item -LiteralPath $programmZip).Length / 1MB)
-        $lblFortschritt.Text = "$mb MB"
+    $gut = Lade-Datei $ProgrammZipUrl $programmZip 10
+    if (-not $gut) {
+      # Weg 2: die zwei Teil-Dateien vom Arbeits-Zweig, hier zusammengesetzt
+      Schreibe-Log "Weg 1 nicht moeglich (Release noch nicht veroeffentlicht oder nicht erreichbar). Weg 2: zwei Teil-Dateien ..."
+      $teile = @()
+      $nr = 0
+      foreach ($url in $TeilUrls) {
+        $nr++
+        $teilPfad = Join-Path $zielOrdner ("WC-Programm-" + $nr + ".teil")
+        Schreibe-Log ("Teil " + $nr + " von " + $TeilUrls.Count + ": " + $url)
+        if (-not (Lade-Datei $url $teilPfad 10)) { $teile = @(); break }
+        $teile += $teilPfad
       }
-      [System.Windows.Forms.Application]::DoEvents()
-      Start-Sleep -Milliseconds 250
+      if ($teile.Count -eq $TeilUrls.Count) {
+        Schreibe-Log "Setze die Teile zusammen ..."
+        $ausgabe = [System.IO.File]::Create($programmZip)
+        try {
+          foreach ($t in $teile) {
+            $eingabe = [System.IO.File]::OpenRead($t)
+            try { $eingabe.CopyTo($ausgabe) } finally { $eingabe.Close() }
+          }
+        } finally { $ausgabe.Close() }
+        foreach ($t in $teile) { Remove-Item -LiteralPath $t -Force -ErrorAction SilentlyContinue }
+        $gut = (Test-Path -LiteralPath $programmZip) -and ((Get-Item -LiteralPath $programmZip).Length -gt 100MB)
+      }
     }
-    $gut = ($lauf.ExitCode -eq 0) -and (Test-Path -LiteralPath $programmZip) -and ((Get-Item -LiteralPath $programmZip).Length -gt 10MB)
     if (-not $gut) {
       if (Test-Path -LiteralPath $programmZip) { Remove-Item -LiteralPath $programmZip -Force -ErrorAction SilentlyContinue }
       Arbeit-Fertig
-      Schreibe-Log "Der Download hat NICHT geklappt."
-      Melde "Der Download hat nicht geklappt.`n`nMoegliche Gruende: kein Internet an diesem Rechner, die Firma sperrt GitHub, oder das Release ist noch nicht veroeffentlicht.`n`nErsatzweg: 04-Download-Links an einem Rechner mit Internet, die Datei dann in 01-Programm legen." "Download"
+      Schreibe-Log "Der Download hat NICHT geklappt (beide Wege)."
+      Melde "Der Download hat nicht geklappt - weder vom Release noch ueber die Teil-Dateien.`n`nMoegliche Gruende: kein Internet an diesem Rechner oder die Firma sperrt GitHub.`n`nErsatzweg: 04-Download-Links an einem Rechner mit Internet, die Datei dann in 01-Programm legen." "Download"
       return
     }
     $mb = [Math]::Round((Get-Item -LiteralPath $programmZip).Length / 1MB)

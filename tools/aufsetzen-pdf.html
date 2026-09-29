@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>BTA-Cockpit auf einen neuen Rechner bringen</title>
+<!-- Quelle der Aufsetz-Anleitung (seit dem 29.09. reproduzierbar):
+     node tools/render-aufsetzen.js  -> doku/Werkstatt-Cockpit-Programm-Aufsetzen.pdf
+     und programm/verteilung/usb-stick/03-Anleitung/. Bis dahin lag die PDF nur
+     fertig gerendert im Repo (ROLLOUT "Stolperstein Aufsetz-PDF ohne Quelle"). -->
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; color: #1F2933; font-size: 10.5pt; line-height: 1.4; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 1mm 0; color: #1E2761; }
+  .stand { color: #8A9099; font-size: 9pt; float: right; margin-top: 3mm; }
+  .unter { color: #5B6572; margin: 0 0 5mm 0; }
+  h2 { font-size: 13.5pt; color: #1E2761; margin: 7mm 0 2.5mm 0; page-break-after: avoid; }
+  .kasten { border: 1px solid #DCE3EA; border-radius: 3mm; padding: 3mm 4mm; margin: 0 0 4mm 0; background: #F7F9FB; page-break-inside: avoid; }
+  .kasten.gruen { background: #EEF6F0; border-color: #BFD9C7; border-left: 3px solid #2F7D4F; }
+  .kasten.gelb { background: #FBF3DA; border-color: #E3CE8F; border-left: 3px solid #C97A2B; }
+  ol.schritte { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+  ol.schritte li { position: relative; padding-left: 12mm; margin: 0 0 3.5mm 0; page-break-inside: avoid; }
+  ol.schritte li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0; width: 8mm; height: 8mm; border-radius: 50%; background: #1E2761; color: #fff; font-weight: bold; text-align: center; line-height: 8mm; font-size: 11pt; }
+  ol.schritte b.t { display: block; font-size: 11pt; margin-bottom: 0.5mm; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9pt; background: #EEF1F4; padding: 0 1mm; border-radius: 1mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm 0; }
+  th, td { text-align: left; vertical-align: top; padding: 1.8mm 2.5mm; border-bottom: 1px solid #E5E9ED; font-size: 9.8pt; }
+  th { font-size: 8.5pt; text-transform: uppercase; letter-spacing: .03em; color: #5B6572; border-bottom: 1.5px solid #C4CBD2; }
+  td.l { width: 52mm; font-weight: bold; }
+  ul { margin: 1mm 0 0 0; padding-left: 5mm; }
+  li { margin-bottom: 1mm; }
+  .fuss { margin-top: 8mm; color: #8A9099; font-size: 8.5pt; border-top: 1px solid #E5E9ED; padding-top: 2mm; }
+  .pfad { font-family: Consolas, "Courier New", monospace; font-size: 8.6pt; word-break: break-all; }
+</style>
+</head>
+<body>
+
+<span class="stand">Stand 29.09.2026 · Programm 1.2</span>
+<h1>BTA-Cockpit auf einen neuen Rechner bringen</h1>
+<p class="unter">Ohne Adminrechte, ohne Installation, ohne IT. Für Arbeitsplatz-, Leser- und Monitor-Rechner gleich.</p>
+
+<div class="kasten gruen">
+  <b>Das Wichtigste zuerst:</b> Der komplette Ordner <b>BTA-Cockpit-USB-Stick</b> (vom Stick oder als
+  <code>BTA-Cockpit-Komplettpaket.zip</code> aus dem Release) enthält alles. Der Weg ist immer derselbe:
+  <b>Werkzeug öffnen → „Einrichten" → Verknüpfung doppelklicken.</b> Nichts muss eingetippt werden.
+</div>
+
+<h2>Was du brauchst</h2>
+<ul>
+  <li>Einen Windows-Rechner mit Zugriff auf das Firmenlaufwerk (den Werkstatt-Ordner <span class="pfad">\\SCHEUDC1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender</span>).</li>
+  <li>Den Stick-Ordner. Liegt im Ordner <code>01-Programm</code> noch kein Programm-ZIP, braucht der Rechner einmalig Internet (ca. 110 MB), das Werkzeug holt es selbst.</li>
+  <li><b>Keine Adminrechte.</b> Das Programm ist ein Ordner im Benutzerprofil, der kopiert wird. Löschen entfernt alles wieder.</li>
+</ul>
+
+<h2>Der Weg mit dem Werkzeug (Normalfall)</h2>
+<ol class="schritte">
+  <li><b class="t">Stick-Ordner öffnen und <code>BTA-Cockpit-Werkzeug.cmd</code> doppelklicken</b>
+    Ein schwarzes Fenster blitzt kurz auf, dann öffnet sich das Werkzeug-Fenster mit drei Reitern (Einrichten / Selbsttest / Wartung). Kommt ein Download, vorher entpacken; vom Stick geht es direkt.</li>
+  <li><b class="t">Reiter „Einrichten": Pfade prüfen, Rechner-Art wählen</b>
+    Die vier Pfade sind für die Werkstatt Scheurich fertig ausgefüllt (Update-Ordner, Datendatei <code>werkstatt-kalender-daten.json</code>, Datenordner, Störungs-Datei <code>werkstatt-stoerungen.json</code>). Für Soendgen Keramik die Standort-Vorlage umschalten. Rechner-Art: <b>Arbeitsplatz</b> oder <b>Info-Bildschirm</b> (Autostart und Vollbild).</li>
+  <li><b class="t">Fehlt das Programm-ZIP: „Programm herunterladen"</b>
+    Das Werkzeug holt den neuesten Stand vom Release. Gibt es das Release noch nicht, holt es die zwei Teil-Dateien und setzt sie selbst zusammen. Am Ende steht „Fertig: 110 MB liegen in 01-Programm".</li>
+  <li><b class="t">Grünen Knopf „Einrichten" drücken, Zusammenfassung bestätigen</b>
+    Das Werkzeug entpackt das Programm ins Benutzerprofil (<code>%LOCALAPPDATA%\Werkstatt-Cockpit</code>, den Vorschlag lassen, <b>nie vom Stick oder Laufwerk aus starten</b>), schreibt die Pfade und legt die Desktop-Verknüpfung „Werkstatt-Cockpit" an.</li>
+  <li><b class="t">Verknüpfung doppelklicken, SmartScreen einmal wegklicken</b>
+    Beim allerersten Start meldet Windows „Der Computer wurde geschützt" (die EXE ist nicht signiert): <b>„Weitere Informationen" → „Trotzdem ausführen"</b>. Das kommt nur einmal.</li>
+  <li><b class="t">Kurz prüfen, dann arbeiten</b>
+    Werkstatt wählen (Scheurich), oben rechts das Ordner-Symbol anklicken: Die Kennkarte muss die gemeinsame Datei mit Einträgen zeigen. Ab jetzt: Verknüpfung doppelklicken, arbeiten. Neue Fassungen meldet der grüne Balken von selbst.</li>
+</ol>
+
+<div class="kasten">
+  <b>Leser-Rechner und Monitor:</b> genau gleich einrichten. Hat das Windows-Konto kein Schreibrecht auf den Werkstatt-Ordner, schaltet die App von selbst auf „nur ansehen". Für den Hallenmonitor die Rechner-Art <b>Info-Bildschirm</b> wählen (Autostart, Vollbild); im ⚙ des Verwalters „Monitor zeigt die Übersicht" anhaken.
+</div>
+
+<h2>Rechner mit alter Programm-Fassung (ZIP vom 31.08. oder 21.09.)</h2>
+<p>Der Programm-Ordner muss einmal getauscht werden, damit der neue Schreibweg (Anläufe statt Abbruch, keine 0-KB-Reste im Datenordner) wirkt. Daten und gemerkte Pfade liegen im Profil und bleiben.</p>
+<ol class="schritte">
+  <li><b class="t">Alle Cockpit-Fenster schließen</b></li>
+  <li><b class="t">Werkzeug → Reiter „Wartung" → „Vom Rechner entfernen"</b> (nur Lokales, das Laufwerk bleibt unangetastet), danach Reiter „Einrichten" → „Einrichten". Oder von Hand: alten Programm-Ordner löschen, neuen entpacken, Verknüpfung prüfen.</li>
+  <li><b class="t">Kontrolle:</b> ⚙ → Verlauf & Sicherung zeigt die Fassung; der Verwalter sieht unter Benutzer & Rechte in der Tabelle „Programm-Stand", welche Benutzer aktuell sind.</li>
+</ol>
+
+<h2>Der Hand-Weg (falls das Werkzeug nicht gewünscht ist)</h2>
+<ol class="schritte">
+  <li><b class="t"><code>01-Programm\Werkstatt-Cockpit-Programm-win64.zip</code> auf den Rechner kopieren und dort entpacken</b> (nicht auf dem Stick, nicht auf dem Laufwerk; zum Beispiel nach <code>C:\Werkstatt\Cockpit-Programm</code>).</li>
+  <li><b class="t"><code>02-Einstellungen\standard-einstellungen.json</code> neben die <code>Werkstatt-Cockpit.exe</code> legen.</b> Die Datei ist fertig ausgefüllt; das Programm übernimmt die Pfade beim ersten Start. Erklärung der vier Zeilen: <code>PFADE-ERKLAERT.txt</code>.</li>
+  <li><b class="t"><code>Werkstatt-Cockpit.exe</code> doppelklicken</b>, SmartScreen wie oben, Verknüpfung auf den Desktop ziehen (Rechtsklick → Senden an → Desktop).</li>
+</ol>
+
+<h2>Wenn etwas klemmt</h2>
+<table>
+  <tr><th>Das siehst du</th><th>Das bedeutet es, und das hilft</th></tr>
+  <tr><td class="l">Windows: „Der Computer wurde geschützt"</td><td>Normal beim allerersten Start (EXE nicht signiert). „Weitere Informationen" → „Trotzdem ausführen".</td></tr>
+  <tr><td class="l">„Programm-ZIP fehlt noch"</td><td>Im Werkzeug „Programm herunterladen" drücken. Ohne Internet: die drei Adressen aus <code>04-Download-Links</code> an einem Rechner mit Internet, die ZIP dann in <code>01-Programm</code> legen.</td></tr>
+  <tr><td class="l">Rote Leiste „Diese Fassung ist veraltet"</td><td>Der Rechner zeigt eine ältere App-Fassung. Grünen Balken klicken; fehlt er, ist der Update-Ordner nicht gesetzt (⚙ → Verlauf & Sicherung → Programm-Updates) oder der Programm-Ordner zu alt (Abschnitt oben).</td></tr>
+  <tr><td class="l">Kennkarte zeigt die falsche oder eine leere Datei</td><td>Ordner-Symbol → „Vorhandene Datei öffnen …" und die <code>werkstatt-kalender-daten.json</code> im Werkstatt-Ordner anwählen.</td></tr>
+  <tr><td class="l">„nur ansehen", obwohl der Rechner bearbeiten soll</td><td>Das Windows-Konto hat kein Schreibrecht auf den Werkstatt-Ordner. Werkzeug → Selbsttest zeigt es rot. Rechte prüfen lassen; die App schaltet von selbst zurück, sobald Schreiben klappt.</td></tr>
+  <tr><td class="l">„EPERM" oder 0-KB-Dateien „…schreibe-….json" im Datenordner</td><td>Das Laufwerk hat einen Schreibversuch abgewiesen (Virenscanner, Rechte). Seit Programm 1.2 versucht es das Programm mehrfach und räumt Reste weg. Alte Programm-Fassung → tauschen (Abschnitt oben). ⚙ → Diagnose zeigt den Schreibtest im echten Ordner.</td></tr>
+  <tr><td class="l">Start hängt, graues Ordner-Symbol</td><td>Läuft die App in einem zweiten Fenster? Schließen. Nach 30 Sekunden läuft die App mit dem örtlichen Stand weiter; ⚙ → Verlauf & Sicherung zeigt rot, in welcher Phase es hing.</td></tr>
+  <tr><td class="l">Laufwerk kurz nicht erreichbar</td><td>Die App speichert örtlich weiter und meldet es. Nichts tun, beim nächsten Speichern gleicht sie ab.</td></tr>
+</table>
+
+<div class="kasten gruen">
+  <b>Daran erkennst du, dass alles richtig sitzt:</b>
+  <ul>
+    <li>Die Kennkarte (Ordner-Symbol) zeigt die gemeinsame Datei mit Einträgen und dem Werkstatt-Ordner.</li>
+    <li>Unter ⚙ → Verlauf & Sicherung steht bei „Programm-Updates" der Werkstatt-Ordner, bei „Verbindung beim Start" grün.</li>
+    <li>Kommt eine neue Fassung ins Laufwerk, erscheint binnen Minuten der grüne Balken.</li>
+  </ul>
+</div>
+
+<p class="fuss">Fragen und Rückmeldungen an Roberto Ciraci (Werkstatt). Diese Anleitung liegt im Projekt unter <code>doku/Werkstatt-Cockpit-Programm-Aufsetzen.pdf</code>, Quelle <code>tools/aufsetzen-pdf.html</code>.</p>
+
+</body>
+</html>
