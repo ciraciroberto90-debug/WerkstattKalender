@@ -47,7 +47,7 @@
 
 <h2>Was du brauchst</h2>
 <ul>
-  <li>Einen Windows-Rechner mit Zugriff auf das Firmenlaufwerk (den Werkstatt-Ordner <span class="pfad">\\SCHEUDC1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender</span>).</li>
+  <li>Einen Windows-Rechner mit Zugriff auf das Firmenlaufwerk (den Server <span class="pfad">\\v-btacockpit-01\BTA</span>: Ordner <code>BTA-Scheurich</code> für die Daten, <code>BTA-Programm\Update</code> für Updates). Das Windows-Konto des Kollegen muss in der Server-Gruppe <code>BTA-Scheurich-Werkstatt</code> stehen, das pflegt Roberto auf dem Server.</li>
   <li>Den Stick-Ordner. Liegt im Ordner <code>01-Programm</code> noch kein Programm-ZIP, braucht der Rechner einmalig Internet (ca. 110 MB), das Werkzeug holt es selbst.</li>
   <li><b>Keine Adminrechte.</b> Das Programm ist ein Ordner im Benutzerprofil, der kopiert wird. Löschen entfernt alles wieder.</li>
 </ul>
@@ -69,7 +69,7 @@
 </ol>
 
 <div class="kasten">
-  <b>Leser-Rechner und Monitor:</b> genau gleich einrichten. Hat das Windows-Konto kein Schreibrecht auf den Werkstatt-Ordner, schaltet die App von selbst auf „nur ansehen". Für den Hallenmonitor die Rechner-Art <b>Info-Bildschirm</b> wählen (Autostart, Vollbild); im ⚙ des Verwalters „Monitor zeigt die Übersicht" anhaken.
+  <b>Leser-Rechner und Monitor:</b> genau gleich einrichten. Steht das Windows-Konto nur in der Server-Gruppe <code>BTA-Scheurich-Ansehen</code>, schaltet die App von selbst auf „nur ansehen". Für den Hallenmonitor die Rechner-Art <b>Info-Bildschirm</b> wählen (Autostart, Vollbild); im ⚙ des Verwalters „Monitor zeigt die Übersicht" anhaken.
 </div>
 
 <h2>Rechner mit alter Programm-Fassung (ZIP vom 31.08. oder 21.09.)</h2>
@@ -93,8 +93,8 @@
   <tr><td class="l">Windows: „Der Computer wurde geschützt"</td><td>Normal beim allerersten Start (EXE nicht signiert). „Weitere Informationen" → „Trotzdem ausführen".</td></tr>
   <tr><td class="l">„Programm-ZIP fehlt noch"</td><td>Im Werkzeug „Programm herunterladen" drücken. Ohne Internet: die drei Adressen aus <code>04-Download-Links</code> an einem Rechner mit Internet, die ZIP dann in <code>01-Programm</code> legen.</td></tr>
   <tr><td class="l">Rote Leiste „Diese Fassung ist veraltet"</td><td>Der Rechner zeigt eine ältere App-Fassung. Grünen Balken klicken; fehlt er, ist der Update-Ordner nicht gesetzt (⚙ → Verlauf & Sicherung → Programm-Updates) oder der Programm-Ordner zu alt (Abschnitt oben).</td></tr>
-  <tr><td class="l">Kennkarte zeigt die falsche oder eine leere Datei</td><td>Ordner-Symbol → „Vorhandene Datei öffnen …" und die <code>werkstatt-kalender-daten.json</code> im Werkstatt-Ordner anwählen.</td></tr>
-  <tr><td class="l">„nur ansehen", obwohl der Rechner bearbeiten soll</td><td>Das Windows-Konto hat kein Schreibrecht auf den Werkstatt-Ordner. Werkzeug → Selbsttest zeigt es rot. Rechte prüfen lassen; die App schaltet von selbst zurück, sobald Schreiben klappt.</td></tr>
+  <tr><td class="l">Kennkarte zeigt die falsche oder eine leere Datei</td><td>Ordner-Symbol → „Vorhandene Datei öffnen …" und die <code>werkstatt-kalender-daten.json</code> unter <code>\\v-btacockpit-01\BTA\BTA-Scheurich</code> anwählen.</td></tr>
+  <tr><td class="l">„nur ansehen", obwohl der Rechner bearbeiten soll</td><td>Das Windows-Konto steht nicht in der Server-Gruppe <code>BTA-Scheurich-Werkstatt</code>. Roberto trägt es auf dem Server ein, danach einmal ab- und anmelden. Werkzeug → Selbsttest zeigt es rot.</td></tr>
   <tr><td class="l">„EPERM" oder 0-KB-Dateien „…schreibe-….json" im Datenordner</td><td>Das Laufwerk hat einen Schreibversuch abgewiesen (Virenscanner, Rechte). Seit Programm 1.2 versucht es das Programm mehrfach und räumt Reste weg. Alte Programm-Fassung → tauschen (Abschnitt oben). ⚙ → Diagnose zeigt den Schreibtest im echten Ordner.</td></tr>
   <tr><td class="l">Start hängt, graues Ordner-Symbol</td><td>Läuft die App in einem zweiten Fenster? Schließen. Nach 30 Sekunden läuft die App mit dem örtlichen Stand weiter; ⚙ → Verlauf & Sicherung zeigt rot, in welcher Phase es hing.</td></tr>
   <tr><td class="l">Laufwerk kurz nicht erreichbar</td><td>Die App speichert örtlich weiter und meldet es. Nichts tun, beim nächsten Speichern gleicht sie ab.</td></tr>
@@ -103,8 +103,8 @@
 <div class="kasten gruen">
   <b>Daran erkennst du, dass alles richtig sitzt:</b>
   <ul>
-    <li>Die Kennkarte (Ordner-Symbol) zeigt die gemeinsame Datei mit Einträgen und dem Werkstatt-Ordner.</li>
-    <li>Unter ⚙ → Verlauf & Sicherung steht bei „Programm-Updates" der Werkstatt-Ordner, bei „Verbindung beim Start" grün.</li>
+    <li>Die Kennkarte (Ordner-Symbol) zeigt die gemeinsame Datei mit Einträgen und dem Server-Pfad <code>\\v-btacockpit-01\BTA\BTA-Scheurich</code>.</li>
+    <li>Unter ⚙ → Verlauf & Sicherung steht bei „Programm-Updates" <code>BTA-Programm\Update</code>, bei „Verbindung beim Start" grün.</li>
     <li>Kommt eine neue Fassung ins Laufwerk, erscheint binnen Minuten der grüne Balken.</li>
   </ul>
 </div>

@@ -77,9 +77,9 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - [x] **Schritt 3c** – Standort-Gruppen dürfen `C:\BTA` selbst auflisten (RX nur auf diesen Ordner) – **erledigt 29.09.**
 - [x] **Schritt 4** – Mitglieder eingetragen – **erledigt 29.09.** `BTA-Scheurich-Werkstatt`: andreas.ecke, aradke, ciraci, Elektro, elektroabt, elektroazubi, Jaeger, kczoczek, mwerkstatt, PBaier, rciraci, thomas.smarsly (12 Konten, über die Domänen-Suche im Dialog gewählt). `BTA-Scheurich-Ansehen` vorerst leer (kein eigenes Monitor-Konto). Soendgen leer, bis die Domänen-Frage geklärt ist. Neue Rechte gelten je Kollege ab dem nächsten Anmelden.
 - [x] **Schritt 5a** – Freigabe-Berechtigung geprüft (`net share BTA`): Administratoren FULL, Jeder FULL – das übliche Muster „Freigabe offen, NTFS regelt“; bleibt so, die NTFS-Rechte aus Schritt 3 sind die Grenze. Zwischenspeichern steht auf „Manuell“ (Offlinedateien nur auf Wunsch) – gut so, sonst arbeitet ein Rechner mit einer alten Offline-Kopie.
-- [ ] **Schritt 6** – Zugriff testen: je ein Konto aus Werkstatt und Ansehen an einem PC
+- [x] **Schritt 6** – Zugriff getestet – **erledigt 29.09.**: Werkstatt-Konto am Werkstatt-PC schreibt in `BTA-Scheurich`, bekommt „Zugriff verweigert“ auf `BTA-Soendgen`, `BTA-Programm\Update` (Schreiben) und `BTA-Sicherung`; rciraci überall Schreiben.
 - [ ] **Schritt 7** – Daten kopieren (alle Cockpits zu), Byte-Größen vergleichen
-- [ ] **Schritt 8** – Stick und Werkzeug auf die Server-Pfade (baue ich), je Rechner „Pfade speichern"
+- [ ] **Schritt 8** – je Rechner Werkzeug → Wartung → „Pfade speichern“ (Server-Pfade sind seit 29.09. in Werkzeug, Stick-Einstellungen und Aufsetz-PDF hinterlegt; Stick erst NACH Schritt 7 neu bespielen)
 - [ ] **Schritt 9** – Kontrolle je Rechner (Kennkarte), alten Ordner auf `W:` umbenennen
 - [ ] **Schritt 10** – Schattenkopien + nächtliche Sicherungsaufgabe
 - [ ] **Schritt 11** – Komplettpaket nach `BTA-Programm\Installation`, Werkzeug bekommt den Server als ersten Download-Weg
@@ -95,6 +95,36 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - Lokale Gruppe `Administratoren` auf dem Server: Administrator, Domain
   Admins, `SCHEURICH\rciraci`, `SCHEURICH\serviceBTA` – Roberto ist mit
   beiden Konten Admin.
+
+## Schritt 7 im Detail – der Umzug (einmal, wenn niemand im Cockpit arbeitet)
+
+Von Robertos PC aus (Konto `rciraci` hat auf `W:` und auf dem Server alle
+Rechte), Eingabeaufforderung **als Administrator**:
+
+1. Alle Cockpit-Fenster auf allen Rechnern schließen (Abend nach der
+   Spätschicht oder morgens vor 06:00).
+2. Kopieren mit Protokoll (nichts wird auf `W:` verändert):
+
+   ```
+   robocopy "\\SCHEUDC1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender" "\\v-btacockpit-01\BTA\BTA-Scheurich" /E /COPY:DAT /R:2 /W:5 /XF Werkstatt_Kalender_TPM*.html /LOG:%USERPROFILE%\Desktop\umzug-daten.txt
+   robocopy "\\SCHEUDC1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender" "\\v-btacockpit-01\BTA\BTA-Programm\Update" Werkstatt_Kalender_TPM.html /COPY:DAT /R:2 /W:5 /LOG:%USERPROFILE%\Desktop\umzug-update.txt
+   ```
+
+   Die erste Zeile nimmt alles außer der App-HTML (Daten, Fotos, Sicherungen,
+   Konflikt-Wächter) nach `BTA-Scheurich`; die zweite legt nur die HTML nach
+   `BTA-Programm\Update`.
+3. Kontrolle: Am Ende jeder robocopy-Ausgabe steht eine Tabelle „Dateien:
+   Kopiert / Übersprungen / FEHLER“ – FEHLER muss 0 sein. Dann Byte-Vergleich
+   der zwei Datendateien:
+
+   ```
+   dir "\\SCHEUDC1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender\werkstatt-*.json"
+   dir "\\v-btacockpit-01\BTA\BTA-Scheurich\werkstatt-*.json"
+   ```
+
+   Beide Ausgaben müssen dieselben Größen zeigen.
+4. **Noch nichts auf `W:` umbenennen.** Erst Schritt 8 (alle Rechner auf die
+   Server-Pfade), dann Schritt 9.
 
 ## Offene Fragen
 

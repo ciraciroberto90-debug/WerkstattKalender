@@ -1,7 +1,7 @@
 ==========================================================
  BTA-COCKPIT - KOMPLETTPAKET (Download oder USB-Stick)
 ==========================================================
-Stand: 29.09.2026 (Programm 1.2)
+Stand: 29.09.2026 (Programm 1.2, Daten auf dem Server v-btacockpit-01)
 
 Dieser Ordner enthaelt ALLES, um das BTA-Cockpit auf einem
 neuen Windows-Rechner einzurichten - egal ob er als Download
@@ -16,8 +16,8 @@ Adminrechte, keine IT-Anfrage noetig.
 2. Doppelklick auf  BTA-Cockpit-Werkzeug.cmd
    Es oeffnet sich ein richtiges Programmfenster (das schwarze
    Fenster blitzt nur kurz auf). Oben stehen die Pfade schon
-   fertig ausgefuellt fuer die Werkstatt Scheurich - bei
-   Bedarf mit "Waehlen..." aendern. Darunter die Knoepfe:
+   fertig ausgefuellt fuer die Werkstatt Scheurich auf dem
+   Server v-btacockpit-01 - bei Bedarf mit "Waehlen..." aendern. Darunter die Knoepfe:
 
      Einrichten              Programm + Pfade + Verknuepfung
      Programm herunterladen  neuester Stand vom Release; gibt es
