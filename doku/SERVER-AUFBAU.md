@@ -74,9 +74,9 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - [x] **Schritt 1** – Ordnerstruktur anlegen, `BTA-Formwerk` löschen – **erledigt 29.09., 09:00** (über die Eingabeaufforderung als Administrator; im Explorer ließ sich auf `C:\BTA` nichts anlegen)
 - [x] **Schritt 2** – die fünf Gruppen anlegen – **erledigt 29.09.** (`BTA-Verwalter` mit rciraci, serviceBTA, thomas.smarsly; die vier Standort-Gruppen noch leer)
 - [x] **Schritt 3** – NTFS-Rechte gesetzt – **erledigt 29.09.** per `icacls` als Administrator: `BTA-Verwalter (OI)(CI)F` auf `C:\BTA`; je Standort-Ordner `…-Werkstatt (OI)(CI)M` und `…-Ansehen (OI)(CI)RX`; `BTA-Programm` RX für alle vier Standort-Gruppen. Erster Anlauf ohne Administrator-Fenster scheiterte mit „Zugriff verweigert“ auf den IT-Ordnern (Eigentümer Administrator). Die IT-Einträge (`BTA_Cockpit_write` M, `_read` RX, vererbt) bleiben – solange nur Roberto/Chef/serviceBTA in `write` sind, ist das gleichbedeutend mit Verwalter.
-- [ ] **Schritt 3c** – Standort-Gruppen dürfen den Ordner `C:\BTA` selbst auflisten (RX nur auf diesen Ordner), sonst zeigt der Explorer die Freigabe als „Zugriff verweigert“
+- [x] **Schritt 3c** – Standort-Gruppen dürfen `C:\BTA` selbst auflisten (RX nur auf diesen Ordner) – **erledigt 29.09.**
 - [ ] **Schritt 4** – Mitglieder in die Standort-Gruppen eintragen (Windows-Anmeldenamen der Kollegen)
-- [ ] **Schritt 5a** – Freigabe-Berechtigung auf `BTA` prüfen/setzen
+- [x] **Schritt 5a** – Freigabe-Berechtigung geprüft (`net share BTA`): Administratoren FULL, Jeder FULL – das übliche Muster „Freigabe offen, NTFS regelt“; bleibt so, die NTFS-Rechte aus Schritt 3 sind die Grenze. Zwischenspeichern steht auf „Manuell“ (Offlinedateien nur auf Wunsch) – gut so, sonst arbeitet ein Rechner mit einer alten Offline-Kopie.
 - [ ] **Schritt 6** – Zugriff testen: je ein Konto aus Werkstatt und Ansehen an einem PC
 - [ ] **Schritt 7** – Daten kopieren (alle Cockpits zu), Byte-Größen vergleichen
 - [ ] **Schritt 8** – Stick und Werkzeug auf die Server-Pfade (baue ich), je Rechner „Pfade speichern"
