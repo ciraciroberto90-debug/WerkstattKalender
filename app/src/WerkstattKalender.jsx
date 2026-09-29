@@ -3748,13 +3748,17 @@ function App() {
     w.focus();
     setTimeout(() => { try { w.print(); } catch (e) { /* Nutzer kann manuell drucken */ } }, 300);
   };
-  /* Schichtbericht: alle Störungen der letzten drei Schichten bis jetzt.
+  /* Schichtbericht: alle Störungen der letzten drei ABGESCHLOSSENEN Schichten.
      Robertos Ansage vom 13.08.: Nach „Drucken" im Störungs-Bereich einen
      Tagesbericht über die letzten drei Schichten - zum Ausdrucken UND zum
      Zeigen am Bildschirm (dort führt Drucken → „Als PDF speichern" zur PDF).
      Die Schichtfolge ist fest (Früh 06-14, Spät 14-22, Nacht 22-06); die
      Nacht zählt zu dem Tag, an dem sie begonnen hat - so trägt es auch die
-     Werkstatt in die Berichte ein. */
+     Werkstatt in die Berichte ein.
+     Robertos Nachschärfung 29.09. (Morgenrunde 07:52, Blatt zeigte Di Früh
+     mit 0 Berichten): Die LAUFENDE Schicht gehört nicht ins Blatt - sie
+     interessiert erst morgen früh. Gezählt wird ab der zuletzt beendeten
+     Schicht rückwärts: am Dienstagmorgen also Mo Früh, Mo Spät, Mo Nacht. */
   const stoerSchichtSlots = () => {
     const jetzt = new Date();
     const h = jetzt.getHours();
@@ -3764,6 +3768,8 @@ function App() {
     if (h >= 6 && h < 14) idx = 0;
     else if (h >= 14 && h < 22) idx = 1;
     else { idx = 2; if (h < 6) datum.setDate(datum.getDate() - 1); }
+    // Einen Schritt zurück: die laufende Schicht bleibt draußen.
+    idx--; if (idx < 0) { idx = 2; datum.setDate(datum.getDate() - 1); }
     const slots = [];
     for (let i = 0; i < 3; i++) {
       slots.push({ datum: tagKey(datum), schicht: STOER_SCHICHTEN[idx] });
@@ -3774,7 +3780,7 @@ function App() {
     // leer - die Morgenrunde will aber sehen, was seit der letzten Runde
     // passiert ist. Fällt eine der drei Schichten auf einen freien Tag,
     // zeigt das Blatt stattdessen die letzten drei Schichten MIT Einträgen
-    // (rückwärts ab der laufenden Schicht, höchstens 30 Tage). Ein
+    // (rückwärts ab der zuletzt beendeten Schicht, höchstens 30 Tage). Ein
     // Wochenend-Bericht zählt dabei mit - was eingetragen ist, wird gezeigt.
     const freierTag = (key) => {
       const d = new Date(key + "T00:00:00");

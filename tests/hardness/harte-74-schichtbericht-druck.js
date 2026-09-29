@@ -18,7 +18,8 @@ const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
 let ok = 0, fail = 0;
 const pruef = (n, c, z) => { console.log((c ? "PASS | " : "FAIL | ") + n + (z ? "   (" + z + ")" : "")); c ? ok++ : fail++; };
 
-// Alle drei Schichten am 17.09.2026 (feste Uhr 18.09. 05:00 -> Slots = 17.09.).
+// Feste Uhr 18.09. 05:00 (laufende Schicht = Nacht 17.09., bleibt seit dem
+// 29.09. draußen) -> Slots = 17.09. Spät, 17.09. Früh, 16.09. Nacht (leer).
 // f1 = OK/0 min (früher gemeldet), f2 = OFFEN/15 min (später gemeldet, muss
 // trotzdem oben stehen), s1 = OK/60 min (rote Plakette), Nacht leer.
 const BERICHTE = [

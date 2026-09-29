@@ -3,9 +3,11 @@
 // PDF anzeigt - letzte 3 Schichten; montags oder bei Feiertag nach dem
 // Wochenende die letzten 3 Schichten mit Eintrag")
 //
-//  (S1) Mittwoch: der Knopf "Schichtbericht anzeigen" steht im Störungs-
+//  (S1) Mittwoch 10:00: der Knopf "Schichtbericht anzeigen" steht im Störungs-
 //       Bereich; Klick öffnet das bekannte Blatt ohne Druck-Dialog mit den
-//       drei Schichten von jetzt (Mi Früh, Di Nacht, Di Spät) - kein Hinweis.
+//       drei zuletzt BEENDETEN Schichten (Di Früh, Di Spät, Di Nacht) - die
+//       laufende Mi Früh bleibt draußen (Roberto 29.09.: "interessiert mich
+//       erst morgen früh") - kein Hinweis.
 //  (S2) Montag 08:00, Wochenende leer: das Blatt zeigt die drei Freitag-
 //       Schichten; kein Sonntag im Blatt. Der frühere Wochenend-Hinweis ist
 //       weg (Roberto 28.09.), in der Zeile steht der nächste PitStop.
@@ -13,7 +15,8 @@
 //       Fr Spät) - der Freitag Früh fällt heraus.
 //  (S4) Dienstag nach Pfingstmontag (25.05.2026): die letzten drei Schichten
 //       mit Einträgen liegen am Freitag/Donnerstag davor; kein 25.05. im Blatt.
-//  (S5) Montag mit einem Bericht in der laufenden Frühschicht: sie zählt mit.
+//  (S5) Montag mit einem Bericht in der laufenden Frühschicht: sie bleibt
+//       draußen (seit 29.09.) - das Blatt zeigt weiter die Freitag-Schichten.
 //  (S6) Montag ohne einen einzigen Bericht in 30 Tagen: das Blatt bleibt beim
 //       Fenster von jetzt.
 //  (S7) Leser: der Knopf ist da (Anschauen ist Lesen).
@@ -85,8 +88,8 @@ const MAI = [bericht("2026-05-21", "Nacht", "MaiDoNacht"), bericht("2026-05-22",
     const g = gruppen(h);
     ok("(S1) Klick öffnet das Blatt ohne Druck-Dialog (Titel „Schichtbericht Störungen“, kein Dialog offen)",
       /<h1>Schichtbericht Störungen<\/h1>/.test(h) && !/Blatt wählen/.test(await p.locator("body").innerText()));
-    ok("(S1) Mittwoch: die drei Schichten von jetzt (Mi Früh, Di Spät, Di Nacht), kein Hinweis",
-      g.join(",") === "23.09.2026 Früh,22.09.2026 Spät,22.09.2026 Nacht" && !hinweis(h) && /MiFrueh/.test(h) && /DiSpaet/.test(h), g.join(","));
+    ok("(S1) Mittwoch 10:00: die drei zuletzt beendeten Schichten (Di Früh, Di Spät, Di Nacht), die laufende Mi Früh bleibt draußen, kein Hinweis",
+      g.join(",") === "22.09.2026 Früh,22.09.2026 Spät,22.09.2026 Nacht" && !hinweis(h) && !/MiFrueh/.test(h) && /DiSpaet/.test(h), g.join(","));
     ok("(E) Keine Skriptfehler (Mittwoch)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await zu();
   }
@@ -124,8 +127,8 @@ const MAI = [bericht("2026-05-21", "Nacht", "MaiDoNacht"), bericht("2026-05-22",
     const { p, zu } = await seite("Chef", "2026-09-28T08:00:00", [...FREITAG, bericht("2026-09-28", "Früh", "MoFrueh")]);
     const h = await blatt(p);
     const g = gruppen(h);
-    ok("(S5) Die laufende Frühschicht zählt mit: Mo Früh, Fr Spät, Fr Nacht",
-      g.join(",") === "28.09.2026 Früh,25.09.2026 Spät,25.09.2026 Nacht" && /MoFrueh/.test(h) && !/FrFrueh/.test(h), g.join(","));
+    ok("(S5) Die laufende Frühschicht bleibt draußen (Roberto 29.09.): Fr Früh, Fr Spät, Fr Nacht, kein Mo-Bericht im Blatt",
+      g.join(",") === "25.09.2026 Früh,25.09.2026 Spät,25.09.2026 Nacht" && !/MoFrueh/.test(h) && /FrFrueh/.test(h), g.join(","));
     await zu();
   }
   /* (S6) Montag ohne einen Bericht in 30 Tagen */
@@ -133,8 +136,8 @@ const MAI = [bericht("2026-05-21", "Nacht", "MaiDoNacht"), bericht("2026-05-22",
     const { p, zu } = await seite("Chef", "2026-09-28T08:00:00", [bericht("2026-08-10", "Früh", "AltAug")]);
     const h = await blatt(p);
     const g = gruppen(h);
-    ok("(S6) Ohne Einträge in 30 Tagen bleibt das Fenster von jetzt (Mo Früh, So Spät, So Nacht), kein Hinweis",
-      g.join(",") === "28.09.2026 Früh,27.09.2026 Spät,27.09.2026 Nacht" && !hinweis(h) && !/AltAug/.test(h), g.join(","));
+    ok("(S6) Ohne Einträge in 30 Tagen bleibt das Fenster der drei beendeten Schichten (So Früh, So Spät, So Nacht), kein Hinweis",
+      g.join(",") === "27.09.2026 Früh,27.09.2026 Spät,27.09.2026 Nacht" && !hinweis(h) && !/AltAug/.test(h), g.join(","));
     await zu();
   }
   /* (S7) Leser */

@@ -529,11 +529,12 @@ Störungen, nicht den Rest.
   öffnet das bekannte Blatt der Morgenrunde sofort zum Anschauen – ohne
   Druck-Dialog, ohne Blattwahl; Drucken oder „Als PDF speichern" geht aus dem
   Fenster heraus wie bisher. Der Knopf steht allen Gruppen offen, Anschauen ist
-  Lesen. Das Blatt zeigt die laufende und die zwei vorigen Schichten. Fällt
-  eine davon auf Samstag, Sonntag oder einen Feiertag (montags, nach
-  Pfingstmontag …), zeigt es stattdessen die **letzten drei Schichten mit
-  Einträgen** – ein Wochenend-Bericht zählt dabei mit, die laufende Schicht
-  auch, sobald sie einen Eintrag hat. Dieselbe Wahl gilt für das Blatt im
+  Lesen. Das Blatt zeigt die **drei zuletzt beendeten Schichten** – die
+  laufende bleibt draußen, sie interessiert erst am nächsten Morgen (Roberto,
+  29.09.): am Dienstagmorgen also Montag Früh, Spät und Nacht. Fällt eine der
+  drei auf Samstag, Sonntag oder einen Feiertag (montags, nach Pfingstmontag
+  …), zeigt es stattdessen die **letzten drei Schichten mit Einträgen** – ein
+  Wochenend-Bericht zählt dabei mit. Dieselbe Wahl gilt für das Blatt im
   Druck-Dialog. Unter dem Kopf steht die Zeile **„Aktuell PitStop: Anlage |
   Nächster PitStop: Datum · Anlage"** – links, was heute ansteht (erledigte
   mit ✓), rechts der erste Tag nach heute, dazu die zwei danach. Das Fenster öffnet so groß, wie der
