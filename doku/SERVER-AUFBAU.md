@@ -72,10 +72,11 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 ## 4. Die Schritte (jeder wird abgehakt, wenn Roberto ihn bestätigt)
 
 - [x] **Schritt 1** – Ordnerstruktur anlegen, `BTA-Formwerk` löschen – **erledigt 29.09., 09:00** (über die Eingabeaufforderung als Administrator; im Explorer ließ sich auf `C:\BTA` nichts anlegen)
-- [ ] **Schritt 2** – die fünf Gruppen anlegen (Computerverwaltung → Lokale Benutzer und Gruppen)
-- [ ] **Schritt 3** – Mitglieder eintragen (Windows-Anmeldenamen der Kollegen je Standort)
-- [ ] **Schritt 4** – Freigabe-Berechtigung auf `BTA` setzen
-- [ ] **Schritt 5** – NTFS-Rechte je Ordner (Vererbung an den Standort-Ordnern trennen)
+- [x] **Schritt 2** – die fünf Gruppen anlegen – **erledigt 29.09.** (`BTA-Verwalter` mit rciraci, serviceBTA, thomas.smarsly; die vier Standort-Gruppen noch leer)
+- [x] **Schritt 3** – NTFS-Rechte gesetzt – **erledigt 29.09.** per `icacls` als Administrator: `BTA-Verwalter (OI)(CI)F` auf `C:\BTA`; je Standort-Ordner `…-Werkstatt (OI)(CI)M` und `…-Ansehen (OI)(CI)RX`; `BTA-Programm` RX für alle vier Standort-Gruppen. Erster Anlauf ohne Administrator-Fenster scheiterte mit „Zugriff verweigert“ auf den IT-Ordnern (Eigentümer Administrator). Die IT-Einträge (`BTA_Cockpit_write` M, `_read` RX, vererbt) bleiben – solange nur Roberto/Chef/serviceBTA in `write` sind, ist das gleichbedeutend mit Verwalter.
+- [ ] **Schritt 3c** – Standort-Gruppen dürfen den Ordner `C:\BTA` selbst auflisten (RX nur auf diesen Ordner), sonst zeigt der Explorer die Freigabe als „Zugriff verweigert“
+- [ ] **Schritt 4** – Mitglieder in die Standort-Gruppen eintragen (Windows-Anmeldenamen der Kollegen)
+- [ ] **Schritt 5a** – Freigabe-Berechtigung auf `BTA` prüfen/setzen
 - [ ] **Schritt 6** – Zugriff testen: je ein Konto aus Werkstatt und Ansehen an einem PC
 - [ ] **Schritt 7** – Daten kopieren (alle Cockpits zu), Byte-Größen vergleichen
 - [ ] **Schritt 8** – Stick und Werkzeug auf die Server-Pfade (baue ich), je Rechner „Pfade speichern"
