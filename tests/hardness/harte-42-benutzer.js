@@ -209,6 +209,17 @@ const ok = (n, c, zusatz) => {
     keinDialog ? "" : "Seite-1 sieht Benutzer=" + (await p.evaluate(() => localStorage.getItem("werkstatt-kalender-benutzer") + " (" + localStorage.length + " Schlüssel)").catch(() => "?")) + " || Seite-2: " + (await p2.locator("body").innerText()).slice(0, 160).replace(/\n+/g, " / ") + " || localStorage: " + (await p2.evaluate(() => Object.keys(localStorage).map((k) => k + "=" + String(localStorage.getItem(k)).slice(0, 40)).join(" ; "))).slice(0, 600));
   if (speicherDa !== null) ok("(6) Und der Leser bleibt Nur-Leser (kein Zahnrad)",
     (await p2.locator('button[aria-label="Verwalten"]').count()) === 0);
+  else if (!keinDialog) {
+    // Ohne gemerkten Benutzer steht auf Seite 2 der Anmelde-Dialog - für (7)
+    // und alles danach wird die Anmeldung nachgeholt, sonst bricht der Lauf
+    // am Dialog ab (29.09.: erster Suitenlauf mit dem Wächter).
+    console.log("UMGEBUNG | (6) Anmeldung auf Seite 2 nachgeholt, damit (7) ff. laufen können");
+    await p2.locator('input[aria-label="Benutzername"]').fill("MWerkstatt");
+    await p2.locator('input[aria-label="Kennwort"]').fill("Leser");
+    await p2.getByRole("button", { name: "Anmelden", exact: true }).click();
+    await p2.locator('[aria-label="Anmelden"]').waitFor({ state: "hidden", timeout: 10000 }).catch(() => {});
+    await p2.waitForTimeout(500);
+  }
 
   /* ---- (7) Benutzerwechsel über das Datei-Fenster ---- */
   await p2.locator('button[aria-label="Gemeinsame Datei"]').click();
