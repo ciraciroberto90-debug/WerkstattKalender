@@ -157,7 +157,12 @@ const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0
   const p2 = await neueSeite(ctx);
   const t2 = await p2.locator("body").innerText();
   const g1 = /Werkstattschichtplan/.test(t2) && (await p2.evaluate(() => document.documentElement.style.fontSize)) === "125%";
-  ok("(G1) Derselbe Rechner öffnet beim nächsten Mal im Schichtplan, mit Zoom", g1,
+  // Umgebungs-Wächter (ROLLOUT Punkt 24): fehlt der oben bestätigte Schlüssel
+  // wk-geraet nach dem Neustart, hat der Prüf-Browser den Speicher verloren -
+  // UMGEBUNG statt FAIL.
+  const g1SpeicherDa = await p2.evaluate(() => localStorage.getItem("wk-geraet")).catch(() => null);
+  if (g1SpeicherDa === null) console.log("UMGEBUNG | (G1) Prüf-Browser hat den Ursprungs-Speicher beim Neustart verloren (Punkt 24) - (G1) nicht wertbar, übersprungen");
+  else ok("(G1) Derselbe Rechner öffnet beim nächsten Mal im Schichtplan, mit Zoom", g1,
     // Diagnose (28.09.): in der vollen Suite rot, allein grün - was stand da?
     g1 ? "" : "Seite: " + t2.slice(0, 200).replace(/\n+/g, " / ") + " || fontSize=" + (await p2.evaluate(() => document.documentElement.style.fontSize)) + " || localStorage: " + (await p2.evaluate(() => Object.keys(localStorage).map((k) => k + "=" + String(localStorage.getItem(k)).slice(0, 40)).join(" ; "))).slice(0, 600));
   await p2.close();

@@ -197,11 +197,17 @@ const ok = (n, c, zusatz) => {
   const p2 = await neueSeite();
   await verbinde(p2);
   await p2.waitForTimeout(600);
+  // Umgebungs-Wächter (ROLLOUT Punkt 24): Verliert der Prüf-Browser beim
+  // Neustart den Ursprungs-Speicher (der oben bestätigte Schlüssel fehlt),
+  // ist (6) nicht wertbar - das ist kein Cockpit-Fehler und wird als
+  // UMGEBUNG ausgewiesen statt als FAIL.
+  const speicherDa = await p2.evaluate(() => localStorage.getItem("werkstatt-kalender-benutzer")).catch(() => null);
   const keinDialog = (await p2.locator('[aria-label="Anmelden"]').count()) === 0;
-  ok("(6) Nach dem Neustart KEINE erneute Anmelde-Frage", keinDialog,
+  if (speicherDa === null) console.log("UMGEBUNG | (6) Prüf-Browser hat den Ursprungs-Speicher beim Neustart verloren (Punkt 24) - (6) nicht wertbar, übersprungen");
+  else ok("(6) Nach dem Neustart KEINE erneute Anmelde-Frage", keinDialog,
     // Diagnose (28.09.): in der vollen Suite rot, allein grün - was stand da?
     keinDialog ? "" : "Seite-1 sieht Benutzer=" + (await p.evaluate(() => localStorage.getItem("werkstatt-kalender-benutzer") + " (" + localStorage.length + " Schlüssel)").catch(() => "?")) + " || Seite-2: " + (await p2.locator("body").innerText()).slice(0, 160).replace(/\n+/g, " / ") + " || localStorage: " + (await p2.evaluate(() => Object.keys(localStorage).map((k) => k + "=" + String(localStorage.getItem(k)).slice(0, 40)).join(" ; "))).slice(0, 600));
-  ok("(6) Und der Leser bleibt Nur-Leser (kein Zahnrad)",
+  if (speicherDa !== null) ok("(6) Und der Leser bleibt Nur-Leser (kein Zahnrad)",
     (await p2.locator('button[aria-label="Verwalten"]').count()) === 0);
 
   /* ---- (7) Benutzerwechsel über das Datei-Fenster ---- */

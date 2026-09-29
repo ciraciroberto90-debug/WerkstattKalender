@@ -282,7 +282,8 @@ rechts ein Schalter: **Cockpit ansehen als Verwalter / Bearbeiter / Leser**.
 Damit prüft er in Sekunden, was eine Gruppe nach der Rechte-Tabelle sieht und
 darf – eine orange Leiste erinnert daran, „Zurück zur Verwalter-Ansicht" holt
 ihn zurück. Der Nachtschicht-Modus steckt im selben Menü. Bearbeiter und Leser
-behalten das Auge als Nachtschicht-Modus.
+haben dafür seit dem 29.09. einen eigenen **Mond-Knopf** 🌙 oben rechts (reine
+Anzeige, kein Recht – deshalb ohne Zeile in der Rechte-Tabelle).
 
 **Gruppen-Verwalter (seit dem 21.09.).** Wer sich in der Leit-Werkstatt
 (Scheurich) als **Verwalter** anmeldet, bekommt auf diesem Rechner einen
@@ -486,7 +487,11 @@ Störungen, nicht den Rest.
   Ist = davon erledigt), **TPM-Effizienz** (Soll = geplante Termine, Ist =
   erledigte), **Unfälle im Jahr** (als Zahl mit „Tage unfallfrei"), **Backlog
   live** (erledigte Backlog-Arbeiten am Jahr gemessen) und **Kosten vom
-  Jahresbudget**. Darunter die Tagesliste in voller Breite, dann die
+  Jahresbudget**. Seit dem 29.09. gibt es im Katalog zusätzlich
+  **Backlog-Alter (> 48 h / 7 / 14 Tage)**: wie lange offene Backlog-Arbeiten
+  seit ihrer Aufnahme liegen – große Zahl = älter als 14 Tage, Nebenzeile alle
+  drei Stufen, als Ampel oder Top 3 (die drei ältesten); Klick öffnet den
+  Backlog. Darunter die Tagesliste in voller Breite, dann die
   **Whiteboard-Zeile** mit Pinnwand, **Technischer Einkauf** und Heute da
   nebeneinander. Alle fünf Kennzahlen stehen auch einzeln im ▾-Katalog, die
   Whiteboard-Zeile ist ein eigenes Häkchen unter „Reihenfolge der Abschnitte",
@@ -596,6 +601,14 @@ Störungen, nicht den Rest.
   aufräumen"** unter ⚙ → Verlauf & Sicherung: so viele Berichte ohne Anlage
   und Beschreibung, so viele mit Datum nach heute. Ein Klick des Verwalters
   entfernt genau diese, echte Berichte bleiben.
+- **Doppelte Störberichte (seit dem 29.09.):** Bis zum Stand vom 28.09. legte
+  ein zweiter Klick auf „Speichern" denselben Bericht noch einmal an. Die Karte
+  **„Doppelte Störberichte"** daneben findet sie: gleicher Tag, gleiche
+  Schicht, Anlage, Text und Kürzel, binnen 10 Minuten zweimal gemeldet. Sie
+  nennt je Gruppe, welcher Bericht bleibt (der vollständigste, bei Gleichstand
+  die kleinere Nummer) und welche Nummern wegkommen; ein Klick des Verwalters
+  entfernt genau diese. Zweimal dieselbe Störung in einer Schicht mit mehr als
+  10 Minuten Abstand gilt nicht als Doppel.
 - **Links nur mit zugeteilter Sammlung (seit dem 28.09.):** Ein Bearbeiter
   oder Leser ohne Kürzel in „Link-Sammlung" (⚙ → Benutzer & Rechte) sieht
   keinen Linkstreifen mehr, also auch keine fremde Sammlung. Mit Kürzel sieht
@@ -649,7 +662,8 @@ Störungen, nicht den Rest.
   Datei), **Abmelden** und – wo es etwas zu drucken gibt – **Drucken** (nach
   der Rechte-Tabelle, Standard erlaubt; so bleibt der Schichtbericht der
   letzten drei Schichten für die Morgenrunde am Bearbeiter-Rechner
-  erreichbar). Das Auge (Ansicht / Nachtmodus), das Zahnrad, der Werkstatt-
+  erreichbar) – und seit dem 29.09. den **Mond-Knopf** für den Nachtmodus.
+  Das Auge (Ansichts-Schalter), das Zahnrad, der Werkstatt-
   Monitor und Import/Export gehören allein dem Verwalter – in der
   Rechte-Tabelle stehen diese drei Aktionen fest auf „nur Verwalter", eine
   ältere Einstellung in der Datei zieht nicht mehr. Der Kiosk-Rechner

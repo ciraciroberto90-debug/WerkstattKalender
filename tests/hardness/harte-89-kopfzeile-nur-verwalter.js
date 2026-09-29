@@ -84,7 +84,9 @@ const KNOEPFE = ["Drucken", "Ansicht wechseln", "Nachtschicht-Modus", "Verwalten
   {
     const { p, fehler, zu } = await seite("Bea");
     const o = await knoepfe(p);
-    ok("(K2) Bearbeiter: oben rechts nur Ordner und Abmelden (Drucken erst in einem Bereich mit Vorlage)", nur(o, ["Abmelden", "Gemeinsame Datei"]), JSON.stringify(o));
+    // Seit dem 29.09. (Sofort-Liste, Punkt 3) haben Bearbeiter und Leser wieder einen
+    // eigenen Mond-Knopf für den Nachtmodus - reine Anzeige, kein Recht.
+    ok("(K2) Bearbeiter: oben rechts nur Mond, Ordner und Abmelden (Drucken erst in einem Bereich mit Vorlage)", nur(o, ["Nachtschicht-Modus", "Abmelden", "Gemeinsame Datei"]), JSON.stringify(o));
     ok("(K2) Die Bereiche bleiben ihm (TPM, Berichte)", (await tab(p, "TPM").count()) > 0 && (await tab(p, "Berichte").count()) > 0);
     await tab(p, "TPM").first().click();
     await p.waitForTimeout(400);
@@ -105,7 +107,7 @@ const KNOEPFE = ["Drucken", "Ansicht wechseln", "Nachtschicht-Modus", "Verwalten
   {
     const { p, fehler, zu } = await seite("Lea");
     const o = await knoepfe(p);
-    ok("(K3) Leser: oben rechts nur Ordner und Abmelden (auf der Übersicht gibt es nichts zu drucken)", nur(o, ["Abmelden", "Gemeinsame Datei"]), JSON.stringify(o));
+    ok("(K3) Leser: oben rechts nur Mond, Ordner und Abmelden (auf der Übersicht gibt es nichts zu drucken)", nur(o, ["Nachtschicht-Modus", "Abmelden", "Gemeinsame Datei"]), JSON.stringify(o));
     ok("(E) Keine Skriptfehler (Leser)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await zu();
   }

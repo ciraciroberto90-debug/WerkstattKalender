@@ -111,10 +111,14 @@ const ok = (n, c, zusatz) => {
 
   /* ---- (6) Bearbeiter: Auge = Nachtmodus ---- */
   const b = await seite("Bea");
-  // Seit dem 24.09. hat der Bearbeiter oben rechts gar kein Auge mehr (nur
-  // Ordner und Abmelden) - der Nachtmodus ist Verwaltersache (Gerät/Auge-Menü).
-  ok("(6) GEGENPROBE Bearbeiter: kein Auge oben rechts - weder Nachtmodus noch Ansichts-Menü",
-    (await b.p.locator('button[aria-label="Nachtschicht-Modus"]').count()) === 0 && (await b.p.locator('button[aria-label="Ansicht wechseln"]').count()) === 0);
+  // Seit dem 24.09. hat der Bearbeiter oben rechts kein Auge (Ansichts-Menü)
+  // mehr; seit dem 29.09. (Sofort-Liste, Punkt 3) aber wieder einen eigenen
+  // Mond-Knopf für den Nachtmodus - reine Anzeige, kein Recht.
+  ok("(6) GEGENPROBE Bearbeiter: kein Ansichts-Menü oben rechts, aber der Mond-Knopf für den Nachtmodus",
+    (await b.p.locator('button[aria-label="Nachtschicht-Modus"]').count()) === 1 && (await b.p.locator('button[aria-label="Ansicht wechseln"]').count()) === 0);
+  await b.p.locator('button[aria-label="Nachtschicht-Modus"]').click();
+  await b.p.waitForTimeout(300);
+  ok("(6) Der Mond-Knopf schaltet den Nachtmodus für den Bearbeiter ein", await b.p.evaluate(() => document.documentElement.classList.contains("wk-nacht")));
   await b.ctx.close();
 
   await browser.close();

@@ -1785,6 +1785,49 @@ const UEBERSICHT_LAYOUT_KEY = "wk-uebersicht-layout";
    einen ZEITRAUM. Der Katalog sagt nur, was erlaubt ist - gerechnet wird im
    Bauteil (kennzahlDaten), weil dort die Bestände liegen. Neue Kennzahlen
    kommen hier dazu und stehen damit automatisch im Dropdown. */
+/* Doppelte Störberichte (Robertos Befund 28.09., ROLLOUT Punkt 28): Bis zum
+   Stand vom 28.09. legte ein zweiter Klick auf "Speichern" denselben Bericht
+   mit neuer Kennung und nächster Nummer noch einmal an. Ein Doppel ist:
+   gleicher Tag, gleiche Schicht, gleiche Anlage, gleicher Text, gleiches
+   Kürzel, gemeldet binnen 10 Minuten. Je Gruppe bleibt der VOLLSTÄNDIGSTE
+   Bericht (mehr gefüllte Felder - falls jemand nach dem Doppelklick nur eine
+   der Kopien weiter gepflegt hat), bei Gleichstand der mit der KLEINEREN
+   Nummer (der zuerst gespeicherte; die Nummernfolge bleibt lückenlos bis zur
+   ersten Kopie). Berichte ohne Meldezeit werden nie als Doppel gewertet. */
+function findeDoppelteStoerungen(liste) {
+  const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const ms = (s) => Date.parse(s.gemeldetAt || "") || 0;
+  const fuelle = (s) => ["ursache", "getan", "nochZuTun", "ersatzteile", "anlagenteil", "gewerk", "fehlerart"].filter((f) => norm(s[f])).length
+    + (Number(s.ausfallzeit) > 0 ? 1 : 0) + ((s.fotos || []).length > 0 ? 1 : 0) + (s.nachbestellt ? 1 : 0);
+  const gruppen = new Map();
+  for (const s of liste || []) {
+    if (!ms(s) || (!norm(s.stoerung) && !norm(s.anlage))) continue;
+    const k = [s.date || "", norm(s.schicht), norm(s.anlage), norm(s.stoerung), norm(s.melder)].join("|");
+    if (!gruppen.has(k)) gruppen.set(k, []);
+    gruppen.get(k).push(s);
+  }
+  const out = [];
+  for (const g of gruppen.values()) {
+    if (g.length < 2) continue;
+    const sortiert = [...g].sort((a, b) => ms(a) - ms(b));
+    let block = [sortiert[0]];
+    const bloecke = [];
+    for (let i = 1; i < sortiert.length; i++) {
+      if (ms(sortiert[i]) - ms(block[block.length - 1]) <= 10 * 60 * 1000) block.push(sortiert[i]);
+      else { bloecke.push(block); block = [sortiert[i]]; }
+    }
+    bloecke.push(block);
+    for (const b of bloecke) {
+      if (b.length < 2) continue;
+      const behalten = [...b].sort((a, c) => fuelle(c) - fuelle(a)
+        || String(a.nr || "").localeCompare(String(c.nr || ""))
+        || ms(a) - ms(c))[0];
+      out.push({ behalten, weg: b.filter((x) => x !== behalten) });
+    }
+  }
+  return out;
+}
+
 const KENNZAHL_FORMEN = [["zahl", "Zahl"], ["halbkreis", "Halbkreis"], ["verlauf", "Verlauf"], ["ampel", "Ampel"], ["top3", "Top 3"]];
 const KENNZAHL_ZEITRAEUME = { heute: "heute", woche: "diese Woche", monat: "Monat", jahr: "Jahr", tage30: "30 Tage" };
 const KENNZAHLEN = [
@@ -1807,6 +1850,8 @@ const KENNZAHLEN = [
   ["erledigt", "Erledigte Arbeiten", "To-dos & Team", ["zahl", "verlauf"], ["woche", "monat"], "woche"],
   // Whiteboard 23.09.: erledigte Backlog-Arbeiten des Jahres, live in Prozent
   ["backlogLive", "Backlog erledigt (live)", "To-dos & Team", ["halbkreis", "zahl", "ampel"], null],
+  // Whiteboard 23.09. (Einkauf-Kasten): Backlog > 48 h / > 7 Tage / > 14 Tage - wie lange liegt Offenes schon?
+  ["backlogAlter", "Backlog-Alter (> 48 h / 7 / 14 Tage)", "To-dos & Team", ["zahl", "ampel", "top3"], null],
   ["stunden", "Stunden (Zeiterfassung)", "To-dos & Team", ["zahl", "verlauf", "top3"], ["woche", "monat"], "woche"],
   ["jetztDa", "Jetzt in der Werkstatt", "To-dos & Team", ["zahl"], null],
   // Whiteboard 23.09.: Unfälle des Jahres (Liste im ⚙ Regeln & Listen)
@@ -6617,6 +6662,24 @@ function App() {
           titel: `Erledigte Backlog-Arbeiten, gemessen an den im Jahr ${jahrKey} aufgenommenen (live)`, farbe: "#22262B", akzent: p === null ? "#CBD1D8" : ampel === "rot" ? "#B23A34" : "#C97A2B",
           farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ["#E8B33C", "#C97A2B"], ampel, ampelRegel: "grün ab 75 % erledigt, gelb ab 50 %" };
       }
+      case "backlogAlter": {
+        // Alter = Tage seit der Aufnahme (Feld date) bis heute. Die drei
+        // Schwellen vom Whiteboard: > 48 h (ab 2 Tagen), > 7 Tage, > 14 Tage.
+        // Die große Zahl ist die schlimmste Stufe (> 14 Tage), die Ampel hängt
+        // an ihr: grün keine, gelb bis 2, sonst rot.
+        const alterTage = (a) => Math.max(0, Math.round((new Date(todayKey + "T12:00:00") - new Date(String(a.date || todayKey).slice(0, 10) + "T12:00:00")) / 86400000));
+        const mitAlter = arbeitenOffen.map((a) => ({ a, tage: alterTage(a) }));
+        const n48 = mitAlter.filter((x) => x.tage >= 2).length;
+        const n7 = mitAlter.filter((x) => x.tage > 7).length;
+        const n14 = mitAlter.filter((x) => x.tage > 14).length;
+        const ampel = n14 === 0 ? "gruen" : n14 <= 2 ? "gelb" : "rot";
+        const aelteste = [...mitAlter].sort((x, y) => y.tage - x.tage).slice(0, 3);
+        return { label: "Backlog-Alter", kurz: "Backlog-Alter", text: n14, sub: `> 48 h: ${n48} · > 7 Tage: ${n7} · > 14 Tage: ${n14}`,
+          titel: `Offene Backlog-Arbeiten nach Liegezeit seit der Aufnahme: ${n48} älter als 48 h, ${n7} älter als 7 Tage, ${n14} älter als 14 Tage (die große Zahl)`,
+          farbe: n14 > 0 ? "#B23A34" : "#2F7D4F", akzent: ampel === "rot" ? "#B23A34" : ampel === "gelb" ? "#C97A2B" : "#2F7D4F",
+          ampel, ampelRegel: "nach Arbeiten älter als 14 Tage: grün keine, gelb bis 2",
+          top3: aelteste.map((x) => ({ name: x.a.name || "–", text: `seit ${x.tage} Tagen` })) };
+      }
       case "unfaelle": {
         // Liste aus ⚙ Regeln & Listen → Sicherheit. Unfallfreie Tage ab dem
         // letzten Unfall - ohne erfassten Unfall ab dem 1. Januar.
@@ -9165,7 +9228,23 @@ function App() {
                 </>
               )}
             </div>
-          ) : null}
+          ) : (
+            /* Bearbeiter, Leser und Nur-Ansehen (29.09., Robertos "Ja" zur
+               Sofort-Liste, Punkt 3): seit "Kopfzeile nur Verwalter" (24.09.)
+               kamen sie an den Nachtmodus nur noch über die Geräte-Automatik.
+               Ein kleiner Mond-Knopf gibt ihn zurück - reine Anzeige, kein
+               Recht, deshalb ohne Matrix-Zeile. */
+            <button
+              onClick={() => setNachtModus((n) => !n)}
+              className="flex items-center text-white p-1.5 rounded hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: nachtModus ? "#C97A2B" : "#4B5259" }}
+              title={nachtModus ? "Nachtschicht-Modus ausschalten" : "Nachtschicht-Modus einschalten (dunkle Anzeige)"}
+              aria-label="Nachtschicht-Modus"
+              aria-pressed={nachtModus}
+            >
+              <span style={{ fontSize: "13px", lineHeight: 1 }}>🌙</span>
+            </button>
+          )}
           {istVerwalter && !readerMode && erlaubt("ZAHNRAD") && (
             <button
               onClick={openSettings}
@@ -11315,7 +11394,7 @@ function App() {
             case "kosten": return zahnrad("regeln-kosten", "Budget und Ausgaben im ⚙ pflegen");
             case "stoerOffen": case "stoerAnzahl": case "ausfallzeit": case "sorgenkind": case "nachbestellungen": return bericht("STOERUNGEN", "Störungen öffnen");
             case "todoOffen": case "todoSollIst": return bericht("TODO", "To-dos öffnen");
-            case "erledigt": case "backlogLive": return bericht("BACKLOG", "Backlog öffnen");
+            case "erledigt": case "backlogLive": case "backlogAlter": return bericht("BACKLOG", "Backlog öffnen");
             case "stunden": return bericht("ZEIT", "Zeiterfassung öffnen");
             case "jetztDa": return sichtbar("SCHICHTPLAN") ? { mach: () => { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }, hinweis: "Schichtplan öffnen" } : null;
             case "heuteFaellig": case "heuteErledigt": case "ueberfaellig": case "terminePlan": case "naechsterPitStop":
@@ -17108,6 +17187,47 @@ function App() {
                       }}
                       className="text-xs font-bold text-white rounded px-3 py-1.5 mt-2" style={{ backgroundColor: "#B23A34" }}>
                       {reste.length} Berichte entfernen
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+            {/* Doppelte Störberichte (29.09., Robertos "Ja" zur Sofort-Liste,
+                Punkt 2): der Echtbetrieb hat vor dem Stand vom 28.09. Doppelte
+                erzeugt (Doppelklick auf Speichern). Gleicher Bauplan wie die
+                Import-Reste: Bilanz, Liste der Gruppen, ein Knopf. */}
+            {(() => {
+              const doppel = findeDoppelteStoerungen(stoerungen);
+              const weg = doppel.flatMap((d) => d.weg);
+              return (
+                <div className="rounded-lg px-3 py-2 mb-3" style={{ backgroundColor: weg.length ? "#FBF3DA" : "#F7F8F9", border: `1px solid ${weg.length ? "#E3CE8F" : "#E2E4E7"}` }} data-doppelte-berichte={weg.length}>
+                  <div className="text-xs font-bold mb-1" style={{ color: "#5B6572" }}>Doppelte Störberichte</div>
+                  <div className="text-xs" style={{ color: "#39414B" }}>
+                    {weg.length === 0
+                      ? "Keine doppelt gespeicherten Störberichte im Bestand (gleicher Bericht binnen 10 Minuten zweimal gemeldet)."
+                      : <><b>{weg.length}</b> Störberichte sind Doppelte von <b>{doppel.length}</b> Berichten: gleicher Tag, gleiche Schicht, Anlage, Text und Kürzel, binnen 10 Minuten zweimal gemeldet (Doppelklick auf Speichern vor dem Stand vom 28.09.). Je Gruppe bleibt der vollständigste Bericht.</>}
+                  </div>
+                  {doppel.length > 0 && (
+                    <ul className="text-xs mt-1 pl-4 list-disc" style={{ color: "#5B6572" }}>
+                      {doppel.slice(0, 8).map((d) => (
+                        <li key={d.behalten.id} data-doppelt-gruppe={d.behalten.nr || d.behalten.id}>
+                          {formatDateDE(d.behalten.date)} {d.behalten.schicht} · {d.behalten.anlage} · {String(d.behalten.stoerung || "").slice(0, 50)} — bleibt Nr. {d.behalten.nr || "?"}, weg: {d.weg.map((x) => x.nr || "?").join(", ")}
+                        </li>
+                      ))}
+                      {doppel.length > 8 && <li>… und {doppel.length - 8} weitere Gruppen</li>}
+                    </ul>
+                  )}
+                  {weg.length > 0 && stoerDarfSchreiben && !readerMode && istVerwalter && (
+                    <button
+                      aria-label="Doppelte Berichte entfernen"
+                      onClick={async () => {
+                        if (!window.confirm(`${weg.length} doppelte Störberichte entfernen?\n\nJe Gruppe bleibt der vollständigste Bericht stehen (Ursache, Maßnahme, Ausfallzeit). Nichts anderes wird angefasst.`)) return;
+                        const ids = new Set(weg.map((x) => x.id));
+                        const nach = await persistStoer(stoerungen.filter((x) => !ids.has(x.id)));
+                        setIkomMeldung(Array.isArray(nach) ? `${weg.length} doppelte Berichte entfernt.` : "Entfernen unvollständig - bitte Meldungen oben beachten.");
+                      }}
+                      className="text-xs font-bold text-white rounded px-3 py-1.5 mt-2" style={{ backgroundColor: "#B23A34" }}>
+                      {weg.length} Doppelte entfernen
                     </button>
                   )}
                 </div>
