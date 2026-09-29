@@ -71,7 +71,7 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 
 ## 4. Die Schritte (jeder wird abgehakt, wenn Roberto ihn bestätigt)
 
-- [ ] **Schritt 1** – Ordnerstruktur anlegen, `BTA-Formwerk` löschen
+- [x] **Schritt 1** – Ordnerstruktur anlegen, `BTA-Formwerk` löschen – **erledigt 29.09., 09:00** (über die Eingabeaufforderung als Administrator; im Explorer ließ sich auf `C:\BTA` nichts anlegen)
 - [ ] **Schritt 2** – die fünf Gruppen anlegen (Computerverwaltung → Lokale Benutzer und Gruppen)
 - [ ] **Schritt 3** – Mitglieder eintragen (Windows-Anmeldenamen der Kollegen je Standort)
 - [ ] **Schritt 4** – Freigabe-Berechtigung auf `BTA` setzen
@@ -82,6 +82,18 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - [ ] **Schritt 9** – Kontrolle je Rechner (Kennkarte), alten Ordner auf `W:` umbenennen
 - [ ] **Schritt 10** – Schattenkopien + nächtliche Sicherungsaufgabe
 - [ ] **Schritt 11** – Komplettpaket nach `BTA-Programm\Installation`, Werkzeug bekommt den Server als ersten Download-Weg
+
+## Befunde vom 29.09. (Prüfungen 1–3)
+
+- Die Freigabe `BTA` liegt lokal unter **`C:\BTA`** (einziges Laufwerk, 224 GB frei).
+- Die IT hat zwei **Domänen-Gruppen** angelegt und auf `C:\BTA` eingetragen:
+  `SCHEURICH\BTA_Cockpit_write` (Ändern; Mitglieder: rciraci, serviceBTA,
+  thomas.smarsly) und `SCHEURICH\BTA_Cockpit_read` (leer). Domäne
+  `scheurich.local`. Diese Gruppen bleiben unangetastet; die Kollegen kommen
+  in die lokalen Server-Gruppen (Robertos Handgriff ohne IT).
+- Lokale Gruppe `Administratoren` auf dem Server: Administrator, Domain
+  Admins, `SCHEURICH\rciraci`, `SCHEURICH\serviceBTA` – Roberto ist mit
+  beiden Konten Admin.
 
 ## Offene Fragen
 
