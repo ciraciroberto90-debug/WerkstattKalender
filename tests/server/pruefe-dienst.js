@@ -159,7 +159,8 @@ const T = "2026-09-30T10:00:00.000Z";
 
   /* (A14) */
   const seite = await fetch(B + "/status"); const html = await seite.text();
-  ok("(A14) /status ist eine Seite mit beiden Standorten", seite.status === 200 && /BTA-Cockpit-Dienst/.test(html) && /Scheurich/.test(html) && /Soendgen/.test(html));
+  /* Zeit in Serverzeit „dd.mm.yyyy hh:mm Uhr“ – nicht der ISO-Stempel (Roberto sah 13:43 statt 15:43, 30.09.) */
+  ok("(A14) /status ist eine Seite mit beiden Standorten und Serverzeit", seite.status === 200 && /BTA-Cockpit-Dienst/.test(html) && /Scheurich/.test(html) && /Soendgen/.test(html) && /Läuft seit \d{2}\.\d{2}\.\d{4} \d{2}:\d{2} Uhr/.test(html) && !/Läuft seit \d{4}-\d{2}-\d{2}T/.test(html), (html.match(/Läuft seit [^(]*/) || [""])[0]);
   ok("(A14) /app/ ohne App-Datei -> 404; kaputtes JSON -> 400", (await fetch(B + "/app/")).status === 404 && (await fetch(B + "/api/scheurich/aenderungen", { method: "POST", body: "{kaputt", headers: { "Content-Type": "application/json" } })).status === 400);
 
   kind.kill("SIGTERM");
