@@ -452,7 +452,20 @@ $kNode.Add_Click({
     Schreibe-Log ("Lade Node " + $NodeFassung + " (ca. 35 MB) von nodejs.org ...")
     $lauf = Start-Process -FilePath "curl.exe" -ArgumentList @("-L", "-f", "-sS", "-o", ('"' + $zip + '"'), $NodeUrl) -WindowStyle Hidden -PassThru
     while (-not $lauf.HasExited) { if (Test-Path -LiteralPath $zip) { $lblFortschritt.Text = ([Math]::Round((Get-Item -LiteralPath $zip).Length / 1MB)).ToString() + " MB" }; [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 250 }
-    if ($lauf.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $zip)) { throw "Download fehlgeschlagen (kein Internet auf dem Server oder nodejs.org gesperrt)." }
+    if ($lauf.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $zip)) {
+      # Zweiter Weg: curl.exe kennt den Firmen-Proxy nicht von selbst, der
+      # Browser auf dem Server schon (Roberto 30.09.: "ich kann ins Internet").
+      # Invoke-WebRequest nimmt die Windows-Proxy-Einstellung mit.
+      Schreibe-Log "curl.exe kam nicht durch - zweiter Weg ueber die Windows-Proxy-Einstellung ..."
+      $lblFortschritt.Text = "laedt (2. Weg)"; [System.Windows.Forms.Application]::DoEvents()
+      Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
+      try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+      $alt = $ProgressPreference; $ProgressPreference = "SilentlyContinue"
+      try { Invoke-WebRequest -Uri $NodeUrl -OutFile $zip -UseBasicParsing -TimeoutSec 600 } finally { $ProgressPreference = $alt }
+      if (-not (Test-Path -LiteralPath $zip)) { throw "Download fehlgeschlagen (kein Internet auf dem Server oder nodejs.org gesperrt)." }
+    }
+    $mb = [Math]::Round((Get-Item -LiteralPath $zip).Length / 1MB)
+    if ($mb -lt 20) { throw ("Download unvollstaendig: nur " + $mb + " MB statt ca. 35 MB.") }
     Schreibe-Log "Entpacke node.exe ..."
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archiv = [System.IO.Compression.ZipFile]::OpenRead($zip)
