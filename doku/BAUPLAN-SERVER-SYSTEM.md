@@ -221,8 +221,8 @@ weiter dort behoben (kleine Fixes), größere Wünsche warten auf das neue Syste
 1. ~~**Freigabe des Plans**~~ – **FREIGEGEBEN 30.09.** (mit den zwei Änderungen: Anmeldung wie heute, Sicherung im Zusammenspiel mit der IT-Netzsicherung).
 2. ~~**Anmeldung**~~ – **entschieden 30.09.: bleibt wie heute** (Benutzerliste,
    Rollen, gemerkte Anmeldung). Windows-Konto nur als späterer Ausbau.
-3. **Soendgen:** von Anfang an als zweite Datenbank anlegen (leer, blanko) –
-   ja? Die Domänenfrage der SK-Kollegen bleibt davon unberührt.
+3. ~~**Soendgen**~~ – **entschieden 30.09.: ja**, von Anfang an als zweite, leere
+   Datenbank in `BTA-Soendgen`; die Trennung wird ab Etappe A mitgeprüft.
 4. **Port und Name:** `http://v-btacockpit-01:8765` – oder wünscht die IT
    einen Namen wie `cockpit.scheurich.local`? (Nur Komfort.)
 5. **Fotos:** heute in `Fotos\` neben der Datei – künftig vom Server verwaltet
