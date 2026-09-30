@@ -112,7 +112,9 @@ $weiss  = [System.Drawing.Color]::White
 
 $fenster = New-Object System.Windows.Forms.Form
 $fenster.Text = "BTA-Cockpit - Server-Werkzeug"
-$fenster.ClientSize = New-Object System.Drawing.Size(700, 740)
+# 700 hoch statt 740: bei 125 % Schriftgroesse (Robertos Server-Sitzung 30.09.)
+# war der untere Rand mit 740 abgeschnitten.
+$fenster.ClientSize = New-Object System.Drawing.Size(700, 700)
 $fenster.FormBorderStyle = "FixedSingle"
 $fenster.MaximizeBox = $false
 $fenster.StartPosition = "CenterScreen"
@@ -158,7 +160,7 @@ $lblStatus2.AutoSize = $true
 # =============================================================================
 $reiter = New-Object System.Windows.Forms.TabControl
 $reiter.Location = New-Object System.Drawing.Point(12, 104)
-$reiter.Size = New-Object System.Drawing.Size(676, 400)
+$reiter.Size = New-Object System.Drawing.Size(676, 380)
 $tabPruef = New-Object System.Windows.Forms.TabPage; $tabPruef.Text = "Pruefen";    $tabPruef.BackColor = $weiss; $tabPruef.UseVisualStyleBackColor = $true
 $tabEin   = New-Object System.Windows.Forms.TabPage; $tabEin.Text   = "Einrichten"; $tabEin.BackColor = $weiss;   $tabEin.UseVisualStyleBackColor = $true
 $tabWart  = New-Object System.Windows.Forms.TabPage; $tabWart.Text  = "Wartung";    $tabWart.BackColor = $weiss;  $tabWart.UseVisualStyleBackColor = $true
@@ -171,7 +173,10 @@ $lblPruef.Text = "Acht Fragen an den Server. Gruen = passt, gelb = fehlt noch (E
 $lblPruef.Location = New-Object System.Drawing.Point(12, 10)
 $lblPruef.Size = New-Object System.Drawing.Size(640, 22)
 $lblPruef.ForeColor = [System.Drawing.Color]::Gray
-$ampelTitel = @("Als Administrator gestartet", "Ordner unter C:\BTA (Programm, Scheurich, Sicherung, Soendgen)", "Fuenf BTA-Gruppen auf dem Server", "Node (auf dem Stick oder schon im Dienst-Ordner)", "Dienst-Dateien im Dienst-Ordner", "Aufgabe '" + $AufgabeName + "' (Beim Systemstart)", "Firewall-Regel '" + $FirewallName + "'", "Dienst antwortet (/api/status)")
+# Namen werden IN den Text eingebettet ("...$AufgabeName...") statt mit + angehaengt:
+# in einer Liste bindet das Komma staerker als das Plus, "a" + $x + "b", "c" zerfiel
+# am 30.09. auf dem Server in elf statt acht Zeilen (Robertos Bild).
+$ampelTitel = @("Als Administrator gestartet", "Ordner unter C:\BTA (Programm, Scheurich, Sicherung, Soendgen)", "Fuenf BTA-Gruppen auf dem Server", "Node (auf dem Stick oder schon im Dienst-Ordner)", "Dienst-Dateien im Dienst-Ordner", "Aufgabe '$AufgabeName' (Beim Systemstart)", "Firewall-Regel '$FirewallName'", "Dienst antwortet (/api/status)")
 $ampelZeilen = @()
 $y = 40
 foreach ($t in $ampelTitel) {
@@ -301,18 +306,18 @@ $tabImp.Controls.AddRange(@($lblImp, $kImport))
 #  Dauerhaft sichtbar: Ladebalken + Protokoll
 # =============================================================================
 $balken = New-Object System.Windows.Forms.ProgressBar
-$balken.Location = New-Object System.Drawing.Point(16, 512)
+$balken.Location = New-Object System.Drawing.Point(16, 492)
 $balken.Size = New-Object System.Drawing.Size(510, 12)
 $balken.Style = "Marquee"
 $balken.Visible = $false
 $lblFortschritt = New-Object System.Windows.Forms.Label
-$lblFortschritt.Location = New-Object System.Drawing.Point(532, 508)
+$lblFortschritt.Location = New-Object System.Drawing.Point(532, 488)
 $lblFortschritt.Size = New-Object System.Drawing.Size(152, 18)
 $lblFortschritt.TextAlign = "MiddleRight"
 $lblFortschritt.ForeColor = [System.Drawing.Color]::Gray
 $logFeld = New-Object System.Windows.Forms.TextBox
-$logFeld.Location = New-Object System.Drawing.Point(12, 530)
-$logFeld.Size = New-Object System.Drawing.Size(676, 174)
+$logFeld.Location = New-Object System.Drawing.Point(12, 510)
+$logFeld.Size = New-Object System.Drawing.Size(676, 154)
 $logFeld.Multiline = $true
 $logFeld.ReadOnly = $true
 $logFeld.ScrollBars = "Vertical"
@@ -321,12 +326,12 @@ $logFeld.BackColor = [System.Drawing.Color]::FromArgb(30, 33, 36)
 $logFeld.ForeColor = [System.Drawing.Color]::Gainsboro
 $kProtokoll = New-Object System.Windows.Forms.Button
 $kProtokoll.Text = "Protokoll speichern..."
-$kProtokoll.Location = New-Object System.Drawing.Point(536, 708)
+$kProtokoll.Location = New-Object System.Drawing.Point(536, 668)
 $kProtokoll.Size = New-Object System.Drawing.Size(152, 26)
 $kProtokoll.FlatStyle = "System"
 $lblProtokoll = New-Object System.Windows.Forms.Label
 $lblProtokoll.Text = "Protokoll - jede Aktion wird hier mitgeschrieben:"
-$lblProtokoll.Location = New-Object System.Drawing.Point(12, 712)
+$lblProtokoll.Location = New-Object System.Drawing.Point(12, 672)
 $lblProtokoll.AutoSize = $true
 $lblProtokoll.ForeColor = [System.Drawing.Color]::Gray
 $fenster.Controls.AddRange(@($band, $lblStatus1, $lblStatus2, $reiter, $balken, $lblFortschritt, $logFeld, $lblProtokoll, $kProtokoll))
@@ -392,7 +397,7 @@ function Pruefe-Alles([bool]$laut) {
   # 4 Node
   if (Test-Path -LiteralPath $nodeExe) { Setze-Ampel $ampelZeilen[3] "gruen" ("im Dienst-Ordner: " + (& $nodeExe -v)) }
   elseif (Test-Path -LiteralPath $stickNode) { Setze-Ampel $ampelZeilen[3] "gelb" "auf dem Stick - Einrichten kopiert es" }
-  else { Setze-Ampel $ampelZeilen[3] "rot" "weder auf dem Stick noch im Dienst-Ordner - 'Node herunterladen' im Reiter Einrichten" }
+  else { Setze-Ampel $ampelZeilen[3] "rot" "fehlt - Reiter Einrichten: 'Node herunterladen'" }
   $ergebnis.node = ((Test-Path -LiteralPath $nodeExe) -or (Test-Path -LiteralPath $stickNode))
   # 5 Dienst-Dateien
   if ((Test-Path -LiteralPath $dienstJs) -and (Test-Path -LiteralPath (Join-Path $DienstOrdner "db.js")) -and (Test-Path -LiteralPath $einstellungenPfad)) { Setze-Ampel $ampelZeilen[4] "gruen" "dienst.js, db.js, einstellungen.json" }

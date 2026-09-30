@@ -99,12 +99,16 @@ if (pwsh) {
       $ast = [System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$tokens, [ref]$errors)
       $keys = @("if","else","elseif","foreach","for","while","switch","try","catch","return","do","until")
       $treffer = @($ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true) | Where-Object { $_.GetCommandName() -in $keys })
+      # Plus vor Komma: "a" + $x + "b", "c" in einer Liste - das Komma bindet staerker,
+      # die Liste zerfiel am 30.09. in elf statt acht Zeilen. Erkennbar am AST: ein
+      # Plus, dessen rechte Seite eine Komma-Liste ist.
+      $treffer += @($ast.FindAll({ $args[0] -is [System.Management.Automation.Language.BinaryExpressionAst] -and $args[0].Operator -eq "Plus" -and $args[0].Right -is [System.Management.Automation.Language.ArrayLiteralAst] }, $true))
       "$([System.IO.Path]::GetFileName($f))|$($errors.Count)|$($treffer.Count)|" + (($errors | ForEach-Object { "Z" + $_.Extent.StartLineNumber + " " + $_.Message }) + ($treffer | ForEach-Object { "Z" + $_.Extent.StartLineNumber + " " + $_.Extent.Text }) -join " · ")
     }`;
   const aus = execSync(`"${pwsh}" -NoProfile -Command '${skript.replace(/'/g, "''")}'`, { shell: "/bin/bash" }).toString().trim().split("\n");
   for (const zeile of aus) {
     const [datei, fehler, schl, detail] = zeile.split("|");
-    pruef(`${datei}: PowerShell-Parser ohne Fehler, kein Schlüsselwort als Befehl`, fehler === "0" && schl === "0", `${fehler} Fehler, ${schl} Schlüsselwort-Befehle${detail ? " – " + detail : ""}`);
+    pruef(`${datei}: PowerShell-Parser ohne Fehler, kein Schlüsselwort als Befehl, kein Plus vor Komma`, fehler === "0" && schl === "0", `${fehler} Fehler, ${schl} Treffer${detail ? " – " + detail : ""}`);
   }
 } else {
   console.log("UNGEMESSEN | PowerShell-Parser: kein pwsh/powershell vorhanden - nur die Muster-Prüfung oben");
