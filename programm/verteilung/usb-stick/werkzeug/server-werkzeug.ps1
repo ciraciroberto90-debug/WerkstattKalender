@@ -68,7 +68,7 @@ $NodeFassung = "v22.23.3"
 # Import und Vorschau verlangen genau diese Fassung auf dem Server - sonst
 # passen Werkzeug und Dienst nicht zusammen (30.09., 22:03: leere "davon"-Zeile,
 # weil "Einrichten" uebersprungen wurde). stick-bauen.js prueft den Gleichstand.
-$DienstFassungStick = "0.2.1"
+$DienstFassungStick = "0.2.2"
 $NodeUrl = "https://nodejs.org/dist/$NodeFassung/node-$NodeFassung-win-x64.zip"
 
 $hier  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -748,7 +748,7 @@ function Import-Laufen([bool]$nurVorschau) {
       Schreibe-Log ($praefix + $teil.Titel + ": Datei-Kopf format=" + $kopf.format + ", standort=" + $kopf.standort + ", gespeichert " + $kopf.savedAt)
       Schreibe-Log ($praefix + $teil.Titel + ": " + $r.gelesen + " gelesen - " + $r.neu + " neu, " + $r.geaendert + " geaendert, " + $r.unveraendert + " unveraendert, " + $r.geloescht + " geloescht (Loeschliste), " + $r.konfig + " Einstellungen, " + $r.ohneId + " ohne Kennung  [" + $ms + " ms]")
       # Die Kennkarte der App zaehlt nur fachliche Zeilen - diese Zahl muss zu ihr passen.
-      Schreibe-Log ($praefix + $teil.Titel + ": davon " + $r.davon.fachlich + " FACHLICH (= Kennkarte), " + $r.davon.verlauf + " Verlauf, " + $r.davon.einstellungen + " Einstellungen")
+      Schreibe-Log ($praefix + $teil.Titel + ": davon " + $r.davon.fachlich + " FACHLICH (= Kennkarte), " + $r.davon.verlauf + " Verlauf, " + $r.davon.einstellungen + " Einstellungen" + $(if ($r.davon.verworfen -gt 0) { ", " + $r.davon.verworfen + " durch juengere Loeschmarke verworfen" } else { "" }) + $(if ($r.davon.lebtTrotzLoeschliste -gt 0) { ", " + $r.davon.lebtTrotzLoeschliste + " nach Loeschung neu angelegt (leben)" } else { "" }))
       if (-not $nurVorschau) {
         $n = $r.nachweis
         $satz = if ($n.abweichungen -eq 0) { "NACHWEIS OK - " + $n.eintraegeVerglichen + " Eintraege zurueckgelesen, 0 Abweichungen" } else { "NACHWEIS ROT - " + $n.abweichungen + " Abweichungen: " + (($n.beispiele | Select-Object -First 3) -join "; ") }

@@ -136,6 +136,17 @@ const T = "2026-09-30T10:00:00.000Z";
   ok("(B3) Echter Import: 1 neu, 1 geändert -> Version 2; Nachweis 0 Abweichungen; Stand fachlich vorher 50 -> nachher 51 (+1 Verlauf); Kopf mit savedAt",
     echt.status === 200 && echt.k.neu === 1 && echt.k.geaendert === 1 && echt.k.version === 2 && echt.k.nachweis && echt.k.nachweis.abweichungen === 0 && echt.k.nachweis.eintraegeVerglichen === 52 && echt.k.stand.vorher.eintraege === 50 && echt.k.stand.nachher.eintraege === 51 && echt.k.stand.nachher.verlauf.eintraege === 1 && echt.k.kopf.savedAt === T,
     JSON.stringify({ z: echt.k.neu + "/" + echt.k.geaendert, v: echt.k.version, n: echt.k.nachweis, s: echt.k.stand }).slice(0, 220));
+  /* (B5) Löschliste nach Zeitstempel wie die App (Robertos Import 30.09.: 8 von 7.306 fehlten):
+     „wieder“ steht in der Löschliste (T1) UND als Eintrag mit jüngerem updatedAt (T2) -> lebt;
+     „tot“ steht als Eintrag (T1) und in der Löschliste mit jüngerer Marke (T2) -> gelöscht, nicht geschrieben. */
+  const T1 = "2026-09-01T00:00:00.000Z", T2 = "2026-09-20T00:00:00.000Z";
+  const dateiB5 = { ...dateiB, entries: dateiB.entries.concat([{ id: "wieder", date: "2026-09-20", category: "TODO", name: "Nach dem Löschen neu angelegt", updatedAt: T2 }, { id: "tot", date: "2026-09-01", category: "TODO", name: "Gelöscht bleibt gelöscht", updatedAt: T1 }]), deleted: { ...dateiB.deleted, wieder: T1, tot: T2 } };
+  const b5 = await post("/api/soendgen/import", dateiB5);
+  const exB5 = (await holen("/api/soendgen/export.json")).k;
+  ok("(B5) Löschliste nach Zeitstempel: „wieder“ lebt (1 neu, kein Grabstein), „tot“ verworfen (1 Grabstein, nicht geschrieben); Nachweis 0; Stand 52 fachlich",
+    b5.status === 200 && b5.k.neu === 1 && b5.k.geloescht === 1 && b5.k.davon.verworfen === 1 && b5.k.davon.lebtTrotzLoeschliste === 1 && b5.k.nachweis.abweichungen === 0
+      && exB5.entries.some((e) => e.id === "wieder") && !exB5.entries.some((e) => e.id === "tot") && exB5.deleted.tot === T2 && !exB5.deleted.wieder && b5.k.stand.nachher.eintraege === 52,
+    JSON.stringify({ neu: b5.k.neu, gel: b5.k.geloescht, davon: b5.k.davon, n: b5.k.nachweis.abweichungen, stand: b5.k.stand.nachher.eintraege }));
   // Der Vergleicher muss Abweichungen auch FINDEN (sonst wäre der Nachweis wertlos): fehlend, verändert, überzählig, Löschliste, Konfig.
   const { vergleicheV1 } = require(path.join(WURZEL, "server", "dienst.js"));
   const links = { entries: [{ id: "a", x: 1 }, { id: "b", x: 2 }, { id: "c", x: 3 }], deleted: { d: "2026-01-01T00:00:00.000Z" }, config: { team: [1, 2] } };

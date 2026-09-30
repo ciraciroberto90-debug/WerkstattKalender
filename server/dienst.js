@@ -283,7 +283,7 @@ function starten(einstellungen, { still = false } = {}) {
   });
 }
 
-const FASSUNG = "0.2.1"; // 0.2.x = Etappe B: Import-Vorschau, Standort-Wächter, Nachweis, Serverzeit; 0.2.1 zählt wie die Kennkarte (30.09.)
+const FASSUNG = "0.2.2"; // 0.2.x = Etappe B: Import-Vorschau, Standort-Wächter, Nachweis, Serverzeit; 0.2.1 zählt wie die Kennkarte; 0.2.2 Löschliste nach Zeitstempel wie die App (30.09.)
 
 /* Import-Nachweis: eingelesene Datei gegen den Export aus der Datenbank.
    Einträge Feld für Feld (JSON-Text je id), Löschliste nach Kennung, Konfig je
@@ -298,13 +298,16 @@ function vergleicheV1(datei, exportiert) {
   // Nicht je id die Liste absuchen - das war bei 17.000 Einträgen quadratisch (10 s, gemessen 30.09.).
   const gesehen = new Map();
   for (const e of datei.entries || []) { if (e && e.id != null) gesehen.set(String(e.id), e); }
+  // Dieselbe Regel wie Import und App: Löschmarke >= updatedAt -> gelöscht, sonst lebt der Eintrag.
+  const loeschliste = datei.deleted && typeof datei.deleted === "object" ? datei.deleted : {};
+  const tot = (id) => { const am = loeschliste[id]; const e = gesehen.get(id); return !!am && (!e || String(am) >= String(e.updatedAt || "")); };
   for (const [id, letzte] of gesehen) {
-    if (datei.deleted && Object.prototype.hasOwnProperty.call(datei.deleted, id)) { if (exp.has(id)) merke(`Eintrag ${id} steht in der Löschliste, ist im Export aber noch da`); continue; }
+    if (tot(id)) { if (exp.has(id)) merke(`Eintrag ${id} steht mit jüngerer Löschmarke in der Löschliste, ist im Export aber noch da`); continue; }
     if (!exp.has(id)) { merke(`Eintrag ${id} fehlt im Export`); continue; }
     if (exp.get(id) !== JSON.stringify(letzte)) merke(`Eintrag ${id} unterscheidet sich`);
   }
-  for (const id of exp.keys()) if (!gesehen.has(id)) merke(`Eintrag ${id} ist im Export, aber nicht in der Datei`);
-  for (const id of Object.keys(datei.deleted || {})) if (!(exportiert.deleted || {})[id]) merke(`Löschliste: ${id} fehlt im Export`);
+  for (const id of exp.keys()) if (!gesehen.has(id) || tot(id)) merke(`Eintrag ${id} ist im Export, aber nicht (lebend) in der Datei`);
+  for (const id of Object.keys(loeschliste)) if (tot(id) && !(exportiert.deleted || {})[id]) merke(`Löschliste: ${id} fehlt im Export`);
   for (const [k, w] of Object.entries(datei.config || {})) if (JSON.stringify((exportiert.config || {})[k]) !== JSON.stringify(w)) merke(`Konfig „${k}“ unterscheidet sich`);
   return { abweichungen, beispiele, eintraegeVerglichen: gesehen.size, exportEintraege: exp.size };
 }

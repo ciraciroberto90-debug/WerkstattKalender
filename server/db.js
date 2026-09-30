@@ -264,8 +264,22 @@ function oeffnen(dateiPfad, { standort } = {}) {
        Verlaufszeilen (id „log|…“, 90 Tage) und Einstellungen (id „config|…“).
        Robertos Vorschau vom 30.09.: 8.263 gelesen, Kennkarte 7.306 – die
        Differenz sind Verlauf und Einstellungen, die 1:1 mitkommen. */
-    const davon = { fachlich: 0, verlauf: 0, einstellungen: 0 };
-    for (const e of datei.entries) { const id = String((e && e.id) || ""); if (id.startsWith("log|")) davon.verlauf++; else if (id.startsWith("config|")) davon.einstellungen++; else davon.fachlich++; }
+    /* Regel der App (sharedfile.js mergeEntries): steht eine id in der Löschliste
+       UND als Eintrag in der Datei, gewinnt der Zeitstempel - Löschmarke >= updatedAt
+       heißt „gelöscht bleibt gelöscht“, sonst lebt der Eintrag (nach dem Löschen
+       neu angelegt). Robertos Import 30.09., 22:08: 8 von 7.306 Einträgen fehlten,
+       weil die Löschliste hier blind gewann. */
+    const loeschliste = datei.deleted && typeof datei.deleted === "object" ? datei.deleted : {};
+    const letzte = new Map();
+    for (const e of datei.entries) { if (e && e.id != null) letzte.set(String(e.id), e); }
+    const totDurchLoeschliste = (id) => { const am = loeschliste[id]; const e = letzte.get(id); return !!am && (!e || String(am) >= String(e.updatedAt || "")); };
+    const davon = { fachlich: 0, verlauf: 0, einstellungen: 0, verworfen: 0, lebtTrotzLoeschliste: 0 };
+    for (const e of datei.entries) {
+      const id = String((e && e.id) || "");
+      if (totDurchLoeschliste(id)) { davon.verworfen++; continue; }
+      if (id in loeschliste) davon.lebtTrotzLoeschliste++;
+      if (id.startsWith("log|")) davon.verlauf++; else if (id.startsWith("config|")) davon.einstellungen++; else davon.fachlich++;
+    }
     const zaehlung = { gelesen: datei.entries.length, davon, neu: 0, geaendert: 0, unveraendert: 0, geloescht: 0, konfig: 0, ohneId: 0 };
     /* Zwei Durchgänge IN EINER Transaktion: erst nur LESEN und entscheiden
        (das ist die Vorschau für Robertos „Nur prüfen“ im Werkzeug - Etappe B),
@@ -277,13 +291,15 @@ function oeffnen(dateiPfad, { standort } = {}) {
       const plan = { eintraege: [], grabsteine: [], konfig: [] };
       for (const e of datei.entries) {
         if (!e || e.id == null) { zaehlung.ohneId++; continue; }
+        if (totDurchLoeschliste(String(e.id))) continue; // Löschmarke jünger: nicht schreiben, der Grabstein kommt unten
         const daten = JSON.stringify(e);
         const alt = lesen.get(String(e.id));
         if (alt && !alt.geloescht && alt.daten === daten) { zaehlung.unveraendert++; continue; }
         plan.eintraege.push(e);
         if (alt && !alt.geloescht) zaehlung.geaendert++; else zaehlung.neu++;
       }
-      for (const [id, am] of Object.entries(datei.deleted || {})) {
+      for (const [id, am] of Object.entries(loeschliste)) {
+        if (letzte.has(String(id)) && !totDurchLoeschliste(String(id))) continue; // Eintrag lebt (nach dem Löschen neu angelegt)
         const alt = lesen.get(String(id));
         if (alt && alt.geloescht) continue;
         plan.grabsteine.push([String(id), am]);
