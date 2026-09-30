@@ -169,6 +169,8 @@ Die App spricht im Server-Betrieb mit dem Dienst statt mit der Datei; erkannt wi
 - [ ] **Schritt 19b** – neue App-Datei (30.09. spät) → „App-Datei tauschen…“ → am PC F5 → oben rechts „Gemeinsame Datei“ klicken: die **Server-Karte** (Verbunden mit …, Versionen, Schlüssel-Feld, „Jetzt abgleichen“, „Status-Seite“). Bild.
 - [ ] **Schritt 19c** – Foto-Test: am Störbericht oder Zettel ein Foto anhängen und speichern → auf dem Server liegt es in `C:\BTA\BTA-Scheurich\fotos`, im zweiten Tab ist es sichtbar.
 
+- [ ] **Schritt 20 (Vorbereitung Etappe D)** – neue Programm-ZIP bauen (`main.js` mit Server-Weg; `node programm/bauen.js` + `tools/stick-bauen.js --mit-programm`), Release v1.3; danach kann jeder Rechner über das Rechner-Werkzeug → Wartung → „Server-Weg einschalten“ umgestellt werden (Adresse `http://v-btacockpit-01:8765`, Schlüssel aus `einstellungen.json` des Dienstes, sobald einer gesetzt ist).
+
 **Etappe A ist damit auf dem Server durch** (Bauplan Abschnitt 8: Prüfstände grün 24/24 + 5/5, `/status` von Robertos PC erreichbar, Rückweg protokolliert). Es folgt **Etappe B – Import** (Reiter Import im Werkzeug, Testimport mit dem echten Abendstand von `W:`).
 
 ## Befunde vom 29.09. (Prüfungen 1–3)

@@ -364,7 +364,33 @@ $gbReset.Size = New-Object System.Drawing.Size(608, 68)
 $kSpeichern = Wartungs-Knopf $gbReset 12 26 "Pfade neu speichern"
 $kEntfernen = Wartungs-Knopf $gbReset 308 26 "Vom Rechner entfernen"
 $kEntfernen.ForeColor = $rot
-$tabWart.Controls.AddRange(@($gbPflege, $gbReset))
+# Server-Weg (Etappe D des Bauplans, 30.09.): Das Programm holt die App vom
+# Dienst statt von der Platte. Schaltet sich ueber "programm:server-url" in den
+# gemerkten Einstellungen ein - dieselbe Datei wie "Pfade neu speichern".
+$gbServer = New-Object System.Windows.Forms.GroupBox
+$gbServer.Text = " Server-Weg (ab dem Umschalttag) "
+$gbServer.Location = New-Object System.Drawing.Point(10, 204)
+$gbServer.Size = New-Object System.Drawing.Size(608, 150)
+$lblSrvUrl = New-Object System.Windows.Forms.Label
+$lblSrvUrl.Text = "Server-Adresse:"
+$lblSrvUrl.Location = New-Object System.Drawing.Point(12, 26)
+$lblSrvUrl.Size = New-Object System.Drawing.Size(120, 22)
+$txtSrvUrl = New-Object System.Windows.Forms.TextBox
+$txtSrvUrl.Text = "http://v-btacockpit-01:8765"
+$txtSrvUrl.Location = New-Object System.Drawing.Point(136, 23)
+$txtSrvUrl.Size = New-Object System.Drawing.Size(456, 24)
+$lblSrvKey = New-Object System.Windows.Forms.Label
+$lblSrvKey.Text = "Werkstatt-Schluessel:"
+$lblSrvKey.Location = New-Object System.Drawing.Point(12, 58)
+$lblSrvKey.Size = New-Object System.Drawing.Size(120, 22)
+$txtSrvKey = New-Object System.Windows.Forms.TextBox
+$txtSrvKey.UseSystemPasswordChar = $true
+$txtSrvKey.Location = New-Object System.Drawing.Point(136, 55)
+$txtSrvKey.Size = New-Object System.Drawing.Size(456, 24)
+$gbServer.Controls.AddRange(@($lblSrvUrl, $txtSrvUrl, $lblSrvKey, $txtSrvKey))
+$kSrvEin = Wartungs-Knopf $gbServer 12 100 "Server-Weg einschalten"
+$kSrvAus = Wartungs-Knopf $gbServer 308 100 "Server-Weg ausschalten (zurueck zur Datei)"
+$tabWart.Controls.AddRange(@($gbPflege, $gbReset, $gbServer))
 
 # =============================================================================
 #  Dauerhaft sichtbar: Ladebalken + Protokoll (unter den Reitern)
@@ -847,6 +873,52 @@ $kSpeichern.Add_Click({
     Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
   }
 })
+
+# =============================================================================
+#  Aktion: SERVER-WEG EIN/AUS (Etappe D)
+# =============================================================================
+function Server-Weg-Setzen([bool]$ein) {
+  try {
+    $url = $txtSrvUrl.Text.Trim().TrimEnd("/")
+    $key = $txtSrvKey.Text.Trim()
+    if ($ein -and $url -notmatch "^https?://") { Melde "Bitte eine Server-Adresse wie http://v-btacockpit-01:8765 eintragen."; return }
+    if ($ein) {
+      # Erst nachsehen, ob der Server antwortet - ein Rechner auf einem toten Weg waere der Fehler vom 03.08. in neu.
+      try { $s = Invoke-RestMethod -Uri ($url + "/api/status") -TimeoutSec 5 -ErrorAction Stop; Schreibe-Log ("Server antwortet: Fassung " + $s.fassung) }
+      catch { if (-not (Frage-JaNein ("Der Server " + $url + " antwortet gerade nicht.`n`nTrotzdem auf den Server-Weg stellen? (Das Programm zeigt dann beim Start die Warteseite, bis er da ist.)") "Server-Weg")) { return } }
+      if (-not (Frage-JaNein ("Diesen Rechner auf den SERVER-WEG stellen?`n`nAdresse: " + $url + "`nSchluessel: " + $(if ($key) { "gesetzt" } else { "keiner" }) + "`n`nWICHTIG: Das Cockpit vorher SCHLIESSEN. Ab dem naechsten Start holt es die App vom Server; die Datei auf W: wird nicht mehr benutzt.") "Server-Weg")) { return }
+    } else {
+      if (-not (Frage-JaNein "Server-Weg AUSSCHALTEN - das Programm laedt beim naechsten Start wieder die App von der Platte und die Datei auf W:?`n`nWICHTIG: Das Cockpit vorher SCHLIESSEN." "Server-Weg")) { return }
+    }
+    $einstellungen = Finde-Einstellungen
+    if ($einstellungen) {
+      $json = Get-Content -LiteralPath $einstellungen -Raw | ConvertFrom-Json
+      foreach ($name in @("programm:server-url", "bta-server:schluessel")) {
+        $wert = if ($name -eq "programm:server-url") { $url } else { $key }
+        $feld = $json.PSObject.Properties[$name]
+        if ($ein -and $wert) { if ($feld) { $feld.Value = $wert } else { $json | Add-Member -NotePropertyName $name -NotePropertyValue $wert } }
+        elseif ($feld) { $json.PSObject.Properties.Remove($name) }
+      }
+      Copy-Item -LiteralPath $einstellungen -Destination ($einstellungen + ".sicherung") -Force
+      Schreibe-OhneBom $einstellungen (ConvertTo-Json $json -Depth 10)
+      Schreibe-Log ($(if ($ein) { "Server-Weg EIN: " + $url } else { "Server-Weg AUS - zurueck zur Datei" }) + "  (" + $einstellungen + ")")
+    } else {
+      $exe = Finde-Exe
+      if (-not $exe) { Melde "Kein eingerichtetes Cockpit auf diesem Rechner gefunden - erst 'Einrichten'."; return }
+      $jsonPfad = Join-Path $exe.DirectoryName "standard-einstellungen.json"
+      $json = @{ "_was_ist_das" = "Vorbelegung - geschrieben vom BTA-Cockpit-Werkzeug (Server-Weg)." }
+      if ($ein) { $json["programm:server-url"] = $url; if ($key) { $json["bta-server:schluessel"] = $key } }
+      Schreibe-OhneBom $jsonPfad (ConvertTo-Json $json -Depth 5)
+      Schreibe-Log ("Vorbelegung geschrieben: " + $jsonPfad)
+    }
+    Melde $(if ($ein) { "Fertig. Beim naechsten Start holt das Cockpit die App von " + $url + "." } else { "Fertig. Beim naechsten Start laeuft das Cockpit wieder ueber die Datei." })
+  } catch {
+    Schreibe-Log ("FEHLER beim Server-Weg: " + $_)
+    Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
+  }
+}
+$kSrvEin.Add_Click({ Server-Weg-Setzen $true })
+$kSrvAus.Add_Click({ Server-Weg-Setzen $false })
 
 # =============================================================================
 #  Aktion: VOM RECHNER ENTFERNEN
