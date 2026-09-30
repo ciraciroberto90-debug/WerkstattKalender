@@ -1,0 +1,14 @@
+{
+  "_was_ist_das": "Einstellungen des BTA-Cockpit-Dienstes. Diese Datei heisst im Betrieb einstellungen.json und liegt neben dienst.js (C:\\BTA\\BTA-Programm\\Dienst). Das BTA-Server-Werkzeug schreibt sie beim Einrichten; von Hand aendern nur, wenn man weiss, warum.",
+  "port": 8765,
+  "host": "0.0.0.0",
+  "appDatei": "C:/BTA/BTA-Programm/App/Werkstatt_Kalender_TPM.html",
+  "protokollOrdner": "C:/BTA/BTA-Programm/Dienst/protokoll",
+  "sicherungOrdner": "C:/BTA/BTA-Sicherung",
+  "sicherungUhrzeit": "02:00",
+  "sicherungBehalten": 14,
+  "standorte": {
+    "scheurich": { "name": "Scheurich", "datenOrdner": "C:/BTA/BTA-Scheurich" },
+    "soendgen":  { "name": "Soendgen Keramik", "datenOrdner": "C:/BTA/BTA-Soendgen" }
+  }
+}
