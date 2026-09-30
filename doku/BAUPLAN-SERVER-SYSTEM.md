@@ -44,7 +44,7 @@ dran ist. Auch die Entscheidungen in Abschnitt 9 werden einzeln abgefragt.
                      │ HTTP (JSON) + SSE (live), Port 8765, Firmennetz
  ┌───────────────────▼──────────────────────────┐
  │  v-btacockpit-01 · Dienst "bta-cockpit-dienst"│  Node.js, Autostart (Aufgabenplanung),
- │  ┌──────────────┐  ┌───────────────────────┐ │  läuft als SCHEURICH\serviceBTA
+ │  ┌──────────────┐  ┌───────────────────────┐ │  läuft als Konto SYSTEM (30.09., s. Abschnitt 6)
  │  │ Schnittstelle │  │ Auslieferung der App  │ │
  │  │ /api/…        │  │ /app/… (eine HTML)    │ │
  │  └──────┬───────┘  └───────────────────────┘ │
@@ -160,9 +160,13 @@ C:\BTA\BTA-Soendgen\             cockpit.sqlite, fotos\, export\
 C:\BTA\BTA-Sicherung\            2026-09-30_0200_scheurich.sqlite … (30 Tage), export_*.json (14 Tage)
 ```
 
-- **Autostart:** Aufgabenplanung „Beim Systemstart", Konto `serviceBTA`, „bei
-  Fehler neu starten alle 1 min", ohne angemeldeten Benutzer. Kein Installer,
-  kein Dienst-Rahmen nötig (nssm bleibt als Option).
+- **Autostart:** Aufgabenplanung „Beim Systemstart", **Konto `SYSTEM`** (geändert
+  30.09. beim Bau des Werkzeugs: für `serviceBTA` müsste das Werkzeug ein Kennwort
+  abfragen und in der Aufgabe hinterlegen, das bei jedem Kennwort-Wechsel der IT
+  ausläuft; der Dienst braucht nur `C:\BTA` auf dem eigenen Server, keine
+  Freigabe im Netz – dafür reicht SYSTEM), „bei Fehler neu starten 3× je 1 min",
+  ohne Zeitlimit, ohne angemeldeten Benutzer. Kein Installer, kein Dienst-Rahmen
+  nötig (nssm bleibt als Option).
 - **Port 8765** (heute schon der Cockpit-Port), Firewall-Regel „eingehend
   erlauben" setzt Roberto als Admin. Rechner sprechen `http://v-btacockpit-01:8765`.
 - **Sicherung:** Die IT sichert das ganze Firmennetz einmal täglich, also
@@ -241,9 +245,9 @@ zu installieren), das Roberto **auf dem Server** vom Stick startet. Reiter:
 - **Einrichten** – ein Knopf, jede Aktion mit Protokollzeile: Node (portabel)
   und den Dienst nach `BTA-Programm\Dienst` kopieren, `einstellungen.json`
   schreiben (Standorte, Port, Pfade), Aufgabe „bta-cockpit-dienst" in der
-  Aufgabenplanung anlegen (Beim Systemstart, Konto serviceBTA, Neustart bei
-  Fehler), Firewall-Regel für 8765, Dienst starten, `/status` abfragen –
-  grün.
+  Aufgabenplanung anlegen (Beim Systemstart, Konto SYSTEM – s. Abschnitt 6,
+  Neustart bei Fehler), Firewall-Regel für 8765, Dienst starten, `/status`
+  abfragen – grün.
 - **Wartung** – Dienst starten/stoppen/neu starten, Protokoll öffnen,
   Sicherung jetzt, **Sicherung einspielen** (der geübte Rückweg), App-Datei
   tauschen, Status-Seite öffnen.
@@ -264,6 +268,22 @@ muss. Der Stick trägt Node (portabel, ~30 MB) mit.
 
 Alles andere (Datenmodell, Schnittstelle, Etappen) ist Handwerk und wird
 gebaut wie beschrieben, mit den Nachweisen aus Abschnitt 7.
+
+**Stand 30.09. (Etappe A, Werkzeug GEBAUT, Windows-Lauf UNGEMESSEN):**
+`programm/verteilung/usb-stick/BTA-Server-Werkzeug.cmd` startet
+`werkzeug/server-werkzeug.ps1` (WinForms, 670 Zeilen, nur ASCII, Klammern
+geprüft). Reiter Prüfen (8 Ampeln), Einrichten („Nur prüfen (Vorschau)" schreibt
+das Protokoll ohne eine Änderung, „Einrichten" fragt einmal nach und führt die
+sechs Schritte aus), Wartung (Start/Stopp/Neustart, Status-Seite, Protokoll,
+Sicherung jetzt, Sicherung einspielen mit vorheriger Kopie
+`vor-rueckweg_*.sqlite`, App-Datei tauschen, Vom Server entfernen), Import
+(Platzhalter für Etappe B). Der Stick trägt unter `05-Server/` den Dienst
+(`dienst/dienst.js`, `db.js`, `einstellungen.beispiel.json`, byte-gleich mit
+`server/`) und `node/node.exe` (Node v22.23.3, 83 MB; SHA-256 gegen
+SHASUMS256.txt von nodejs.org geprüft) – gebaut mit
+`node tools/stick-bauen.js --mit-server --mit-node`. **Nicht gemessen:** der
+Lauf des Werkzeugs auf Windows Server 2019 (hier gibt es kein PowerShell) –
+das ist Robertos erster Klick, Reiter Prüfen, vor jeder Änderung.
 
 ---
 

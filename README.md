@@ -140,7 +140,8 @@ bash tests/pruefe-sicherung.sh             # Sicherungsskript (braucht PowerShel
 pwsh -File tests/pruefe-verknuepfung.ps1   # Autostart-Zweig der Verknüpfung
 pwsh -File tests/pruefe-oeffnen.ps1        # Datei öffnen über den Dienst
 node tools/startpaket-bauen.js --pruefen   # ist die Start-ZIP noch aktuell?
-node tools/stick-bauen.js --pruefen       # passen die Stick-Quellen zusammen? (--mit-programm baut das Komplettpaket)
+node tools/stick-bauen.js --pruefen       # passen die Stick-Quellen zusammen? (--mit-programm baut das Komplettpaket,
+                                          #  --mit-server legt den Dienst nach 05-Server, --mit-node holt node.exe von nodejs.org)
 node tools/render-aufsetzen.js             # nach Änderungen an tools/aufsetzen-pdf.html
 node --no-warnings tests/server/pruefe-dienst.js   # Server-Dienst (Etappe A): Schnittstelle, Konflikte, Import/Export, SSE, Sicherung
 node --no-warnings tests/server/pruefe-dienst-last.js   # Dienst unter Last (16.951 + 31.845 Einträge, Zeiten im Protokoll)

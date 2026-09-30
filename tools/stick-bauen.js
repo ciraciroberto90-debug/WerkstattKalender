@@ -10,10 +10,20 @@
  *          zusammen, prueft Byte-Gleichheit gegen ausgabe/*.zip, falls vorhanden,
  *          und nimmt den Zettel HIER-FEHLT-NOCH-DAS-PROGRAMM.txt heraus)
  *
- * Aufruf:  node tools/stick-bauen.js [--mit-programm] [--pruefen]
+ * Aufruf:  node tools/stick-bauen.js [--mit-programm] [--mit-server] [--mit-node] [--pruefen]
  *   --pruefen: baut nichts, prueft nur, ob die Quellen zusammenpassen
  *              (Teil-Groessen im Download-Zettel, Dateiname der Hauptdatei,
- *              Stand-Zeilen).
+ *              Stand-Zeilen, Klammern in beiden Werkzeugen).
+ *   --mit-server: legt den Dienst (server/dienst.js, db.js,
+ *              einstellungen.beispiel.json) nach 05-Server/dienst/ auf den
+ *              Stick - die Quelle bleibt server/, damit es keine zweite
+ *              Fassung gibt (Etappe A, 30.09.).
+ *   --mit-node: laedt Node portabel (NODE_FASSUNG, win-x64, ~35 MB ZIP) von
+ *              nodejs.org und legt node.exe nach 05-Server/node/. Die ZIP
+ *              wird in programm/ausgabe/ behalten, damit ein zweiter Bau
+ *              nicht erneut laedt. Ohne --mit-node bleibt der Ordner leer,
+ *              das Server-Werkzeug laedt Node dann selbst ("Node
+ *              herunterladen"), sofern der Server ins Internet darf.
  */
 const fs = require("fs");
 const path = require("path");
@@ -26,7 +36,15 @@ const VERTEILUNG = path.join(WURZEL, "programm", "verteilung");
 const AUSGABE = path.join(WURZEL, "programm", "ausgabe");
 const STICK = path.join(AUSGABE, "BTA-Cockpit-USB-Stick");
 const ZIP_NAME = "Werkstatt-Cockpit-Programm-win64.zip";
+const SERVER = path.join(WURZEL, "server");
+const DIENST_DATEIEN = ["dienst.js", "db.js", "einstellungen.beispiel.json"];
+/* Dieselbe Fassung wie $NodeFassung im Server-Werkzeug - die Pruefung unten
+ * haelt beide zusammen, damit Stick und Werkzeug nie verschiedene Node laden. */
+const NODE_FASSUNG = "v22.23.3";
+const NODE_URL = `https://nodejs.org/dist/${NODE_FASSUNG}/node-${NODE_FASSUNG}-win-x64.zip`;
 const mitProgramm = process.argv.includes("--mit-programm");
+const mitServer = process.argv.includes("--mit-server");
+const mitNode = process.argv.includes("--mit-node");
 const nurPruefen = process.argv.includes("--pruefen");
 
 const lese = (p) => fs.readFileSync(p, "utf8");
@@ -53,6 +71,18 @@ const liesmich = lese(path.join(QUELLE, "LIESMICH-ZUERST.txt"));
 pruef("LIESMICH-ZUERST nennt den Stand 29.09.2026", /Stand: 29\.09\.2026/.test(liesmich));
 pruef("Aufsetz-Anleitung (PDF) liegt in 03-Anleitung", fs.existsSync(path.join(QUELLE, "03-Anleitung", "Werkstatt-Cockpit-Programm-Aufsetzen.pdf")));
 pruef("Starter BTA-Cockpit-Werkzeug.cmd zeigt auf werkzeug\\cockpit-werkzeug.ps1", /werkzeug\\cockpit-werkzeug\.ps1/.test(lese(path.join(QUELLE, "BTA-Cockpit-Werkzeug.cmd"))));
+
+/* ---- Server-Werkzeug (Etappe A) ---- */
+const srv = lese(path.join(QUELLE, "werkzeug", "server-werkzeug.ps1"));
+const zaehle = (s, re) => (s.match(re) || []).length;
+pruef("Server-Werkzeug: Klammern ausgeglichen", zaehle(srv, /\{/g) === zaehle(srv, /\}/g) && zaehle(srv, /\(/g) === zaehle(srv, /\)/g), `${zaehle(srv, /\{/g)} { / ${zaehle(srv, /\}/g)} } · ${zaehle(srv, /\(/g)} ( / ${zaehle(srv, /\)/g)} )`);
+pruef("Server-Werkzeug: nur ASCII (PowerShell 5.1 liest Umlaute je nach Kodierung falsch)", ![...srv].some((c) => c.charCodeAt(0) > 127));
+pruef(`Server-Werkzeug: dieselbe Node-Fassung wie der Stick-Bauer (${NODE_FASSUNG})`, new RegExp(`\\$NodeFassung = "${NODE_FASSUNG.replace(/\./g, "\\.")}"`).test(srv));
+pruef("Server-Werkzeug: erwartet 05-Server\\dienst und 05-Server\\node\\node.exe", /05-Server\\dienst/.test(srv) && /05-Server\\node\\node\.exe/.test(srv));
+pruef("Starter BTA-Server-Werkzeug.cmd zeigt auf werkzeug\\server-werkzeug.ps1", /werkzeug\\server-werkzeug\.ps1/.test(lese(path.join(QUELLE, "BTA-Server-Werkzeug.cmd"))));
+for (const d of DIENST_DATEIEN) pruef(`Dienst-Quelle server/${d} vorhanden`, fs.existsSync(path.join(SERVER, d)));
+pruef("Dienst-Fassung steht in dienst.js (FASSUNG)", /const FASSUNG = "\d+\.\d+\.\d+"/.test(lese(path.join(SERVER, "dienst.js"))));
+pruef("05-Server/LIESMICH-SERVER.txt vorhanden", fs.existsSync(path.join(QUELLE, "05-Server", "LIESMICH-SERVER.txt")));
 if (nurPruefen || fehler) {
   console.log(fehler ? `\n${fehler} Prüfung(en) rot - Stick nicht gebaut.` : "\nQuellen passen zusammen.");
   process.exit(fehler ? 1 : 0);
@@ -62,11 +92,48 @@ if (nurPruefen || fehler) {
 fs.rmSync(STICK, { recursive: true, force: true });
 fs.mkdirSync(STICK, { recursive: true });
 fs.cpSync(QUELLE, STICK, { recursive: true });
+
+/* ---- Dienst auf den Stick (Etappe A) ----
+ * Immer wenn --mit-server: die drei Dateien aus server/ nach 05-Server/dienst/,
+ * byte-gleich (SHA-256 geprueft). Ohne den Schalter bleibt 05-Server nur mit
+ * dem Zettel - das Server-Werkzeug meldet dann "Stick neu bespielen". */
+if (mitServer) {
+  const ziel = path.join(STICK, "05-Server", "dienst");
+  fs.mkdirSync(ziel, { recursive: true });
+  for (const d of DIENST_DATEIEN) {
+    fs.copyFileSync(path.join(SERVER, d), path.join(ziel, d));
+    pruef(`05-Server/dienst/${d} byte-gleich mit server/${d}`, sha(path.join(SERVER, d)) === sha(path.join(ziel, d)));
+  }
+}
+if (mitNode) {
+  const nodeZip = path.join(AUSGABE, `node-${NODE_FASSUNG}-win-x64.zip`);
+  if (!fs.existsSync(nodeZip)) {
+    console.log(`Lade ${NODE_URL} ...`);
+    execSync(`curl -fsSL -o "${nodeZip}.teil" "${NODE_URL}" && mv "${nodeZip}.teil" "${nodeZip}"`, { shell: "/bin/bash", stdio: "inherit" });
+  }
+  /* Pruefsumme gegen SHASUMS256.txt von nodejs.org - sonst koennte eine
+   * abgebrochene oder verfaelschte Ladung als node.exe auf den Server wandern. */
+  const summen = execSync(`curl -fsSL "https://nodejs.org/dist/${NODE_FASSUNG}/SHASUMS256.txt"`, { shell: "/bin/bash" }).toString();
+  const erwartet = (summen.match(new RegExp(`^([0-9a-f]{64})\\s+node-${NODE_FASSUNG.replace(/\./g, "\\.")}-win-x64\\.zip$`, "m")) || [])[1];
+  pruef(`Node-ZIP: SHA-256 stimmt mit SHASUMS256.txt von nodejs.org`, erwartet && sha(nodeZip) === erwartet, erwartet ? sha(nodeZip).slice(0, 12) + "…" : "keine Zeile in SHASUMS256.txt");
+  if (erwartet && sha(nodeZip) === erwartet) {
+    const nodeZiel = path.join(STICK, "05-Server", "node");
+    fs.mkdirSync(nodeZiel, { recursive: true });
+    /* Nur node.exe - der Rest der ZIP (npm, Doku) wird auf dem Server nicht gebraucht. */
+    execSync(`cd "${nodeZiel}" && unzip -qoj "${nodeZip}" "node-${NODE_FASSUNG}-win-x64/node.exe" "node-${NODE_FASSUNG}-win-x64/LICENSE"`, { shell: "/bin/bash" });
+    const exe = path.join(nodeZiel, "node.exe");
+    pruef("05-Server/node/node.exe liegt auf dem Stick", fs.existsSync(exe) && fs.statSync(exe).size > 30 * 1024 * 1024, fs.existsSync(exe) ? (fs.statSync(exe).size / 1024 / 1024).toFixed(1) + " MB" : "fehlt");
+  } else {
+    fs.rmSync(nodeZip, { force: true });
+  }
+}
 const zipOhne = path.join(AUSGABE, "BTA-Cockpit-USB-Stick-ohne-Programm.zip");
 if (fs.existsSync(zipOhne)) fs.unlinkSync(zipOhne);
-execSync(`cd "${AUSGABE}" && zip -qr "${zipOhne}" "BTA-Cockpit-USB-Stick"`, { shell: "/bin/bash" });
+/* Die kleine ZIP bleibt Chat-tauglich: ohne Programm-ZIP und ohne node.exe
+ * (~75 MB) - beides holt das jeweilige Werkzeug bei Bedarf selbst. */
+execSync(`cd "${AUSGABE}" && zip -qr "${zipOhne}" "BTA-Cockpit-USB-Stick" -x "BTA-Cockpit-USB-Stick/05-Server/node/*"`, { shell: "/bin/bash" });
 console.log(`\nStick-Ordner: ${path.relative(WURZEL, STICK)}`);
-console.log(`ZIP ohne Programm: ${path.relative(WURZEL, zipOhne)} (${(fs.statSync(zipOhne).size / 1024).toFixed(0)} kB)`);
+console.log(`ZIP ohne Programm${mitNode ? " und ohne node.exe" : ""}: ${path.relative(WURZEL, zipOhne)} (${(fs.statSync(zipOhne).size / 1024).toFixed(0)} kB)`);
 
 if (mitProgramm) {
   const zielZip = path.join(STICK, "01-Programm", ZIP_NAME);

@@ -65,6 +65,11 @@ werkzeug\             das Skript hinter dem Fenster
 03-Anleitung\         die Aufsetz-Anleitung als PDF
 04-Download-Links\    alle Download-Adressen, falls das Paket
                       mal nicht zur Hand ist
+BTA-Server-Werkzeug.cmd  NUR fuer den Server v-btacockpit-01
+                      (Rechtsklick -> Als Administrator ausfuehren);
+                      auf einem Werkstatt-Rechner nicht starten
+05-Server\            der Dienst fuer den Server + node.exe
+                      (Erklaerung in 05-Server\LIESMICH-SERVER.txt)
 
 ----------------------------------------------------------
  GUT ZU WISSEN

@@ -20,8 +20,19 @@ Ordner bekommen dann ihre Rolle: `BTA-Scheurich`/`BTA-Soendgen` = Datenbank
 und Dateien je Standort, `BTA-Programm` = Dienst und ausgelieferte App,
 `BTA-Sicherung` = Sicherungen.
 
-**Nächster Schritt:** Robertos Freigabe des Bauplans `doku/BAUPLAN-SERVER-SYSTEM.md`
-(30.09.) und seine fünf Entscheidungen aus dessen Abschnitt 9; dann Etappe A.
+**Bauplan freigegeben (30.09.), Etappe A läuft.** Dienst-Kern gebaut und
+gemessen (`server/`, Prüfstände 23/23 und 5/5). **BTA-Server-Werkzeug gebaut**
+(`BTA-Server-Werkzeug.cmd` auf dem Stick, Bauplan Abschnitt 11) – auf Windows
+noch **ungemessen**.
+
+**Nächster Schritt (Roberto, einzeln):** Stick-Ordner mit der neuen ZIP
+aktualisieren, dann **auf dem Server** `BTA-Server-Werkzeug.cmd` per Rechtsklick
+„Als Administrator ausführen" → Reiter **Prüfen** → „Jetzt prüfen" → Bild der
+acht Ampeln schicken. Erwartung: Admin grün, Ordner grün, Gruppen grün, Node
+gelb oder rot (node.exe liegt nicht in der Chat-ZIP – „Node herunterladen"
+holt es, wenn der Server ins Internet darf), Dienst-Dateien gelb („noch nicht
+kopiert"), Aufgabe/Firewall/Dienst rot (noch nichts eingerichtet). Das
+Werkzeug ändert in diesem Schritt **nichts**.
 
 **Daneben offen (unverändert):** Release v1.2 (Robertos Handgriff), heutige
 HTML in den Update-Ordner auf `W:`, doppelte Störberichte über die ⚙-Karte,
@@ -105,8 +116,12 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - [ ] ~~**Schritt 7** – Daten kopieren~~ – **gestrichen 29.09.** (Entscheidung: kein Datei-Umzug, der Server bekommt das neue System)
 - [ ] ~~**Schritt 8** – je Rechner „Pfade speichern“~~ – gestrichen (Server-Pfade wieder aus Werkzeug/Stick/PDF entfernt)
 - [ ] ~~**Schritt 9** – alten Ordner umbenennen~~ – gestrichen
-- [ ] **Schritt 10** – Schattenkopien + nächtliche Sicherungsaufgabe – kommt mit dem neuen System (Sicherung der Datenbank)
+- [ ] **Schritt 10** – Schattenkopien + nächtliche Sicherungsaufgabe – kommt mit dem neuen System (Sicherung der Datenbank; der Dienst legt sie um 02:00 nach `BTA-Sicherung`, der geübte Rückweg ist „Sicherung einspielen" im Werkzeug)
 - [ ] **Schritt 11** – Komplettpaket nach `BTA-Programm\Installation` – entfällt voraussichtlich: das neue System liefert die App selbst aus
+- [ ] **Schritt 12 (Etappe A, Werkzeug)** – `BTA-Server-Werkzeug.cmd` auf dem Server als Administrator → Prüfen → Bild der Ampeln (ändert nichts)
+- [ ] **Schritt 13** – Einrichten → erst „Nur prüfen (Vorschau)" (Protokoll lesen), dann „Einrichten"; am Ende öffnet sich `http://v-btacockpit-01:8765/status`
+- [ ] **Schritt 14** – Status-Seite von einem Werkstatt-PC im Browser öffnen (Firewall-Nachweis)
+- [ ] **Schritt 15** – Rückweg üben: Wartung → „Sicherung jetzt", dann „Sicherung einspielen" auf die leere Datenbank; Protokoll hier festhalten
 
 ## Befunde vom 29.09. (Prüfungen 1–3)
 
