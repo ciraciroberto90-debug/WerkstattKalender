@@ -110,13 +110,35 @@ zweite Datenbank auf demselben Server.
 - **Kein Zurück auf halbem Weg.** Deshalb Parallelbetrieb und JSON-Export: Der
   alte Weg bleibt eine Woche lang der Rückfallweg.
 
-## 6. Empfehlung und Reihenfolge
+## 6. Reihenfolge (Robertos Entscheidung 29.09. abends)
 
-1. Server-Umzug abschließen (Schritte 7–11) und **zwei Wochen ruhig laufen
-   lassen** – das ist die Messlatte, gegen die das Backend antreten muss.
-2. Robertos Entscheidung: Backend ja/nein, und Anmeldung (Windows-Konto
-   automatisch) ja/nein.
-3. Bau in vier Etappen, jede mit Nachweis: (a) Server liest die heutige JSON
-   und liefert sie – nur lesend, Schatten neben dem Laufwerk; (b) Schreiben
-   über den Server, Datei wird vom Server mitgeführt; (c) Parallelbetrieb mit
-   Abendvergleich; (d) Umschalten, Datei nur noch als Export.
+Der Betrieb bleibt auf dem Firmenlaufwerk mit dem heutigen Programm, bis das
+neue System auf dem eigenen Server komplett gebaut und getestet ist. Kein
+Datei-Umzug vorweg. Dann Import, Test, Umschalten – das Programm auf `W:`
+verschwindet.
+
+1. **Bauplan als Vorlage** (nächste Sitzung): Architektur, Datenmodell,
+   Schnittstelle, Anmeldung, Etappen, Prüfstände, Import-Nachweis. Roberto
+   gibt frei, dann wird gebaut.
+2. **Etappe A – Server-Kern:** Dienst auf `v-btacockpit-01` (Autostart),
+   SQLite in `BTA-Scheurich`, Schnittstelle, Status-Seite, Sicherungsaufgabe.
+   Prüfstände gegen die Schnittstelle. Läuft neben `W:` ohne Berührung.
+3. **Etappe B – Import:** Einleser für die heutigen JSON-Dateien (Hauptdatei,
+   Störungen, Sicherungen, Fotos), Eintrag für Eintrag gezählt, Verlauf
+   erhalten; Testimport mit dem echten Stand von `W:`, Abweichungen = 0.
+4. **Etappe C – App am Server:** die heutige Oberfläche mit getauschter
+   Speicherschicht (nicht neu gezeichnet – die 95 Härtetests bleiben die
+   Messlatte), live-Aktualisierung, Anmeldung über das Windows-Konto,
+   Auslieferung durch den Server. Testbetrieb auf zwei Rechnern gegen den
+   importierten Stand.
+5. **Etappe D – Umschalttag:** letzter Import vom Abendstand, Vergleich,
+   Rechner auf den Server, `W:`-Ordner umbenennen (zwei Wochen aufheben),
+   JSON-Export nächtlich als Rückfallnetz.
+
+Zum Frontend ehrlich: „von Anfang an richtig“ heißt Speicherweg, Sync,
+Anmeldung und Auslieferung neu – die Oberfläche selbst (Übersicht,
+Schichtplan, Berichte, Rechte-Matrix, Ausdrucke) hat sich im Betrieb bewährt
+und trägt 95 Prüfstände. Sie wird auf dem Weg entschlackt (alles, was nur
+wegen der Datei existierte, fällt raus: Verbinden-Dialoge, Schreibprobe,
+Zwischenspeicher-Grenzen, Kollisions-Heilung), aber nicht neu gezeichnet.
+Ein neues Gesicht wäre ein eigener Auftrag danach.

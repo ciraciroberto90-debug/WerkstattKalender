@@ -30,22 +30,15 @@ Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 # ---- Feste Werte ------------------------------------------------------------
-# Seit dem 29.09. liegt alles auf Robertos eigenem Server v-btacockpit-01
-# (Freigabe BTA, Rechte ueber lokale Server-Gruppen, siehe doku/SERVER-AUFBAU.md).
-# Der Update-Ordner (die neue Programm-HTML) ist fuer BEIDE Standorte derselbe -
-# so bekommt Soendgen Keramik dieselben Programm-Updates wie Scheurich
-# (Robertos Ansage vom 17.09.). Die Daten liegen je Standort getrennt.
-# Bis zum Umzug (Schritt 7 des Server-Aufbaus) lag alles unter
-# //SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender
-$ServerVorgabe          = "//v-btacockpit-01/BTA"
-$UpdateOrdnerVorgabe    = $ServerVorgabe + "/BTA-Programm/Update"
-$ScheurichOrdnerVorgabe = $ServerVorgabe + "/BTA-Scheurich"
-$SoendgenOrdnerVorgabe  = $ServerVorgabe + "/BTA-Soendgen"
+# Der Update-Ordner (die neue Programm-HTML) liegt auf dem Firmenlaufwerk und
+# ist fuer BEIDE Standorte derselbe - so bekommt Soendgen Keramik dieselben
+# Programm-Updates wie Scheurich (Robertos Ansage vom 17.09.).
+$WerkstattOrdnerVorgabe = "//SCHEUDC1/PSG_Gruppe/16_Technik/01_Scheurich/02_Werkstatt/Arbeitsplanung/Werkstatt_Kalender"
 $DatenDateiName = "werkstatt-kalender-daten.json"   # Robertos Bestaetigung 29.09. (bis dahin stand hier kalender-daten.json)
 $StoerDateiName = "werkstatt-stoerungen.json"
 # Soendgen Keramik nutzt DENSELBEN Update-Ordner, hat aber EIGENE Daten- und
-# Stoerungs-Dateien im eigenen Server-Ordner BTA-Soendgen. Die Namen sind die
-# Vorschlaege der App - beim ersten SK-Rechner bestaetigen.
+# Stoerungs-Dateien (getrennte Daten je Standort). Die Namen sind ein
+# Vorschlag im selben Ordner - Ort/Name beim ersten SK-Rechner bestaetigen.
 $SK_DatenName = "soendgen-kalender-daten.json"
 $SK_StoerName = "soendgen-stoerungen.json"
 $ZielVorgabe    = Join-Path $env:LOCALAPPDATA "Werkstatt-Cockpit"
@@ -456,14 +449,14 @@ function Fuelle-Standort([string]$upd, [string]$daten, [string]$stoer, [string]$
 }
 $rbScheurich.Add_CheckedChanged({
   if ($script:initFertig -and $rbScheurich.Checked) {
-    Fuelle-Standort $UpdateOrdnerVorgabe ($ScheurichOrdnerVorgabe + "/" + $DatenDateiName) ($ScheurichOrdnerVorgabe + "/" + $StoerDateiName) "Scheurich"
+    Fuelle-Standort $WerkstattOrdnerVorgabe ($WerkstattOrdnerVorgabe + "/" + $DatenDateiName) ($WerkstattOrdnerVorgabe + "/" + $StoerDateiName) "Scheurich"
   }
 })
 $rbSoendgen.Add_CheckedChanged({
   if ($script:initFertig -and $rbSoendgen.Checked) {
-    # Gleicher Update-Ordner wie Scheurich, aber eigener Datenordner BTA-Soendgen.
-    Fuelle-Standort $UpdateOrdnerVorgabe ($SoendgenOrdnerVorgabe + "/" + $SK_DatenName) ($SoendgenOrdnerVorgabe + "/" + $SK_StoerName) "Soendgen Keramik"
-    Schreibe-Log "  Soendgen: selber Update-Ordner, eigener Datenordner BTA-Soendgen."
+    # Gleicher Update-Ordner wie Scheurich, aber eigene SK-Dateien.
+    Fuelle-Standort $WerkstattOrdnerVorgabe ($WerkstattOrdnerVorgabe + "/" + $SK_DatenName) ($WerkstattOrdnerVorgabe + "/" + $SK_StoerName) "Soendgen Keramik"
+    Schreibe-Log "  Soendgen: selber Update-Ordner, eigene Daten-/Stoerungs-Datei."
     Schreibe-Log "  SK-Datei-Namen/Ort bitte bestaetigen; die Datei selbst wird in der App angelegt."
   }
 })
@@ -951,9 +944,9 @@ $exe = Finde-Exe
 if ($exe) { $zZiel.Feld.Text = (Split-Path -Parent $exe.FullName) } else { $zZiel.Feld.Text = $ZielVorgabe }
 
 $quelle = "Vorgaben dieses Pakets (Scheurich)"
-$zUpdate.Feld.Text = $UpdateOrdnerVorgabe
-$zDaten.Feld.Text  = $ScheurichOrdnerVorgabe + "/" + $DatenDateiName
-$zStoer.Feld.Text  = $ScheurichOrdnerVorgabe + "/" + $StoerDateiName
+$zUpdate.Feld.Text = $WerkstattOrdnerVorgabe
+$zDaten.Feld.Text  = $WerkstattOrdnerVorgabe + "/" + $DatenDateiName
+$zStoer.Feld.Text  = $WerkstattOrdnerVorgabe + "/" + $StoerDateiName
 $einstellungen = Finde-Einstellungen
 if ($einstellungen) {
   try {

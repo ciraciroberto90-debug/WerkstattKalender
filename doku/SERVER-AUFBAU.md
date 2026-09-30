@@ -4,31 +4,30 @@ Stand: 29.09.2026 – wird Schritt für Schritt mit Roberto ergänzt. Der Server
 ist ein Windows Server (Rolle Datei-/Speicherdienste), Roberto ist dort Admin.
 Freigabe: `\\v-btacockpit-01\BTA` (im Explorer auch als `M:` über die IP).
 
-## WO WIR STEHEN (Stand 29.09. abends – hier geht es weiter)
+## WO WIR STEHEN (Stand 29.09. abends – Robertos Entscheidung)
 
-**Erledigt:** Schritte 1–6. Ordnerstruktur unter `C:\BTA` steht, fünf lokale
-Gruppen angelegt, NTFS-Rechte per `icacls` gesetzt (inkl. 3c), Freigabe geprüft,
-12 Scheurich-Konten in `BTA-Scheurich-Werkstatt`, Zugriff von einem
-Werkstatt-PC und von Robertos PC getestet – alles wie erwartet.
+**Entscheidung (29.09. abends):** Der Betrieb bleibt auf dem Firmenlaufwerk
+`W:` mit dem heutigen Programm, bis auf dem eigenen Server das neue System
+(Backend + Frontend) komplett gebaut und getestet ist – „diesmal aus allen
+gelernten Erkenntnissen von Anfang an und richtig“. Dann: Daten importieren,
+testen, umschalten; das Programm auf `W:` verschwindet. **Kein Datei-Umzug.**
+Die Schritte 7–11 unten sind damit gestrichen; Stick, Werkzeug und
+Aufsetz-PDF zeigen wieder auf `W:` (Rückbau 29.09. abends).
 
-**Nächster Schritt = Schritt 7, der Umzug der Daten.** Nur wenn niemand im
-Cockpit arbeitet (Abend nach der Spätschicht oder morgens vor 06:00). Ablauf
-mit den fertigen robocopy-Zeilen steht unten unter „Schritt 7 im Detail“.
-Roberto schickt das Bild mit den zwei robocopy-Tabellen (FEHLER = 0) und dem
-Größenvergleich der zwei JSON-Dateien.
+**Was bleibt und weiter gilt:** Schritte 1–6 (Ordner, fünf Gruppen, Rechte,
+Freigabe, 12 Konten, Zugriffstest) sind die Grundlage des neuen Systems. Die
+Ordner bekommen dann ihre Rolle: `BTA-Scheurich`/`BTA-Soendgen` = Datenbank
+und Dateien je Standort, `BTA-Programm` = Dienst und ausgelieferte App,
+`BTA-Sicherung` = Sicherungen.
 
-**Danach:** Schritt 8 (je Rechner Werkzeug → Wartung → „Pfade speichern“, die
-Server-Pfade sind seit dem 29.09. im Werkzeug hinterlegt), Schritt 9 (alten
-Ordner auf `W:` umbenennen, nicht löschen), Schritt 10 (Schattenkopien +
-nächtliche Sicherung), Schritt 11 (Komplettpaket auf den Server, Werkzeug
-bekommt den Server als ersten Download-Weg).
+**Nächster Schritt:** Bauplan für das neue System als Vorlage zur Freigabe
+(Architektur, Etappen, Prüfstände, Import-Nachweis) –
+siehe `doku/BACKEND-KONZEPT.md`, dort Abschnitt 6 „Reihenfolge“ (neu).
 
-**Noch offen daneben (nicht Server):** Stick auf `D:` trägt noch die
-`W:`-Pfade – erst nach Schritt 7 mit der neuen ZIP (`node tools/stick-bauen.js`)
-neu bespielen; Release v1.2 auf GitHub (Robertos Handgriff); heutige HTML in
-den Update-Ordner (nach dem Umzug: `BTA-Programm\Update`); doppelte
-Störberichte über die neue ⚙-Karte entfernen; Rückmeldung vom Rechner, der
-hing (⚙-Zeilen); Soendgen-Domänenfrage und Vertreter.
+**Daneben offen (unverändert):** Release v1.2 (Robertos Handgriff), heutige
+HTML in den Update-Ordner auf `W:`, doppelte Störberichte über die ⚙-Karte,
+Rückmeldung vom Rechner, der hing, Stick auf `D:` ist mit dem Stand vom
+29.09. Vormittag (W:-Pfade) weiterhin richtig.
 
 Grundregeln, die hier gelten:
 
@@ -104,11 +103,11 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - [x] **Schritt 4** – Mitglieder eingetragen – **erledigt 29.09.** `BTA-Scheurich-Werkstatt`: andreas.ecke, aradke, ciraci, Elektro, elektroabt, elektroazubi, Jaeger, kczoczek, mwerkstatt, PBaier, rciraci, thomas.smarsly (12 Konten, über die Domänen-Suche im Dialog gewählt). `BTA-Scheurich-Ansehen` vorerst leer (kein eigenes Monitor-Konto). Soendgen leer, bis die Domänen-Frage geklärt ist. Neue Rechte gelten je Kollege ab dem nächsten Anmelden.
 - [x] **Schritt 5a** – Freigabe-Berechtigung geprüft (`net share BTA`): Administratoren FULL, Jeder FULL – das übliche Muster „Freigabe offen, NTFS regelt“; bleibt so, die NTFS-Rechte aus Schritt 3 sind die Grenze. Zwischenspeichern steht auf „Manuell“ (Offlinedateien nur auf Wunsch) – gut so, sonst arbeitet ein Rechner mit einer alten Offline-Kopie.
 - [x] **Schritt 6** – Zugriff getestet – **erledigt 29.09.**: Werkstatt-Konto am Werkstatt-PC schreibt in `BTA-Scheurich`, bekommt „Zugriff verweigert“ auf `BTA-Soendgen`, `BTA-Programm\Update` (Schreiben) und `BTA-Sicherung`; rciraci überall Schreiben.
-- [ ] **Schritt 7** – Daten kopieren (alle Cockpits zu), Byte-Größen vergleichen
-- [ ] **Schritt 8** – je Rechner Werkzeug → Wartung → „Pfade speichern“ (Server-Pfade sind seit 29.09. in Werkzeug, Stick-Einstellungen und Aufsetz-PDF hinterlegt; Stick erst NACH Schritt 7 neu bespielen)
-- [ ] **Schritt 9** – Kontrolle je Rechner (Kennkarte), alten Ordner auf `W:` umbenennen
-- [ ] **Schritt 10** – Schattenkopien + nächtliche Sicherungsaufgabe
-- [ ] **Schritt 11** – Komplettpaket nach `BTA-Programm\Installation`, Werkzeug bekommt den Server als ersten Download-Weg
+- [ ] ~~**Schritt 7** – Daten kopieren~~ – **gestrichen 29.09.** (Entscheidung: kein Datei-Umzug, der Server bekommt das neue System)
+- [ ] ~~**Schritt 8** – je Rechner „Pfade speichern“~~ – gestrichen (Server-Pfade wieder aus Werkzeug/Stick/PDF entfernt)
+- [ ] ~~**Schritt 9** – alten Ordner umbenennen~~ – gestrichen
+- [ ] **Schritt 10** – Schattenkopien + nächtliche Sicherungsaufgabe – kommt mit dem neuen System (Sicherung der Datenbank)
+- [ ] **Schritt 11** – Komplettpaket nach `BTA-Programm\Installation` – entfällt voraussichtlich: das neue System liefert die App selbst aus
 
 ## Befunde vom 29.09. (Prüfungen 1–3)
 
@@ -122,7 +121,7 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
   Admins, `SCHEURICH\rciraci`, `SCHEURICH\serviceBTA` – Roberto ist mit
   beiden Konten Admin.
 
-## Schritt 7 im Detail – der Umzug (einmal, wenn niemand im Cockpit arbeitet)
+## Schritt 7 im Detail – der Umzug (GESTRICHEN 29.09., bleibt als Nachschlag für den Import-Tag)
 
 Von Robertos PC aus (Konto `rciraci` hat auf `W:` und auf dem Server alle
 Rechte), Eingabeaufforderung **als Administrator**:

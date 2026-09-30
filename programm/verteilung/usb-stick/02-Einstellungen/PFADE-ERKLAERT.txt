@@ -38,18 +38,10 @@ ueberschrieben.
  SCHREIBWEISE
 ----------------------------------------------------------
 In JSON muessen Backslashes DOPPELT geschrieben werden:
-   \\\\v-btacockpit-01\\BTA\\...
+   \\\\SCHEUDC1\\PSG_Gruppe\\...
 Einfacher: Schraegstriche verwenden - Windows versteht
 beide:
-   //v-btacockpit-01/BTA/...
-
-Seit dem 29.09. liegt alles auf dem eigenen Server
-v-btacockpit-01 (Freigabe BTA): Daten je Standort in
-BTA-Scheurich bzw. BTA-Soendgen, die Update-HTML fuer alle
-in BTA-Programm/Update. Kein Netzlaufwerk noetig - der
-Rechner spricht den Server ueber den Namen an, das Windows-
-Konto des Kollegen muss in der passenden Server-Gruppe sein
-(BTA-Scheurich-Werkstatt usw., pflegt Roberto).
+   //SCHEUDC1/PSG_Gruppe/...
 
 ----------------------------------------------------------
  BITTE PRUEFEN
@@ -59,5 +51,5 @@ Werkstatt Scheurich FERTIG AUSGEFUELLT. Die DATEINAMEN der
 beiden Datendateien (werkstatt-kalender-daten.json und
 werkstatt-stoerungen.json) sind die Namen auf dem Laufwerk
 (von Roberto am 29.09. bestaetigt) - heissen sie einmal
-anders, bitte die zwei Zeilen anpassen. Der Update-Ordner ist fuer
-beide Standorte derselbe (BTA-Programm/Update).
+anders, bitte die zwei Zeilen anpassen. Der Update-Ordner-Pfad ist
+derselbe wie im laufenden Betrieb.
