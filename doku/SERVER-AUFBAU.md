@@ -4,6 +4,32 @@ Stand: 29.09.2026 – wird Schritt für Schritt mit Roberto ergänzt. Der Server
 ist ein Windows Server (Rolle Datei-/Speicherdienste), Roberto ist dort Admin.
 Freigabe: `\\v-btacockpit-01\BTA` (im Explorer auch als `M:` über die IP).
 
+## WO WIR STEHEN (Stand 29.09. abends – hier geht es weiter)
+
+**Erledigt:** Schritte 1–6. Ordnerstruktur unter `C:\BTA` steht, fünf lokale
+Gruppen angelegt, NTFS-Rechte per `icacls` gesetzt (inkl. 3c), Freigabe geprüft,
+12 Scheurich-Konten in `BTA-Scheurich-Werkstatt`, Zugriff von einem
+Werkstatt-PC und von Robertos PC getestet – alles wie erwartet.
+
+**Nächster Schritt = Schritt 7, der Umzug der Daten.** Nur wenn niemand im
+Cockpit arbeitet (Abend nach der Spätschicht oder morgens vor 06:00). Ablauf
+mit den fertigen robocopy-Zeilen steht unten unter „Schritt 7 im Detail“.
+Roberto schickt das Bild mit den zwei robocopy-Tabellen (FEHLER = 0) und dem
+Größenvergleich der zwei JSON-Dateien.
+
+**Danach:** Schritt 8 (je Rechner Werkzeug → Wartung → „Pfade speichern“, die
+Server-Pfade sind seit dem 29.09. im Werkzeug hinterlegt), Schritt 9 (alten
+Ordner auf `W:` umbenennen, nicht löschen), Schritt 10 (Schattenkopien +
+nächtliche Sicherung), Schritt 11 (Komplettpaket auf den Server, Werkzeug
+bekommt den Server als ersten Download-Weg).
+
+**Noch offen daneben (nicht Server):** Stick auf `D:` trägt noch die
+`W:`-Pfade – erst nach Schritt 7 mit der neuen ZIP (`node tools/stick-bauen.js`)
+neu bespielen; Release v1.2 auf GitHub (Robertos Handgriff); heutige HTML in
+den Update-Ordner (nach dem Umzug: `BTA-Programm\Update`); doppelte
+Störberichte über die neue ⚙-Karte entfernen; Rückmeldung vom Rechner, der
+hing (⚙-Zeilen); Soendgen-Domänenfrage und Vertreter.
+
 Grundregeln, die hier gelten:
 
 - **Eine Quelle.** Nach dem Umzug gibt es die Daten nur noch auf dem Server;
