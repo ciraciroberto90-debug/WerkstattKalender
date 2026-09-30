@@ -147,6 +147,16 @@ window.__wkStorageTest = {
 
 window.storage = {
   async get(key) {
+    /* Server-Betrieb (Etappe C): Der Bestand kommt aus dem örtlichen Spiegel
+       der Server-Speicherschicht (IndexedDB), nicht aus dem 5-MB-Zwischen-
+       speicher. Erst warten, bis der Start durch ist (Spiegel + Delta). */
+    if (shared.serverBetrieb() && (key === ENTRIES_KEY || key === CONFIG_KEY)) {
+      try { await shared.bereit(); } catch (e) { /* weiter mit dem, was da ist */ }
+      const stand = shared.standJetzt();
+      if (stand && key === ENTRIES_KEY) { const value = JSON.stringify(stand.entries || []); eigenerStand.set(key, value); return { key, value }; }
+      if (stand && key === CONFIG_KEY && stand.config) { const value = JSON.stringify(stand.config); eigenerStand.set(key, value); return { key, value }; }
+      // Noch keine Einstellungen auf dem Server (leere Datenbank): örtliche Vorgaben gelten.
+    }
     const value = localStorage.getItem(key);
     if (value !== null) eigenerStand.set(key, value);
     return value === null ? null : { key, value };
@@ -160,10 +170,15 @@ window.storage = {
     // Datei ist der maßgebliche Bestand und kennt diese Grenze nicht. Früher
     // brach hier alles ab und die Änderung war weder lokal noch in der Datei.
     let lokalGespeichert = true;
-    try {
-      localStorage.setItem(key, value);
-    } catch (e) {
-      lokalGespeichert = false;
+    // Im Server-Betrieb ist der IndexedDB-Spiegel die örtliche Zweitschrift;
+    // der Bestand (4,6 MB) muss nicht noch einmal in den Zwischenspeicher.
+    const serverEintraege = shared.serverBetrieb() && key === ENTRIES_KEY;
+    if (!serverEintraege) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        lokalGespeichert = false;
+      }
     }
 
     const dateiWeg = shared.isConnected() && shared.canWrite() && (key === ENTRIES_KEY || key === CONFIG_KEY);

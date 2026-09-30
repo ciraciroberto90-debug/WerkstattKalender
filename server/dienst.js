@@ -41,6 +41,10 @@ function ladeEinstellungen(pfad) {
     sicherungOrdner: roh.sicherungOrdner || path.join(HIER, "sicherung"),
     sicherungUhrzeit: roh.sicherungUhrzeit || "02:00",
     sicherungBehalten: Number(roh.sicherungBehalten) || 14,
+    // Werkstatt-Schlüssel (Bauplan Abschnitt 12, Lücke 1): leer = jeder im
+    // Firmennetz darf schreiben (wie heute die Datei auf W:). Gesetzt = jede
+    // schreibende Anfrage braucht den Kopf X-BTA-Schluessel; Lesen bleibt frei.
+    schluessel: typeof roh.schluessel === "string" ? roh.schluessel.trim() : "",
     standorte: roh.standorte || {},
   };
   if (!Object.keys(e.standorte).length) throw new Error("Einstellungen: kein Standort angegeben");
@@ -187,7 +191,7 @@ function starten(einstellungen, { still = false } = {}) {
   async function behandle(req, res) {
     const u = url.parse(req.url, true);
     const teile = u.pathname.split("/").filter(Boolean);
-    if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "Content-Type" }); return res.end(); }
+    if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "Content-Type, X-BTA-Schluessel" }); return res.end(); }
     try {
       if (teile.length === 0) { res.writeHead(302, { Location: "/status" }); return res.end(); }
       if (teile[0] === "status") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }); return res.end(statusSeite()); }
@@ -201,6 +205,11 @@ function starten(einstellungen, { still = false } = {}) {
       const st = standorte[teile[1]];
       if (!st) return json(res, 404, { fehler: "Unbekannter Standort: " + teile[1], bekannt: Object.keys(standorte) });
       const weg = teile[2] || "";
+      // Schreibende Wege nur mit Werkstatt-Schlüssel (wenn einer gesetzt ist).
+      if (req.method === "POST" && e.schluessel && String(req.headers["x-bta-schluessel"] || "") !== e.schluessel) {
+        log.info(`${req.method} ${u.pathname} abgewiesen: Werkstatt-Schlüssel fehlt oder falsch`);
+        return json(res, 401, { fehler: "Werkstatt-Schlüssel fehlt oder ist falsch" });
+      }
 
       if (weg === "stand" && req.method === "GET") return json(res, 200, st.db.standSeit(u.query.seit));
       if (weg === "aenderungen" && req.method === "POST") {

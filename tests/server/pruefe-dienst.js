@@ -43,12 +43,13 @@ const ORDNER = fs.mkdtempSync(path.join(os.tmpdir(), "bta-dienst-"));
 const einst = {
   port: PORT, host: "127.0.0.1", appDatei: path.join(ORDNER, "app", "Werkstatt_Kalender_TPM.html"),
   protokollOrdner: path.join(ORDNER, "protokoll"), sicherungOrdner: path.join(ORDNER, "sicherung"), sicherungUhrzeit: "99:99", sicherungBehalten: 3,
+  schluessel: "pruef-schluessel", // Werkstatt-Schlüssel: jede POST-Anfrage im Prüfstand trägt ihn (B6 prüft das Fehlen)
   standorte: { scheurich: { name: "Scheurich", datenOrdner: path.join(ORDNER, "BTA-Scheurich") }, soendgen: { name: "Soendgen Keramik", datenOrdner: path.join(ORDNER, "BTA-Soendgen") } },
 };
 fs.writeFileSync(path.join(ORDNER, "einstellungen.json"), JSON.stringify(einst));
 const B = `http://127.0.0.1:${PORT}`;
 const holen = async (weg, opt) => { const r = await fetch(B + weg, opt); let k = null; try { k = await r.json(); } catch (e) { k = null; } return { status: r.status, k }; };
-const post = (weg, daten) => holen(weg, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(daten) });
+const post = (weg, daten, kopf = { "X-BTA-Schluessel": "pruef-schluessel" }) => holen(weg, { method: "POST", headers: { "Content-Type": "application/json", ...kopf }, body: JSON.stringify(daten) });
 const T = "2026-09-30T10:00:00.000Z";
 
 (async () => {
@@ -147,6 +148,15 @@ const T = "2026-09-30T10:00:00.000Z";
     b5.status === 200 && b5.k.neu === 1 && b5.k.geloescht === 1 && b5.k.davon.verworfen === 1 && b5.k.davon.lebtTrotzLoeschliste === 1 && b5.k.nachweis.abweichungen === 0
       && exB5.entries.some((e) => e.id === "wieder") && !exB5.entries.some((e) => e.id === "tot") && exB5.deleted.tot === T2 && !exB5.deleted.wieder && b5.k.stand.nachher.eintraege === 52,
     JSON.stringify({ neu: b5.k.neu, gel: b5.k.geloescht, davon: b5.k.davon, n: b5.k.nachweis.abweichungen, stand: b5.k.stand.nachher.eintraege }));
+  /* (B6) Werkstatt-Schlüssel (Bauplan Abschnitt 12, Lücke 1): Schreiben ohne oder
+     mit falschem Schlüssel -> 401 und nichts geändert; Lesen bleibt frei. */
+  const vorB6 = (await holen("/api/soendgen/stand?seit=0")).k.version;
+  const ohne = await post("/api/soendgen/aenderungen", { benutzer: "Fremd", basisVersion: vorB6, eintraege: [{ id: "eindringling", date: "2026-09-30", category: "TODO", name: "ohne Schlüssel", updatedAt: T }] }, {});
+  const falschS = await post("/api/soendgen/aenderungen", { benutzer: "Fremd", basisVersion: vorB6, eintraege: [{ id: "eindringling", date: "2026-09-30", category: "TODO", name: "falscher Schlüssel", updatedAt: T }] }, { "X-BTA-Schluessel": "falsch" });
+  const nachB6 = (await holen("/api/soendgen/stand?seit=0")).k;
+  ok("(B6) Werkstatt-Schlüssel: ohne -> 401, falsch -> 401, Version unverändert, Lesen ohne Schlüssel erlaubt",
+    ohne.status === 401 && falschS.status === 401 && /Schlüssel/.test(ohne.k.fehler) && nachB6.version === vorB6 && !nachB6.eintraege.some((x) => x.id === "eindringling"),
+    `ohne ${ohne.status}, falsch ${falschS.status}, Version ${vorB6} -> ${nachB6.version}`);
   // Der Vergleicher muss Abweichungen auch FINDEN (sonst wäre der Nachweis wertlos): fehlend, verändert, überzählig, Löschliste, Konfig.
   const { vergleicheV1 } = require(path.join(WURZEL, "server", "dienst.js"));
   const links = { entries: [{ id: "a", x: 1 }, { id: "b", x: 2 }, { id: "c", x: 3 }], deleted: { d: "2026-01-01T00:00:00.000Z" }, config: { team: [1, 2] } };
@@ -197,7 +207,7 @@ const T = "2026-09-30T10:00:00.000Z";
   const seite = await fetch(B + "/status"); const html = await seite.text();
   /* Zeit in Serverzeit „dd.mm.yyyy hh:mm Uhr“ – nicht der ISO-Stempel (Roberto sah 13:43 statt 15:43, 30.09.) */
   ok("(A14) /status ist eine Seite mit beiden Standorten und Serverzeit", seite.status === 200 && /BTA-Cockpit-Dienst/.test(html) && /Scheurich/.test(html) && /Soendgen/.test(html) && /Läuft seit \d{2}\.\d{2}\.\d{4} \d{2}:\d{2} Uhr/.test(html) && !/Läuft seit \d{4}-\d{2}-\d{2}T/.test(html), (html.match(/Läuft seit [^(]*/) || [""])[0]);
-  ok("(A14) /app/ ohne App-Datei -> 404; kaputtes JSON -> 400", (await fetch(B + "/app/")).status === 404 && (await fetch(B + "/api/scheurich/aenderungen", { method: "POST", body: "{kaputt", headers: { "Content-Type": "application/json" } })).status === 400);
+  ok("(A14) /app/ ohne App-Datei -> 404; kaputtes JSON -> 400", (await fetch(B + "/app/")).status === 404 && (await fetch(B + "/api/scheurich/aenderungen", { method: "POST", body: "{kaputt", headers: { "Content-Type": "application/json", "X-BTA-Schluessel": "pruef-schluessel" } })).status === 400);
 
   kind.kill("SIGTERM");
   await new Promise((r) => setTimeout(r, 300));

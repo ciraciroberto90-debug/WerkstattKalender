@@ -3536,7 +3536,10 @@ function App() {
     if (!sharedFile.stoer.isConnected()) return null;
     try {
       await sharedFile.stoer.pollNow();
-      const liste = JSON.parse(localStorage.getItem(STOER_STORAGE_KEY) || "[]");
+      // Server-Betrieb: der Spiegel der Speicherschicht ist der frische Stand
+      // (der 4,3-MB-Bestand passt nicht sicher in den Zwischenspeicher).
+      const stand = sharedFile.serverBetrieb() && sharedFile.stoer.standJetzt ? sharedFile.stoer.standJetzt() : null;
+      const liste = stand ? (stand.entries || []) : JSON.parse(localStorage.getItem(STOER_STORAGE_KEY) || "[]");
       return liste.find((x) => x.id === id) || null;
     } catch (e) { return null; }   // nicht erreichbar: dann eben ohne Warnung
   };

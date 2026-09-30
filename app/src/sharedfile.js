@@ -16,6 +16,7 @@
 // und einen eigenen Ereignis-Präfix.
 
 import { STANDORT, nsKey, nsDb } from "./standort.js";
+import { createServerStore, serverAdresse } from "./server-client.js";
 
 const IDB_STORE = "handles";
 const IDB_BACKUP_STORE = "backups";
@@ -463,6 +464,34 @@ const BAU_ZEIT_APP = typeof __BUILD_ZEIT__ === "string" ? __BUILD_ZEIT__ : "";
 /* ==================================================================== */
 /* Fabrik: eine unabhängige Sync-Instanz je Datei                       */
 /* ==================================================================== */
+/* Verlaufszeilen zu einem Speichervorgang (Modul-Ebene, damit die Server-
+   Speicherschicht dieselben Zeilen schreibt wie die Datei-Fassung). */
+function baueVerlauf(nextEntries, prevEntries, removed, ts) {
+  const zeilen = [];
+  const prevById = new Map((prevEntries || []).map((e) => [e.id, e]));
+  const strip = OHNE_SPUR;   // dieselbe Blindheit wie beim Stempeln
+  const neu = [];
+  const geaendert = [];
+  (nextEntries || []).forEach((e) => {
+    if (istSystemEintrag(e)) return;
+    const alt = prevById.get(e.id);
+    if (!alt) neu.push(e);
+    else if (JSON.stringify(strip(alt)) !== JSON.stringify(strip(e))) geaendert.push(e);
+  });
+  const geloescht = (removed || []).map((id) => prevById.get(id)).filter((e) => e && !istSystemEintrag(e));
+
+  // Löschungen einzeln - das ist der Fall, den man später nachvollziehen muss.
+  geloescht.forEach((e) => zeilen.push(macheLogEintrag("gelöscht: " + benenneEintrag(e), ts)));
+  const fasse = (liste, wort) => {
+    if (liste.length === 0) return;
+    if (liste.length <= 3) liste.forEach((e) => zeilen.push(macheLogEintrag(wort + ": " + benenneEintrag(e), ts)));
+    else zeilen.push(macheLogEintrag(`${wort}: ${liste.length} Einträge`, ts));
+  };
+  fasse(neu, "angelegt");
+  fasse(geaendert, "geändert");
+  return zeilen;
+}
+
 function createSharedStore(cfg) {
   const DB_NAME = cfg.dbName;
   const FORMAT = cfg.format;
@@ -1783,32 +1812,6 @@ function createSharedStore(cfg) {
   // Vergleicht vorher/nachher und macht daraus lesbare Verlaufszeilen.
   // Bewusst grob: eine Zeile je Vorgang, nicht je Feld - der Verlauf soll die
   // Frage "wer hat das geändert" beantworten, nicht die Daten verdoppeln.
-  function baueVerlauf(nextEntries, prevEntries, removed, ts) {
-    const zeilen = [];
-    const prevById = new Map((prevEntries || []).map((e) => [e.id, e]));
-    const strip = OHNE_SPUR;   // dieselbe Blindheit wie beim Stempeln
-    const neu = [];
-    const geaendert = [];
-    (nextEntries || []).forEach((e) => {
-      if (istSystemEintrag(e)) return;
-      const alt = prevById.get(e.id);
-      if (!alt) neu.push(e);
-      else if (JSON.stringify(strip(alt)) !== JSON.stringify(strip(e))) geaendert.push(e);
-    });
-    const geloescht = (removed || []).map((id) => prevById.get(id)).filter((e) => e && !istSystemEintrag(e));
-
-    // Löschungen einzeln - das ist der Fall, den man später nachvollziehen muss.
-    geloescht.forEach((e) => zeilen.push(macheLogEintrag("gelöscht: " + benenneEintrag(e), ts)));
-    const fasse = (liste, wort) => {
-      if (liste.length === 0) return;
-      if (liste.length <= 3) liste.forEach((e) => zeilen.push(macheLogEintrag(wort + ": " + benenneEintrag(e), ts)));
-      else zeilen.push(macheLogEintrag(`${wort}: ${liste.length} Einträge`, ts));
-    };
-    fasse(neu, "angelegt");
-    fasse(geaendert, "geändert");
-    return zeilen;
-  }
-
   // Verträglichkeit mit noch laufenden älteren Fassungen: Die Einstellungen
 // liegen zwar als eigene Einträge vor, werden aber ZUSÄTZLICH weiterhin als
 // Block mitgeschrieben. Ältere Fassungen lesen nur diesen Block - ohne ihn
@@ -2516,7 +2519,17 @@ function createSharedStore(cfg) {
    und Schlüsselnamen unverändert (Bestandsschutz für alle laufenden Rechner);
    jeder weitere Standort bekommt über nsDb/nsKey eigene Namen und damit
    eigene gemerkte Dateien, eigene Sicherungen, eigenen Zwischenspeicher. */
-const main = createSharedStore({
+/* Server-Betrieb (Etappe C, 30.09.): Liegt eine Server-Adresse vor
+   (ausgeliefert unter /app/, ?server=… oder gemerkt), spricht die App mit dem
+   BTA-Cockpit-Dienst - dieselben Methoden, dieselben Ereignisse, dieselben
+   Regeln (die Helfer werden hineingereicht, damit es keine zweite Fassung
+   davon gibt). Ohne Adresse: die Datei auf W: wie bisher. */
+const SERVER_ADRESSE = serverAdresse();
+export const serverBetrieb = () => SERVER_ADRESSE;
+const SERVER_HELFER = { mergeEntries, stampEntries, macheLogEintrag, benenneEintrag, ohneSystemEntries, extractLogEntries, werBinIch, nowISO, baueVerlauf, configAusEintraegen };
+const main = SERVER_ADRESSE
+  ? createServerStore({ adresse: SERVER_ADRESSE, standort: STANDORT.id, bereich: "kalender", entriesKey: nsKey("werkstatt-kalender-entries"), configKey: nsKey("werkstatt-kalender-config"), evPrefix: "werkstatt-shared" }, SERVER_HELFER)
+  : createSharedStore({
   dbName: nsDb("werkstatt-kalender-fs"),
   format: "werkstatt-kalender-v1",
   standort: STANDORT.id,
@@ -2525,6 +2538,10 @@ const main = createSharedStore({
   suggestedName: STANDORT.id === "scheurich" ? "werkstatt-kalender-daten.json" : `${STANDORT.id}-kalender-daten.json`,
   evPrefix: "werkstatt-shared",
 });
+// Stand des örtlichen Spiegels (nur Server-Betrieb) - storage.js liest den
+// Bestand daraus statt aus dem 5-MB-Zwischenspeicher.
+export const standJetzt = main.standJetzt || (() => null);
+export const bereit = main.bereit || (() => Promise.resolve());
 
 // Bestehende, unveränderte öffentliche Schnittstelle (storage.js + App bleiben gleich).
 export const isSupported = main.isSupported;
@@ -2588,7 +2605,9 @@ export const pollNow = main.pollNow;
 // Getrennte Datei mit denselben Sicherheiten. Sie liegt im selben Ordner und ist für ALLE
 // (auch Nur-Leser der Hauptdatei) mit Bearbeiten-Recht freigegeben, damit jeder
 // Störungen melden/ändern/löschen kann, ohne die geschützten Hauptdaten anzurühren.
-export const stoer = createSharedStore({
+export const stoer = SERVER_ADRESSE
+  ? createServerStore({ adresse: SERVER_ADRESSE, standort: STANDORT.id, bereich: "stoerungen", entriesKey: nsKey("werkstatt-stoerungen-entries"), configKey: nsKey("werkstatt-stoerungen-config"), evPrefix: "werkstatt-stoer" }, SERVER_HELFER)
+  : createSharedStore({
   dbName: nsDb("werkstatt-stoerungen-fs"),
   format: "werkstatt-stoerungen-v1",
   standort: STANDORT.id,

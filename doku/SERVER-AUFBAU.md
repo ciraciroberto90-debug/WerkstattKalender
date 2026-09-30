@@ -155,6 +155,14 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - [x] ~~Schritt 17c (ursprünglich)~~ – **„Import“** → Ja. Erwartet: Zählung wie in der Vorschau, „NACHWEIS OK – N Eintraege zurueckgelesen, 0 Abweichungen“ je Datei, „Datenbank Scheurich vorher 0/0 → nachher N/M“, Fotos kopiert, Meldung mit den Zahlen. Danach Status-Seite: Scheurich mit N Einträgen, M Störberichten. Protokoll speichern und schicken.
 - [ ] **Schritt 17d** – Wiederholung: „Import“ noch einmal → alles „unveraendert“, Version bleibt (Nachweis der Wiederholbarkeit mit echten Daten).
 
+## Etappe C – App am Server (Testbetrieb, ab 30.09. nachts)
+
+Die App spricht im Server-Betrieb mit dem Dienst statt mit der Datei; erkannt wird das an der Adresse (`http://v-btacockpit-01:8765/app/`). Die Werkstatt bleibt auf `W:`, der Testbetrieb läuft gegen die importierte Datenbank auf dem Server – **was Roberto dort einträgt, landet NUR auf dem Server, nicht auf `W:`** (bis zum Umschalttag wird noch einmal importiert, der nimmt den W:-Stand; Test-Einträge auf dem Server gehen dabei nicht verloren, sind aber Testdaten).
+
+- [ ] **Schritt 18a** – `Werkstatt_Kalender_TPM.html` (Stand 30.09. nachts, aus dem Chat) auf den Server-Desktop → Werkzeug → Wartung → **„App-Datei tauschen…“** → diese Datei wählen. Kontrolle: Status-Seite zeigt unter „App“ den Link `/app/` mit Größe und Stand.
+- [ ] **Schritt 18b** – **Auf Robertos PC** im Chrome: `http://v-btacockpit-01:8765/app/` → Standort Scheurich wählen → als „Chef“/eigener Name anmelden wie gewohnt. Erwartet: die Übersicht mit dem echten Bestand (7.306 Einträge), Kopfzeile-Knopf „Gemeinsame Datei“ mit Titel „Server v-btacockpit-01 · scheurich · Version …“. Bild.
+- [ ] **Schritt 18c** – Einen Test-Eintrag anlegen (z. B. To-do „Servertest“), dann auf dem Server die Status-Seite: Version +1, Einträge 7.307. Zweites Fenster (Werkstatt-PC oder zweiter Chrome-Tab): der Eintrag steht ohne Neuladen da.
+
 **Etappe A ist damit auf dem Server durch** (Bauplan Abschnitt 8: Prüfstände grün 24/24 + 5/5, `/status` von Robertos PC erreichbar, Rückweg protokolliert). Es folgt **Etappe B – Import** (Reiter Import im Werkzeug, Testimport mit dem echten Abendstand von `W:`).
 
 ## Befunde vom 29.09. (Prüfungen 1–3)
