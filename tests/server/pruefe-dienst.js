@@ -140,6 +140,10 @@ const T = "2026-09-30T10:00:00.000Z";
   r = await post("/api/scheurich/sicherung", {});
   const dateien = fs.readdirSync(einst.sicherungOrdner).sort();
   ok("(A12) Sicherung: je Standort Datenbank-Kopie + 2 Exporte (6 Dateien)", r.status === 200 && dateien.length === 6 && dateien.filter((n) => n.endsWith(".sqlite")).length === 2 && dateien.some((n) => /scheurich_kalender\.json$/.test(n)), dateien.join(","));
+  /* Dateiname in Serverzeit (Roberto sah „13-57“ um 15:57, 30.09.) - mit TZ=Europe/Berlin laufen lassen, sonst ist UTC = Ortszeit */
+  const jetzt = new Date(), z = (n) => String(n).padStart(2, "0");
+  const erwartetStunde = `${jetzt.getFullYear()}-${z(jetzt.getMonth() + 1)}-${z(jetzt.getDate())}-${z(jetzt.getHours())}-`;
+  ok("(A12) Sicherungsname trägt die Serverzeit, nicht die Weltzeit", dateien.every((n) => n.startsWith(erwartetStunde)), `${dateien[0]} ↔ erwartet ${erwartetStunde}… (TZ=${process.env.TZ || "System"})`);
   {
     const { oeffnen } = require(path.join(WURZEL, "server", "db.js"));
     const kopie = oeffnen(path.join(einst.sicherungOrdner, dateien.find((n) => /_scheurich\.sqlite$/.test(n))));

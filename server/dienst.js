@@ -52,14 +52,23 @@ function ladeEinstellungen(pfad) {
 }
 
 /* ---------- Protokoll ---------- */
+/* Serverzeit als „YYYY-MM-DD HH:MM:SS“ - für Protokoll, Sicherungsnamen und
+ * Tageswechsel. Roberto sah am 30.09. Dateien „…-13-57_scheurich.sqlite“ um
+ * 15:57 Uhr: das war die Weltzeit aus toISOString(). Nach außen (JSON) bleibt
+ * ISO/UTC, damit Programme eindeutig rechnen. */
+function ortsZeit(d = new Date()) {
+  const z = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+}
+
 function protokollierer(ordner) {
   fs.mkdirSync(ordner, { recursive: true });
   const fehlerLetzte24h = [];
   const schreibe = (stufe, text) => {
-    const zeit = new Date().toISOString();
+    const zeit = ortsZeit();
     const zeile = `${zeit} ${stufe.padEnd(5)} ${text}`;
     try { fs.appendFileSync(path.join(ordner, `dienst-${zeit.slice(0, 10)}.log`), zeile + "\n"); } catch (e) { /* Protokoll darf den Dienst nicht stoppen */ }
-    if (stufe === "FEHL") { fehlerLetzte24h.push({ zeit, text }); while (fehlerLetzte24h.length && Date.now() - Date.parse(fehlerLetzte24h[0].zeit) > 86400000) fehlerLetzte24h.shift(); }
+    if (stufe === "FEHL") { fehlerLetzte24h.push({ zeit, text, ms: Date.now() }); while (fehlerLetzte24h.length && Date.now() - fehlerLetzte24h[0].ms > 86400000) fehlerLetzte24h.shift(); }
     if (process.stdout.isTTY || process.env.DIENST_LAUT) console.log(zeile);
   };
   return { info: (t) => schreibe("INFO", t), fehler: (t) => schreibe("FEHL", t), fehlerLetzte24h: () => fehlerLetzte24h.slice() };
@@ -102,7 +111,7 @@ function starten(einstellungen, { still = false } = {}) {
 
   /* Sicherung: konsistente Datenbank-Kopie + Export im heutigen Format, je Standort. */
   function sicherungJetzt(grund) {
-    const stempel = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
+    const stempel = ortsZeit().replace(/[: ]/g, "-").slice(0, 16); // 2026-09-30-15-57 (Serverzeit)
     const ergebnis = [];
     for (const st of Object.values(standorte)) {
       try {
@@ -136,7 +145,7 @@ function starten(einstellungen, { still = false } = {}) {
   const sicherungsUhr = setInterval(() => {
     const jetzt = new Date();
     const hhmm = `${String(jetzt.getHours()).padStart(2, "0")}:${String(jetzt.getMinutes()).padStart(2, "0")}`;
-    const tag = jetzt.toISOString().slice(0, 10);
+    const tag = ortsZeit(jetzt).slice(0, 10);
     if (hhmm === e.sicherungUhrzeit && letzterSicherungsTag !== tag) { letzterSicherungsTag = tag; sicherungJetzt("nächtlich"); }
   }, 60 * 1000);
   // Lebenszeichen für die SSE-Verbindungen, damit kein Proxy/Router sie für tot hält.
