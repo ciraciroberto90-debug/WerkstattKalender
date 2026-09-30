@@ -126,7 +126,21 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - [x] **Schritt 14** – Status-Seite von Robertos eigenem PC – **erledigt 30.09., 15:48**: `http://v-btacockpit-01:8765/status` kommt im Chrome (Firewall-Regel und Namensauflösung nachgewiesen; „Nicht sicher“ = HTTP ohne Zertifikat, im Firmennetz so entschieden, Bauplan Entscheidung 4). Werkstatt-PC folgt bei Gelegenheit.
 - [x] **Schritt 14b** – Aufgabenplanung – **erledigt 30.09., 15:55** (Bild): Status „Wird ausgeführt“, letzte Laufzeit 15:43:23, „Aufgabe beenden, falls Ausführung länger als“ **ohne Haken** (`PT0S` greift), Neustart alle 1 Minute bis 3-mal, Konto SYSTEM, unabhängig von der Anmeldung, höchste Berechtigungen, „Keine neue Instanz starten“.
 - [x] **Schritt 15a** – Wartung → „Sicherung jetzt" – **erledigt 30.09., 15:57**: je Standort `.sqlite` (64 kB) + 2 Exporte in `C:\BTA\BTA-Sicherung`, sechs Dateien im Explorer. Nebenfund: Dateiname trug die Weltzeit (`…-13-57_…`) – Dienst stempelt jetzt in Serverzeit (auch Protokollzeilen und Tageswechsel der 02:00-Sicherung), A12 prüft es; kommt mit dem nächsten „Einrichten“ mit.
-- [ ] **Schritt 15b** – Wartung → „Sicherung einspielen…" → `…_scheurich.sqlite` wählen → Ja. Erwartet: Dienst gestoppt, `cockpit.vor-rueckweg-<Zeit>.sqlite` daneben, Sicherung eingespielt, Dienst neu gestartet, „Rueckweg fertig. Scheurich: Version 0, 0 Eintraege“. Protokoll hier festhalten.
+- [x] **Schritt 15b – RÜCKWEG GEÜBT 30.09., 16:01** (Roberto wählte die Soendgen-Sicherung `2026-09-30-13-57_soendgen.sqlite`). Protokoll wörtlich:
+  ```
+  16:01:26  Rueckweg Soendgen Keramik: C:\BTA\BTA-Sicherung\2026-09-30-13-57_soendgen.sqlite
+  16:01:26  Dienst stoppen ...
+  16:01:31  Dienst gestoppt.
+  16:01:31    Heutige Datenbank aufgehoben: cockpit.vor-rueckweg-2026-09-30-16-01.sqlite
+  16:01:31    Sicherung eingespielt.
+  16:01:32  Dienst starten ...
+  16:01:32  Dienst laeuft (Fassung 0.1.0).
+  16:01:32    Stand jetzt: Version 0, 0 Eintraege, 0 Stoerberichte.
+  ```
+  **Gemessen: 6 s vom Klick bis zum laufenden Dienst** (Stopp 5 s, Einspielen unter 1 s, Start unter 1 s). `BTA-Scheurich` unberührt (Bild: `cockpit.sqlite` von 15:43, WAL 125 KB, daneben Robertos Ordner „Bilder Scheurich“ vom 29.09.). Die Kopie `cockpit.vor-rueckweg-2026-09-30-16-01.sqlite` liegt in `BTA-Soendgen` und kann irgendwann weg (leer, 64 kB).
+- [ ] **Schritt 16** – Status-Seite von einem Werkstatt-PC öffnen (`http://v-btacockpit-01:8765/status`), bei Gelegenheit – Nachweis, dass auch ein Werkstatt-Konto durch die Firewall kommt.
+
+**Etappe A ist damit auf dem Server durch** (Bauplan Abschnitt 8: Prüfstände grün 24/24 + 5/5, `/status` von Robertos PC erreichbar, Rückweg protokolliert). Es folgt **Etappe B – Import** (Reiter Import im Werkzeug, Testimport mit dem echten Abendstand von `W:`).
 
 ## Befunde vom 29.09. (Prüfungen 1–3)
 
