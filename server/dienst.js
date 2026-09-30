@@ -84,6 +84,20 @@ function json(res, status, daten, extra = {}) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*", ...extra });
   res.end(text);
 }
+/* Rohe Bytes (Fotos) - ohne JSON-Zerlegung. */
+function rohLesen(req, maxBytes = 25 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const teile = []; let groesse = 0;
+    req.on("data", (d) => { groesse += d.length; if (groesse > maxBytes) { reject(new Error("Anfrage zu groß")); req.destroy(); return; } teile.push(d); });
+    req.on("end", () => resolve(Buffer.concat(teile)));
+    req.on("error", reject);
+  });
+}
+/* Fotos liegen als Dateien im fotos-Ordner des Standorts. Nur ein schlichter
+   Dateiname ist erlaubt - kein Pfad, keine Punkte am Anfang (Bauplan Abschnitt 4). */
+const FOTO_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/;
+const FOTO_TYPEN = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif" };
+
 function koerperLesen(req) {
   return new Promise((resolve, reject) => {
     const teile = []; let groesse = 0;
@@ -107,7 +121,18 @@ function starten(einstellungen, { still = false } = {}) {
     fs.mkdirSync(path.join(s.datenOrdner, "fotos"), { recursive: true });
     log.info(`Standort ${id}: Datenbank ${dbPfad} (Version ${standorte[id].db.version()})`);
   }
+  /* Die jüngste Sicherung aus dem Ordner, damit ein Neustart des Dienstes
+     nicht "noch keine" meldet (Sicherungs-Ampel im Werkzeug, Bauplan Abschnitt 12). */
   let letzteSicherung = null;
+  try {
+    let juengste = null;
+    for (const name of fs.existsSync(e.sicherungOrdner) ? fs.readdirSync(e.sicherungOrdner) : []) {
+      if (!/\.sqlite$/.test(name)) continue;
+      const st = fs.statSync(path.join(e.sicherungOrdner, name));
+      if (!juengste || st.mtimeMs > juengste.ms) juengste = { ms: st.mtimeMs, name };
+    }
+    if (juengste) letzteSicherung = { zeit: new Date(juengste.ms).toISOString(), grund: "aus dem Sicherungsordner (vor dem Start)", ergebnis: [{ datenbank: path.join(e.sicherungOrdner, juengste.name) }] };
+  } catch (x) { /* ohne Ordner: noch keine */ }
 
   /* Allen verbundenen Rechnern eines Standorts Bescheid geben. */
   function melde(st, version) {
@@ -191,7 +216,7 @@ function starten(einstellungen, { still = false } = {}) {
   async function behandle(req, res) {
     const u = url.parse(req.url, true);
     const teile = u.pathname.split("/").filter(Boolean);
-    if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "Content-Type, X-BTA-Schluessel" }); return res.end(); }
+    if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS", "Access-Control-Allow-Headers": "Content-Type, X-BTA-Schluessel" }); return res.end(); }
     try {
       if (teile.length === 0) { res.writeHead(302, { Location: "/status" }); return res.end(); }
       if (teile[0] === "status") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }); return res.end(statusSeite()); }
@@ -206,7 +231,7 @@ function starten(einstellungen, { still = false } = {}) {
       if (!st) return json(res, 404, { fehler: "Unbekannter Standort: " + teile[1], bekannt: Object.keys(standorte) });
       const weg = teile[2] || "";
       // Schreibende Wege nur mit Werkstatt-Schlüssel (wenn einer gesetzt ist).
-      if (req.method === "POST" && e.schluessel && String(req.headers["x-bta-schluessel"] || "") !== e.schluessel) {
+      if ((req.method === "POST" || req.method === "DELETE") && e.schluessel && String(req.headers["x-bta-schluessel"] || "") !== e.schluessel) {
         log.info(`${req.method} ${u.pathname} abgewiesen: Werkstatt-Schlüssel fehlt oder falsch`);
         return json(res, 401, { fehler: "Werkstatt-Schlüssel fehlt oder ist falsch" });
       }
@@ -260,6 +285,35 @@ function starten(einstellungen, { still = false } = {}) {
         return json(res, 200, { ...r, kopf, nachweis, stand: { vorher, nachher } });
       }
       if (weg === "sicherung" && req.method === "POST") return json(res, 200, sicherungJetzt("auf Anforderung"));
+      if (weg === "fotos") {
+        const name = decodeURIComponent(teile[3] || "");
+        if (!FOTO_NAME.test(name)) return json(res, 400, { fehler: "Foto: ungültiger Dateiname" });
+        const pfad = path.join(st.datenOrdner, "fotos", name);
+        if (req.method === "GET") {
+          if (!fs.existsSync(pfad)) return json(res, 404, { fehler: "Foto nicht gefunden" });
+          const typ = FOTO_TYPEN[path.extname(name).toLowerCase()] || "application/octet-stream";
+          res.writeHead(200, { "Content-Type": typ, "Content-Length": fs.statSync(pfad).size, "Cache-Control": "private, max-age=3600", "Access-Control-Allow-Origin": "*" });
+          return fs.createReadStream(pfad).pipe(res);
+        }
+        if (req.method === "POST") {
+          const bytes = await rohLesen(req);
+          if (!bytes.length) return json(res, 400, { fehler: "Foto: leere Datei" });
+          fs.mkdirSync(path.dirname(pfad), { recursive: true });
+          // Erst in eine Zwischendatei, dann umbenennen - nie eine halbe Bilddatei unter dem echten Namen.
+          const zwischen = pfad + ".teil";
+          fs.writeFileSync(zwischen, bytes);
+          fs.renameSync(zwischen, pfad);
+          const groesse = fs.statSync(pfad).size; // Kontroll-Lesung wie bei der Datei-Fassung
+          if (groesse !== bytes.length) { fs.unlinkSync(pfad); throw new Error("Foto unvollständig geschrieben"); }
+          log.info(`${st.id}: Foto ${name} (${groesse} Bytes) von ${u.query.benutzer || "?"}`);
+          return json(res, 200, { name, bytes: groesse });
+        }
+        if (req.method === "DELETE") {
+          if (fs.existsSync(pfad)) fs.unlinkSync(pfad);
+          log.info(`${st.id}: Foto ${name} gelöscht`);
+          return json(res, 200, { name, geloescht: true });
+        }
+      }
       return json(res, 404, { fehler: "Unbekannter Weg: " + u.pathname });
     } catch (x) {
       // Eine kaputte Anfrage (kein JSON, zu groß, ohne id) ist ein Fehler des
@@ -292,7 +346,7 @@ function starten(einstellungen, { still = false } = {}) {
   });
 }
 
-const FASSUNG = "0.2.2"; // 0.2.x = Etappe B: Import-Vorschau, Standort-Wächter, Nachweis, Serverzeit; 0.2.1 zählt wie die Kennkarte; 0.2.2 Löschliste nach Zeitstempel wie die App (30.09.)
+const FASSUNG = "0.3.0"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.)
 
 /* Import-Nachweis: eingelesene Datei gegen den Export aus der Datenbank.
    Einträge Feld für Feld (JSON-Text je id), Löschliste nach Kennung, Konfig je

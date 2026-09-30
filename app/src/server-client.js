@@ -210,14 +210,47 @@ export function createServerStore(cfg, helfer) {
     spiegel.version = Number(stand.version) || spiegel.version;
     return zeilen.length + geloescht.length + Object.keys(konfig).length;
   }
+  let warUnerreichbar = false; // für die grüne Meldung, wenn der Server zurück ist
   async function deltaHolen() {
     const seit = spiegel.version;
-    const r = await anfrage(`${API}/stand?seit=${seit}`);
+    let r;
+    try { r = await anfrage(`${API}/stand?seit=${seit}`); } catch (x) { warUnerreichbar = true; throw x; }
     if (r.status !== 200 || !r.daten) throw new Error("Stand nicht lesbar (" + r.status + ")");
     const n = standAnwenden(r.daten);
     lastSuccessfulSyncAt = H.nowISO();
     if (n > 0 || seit === 0) { spiegelSichernBald(); dispatchUpdate(); }
+    if (warUnerreichbar) { warUnerreichbar = false; if (!warteschlange.length) { dispatchOk(); dispatchInfo("Der Server " + HOST + " ist wieder erreichbar."); } }
     return n;
+  }
+
+  /* ---------- Fotos über den Server (Bauplan Entscheidung 5) ---------- */
+  const fotoWeg = (name) => `${API}/fotos/${encodeURIComponent(name)}`;
+  async function fotoSpeichern(dateiName, blob) {
+    const kopf = {}; const s = werkstattSchluessel(); if (s) kopf["X-BTA-Schluessel"] = s;
+    const r = await fetch(fotoWeg(dateiName) + "?benutzer=" + encodeURIComponent(H.werBinIch()), { method: "POST", headers: kopf, body: blob, cache: "no-store" });
+    if (r.status === 401) throw new Error("Foto abgewiesen: Werkstatt-Schlüssel fehlt oder ist falsch.");
+    if (!r.ok) throw new Error("Foto nicht gespeichert (" + r.status + ")");
+    const antwort = await r.json();
+    // Kontroll-Lesung wie bei der Datei-Fassung: erst wenn die Bytes zurückkommen, gilt „gespeichert“.
+    const probe = await fetch(fotoWeg(dateiName), { cache: "no-store" });
+    const groesse = probe.ok ? (await probe.blob()).size : 0;
+    if (groesse !== blob.size || antwort.bytes !== blob.size) throw new Error(`Die Fotodatei „${dateiName}" ist auf dem Server nicht vollständig (${groesse} von ${blob.size} Bytes).`);
+    return true;
+  }
+  async function fotoLesen(dateiName) {
+    try {
+      const r = await fetch(fotoWeg(dateiName));
+      if (!r.ok) return null;
+      const blob = await r.blob();
+      return new File([blob], dateiName, { type: blob.type || "image/jpeg" });
+    } catch (e) { return null; }
+  }
+  async function fotoLoeschen(dateiName) {
+    try {
+      const kopf = {}; const s = werkstattSchluessel(); if (s) kopf["X-BTA-Schluessel"] = s;
+      const r = await fetch(fotoWeg(dateiName), { method: "DELETE", headers: kopf });
+      return r.ok;
+    } catch (e) { return false; }
   }
 
   /* ---------- Live-Meldungen (SSE) ---------- */
@@ -228,7 +261,9 @@ export function createServerStore(cfg, helfer) {
       eventSource.onmessage = (ev) => {
         let d = null; try { d = JSON.parse(ev.data); } catch (e) { return; }
         erreichbar = true;
-        if (d && Number(d.version) > spiegel.version) nachholenBald();
+        // "hallo" = (Wieder-)Verbindung: immer einmal abgleichen - so kommt nach
+        // einem Ausfall die grüne Meldung binnen Sekunden, nicht erst beim 60-s-Kurzblick.
+        if (d && (d.hallo || Number(d.version) > spiegel.version)) nachholenBald();
         if (d && d.hallo && warteschlange.length) warteschlangeSenden();
       };
       eventSource.onerror = () => { erreichbar = false; /* der Browser verbindet selbst neu */ };
@@ -426,6 +461,7 @@ export function createServerStore(cfg, helfer) {
     senden: warteschlangeSenden,
     save: saveEntries,
     fileInfo,
+    fotos: { speichern: fotoSpeichern, lesen: fotoLesen, loeschen: fotoLoeschen },
   };
 
   return {
@@ -451,8 +487,8 @@ export function createServerStore(cfg, helfer) {
     sammleKonfliktkopien: async () => ({ eingesammelt: 0 }),
     tagesSicherungJetzt: async () => ({ uebersprungen: true, grund: "Im Server-Betrieb sichert der Dienst nachts um 02:00 (C:\\BTA\\BTA-Sicherung)." }),
     tagesSicherungStand: () => ({ server: true }),
-    // Fotos über den Server folgen als eigener Schritt (Bauplan Entscheidung 5) - bis dahin ehrlich "nicht verfügbar".
-    fotosVerfuegbar: () => false, fotoLage: () => ({ verfuegbar: false, grund: "Fotos über den Server kommen als eigener Schritt." }), fotoSpeichern: nichts, fotoLesen: nichts, fotoLoeschen: nichts,
+    // Fotos liegen im fotos-Ordner des Standorts auf dem Server (Bauplan Entscheidung 5).
+    fotosVerfuegbar: () => gestartet, fotoLage: () => (gestartet ? "ok" : "kein-ordner"), fotoSpeichern, fotoLesen, fotoLoeschen,
     leseAusOrdner: nichts, listeOrdnerDateien: async () => [],
     pickQuellOrdner: nichtImServerBetrieb, reconnectQuellOrdner: nichts, vergissQuellOrdner: nichts, quellOrdnerStatus: () => "none", quellOrdnerName: () => "", setzeQuellOrdnerPfad: nichts,
     saveEntries, saveConfig,

@@ -148,6 +148,23 @@ const T = "2026-09-30T10:00:00.000Z";
     b5.status === 200 && b5.k.neu === 1 && b5.k.geloescht === 1 && b5.k.davon.verworfen === 1 && b5.k.davon.lebtTrotzLoeschliste === 1 && b5.k.nachweis.abweichungen === 0
       && exB5.entries.some((e) => e.id === "wieder") && !exB5.entries.some((e) => e.id === "tot") && exB5.deleted.tot === T2 && !exB5.deleted.wieder && b5.k.stand.nachher.eintraege === 52,
     JSON.stringify({ neu: b5.k.neu, gel: b5.k.geloescht, davon: b5.k.davon, n: b5.k.nachweis.abweichungen, stand: b5.k.stand.nachher.eintraege }));
+  /* (F1) Fotos über den Server (Bauplan Entscheidung 5): Bytes hin, Bytes zurück,
+     Schlüssel Pflicht beim Schreiben, kein Pfad im Namen, Löschen. */
+  const bild = Buffer.alloc(5000); for (let i = 0; i < bild.length; i++) bild[i] = i % 251;
+  const fotoPost = (name, kopf = { "X-BTA-Schluessel": "pruef-schluessel" }) => fetch(B + "/api/scheurich/fotos/" + name + "?benutzer=Chef", { method: "POST", headers: { "Content-Type": "image/jpeg", ...kopf }, body: bild });
+  const f1 = await fotoPost("bild-1.jpg");
+  const f1k = await f1.json();
+  const fGet = await fetch(B + "/api/scheurich/fotos/bild-1.jpg");
+  const fBytes = Buffer.from(await fGet.arrayBuffer());
+  const fOhne = await fotoPost("bild-2.jpg", {});
+  const fBoese = await fotoPost("..%2Fboese.jpg");
+  const fLoesch = await fetch(B + "/api/scheurich/fotos/bild-1.jpg", { method: "DELETE", headers: { "X-BTA-Schluessel": "pruef-schluessel" } });
+  const fWeg = await fetch(B + "/api/scheurich/fotos/bild-1.jpg");
+  const fotoDatei = path.join(einst.standorte.scheurich.datenOrdner, "fotos", "bild-1.jpg");
+  ok("(F1) Fotos: POST 5000 Bytes -> Datei im fotos-Ordner, GET liefert dieselben Bytes als image/jpeg; ohne Schlüssel 401; Pfad im Namen 400; DELETE -> 404",
+    f1.status === 200 && f1k.bytes === 5000 && fGet.status === 200 && /image\/jpeg/.test(fGet.headers.get("content-type")) && fBytes.equals(bild) && fOhne.status === 401 && fBoese.status === 400 && fLoesch.status === 200 && fWeg.status === 404 && !fs.existsSync(fotoDatei),
+    `post ${f1.status}/${f1k.bytes}, get ${fGet.status}/${fBytes.length}, ohne ${fOhne.status}, boese ${fBoese.status}, delete ${fLoesch.status}, danach ${fWeg.status}`);
+
   /* (B6) Werkstatt-Schlüssel (Bauplan Abschnitt 12, Lücke 1): Schreiben ohne oder
      mit falschem Schlüssel -> 401 und nichts geändert; Lesen bleibt frei. */
   const vorB6 = (await holen("/api/soendgen/stand?seit=0")).k.version;
@@ -191,6 +208,20 @@ const T = "2026-09-30T10:00:00.000Z";
     const kopie = oeffnen(path.join(einst.sicherungOrdner, dateien.find((n) => /_scheurich\.sqlite$/.test(n))));
     const z = kopie.zaehlen(); kopie.schliessen();
     ok("(A12) Die Kopie lässt sich öffnen und hat denselben Bestand (Version 5, 2 Einträge, 1 Störung, 1 gelöscht)", z.version === 5 && z.eintraege === 2 && z.stoerungen === 1 && z.geloescht === 1, JSON.stringify(z));
+    /* (A12b) Ein NEU gestarteter Dienst kennt die jüngste Sicherung aus dem Ordner
+       (Sicherungs-Ampel im Werkzeug: nach einem Neustart nicht "noch keine"). */
+    const ORDNER2 = fs.mkdtempSync(path.join(os.tmpdir(), "bta-dienst2-"));
+    const einst2 = { ...einst, port: einst.port + 1, protokollOrdner: path.join(ORDNER2, "protokoll"), standorte: { scheurich: { name: "S2", datenOrdner: path.join(ORDNER2, "s") }, soendgen: { name: "So2", datenOrdner: path.join(ORDNER2, "so") } } };
+    fs.writeFileSync(path.join(ORDNER2, "einstellungen.json"), JSON.stringify(einst2));
+    const kind2 = spawn(process.execPath, ["--no-warnings", DIENST, path.join(ORDNER2, "einstellungen.json")], { stdio: "ignore" });
+    let s2 = null;
+    for (let i = 0; i < 50 && !s2; i++) { await new Promise((r) => setTimeout(r, 100)); try { const r = await fetch(`http://127.0.0.1:${einst2.port}/api/status`); if (r.ok) s2 = await r.json(); } catch (e) { /* noch nicht */ } }
+    kind2.kill("SIGTERM");
+    const juengsteKopie = fs.readdirSync(einst.sicherungOrdner).filter((n) => n.endsWith(".sqlite")).map((n) => fs.statSync(path.join(einst.sicherungOrdner, n)).mtimeMs).sort((a, b) => b - a)[0];
+    ok("(A12b) Neu gestarteter Dienst kennt die jüngste Sicherung aus dem Ordner (Zeit = Dateizeit, Grund 'aus dem Sicherungsordner')",
+      !!(s2 && s2.letzteSicherung && s2.letzteSicherung.zeit) && Math.abs(Date.parse(s2.letzteSicherung.zeit) - juengsteKopie) < 1500 && /Sicherungsordner/.test(s2.letzteSicherung.grund),
+      s2 && s2.letzteSicherung ? `${s2.letzteSicherung.zeit} (${s2.letzteSicherung.grund})` : "keine Antwort");
+    fs.rmSync(ORDNER2, { recursive: true, force: true });
   }
 
   /* (A13) Zwei Schreiber gleichzeitig */

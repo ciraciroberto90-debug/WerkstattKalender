@@ -165,6 +165,10 @@ Die App spricht im Server-Betrieb mit dem Dienst statt mit der Datei; erkannt wi
 - [x] **Schritt 18c – ZWEI FENSTER, EIN SERVER (30.09., 22:51):** Pinnwand-Zettel „Servertest“ im ersten Tab, im zweiten Tab sofort da; Status-Seite: Scheurich **Version 6, 7.307 Einträge**, 2.931 Störberichte, Verlauf 5.565, gelöscht 1.500 (die acht wiederbelebten Einträge haben ihre Löschmarke verloren: 1.508 → 1.500), 4 verbundene Lauscher (zwei Tabs × zwei Speicherschichten), keine Fehler. **Damit ist der Kern von Etappe C auf Robertos PC gemessen.**
 - [ ] **Schritt 18c** – Einen Test-Eintrag anlegen (z. B. To-do „Servertest“), dann auf dem Server die Status-Seite: Version +1, Einträge 7.307. Zweites Fenster (Werkstatt-PC oder zweiter Chrome-Tab): der Eintrag steht ohne Neuladen da.
 
+- [ ] **Schritt 19a** – Stick-ZIP (Dienst 0.3.0: Fotos, Sicherungs-Ampel, Notfallzettel) → „Einrichten“ → Prüfen: **neun** Ampeln, die neunte „Letzte Sicherung“ gelb („noch keine – die erste kommt nachts um 02:00“) oder grün, falls „Sicherung jetzt“ gedrückt wurde; Fassung 0.3.0.
+- [ ] **Schritt 19b** – neue App-Datei (30.09. spät) → „App-Datei tauschen…“ → am PC F5 → oben rechts „Gemeinsame Datei“ klicken: die **Server-Karte** (Verbunden mit …, Versionen, Schlüssel-Feld, „Jetzt abgleichen“, „Status-Seite“). Bild.
+- [ ] **Schritt 19c** – Foto-Test: am Störbericht oder Zettel ein Foto anhängen und speichern → auf dem Server liegt es in `C:\BTA\BTA-Scheurich\fotos`, im zweiten Tab ist es sichtbar.
+
 **Etappe A ist damit auf dem Server durch** (Bauplan Abschnitt 8: Prüfstände grün 24/24 + 5/5, `/status` von Robertos PC erreichbar, Rückweg protokolliert). Es folgt **Etappe B – Import** (Reiter Import im Werkzeug, Testimport mit dem echten Abendstand von `W:`).
 
 ## Befunde vom 29.09. (Prüfungen 1–3)

@@ -68,7 +68,7 @@ $NodeFassung = "v22.23.3"
 # Import und Vorschau verlangen genau diese Fassung auf dem Server - sonst
 # passen Werkzeug und Dienst nicht zusammen (30.09., 22:03: leere "davon"-Zeile,
 # weil "Einrichten" uebersprungen wurde). stick-bauen.js prueft den Gleichstand.
-$DienstFassungStick = "0.2.2"
+$DienstFassungStick = "0.3.0"
 $NodeUrl = "https://nodejs.org/dist/$NodeFassung/node-$NodeFassung-win-x64.zip"
 
 $hier  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -185,14 +185,14 @@ $reiter.Controls.AddRange(@($tabPruef, $tabEin, $tabWart, $tabImp))
 
 # ---- Reiter PRUEFEN ----------------------------------------------------------
 $lblPruef = New-Object System.Windows.Forms.Label
-$lblPruef.Text = "Acht Fragen an den Server. Gruen = passt, gelb = fehlt noch (Einrichten macht es), rot = bitte erst klaeren."
+$lblPruef.Text = "Neun Fragen an den Server. Gruen = passt, gelb = fehlt noch (Einrichten macht es), rot = bitte erst klaeren."
 $lblPruef.Location = New-Object System.Drawing.Point(12, 10)
 $lblPruef.Size = New-Object System.Drawing.Size(640, 22)
 $lblPruef.ForeColor = [System.Drawing.Color]::Gray
 # Namen werden IN den Text eingebettet ("...$AufgabeName...") statt mit + angehaengt:
 # in einer Liste bindet das Komma staerker als das Plus, "a" + $x + "b", "c" zerfiel
 # am 30.09. auf dem Server in elf statt acht Zeilen (Robertos Bild).
-$ampelTitel = @("Als Administrator gestartet", "Ordner unter C:\BTA (Programm, Scheurich, Sicherung, Soendgen)", "Fuenf BTA-Gruppen auf dem Server", "Node (auf dem Stick oder schon im Dienst-Ordner)", "Dienst-Dateien im Dienst-Ordner", "Aufgabe '$AufgabeName' (Beim Systemstart)", "Firewall-Regel '$FirewallName'", "Dienst antwortet (/api/status)")
+$ampelTitel = @("Als Administrator gestartet", "Ordner unter C:\BTA (Programm, Scheurich, Sicherung, Soendgen)", "Fuenf BTA-Gruppen auf dem Server", "Node (auf dem Stick oder schon im Dienst-Ordner)", "Dienst-Dateien im Dienst-Ordner", "Aufgabe '$AufgabeName' (Beim Systemstart)", "Firewall-Regel '$FirewallName'", "Dienst antwortet (/api/status)", "Letzte Sicherung (juenger als 26 h)")
 $ampelZeilen = @()
 $y = 40
 foreach ($t in $ampelTitel) {
@@ -210,13 +210,13 @@ foreach ($t in $ampelTitel) {
 }
 $kPruefen = New-Object System.Windows.Forms.Button
 $kPruefen.Text = "Jetzt pruefen"
-$kPruefen.Location = New-Object System.Drawing.Point(16, 300)
+$kPruefen.Location = New-Object System.Drawing.Point(16, 318)
 $kPruefen.Size = New-Object System.Drawing.Size(200, 36)
 $kPruefen.FlatStyle = "System"
 $kPruefen.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 $kBericht = New-Object System.Windows.Forms.Button
 $kBericht.Text = "Pruefbericht speichern..."
-$kBericht.Location = New-Object System.Drawing.Point(230, 300)
+$kBericht.Location = New-Object System.Drawing.Point(230, 318)
 $kBericht.Size = New-Object System.Drawing.Size(200, 36)
 $kBericht.FlatStyle = "System"
 $tabPruef.Controls.AddRange(@($lblPruef, $kPruefen, $kBericht))
@@ -482,6 +482,18 @@ function Pruefe-Alles([bool]$laut) {
   $s = Dienst-Status $port
   if ($s) { Setze-Ampel $ampelZeilen[7] "gruen" ("ja, Port " + $port + ", Fassung " + $s.fassung) } else { Setze-Ampel $ampelZeilen[7] "gelb" ("nein (Port " + $port + ") - nach dem Einrichten gruen") }
   $ergebnis.antwortet = [bool]$s
+  # 9 Letzte Sicherung (Bauplan Abschnitt 12, Luecke 2): der Dienst kennt sie auch nach einem Neustart aus dem Sicherungsordner.
+  $sichOk = $false
+  if ($s -and $s.letzteSicherung -and $s.letzteSicherung.zeit) {
+    try {
+      $alter = (Get-Date) - ([DateTime]::Parse([string]$s.letzteSicherung.zeit).ToLocalTime())
+      $std = [Math]::Round($alter.TotalHours, 1)
+      if ($alter.TotalHours -le 26) { $sichOk = $true; Setze-Ampel $ampelZeilen[8] "gruen" ("vor " + $std + " h (" + $s.letzteSicherung.grund + ")") }
+      else { Setze-Ampel $ampelZeilen[8] "rot" ("vor " + $std + " h - laenger als 26 h! Protokoll-Ordner ansehen, 'Sicherung jetzt' druecken") }
+    } catch { Setze-Ampel $ampelZeilen[8] "gelb" ("Zeit nicht lesbar: " + $s.letzteSicherung.zeit) }
+  } elseif ($s) { Setze-Ampel $ampelZeilen[8] "gelb" "noch keine - die erste kommt nachts um 02:00 (oder Wartung -> Sicherung jetzt)" }
+  else { Setze-Ampel $ampelZeilen[8] "gelb" "Dienst antwortet nicht - keine Auskunft" }
+  $ergebnis.sicherung = $sichOk
   if ($laut) { foreach ($z in $ampelZeilen) { Schreibe-Log ("  " + $z.Lab.Text) } }
   return $ergebnis
 }

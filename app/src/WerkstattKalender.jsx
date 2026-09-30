@@ -15161,7 +15161,7 @@ function App() {
             onClick={(ev) => ev.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <div className="font-bold text-sm">Gemeinsame Datei (Firmenlaufwerk)</div>
+              <div className="font-bold text-sm">{sharedFile.serverBetrieb() ? "Server (BTA-Cockpit-Dienst)" : "Gemeinsame Datei (Firmenlaufwerk)"}</div>
               <button onClick={() => setShareOpen(false)} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
             </div>
 
@@ -15176,7 +15176,61 @@ function App() {
               </div>
             )}
 
-            {!sharedFile.isSupported() ? (
+            {/* Server-Betrieb (Etappe C): statt Datei-Knöpfen die Server-Karte -
+                Adresse, Stand, Warteschlange, Werkstatt-Schlüssel. Die Werte
+                kommen aus der Speicherschicht, nicht aus einer Datei. */}
+            {sharedFile.serverBetrieb() ? (() => {
+              const haupt = sharedFile.fileInfo() || {};
+              const stoerInfo = sharedFile.stoer.fileInfo() || {};
+              const server = sharedFile.serverBetrieb();
+              const erreichbar = !!haupt.erreichbar;
+              const wartend = (haupt.warteschlange || 0) + (stoerInfo.warteschlange || 0);
+              const abgleichen = async () => {
+                try { await Promise.all([sharedFile.retryWrite(), sharedFile.stoer.retryWrite()]); } catch (e) { /* Meldung kommt über die Ereignisse */ }
+                setShareOpen(false); setTimeout(() => setShareOpen(true), 0);
+              };
+              return (
+                <div className="flex flex-col gap-3" role="region" aria-label="Server">
+                  <div className="text-sm rounded px-3 py-2" style={{ backgroundColor: erreichbar ? "#E5F3EA" : "#FBEAE9", color: erreichbar ? "#2F7D4F" : "#8C2B26" }}>
+                    {erreichbar ? "Verbunden mit " : "Nicht erreichbar: "}<strong>{server}</strong>
+                    <div className="mt-1" style={{ fontSize: "0.78rem" }}>
+                      Standort {haupt.ordner ? STANDORT.name : ""} · Kalender Version {haupt.version ?? "–"} ({haupt.eintraege ?? "–"} Einträge) · Störberichte Version {stoerInfo.version ?? "–"} ({stoerInfo.eintraege ?? "–"})
+                      {haupt.antwortMs != null && <> · letzte Antwort {haupt.antwortMs} ms</>}
+                      {haupt.geaendert && <> · zuletzt abgeglichen {new Date(haupt.geaendert).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</>}
+                    </div>
+                    {wartend > 0 && (
+                      <div className="mt-1 font-bold" style={{ fontSize: "0.78rem" }}>
+                        {wartend} Änderung{wartend === 1 ? "" : "en"} warten örtlich auf den Server – sie gehen automatisch raus, sobald er antwortet.
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500 leading-relaxed">
+                    Der Bestand liegt auf dem Server, nicht mehr in einer Datei. Jede Änderung geht sofort dorthin und erscheint bei allen anderen ohne Warten.
+                    Fällt der Server aus, arbeitet dieser Rechner mit seinem örtlichen Spiegel weiter und schickt die Änderungen später.
+                  </div>
+                  <div className="rounded px-3 py-2.5" style={{ border: "1.5px solid #C9D0D8", backgroundColor: "#F7F8F9" }}>
+                    <div className="text-xs font-bold uppercase mb-1" style={{ color: "#5B6572" }}>Werkstatt-Schlüssel</div>
+                    <div className="text-xs mb-2" style={{ color: "#8A9099", lineHeight: 1.5 }}>
+                      Nur mit dem Schlüssel des Servers nimmt der Dienst Änderungen an. Ist auf dem Server keiner gesetzt, bleibt das Feld leer.
+                    </div>
+                    <input
+                      aria-label="Werkstatt-Schlüssel"
+                      type="password"
+                      className="w-full border rounded px-2 py-1.5 text-sm"
+                      style={{ borderColor: "#C9CDD2" }}
+                      defaultValue={sharedFile.werkstattSchluessel()}
+                      onChange={(e) => sharedFile.setzeWerkstattSchluessel(e.target.value)}
+                    />
+                  </div>
+                  <button onClick={abgleichen} className="text-sm font-bold py-2.5 rounded text-white" style={{ backgroundColor: "#2F6690" }}>
+                    Jetzt abgleichen {wartend > 0 ? "und wartende Änderungen senden" : ""}
+                  </button>
+                  <button onClick={() => window.open(server + "/status", "_blank", "noopener")} className="text-sm font-bold py-2.5 rounded bg-slate-100 text-slate-600">
+                    Status-Seite des Servers öffnen
+                  </button>
+                </div>
+              );
+            })() : !sharedFile.isSupported() ? (
               <div className="text-sm text-slate-600 leading-relaxed">
                 Dieser Browser unterstützt den direkten Dateizugriff nicht. Bitte <strong>Microsoft Edge</strong> oder <strong>Google Chrome</strong> verwenden – dort funktioniert die gemeinsame Datei zuverlässig.
               </div>

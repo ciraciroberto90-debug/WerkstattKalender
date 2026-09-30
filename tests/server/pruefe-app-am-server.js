@@ -193,6 +193,42 @@ async function dienstStoppen() {
   const sLiveB = await Bf.p.waitForFunction(() => window.__wkStoerTest.spiegel().entries.some((e) => e.id === "s-neu"), null, { timeout: 5000 }).then(() => true).catch(() => false);
   ok("(C8) Störbericht s-neu auf dem Server (Tabelle stoerungen, Urheber Chef) und live im zweiten Fenster", !!sNeu && sNeu.geaendertVon === "Chef" && sLiveB, JSON.stringify({ sNeu: !!sNeu, live: sLiveB, n: stoerServer.length }));
 
+  /* (C10) Fotos über den Server aus der Speicherschicht */
+  const foto = await A.p.evaluate(async () => {
+    const bytes = new Uint8Array(6000); for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 7) % 253;
+    const blob = new Blob([bytes], { type: "image/jpeg" });
+    const F = window.__wkSharedTest.fotos;
+    const gespeichert = await F.speichern("test-6000.jpg", blob);
+    const zurueck = await F.lesen("test-6000.jpg");
+    const gleich = zurueck && zurueck.size === 6000 && new Uint8Array(await zurueck.arrayBuffer()).every((b, i) => b === bytes[i]);
+    const geloescht = await F.loeschen("test-6000.jpg");
+    const danach = await F.lesen("test-6000.jpg");
+    return { gespeichert, groesse: zurueck && zurueck.size, name: zurueck && zurueck.name, gleich, geloescht, danach: danach === null, verfuegbar: window.__wkSharedTest.fileInfo() && true };
+  });
+  ok("(C10) Foto: 6000 Bytes speichern (mit Kontroll-Lesung) -> lesen (gleiche Bytes, Name) -> löschen -> weg", foto.gespeichert === true && foto.groesse === 6000 && foto.name === "test-6000.jpg" && foto.gleich && foto.geloescht && foto.danach, JSON.stringify(foto));
+
+  /* (C11) Server-Karte im Dialog "Gemeinsame Datei" */
+  await A.p.locator('button[aria-label="Gemeinsame Datei"]').click();
+  await A.p.waitForTimeout(400);
+  const karte = A.p.locator('[role="region"][aria-label="Server"]');
+  const karteDa = await karte.count();
+  const karteText = karteDa ? await karte.innerText() : "";
+  const schluesselFeld = karteDa ? await karte.getByLabel("Werkstatt-Schlüssel").inputValue() : "";
+  const dateiKnoepfe = await A.p.locator('button:has-text("Neue gemeinsame Datei anlegen")').count();
+  await A.p.locator('button[aria-label="Schließen"]').last().click().catch(() => {});
+  await A.p.keyboard.press("Escape");
+  ok("(C11) Dialog zeigt die Server-Karte: 'Verbunden mit', Version, Werkstatt-Schlüssel vorbelegt, Status-Knopf - keine Datei-Knöpfe", karteDa === 1 && /Verbunden mit/.test(karteText) && /Version/.test(karteText) && schluesselFeld === SCHLUESSEL && /Status-Seite/.test(karteText) && dateiKnoepfe === 0, karteText.replace(/\s+/g, " ").slice(0, 160));
+
+  /* (C12) Server weg und wieder da OHNE wartende Änderung: grüne Meldung binnen 10 s (SSE-"hallo" gleicht ab) */
+  await dienstStoppen();
+  await A.p.evaluate(() => { window.__meldungen.length = 0; });
+  await A.p.evaluate(() => window.__wkSharedTest.delta().catch(() => {})); // ein Fehlversuch, damit "war unerreichbar" gilt
+  const t12 = Date.now();
+  await dienstStarten();
+  const wiederDa = await A.p.waitForFunction(() => window.__meldungen.some((m) => /wieder erreichbar/.test(m)), null, { timeout: 12000 }).then(() => true).catch(() => false);
+  console.log(`MESSUNG grüne Meldung nach Server-Neustart (ohne Warteschlange): ${Date.now() - t12} ms`);
+  ok("(C12) Server wieder da ohne Warteschlange: grüne Meldung 'wieder erreichbar' binnen 12 s", wiederDa, `${Date.now() - t12} ms`);
+
   /* (C9) Anmeldung OHNE crypto.subtle (http://server:8765 ist kein sicherer Kontext) */
   const D9 = await fenster("D", { angemeldet: false, ohneSubtle: true });
   await bereit(D9.p);

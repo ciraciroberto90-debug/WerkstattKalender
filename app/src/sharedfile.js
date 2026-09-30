@@ -2526,6 +2526,7 @@ function createSharedStore(cfg) {
    davon gibt). Ohne Adresse: die Datei auf W: wie bisher. */
 const SERVER_ADRESSE = serverAdresse();
 export const serverBetrieb = () => SERVER_ADRESSE;
+export { werkstattSchluessel, setzeWerkstattSchluessel } from "./server-client.js";
 const SERVER_HELFER = { mergeEntries, stampEntries, macheLogEintrag, benenneEintrag, ohneSystemEntries, extractLogEntries, werBinIch, nowISO, baueVerlauf, configAusEintraegen };
 const main = SERVER_ADRESSE
   ? createServerStore({ adresse: SERVER_ADRESSE, standort: STANDORT.id, bereich: "kalender", entriesKey: nsKey("werkstatt-kalender-entries"), configKey: nsKey("werkstatt-kalender-config"), evPrefix: "werkstatt-shared" }, SERVER_HELFER)
