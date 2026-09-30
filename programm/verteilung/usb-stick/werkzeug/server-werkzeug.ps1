@@ -524,6 +524,23 @@ function Einrichten-Laufen([bool]$nurVorschau) {
     if ($mitSoendgen) { $ordner += (Join-Path $ServerOrdner "BTA-Soendgen\fotos") }
     foreach ($o in $ordner) { if (-not (Test-Path -LiteralPath $o)) { Schreibe-Log ($praefix + "1. Ordner anlegen: " + $o); if ($tu) { New-Item -ItemType Directory -Path $o -Force | Out-Null } } }
     Schreibe-Log ($praefix + "1. Ordner: fertig.")
+    # 1b Schreibrecht fuer SYSTEM: die Aufgabe laeuft als SYSTEM und schreibt die
+    # Datenbanken nach C:\BTA. Hat die IT dort die Vererbung von C:\ gekappt,
+    # fehlt SYSTEM - der Dienst kaeme hoch und scheiterte beim ersten Schreiben.
+    # Geprueft ueber die SID S-1-5-18 (sprachunabhaengig), gesetzt mit icacls.
+    $systemHatRecht = $false
+    try {
+      $acl = Get-Acl -LiteralPath $ServerOrdner
+      foreach ($r in $acl.Access) {
+        $sid = $null; try { $sid = $r.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value } catch { $sid = [string]$r.IdentityReference }
+        if ($sid -eq "S-1-5-18" -and $r.AccessControlType -eq "Allow" -and (($r.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::Modify) -eq [System.Security.AccessControl.FileSystemRights]::Modify)) { $systemHatRecht = $true }
+      }
+    } catch { Schreibe-Log ($praefix + "1b. Rechte auf " + $ServerOrdner + " nicht lesbar: " + $_) }
+    if ($systemHatRecht) { Schreibe-Log ($praefix + "1b. SYSTEM hat Schreibrecht auf " + $ServerOrdner + " - nichts zu tun.") }
+    else {
+      Schreibe-Log ($praefix + "1b. SYSTEM fehlt das Schreibrecht auf " + $ServerOrdner + " - wird gesetzt: icacls (OI)(CI)F fuer S-1-5-18")
+      if ($tu) { $aus = (& icacls.exe $ServerOrdner /grant "*S-1-5-18:(OI)(CI)F" 2>&1); Schreibe-Log ("   icacls: " + (($aus | Select-Object -Last 1) -join " ")) }
+    }
     # 2 Node + Dienst-Dateien
     if ($nodeQuelle -ne $nodeExe) { Schreibe-Log ($praefix + "2. Node kopieren: " + $nodeQuelle + " -> " + $nodeExe); if ($tu) { Copy-Item -LiteralPath $nodeQuelle -Destination $nodeExe -Force } }
     else { Schreibe-Log ($praefix + "2. Node liegt schon im Dienst-Ordner.") }
@@ -553,6 +570,10 @@ function Einrichten-Laufen([bool]$nurVorschau) {
       $ausloeser = New-ScheduledTaskTrigger -AtStartup
       $konto = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
       $regeln = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
+      # Bekannter Haken ab Windows 10 / Server 2016: die Null-Zeitspanne oben wird
+      # verworfen und es gilt wieder das Vorgabe-Limit von 3 Tagen - der Dienst
+      # wuerde nach drei Tagen beendet. "PT0S" direkt gesetzt heisst "kein Limit".
+      $regeln.ExecutionTimeLimit = "PT0S"
       Register-ScheduledTask -TaskName $AufgabeName -Action $aktion -Trigger $ausloeser -Principal $konto -Settings $regeln -Description "BTA-Cockpit-Dienst: haelt die Datenbanken, beantwortet die Cockpit-Programme, sichert nachts. Eingerichtet vom BTA-Server-Werkzeug." | Out-Null
     }
     # 6 Starten
