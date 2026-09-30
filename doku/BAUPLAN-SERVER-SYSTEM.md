@@ -218,7 +218,7 @@ weiter dort behoben (kleine Fixes), größere Wünsche warten auf das neue Syste
 
 ## 9. Was Roberto entscheidet (vor Etappe A)
 
-1. **Freigabe des Plans** – oder Änderungen daran.
+1. ~~**Freigabe des Plans**~~ – **FREIGEGEBEN 30.09.** (mit den zwei Änderungen: Anmeldung wie heute, Sicherung im Zusammenspiel mit der IT-Netzsicherung).
 2. ~~**Anmeldung**~~ – **entschieden 30.09.: bleibt wie heute** (Benutzerliste,
    Rollen, gemerkte Anmeldung). Windows-Konto nur als späterer Ausbau.
 3. **Soendgen:** von Anfang an als zweite Datenbank anlegen (leer, blanko) –
