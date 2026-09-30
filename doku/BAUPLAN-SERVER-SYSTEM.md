@@ -129,29 +129,26 @@ Start lädt den Ausschnitt „laufendes Jahr + alles Offene", Rest auf Abruf).
 
 ## 5. Anmeldung und Rechte
 
-**Stufe 1 (Etappe A–C): Windows-Konto aus der Programm-Hülle.** Die
-Electron-Hülle kennt `USERNAME` und `USERDOMAIN` und schickt sie als Kopfzeile.
-Der Server gleicht sie mit den Mitgliedern der Server-Gruppen ab
-(`BTA-Scheurich-Werkstatt`, `…-Ansehen`, `BTA-Verwalter`; ausgelesen per
-`net localgroup`, alle 5 Minuten neu) und ordnet die App-Rolle aus der
-Benutzerliste zu (⚙ Benutzer & Rechte, wie heute). Kein Kennwort-Dialog.
-Ehrlich: Das ist eine Leitplanke im Firmennetz, kein Tresor – ein Kollege
-könnte im Browser einen fremden Namen schicken. Genau dieselbe Grenze wie
-heute (Kennwort-Hash in offener Datei).
+**Robertos Vorgabe (30.09.): Anmeldung bleibt, wie sie heute ist** – Benutzer und
+Rollen aus der Benutzerliste im ⚙ (Verwalter / Bearbeiter / Leser, „Nur
+ansehen ohne Anmeldung“, Gruppen-Verwalter). Der Rechner merkt sich die
+Anmeldung wie heute. Kein neuer Dialog, nichts umlernen.
 
-**Stufe 2 (Ausbau, wenn gewünscht): Integrierte Windows-Anmeldung** (Kerberos/
-NTLM über `node-sspi`, Windows-Dienst spricht direkt mit der Domäne). Dann ist
-der Name fälschungssicher. Braucht keinen IT-Eingriff, nur den Dienst als
-Domänenkonto (serviceBTA, ist er).
+Was sich trotzdem verbessert, ohne dass es jemand merkt: Die Kennwörter
+liegen nicht mehr in einer Datei, die jeder auf dem Laufwerk lesen kann,
+sondern nur noch auf dem Server (gesalzen gespeichert, Prüfung dort). Der
+Server prüft jede Anfrage gegen die Rolle – ein Leser kann auch mit einem
+manipulierten Programm nichts schreiben; heute verhindert das nur die
+Oberfläche.
 
-**Browser ohne Hülle (Handy, fremder PC):** Anmeldedialog wie heute mit Name
-und Kennwort aus der Benutzerliste; Kennwörter liegen dann nur noch auf dem
-Server (gesalzen), nicht in einer Datei, die jeder lesen kann.
+**Ausbau, nur auf Zuruf:** Anmeldung über das Windows-Konto (Programm-Hülle
+kennt `USERNAME`/`USERDOMAIN`; Server gleicht mit den Server-Gruppen ab) –
+spart den Dialog, ändert an Rollen und Rechten nichts. Eine fälschungssichere
+Fassung (integrierte Windows-Anmeldung, `node-sspi`) wäre der Schritt danach.
+Beides ist vorbereitet, keins davon Voraussetzung.
 
 **Rechte-Matrix, Rollen, Störungen für alle, Gruppen-Verwalter (GodMode):**
 bleiben unverändert – der Server liest dieselbe Konfig.
-
----
 
 ## 6. Betrieb auf dem Server
 
@@ -168,11 +165,15 @@ C:\BTA\BTA-Sicherung\            2026-09-30_0200_scheurich.sqlite … (30 Tage),
   kein Dienst-Rahmen nötig (nssm bleibt als Option).
 - **Port 8765** (heute schon der Cockpit-Port), Firewall-Regel „eingehend
   erlauben" setzt Roberto als Admin. Rechner sprechen `http://v-btacockpit-01:8765`.
-- **Sicherung:** nachts 02:00 `VACUUM INTO` (konsistente Kopie im Betrieb) nach
-  `BTA-Sicherung`, 30 Stände; täglich `export.json` im heutigen Format, 14
-  Stände; dazu Schattenkopien von `C:` (Vorgängerversionen). **Rückweg wird in
-  Etappe A einmal geübt:** Dienst stoppen, Kopie einspielen, starten, Stand
-  prüfen – und als Klick-Anleitung in SERVER-AUFBAU aufgeschrieben.
+- **Sicherung:** Die IT sichert das ganze Firmennetz einmal täglich, also
+  auch `C:\BTA` (Roberto, 30.09.). Damit diese Sicherung etwas taugt, legt der
+  Dienst nachts um 02:00 eine **konsistente Kopie** der Datenbank
+  (`VACUUM INTO`) und einen `export.json` im heutigen Format nach
+  `BTA-Sicherung` – eine offene Datenbank-Datei mitten im Schreiben wäre in
+  einer Netzsicherung sonst unbrauchbar. 14 Stände bleiben liegen, der Rest
+  ist Sache der IT-Sicherung. **Rückweg wird in Etappe A einmal geübt:** Dienst
+  stoppen, Kopie einspielen, starten, Stand prüfen – als Klick-Anleitung in
+  SERVER-AUFBAU. Schattenkopien auf `C:` sind damit optional.
 - **Wenn der Server fehlt:** Die App zeigt den letzten Stand (IndexedDB) zum
   Ansehen mit roter Leiste „Server nicht erreichbar seit 14:02", Änderungen
   landen in einer Warteschlange und gehen beim Wiederkommen raus (mit
@@ -218,8 +219,8 @@ weiter dort behoben (kleine Fixes), größere Wünsche warten auf das neue Syste
 ## 9. Was Roberto entscheidet (vor Etappe A)
 
 1. **Freigabe des Plans** – oder Änderungen daran.
-2. **Anmeldung:** Stufe 1 (Konto aus der Hülle, Leitplanke) zum Start – ja?
-   Stufe 2 (fälschungssicher) gleich mit oder später?
+2. ~~**Anmeldung**~~ – **entschieden 30.09.: bleibt wie heute** (Benutzerliste,
+   Rollen, gemerkte Anmeldung). Windows-Konto nur als späterer Ausbau.
 3. **Soendgen:** von Anfang an als zweite Datenbank anlegen (leer, blanko) –
    ja? Die Domänenfrage der SK-Kollegen bleibt davon unberührt.
 4. **Port und Name:** `http://v-btacockpit-01:8765` – oder wünscht die IT
@@ -234,8 +235,7 @@ gebaut wie beschrieben, mit den Nachweisen aus Abschnitt 7.
 
 ## 10. Was sich für die Kollegen ändert
 
-Beim Start erscheint das Cockpit ohne Anmelde-Dialog mit dem eigenen Namen
-oben rechts. Ein Störbericht steht am anderen PC und auf dem Monitor sofort.
+Anmeldung wie heute. Ein Störbericht steht am anderen PC und auf dem Monitor sofort.
 Keine Leisten „Schreibzugriff neu bestätigen", „Datei belegt", „Fassung
 veraltet" mehr. Speichern ist ein Klick ohne Warten. Sonst: dieselbe
 Oberfläche, dieselben Knöpfe, dieselben Ausdrucke.
