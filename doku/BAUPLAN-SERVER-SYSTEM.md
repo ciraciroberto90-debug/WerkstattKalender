@@ -4,6 +4,11 @@ Stand: 30.09.2026. Robertos Entscheidung vom 29.09.: Der Betrieb bleibt auf
 dem Firmenlaufwerk, bis das neue System auf `v-btacockpit-01` komplett gebaut
 und getestet ist; dann Import, Test, Umschalten. Dieser Plan ist die Vorlage.
 Gebaut wird erst nach Robertos Freigabe, Etappe für Etappe, jede mit Nachweis.
+**Arbeitsregel (Roberto, 30.09.):** Alles am Server geschieht Schritt für
+Schritt – ein Schritt je Nachricht mit Klickfolge, erwarteter Anzeige und
+Kontrolle, der nächste erst nach Rückmeldung. Die Etappen unten sind deshalb
+Kapitel, keine Arbeitspakete; jedes wird in Einzelschritte zerlegt, wenn es
+dran ist. Auch die Entscheidungen in Abschnitt 9 werden einzeln abgefragt.
 
 ---
 

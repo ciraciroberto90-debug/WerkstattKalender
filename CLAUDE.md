@@ -22,6 +22,11 @@ Gedächtnis einer Sitzung.
   Zusammenführen, Speichern oder an der Dateiverbindung brauchen einen Test,
   der ohne die Änderung fehlschlägt.
 - Kommentare und Oberfläche auf **Deutsch**, Kommentare erklären das *Warum*.
+- **Server-Arbeit nur Schritt für Schritt** (Robertos Ansage 30.09.: „das ist eine
+  neue Umgebung für mich"). Am Server, in der Computerverwaltung, in der
+  Aufgabenplanung: **ein Schritt je Nachricht**, mit Klickfolge, erwarteter
+  Anzeige und Kontrolle; erst nach Robertos Rückmeldung der nächste. Auch
+  Entscheidungen einzeln abfragen, nicht als Liste.
 
 ## Prüfen vor dem Push
 
