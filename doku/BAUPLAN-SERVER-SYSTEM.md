@@ -293,3 +293,48 @@ Anmeldung wie heute. Ein Störbericht steht am anderen PC und auf dem Monitor so
 Keine Leisten „Schreibzugriff neu bestätigen", „Datei belegt", „Fassung
 veraltet" mehr. Speichern ist ein Klick ohne Warten. Sonst: dieselbe
 Oberfläche, dieselben Knöpfe, dieselben Ausdrucke.
+
+---
+
+## 12. Robertos Frage (30.09. abends): „Haben wir jetzt ein richtiges Programm – und ist es absolut zukunftssicher?"
+
+**Kurz: Ein richtiges System ja, mit drei benannten Lücken. Absolut zukunftssicher
+ist keine Software – aber dieses hier ist so gebaut, dass die Daten nie gefangen
+sind und jeder Baustein in Minuten ersetzbar ist.** Was zu einem Programm gehört,
+und wo wir stehen (Stand 30.09., Etappe A fertig, B gebaut, C/D offen):
+
+| Baustein | Stand | Anmerkung |
+|---|---|---|
+| Oberfläche (Frontend) | ✓ | React, eine HTML-Datei, 95 Härtetests |
+| Dienst (Backend) | ✓ Etappe A | Node 22, ohne Zusatzpakete, 28 + 5 Prüfstände |
+| Datenbank | ✓ | SQLite – offenes Format, seit 25 Jahren stabil, überall lesbar |
+| Schnittstelle + Live-Meldung | ✓ | HTTP/JSON, SSE |
+| Import aus heute | ✓ gebaut | Vorschau, Standort-Wächter, Nachweis; echter Lauf wartet auf `W:` |
+| Sicherung + geübter Rückweg | ✓ | nachts 02:00, 14 Stände, Rückweg 6 s (gemessen) |
+| Autostart, Selbstheilung | ✓ | Aufgabe SYSTEM, Neustart 3×1 min, kein Zeitlimit |
+| Installation ohne IT | ✓ | zwei Werkzeuge auf dem Stick, jeder Schritt im Protokoll |
+| Status, Protokoll, Fehlerliste | ✓ | `/status`, Tagesprotokolle |
+| Tests | ✓ | 95 Härtetests, Server-Prüfstände, Electron-Prüfstand |
+| Doku | ✓ | Bauplan, SERVER-AUFBAU, Roll-out-Liste, README |
+| App am Server, Programm-Hülle | ✗ Etappe C/D | bis dahin zwei Welten: Datei auf `W:` und leerer Server |
+| **Zugriffsschutz der Schnittstelle** | **✗ Lücke 1** | Die NTFS-Gruppen schützen die Dateien, **nicht den Port 8765**: heute antwortet der Dienst jedem im Firmennetz. Entspricht der heutigen Lage (wer `W:` sieht, sieht die Datei), ist aber schwächer als die fünf Gruppen suggerieren. **Etappe C bekommt einen Werkstatt-Schlüssel** (gemeinsames Geheimnis in der App-Konfiguration, ohne den der Dienst nichts schreibt); Stufe 2 (Windows-Konto) bleibt der saubere Weg. |
+| **Alarm, wenn etwas fehlt** | **✗ Lücke 2** | Niemand wird angerufen, wenn der Dienst steht oder die Nachtsicherung ausfiel. Heute sichtbar nur auf `/status` und im Prüfen. **Klein zu schließen:** Ampel „letzte Sicherung jünger als 26 h" im Prüfen + Leiste im Cockpit (Etappe C: „Server nicht erreichbar – arbeite örtlich weiter"). Mail/Teams bräuchte einen Postausgang der IT. |
+| **Notfallzettel** | **✗ Lücke 3** | Wo liegen die Daten, wie kommt man ohne mich an sie heran, wie spielt man zurück, wie exportiert man ins alte Dateiformat. Ein Blatt auf dem Stick (`LIESMICH-NOTFALL.txt`). |
+| Verschlüsselung (HTTPS) | – bewusst nein | Firmennetz, Entscheidung 4; Zertifikat wäre ein IT-Antrag |
+| Handy im WLAN | ~ nach C | Browser reicht dann, keine Datei nötig |
+
+**Zukunftsrisiken, ehrlich mit Zeithorizont:**
+
+| Risiko | Horizont | Warum es tragbar ist |
+|---|---|---|
+| Node 22 (Wartung bis 04/2027), `node:sqlite` „experimental" | Jahre | Die `node.exe` liegt fest auf dem Server und ändert sich nie von selbst; sie läuft so lange wie der Server. Ein Wechsel ist Stick + „Einrichten" (3 s gemessen). |
+| Windows Server 2019 (Ende 01/2029) | 2+ Jahre | Umzug = Ordner `C:\BTA` kopieren, Werkzeug „Einrichten" auf dem neuen Server. Ist heute geübt. |
+| Electron-Hülle (Chromium 33, keine Sicherheitsupdates ohne Neubau) | laufend | Nur Firmennetz, keine fremden Seiten. Nach Etappe D ist die Hülle nur noch ein Fenster auf `http://v-btacockpit-01:8765/app/` – austauschbar gegen jeden Browser. |
+| Eine Datei mit 18.500 Zeilen, ein Entwickler (ich) | Personen | Alles ist Text im Git, gebaut mit `npm run build`, geprüft mit einer Suite; Doku benennt jeden Weg. Ein Notfallzettel (Lücke 3) macht die Übergabe an Dritte möglich. |
+| Datenmenge | > 10 Jahre | 71.000 Einträge gemessen (Import 1,5 s, Vollbestand 0,3 s); SQLite trägt Millionen. |
+| Anbieter, Lizenz, Cloud, Abo | keins | Nichts davon. Daten liegen als SQLite + JSON-Export auf eurem Server; kein Dritter kann etwas abschalten. |
+
+**Fazit für Roberto:** „Absolut" gibt es nicht – aber dieses System hat keinen
+Anbieter, der es abschalten kann, ein offenes Datenformat, einen geübten Rückweg
+und eine Neuinstallation in Sekunden. Die drei Lücken sind klein, benannt und
+werden in Etappe C geschlossen (Schlüssel, Sicherungs-Ampel, Notfallzettel).
