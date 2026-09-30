@@ -382,10 +382,48 @@ function erstelleFenster() {
     return { action: "allow" };
   });
 
+  /* Server-Betrieb (Etappe C/D des Bauplans, 30.09.): Steht in den gemerkten
+     Einstellungen "programm:server-url" (per Werkzeug "Server-Weg" oder aus
+     der standard-einstellungen.json auf dem Stick), laedt die Huelle die App
+     VOM DIENST (http://v-btacockpit-01:8765/app/) statt von der Platte. Der
+     Update-Ordner spielt dann keine Rolle mehr - neuer Stand = neue App-Datei
+     auf dem Server, jeder Rechner hat sie beim naechsten Oeffnen. Der
+     Werkstatt-Schluessel geht einmal als ?schluessel= mit; die App merkt ihn
+     sich und nimmt ihn aus der Adresse. */
+  const alle = leseEinstellungen();
+  const serverUrl = String(alle["programm:server-url"] || "").trim().replace(/\/+$/, "");
+  if (/^https?:\/\//i.test(serverUrl)) {
+    ladeVomServer(fenster, serverUrl, String(alle["bta-server:schluessel"] || "").trim());
+    return fenster;
+  }
   fenster.loadFile(aktuelleHtml());
   // Nach dem Laden einmal nach Updates schauen, danach im Takt
   fenster.webContents.once("did-finish-load", () => pruefeUpdate(fenster));
   return fenster;
+}
+
+function ladeVomServer(fenster, serverUrl, schluessel) {
+  const adresse = `${serverUrl}/app/?server=${encodeURIComponent(serverUrl)}${schluessel ? `&schluessel=${encodeURIComponent(schluessel)}` : ""}`;
+  let versuch = 0;
+  const wartePfad = path.join(app.getPath("userData"), "server-warten.html");
+  const ladeWarteseite = (grund) => {
+    versuch++;
+    const html = `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>BTA-Cockpit - Server nicht erreichbar</title>
+<style>body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#1E2761;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh}
+.k{max-width:560px;padding:32px;border-radius:12px;background:rgba(255,255,255,.08)}h1{font-size:22px;margin:0 0 10px}p{line-height:1.5;color:#CADCFC}
+button{margin-top:14px;padding:10px 18px;border:0;border-radius:8px;background:#fff;color:#1E2761;font-weight:bold;font-size:14px;cursor:pointer}code{color:#fff}</style></head>
+<body><div class="k"><h1>Der Server ist gerade nicht erreichbar</h1>
+<p>Das BTA-Cockpit holt sich die App von <code>${serverUrl}</code>. Dort kam keine Antwort${grund ? ` (${grund})` : ""}.<br>
+Das Programm versucht es alle 10 Sekunden von selbst (Versuch ${versuch}). Bleibt es dabei: Server-Werkzeug &rarr; Pr&uuml;fen, oder <code>${serverUrl}/status</code> im Browser.</p>
+<button onclick="location.href=${JSON.stringify(adresse)}">Jetzt erneut versuchen</button></div>
+<script>setTimeout(function(){ location.href=${JSON.stringify(adresse)}; }, 10000);</script></body></html>`;
+    try { fssync.writeFileSync(wartePfad, html, "utf8"); fenster.loadFile(wartePfad); } catch (e) { /* Fenster schon zu */ }
+  };
+  fenster.webContents.on("did-fail-load", (ev, code, beschreibung, url, hauptrahmen) => {
+    if (!hauptrahmen || code === -3) return; // -3 = abgebrochen (eigene Navigation), kein Fehler
+    ladeWarteseite(beschreibung || String(code));
+  });
+  fenster.loadURL(adresse).catch(() => { /* did-fail-load kuemmert sich */ });
 }
 
 // Zweites Öffnen holt das vorhandene Fenster nach vorn, statt eine zweite

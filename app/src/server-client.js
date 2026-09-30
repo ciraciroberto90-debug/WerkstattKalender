@@ -37,6 +37,13 @@ export function serverAdresse() {
   try {
     const q = new URLSearchParams(window.location.search || "");
     const ausUrl = (q.get("server") || "").trim();
+    // Der Werkstatt-Schlüssel kommt einmal über die Adresse mit (Programm-Hülle,
+    // Verknüpfung) - merken und aus der Adresse nehmen, damit er nirgends stehen bleibt.
+    const schluesselAusUrl = (q.get("schluessel") || "").trim();
+    if (q.has("schluessel")) {
+      if (schluesselAusUrl) setzeWerkstattSchluessel(schluesselAusUrl);
+      try { q.delete("schluessel"); const rest = q.toString(); window.history.replaceState(null, "", window.location.pathname + (rest ? "?" + rest : "") + window.location.hash); } catch (e) { /* egal */ }
+    }
     if (ausUrl === "aus") { try { localStorage.removeItem(URL_KEY); } catch (e) { /* egal */ } return null; }
     if (/^https?:\/\//.test(ausUrl)) {
       const adresse = ausUrl.replace(/\/+$/, "");

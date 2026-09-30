@@ -393,6 +393,65 @@ const pruef = (n, c, zusatz) => {
     kind2.kill();
   }
 
+  /* ---- Server-Betrieb der Huelle (Etappe C, 30.09.) ----
+     Steht "programm:server-url" in den gemerkten Einstellungen, laedt das
+     Programm die App VOM DIENST. Hier: echter Dienst auf einem freien Port,
+     drei Eintraege, Werkstatt-Schluessel; Electron neu starten; danach den
+     Dienst stoppen -> Warteseite; Dienst starten -> App kommt zurueck. */
+  try { execSync("pkill -9 -f 'electron \\.' || true; pkill -9 -f 'xvfb-run' || true", { shell: "/bin/bash" }); } catch (e) { /* nichts lief */ }
+  await new Promise((r) => setTimeout(r, 1500));
+  const dPort = 23765 + Math.floor(Math.random() * 500);
+  const dOrdner = fs.mkdtempSync(path.join(os.tmpdir(), "wk-dienst-"));
+  const dBasis = `http://127.0.0.1:${dPort}`;
+  fs.writeFileSync(path.join(dOrdner, "einstellungen.json"), JSON.stringify({ port: dPort, host: "127.0.0.1", protokollOrdner: path.join(dOrdner, "protokoll"), sicherungOrdner: path.join(dOrdner, "sicherung"), sicherungUhrzeit: "99:99", schluessel: "huellen-schluessel", appDatei: path.join(wurzel, "Werkstatt_Kalender_TPM.html"), standorte: { scheurich: { name: "Scheurich", datenOrdner: path.join(dOrdner, "scheurich") }, soendgen: { name: "Soendgen", datenOrdner: path.join(dOrdner, "soendgen") } } }));
+  let dienst = null;
+  const dienstStarten = async () => {
+    dienst = spawn(process.execPath, ["--no-warnings", path.join(wurzel, "server", "dienst.js"), path.join(dOrdner, "einstellungen.json")], { stdio: "ignore" });
+    for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 100)); try { if ((await fetch(dBasis + "/api/status")).ok) return true; } catch (e) { /* noch nicht */ } }
+    return false;
+  };
+  const dienstStoppen = async () => { if (!dienst) return; dienst.kill("SIGTERM"); await new Promise((r) => { dienst.once("exit", r); setTimeout(r, 2000); }); dienst = null; };
+  pruef("Server-Betrieb: Dienst fuer die Huelle laeuft", await dienstStarten());
+  const T = "2026-09-30T10:00:00.000Z";
+  const imp = await fetch(dBasis + "/api/scheurich/import?bereich=kalender", { method: "POST", headers: { "Content-Type": "application/json", "X-BTA-Schluessel": "huellen-schluessel" }, body: JSON.stringify({ format: "werkstatt-kalender-v1", standort: "scheurich", savedAt: T, entries: [1, 2, 3].map((i) => ({ id: "h" + i, date: "2026-09-30", category: "TODO", name: "Huelle " + i, status: "open", updatedAt: T })), deleted: {}, config: { tpmAnlagen: [], riItems: [], team: [], benutzer: [{ name: "Chef", rolle: "verwalter", kennwortHash: "" }] } }) });
+  pruef("Server-Betrieb: drei Eintraege eingelesen", imp.status === 200);
+  const profilOrdner = [path.join(os.homedir(), ".config", "Werkstatt-Cockpit"), path.join(os.homedir(), ".config", "werkstatt-cockpit")].find((p) => fs.existsSync(p)) || path.join(os.homedir(), ".config", "Werkstatt-Cockpit");
+  fs.mkdirSync(profilOrdner, { recursive: true });
+  const einstPfad = path.join(profilOrdner, "einstellungen.json");
+  let einst = {}; try { einst = JSON.parse(fs.readFileSync(einstPfad, "utf8")); } catch (e) { /* neu */ }
+  fs.writeFileSync(einstPfad, JSON.stringify({ ...einst, "programm:server-url": dBasis, "bta-server:schluessel": "huellen-schluessel" }, null, 2));
+  const port3 = port + 2;
+  const kind3 = spawn("xvfb-run", ["-a", elektronBin, ".", "--no-sandbox", `--remote-debugging-port=${port3}`], { cwd: path.join(wurzel, "programm"), env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: "1" }, stdio: ["ignore", "pipe", "pipe"] });
+  kind3.stdout.on("data", (d) => { kindLog += d; }); kind3.stderr.on("data", (d) => { kindLog += d; });
+  let browser3 = null;
+  for (let i = 0; i < 40 && !browser3; i++) { await new Promise((r) => setTimeout(r, 500)); try { browser3 = await chromium.connectOverCDP(`http://127.0.0.1:${port3}`); } catch (e) { /* noch nicht */ } }
+  let seite3 = null;
+  if (browser3) { const ctx3 = browser3.contexts()[0]; for (let i = 0; i < 40 && !seite3; i++) { seite3 = ctx3.pages().find((p) => p.url().startsWith(dBasis + "/app/")); if (!seite3) await new Promise((r) => setTimeout(r, 500)); } }
+  pruef("Server-Betrieb: Die Huelle laedt die App vom Dienst (Adresse /app/)", !!seite3, seite3 ? seite3.url() : (browser3 ? browser3.contexts()[0].pages().map((p) => p.url()).join(" | ") : "kein Fernzugang"));
+  if (seite3) {
+    const bereit = await seite3.waitForFunction(() => window.__wkSharedTest && window.__wkSharedTest.spiegel && window.__wkSharedTest.spiegel().entries.length > 0, null, { timeout: 30000 }).then(() => true).catch(() => false);
+    if (/In welcher Werkstatt arbeitest du/.test(await seite3.locator("body").innerText().catch(() => ""))) { await seite3.getByRole("button", { name: /Scheurich/ }).first().click().catch(() => {}); await seite3.waitForTimeout(1500); }
+    const s3 = await seite3.evaluate(() => ({ n: window.__wkSharedTest.spiegel().entries.length, url: location.href, schluessel: localStorage.getItem("bta-server:schluessel"), programm: !!window.__werkstattDesktop })).catch(() => null);
+    pruef("Server-Betrieb: drei Eintraege vom Dienst, Schluessel gemerkt und aus der Adresse genommen, Programm-Bruecke da", bereit && s3 && s3.n === 3 && s3.schluessel === "huellen-schluessel" && !/schluessel=/.test(s3.url) && s3.programm, JSON.stringify(s3));
+    // Dienst weg + Neuladen -> Warteseite; Dienst da -> App zurueck
+    await dienstStoppen();
+    await seite3.reload().catch(() => {});
+    let warte = false;
+    for (let i = 0; i < 30 && !warte; i++) { await new Promise((r) => setTimeout(r, 500)); const seiten = browser3.contexts()[0].pages(); warte = seiten.some((p) => /server-warten\.html/.test(p.url())); }
+    const warteSeite = browser3.contexts()[0].pages().find((p) => /server-warten\.html/.test(p.url()));
+    const warteText = warteSeite ? await warteSeite.locator("body").innerText().catch(() => "") : "";
+    pruef("Server-Betrieb: Dienst weg -> Warteseite 'Server ist gerade nicht erreichbar' mit Adresse", warte && /nicht erreichbar/.test(warteText) && warteText.includes(dBasis), warteText.replace(/\s+/g, " ").slice(0, 120));
+    await dienstStarten();
+    let zurueck = null;
+    for (let i = 0; i < 50 && !zurueck; i++) { await new Promise((r) => setTimeout(r, 500)); zurueck = browser3.contexts()[0].pages().find((p) => p.url().startsWith(dBasis + "/app/")); }
+    const wieder = zurueck ? await zurueck.waitForFunction(() => window.__wkSharedTest && window.__wkSharedTest.spiegel().entries.length === 3, null, { timeout: 20000 }).then(() => true).catch(() => false) : false;
+    pruef("Server-Betrieb: Dienst wieder da -> die Warteseite holt die App von selbst zurueck (binnen 25 s)", !!zurueck && wieder, zurueck ? zurueck.url() : "keine App-Seite");
+  }
+  if (browser3) await browser3.close();
+  kind3.kill();
+  await dienstStoppen();
+  fs.rmSync(dOrdner, { recursive: true, force: true });
+
   console.log(`\n==== ECHTES PROGRAMM: ${ok} PASS / ${fail} FAIL ====`);
   fs.rmSync(ordner, { recursive: true, force: true });
   process.exit(fail > 0 ? 1 : 0);
