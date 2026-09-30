@@ -38,6 +38,17 @@ trap {
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
+# Ein Fehler in einem Knopf-Handler soll als lesbare Meldung erscheinen, nicht
+# als "Unbehandelte Ausnahme in einer Komponente der Anwendung" (30.09., 21:47).
+try {
+  [System.Windows.Forms.Application]::SetUnhandledExceptionMode([System.Windows.Forms.UnhandledExceptionMode]::CatchException)
+  [System.Windows.Forms.Application]::add_ThreadException([System.Threading.ThreadExceptionEventHandler]{
+    param($sender, $e)
+    $text = "Unerwarteter Fehler: " + $e.Exception.Message
+    try { $logFeld.AppendText((Get-Date).ToString("HH:mm:ss") + "  FEHLER " + $text + [Environment]::NewLine) } catch { }
+    try { [void][System.Windows.Forms.MessageBox]::Show($text + "`n`nDas Werkzeug laeuft weiter. Bitte Protokoll speichern und schicken.", "BTA-Cockpit Server-Werkzeug", "OK", "Warning") } catch { }
+  })
+} catch { }
 
 # ---- Feste Werte ------------------------------------------------------------
 $ServerOrdner   = "C:\BTA"
@@ -664,7 +675,7 @@ function Datei-Waehlen($feld, [string]$titel) {
   $d = New-Object System.Windows.Forms.OpenFileDialog
   $d.Title = $titel
   $d.Filter = "JSON-Datei (*.json)|*.json|Alle Dateien (*.*)|*.*"
-  try { $start = Split-Path -Parent $feld.Text; if ($start -and (Test-Path -LiteralPath $start)) { $d.InitialDirectory = $start } } catch { }
+  try { $start = Split-Path -Parent $feld.Text; if ($start -and [System.IO.Directory]::Exists($start)) { $d.InitialDirectory = $start } else { $d.InitialDirectory = (Join-Path $ServerOrdner "BTA-Programm\Installation") } } catch { }
   if ($d.ShowDialog($fenster) -eq "OK") { $feld.Text = $d.FileName; Schreibe-Log ("Datei gewaehlt: " + $d.FileName) }
 }
 $zKal.Knopf.Add_Click({ Datei-Waehlen $zKal.Feld "Kalender-Datei (werkstatt-kalender-daten.json)" })
@@ -678,11 +689,29 @@ function Import-Sende([string]$standortId, [string]$bereich, [string]$pfad, [boo
   if ($nurVorschau) { $weg += "&nurPruefen=1" }
   return Invoke-RestMethod -Method Post -Uri $weg -ContentType "application/json; charset=utf-8" -InFile $pfad -TimeoutSec 600
 }
+function Datei-Lesbar([string]$pfad) {
+  # Test-Path wirft bei "Zugriff verweigert" (UNC-Pfad, fremdes Konto) unter
+  # ErrorActionPreference=Stop eine Ausnahme - so kam am 30.09. um 21:47 das
+  # WinForms-Fehlerfenster statt einer Meldung. Hier: nie werfen, Grund nennen.
+  if (-not $pfad) { return "kein Pfad eingetragen" }
+  try {
+    if ([System.IO.File]::Exists($pfad)) { [void][System.IO.File]::OpenRead($pfad).Dispose(); return $null }
+    try { $null = Get-Item -LiteralPath $pfad -ErrorAction Stop; return "ist keine Datei" }
+    catch { if ($_.Exception -is [System.UnauthorizedAccessException] -or $_.Exception.Message -match "verweigert|denied") { return "Zugriff verweigert (das Server-Konto " + $env:USERDOMAIN + "\" + $env:USERNAME + " darf dort nicht lesen)" } else { return "nicht gefunden" } }
+  } catch { return "Zugriff verweigert: " + $_.Exception.Message }
+}
 function Import-Laufen([bool]$nurVorschau) {
   $praefix = if ($nurVorschau) { "VORSCHAU: " } else { "" }
   $st = $Standorte[$cmbImpStandort.SelectedIndex]
   $kal = $zKal.Feld.Text.Trim(); $stoer = $zStoer.Feld.Text.Trim()
-  foreach ($p in @($kal, $stoer)) { if (-not $p -or -not (Test-Path -LiteralPath $p)) { Melde ("Datei nicht gefunden oder kein Zugriff:`n" + $p + "`n`nKommt der Server nicht an W: heran, die Datei vorher auf den Server kopieren."); return } }
+  foreach ($p in @($kal, $stoer)) {
+    $grund = Datei-Lesbar $p
+    if ($grund) {
+      Schreibe-Log ("Import: " + $p + " - " + $grund)
+      Melde ("Datei nicht lesbar:`n" + $p + "`n`nGrund: " + $grund + "`n`nErsatzweg: Die beiden Dateien (und den Ordner 'Fotos', falls vorhanden) von deinem PC aus von W: nach \\" + $env:COMPUTERNAME + "\BTA\BTA-Programm\Installation kopieren und hier ueber '...' unter C:\BTA\BTA-Programm\Installation waehlen.")
+      return
+    }
+  }
   if (-not (Dienst-Status (Port-Lesen))) { Melde "Der Dienst antwortet nicht - erst im Reiter Wartung starten."; return }
   $kalMb = [Math]::Round((Get-Item -LiteralPath $kal).Length / 1MB, 1); $stoerMb = [Math]::Round((Get-Item -LiteralPath $stoer).Length / 1MB, 1)
   if (-not $nurVorschau) {
@@ -719,8 +748,9 @@ function Import-Laufen([bool]$nurVorschau) {
     if ($chkImpFotos.Checked) {
       $fotoQuelle = Join-Path (Split-Path -Parent $kal) "Fotos"
       $fotoZiel = Join-Path $st.Ordner "fotos"
-      if (Test-Path -LiteralPath $fotoQuelle) {
-        $dateien = @(Get-ChildItem -LiteralPath $fotoQuelle -File)
+      $fotoDa = $false; try { $fotoDa = [System.IO.Directory]::Exists($fotoQuelle) } catch { $fotoDa = $false }
+      if ($fotoDa) {
+        $dateien = @(); try { $dateien = @(Get-ChildItem -LiteralPath $fotoQuelle -File -ErrorAction Stop) } catch { Schreibe-Log ($praefix + "Fotos: Ordner " + $fotoQuelle + " nicht lesbar - " + $_.Exception.Message) }
         $kopiert = 0; $gleich = 0
         foreach ($f in $dateien) {
           $z = Join-Path $fotoZiel $f.Name
