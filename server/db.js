@@ -260,7 +260,13 @@ function oeffnen(dateiPfad, { standort } = {}) {
     const lesen = istStoer ? stmts.stoerungLesen : stmts.eintragLesen;
     const schreiben = istStoer ? stmts.stoerungSchreiben : stmts.eintragSchreiben;
     const zeilen = istStoer ? zeilenStoerung : zeilenEintrag;
-    const zaehlung = { gelesen: datei.entries.length, neu: 0, geaendert: 0, unveraendert: 0, geloescht: 0, konfig: 0, ohneId: 0 };
+    /* „gelesen“ aufgeteilt wie die Kennkarte der App zählt: fachliche Einträge,
+       Verlaufszeilen (id „log|…“, 90 Tage) und Einstellungen (id „config|…“).
+       Robertos Vorschau vom 30.09.: 8.263 gelesen, Kennkarte 7.306 – die
+       Differenz sind Verlauf und Einstellungen, die 1:1 mitkommen. */
+    const davon = { fachlich: 0, verlauf: 0, einstellungen: 0 };
+    for (const e of datei.entries) { const id = String((e && e.id) || ""); if (id.startsWith("log|")) davon.verlauf++; else if (id.startsWith("config|")) davon.einstellungen++; else davon.fachlich++; }
+    const zaehlung = { gelesen: datei.entries.length, davon, neu: 0, geaendert: 0, unveraendert: 0, geloescht: 0, konfig: 0, ohneId: 0 };
     /* Zwei Durchgänge IN EINER Transaktion: erst nur LESEN und entscheiden
        (das ist die Vorschau für Robertos „Nur prüfen“ im Werkzeug - Etappe B),
        dann SCHREIBEN. Die Vorschau schreibt nichts und kehrt vor dem zweiten
@@ -318,12 +324,21 @@ function oeffnen(dateiPfad, { standort } = {}) {
     return fs.statSync(zielPfad).size;
   }
 
+  /* Zählt wie die Kennkarte der App: „eintraege“/„stoerungen“ sind nur die
+     fachlichen Zeilen. Verlauf (id „log|…“) und Einstellungen (id „config|…“)
+     liegen 1:1 mit in den Tabellen und werden getrennt ausgewiesen - sonst
+     stimmen Status-Seite und Kennkarte nie überein (Robertos Vorschau 30.09.:
+     8.263 gelesen gegen 7.306 in der Kennkarte). */
   function zaehlen() {
     const z = (sql) => db.prepare(sql).get().n;
+    const fachlich = (t) => z(`SELECT COUNT(*) AS n FROM ${t} WHERE geloescht = 0 AND id NOT LIKE 'log|%' AND id NOT LIKE 'config|%'`);
+    const art = (t, praefix) => z(`SELECT COUNT(*) AS n FROM ${t} WHERE geloescht = 0 AND id LIKE '${praefix}|%'`);
     return {
       version: version(),
-      eintraege: z("SELECT COUNT(*) AS n FROM eintraege WHERE geloescht = 0"),
-      stoerungen: z("SELECT COUNT(*) AS n FROM stoerungen WHERE geloescht = 0"),
+      eintraege: fachlich("eintraege"),
+      stoerungen: fachlich("stoerungen"),
+      verlauf: { eintraege: art("eintraege", "log"), stoerungen: art("stoerungen", "log") },
+      system: { eintraege: art("eintraege", "config"), stoerungen: art("stoerungen", "config") },
       geloescht: z("SELECT COUNT(*) AS n FROM eintraege WHERE geloescht = 1") + z("SELECT COUNT(*) AS n FROM stoerungen WHERE geloescht = 1"),
       konfig: z("SELECT COUNT(*) AS n FROM konfig"),
       aenderungen: z("SELECT COUNT(*) AS n FROM aenderungen"),

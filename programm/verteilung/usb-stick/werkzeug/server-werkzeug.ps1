@@ -736,11 +736,13 @@ function Import-Laufen([bool]$nurVorschau) {
       $kopf = $r.kopf
       Schreibe-Log ($praefix + $teil.Titel + ": Datei-Kopf format=" + $kopf.format + ", standort=" + $kopf.standort + ", gespeichert " + $kopf.savedAt)
       Schreibe-Log ($praefix + $teil.Titel + ": " + $r.gelesen + " gelesen - " + $r.neu + " neu, " + $r.geaendert + " geaendert, " + $r.unveraendert + " unveraendert, " + $r.geloescht + " geloescht (Loeschliste), " + $r.konfig + " Einstellungen, " + $r.ohneId + " ohne Kennung  [" + $ms + " ms]")
+      # Die Kennkarte der App zaehlt nur fachliche Zeilen - diese Zahl muss zu ihr passen.
+      Schreibe-Log ($praefix + $teil.Titel + ": davon " + $r.davon.fachlich + " FACHLICH (= Kennkarte), " + $r.davon.verlauf + " Verlauf, " + $r.davon.einstellungen + " Einstellungen")
       if (-not $nurVorschau) {
         $n = $r.nachweis
         $satz = if ($n.abweichungen -eq 0) { "NACHWEIS OK - " + $n.eintraegeVerglichen + " Eintraege zurueckgelesen, 0 Abweichungen" } else { "NACHWEIS ROT - " + $n.abweichungen + " Abweichungen: " + (($n.beispiele | Select-Object -First 3) -join "; ") }
         Schreibe-Log ("   " + $satz)
-        Schreibe-Log ("   Datenbank " + $st.Name + " vorher: " + $r.stand.vorher.eintraege + " Eintraege / " + $r.stand.vorher.stoerungen + " Stoerberichte  ->  nachher: " + $r.stand.nachher.eintraege + " / " + $r.stand.nachher.stoerungen + "  (Version " + $r.version + ")")
+        Schreibe-Log ("   Datenbank " + $st.Name + " vorher: " + $r.stand.vorher.eintraege + " Eintraege / " + $r.stand.vorher.stoerungen + " Stoerberichte  ->  nachher: " + $r.stand.nachher.eintraege + " / " + $r.stand.nachher.stoerungen + " fachlich (dazu Verlauf " + ($r.stand.nachher.verlauf.eintraege + $r.stand.nachher.verlauf.stoerungen) + ", Einstellungen " + ($r.stand.nachher.system.eintraege + $r.stand.nachher.system.stoerungen) + ")  (Version " + $r.version + ")")
       }
       $ergebnisse += $r
     }

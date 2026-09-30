@@ -126,15 +126,15 @@ const T = "2026-09-30T10:00:00.000Z";
   const dateiB = { ...datei, entries: datei.entries.map((e) => (e.id === "i3" ? { ...e, name: "Anlage 3 umbenannt" } : e)).concat([{ id: "neu-b", date: "2026-09-30", category: "TODO", name: "Neu aus Etappe B", updatedAt: T }]) };
   const vor = await post("/api/soendgen/import?nurPruefen=1", dateiB);
   const standNachVorschau = (await holen("/api/soendgen/export.json")).k;
-  ok("(B1) Vorschau (nurPruefen=1): zählt 1 neu, 1 geändert, 50 unverändert - schreibt aber nichts (Version bleibt 1, i3 unverändert)",
-    vor.status === 200 && vor.k.nurPruefen === true && vor.k.neu === 1 && vor.k.geaendert === 1 && vor.k.unveraendert === 50 && vor.k.wuerdeAendern === 2 && vor.k.version === 1 && vor.k.kopf && vor.k.kopf.standort === "soendgen" && vor.k.stand.vorher.eintraege === 51
+  ok("(B1) Vorschau (nurPruefen=1): zählt 1 neu, 1 geändert, 50 unverändert, davon 51 fachlich + 1 Verlauf; Stand zählt wie die Kennkarte (50 fachlich, 1 Verlauf) - schreibt aber nichts",
+    vor.status === 200 && vor.k.nurPruefen === true && vor.k.neu === 1 && vor.k.geaendert === 1 && vor.k.unveraendert === 50 && vor.k.wuerdeAendern === 2 && vor.k.version === 1 && vor.k.kopf && vor.k.kopf.standort === "soendgen" && vor.k.stand.vorher.eintraege === 50 && vor.k.stand.vorher.verlauf.eintraege === 1 && vor.k.davon.fachlich === 51 && vor.k.davon.verlauf === 1
       && standNachVorschau.schreibMarke === "server-1" && standNachVorschau.entries.find((e) => e.id === "i3").name === "Anlage 3",
     JSON.stringify(vor.k).slice(0, 200));
   const falsch = await post("/api/scheurich/import", datei);
   ok("(B2) Standort-Wächter: Soendgen-Datei in Scheurich -> 400 mit Hinweis, Scheurich unverändert", falsch.status === 400 && /Standort/.test(falsch.k.fehler) && (await holen("/api/scheurich/export.json")).k.entries.every((e) => !String(e.id).startsWith("i")), JSON.stringify(falsch.k));
   const echt = await post("/api/soendgen/import", dateiB);
-  ok("(B3) Echter Import: 1 neu, 1 geändert -> Version 2; Nachweis 0 Abweichungen; Stand vorher 51 -> nachher 52; Kopf mit savedAt",
-    echt.status === 200 && echt.k.neu === 1 && echt.k.geaendert === 1 && echt.k.version === 2 && echt.k.nachweis && echt.k.nachweis.abweichungen === 0 && echt.k.nachweis.eintraegeVerglichen === 52 && echt.k.stand.vorher.eintraege === 51 && echt.k.stand.nachher.eintraege === 52 && echt.k.kopf.savedAt === T,
+  ok("(B3) Echter Import: 1 neu, 1 geändert -> Version 2; Nachweis 0 Abweichungen; Stand fachlich vorher 50 -> nachher 51 (+1 Verlauf); Kopf mit savedAt",
+    echt.status === 200 && echt.k.neu === 1 && echt.k.geaendert === 1 && echt.k.version === 2 && echt.k.nachweis && echt.k.nachweis.abweichungen === 0 && echt.k.nachweis.eintraegeVerglichen === 52 && echt.k.stand.vorher.eintraege === 50 && echt.k.stand.nachher.eintraege === 51 && echt.k.stand.nachher.verlauf.eintraege === 1 && echt.k.kopf.savedAt === T,
     JSON.stringify({ z: echt.k.neu + "/" + echt.k.geaendert, v: echt.k.version, n: echt.k.nachweis, s: echt.k.stand }).slice(0, 220));
   // Der Vergleicher muss Abweichungen auch FINDEN (sonst wäre der Nachweis wertlos): fehlend, verändert, überzählig, Löschliste, Konfig.
   const { vergleicheV1 } = require(path.join(WURZEL, "server", "dienst.js"));
