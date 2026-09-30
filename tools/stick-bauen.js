@@ -117,7 +117,11 @@ pruef(`Server-Werkzeug: dieselbe Node-Fassung wie der Stick-Bauer (${NODE_FASSUN
 pruef("Server-Werkzeug: erwartet 05-Server\\dienst und 05-Server\\node\\node.exe", /05-Server\\dienst/.test(srv) && /05-Server\\node\\node\.exe/.test(srv));
 pruef("Starter BTA-Server-Werkzeug.cmd zeigt auf werkzeug\\server-werkzeug.ps1", /werkzeug\\server-werkzeug\.ps1/.test(lese(path.join(QUELLE, "BTA-Server-Werkzeug.cmd"))));
 for (const d of DIENST_DATEIEN) pruef(`Dienst-Quelle server/${d} vorhanden`, fs.existsSync(path.join(SERVER, d)));
-pruef("Dienst-Fassung steht in dienst.js (FASSUNG)", /const FASSUNG = "\d+\.\d+\.\d+"/.test(lese(path.join(SERVER, "dienst.js"))));
+const dienstFassung = (lese(path.join(SERVER, "dienst.js")).match(/const FASSUNG = "(\d+\.\d+\.\d+)"/) || [])[1];
+pruef("Dienst-Fassung steht in dienst.js (FASSUNG)", !!dienstFassung, dienstFassung);
+/* Werkzeug und Dienst muessen dieselbe Fassung nennen - sonst laeuft der Import
+ * gegen einen alten Dienst (30.09., 22:03: leere "davon"-Zeile). */
+pruef(`Server-Werkzeug verlangt dieselbe Dienst-Fassung ($DienstFassungStick = ${dienstFassung})`, new RegExp(`\\$DienstFassungStick = "${(dienstFassung || "").replace(/\./g, "\\.")}"`).test(srv));
 pruef("05-Server/LIESMICH-SERVER.txt vorhanden", fs.existsSync(path.join(QUELLE, "05-Server", "LIESMICH-SERVER.txt")));
 if (nurPruefen || fehler) {
   console.log(fehler ? `\n${fehler} Prüfung(en) rot - Stick nicht gebaut.` : "\nQuellen passen zusammen.");

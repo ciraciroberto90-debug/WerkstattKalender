@@ -64,6 +64,11 @@ $Standorte = @(
 )
 $Gruppen = @("BTA-Verwalter", "BTA-Scheurich-Werkstatt", "BTA-Scheurich-Ansehen", "BTA-Soendgen-Werkstatt", "BTA-Soendgen-Ansehen")
 $NodeFassung = "v22.23.3"
+# Die Dienst-Fassung, die dieser Stick mitbringt (05-Server\dienst\dienst.js).
+# Import und Vorschau verlangen genau diese Fassung auf dem Server - sonst
+# passen Werkzeug und Dienst nicht zusammen (30.09., 22:03: leere "davon"-Zeile,
+# weil "Einrichten" uebersprungen wurde). stick-bauen.js prueft den Gleichstand.
+$DienstFassungStick = "0.2.1"
 $NodeUrl = "https://nodejs.org/dist/$NodeFassung/node-$NodeFassung-win-x64.zip"
 
 $hier  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -712,7 +717,13 @@ function Import-Laufen([bool]$nurVorschau) {
       return
     }
   }
-  if (-not (Dienst-Status (Port-Lesen))) { Melde "Der Dienst antwortet nicht - erst im Reiter Wartung starten."; return }
+  $dienst = Dienst-Status (Port-Lesen)
+  if (-not $dienst) { Melde "Der Dienst antwortet nicht - erst im Reiter Wartung starten."; return }
+  if ([string]$dienst.fassung -ne $DienstFassungStick) {
+    Schreibe-Log ("Import: Dienst auf dem Server ist Fassung " + $dienst.fassung + ", der Stick bringt " + $DienstFassungStick + " - erst Einrichten.")
+    Melde ("Der Dienst auf dem Server hat Fassung " + $dienst.fassung + ", dieser Stick bringt Fassung " + $DienstFassungStick + ".`n`nBitte erst Reiter Einrichten -> 'Einrichten' (tauscht den Dienst, Datenbanken bleiben), dann hier weiter.")
+    return
+  }
   $kalMb = [Math]::Round((Get-Item -LiteralPath $kal).Length / 1MB, 1); $stoerMb = [Math]::Round((Get-Item -LiteralPath $stoer).Length / 1MB, 1)
   if (-not $nurVorschau) {
     $frage = "Import in die Datenbank " + $st.Name + "?`n`nKalender:  $kal ($kalMb MB)`nStoerungen:  $stoer ($stoerMb MB)`n`nW: wird nur gelesen. Was schon in der Datenbank steht, wird nicht doppelt angelegt."
