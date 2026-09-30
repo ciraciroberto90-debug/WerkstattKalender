@@ -224,8 +224,43 @@ weiter dort behoben (kleine Fixes), größere Wünsche warten auf das neue Syste
 3. ~~**Soendgen**~~ – **entschieden 30.09.: ja**, von Anfang an als zweite, leere
    Datenbank in `BTA-Soendgen`; die Trennung wird ab Etappe A mitgeprüft.
 4. ~~**Port und Name**~~ – **entschieden 30.09.: `http://v-btacockpit-01:8765`**, kein IT-Eintrag.
-5. **Fotos:** heute in `Fotos\` neben der Datei – künftig vom Server verwaltet
-   (Upload), die alten werden mit importiert – ja?
+5. ~~**Fotos**~~ – **entschieden 30.09.: ja**, der Server verwaltet die Fotos
+   (`BTA-Scheurich\fotos`, `BTA-Soendgen\fotos`), die vorhandenen werden beim
+   Import mitgenommen; der Foto-Weg am Störbericht kommt damit zurück.
+
+**Alle fünf Entscheidungen sind getroffen (30.09.). Etappe A beginnt.**
+
+## 11. Robertos Wunsch (30.09.): EIN Werkzeug, das alles anlegt – „BTA-Server-Werkzeug"
+
+Ja, das ist der richtige Weg und wird Teil von Etappe A. Wie das
+BTA-Cockpit-Werkzeug auf dem Stick: ein Fenster (PowerShell/WinForms, nichts
+zu installieren), das Roberto **auf dem Server** vom Stick startet. Reiter:
+
+- **Prüfen** – Ampeln: bin ich Admin, gibt es `C:\BTA` mit den vier Ordnern und
+  den fünf Gruppen, ist Port 8765 frei, ist Node dabei.
+- **Einrichten** – ein Knopf, jede Aktion mit Protokollzeile: Node (portabel)
+  und den Dienst nach `BTA-Programm\Dienst` kopieren, `einstellungen.json`
+  schreiben (Standorte, Port, Pfade), Aufgabe „bta-cockpit-dienst" in der
+  Aufgabenplanung anlegen (Beim Systemstart, Konto serviceBTA, Neustart bei
+  Fehler), Firewall-Regel für 8765, Dienst starten, `/status` abfragen –
+  grün.
+- **Wartung** – Dienst starten/stoppen/neu starten, Protokoll öffnen,
+  Sicherung jetzt, **Sicherung einspielen** (der geübte Rückweg), App-Datei
+  tauschen, Status-Seite öffnen.
+- **Import** (Etappe B) – JSON von `W:` einlesen, Zähl-Nachweis anzeigen.
+
+Der Stick bekommt damit zwei Werkzeuge: das bekannte für die Rechner und das
+neue für den Server. Robertos Regel bleibt: Das Werkzeug macht die Klicks,
+aber es macht sie sichtbar – jede Zeile im Protokoll, jeder Schritt einzeln
+bestätigbar (erst „nur prüfen", dann „ausführen").
+
+**Technische Entscheidung dazu (30.09.):** Der Dienst braucht **keine
+Zusatzpakete** – Node bringt HTTP, SSE und seit Fassung 22 eine eingebaute
+SQLite (`node:sqlite`; hier gemessen mit Node 22.22: Tabelle anlegen,
+schreiben, lesen läuft, mit dem Hinweis „experimental") mit. Damit ist der
+Dienst ein Ordner mit `node.exe` und ein paar `.js`-Dateien: keine
+Installation, kein Compiler, nichts, was auf dem Server nachgeladen werden
+muss. Der Stick trägt Node (portabel, ~30 MB) mit.
 
 Alles andere (Datenmodell, Schnittstelle, Etappen) ist Handwerk und wird
 gebaut wie beschrieben, mit den Nachweisen aus Abschnitt 7.
