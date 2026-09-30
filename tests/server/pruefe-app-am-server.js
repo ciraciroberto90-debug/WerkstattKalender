@@ -58,29 +58,33 @@ async function dienstStoppen() {
   if (!(await dienstStarten())) { console.log("FAIL | Dienst kam nicht hoch"); process.exit(1); }
   /* Bestand: 30 Einträge + Einstellungen (Benutzer Chef), 3 Störberichte */
   const entries = Array.from({ length: 30 }, (_, i) => ({ id: "e" + i, date: HEUTE, category: "TODO", name: "Aufgabe " + i, status: "open", updatedAt: T }));
-  const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItems: [], team: [{ name: "T. Balles", rolle: "mech" }], benutzer: [{ name: "Chef", rolle: "verwalter", kennwortHash: "" }] };
+  // Chef hat ein Kennwort ("geheim"): die Anmeldung muss es hashen - auch ohne crypto.subtle (C9).
+  const KENNWORT = "geheim";
+  const kennwortHash = require("crypto").createHash("sha256").update(KENNWORT).digest("hex");
+  const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItems: [], team: [{ name: "T. Balles", rolle: "mech" }], benutzer: [{ name: "Chef", rolle: "verwalter", kennwortHash }] };
   const stoer = Array.from({ length: 3 }, (_, i) => ({ id: "s" + i, nr: "2026-000" + (i + 1), date: HEUTE, schicht: "F", anlage: "TS480", stoerung: "Störung " + i, offen: false, updatedAt: T }));
   const i1 = await post("/api/scheurich/import?bereich=kalender", { format: "werkstatt-kalender-v1", standort: "scheurich", savedAt: T, entries, deleted: {}, config });
   const i2 = await post("/api/scheurich/import?bereich=stoerungen", { format: "werkstatt-stoerungen-v1", standort: "scheurich", savedAt: T, entries: stoer, deleted: {}, config: {} });
   if (i1.status !== 200 || i2.status !== 200) { console.log("FAIL | Bestand nicht eingelesen", i1.status, i2.status); process.exit(1); }
 
   const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
-  const fehler = { A: [], B: [], C: [] };
+  const fehler = { A: [], B: [], C: [], D: [] };
   const KEY = "werkstatt-kalender-entries";
-  async function fenster(name, { mitSchluessel = true, kontext = null } = {}) {
+  async function fenster(name, { mitSchluessel = true, kontext = null, angemeldet = true, ohneSubtle = false } = {}) {
     const ctx = kontext || await browser.newContext({ viewport: { width: 1500, height: 950 } });
     const p = await ctx.newPage();
     p.on("pageerror", (e) => { fehler[name].push(e.message); console.log("PAGEERROR(" + name + "):", e.message); });
     if (!kontext) {
-      await ctx.addInitScript(({ s }) => {
+      await ctx.addInitScript(({ s, angemeldet, ohneSubtle }) => {
         localStorage.setItem("bta-standort", "scheurich");
-        localStorage.setItem("werkstatt-kalender-benutzer", "Chef");
-        localStorage.setItem("werkstatt-kalender-name", "Chef");
+        if (angemeldet) { localStorage.setItem("werkstatt-kalender-benutzer", "Chef"); localStorage.setItem("werkstatt-kalender-name", "Chef"); }
         if (s) localStorage.setItem("bta-server:schluessel", s);
+        // Wie unter http://v-btacockpit-01:8765 (kein sicherer Kontext): crypto.subtle gibt es nicht.
+        if (ohneSubtle) { try { Object.defineProperty(window.crypto, "subtle", { value: undefined, configurable: true }); } catch (e) { /* egal */ } }
         window.__meldungen = []; window.__kollisionen = [];
         ["werkstatt-shared-error", "werkstatt-shared-info", "werkstatt-stoer-error"].forEach((ev) => window.addEventListener(ev, (e) => window.__meldungen.push(ev + ": " + (e.detail || ""))));
         window.addEventListener("werkstatt-shared-kollision", (e) => window.__kollisionen.push(e.detail));
-      }, { s: mitSchluessel ? SCHLUESSEL : "" });
+      }, { s: mitSchluessel ? SCHLUESSEL : "", angemeldet, ohneSubtle });
     }
     await p.goto(APP + "?server=" + B);
     return { ctx, p };
@@ -189,6 +193,26 @@ async function dienstStoppen() {
   const sLiveB = await Bf.p.waitForFunction(() => window.__wkStoerTest.spiegel().entries.some((e) => e.id === "s-neu"), null, { timeout: 5000 }).then(() => true).catch(() => false);
   ok("(C8) Störbericht s-neu auf dem Server (Tabelle stoerungen, Urheber Chef) und live im zweiten Fenster", !!sNeu && sNeu.geaendertVon === "Chef" && sLiveB, JSON.stringify({ sNeu: !!sNeu, live: sLiveB, n: stoerServer.length }));
 
+  /* (C9) Anmeldung OHNE crypto.subtle (http://server:8765 ist kein sicherer Kontext) */
+  const D9 = await fenster("D", { angemeldet: false, ohneSubtle: true });
+  await bereit(D9.p);
+  await D9.p.waitForTimeout(800);
+  const hashes = await D9.p.evaluate(async (k) => ({ subtleWeg: !window.crypto.subtle, js: window.__wkHashTest.js(k), auto: await window.__wkHashTest.auto(k), umlaut: window.__wkHashTest.js("Sonnenblume ÄÖÜ ß €") }), KENNWORT);
+  const nodeUmlaut = require("crypto").createHash("sha256").update("Sonnenblume ÄÖÜ ß €").digest("hex");
+  ok("(C9a) SHA-256 in JavaScript stimmt mit dem Browser/Node überein (auch mit Umlauten), crypto.subtle ist im Fenster weg", hashes.subtleWeg && hashes.js === kennwortHash && hashes.auto === kennwortHash && hashes.umlaut === nodeUmlaut, JSON.stringify(hashes).slice(0, 160));
+  const schreibschutzVorher = await D9.p.locator("text=Schreibschutz").count();
+  // Ohne gemerkten Benutzer steht der Anmelde-Dialog beim Start schon offen.
+  const dialog = D9.p.locator('[role="dialog"][aria-label="Anmelden"]');
+  await dialog.waitFor({ timeout: 5000 });
+  await dialog.getByLabel("Benutzername").fill("Chef");
+  await dialog.getByLabel("Kennwort").fill(KENNWORT);
+  await dialog.getByRole("button", { name: "Anmelden", exact: true }).click();
+  const angemeldet = await D9.p.waitForFunction(() => localStorage.getItem("werkstatt-kalender-benutzer") === "Chef", null, { timeout: 5000 }).then(() => true).catch(() => false);
+  await D9.p.waitForTimeout(500);
+  const schreibschutzNachher = await D9.p.locator("text=Schreibschutz").count();
+  ok("(C9b) Anmeldung mit Kennwort klappt ohne crypto.subtle: Benutzer gemerkt, Schreibschutz-Leiste weg", schreibschutzVorher >= 1 && angemeldet && schreibschutzNachher === 0, `Schreibschutz ${schreibschutzVorher} -> ${schreibschutzNachher}, angemeldet ${angemeldet}`);
+  await D9.ctx.close();
+
   /* (C7) Server weg + Neustart der App: Spiegel */
   await dienstStoppen();
   const D = await fenster("A", { kontext: A.ctx });
@@ -196,7 +220,7 @@ async function dienstStoppen() {
   const ausSpiegel = await D.p.evaluate(async () => { const s = window.__wkSharedTest.spiegel(); const g = await window.storage.get("werkstatt-kalender-entries"); return { n: s.entries.filter((e) => !String(e.id).startsWith("log|")).length, ausStorage: JSON.parse(g.value).length, erreichbar: window.__wkSharedTest.erreichbar(), meldungen: window.__meldungen.filter((m) => /nicht erreichbar/.test(m)).length }; });
   ok("(C7) Server weg, App neu gestartet: 32 Einträge aus dem örtlichen Spiegel (IndexedDB), Meldung 'nicht erreichbar'", ausSpiegel.n === 32 && ausSpiegel.ausStorage === 32 && !ausSpiegel.erreichbar && ausSpiegel.meldungen >= 1, JSON.stringify(ausSpiegel));
 
-  ok("(E) Keine Skriptfehler in den Fenstern", fehler.A.length === 0 && fehler.B.length === 0 && fehler.C.length === 0, [...fehler.A, ...fehler.B, ...fehler.C].slice(0, 3).join(" | "));
+  ok("(E) Keine Skriptfehler in den Fenstern", fehler.A.length === 0 && fehler.B.length === 0 && fehler.C.length === 0 && fehler.D.length === 0, [...fehler.A, ...fehler.B, ...fehler.C, ...fehler.D].slice(0, 3).join(" | "));
   await browser.close();
   await dienstStoppen();
   fs.rmSync(ORDNER, { recursive: true, force: true });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Plus, Printer, StickyNote, X, Download, Upload, Settings, FolderOpen, Tv, LogOut, LogIn, Eye } from "lucide-react";
 import * as sharedFile from "./sharedfile.js";
+import { sha256Hex, sha256HexJs } from "./sha256.js";
 import { STANDORT, STANDORTE, STANDORT_GEWAEHLT, standortWaehlen, nsKey, leseGruppenPass, setzeGruppenPass } from "./standort.js";
 import { LOGO_GRUPPE, LOGO_SCHEURICH, LOGO_SOENDGEN } from "./logos.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
@@ -1122,10 +1123,11 @@ const normalisiereBenutzer = (roh) => (Array.isArray(roh) ? roh : [])
     links: typeof (b && b.links) === "string" ? b.links.trim().toUpperCase() : "",
   }))
   .filter((b) => b.name);
-const kennwortHashen = async (text) => {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text)));
-  return [...new Uint8Array(bytes)].map((x) => x.toString(16).padStart(2, "0")).join("");
-};
+// Unter http://v-btacockpit-01:8765 (kein „sicherer Kontext“) gibt es kein
+// crypto.subtle - dann rechnet sha256.js dasselbe Ergebnis in JavaScript
+// (Roberto 30.09., 22:38: „bei Klick auf Anmelden passiert nichts“).
+const kennwortHashen = (text) => sha256Hex(text);
+if (typeof window !== "undefined") window.__wkHashTest = { js: sha256HexJs, auto: sha256Hex };
 
 // Werkstattschichtplan - Schichtarten wie das Excel-Dropdown (Blatt "Daten").
 // Der Schlüssel ist zugleich der gespeicherte Wert und die Anzeige.
