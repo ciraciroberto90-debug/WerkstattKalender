@@ -20,9 +20,8 @@ Ordner bekommen dann ihre Rolle: `BTA-Scheurich`/`BTA-Soendgen` = Datenbank
 und Dateien je Standort, `BTA-Programm` = Dienst und ausgelieferte App,
 `BTA-Sicherung` = Sicherungen.
 
-**Nächster Schritt:** Bauplan für das neue System als Vorlage zur Freigabe
-(Architektur, Etappen, Prüfstände, Import-Nachweis) –
-siehe `doku/BACKEND-KONZEPT.md`, dort Abschnitt 6 „Reihenfolge“ (neu).
+**Nächster Schritt:** Robertos Freigabe des Bauplans `doku/BAUPLAN-SERVER-SYSTEM.md`
+(30.09.) und seine fünf Entscheidungen aus dessen Abschnitt 9; dann Etappe A.
 
 **Daneben offen (unverändert):** Release v1.2 (Robertos Handgriff), heutige
 HTML in den Update-Ordner auf `W:`, doppelte Störberichte über die ⚙-Karte,
