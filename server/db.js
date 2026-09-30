@@ -252,7 +252,7 @@ function oeffnen(dateiPfad, { standort } = {}) {
      Prüfstände). Wiederholbar: Was Byte für Byte gleich ist, wird nicht
      erneut geschrieben – zweimal einlesen ändert nichts. Gibt die Zählung
      zurück, die der Import-Nachweis braucht. */
-  function importV1(datei, { bereich, benutzer = "import" } = {}) {
+  function importV1(datei, { bereich, benutzer = "import", nurPruefen = false } = {}) {
     if (!datei || !Array.isArray(datei.entries)) throw new Error("Import: keine gültige Datei (entries fehlt)");
     const istStoer = bereich === "stoerungen" || /stoerungen/.test(String(datei.format || ""));
     const tabelle = istStoer ? "stoerungen" : "eintraege";
@@ -261,34 +261,48 @@ function oeffnen(dateiPfad, { standort } = {}) {
     const schreiben = istStoer ? stmts.stoerungSchreiben : stmts.eintragSchreiben;
     const zeilen = istStoer ? zeilenStoerung : zeilenEintrag;
     const zaehlung = { gelesen: datei.entries.length, neu: 0, geaendert: 0, unveraendert: 0, geloescht: 0, konfig: 0, ohneId: 0 };
+    /* Zwei Durchgänge IN EINER Transaktion: erst nur LESEN und entscheiden
+       (das ist die Vorschau für Robertos „Nur prüfen“ im Werkzeug - Etappe B),
+       dann SCHREIBEN. Die Vorschau schreibt nichts und kehrt vor dem zweiten
+       Durchgang zurück. Auch das Lesen gehört in die Transaktion: außerhalb
+       zahlt jede der 17.000 Einzelabfragen ihren eigenen Sperr-Aufwand
+       (gemessen 30.09.: 0,8 s -> 9 s). */
     return transaktion(() => {
-      const neu = version() + 1;
-      const zeit = jetztIso();
-      let anzahl = 0;
+      const plan = { eintraege: [], grabsteine: [], konfig: [] };
       for (const e of datei.entries) {
         if (!e || e.id == null) { zaehlung.ohneId++; continue; }
         const daten = JSON.stringify(e);
         const alt = lesen.get(String(e.id));
         if (alt && !alt.geloescht && alt.daten === daten) { zaehlung.unveraendert++; continue; }
-        schreiben.run(zeilen(e, neu));
-        stmts.journal.run(neu, zeit, benutzer, tabelle, String(e.id), "import");
+        plan.eintraege.push(e);
         if (alt && !alt.geloescht) zaehlung.geaendert++; else zaehlung.neu++;
-        anzahl++;
       }
       for (const [id, am] of Object.entries(datei.deleted || {})) {
         const alt = lesen.get(String(id));
         if (alt && alt.geloescht) continue;
-        stmts.grabstein[tabelle].run(String(id), neu, typeof am === "string" ? am : zeit);
-        stmts.journal.run(neu, zeit, benutzer, tabelle, String(id), "geloescht");
-        zaehlung.geloescht++; anzahl++;
+        plan.grabsteine.push([String(id), am]);
+        zaehlung.geloescht++;
       }
       for (const [k, w] of Object.entries(datei.config || {})) {
         const daten = JSON.stringify(w);
         const alt = stmts.konfigLesen.get(konfigBereich, k);
         if (alt && alt.daten === daten) continue;
-        stmts.konfigSchreiben.run(konfigBereich, k, neu, daten);
-        zaehlung.konfig++; anzahl++;
+        plan.konfig.push([k, daten]);
+        zaehlung.konfig++;
       }
+      const anzahl = plan.eintraege.length + plan.grabsteine.length + plan.konfig.length;
+      if (nurPruefen) return { ...zaehlung, version: version(), tabelle, nurPruefen: true, wuerdeAendern: anzahl };
+      const neu = version() + 1;
+      const zeit = jetztIso();
+      for (const e of plan.eintraege) {
+        schreiben.run(zeilen(e, neu));
+        stmts.journal.run(neu, zeit, benutzer, tabelle, String(e.id), "import");
+      }
+      for (const [id, am] of plan.grabsteine) {
+        stmts.grabstein[tabelle].run(id, neu, typeof am === "string" ? am : zeit);
+        stmts.journal.run(neu, zeit, benutzer, tabelle, id, "geloescht");
+      }
+      for (const [k, daten] of plan.konfig) stmts.konfigSchreiben.run(konfigBereich, k, neu, daten);
       if (datei.bauStand && !istStoer) meta.set("bauStand", String(datei.bauStand));
       if (anzahl > 0) meta.set("version", neu);
       return { ...zaehlung, version: version(), tabelle };

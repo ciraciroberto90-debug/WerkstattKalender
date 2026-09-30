@@ -140,6 +140,15 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
   **Gemessen: 6 s vom Klick bis zum laufenden Dienst** (Stopp 5 s, Einspielen unter 1 s, Start unter 1 s). `BTA-Scheurich` unberührt (Bild: `cockpit.sqlite` von 15:43, WAL 125 KB, daneben Robertos Ordner „Bilder Scheurich“ vom 29.09.). Die Kopie `cockpit.vor-rueckweg-2026-09-30-16-01.sqlite` liegt in `BTA-Soendgen` und kann irgendwann weg (leer, 64 kB).
 - [ ] **Schritt 16** – Status-Seite von einem Werkstatt-PC öffnen (`http://v-btacockpit-01:8765/status`), bei Gelegenheit – Nachweis, dass auch ein Werkstatt-Konto durch die Firewall kommt.
 
+- [x] **Schritt 16** – Status-Seite vom Werkstatt-PC – **erledigt 30.09.** (Roberto: „am Werkstatt-PC sieht es gut aus“).
+
+## Etappe B – Import (ab 30.09. nachmittags)
+
+- [ ] **Schritt 17a** – Stick-ZIP vom 30.09. abends über den Stick-Ordner, dann Reiter Einrichten → **„Einrichten“** noch einmal (tauscht `dienst.js`/`db.js` auf dem Server, startet den Dienst neu; Datenbanken bleiben). Kontrolle: Prüfen → letzte Ampel „ja, Port 8765, **Fassung 0.2.0**“.
+- [ ] **Schritt 17b** – Reiter Import → Standort Scheurich, beide W:-Pfade stehen vorbelegt → **„Nur pruefen (Vorschau)“**. Erwartet je Datei: Datei-Kopf (format, standort=scheurich, gespeichert …), Zählung „N gelesen – N neu, 0 geändert, 0 unverändert, … Löschliste, … Einstellungen, 0 ohne Kennung“, Fotos-Zeile, „VORSCHAU fertig“. **N muss zur Kennkarte im Cockpit passen** (29.09.: 7.285 Einträge / 2.908 Störberichte). Kommt „Zugriff verweigert“ auf W:, beide Dateien auf den Server-Desktop kopieren und über „…“ wählen.
+- [ ] **Schritt 17c** – **„Import“** → Ja. Erwartet: Zählung wie in der Vorschau, „NACHWEIS OK – N Eintraege zurueckgelesen, 0 Abweichungen“ je Datei, „Datenbank Scheurich vorher 0/0 → nachher N/M“, Fotos kopiert, Meldung mit den Zahlen. Danach Status-Seite: Scheurich mit N Einträgen, M Störberichten. Protokoll speichern und schicken.
+- [ ] **Schritt 17d** – Wiederholung: „Import“ noch einmal → alles „unveraendert“, Version bleibt (Nachweis der Wiederholbarkeit mit echten Daten).
+
 **Etappe A ist damit auf dem Server durch** (Bauplan Abschnitt 8: Prüfstände grün 24/24 + 5/5, `/status` von Robertos PC erreichbar, Rückweg protokolliert). Es folgt **Etappe B – Import** (Reiter Import im Werkzeug, Testimport mit dem echten Abendstand von `W:`).
 
 ## Befunde vom 29.09. (Prüfungen 1–3)

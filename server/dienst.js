@@ -84,7 +84,9 @@ function koerperLesen(req) {
   return new Promise((resolve, reject) => {
     const teile = []; let groesse = 0;
     req.on("data", (d) => { groesse += d.length; if (groesse > MAX_KOERPER) { reject(new Error("Anfrage zu groß")); req.destroy(); return; } teile.push(d); });
-    req.on("end", () => { try { resolve(teile.length ? JSON.parse(Buffer.concat(teile).toString("utf8")) : {}); } catch (e) { reject(new Error("Anfrage ist kein gültiges JSON")); } });
+    // Eine BOM (EF BB BF) am Anfang lässt JSON.parse scheitern - Dateien, die
+    // Windows-Werkzeuge geschrieben haben, tragen sie manchmal (Import, Etappe B).
+    req.on("end", () => { try { resolve(teile.length ? JSON.parse(Buffer.concat(teile).toString("utf8").replace(/^﻿/, "")) : {}); } catch (e) { reject(new Error("Anfrage ist kein gültiges JSON")); } });
     req.on("error", reject);
   });
 }
@@ -224,10 +226,28 @@ function starten(einstellungen, { still = false } = {}) {
       }
       if (weg === "import" && req.method === "POST") {
         const datei = await koerperLesen(req);
-        const r = st.db.importV1(datei, { bereich: u.query.bereich, benutzer: u.query.benutzer || "import" });
+        /* Standort-Wächter (Etappe B): die Datei trägt ihren Standort („scheurich“).
+           Eine Scheurich-Datei in die Soendgen-Datenbank wäre der Fehler vom
+           03.08. in neuem Gewand - nur mit ?erzwingen=1 erlaubt. */
+        if (datei && datei.standort && datei.standort !== st.id && u.query.erzwingen !== "1") {
+          throw new Error(`Import: Datei gehört zu Standort „${datei.standort}“, Ziel ist „${st.id}“ (erzwingen=1 überschreibt)`);
+        }
+        const nurPruefen = u.query.nurPruefen === "1";
+        const vorher = st.db.zaehlen();
+        const r = st.db.importV1(datei, { bereich: u.query.bereich, benutzer: u.query.benutzer || "import", nurPruefen });
+        const kopf = { format: datei.format || null, standort: datei.standort || null, savedAt: datei.savedAt || null, schreibMarke: datei.schreibMarke || null, bauStand: datei.bauStand || null };
+        if (nurPruefen) {
+          log.info(`${st.id}: Import-Vorschau ${r.tabelle}: ${r.gelesen} gelesen, ${r.neu} neu, ${r.geaendert} geändert, ${r.unveraendert} unverändert, ${r.geloescht} gelöscht, ${r.konfig} Konfig - nichts geschrieben`);
+          return json(res, 200, { ...r, kopf, stand: { vorher, nachher: vorher } });
+        }
         if (r.neu + r.geaendert + r.geloescht + r.konfig > 0) melde(st, r.version);
-        log.info(`${st.id}: Import ${r.tabelle}: ${r.gelesen} gelesen, ${r.neu} neu, ${r.geaendert} geändert, ${r.unveraendert} unverändert, ${r.geloescht} gelöscht, ${r.konfig} Konfig -> Version ${r.version}`);
-        return json(res, 200, r);
+        /* Nachweis (Bauplan Abschnitt 8, Etappe B): sofort zurücklesen und
+           Eintrag für Eintrag mit der eingelesenen Datei vergleichen. */
+        const nachweis = vergleicheV1(datei, st.db.exportV1(r.tabelle === "stoerungen" ? "stoerungen" : "kalender"));
+        const nachher = st.db.zaehlen();
+        log.info(`${st.id}: Import ${r.tabelle}: ${r.gelesen} gelesen, ${r.neu} neu, ${r.geaendert} geändert, ${r.unveraendert} unverändert, ${r.geloescht} gelöscht, ${r.konfig} Konfig -> Version ${r.version}; Nachweis ${nachweis.abweichungen} Abweichungen`);
+        if (nachweis.abweichungen > 0) log.fehler(`${st.id}: Import-Nachweis ${r.tabelle}: ${nachweis.abweichungen} Abweichungen - ${nachweis.beispiele.slice(0, 3).join("; ")}`);
+        return json(res, 200, { ...r, kopf, nachweis, stand: { vorher, nachher } });
       }
       if (weg === "sicherung" && req.method === "POST") return json(res, 200, sicherungJetzt("auf Anforderung"));
       return json(res, 404, { fehler: "Unbekannter Weg: " + u.pathname });
@@ -262,9 +282,33 @@ function starten(einstellungen, { still = false } = {}) {
   });
 }
 
-const FASSUNG = "0.1.0";
+const FASSUNG = "0.2.0"; // 0.2.0 = Etappe B: Import-Vorschau, Standort-Wächter, Nachweis, Serverzeit (30.09.)
 
-module.exports = { starten, ladeEinstellungen, FASSUNG };
+/* Import-Nachweis: eingelesene Datei gegen den Export aus der Datenbank.
+   Einträge Feld für Feld (JSON-Text je id), Löschliste nach Kennung, Konfig je
+   Schlüssel. Einträge ohne id zählen nicht - sie kann der Import nicht
+   aufnehmen (die Zählung weist sie als ohneId aus). */
+function vergleicheV1(datei, exportiert) {
+  const beispiele = [];
+  let abweichungen = 0;
+  const merke = (t) => { abweichungen++; if (beispiele.length < 10) beispiele.push(t); };
+  const exp = new Map((exportiert.entries || []).map((e) => [String(e.id), JSON.stringify(e)]));
+  // Ein Durchgang: je id der LETZTE Eintrag der Datei zählt (wie beim Import).
+  // Nicht je id die Liste absuchen - das war bei 17.000 Einträgen quadratisch (10 s, gemessen 30.09.).
+  const gesehen = new Map();
+  for (const e of datei.entries || []) { if (e && e.id != null) gesehen.set(String(e.id), e); }
+  for (const [id, letzte] of gesehen) {
+    if (datei.deleted && Object.prototype.hasOwnProperty.call(datei.deleted, id)) { if (exp.has(id)) merke(`Eintrag ${id} steht in der Löschliste, ist im Export aber noch da`); continue; }
+    if (!exp.has(id)) { merke(`Eintrag ${id} fehlt im Export`); continue; }
+    if (exp.get(id) !== JSON.stringify(letzte)) merke(`Eintrag ${id} unterscheidet sich`);
+  }
+  for (const id of exp.keys()) if (!gesehen.has(id)) merke(`Eintrag ${id} ist im Export, aber nicht in der Datei`);
+  for (const id of Object.keys(datei.deleted || {})) if (!(exportiert.deleted || {})[id]) merke(`Löschliste: ${id} fehlt im Export`);
+  for (const [k, w] of Object.entries(datei.config || {})) if (JSON.stringify((exportiert.config || {})[k]) !== JSON.stringify(w)) merke(`Konfig „${k}“ unterscheidet sich`);
+  return { abweichungen, beispiele, eintraegeVerglichen: gesehen.size, exportEintraege: exp.size };
+}
+
+module.exports = { starten, ladeEinstellungen, vergleicheV1, FASSUNG };
 
 if (require.main === module) {
   const pfad = process.argv[2] || path.join(HIER, "einstellungen.json");

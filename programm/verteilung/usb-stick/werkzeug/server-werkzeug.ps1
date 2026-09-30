@@ -290,17 +290,67 @@ $kEntfernen.ForeColor = $rot
 $tabWart.Controls.AddRange(@($gbDienst, $gbDaten, $gbWeg))
 
 # ---- Reiter IMPORT (Etappe B) ------------------------------------------------
+# Die heutigen Dateien liegen auf W: (Werkstatt-Ordner, wie im Cockpit-Werkzeug).
+# Der Server liest sie NUR - geschrieben wird ausschliesslich in die Datenbank.
+$WerkstattOrdnerW = "\\SCHEUDC1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender"
 $lblImp = New-Object System.Windows.Forms.Label
-$lblImp.Text = "Der Import der heutigen Dateien von W: (werkstatt-kalender-daten.json, werkstatt-stoerungen.json, Fotos) kommt in Etappe B des Bauplans.`n`nEr wird hier Eintrag fuer Eintrag zaehlen und den Nachweis anzeigen, bevor umgeschaltet wird."
-$lblImp.Location = New-Object System.Drawing.Point(14, 16)
-$lblImp.Size = New-Object System.Drawing.Size(640, 90)
+$lblImp.Text = "Liest die heutigen Dateien von W: in die Datenbank des Servers. Wiederholbar: was schon da ist, wird gezaehlt, nicht doppelt angelegt. W: wird nur gelesen. Erst 'Nur pruefen', dann 'Import' - der Nachweis (Eintrag fuer Eintrag zurueckgelesen) steht danach im Protokoll."
+$lblImp.Location = New-Object System.Drawing.Point(12, 10)
+$lblImp.Size = New-Object System.Drawing.Size(646, 58)
+$lblImp.ForeColor = [System.Drawing.Color]::Gray
+$lblImpStandort = New-Object System.Windows.Forms.Label
+$lblImpStandort.Text = "Standort:"
+$lblImpStandort.Location = New-Object System.Drawing.Point(12, 76)
+$lblImpStandort.Size = New-Object System.Drawing.Size(120, 22)
+$cmbImpStandort = New-Object System.Windows.Forms.ComboBox
+$cmbImpStandort.DropDownStyle = "DropDownList"
+$cmbImpStandort.Location = New-Object System.Drawing.Point(136, 73)
+$cmbImpStandort.Size = New-Object System.Drawing.Size(200, 24)
+foreach ($st in $Standorte) { [void]$cmbImpStandort.Items.Add($st.Name) }
+$cmbImpStandort.SelectedIndex = 0
+function Import-Zeile([int]$y, [string]$titel, [string]$vorgabe) {
+  $l = New-Object System.Windows.Forms.Label
+  $l.Text = $titel
+  $l.Location = New-Object System.Drawing.Point(12, $y)
+  $l.Size = New-Object System.Drawing.Size(120, 22)
+  $t = New-Object System.Windows.Forms.TextBox
+  $t.Text = $vorgabe
+  $t.Location = New-Object System.Drawing.Point(136, ($y - 3))
+  $t.Size = New-Object System.Drawing.Size(478, 24)
+  $k = New-Object System.Windows.Forms.Button
+  $k.Text = "..."
+  $k.Location = New-Object System.Drawing.Point(618, ($y - 4))
+  $k.Size = New-Object System.Drawing.Size(40, 26)
+  $k.FlatStyle = "System"
+  $tabImp.Controls.AddRange(@($l, $t, $k))
+  return @{ Feld = $t; Knopf = $k }
+}
+$zKal   = Import-Zeile 108 "Kalender-Datei:"  ($WerkstattOrdnerW + "\werkstatt-kalender-daten.json")
+$zStoer = Import-Zeile 140 "Stoerungs-Datei:" ($WerkstattOrdnerW + "\werkstatt-stoerungen.json")
+$chkImpFotos = New-Object System.Windows.Forms.CheckBox
+$chkImpFotos.Text = "Fotos mitnehmen: Unterordner 'Fotos' neben der Kalender-Datei in den fotos-Ordner des Standorts kopieren"
+$chkImpFotos.Location = New-Object System.Drawing.Point(136, 170)
+$chkImpFotos.Size = New-Object System.Drawing.Size(522, 22)
+$chkImpFotos.Checked = $true
+$kImpVorschau = New-Object System.Windows.Forms.Button
+$kImpVorschau.Text = "Nur pruefen (Vorschau, aendert nichts)"
+$kImpVorschau.Location = New-Object System.Drawing.Point(12, 206)
+$kImpVorschau.Size = New-Object System.Drawing.Size(316, 40)
+$kImpVorschau.FlatStyle = "System"
 $kImport = New-Object System.Windows.Forms.Button
-$kImport.Text = "Import (kommt in Etappe B)"
-$kImport.Location = New-Object System.Drawing.Point(14, 110)
-$kImport.Size = New-Object System.Drawing.Size(306, 36)
-$kImport.FlatStyle = "System"
-$kImport.Enabled = $false
-$tabImp.Controls.AddRange(@($lblImp, $kImport))
+$kImport.Text = "Import"
+$kImport.Location = New-Object System.Drawing.Point(342, 206)
+$kImport.Size = New-Object System.Drawing.Size(316, 40)
+$kImport.FlatStyle = "Flat"
+$kImport.BackColor = $gruen
+$kImport.ForeColor = $weiss
+$kImport.Font = New-Object System.Drawing.Font("Segoe UI", 10.5, [System.Drawing.FontStyle]::Bold)
+$lblImpHinweis = New-Object System.Windows.Forms.Label
+$lblImpHinweis.Text = "Kommt der Server nicht an W: heran (Zugriff verweigert), die beiden Dateien vorher auf den Server kopieren (z. B. Desktop) und hier waehlen. Die Datei traegt ihren Standort - eine Scheurich-Datei laesst sich nicht in Soendgen einlesen."
+$lblImpHinweis.Location = New-Object System.Drawing.Point(12, 256)
+$lblImpHinweis.Size = New-Object System.Drawing.Size(646, 60)
+$lblImpHinweis.ForeColor = [System.Drawing.Color]::Gray
+$tabImp.Controls.AddRange(@($lblImp, $lblImpStandort, $cmbImpStandort, $chkImpFotos, $kImpVorschau, $kImport, $lblImpHinweis))
 
 # =============================================================================
 #  Dauerhaft sichtbar: Ladebalken + Protokoll
@@ -606,6 +656,98 @@ function Einrichten-Laufen([bool]$nurVorschau) {
 }
 $kVorschau.Add_Click({ Einrichten-Laufen $true })
 $kEinrichten.Add_Click({ Einrichten-Laufen $false })
+
+# =============================================================================
+#  Aktion: IMPORT (Etappe B) - Vorschau oder ausfuehren
+# =============================================================================
+function Datei-Waehlen($feld, [string]$titel) {
+  $d = New-Object System.Windows.Forms.OpenFileDialog
+  $d.Title = $titel
+  $d.Filter = "JSON-Datei (*.json)|*.json|Alle Dateien (*.*)|*.*"
+  try { $start = Split-Path -Parent $feld.Text; if ($start -and (Test-Path -LiteralPath $start)) { $d.InitialDirectory = $start } } catch { }
+  if ($d.ShowDialog($fenster) -eq "OK") { $feld.Text = $d.FileName; Schreibe-Log ("Datei gewaehlt: " + $d.FileName) }
+}
+$zKal.Knopf.Add_Click({ Datei-Waehlen $zKal.Feld "Kalender-Datei (werkstatt-kalender-daten.json)" })
+$zStoer.Knopf.Add_Click({ Datei-Waehlen $zStoer.Feld "Stoerungs-Datei (werkstatt-stoerungen.json)" })
+
+function Import-Sende([string]$standortId, [string]$bereich, [string]$pfad, [bool]$nurVorschau) {
+  # -InFile schickt die Datei so, wie sie ist (4-5 MB) - ohne sie in PowerShell
+  # zu zerlegen; zaehlen und vergleichen macht der Dienst.
+  $port = Port-Lesen
+  $weg = "http://localhost:" + $port + "/api/" + $standortId + "/import?bereich=" + $bereich + "&benutzer=" + $env:USERNAME
+  if ($nurVorschau) { $weg += "&nurPruefen=1" }
+  return Invoke-RestMethod -Method Post -Uri $weg -ContentType "application/json; charset=utf-8" -InFile $pfad -TimeoutSec 600
+}
+function Import-Laufen([bool]$nurVorschau) {
+  $praefix = if ($nurVorschau) { "VORSCHAU: " } else { "" }
+  $st = $Standorte[$cmbImpStandort.SelectedIndex]
+  $kal = $zKal.Feld.Text.Trim(); $stoer = $zStoer.Feld.Text.Trim()
+  foreach ($p in @($kal, $stoer)) { if (-not $p -or -not (Test-Path -LiteralPath $p)) { Melde ("Datei nicht gefunden oder kein Zugriff:`n" + $p + "`n`nKommt der Server nicht an W: heran, die Datei vorher auf den Server kopieren."); return } }
+  if (-not (Dienst-Status (Port-Lesen))) { Melde "Der Dienst antwortet nicht - erst im Reiter Wartung starten."; return }
+  $kalMb = [Math]::Round((Get-Item -LiteralPath $kal).Length / 1MB, 1); $stoerMb = [Math]::Round((Get-Item -LiteralPath $stoer).Length / 1MB, 1)
+  if (-not $nurVorschau) {
+    $frage = "Import in die Datenbank " + $st.Name + "?`n`nKalender:  $kal ($kalMb MB)`nStoerungen:  $stoer ($stoerMb MB)`n`nW: wird nur gelesen. Was schon in der Datenbank steht, wird nicht doppelt angelegt."
+    if (-not (Frage-JaNein $frage "Import")) { Schreibe-Log "Import abgebrochen - nichts veraendert."; return }
+  }
+  Arbeit-Beginnt
+  Schreibe-Log ($praefix + "Import " + $st.Name + " gestartet - Kalender $kalMb MB, Stoerungen $stoerMb MB")
+  $uhr = [System.Diagnostics.Stopwatch]::StartNew()
+  $ergebnisse = @()
+  try {
+    foreach ($teil in @(@{ Bereich = "kalender"; Pfad = $kal; Titel = "Kalender" }, @{ Bereich = "stoerungen"; Pfad = $stoer; Titel = "Stoerungen" })) {
+      $lblFortschritt.Text = $teil.Titel + " ..."; [System.Windows.Forms.Application]::DoEvents()
+      $t0 = $uhr.ElapsedMilliseconds
+      try { $r = Import-Sende $st.Id $teil.Bereich $teil.Pfad $nurVorschau }
+      catch {
+        $detail = ""
+        try { $detail = ($_.ErrorDetails.Message | ConvertFrom-Json).fehler } catch { $detail = [string]$_ }
+        throw ($teil.Titel + ": " + $detail)
+      }
+      $ms = $uhr.ElapsedMilliseconds - $t0
+      $kopf = $r.kopf
+      Schreibe-Log ($praefix + $teil.Titel + ": Datei-Kopf format=" + $kopf.format + ", standort=" + $kopf.standort + ", gespeichert " + $kopf.savedAt)
+      Schreibe-Log ($praefix + $teil.Titel + ": " + $r.gelesen + " gelesen - " + $r.neu + " neu, " + $r.geaendert + " geaendert, " + $r.unveraendert + " unveraendert, " + $r.geloescht + " geloescht (Loeschliste), " + $r.konfig + " Einstellungen, " + $r.ohneId + " ohne Kennung  [" + $ms + " ms]")
+      if (-not $nurVorschau) {
+        $n = $r.nachweis
+        $satz = if ($n.abweichungen -eq 0) { "NACHWEIS OK - " + $n.eintraegeVerglichen + " Eintraege zurueckgelesen, 0 Abweichungen" } else { "NACHWEIS ROT - " + $n.abweichungen + " Abweichungen: " + (($n.beispiele | Select-Object -First 3) -join "; ") }
+        Schreibe-Log ("   " + $satz)
+        Schreibe-Log ("   Datenbank " + $st.Name + " vorher: " + $r.stand.vorher.eintraege + " Eintraege / " + $r.stand.vorher.stoerungen + " Stoerberichte  ->  nachher: " + $r.stand.nachher.eintraege + " / " + $r.stand.nachher.stoerungen + "  (Version " + $r.version + ")")
+      }
+      $ergebnisse += $r
+    }
+    # Fotos: Unterordner "Fotos" neben der Kalender-Datei -> <Standort>\fotos (nur Dateien, die dort fehlen oder eine andere Groesse haben)
+    if ($chkImpFotos.Checked) {
+      $fotoQuelle = Join-Path (Split-Path -Parent $kal) "Fotos"
+      $fotoZiel = Join-Path $st.Ordner "fotos"
+      if (Test-Path -LiteralPath $fotoQuelle) {
+        $dateien = @(Get-ChildItem -LiteralPath $fotoQuelle -File)
+        $kopiert = 0; $gleich = 0
+        foreach ($f in $dateien) {
+          $z = Join-Path $fotoZiel $f.Name
+          if ((Test-Path -LiteralPath $z) -and ((Get-Item -LiteralPath $z).Length -eq $f.Length)) { $gleich++; continue }
+          if (-not $nurVorschau) { if (-not (Test-Path -LiteralPath $fotoZiel)) { New-Item -ItemType Directory -Path $fotoZiel -Force | Out-Null }; Copy-Item -LiteralPath $f.FullName -Destination $z -Force }
+          $kopiert++
+        }
+        Schreibe-Log ($praefix + "Fotos: " + $dateien.Count + " Dateien in " + $fotoQuelle + " - " + $kopiert + $(if ($nurVorschau) { " zu kopieren, " } else { " kopiert, " }) + $gleich + " schon da")
+      } else { Schreibe-Log ($praefix + "Fotos: kein Unterordner 'Fotos' neben der Kalender-Datei - nichts zu kopieren") }
+    }
+    Arbeit-Fertig
+    $gesamt = [Math]::Round($uhr.ElapsedMilliseconds / 1000, 1)
+    if ($nurVorschau) { Schreibe-Log ("VORSCHAU fertig in $gesamt s - nichts veraendert. Wenn die Zahlen zur Kennkarte im Cockpit passen: 'Import'.") }
+    else {
+      $rot = @($ergebnisse | Where-Object { $_.nachweis.abweichungen -gt 0 }).Count
+      Schreibe-Log ("Import fertig in $gesamt s." + $(if ($rot -eq 0) { " Beide Nachweise OK." } else { " ACHTUNG: $rot Nachweis(e) rot - Protokoll speichern und schicken." }))
+      $letzt = $ergebnisse[-1]
+      Melde ("Import fertig (" + $gesamt + " s).`n`n" + $st.Name + " hat jetzt " + $letzt.stand.nachher.eintraege + " Eintraege und " + $letzt.stand.nachher.stoerungen + " Stoerberichte.`n`nBitte mit der Kennkarte im heutigen Cockpit vergleichen (Zahnrad -> Verlauf & Sicherung).`n" + $(if ($rot -eq 0) { "Nachweis: 0 Abweichungen." } else { "ACHTUNG: Nachweis rot - Protokoll schicken." }))
+    }
+  } catch {
+    Arbeit-Fertig
+    Schreibe-Log ("FEHLER beim Import: " + $_)
+    Melde ("Das hat nicht geklappt:`n`n" + $_) "Fehler"
+  }
+}
+$kImpVorschau.Add_Click({ Import-Laufen $true })
+$kImport.Add_Click({ Import-Laufen $false })
 
 # =============================================================================
 #  Aktion: WARTUNG

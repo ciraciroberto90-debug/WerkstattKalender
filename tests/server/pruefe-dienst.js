@@ -122,6 +122,27 @@ const T = "2026-09-30T10:00:00.000Z";
     abweichungen.length === 0 && exSo.entries.length === 51 && JSON.stringify(exSo.deleted) === JSON.stringify(datei.deleted) && konfigGleich && exSo.bauStand === datei.bauStand,
     `Abweichungen ${abweichungen.length}: ${abweichungen.slice(0, 3).join(",")} | entries ${exSo.entries.length} | deleted ${JSON.stringify(exSo.deleted) === JSON.stringify(datei.deleted)} | config ${konfigGleich} | bauStand ${exSo.bauStand}`);
 
+  /* (B1)-(B4) Etappe B: Vorschau, Standort-Wächter, Nachweis, Vergleicher */
+  const dateiB = { ...datei, entries: datei.entries.map((e) => (e.id === "i3" ? { ...e, name: "Anlage 3 umbenannt" } : e)).concat([{ id: "neu-b", date: "2026-09-30", category: "TODO", name: "Neu aus Etappe B", updatedAt: T }]) };
+  const vor = await post("/api/soendgen/import?nurPruefen=1", dateiB);
+  const standNachVorschau = (await holen("/api/soendgen/export.json")).k;
+  ok("(B1) Vorschau (nurPruefen=1): zählt 1 neu, 1 geändert, 50 unverändert - schreibt aber nichts (Version bleibt 1, i3 unverändert)",
+    vor.status === 200 && vor.k.nurPruefen === true && vor.k.neu === 1 && vor.k.geaendert === 1 && vor.k.unveraendert === 50 && vor.k.wuerdeAendern === 2 && vor.k.version === 1 && vor.k.kopf && vor.k.kopf.standort === "soendgen" && vor.k.stand.vorher.eintraege === 51
+      && standNachVorschau.schreibMarke === "server-1" && standNachVorschau.entries.find((e) => e.id === "i3").name === "Anlage 3",
+    JSON.stringify(vor.k).slice(0, 200));
+  const falsch = await post("/api/scheurich/import", datei);
+  ok("(B2) Standort-Wächter: Soendgen-Datei in Scheurich -> 400 mit Hinweis, Scheurich unverändert", falsch.status === 400 && /Standort/.test(falsch.k.fehler) && (await holen("/api/scheurich/export.json")).k.entries.every((e) => !String(e.id).startsWith("i")), JSON.stringify(falsch.k));
+  const echt = await post("/api/soendgen/import", dateiB);
+  ok("(B3) Echter Import: 1 neu, 1 geändert -> Version 2; Nachweis 0 Abweichungen; Stand vorher 51 -> nachher 52; Kopf mit savedAt",
+    echt.status === 200 && echt.k.neu === 1 && echt.k.geaendert === 1 && echt.k.version === 2 && echt.k.nachweis && echt.k.nachweis.abweichungen === 0 && echt.k.nachweis.eintraegeVerglichen === 52 && echt.k.stand.vorher.eintraege === 51 && echt.k.stand.nachher.eintraege === 52 && echt.k.kopf.savedAt === T,
+    JSON.stringify({ z: echt.k.neu + "/" + echt.k.geaendert, v: echt.k.version, n: echt.k.nachweis, s: echt.k.stand }).slice(0, 220));
+  // Der Vergleicher muss Abweichungen auch FINDEN (sonst wäre der Nachweis wertlos): fehlend, verändert, überzählig, Löschliste, Konfig.
+  const { vergleicheV1 } = require(path.join(WURZEL, "server", "dienst.js"));
+  const links = { entries: [{ id: "a", x: 1 }, { id: "b", x: 2 }, { id: "c", x: 3 }], deleted: { d: "2026-01-01T00:00:00.000Z" }, config: { team: [1, 2] } };
+  const rechts = { entries: [{ id: "a", x: 1 }, { id: "b", x: 99 }, { id: "z", x: 0 }], deleted: {}, config: { team: [1] } };
+  const v = vergleicheV1(links, rechts);
+  ok("(B4) Vergleicher findet 5 Abweichungen (c fehlt, b anders, z überzählig, Löschliste d, Konfig team) und 0 bei Gleichheit", v.abweichungen === 5 && vergleicheV1(links, JSON.parse(JSON.stringify(links))).abweichungen === 0, v.beispiele.join(" | "));
+
   /* (A11) SSE */
   const ereignisse = [];
   const ac = new AbortController();
