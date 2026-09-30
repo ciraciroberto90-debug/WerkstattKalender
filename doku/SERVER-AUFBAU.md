@@ -118,7 +118,7 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 - [ ] ~~**Schritt 9** – alten Ordner umbenennen~~ – gestrichen
 - [ ] **Schritt 10** – Schattenkopien + nächtliche Sicherungsaufgabe – kommt mit dem neuen System (Sicherung der Datenbank; der Dienst legt sie um 02:00 nach `BTA-Sicherung`, der geübte Rückweg ist „Sicherung einspielen" im Werkzeug)
 - [ ] **Schritt 11** – Komplettpaket nach `BTA-Programm\Installation` – entfällt voraussichtlich: das neue System liefert die App selbst aus
-- [ ] **Schritt 12 (Etappe A, Werkzeug)** – `BTA-Server-Werkzeug.cmd` auf dem Server als Administrator → Prüfen → Bild der Ampeln (ändert nichts)
+- [ ] **Schritt 12 (Etappe A, Werkzeug)** – `BTA-Server-Werkzeug.cmd` auf dem Server als Administrator → Prüfen → Bild der Ampeln (ändert nichts). **Erster Anlauf 30.09.: Fenster blitzte auf, nichts öffnete sich** – Laufzeitfehler in der Startzeile (`(if …)` statt `$(if …)`), behoben; seitdem schreibt das Werkzeug jeden Abbruch nach `werkzeug\server-werkzeug-fehler.txt` und die `.cmd` öffnet die Datei im Editor. Zweiter Anlauf mit der ZIP vom 30.09. nachmittags steht aus.
 - [ ] **Schritt 13** – Einrichten → erst „Nur prüfen (Vorschau)" (Protokoll lesen), dann „Einrichten"; am Ende öffnet sich `http://v-btacockpit-01:8765/status`
 - [ ] **Schritt 14** – Status-Seite von einem Werkstatt-PC im Browser öffnen (Firewall-Nachweis)
 - [ ] **Schritt 15** – Rückweg üben: Wartung → „Sicherung jetzt", dann „Sicherung einspielen" auf die leere Datenbank; Protokoll hier festhalten

@@ -77,6 +77,38 @@ const srv = lese(path.join(QUELLE, "werkzeug", "server-werkzeug.ps1"));
 const zaehle = (s, re) => (s.match(re) || []).length;
 pruef("Server-Werkzeug: Klammern ausgeglichen", zaehle(srv, /\{/g) === zaehle(srv, /\}/g) && zaehle(srv, /\(/g) === zaehle(srv, /\)/g), `${zaehle(srv, /\{/g)} { / ${zaehle(srv, /\}/g)} } · ${zaehle(srv, /\(/g)} ( / ${zaehle(srv, /\)/g)} )`);
 pruef("Server-Werkzeug: nur ASCII (PowerShell 5.1 liest Umlaute je nach Kodierung falsch)", ![...srv].some((c) => c.charCodeAt(0) > 127));
+/* Fund 30.09. (Roberto: „Fenster blitzt auf, aber es öffnet nichts"): `(if (…) {…})`
+ * in runden Klammern liest PowerShell als Befehl namens „if" - Parser stumm,
+ * Laufzeit-Abbruch vor dem Fenster. Richtig ist `$(if …)`. Diese Prüfung war
+ * gegen den Stand 5f067f3 rot (1 Treffer, Zeile 666). */
+const alsBefehl = (s) => (s.match(/(?<!\$)\(\s*(if|foreach|for|while|switch|try|do)\s*[\(\{]/g) || []);
+for (const [name, text] of [["Server-Werkzeug", srv], ["Werkzeug", ps1]]) {
+  const t = alsBefehl(text);
+  pruef(`${name}: kein Schlüsselwort in runden Klammern ((if …) statt $(if …))`, t.length === 0, t.length ? t.join(" · ") : "");
+}
+/* Echter Parser, wenn eine PowerShell da ist (pwsh/powershell im Pfad oder
+ * ausgabe/pwsh/pwsh): Syntaxfehler und Schlüsselwörter, die als Befehl gelesen
+ * werden. Fehlt sie, wird das als ungemessen ausgewiesen, nicht als grün. */
+const pwshKandidaten = ["pwsh", "powershell", path.join(AUSGABE, "pwsh", "pwsh")];
+const pwsh = pwshKandidaten.find((k) => { try { execSync(`command -v "${k}" >/dev/null 2>&1 || test -x "${k}"`, { shell: "/bin/bash", stdio: "ignore" }); return true; } catch (e) { return false; } });
+if (pwsh) {
+  const dateien = ["server-werkzeug.ps1", "cockpit-werkzeug.ps1"].map((d) => path.join(QUELLE, "werkzeug", d));
+  const skript = `
+    foreach ($f in @(${dateien.map((d) => `"${d}"`).join(", ")})) {
+      $tokens=$null; $errors=$null
+      $ast = [System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$tokens, [ref]$errors)
+      $keys = @("if","else","elseif","foreach","for","while","switch","try","catch","return","do","until")
+      $treffer = @($ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true) | Where-Object { $_.GetCommandName() -in $keys })
+      "$([System.IO.Path]::GetFileName($f))|$($errors.Count)|$($treffer.Count)|" + (($errors | ForEach-Object { "Z" + $_.Extent.StartLineNumber + " " + $_.Message }) + ($treffer | ForEach-Object { "Z" + $_.Extent.StartLineNumber + " " + $_.Extent.Text }) -join " · ")
+    }`;
+  const aus = execSync(`"${pwsh}" -NoProfile -Command '${skript.replace(/'/g, "''")}'`, { shell: "/bin/bash" }).toString().trim().split("\n");
+  for (const zeile of aus) {
+    const [datei, fehler, schl, detail] = zeile.split("|");
+    pruef(`${datei}: PowerShell-Parser ohne Fehler, kein Schlüsselwort als Befehl`, fehler === "0" && schl === "0", `${fehler} Fehler, ${schl} Schlüsselwort-Befehle${detail ? " – " + detail : ""}`);
+  }
+} else {
+  console.log("UNGEMESSEN | PowerShell-Parser: kein pwsh/powershell vorhanden - nur die Muster-Prüfung oben");
+}
 pruef(`Server-Werkzeug: dieselbe Node-Fassung wie der Stick-Bauer (${NODE_FASSUNG})`, new RegExp(`\\$NodeFassung = "${NODE_FASSUNG.replace(/\./g, "\\.")}"`).test(srv));
 pruef("Server-Werkzeug: erwartet 05-Server\\dienst und 05-Server\\node\\node.exe", /05-Server\\dienst/.test(srv) && /05-Server\\node\\node\.exe/.test(srv));
 pruef("Starter BTA-Server-Werkzeug.cmd zeigt auf werkzeug\\server-werkzeug.ps1", /werkzeug\\server-werkzeug\.ps1/.test(lese(path.join(QUELLE, "BTA-Server-Werkzeug.cmd"))));

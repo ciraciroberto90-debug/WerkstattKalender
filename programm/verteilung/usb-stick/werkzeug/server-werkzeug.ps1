@@ -23,6 +23,18 @@
 # Muss ALS ADMINISTRATOR laufen (Aufgabe, Firewall, C:\BTA).
 
 $ErrorActionPreference = "Stop"
+
+# Faengt jeden Abbruch VOR und IM Fenster: Das Startfenster ist versteckt
+# (-WindowStyle Hidden), ein Fehler waere sonst unsichtbar - genau das passierte
+# am 30.09. Der Fehler landet in werkzeug\server-werkzeug-fehler.txt (die
+# .cmd oeffnet die Datei) und, wenn WinForms schon geladen ist, in einer Meldung.
+trap {
+  $meldung = "BTA-Server-Werkzeug abgebrochen`r`n`r`n" + $_.Exception.Message + "`r`n`r`nStelle: " + $_.InvocationInfo.PositionMessage
+  try { [System.IO.File]::WriteAllText((Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "server-werkzeug-fehler.txt"), (Get-Date).ToString("dd.MM.yyyy HH:mm:ss") + "`r`n" + $meldung) } catch { }
+  try { [void][System.Windows.Forms.MessageBox]::Show($meldung, "BTA-Cockpit Server-Werkzeug", "OK", "Error") } catch { }
+  exit 1
+}
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
@@ -663,7 +675,11 @@ $kProtokoll.Add_Click({
 # =============================================================================
 #  Start
 # =============================================================================
-Schreibe-Log ("BTA-Server-Werkzeug gestartet auf " + $env:COMPUTERNAME + " als " + $env:USERDOMAIN + "\" + $env:USERNAME + (if (Ist-Admin) { " (Administrator)" } else { " (KEIN Administrator - bitte neu starten: Rechtsklick -> Als Administrator ausfuehren)" }))
+# $( ... ) statt ( ... ): in runden Klammern liest PowerShell "if" als Befehl
+# und bricht mit "The term 'if' is not recognized" ab - so blieb das Fenster
+# am 30.09. auf dem Server unsichtbar (Robertos "Fenster blitzt auf, nichts oeffnet sich").
+$adminText = $(if (Ist-Admin) { " (Administrator)" } else { " (KEIN Administrator - bitte neu starten: Rechtsklick -> Als Administrator ausfuehren)" })
+Schreibe-Log ("BTA-Server-Werkzeug gestartet auf " + $env:COMPUTERNAME + " als " + $env:USERDOMAIN + "\" + $env:USERNAME + $adminText)
 Schreibe-Log ("Stick-Paket: " + $paket)
 Aktualisiere-Status
 try { [void](Pruefe-Alles $false) } catch { Schreibe-Log ("Hinweis: erste Pruefung unvollstaendig - " + $_) }
