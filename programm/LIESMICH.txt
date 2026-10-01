@@ -1,6 +1,17 @@
 WERKSTATT-COCKPIT ALS PROGRAMM (Probefassung)
 =============================================
 
+Stand 1.3 (01.10.2026): SERVER-WEG. Das Programm kann die App vom
+BTA-Cockpit-Dienst holen statt von der Platte: Steht in den gemerkten
+Einstellungen "programm:server-url" (per Rechner-Werkzeug -> Wartung ->
+"Server-Weg einschalten", Vorgabe http://v-btacockpit-1:8765), laedt das
+Fenster http://<server>:8765/app/ - Daten, Fotos und Zettel kommen dann
+live vom Server, kein Zusammenfuehren von Dateien mehr. Ist der Server
+nicht erreichbar, zeigt das Programm eine Warteseite und versucht es
+alle 10 s erneut. "Server-Weg ausschalten" fuehrt zurueck zur Datei.
+Dazu die App-HTML vom 01.10. (Tagesleistung, TPM-Erfuellungsgrad,
+BG-meldepflichtige Unfaelle, Backlog-Tacho, Budget IH/Invest).
+
 Stand 1.2 (29.09.2026): Schreibweg mit Anlaeufen. Bekommt das Programm
 beim Anlegen oder Umbenennen der Zwischendatei ein "EPERM"/"EBUSY"
 (Virenscanner, Kollege liest gerade, Laufwerk zoegert), versucht es

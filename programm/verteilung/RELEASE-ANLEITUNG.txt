@@ -1,7 +1,7 @@
 ==========================================================
  GITHUB-RELEASE VEROEFFENTLICHEN (Robertos Handgriff)
 ==========================================================
-Stand: 29.09.2026
+Stand: 01.10.2026 (Programm 1.3 mit Server-Weg)
 
 Ziel: EIN Download-Link fuer alles. Danach heisst ein neuer
 Rechner nur noch: Link -> entpacken -> Einrichten.cmd.
@@ -33,13 +33,13 @@ HIER-FEHLT-NOCH-DAS-PROGRAMM.txt muss raus sein).
    oeffnen und anmelden.
 2. Rechts in der Seitenleiste auf "Releases" klicken,
    dann auf "Draft a new release".
-3. "Choose a tag" anklicken, eintippen:  v1.2
-   und darunter "Create new tag: v1.2 on publish" waehlen.
+3. "Choose a tag" anklicken, eintippen:  v1.3
+   und darunter "Create new tag: v1.3 on publish" waehlen.
 4. Bei "Target" den Zweig  claude/jolly-bell-qmnsv0  waehlen
    (Klick auf das Auswahlfeld, Reiter "Branches").
 5. Titel eintragen:
 
-      BTA-Cockpit - Komplettpaket (Stand 29.09.2026)
+      BTA-Cockpit - Komplettpaket (Stand 01.10.2026)
 
 6. In das Beschreibungsfeld den Text aus dem Kasten unten
    einfuegen (kopieren ab "Alles fuer einen...").
@@ -74,6 +74,13 @@ Herunterladen, Pfade speichern, Verbindung pruefen und
 Entfernen), die fertige Einstellungs-Datei und die
 Anleitung als PDF.
 
+Neu in 1.3 (01.10.2026): der SERVER-WEG. Das Programm kann die
+App vom BTA-Cockpit-Dienst auf dem Server holen statt von der
+Datei auf W: (Werkzeug -> Wartung -> "Server-Weg einschalten").
+Daten, Fotos und Zettel kommen dann live vom Server. Bis zum
+Umschalttag bleibt alles wie bisher - der Knopf wird erst auf
+Ansage gedrueckt.
+
 So geht es:
 1. BTA-Cockpit-Komplettpaket.zip herunterladen (unten bei
    "Assets") und auf dem Rechner entpacken.
@@ -95,7 +102,7 @@ Komplettpaket nehmen.) Fragen an Roberto Ciraci (Werkstatt).
  SPAETERE STAENDE
 ----------------------------------------------------------
 Bei einer neuen Programm-Fassung: neues Release mit dem
-naechsten Tag (v1.3, v1.4, ...) anlegen und BEIDE ZIPs
+naechsten Tag (v1.4, v1.5, ...) anlegen und BEIDE ZIPs
 unter den GLEICHEN Dateinamen anhaengen. Die festen
 ".../releases/latest/..."-Links zeigen dann automatisch auf
 den neuesten Stand - kein Link muss je angepasst werden,

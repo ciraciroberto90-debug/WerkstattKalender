@@ -1,7 +1,7 @@
 ==========================================================
  BTA-COCKPIT - KOMPLETTPAKET (Download oder USB-Stick)
 ==========================================================
-Stand: 29.09.2026 (Programm 1.2)
+Stand: 01.10.2026 (Programm 1.3 - mit Server-Weg)
 
 Dieser Ordner enthaelt ALLES, um das BTA-Cockpit auf einem
 neuen Windows-Rechner einzurichten - egal ob er als Download

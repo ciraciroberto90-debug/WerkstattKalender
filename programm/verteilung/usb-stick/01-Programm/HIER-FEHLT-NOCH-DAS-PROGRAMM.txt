@@ -4,7 +4,7 @@
 
 Hier muss die Datei
 
-   Werkstatt-Cockpit-Programm-win64.zip   (ca. 110 MB, Stand 1.2 vom 29.09.2026)
+   Werkstatt-Cockpit-Programm-win64.zip   (ca. 110 MB, Stand 1.3 vom 01.10.2026)
 
 liegen. Sie war zu gross fuer die Chat-Lieferung und wird
 einmalig heruntergeladen.

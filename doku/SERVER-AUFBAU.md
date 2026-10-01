@@ -201,7 +201,7 @@ Die App spricht im Server-Betrieb mit dem Dienst statt mit der Datei; erkannt wi
 
 - [ ] **Schritt 19a** – Stick-ZIP (Dienst 0.3.0: Fotos, Sicherungs-Ampel, Notfallzettel) → „Einrichten“ → Prüfen: **neun** Ampeln, die neunte „Letzte Sicherung“ gelb („noch keine – die erste kommt nachts um 02:00“) oder grün, falls „Sicherung jetzt“ gedrückt wurde; Fassung 0.3.0.
 - [ ] **Schritt 19b** – neue App-Datei (30.09. spät) → „App-Datei tauschen…“ → am PC F5 → oben rechts „Gemeinsame Datei“ klicken: die **Server-Karte** (Verbunden mit …, Versionen, Schlüssel-Feld, „Jetzt abgleichen“, „Status-Seite“). Bild.
-- [ ] **Schritt 19c** – Foto-Test: am Störbericht oder Zettel ein Foto anhängen und speichern → auf dem Server liegt es in `C:\BTA\BTA-Scheurich\fotos`, im zweiten Tab ist es sichtbar.
+- [x] **Schritt 19c – Foto-Test ERLEDIGT 01.10., 13:55 (neuer Server):** Foto an Störung/Zettel angehängt → in der App sichtbar und als Datei in `C:\BTA\BTA-Scheurich\fotos` (Robertos Bestätigung „Bild ist in der App und im Ordner“).
 
 - [ ] **Schritt 20 (Vorbereitung Etappe D)** – neue Programm-ZIP bauen (`main.js` mit Server-Weg; `node programm/bauen.js` + `tools/stick-bauen.js --mit-programm`), Release v1.3; danach kann jeder Rechner über das Rechner-Werkzeug → Wartung → „Server-Weg einschalten“ umgestellt werden (Adresse `http://v-btacockpit-01:8765`, Schlüssel aus `einstellungen.json` des Dienstes, sobald einer gesetzt ist).
 
