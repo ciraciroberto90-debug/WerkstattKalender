@@ -704,9 +704,11 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   const akzent = d.akzent || "#CBD1D8";
   const skala = kachelSkala(def);
   const klick = onKlick ? { role: "button", tabIndex: 0, onClick: onKlick, onKeyDown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onKlick(); } }, "aria-label": `${d.label || ""}${klickHinweis ? " – " + klickHinweis : ""}` } : {};
+  // Tabelle: Ampelregel bzw. Ziel wandern in den Tooltip, in der Kachel steht keine Fußzeile mehr (01.10.).
+  const titelText = (d.titel || "") + (def.form === "tabelle" && (d.hinweis || d.ampelRegel) ? `${d.titel ? " · " : ""}${d.hinweis || d.ampelRegel}` : "");
   const karte = (inhalt, extraStyle, mittig = false) => (
     <div className={`${mittig ? "wk-karte px-3.5 py-3 flex flex-col justify-start items-center text-center" : "wk-karte px-4 py-3.5 flex flex-col justify-center"}${onKlick ? " wk-karte-hebt" : ""}`} data-kachel-inhalt={def.inhalt} data-kachel-form={def.form}
-      style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)`, ...(onKlick ? { cursor: "pointer" } : {}), ...(extraStyle || {}) }} title={(d.titel || "") + (onKlick && klickHinweis ? `${d.titel ? " · " : ""}Klick: ${klickHinweis}` : "")} {...klick}>
+      style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)`, ...(onKlick ? { cursor: "pointer" } : {}), ...(extraStyle || {}) }} title={titelText + (onKlick && klickHinweis ? `${titelText ? " · " : ""}Klick: ${klickHinweis}` : "")} {...klick}>
       {inhalt}
     </div>
   );
@@ -743,7 +745,7 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
     const zahl = (n, farbe) => <span className="font-extrabold" data-tabelle-zahl="" style={{ fontSize: `${2 * skala}rem`, lineHeight: 1, color: hatWert ? farbe : "#B4BAC1", fontVariantNumeric: "tabular-nums" }}>{n ?? "–"}</span>;
     return karte(<>
       {kopfzeile(d.tabelleLabel || d.label)}
-      <div data-tabelle="" style={{ display: "grid", gridTemplateColumns: `minmax(0, 1fr) minmax(0, 1fr) minmax(${px(98)}, 1.3fr)`, width: "100%", alignItems: "end", marginTop: px(2) }}
+      <div data-tabelle="" style={{ display: "grid", gridTemplateColumns: `minmax(${px(34)}, 1fr) minmax(${px(34)}, 1fr) minmax(${px(98)}, 1.3fr)`, width: "100%", alignItems: "end", marginTop: px(2) }}
         aria-label={`${d.tabelleLabel || d.label}: Soll ${d.soll ?? "–"}, Ist ${d.ist ?? "–"}, Erfüllungsgrad ${hatWert ? d.prozent + " %" : "–"}`}>
         <div className="font-bold" style={kopfStil}>Soll</div>
         <div className="font-bold" style={kopfStil}>Ist</div>
@@ -760,9 +762,8 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
           </svg>
         </div>
       </div>
-      <div data-tabelle-fuss="" style={{ fontSize: `${0.68 * skala}rem`, color: "#8A9099", marginTop: px(7), lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
-        {hatWert ? (d.hinweis || d.ampelRegel) : (d.leer || "keine Daten")}
-      </div>
+      {/* Keine Fußzeile (Roberto 01.10.: "die Zeilen können raus aus der Kachel") -
+          Ampelregel und Ziel stehen im Tooltip der Kachel (title). */}
     </>, {}, true);
   }
   if (def.form === "halbkreis") {

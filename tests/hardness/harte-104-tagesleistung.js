@@ -11,10 +11,10 @@
 //  (T6) TPM-Kachel des Whiteboards im selben Tabellen-Layout, aus einem
 //       gespeicherten Halbkreis-Layout umgeschrieben (wbStand)
 //  (T7) Gemessene Harmonie: Köpfe ganz, Zellen gleich hoch, Zahlen bündig
-//       mit dem Bogen, Fußzeile einzeilig (Robertos Kritik am ersten Wurf)
+//       mit dem Bogen, keine Fußzeile (Robertos Kritik am ersten Wurf, 3. Runde)
 //  (T3) Klick auf die Kachel springt zum Tagesplan
 //  (T4) Ein To-do erledigt -> Kachel zeigt 3 · 75 % (ohne Neuladen)
-//  (T5) Kein Plan heute -> Kachel ehrlich Soll 0 · Ist 0 · „–“ mit „nichts an“
+//  (T5) Kein Plan heute -> Kachel ehrlich Soll 0 · Ist 0 · „–“ (ohne Fußzeile)
 //  (E)  Keine Skriptfehler
 // Rot-Nachweis: Vor dem 01.10. gab es weder die Kennzahl noch die Form
 // „tabelle“ (T1 rot), und die Überschrift hieß „Heute“ (T2 rot).
@@ -52,7 +52,8 @@ const entries = [
         vorlage: "whiteboard",
         kacheln: ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten"],
         kachelDef: { "k-wbtodo": { inhalt: "todoSollIst", form: "halbkreis", zeitraum: "monat" }, "k-wbtpm": { inhalt: "tpmQuote", form: "halbkreis", zeitraum: "monat" }, "k-wbunfall": { inhalt: "unfaelle", form: "zahl" }, "k-wbbacklog": { inhalt: "backlogLive", form: "halbkreis" }, "k-wbkosten": { inhalt: "kosten", form: "halbkreis" } },
-        bloecke: {}, bausteine: [{ id: "kennzahlen", breite: 12 }, { id: "tagesliste", breite: 12 }, { id: "pinnwand", breite: 4 }, { id: "einkauf", breite: 4 }, { id: "heuteDa", breite: 4 }, { id: "stoerungen", breite: 12 }],
+        // Wie bei Roberto: nur die fünf Whiteboard-Kacheln (die sieben alten aus), dadurch ~300 px je Kachel
+        bloecke: { zahlen: false, quote: false, oee: false, uhr: false }, bausteine: [{ id: "kennzahlen", breite: 12 }, { id: "tagesliste", breite: 12 }, { id: "pinnwand", breite: 4 }, { id: "einkauf", breite: 4 }, { id: "heuteDa", breite: 4 }, { id: "stoerungen", breite: 12 }],
       }));
     }, { c: config, e: eintraege });
     await p.clock.setFixedTime(new Date(HEUTE + "T10:00:00"));
@@ -92,27 +93,30 @@ const entries = [
   const tpm = a.p.locator('[data-kachel-inhalt="tpmQuote"][data-kachel-form="tabelle"]');
   const tpmAria = (await tpm.count()) ? await tpm.first().locator("[aria-label^='TPM-Erfüllungsgrad']").getAttribute("aria-label") : "";
   const tpmText = (await tpm.count()) ? (await tpm.first().innerText()).replace(/\s+/g, " ") : "";
-  ok("(T6) TPM-Kachel des Whiteboards ist jetzt die Tabelle „TPM-Erfüllungsgrad · Okt“ (gespeichertes Halbkreis-Layout umgeschrieben); ohne Termine ehrlich Soll 0 · Ist 0 · „–“ und „keine Termine geplant“",
-    (await tpm.count()) === 1 && (await a.p.locator('[data-kachel-huelle="k-wbtpm"] [data-kachel-form="tabelle"]').count()) === 1 && /^TPM-Erfüllungsgrad · Okt: Soll 0, Ist 0, Erfüllungsgrad –$/.test(tpmAria || "") && /Soll Ist Erfüllungsgrad 0 0 –/.test(tpmText) && /keine Termine geplant/.test(tpmText), `${tpmAria} | ${tpmText}`);
+  ok("(T6) TPM-Kachel des Whiteboards ist jetzt die Tabelle „TPM-Erfüllungsgrad · Okt“ (gespeichertes Halbkreis-Layout umgeschrieben); ohne Termine ehrlich Soll 0 · Ist 0 · „–“, keine Fußzeile",
+    (await tpm.count()) === 1 && (await a.p.locator('[data-kachel-huelle="k-wbtpm"] [data-kachel-form="tabelle"]').count()) === 1 && /^TPM-Erfüllungsgrad · Okt: Soll 0, Ist 0, Erfüllungsgrad –$/.test(tpmAria || "") && /Soll Ist Erfüllungsgrad 0 0 –$/.test(tpmText), `${tpmAria} | ${tpmText}`);
 
   /* (T7) Harmonie, gemessen (Robertos Bild vom 01.10.: "Abstände/Größen passen gar nicht"):
      Köpfe in einer Zeile und nicht abgeschnitten, drei Werte-Zellen gleich hoch,
-     Zahlen und Bogen schließen unten bündig ab, Fußzeile einzeilig. */
+     Zahlen und Bogen schließen unten bündig ab, keine Fußzeile mehr. */
   const masse = await a.p.evaluate(() => [...document.querySelectorAll("[data-tabelle]")].map((t) => {
     const r = (el) => el.getBoundingClientRect();
     const koepfe = [...t.children].slice(0, 3), zellen = [...t.children].slice(4, 7);
-    const zahlen = [...t.querySelectorAll("[data-tabelle-zahl]")], svg = t.querySelector("svg"), fuss = t.parentElement.querySelector("[data-tabelle-fuss]");
+    const zahlen = [...t.querySelectorAll("[data-tabelle-zahl]")], svg = t.querySelector("svg");
+    const karte = t.closest(".wk-karte");
     return {
       breite: Math.round(r(t).width),
       koepfeGanz: koepfe.every((k) => k.scrollWidth <= k.clientWidth),
       koepfeEineZeile: new Set(koepfe.map((k) => Math.round(r(k).top))).size === 1,
       zellenGleich: new Set(zellen.map((z) => Math.round(r(z).height))).size === 1,
       buendig: zahlen.every((z) => Math.abs(r(z).bottom - r(svg).bottom) <= 1),
-      fussEinzeilig: !!fuss && r(fuss).height < parseFloat(getComputedStyle(fuss).fontSize) * 1.6,
+      // Roberto 01.10. (dritte Runde): keine Fußzeile - die Tabelle ist das letzte Kind der Karte,
+      // die Ampelregel steht nur noch im Tooltip
+      ohneFuss: karte.lastElementChild === t && /grün ab|Ziel \d+ %/.test(karte.getAttribute("title") || ""),
     };
   }));
-  ok("(T7) Beide Tabellen-Kacheln: Köpfe ganz und in einer Zeile, Zellen gleich hoch, Zahlen bündig mit dem Bogen, Fußzeile einzeilig",
-    masse.length === 2 && masse.every((m) => m.koepfeGanz && m.koepfeEineZeile && m.zellenGleich && m.buendig && m.fussEinzeilig), JSON.stringify(masse));
+  ok("(T7) Beide Tabellen-Kacheln: Köpfe ganz und in einer Zeile, Zellen gleich hoch, Zahlen bündig mit dem Bogen, keine Fußzeile (Regel im Tooltip)",
+    masse.length === 2 && masse.every((m) => m.koepfeGanz && m.koepfeEineZeile && m.zellenGleich && m.buendig && m.ohneFuss), JSON.stringify(masse));
 
   /* (T3) Klick springt zum Tagesplan */
   await a.p.evaluate(() => window.scrollTo(0, 0));
@@ -139,7 +143,7 @@ const entries = [
   const l5 = await listeZaehlen(b.p);
   const kbText = (await kb.count()) ? (await kb.first().innerText()).replace(/\s+/g, " ") : "";
   const z5 = zahlen((await kb.count()) ? await kb.first().locator("[aria-label^='Tagesleistung:']").getAttribute("aria-label") : "");
-  const t5ok = l5.zeilen === 0 ? (z5 && z5.soll === "0" && z5.ist === "0" && z5.grad === "–" && /nichts an/.test(kbText)) : (z5 && z5.soll === String(l5.zeilen) && z5.ist === String(l5.fertig));
+  const t5ok = l5.zeilen === 0 ? (z5 && z5.soll === "0" && z5.ist === "0" && z5.grad === "–" && !/nichts an/.test(kbText)) : (z5 && z5.soll === String(l5.zeilen) && z5.ist === String(l5.fertig));
   ok("(T5) Ohne Termine/To-dos heute: Kachel zählt genau die Plan-Zeilen der Liste (bzw. Soll 0 · Ist 0 · „–“ ohne Plan)", !!t5ok, `Liste ${l5.zeilen}/${l5.fertig} · Kachel ${JSON.stringify(z5)}`);
   await b.ctx.close();
 
