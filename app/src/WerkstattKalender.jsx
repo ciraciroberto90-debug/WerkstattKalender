@@ -647,7 +647,7 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
   const [gruenHell, gruenDunkel] = farben || (unterZiel ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"]); // Vorgabe grün (Übersicht); der Berichte-Score färbt je Bereich
   return (
     <div
-      className={`px-3.5 py-3 flex flex-col justify-center${onKlick ? " wk-karte-hebt" : ""}`}
+      className={`px-3.5 py-3 flex flex-col ${kopf ? "justify-start" : "justify-center"}${onKlick ? " wk-karte-hebt" : ""}`}
       style={{ ...(dunkel
         ? { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "var(--wk-eck)", textAlign: "center" }
         : { background: "linear-gradient(180deg,#FFFFFF,#FBFCFD)", borderRadius: "var(--wk-eck)", textAlign: "center", boxShadow: "var(--wk-schatten)" }), ...(onKlick ? { cursor: "pointer" } : {}) }}
@@ -658,7 +658,11 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
       {/* Bewusst ohne CSS-Großschreibung: innerText trüge sie mit, und die
           Prüfstände lesen die Kacheltitel im Klartext ("Heute fällig"). */}
       {kopf && <div className="font-bold" style={{ color: dunkel ? KACHEL_TITEL_DUNKEL : KACHEL_TITEL, fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: `${6 * skala}px`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>}
-      <svg viewBox="0 0 84 50" style={{ width: `${(kopf ? 100 : 80) * skala}px`, height: `${(kopf ? 59 : 47) * skala}px`, display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
+      {/* kopf (01.10., "einheitlich und ruhig"): Titel oben, Bogen + Nebenzeile
+          mittig im Rest - wie Tabelle, Tacho und Zahl-Kachel. Bogen 116 × 68 px
+          = dieselbe Bogengröße (Radius ≈ 47 px) wie in den Tabellen-Kacheln. */}
+      <div style={kopf ? { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%" } : { display: "contents" }}>
+      <svg viewBox="0 0 84 50" style={{ width: `${(kopf ? 116 : 80) * skala}px`, height: `${(kopf ? 68 : 47) * skala}px`, display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor={gruenHell} />
@@ -692,6 +696,7 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
       {/* Der Zeitraum stand bisher in 0,58 rem Hellgrau und war praktisch unsichtbar -
           man sah zwei gleich beschriftete Halbkreise und wusste nicht, welcher welcher ist. */}
       {sub && <div style={{ color: dunkel ? "#fff" : "#22262B", fontSize: `${0.76 * skala}rem`, fontWeight: kopf ? 600 : 800, lineHeight: 1.25, marginTop: kopf ? `${4 * skala}px` : 0 }}>{sub}</div>}
+      </div>
     </div>
   );
 }
@@ -709,6 +714,10 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   const akzent = d.akzent || "#CBD1D8";
   const skala = kachelSkala(def);
   const px = (n) => `${Math.round(n * skala)}px`;
+  // Körper (01.10., "einheitlich und ruhig"): Titel oben, Inhalt mittig im
+  // Rest der Kachel - so stehen Tabelle, Tacho und Zahl in einer Reihe auf
+  // gleicher Höhe, egal wie hoch die Reihe durch die höchste Kachel wird.
+  const koerper = (inhalt) => <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%" }}>{inhalt}</div>;
   const klick = onKlick ? { role: "button", tabIndex: 0, onClick: onKlick, onKeyDown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onKlick(); } }, "aria-label": `${d.label || ""}${klickHinweis ? " – " + klickHinweis : ""}` } : {};
   // Tabelle: Ampelregel bzw. Ziel wandern in den Tooltip, in der Kachel steht keine Fußzeile mehr (01.10.).
   const titelText = (d.titel || "") + (def.form === "tabelle" && (d.hinweis || d.ampelRegel) ? `${d.titel ? " · " : ""}${d.hinweis || d.ampelRegel}` : "");
@@ -743,15 +752,17 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
     // Bogenfarbe nach Ampel; eigene Farben der Kennzahl (Tagesleistung) gehen vor.
     const [, dunkelF] = d.farben || (d.ampel === "rot" ? ["#E06A64", "#B23A34"] : d.ampel === "gelb" ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"]);
     const kopfStil = { color: "#8A9099", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.2px", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center", paddingBottom: px(5) };
-    // Werte-Zeile: 44 px Bogen + 6 px Luft über ihm; die Zahl (2 rem ≈ 32 px)
-    // füllt die Zeile fast ganz - kein Loch zwischen Kopf und Zahl.
-    const zelleStil = (trenner) => ({ height: px(50), display: "flex", alignItems: "flex-end", justifyContent: "center", paddingTop: px(6), boxSizing: "border-box", borderLeft: trenner ? "1px solid #E5E9ED" : "none", minWidth: 0 });
+    // Werte-Zeile: Bogen 116 × 68 px wie die Halbkreis-Kacheln (Roberto 01.10.:
+    // "einheitlich und gut lesbar") plus 6 px Luft, Zahl 2,4 rem (gleiches
+    // Gewicht wie der Bogen, gleich groß wie die Tacho-Zahl); die dritte
+    // Spalte ist etwas breiter, der Bogen füllt sie bis 116 px.
+    const zelleStil = (trenner) => ({ height: px(74), display: "flex", alignItems: "flex-end", justifyContent: "center", paddingTop: px(6), boxSizing: "border-box", borderLeft: trenner ? "1px solid #E5E9ED" : "none", minWidth: 0 });
     // Soll/Ist stehen auch ohne Erfüllungsgrad (0 · 0 ist eine ehrliche Aussage);
     // nur der Bogen zeigt dann "–" - und Anzeige wie aria-label sagen dasselbe.
-    const zahl = (n, farbe) => <span className="font-extrabold" data-tabelle-zahl="" style={{ fontSize: `${2 * skala}rem`, lineHeight: 1, color: hatWert ? farbe : "#B4BAC1", fontVariantNumeric: "tabular-nums" }}>{n ?? "–"}</span>;
+    const zahl = (n, farbe) => <span className="font-extrabold" data-tabelle-zahl="" style={{ fontSize: `${2.4 * skala}rem`, lineHeight: 1, color: hatWert ? farbe : "#B4BAC1", fontVariantNumeric: "tabular-nums" }}>{n ?? "–"}</span>;
     return karte(<>
       {kopfzeile(d.tabelleLabel || d.label)}
-      <div data-tabelle="" style={{ display: "grid", gridTemplateColumns: `minmax(${px(34)}, 1fr) minmax(${px(34)}, 1fr) minmax(${px(98)}, 1.3fr)`, width: "100%", alignItems: "end", marginTop: px(2) }}
+      {koerper(<div data-tabelle="" style={{ display: "grid", gridTemplateColumns: `minmax(${px(34)}, 1fr) minmax(${px(34)}, 1fr) minmax(${px(84)}, 1.7fr)`, width: "100%", alignItems: "end", marginTop: px(2) }}
         aria-label={`${d.tabelleLabel || d.label}: Soll ${d.soll ?? "–"}, Ist ${d.ist ?? "–"}, Erfüllungsgrad ${hatWert ? d.prozent + " %" : "–"}`}>
         <div className="font-bold" style={kopfStil}>Soll</div>
         <div className="font-bold" style={kopfStil}>Ist</div>
@@ -760,14 +771,15 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
         <div style={zelleStil(false)}>{zahl(d.soll, "#22262B")}</div>
         <div style={zelleStil(true)}>{zahl(d.ist, "#2F6690")}</div>
         <div style={zelleStil(true)}>
-          <svg viewBox="0 0 84 50" style={{ width: px(74), height: px(44), display: "block" }} role="img" aria-hidden="true">
-            <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke="#E5E9ED" strokeWidth="9" strokeLinecap="round" />
-            {hatWert && frac > 0 && <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke={dunkelF} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${umfang}`} strokeDashoffset={`${umfang * (1 - frac)}`} />}
+          {/* Bogen schrumpft in schmalen Kacheln mit (höchstens 116 px), statt über den Rand zu stehen */}
+          <svg viewBox="0 0 84 50" style={{ width: "100%", maxWidth: px(116), height: "auto", display: "block" }} role="img" aria-hidden="true">
+            <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke="#E5E9ED" strokeWidth="8" strokeLinecap="round" />
+            {hatWert && frac > 0 && <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke={dunkelF} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${umfang}`} strokeDashoffset={`${umfang * (1 - frac)}`} />}
             {/* Schrift 16: "100 %" bleibt so in der Öffnung des Bogens (Innenradius 29,5), ohne die Bahn zu überlappen */}
             <text x="42" y="44" textAnchor="middle" fontSize="16" fontWeight="800" fill={hatWert ? dunkelF : "#B4BAC1"} style={{ fontFamily: "inherit" }}>{hatWert ? `${d.prozent} %` : "–"}</text>
           </svg>
         </div>
-      </div>
+      </div>)}
       {/* Keine Fußzeile (Roberto 01.10.: "die Zeilen können raus aus der Kachel") -
           Ampelregel und Ziel stehen im Tooltip der Kachel (title). */}
     </>, {}, true);
@@ -792,17 +804,21 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
     const TACHO_FARBEN = ["#1F7A3D", "#43B26F", "#F2D11F", "#F28C1F", "#C8322B"];
     const [zx, zy] = punkt(winkel, 37);
     const zahlText = wert.toLocaleString("de-DE");
+    // Größe (01.10., "Zahlen zu klein, Tacho ruhig größer"): Bogen 164 × 79 px
+    // (Radius ≈ 47 px wie Halbkreis und Tabelle), Zahl 2,1 rem wie die Zahl-Kacheln.
     return karte(<>
       {kopfzeile(d.label)}
-      <svg viewBox="0 -3 160 77" style={{ width: px(150), height: px(72), display: "block" }} role="img" aria-label={`${d.label}: ${zahlText} offen, Ziel ${ziel}, Obergrenze ${grenze}`} data-tacho="">
-        {TACHO_FARBEN.map((f, i) => <path key={f} d={bogen(Math.PI * (1 - i / 5) + (i === 0 ? 0 : 0.004), Math.PI * (1 - (i + 1) / 5) - (i === 4 ? 0 : 0.004))} fill="none" stroke={f} strokeWidth="8" />)}
-        <text x={cx - r} y="71" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#8A9099" style={{ fontFamily: "inherit" }}>0</text>
-        <text x={cx} y="5" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#22262B" style={{ fontFamily: "inherit" }}>{ziel.toLocaleString("de-DE")}</text>
-        <text x={cx + r} y="71" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#8A9099" style={{ fontFamily: "inherit" }}>{`>${grenze.toLocaleString("de-DE")}`}</text>
+      {koerper(<>
+      <svg viewBox="0 -3 160 77" style={{ width: px(164), height: px(79), display: "block" }} role="img" aria-label={`${d.label}: ${zahlText} offen, Ziel ${ziel}, Obergrenze ${grenze}`} data-tacho="">
+        {TACHO_FARBEN.map((f, i) => <path key={f} d={bogen(Math.PI * (1 - i / 5) + (i === 0 ? 0 : 0.004), Math.PI * (1 - (i + 1) / 5) - (i === 4 ? 0 : 0.004))} fill="none" stroke={f} strokeWidth="10" />)}
+        <text x={cx - r} y="71" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#8A9099" style={{ fontFamily: "inherit" }}>0</text>
+        <text x={cx} y="4" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#22262B" style={{ fontFamily: "inherit" }}>{ziel.toLocaleString("de-DE")}</text>
+        <text x={cx + r} y="71" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#8A9099" style={{ fontFamily: "inherit" }}>{`>${grenze.toLocaleString("de-DE")}`}</text>
         <line x1={cx} y1={cy} x2={zx.toFixed(1)} y2={zy.toFixed(1)} stroke="#22262B" strokeWidth="3" strokeLinecap="round" />
         <circle cx={cx} cy={cy} r="4.5" fill="#fff" stroke="#22262B" strokeWidth="3" />
       </svg>
-      <div className="font-extrabold" data-tacho-zahl="" style={{ fontSize: `${1.5 * skala}rem`, lineHeight: 1, color: d.farbe || "#22262B", marginTop: px(3), fontVariantNumeric: "tabular-nums" }}>{zahlText}</div>
+      <div className="font-extrabold" data-tacho-zahl="" style={{ fontSize: `${2.1 * skala}rem`, lineHeight: 1, color: d.farbe || "#22262B", marginTop: px(4), fontVariantNumeric: "tabular-nums" }}>{zahlText}</div>
+      </>)}
     </>, {}, true);
   }
   if (def.form === "halbkreis") {
@@ -861,8 +877,10 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   return karte(<>
     {kopfzeile(<>{d.label}{delta}</>)}
     {d.jahr && <div className="font-bold" data-kachel-jahr="" style={{ color: "#8A9099", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, lineHeight: 1.2, marginTop: px(-4), marginBottom: px(2) }}>{d.jahr}</div>}
+    {koerper(<>
     <div className="font-extrabold flex items-center justify-center" style={{ minHeight: `${(d.jahr ? 46 : 59) * skala}px`, fontSize: `${(lang ? 1.15 : 2.1) * skala}rem`, lineHeight: 1.05, letterSpacing: lang ? 0 : "-1.6px", fontVariantNumeric: "tabular-nums", color: d.farbe || "#22262B", wordBreak: "break-word" }}>{gross}</div>
     {unterzeile(d.sub, d.subFarbe || null)}
+    </>)}
   </>, null, true);
 }
 

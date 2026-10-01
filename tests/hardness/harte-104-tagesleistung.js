@@ -41,7 +41,7 @@ const entries = [
   const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
   const fehler = [];
   const seite = async (eintraege, cfg = config) => {
-    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1000 } }); // Robertos Bildschirmbreite: fuenf Kacheln je ~270 px
     const p = await ctx.newPage();
     p.on("pageerror", (e) => { fehler.push(e.message); console.log("PAGEERROR:", e.message); });
     await p.addInitScript(({ c, e }) => {
@@ -115,7 +115,9 @@ const entries = [
       buendig: zahlen.every((z) => Math.abs(r(z).bottom - r(svg).bottom) <= 1),
       // Roberto 01.10. (dritte Runde): keine Fußzeile - die Tabelle ist das letzte Kind der Karte,
       // die Ampelregel steht nur noch im Tooltip
-      ohneFuss: karte.lastElementChild === t && /grün ab|Ziel \d+ %/.test(karte.getAttribute("title") || ""),
+      // Seit dem Körper-Wrapper (Titel oben, Inhalt mittig) steckt die Tabelle eine Ebene tiefer:
+      // sie muss das letzte Kind ihres Körpers sein, und der Körper das letzte Kind der Karte.
+      ohneFuss: !karte.querySelector("[data-tabelle-fuss]") && t.parentElement.lastElementChild === t && karte.lastElementChild === t.parentElement && /grün ab|Ziel \d+ %/.test(karte.getAttribute("title") || ""),
     };
   }));
   ok("(T7) Beide Tabellen-Kacheln: Köpfe ganz und in einer Zeile, Zellen gleich hoch, Zahlen bündig mit dem Bogen, keine Fußzeile (Regel im Tooltip)",
@@ -150,7 +152,7 @@ const entries = [
   const unfInfo = await unf.evaluate((k) => {
     const zeilen = [...k.querySelectorAll("div")].map((d) => ({ t: d.innerText.trim(), c: getComputedStyle(d).color }));
     const titel = k.firstElementChild.innerText.trim(), jahr = k.querySelector("[data-kachel-jahr]");
-    const zahl = zeilen.find((z) => z.t === "0"), sub = zeilen.find((z) => /Tage unfallfrei/.test(z.t));
+    const zahl = zeilen.find((z) => z.t === "0"), sub = zeilen.find((z) => /^Ziel 0 ·/.test(z.t)); // ^: nur die Zeile selbst, nicht der Körper um Zahl + Zeile
     return { titel, jahr: jahr ? jahr.innerText.trim() : null, zahl: zahl && zahl.c, sub: sub && sub.t, subFarbe: sub && sub.c };
   });
   ok("(T10) Unfälle-Kachel: „BG-meldepflichtige Unfälle“, Jahr 2026 darunter, 0 und „Ziel 0 · 273 Tage unfallfrei“ beide grün",

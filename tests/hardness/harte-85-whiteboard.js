@@ -135,7 +135,7 @@ const stoer = [
     ok("(A2) TPM-Erfüllungsgrad · Sep als Tabelle: Soll 4 · Ist 3 -> 75 %", /TPM-Erfüllungsgrad · Sep/i.test(tpm) && /Soll 4, Ist 3, Erfüllungsgrad 75 %/.test(tpmAria) && /75\s*%/.test(tpm), tpm.replace(/\n/g, " | ") + " || " + tpmAria);
     const unf = await kachelText(p, "unfaelle");
     // 01.10.: Überschrift "BG-meldepflichtige Unfälle", Jahr als zweite Zeile; mit Unfall sind Zahl und untere Zeile rot
-    const unfRot = await p.locator('[data-kachel-inhalt="unfaelle"]').first().evaluate((k) => { const z = [...k.querySelectorAll("div")].map((d) => [d.innerText.trim(), getComputedStyle(d).color]); return z.filter(([t]) => t === "1" || /Tage unfallfrei/.test(t)).map(([, c]) => c); });
+    const unfRot = await p.locator('[data-kachel-inhalt="unfaelle"]').first().evaluate((k) => { const z = [...k.querySelectorAll("div")].map((d) => [d.innerText.trim(), getComputedStyle(d).color]); return z.filter(([t]) => t === "1" || /^Ziel 0 ·/.test(t)).map(([, c]) => c); }); // ^: nur die Zeile, nicht der Körper
     ok("(A2) BG-meldepflichtige Unfälle / 2026: 1, seit dem 03.05. 143 Tage unfallfrei - Zahl und Zeile rot", /BG-meldepflichtige Unfälle/.test(unf) && /\n2026\n/.test("\n" + unf + "\n") && /\n1\n/.test("\n" + unf.replace(/\s+\n/g, "\n") + "\n") && /143 Tage unfallfrei/.test(unf) && unfRot.length === 2 && unfRot.every((c) => c === "rgb(178, 58, 52)"), unf.replace(/\n/g, " | ") + " · " + unfRot.join("/"));
     const bl = await kachelText(p, "backlogOffen");
     const blAria = await p.locator('[data-kachel-inhalt="backlogOffen"] [data-tacho]').getAttribute("aria-label").catch(() => "");
