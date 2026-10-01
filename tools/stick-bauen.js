@@ -68,7 +68,7 @@ pruef("Werkzeug: derselbe Dateiname wie in den Einstellungen", /\$DatenDateiName
 pruef("Werkzeug: Ersatzweg über die Teil-Dateien vorhanden", /\$TeilUrls = @\(/.test(ps1) && /WC-Programm-1\.teil/.test(ps1) && /WC-Programm-2\.teil/.test(ps1));
 pruef("Werkzeug: Klammern ausgeglichen", (ps1.match(/\{/g) || []).length === (ps1.match(/\}/g) || []).length, `${(ps1.match(/\{/g) || []).length} { / ${(ps1.match(/\}/g) || []).length} }`);
 const liesmich = lese(path.join(QUELLE, "LIESMICH-ZUERST.txt"));
-pruef("LIESMICH-ZUERST nennt den Stand 29.09.2026", /Stand: 29\.09\.2026/.test(liesmich));
+pruef("LIESMICH-ZUERST nennt den Stand 01.10.2026 (Programm 1.3)", /Stand: 01\.10\.2026/.test(liesmich));
 pruef("Aufsetz-Anleitung (PDF) liegt in 03-Anleitung", fs.existsSync(path.join(QUELLE, "03-Anleitung", "Werkstatt-Cockpit-Programm-Aufsetzen.pdf")));
 pruef("Starter BTA-Cockpit-Werkzeug.cmd zeigt auf werkzeug\\cockpit-werkzeug.ps1", /werkzeug\\cockpit-werkzeug\.ps1/.test(lese(path.join(QUELLE, "BTA-Cockpit-Werkzeug.cmd"))));
 
