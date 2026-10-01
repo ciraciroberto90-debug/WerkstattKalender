@@ -721,33 +721,48 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   if (def.form === "tabelle") {
     // Robertos Skizze vom 01.10.: drei Spalten Soll · Ist · Erfüllungsgrad, der
     // Erfüllungsgrad als kleiner Halbkreis (Vorlage A mit dem Bogen aus B).
+    // Zweiter Wurf nach Robertos Bild (01.10., "Abstände/Größen passen gar
+    // nicht"): ein echtes Raster statt Flex-Spalten. Köpfe in EINER Zeile mit
+    // Linie darunter, darunter die Werte-Zeile mit fester Höhe, alle drei am
+    // unteren Rand ausgerichtet - die Grundlinie der Zahlen trifft so die
+    // Prozentzahl im Bogen (Zahl: Zeilenhöhe 1 → Unterlänge ≈ 0,2 em ≈ 6 px;
+    // Bogen: Textgrundlinie bei 45 von 50 → 5 px über dem Rand). Die dritte
+    // Spalte ist breiter, damit "Erfüllungsgrad" nie abgeschnitten wird.
     const hatWert = d.prozent !== null && d.prozent !== undefined;
     const frac = hatWert ? Math.min(1, Math.max(0, d.prozent / 100)) : 0;
     const umfang = Math.PI * 34;
-    const [hell, dunkelF] = d.farben || ["#43B26F", "#2F7D4F"];
-    const spalte = (kopf, inhalt) => (
-      <div className="flex flex-col items-center" style={{ flex: 1, minWidth: 0 }}>
-        <div className="font-bold" style={{ color: "#8A9099", fontSize: `calc(var(--wk-txt-etikett) * ${skala} * 0.9)`, letterSpacing: "0.3px", lineHeight: 1.2 }}>{kopf}</div>
-        <div className="flex items-center justify-center" style={{ height: `${44 * skala}px` }}>{inhalt}</div>
-      </div>
-    );
-    const zahl = (n, farbe) => <span className="font-extrabold" style={{ fontSize: `${1.7 * skala}rem`, lineHeight: 1, color: farbe }}>{hatWert ? n : "–"}</span>;
+    // Bogenfarbe nach Ampel; eigene Farben der Kennzahl (Tagesleistung) gehen vor.
+    const [, dunkelF] = d.farben || (d.ampel === "rot" ? ["#E06A64", "#B23A34"] : d.ampel === "gelb" ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"]);
+    const px = (n) => `${Math.round(n * skala)}px`;
+    const kopfStil = { color: "#8A9099", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.2px", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center", paddingBottom: px(5) };
+    // Werte-Zeile: 44 px Bogen + 6 px Luft über ihm; die Zahl (2 rem ≈ 32 px)
+    // füllt die Zeile fast ganz - kein Loch zwischen Kopf und Zahl.
+    const zelleStil = (trenner) => ({ height: px(50), display: "flex", alignItems: "flex-end", justifyContent: "center", paddingTop: px(6), boxSizing: "border-box", borderLeft: trenner ? "1px solid #E5E9ED" : "none", minWidth: 0 });
+    // Soll/Ist stehen auch ohne Erfüllungsgrad (0 · 0 ist eine ehrliche Aussage);
+    // nur der Bogen zeigt dann "–" - und Anzeige wie aria-label sagen dasselbe.
+    const zahl = (n, farbe) => <span className="font-extrabold" data-tabelle-zahl="" style={{ fontSize: `${2 * skala}rem`, lineHeight: 1, color: hatWert ? farbe : "#B4BAC1", fontVariantNumeric: "tabular-nums" }}>{n ?? "–"}</span>;
     return karte(<>
-      {kopfzeile(d.label)}
-      <div className="flex items-stretch" style={{ gap: `${6 * skala}px` }} aria-label={`${d.label}: Soll ${d.soll ?? "–"}, Ist ${d.ist ?? "–"}, Erfüllungsgrad ${hatWert ? d.prozent + " %" : "–"}`}>
-        {spalte("Soll", zahl(d.soll, "#22262B"))}
-        <div style={{ width: "1px", background: "#E5E9ED" }} />
-        {spalte("Ist", zahl(d.ist, "#2F6690"))}
-        <div style={{ width: "1px", background: "#E5E9ED" }} />
-        {spalte("Erfüllungsgrad", (
-          <svg viewBox="0 0 84 50" style={{ width: `${74 * skala}px`, height: `${44 * skala}px`, display: "block" }} role="img" aria-hidden="true">
+      {kopfzeile(d.tabelleLabel || d.label)}
+      <div data-tabelle="" style={{ display: "grid", gridTemplateColumns: `minmax(0, 1fr) minmax(0, 1fr) minmax(${px(98)}, 1.3fr)`, width: "100%", alignItems: "end", marginTop: px(2) }}
+        aria-label={`${d.tabelleLabel || d.label}: Soll ${d.soll ?? "–"}, Ist ${d.ist ?? "–"}, Erfüllungsgrad ${hatWert ? d.prozent + " %" : "–"}`}>
+        <div className="font-bold" style={kopfStil}>Soll</div>
+        <div className="font-bold" style={kopfStil}>Ist</div>
+        <div className="font-bold" style={kopfStil}>Erfüllungsgrad</div>
+        <div style={{ gridColumn: "1 / -1", height: "1px", background: "#E5E9ED" }} />
+        <div style={zelleStil(false)}>{zahl(d.soll, "#22262B")}</div>
+        <div style={zelleStil(true)}>{zahl(d.ist, "#2F6690")}</div>
+        <div style={zelleStil(true)}>
+          <svg viewBox="0 0 84 50" style={{ width: px(74), height: px(44), display: "block" }} role="img" aria-hidden="true">
             <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke="#E5E9ED" strokeWidth="9" strokeLinecap="round" />
             {hatWert && frac > 0 && <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke={dunkelF} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${umfang}`} strokeDashoffset={`${umfang * (1 - frac)}`} />}
-            <text x="42" y="45" textAnchor="middle" fontSize="17" fontWeight="800" fill={hatWert ? dunkelF : "#8A9099"} style={{ fontFamily: "inherit" }}>{hatWert ? `${d.prozent} %` : "–"}</text>
+            {/* Schrift 16: "100 %" bleibt so in der Öffnung des Bogens (Innenradius 29,5), ohne die Bahn zu überlappen */}
+            <text x="42" y="44" textAnchor="middle" fontSize="16" fontWeight="800" fill={hatWert ? dunkelF : "#B4BAC1"} style={{ fontFamily: "inherit" }}>{hatWert ? `${d.prozent} %` : "–"}</text>
           </svg>
-        ))}
+        </div>
       </div>
-      {unterzeile(hatWert ? d.ampelRegel : "heute steht laut Plan nichts an")}
+      <div data-tabelle-fuss="" style={{ fontSize: `${0.68 * skala}rem`, color: "#8A9099", marginTop: px(7), lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+        {hatWert ? (d.hinweis || d.ampelRegel) : (d.leer || "keine Daten")}
+      </div>
     </>, {}, true);
   }
   if (def.form === "halbkreis") {
@@ -1790,9 +1805,14 @@ function reihenfolgeAusBausteinen(bausteine) {
    vom 01.10., die Kennung "k-wbtodo" bleibt, damit gespeicherte Layouts die
    neue Kachel an derselben Stelle zeigen), TPM-Effizienz, Unfälle, Backlog, Kosten. */
 const WHITEBOARD_KACHELN = ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten"];
+// Stand der Whiteboard-Kacheln: 2 = TPM-Kachel als Tabelle (01.10.). Steht im
+// gespeicherten Layout (wbStand), damit normalisiereUebersichtLayout ältere
+// Anordnungen genau einmal nachzieht.
+const WHITEBOARD_STAND = 2;
 const WHITEBOARD_KACHEL_DEF = {
   "k-wbtodo": { inhalt: "tagesleistung", form: "tabelle" },
-  "k-wbtpm": { inhalt: "tpmQuote", form: "halbkreis", zeitraum: "monat" },
+  // 01.10.: TPM-Erfüllungsgrad im selben Tabellen-Layout wie die Tagesleistung (Roberto)
+  "k-wbtpm": { inhalt: "tpmQuote", form: "tabelle", zeitraum: "monat" },
   "k-wbunfall": { inhalt: "unfaelle", form: "zahl" },
   "k-wbbacklog": { inhalt: "backlogLive", form: "halbkreis" },
   "k-wbkosten": { inhalt: "kosten", form: "halbkreis" },
@@ -1876,16 +1896,18 @@ const KENNZAHLEN = [
   ["ueberfaellig", "Überfällig", "Termine", ["zahl", "top3"], null],
   ["terminePlan", "Termine im Plan", "Termine", ["zahl"], ["monat", "jahr"], "monat"],
   ["naechsterPitStop", "Nächster PitStop", "Termine", ["zahl", "top3"], null],
-  ["tpmQuote", "TPM-Effizienz", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
-  ["pitstopQuote", "PitStop-Quote", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
-  ["riQuote", "R+I-Quote", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel"], ["monat", "jahr"], "monat"],
+  // 01.10.: die Quoten können auch als Tabelle (Soll · Ist · Erfüllungsgrad) stehen -
+  // Robertos Wunsch für die TPM-Kachel im Whiteboard ("im selben Layout wie Tagesleistung").
+  ["tpmQuote", "TPM-Effizienz", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel", "tabelle"], ["monat", "jahr"], "monat"],
+  ["pitstopQuote", "PitStop-Quote", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel", "tabelle"], ["monat", "jahr"], "monat"],
+  ["riQuote", "R+I-Quote", "Quoten", ["zahl", "halbkreis", "verlauf", "ampel", "tabelle"], ["monat", "jahr"], "monat"],
   ["stoerOffen", "Offene Störungen", "Störungen", ["zahl", "ampel", "top3"], null],
   ["stoerAnzahl", "Störungen (Anzahl)", "Störungen", ["zahl", "verlauf", "top3"], ["tage30", "monat", "jahr"], "tage30"],
   ["ausfallzeit", "Ausfallzeit", "Störungen", ["zahl", "verlauf", "top3"], ["tage30", "monat", "jahr"], "monat"],
   ["sorgenkind", "Anlage mit den meisten Störungen", "Störungen", ["zahl", "top3"], ["tage30", "monat", "jahr"], "tage30"],
   ["todoOffen", "To-dos offen", "To-dos & Team", ["zahl", "ampel", "top3"], null],
   // Whiteboard 23.09.: Soll = To-dos mit Frist im Zeitraum, Ist = davon erledigt
-  ["todoSollIst", "To-dos Soll / Ist", "To-dos & Team", ["halbkreis", "zahl", "ampel"], ["woche", "monat", "jahr"], "monat"],
+  ["todoSollIst", "To-dos Soll / Ist", "To-dos & Team", ["halbkreis", "zahl", "ampel", "tabelle"], ["woche", "monat", "jahr"], "monat"],
   ["erledigt", "Erledigte Arbeiten", "To-dos & Team", ["zahl", "verlauf"], ["woche", "monat"], "woche"],
   // Whiteboard 23.09.: erledigte Backlog-Arbeiten des Jahres, live in Prozent
   ["backlogLive", "Backlog erledigt (live)", "To-dos & Team", ["halbkreis", "zahl", "ampel"], null],
@@ -1955,6 +1977,9 @@ function normalisiereUebersichtLayout(roh) {
     if (UEBERSICHT_KACHELN.includes(k) || (/^k-[a-z0-9]+$/.test(String(k)) && rohDef[k])) { if (!kGewuenscht.includes(k)) kGewuenscht.push(k); }
   });
   const kacheln = [...kGewuenscht, ...UEBERSICHT_KACHELN.filter((k) => !kGewuenscht.includes(k))];
+  // Umbau-Stand der Whiteboard-Kacheln (01.10.): gespeicherte Layouts ohne
+  // das Feld stammen von vor dem Umbau und werden einmalig nachgezogen.
+  const wbStandAlt = !(roh && Number(roh.wbStand) >= WHITEBOARD_STAND);
   const kachelDef = {};
   kacheln.forEach((k) => {
     // Robertos Tausch vom 01.10.: Die Whiteboard-Kachel k-wbtodo zeigt die
@@ -1962,7 +1987,12 @@ function normalisiereUebersichtLayout(roh) {
     // werden hier umgeschrieben, sonst bliebe die alte Kachel auf jedem Rechner,
     // der das Whiteboard einmal gewählt hat.
     const roh1 = k === "k-wbtodo" && rohDef[k] && rohDef[k].inhalt === "todoSollIst" ? WHITEBOARD_KACHEL_DEF[k] : rohDef[k];
-    kachelDef[k] = normalisiereKachelDef(roh1, KACHEL_STANDARD_DEF[k]);
+    // Gleicher Tag, zweiter Tausch: die TPM-Kachel des Whiteboards wird zur
+    // Tabelle (Soll · Ist · Erfüllungsgrad). Umgeschrieben wird nur ein Layout
+    // von VOR diesem Stand (wbStand < 2) - wer die Form danach bewusst zurück
+    // auf Halbkreis stellt, behält sie.
+    const roh2 = k === "k-wbtpm" && wbStandAlt && roh1 && roh1.inhalt === "tpmQuote" && roh1.form === "halbkreis" ? { ...roh1, form: "tabelle" } : roh1;
+    kachelDef[k] = normalisiereKachelDef(roh2, KACHEL_STANDARD_DEF[k]);
   });
   // tausch / zeileUnten: die alten Stellschrauben von vor dem Baukasten -
   // sie werden nur noch gelesen, um alte Anordnungen zu übersetzen.
@@ -1985,7 +2015,7 @@ function normalisiereUebersichtLayout(roh) {
     bausteine = bausteineAusAlt(reihenfolge, tausch, zeileUnten);
   }
   const vorlage = UEBERSICHT_VORLAGEN.some(([id]) => id === (roh && roh.vorlage)) ? roh.vorlage : "eigene";
-  return { bloecke, reihenfolge: reihenfolgeAusBausteinen(bausteine), bausteine, kacheln, kachelDef, tausch, zeileUnten, vorlage };
+  return { bloecke, reihenfolge: reihenfolgeAusBausteinen(bausteine), bausteine, kacheln, kachelDef, tausch, zeileUnten, vorlage, wbStand: WHITEBOARD_STAND };
 }
 /* Übersichts-Vorlagen je Benutzergruppe (23.09., Vorlage K5): liegen in der
    gemeinsamen Datei (config.uebersichtVorlagen) und gelten auf jedem Rechner
@@ -3064,6 +3094,14 @@ function App() {
     return () => window.removeEventListener("keydown", aufTaste);
   }, [uebersichtBearbeiten]);
   const [monitorUhr, setMonitorUhr] = useState(() => new Date());
+  // Uhrzeit neben der Tagesplan-Überschrift (Roberto 01.10.): tickt jede halbe
+  // Minute - genauer braucht eine Minutenanzeige nicht zu sein, und ein
+  // Neuzeichnen der Übersicht pro Sekunde wäre Verschwendung.
+  const [tagesplanUhr, setTagesplanUhr] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setTagesplanUhr(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   /* ---------- Zeiterfassung / Schichtbericht (09.09.) ---------- */
   const [kostenstellen, setKostenstellen] = useState(() => normalisiereKostenstellen(null)); // pflegbare Liste (⚙, gemeinsame Datei)
@@ -6604,7 +6642,9 @@ function App() {
     const quoteZiel = regeln.schwellen.quoteZiel;
     const ampelQuote = (p) => (p === null || p === undefined ? "" : quoteZiel > 0 ? (p >= quoteZiel ? "gruen" : p >= quoteZiel - 10 ? "gelb" : "rot") : (p >= 90 ? "gruen" : p >= 75 ? "gelb" : "rot"));
     const ampelRegelQuote = quoteZiel > 0 ? `grün ab Ziel ${quoteZiel} %, gelb bis 10 % darunter` : "grün ab 90 %, gelb ab 75 %";
-    const quoteKachel = (kat, kurz) => {
+    // tabellenName (01.10.): Überschrift in der Tabellen-Form (Soll · Ist ·
+    // Erfüllungsgrad) - Roberto nennt die TPM-Kachel dort "TPM-Erfüllungsgrad".
+    const quoteKachel = (kat, kurz, tabellenName = kurz) => {
       const basis = kat ? kalenderEntries.filter((e) => e.category === kat) : kalenderEntries;
       const imZr = basis.filter((e) => imZeitraum(e.date));
       const p = quoteFuer(imZr);
@@ -6618,7 +6658,8 @@ function App() {
       const delta = p !== null && vor !== null ? { text: `${p - vor >= 0 ? "▲" : "▼"} ${Math.abs(p - vor)} %`, gut: p - vor === 0 ? null : p - vor > 0 } : null;
       const wann = zr === "jahr" ? jahrKey : MONTHS_SHORT[today.getMonth()];
       return {
-        label, text: p === null ? "–" : `${p} %`, prozent: p, kurz: `${kurz} · ${wann}`, sub: `Soll ${soll} · Ist ${ist}${quoteZiel > 0 ? " · Ziel " + quoteZiel + " %" : ""}`,
+        label, text: p === null ? "–" : `${p} %`, prozent: p, soll, ist, kurz: `${kurz} · ${wann}`, sub: `Soll ${soll} · Ist ${ist}${quoteZiel > 0 ? " · Ziel " + quoteZiel + " %" : ""}`,
+        tabelleLabel: `${tabellenName} · ${wann}`, hinweis: quoteZiel > 0 ? `Ziel ${quoteZiel} %` : ampelRegelQuote, leer: `${zrLabel === "Jahr" ? "dieses Jahr" : "diesen Monat"} keine Termine geplant`,
         titel: `${label}: Anteil erledigter Termine (${zrLabel})`, farbe: p === null ? "#8A9099" : ampelQuote(p) === "rot" ? "#B23A34" : "#2F7D4F", akzent: p === null ? "#CBD1D8" : ampelQuote(p) === "rot" ? "#B23A34" : "#2F7D4F",
         delta, verlauf: verlaufMonate((f) => { const q = quoteFuer(basis.filter((e) => f(e.date))); return { wert: q === null ? 0 : q, text: q === null ? "–" : q + " %" }; }),
         ampel: ampelQuote(p), ampelRegel: ampelRegelQuote, trend: "",
@@ -6639,7 +6680,7 @@ function App() {
         return { label, text: n ? `${new Date(n.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short" })}, ${formatDateDE(n.date)}` : "keiner geplant", sub: n ? n.name : "", farbe: "#22262B", akzent: "#C97A2B",
           top3: kommende.slice(0, 3).map((e) => ({ name: e.name, text: formatDateDE(e.date) })) };
       }
-      case "tpmQuote": return quoteKachel(null, "TPM-Effizienz");
+      case "tpmQuote": return quoteKachel(null, "TPM-Effizienz", "TPM-Erfüllungsgrad");
       case "pitstopQuote": return quoteKachel("TPM", "PitStop");
       case "riQuote": return quoteKachel("RI", "R+I");
       case "stoerOffen": {
@@ -6708,7 +6749,7 @@ function App() {
         const ampel = p === null ? "" : p >= 80 ? "gruen" : p >= 50 ? "gelb" : "rot";
         return { label: "Tagesleistung", kurz: "Tagesleistung", text: p === null ? "–" : `${ist} / ${soll}`, prozent: p, soll, ist, sub: `Soll ${soll} · Ist ${ist}`,
           titel: `Tagesplan heute: Soll = Plan-Punkte, Termine und To-dos mit Frist heute (${heutePlan.length} + ${heuteTermine.length} + ${todosHeute.length}), Ist = davon erledigt`, farbe: "#2F6690", akzent: p === null ? "#CBD1D8" : ampel === "rot" ? "#B23A34" : ampel === "gelb" ? "#C97A2B" : "#2F7D4F",
-          farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ampel === "gelb" ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"], ampel, ampelRegel: "grün ab 80 % erledigt, gelb ab 50 %" };
+          farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ampel === "gelb" ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"], ampel, ampelRegel: "grün ab 80 %, gelb ab 50 %", leer: "heute steht laut Plan nichts an" };
       }
       case "todoSollIst": {
         // Soll = To-dos mit Frist im Zeitraum, Ist = davon erledigt. Ohne Frist
@@ -6717,9 +6758,9 @@ function App() {
         const ist = soll.filter((t) => t.status === "done").length;
         const p = soll.length > 0 ? Math.round((ist / soll.length) * 100) : null;
         const ampel = p === null ? "" : p >= 90 ? "gruen" : p >= 70 ? "gelb" : "rot";
-        return { label: `To-dos · ${zrLabel}`, kurz: `To-dos · ${zrLabel}`, text: p === null ? "–" : `${ist} / ${soll.length}`, prozent: p, sub: `Soll ${soll.length} · Ist ${ist}`,
+        return { label: `To-dos · ${zrLabel}`, kurz: `To-dos · ${zrLabel}`, text: p === null ? "–" : `${ist} / ${soll.length}`, prozent: p, soll: soll.length, ist, sub: `Soll ${soll.length} · Ist ${ist}`, leer: `keine To-dos mit Frist (${zrLabel})`,
           titel: `To-do-Punkte mit Frist ${zrLabel}: Soll = fällig, Ist = erledigt`, farbe: "#2F6690", akzent: p === null ? "#CBD1D8" : ampel === "rot" ? "#B23A34" : "#2F6690",
-          farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ["#5B8DB8", "#2F6690"], ampel, ampelRegel: "grün ab 90 % erledigt, gelb ab 70 %" };
+          farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ["#5B8DB8", "#2F6690"], ampel, ampelRegel: "grün ab 90 %, gelb ab 70 %" };
       }
       case "backlogLive": {
         // Gleiche Rechnung wie der Score auf der Berichte-Startseite, nur
@@ -11992,8 +12033,10 @@ function App() {
             return (
             <div>
               <div id="wk-tagesplan" className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B", position: "relative", scrollMarginTop: "110px" }}>
-                {/* Seit 01.10. "Tagesplan" statt "Heute" (Roberto) - die Liste selbst wird später überarbeitet. */}
+                {/* Seit 01.10. "Tagesplan" statt "Heute" (Roberto) - die Liste selbst wird später überarbeitet.
+                    Datum und Uhrzeit stehen daneben (Robertos Wunsch vom selben Tag). */}
                 Tagesplan · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
+                <span data-tagesplan-uhr="" style={{ color: "#6B7480", fontWeight: 700 }}>· {tagesplanUhr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr</span>
                 {/* Kalender-Popup (24.08.): der TPM/R+I-Monatskalender als
                     kleines Fenster, ohne den Reiter zu wechseln. */}
                 <button

@@ -58,7 +58,7 @@ const stoer = [
   await p.waitForTimeout(1300);
   const kacheln = () => p.locator("[data-kachel-inhalt]").evaluateAll((els) => els.map((e) => e.getAttribute("data-kachel-inhalt")));
   const zahnradZu = async () => { await p.locator('button[aria-label="Schließen"]').last().click({ timeout: 3000 }).catch(() => p.keyboard.press("Escape")); await p.waitForTimeout(300); };
-  const WHITEBOARD = "todoSollIst,tpmQuote,unfaelle,backlogLive,kosten";
+  const WHITEBOARD = "tagesleistung,tpmQuote,unfaelle,backlogLive,kosten"; // seit 01.10.: Tagesleistung statt To-dos
 
   /* ---- Vorbereitung: Leser-Vorlage = Whiteboard ---- */
   await p.locator('button[aria-label="Verwalten"]').click();

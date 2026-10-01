@@ -33,8 +33,10 @@ const config = {
 const entries = [{ id: "t1", date: "2026-09-02", category: "TPM", name: "TS480", status: "done" }];
 const stoer = [{ id: "s1", nr: 401, date: HEUTE, schicht: "Früh", anlage: "TS480", stoerung: "Testlauf", offen: true, ausfallzeit: 20, melder: "T. Balles", gemeldetAt: HEUTE + "T07:00:00.000Z" }];
 const whiteboard = {
-  bloecke: { zahlen: false, quote: false, oee: false, uhr: false }, kacheln: ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten"],
-  kachelDef: { "k-wbtodo": { inhalt: "todoSollIst", form: "halbkreis", zeitraum: "monat" }, "k-wbtpm": { inhalt: "tpmQuote", form: "halbkreis", zeitraum: "monat" }, "k-wbunfall": { inhalt: "unfaelle", form: "zahl" }, "k-wbbacklog": { inhalt: "backlogLive", form: "halbkreis" }, "k-wbkosten": { inhalt: "kosten", form: "halbkreis" } }, vorlage: "whiteboard",
+  // k-wbtodo wird seit 01.10. zur Tagesleistung umgeschrieben (harte-104 prüft den Klick dorthin);
+  // die To-do-Kachel steht hier als eigene Kachel k-todo, damit ihr Klickziel weiter geprüft wird.
+  bloecke: { zahlen: false, quote: false, oee: false, uhr: false }, kacheln: ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten", "k-todo"],
+  kachelDef: { "k-wbtodo": { inhalt: "todoSollIst", form: "halbkreis", zeitraum: "monat" }, "k-wbtpm": { inhalt: "tpmQuote", form: "halbkreis", zeitraum: "monat" }, "k-wbunfall": { inhalt: "unfaelle", form: "zahl" }, "k-wbbacklog": { inhalt: "backlogLive", form: "halbkreis" }, "k-wbkosten": { inhalt: "kosten", form: "halbkreis" }, "k-todo": { inhalt: "todoSollIst", form: "halbkreis", zeitraum: "monat" } }, vorlage: "whiteboard",
 };
 
 (async () => {

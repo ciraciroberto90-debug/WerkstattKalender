@@ -6,10 +6,15 @@
 // Plan-Punkte, Termine und To-dos mit Frist heute, Ist = davon erledigt,
 // Erfüllungsgrad als kleiner Halbkreis. Die Heute-Liste heißt „Tagesplan“.
 //  (T1) Kachel da: Tabelle Soll · Ist · Erfüllungsgrad = 4 · 2 · 50 %
-//  (T2) Überschrift der Liste heißt „Tagesplan · …“, nicht mehr „Heute · …“
+//  (T2) Überschrift der Liste heißt „Tagesplan · …“, nicht mehr „Heute · …“;
+//       daneben Datum und Uhrzeit (T2b, 01.10. zweite Runde)
+//  (T6) TPM-Kachel des Whiteboards im selben Tabellen-Layout, aus einem
+//       gespeicherten Halbkreis-Layout umgeschrieben (wbStand)
+//  (T7) Gemessene Harmonie: Köpfe ganz, Zellen gleich hoch, Zahlen bündig
+//       mit dem Bogen, Fußzeile einzeilig (Robertos Kritik am ersten Wurf)
 //  (T3) Klick auf die Kachel springt zum Tagesplan
 //  (T4) Ein To-do erledigt -> Kachel zeigt 3 · 75 % (ohne Neuladen)
-//  (T5) Kein Plan heute -> Kachel ehrlich „–“ mit „nichts an“
+//  (T5) Kein Plan heute -> Kachel ehrlich Soll 0 · Ist 0 · „–“ mit „nichts an“
 //  (E)  Keine Skriptfehler
 // Rot-Nachweis: Vor dem 01.10. gab es weder die Kennzahl noch die Form
 // „tabelle“ (T1 rot), und die Überschrift hieß „Heute“ (T2 rot).
@@ -80,6 +85,34 @@ const entries = [
 
   const body = await a.p.locator("body").innerText();
   ok("(T2) Die Liste heißt „Tagesplan · Donnerstag, 01.10.“ – nicht mehr „Heute ·“", /TAGESPLAN · DONNERSTAG, 01\.10\./i.test(body) && !/HEUTE · DONNERSTAG/i.test(body), (body.match(/TAGESPLAN · [^\n]*/i) || [""])[0]);
+  const kopfText = (await a.p.locator("#wk-tagesplan").innerText()).replace(/\s+/g, " ");
+  ok("(T2b) Neben der Überschrift stehen Datum UND Uhrzeit („· 10:00 Uhr“, Roberto 01.10.)", /DONNERSTAG, 01\.10\. · 10:00 UHR/i.test(kopfText), kopfText);
+
+  /* (T6) TPM-Kachel im selben Tabellen-Layout - aus einem gespeicherten Layout mit Halbkreis umgeschrieben */
+  const tpm = a.p.locator('[data-kachel-inhalt="tpmQuote"][data-kachel-form="tabelle"]');
+  const tpmAria = (await tpm.count()) ? await tpm.first().locator("[aria-label^='TPM-Erfüllungsgrad']").getAttribute("aria-label") : "";
+  const tpmText = (await tpm.count()) ? (await tpm.first().innerText()).replace(/\s+/g, " ") : "";
+  ok("(T6) TPM-Kachel des Whiteboards ist jetzt die Tabelle „TPM-Erfüllungsgrad · Okt“ (gespeichertes Halbkreis-Layout umgeschrieben); ohne Termine ehrlich Soll 0 · Ist 0 · „–“ und „keine Termine geplant“",
+    (await tpm.count()) === 1 && (await a.p.locator('[data-kachel-huelle="k-wbtpm"] [data-kachel-form="tabelle"]').count()) === 1 && /^TPM-Erfüllungsgrad · Okt: Soll 0, Ist 0, Erfüllungsgrad –$/.test(tpmAria || "") && /Soll Ist Erfüllungsgrad 0 0 –/.test(tpmText) && /keine Termine geplant/.test(tpmText), `${tpmAria} | ${tpmText}`);
+
+  /* (T7) Harmonie, gemessen (Robertos Bild vom 01.10.: "Abstände/Größen passen gar nicht"):
+     Köpfe in einer Zeile und nicht abgeschnitten, drei Werte-Zellen gleich hoch,
+     Zahlen und Bogen schließen unten bündig ab, Fußzeile einzeilig. */
+  const masse = await a.p.evaluate(() => [...document.querySelectorAll("[data-tabelle]")].map((t) => {
+    const r = (el) => el.getBoundingClientRect();
+    const koepfe = [...t.children].slice(0, 3), zellen = [...t.children].slice(4, 7);
+    const zahlen = [...t.querySelectorAll("[data-tabelle-zahl]")], svg = t.querySelector("svg"), fuss = t.parentElement.querySelector("[data-tabelle-fuss]");
+    return {
+      breite: Math.round(r(t).width),
+      koepfeGanz: koepfe.every((k) => k.scrollWidth <= k.clientWidth),
+      koepfeEineZeile: new Set(koepfe.map((k) => Math.round(r(k).top))).size === 1,
+      zellenGleich: new Set(zellen.map((z) => Math.round(r(z).height))).size === 1,
+      buendig: zahlen.every((z) => Math.abs(r(z).bottom - r(svg).bottom) <= 1),
+      fussEinzeilig: !!fuss && r(fuss).height < parseFloat(getComputedStyle(fuss).fontSize) * 1.6,
+    };
+  }));
+  ok("(T7) Beide Tabellen-Kacheln: Köpfe ganz und in einer Zeile, Zellen gleich hoch, Zahlen bündig mit dem Bogen, Fußzeile einzeilig",
+    masse.length === 2 && masse.every((m) => m.koepfeGanz && m.koepfeEineZeile && m.zellenGleich && m.buendig && m.fussEinzeilig), JSON.stringify(masse));
 
   /* (T3) Klick springt zum Tagesplan */
   await a.p.evaluate(() => window.scrollTo(0, 0));
@@ -106,8 +139,8 @@ const entries = [
   const l5 = await listeZaehlen(b.p);
   const kbText = (await kb.count()) ? (await kb.first().innerText()).replace(/\s+/g, " ") : "";
   const z5 = zahlen((await kb.count()) ? await kb.first().locator("[aria-label^='Tagesleistung:']").getAttribute("aria-label") : "");
-  const t5ok = l5.zeilen === 0 ? (z5 && z5.soll === "–" && /nichts an/.test(kbText)) : (z5 && z5.soll === String(l5.zeilen) && z5.ist === String(l5.fertig));
-  ok("(T5) Ohne Termine/To-dos heute: Kachel zählt genau die Plan-Zeilen der Liste (bzw. „–“ ohne Plan)", !!t5ok, `Liste ${l5.zeilen}/${l5.fertig} · Kachel ${JSON.stringify(z5)}`);
+  const t5ok = l5.zeilen === 0 ? (z5 && z5.soll === "0" && z5.ist === "0" && z5.grad === "–" && /nichts an/.test(kbText)) : (z5 && z5.soll === String(l5.zeilen) && z5.ist === String(l5.fertig));
+  ok("(T5) Ohne Termine/To-dos heute: Kachel zählt genau die Plan-Zeilen der Liste (bzw. Soll 0 · Ist 0 · „–“ ohne Plan)", !!t5ok, `Liste ${l5.zeilen}/${l5.fertig} · Kachel ${JSON.stringify(z5)}`);
   await b.ctx.close();
 
   ok("(E) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));

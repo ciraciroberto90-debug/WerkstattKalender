@@ -1,11 +1,13 @@
 // Härtetest: WHITEBOARD-ÜBERSICHT (Robertos Tafel vom 23.09., Vorlage U1)
 //
 //  (A1) Vorlage "Whiteboard" (⚙ Personalisieren) legt fünf Kacheln an:
-//       To-dos Soll/Ist, TPM-Effizienz, Unfälle, Backlog live, Kosten - als
-//       Halbkreis bzw. Zahl; die alten sieben sind ausgeblendet.
-//  (A2) Die Kacheln rechnen richtig: To-dos Soll 3 · Ist 2 (67 %), TPM Soll/
-//       Ist aus den Terminen, Unfälle 1 mit Tagen unfallfrei, Backlog Erledigt/
-//       Gesamt, Kosten ohne Budget = "Abstimmung Einkauf".
+//       Tagesleistung (Tabelle, seit 01.10. statt To-dos Soll/Ist), TPM-
+//       Erfüllungsgrad (Tabelle, seit 01.10.), Unfälle, Backlog live, Kosten;
+//       die alten sieben sind ausgeblendet.
+//  (A2) Die Kacheln rechnen richtig: TPM Soll 4 · Ist 3 (75 %) aus den
+//       Terminen, Unfälle 1 mit Tagen unfallfrei, Backlog Erledigt/Gesamt,
+//       Kosten ohne Budget = "Abstimmung Einkauf". (To-dos Soll/Ist: harte-104
+//       prüft die Tagesleistung, die To-do-Kennzahl bleibt im Katalog.)
 //  (A3) Whiteboard-Zeile: Tagesliste allein in der Hauptzeile, unten die
 //       Zeile mit Pinnwand · Technischer Einkauf · Heute da; kein eigener
 //       "Heute da"-Abschnitt mehr darüber.
@@ -122,13 +124,15 @@ const stoer = [
     ok("(A1) Layout gespeichert: Vorlage whiteboard, Bausteine kennzahlen 12 · tagesliste 12 · stoerungen 12 · pinnwand 4 · einkauf 4 · heuteDa 4, Einkauf an, fünf Whiteboard-Kacheln vorn",
       lay && lay.vorlage === "whiteboard" && bs(lay) === "kennzahlen:12,tagesliste:12,stoerungen:12,pinnwand:4,einkauf:4,heuteDa:4" && lay.bloecke.einkauf === true && lay.kacheln.slice(0, 5).join(",") === "k-wbtodo,k-wbtpm,k-wbunfall,k-wbbacklog,k-wbkosten", lay && bs(lay));
     const reihe = await kacheln(p);
-    ok("(A1) Die Reihe zeigt genau die fünf Kacheln: To-dos, TPM, Unfälle (Zahl), Backlog, Kosten - alle anderen ausgeblendet",
-      reihe.join(",") === "todoSollIst:halbkreis,tpmQuote:halbkreis,unfaelle:zahl,backlogLive:halbkreis,kosten:halbkreis", reihe.join(","));
+    // 01.10.: Tagesleistung (Tabelle) statt To-dos, TPM ebenfalls als Tabelle (Robertos Umbau)
+    ok("(A1) Die Reihe zeigt genau die fünf Kacheln: Tagesleistung (Tabelle), TPM (Tabelle), Unfälle (Zahl), Backlog, Kosten - alle anderen ausgeblendet",
+      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogLive:halbkreis,kosten:halbkreis", reihe.join(","));
 
-    const todo = await kachelText(p, "todoSollIst");
-    ok("(A2) To-dos Soll 3 · Ist 2 -> 67 % (ohne Frist zählt nicht)", /Soll 3 · Ist 2/.test(todo) && /67\s*%/.test(todo), todo.replace(/\n/g, " | "));
+    const tl = await kachelText(p, "tagesleistung");
+    ok("(A2) Tagesleistung-Kachel steht mit Soll · Ist · Erfüllungsgrad", /Tagesleistung/.test(tl) && /Soll/.test(tl) && /Ist/.test(tl) && /Erfüllungsgrad/.test(tl), tl.replace(/\n/g, " | "));
     const tpm = await kachelText(p, "tpmQuote");
-    ok("(A2) TPM-Effizienz · Sep: Soll 4 · Ist 3 -> 75 %", /TPM-Effizienz · Sep/i.test(tpm) && /Soll 4 · Ist 3/.test(tpm) && /75\s*%/.test(tpm), tpm.replace(/\n/g, " | "));
+    const tpmAria = await p.locator('[data-kachel-inhalt="tpmQuote"] [aria-label^="TPM-Erfüllungsgrad"]').first().getAttribute("aria-label").catch(() => "");
+    ok("(A2) TPM-Erfüllungsgrad · Sep als Tabelle: Soll 4 · Ist 3 -> 75 %", /TPM-Erfüllungsgrad · Sep/i.test(tpm) && /Soll 4, Ist 3, Erfüllungsgrad 75 %/.test(tpmAria) && /75\s*%/.test(tpm), tpm.replace(/\n/g, " | ") + " || " + tpmAria);
     const unf = await kachelText(p, "unfaelle");
     ok("(A2) Unfälle · 2026: 1, seit dem 03.05. 143 Tage unfallfrei", /Unfälle · 2026/i.test(unf) && /\n1\n/.test("\n" + unf.replace(/\s+\n/g, "\n") + "\n") && /143 Tage unfallfrei/.test(unf), unf.replace(/\n/g, " | "));
     const bl = await kachelText(p, "backlogLive");
@@ -201,7 +205,7 @@ const stoer = [
     await p.waitForTimeout(1700);
     const reihe = await kacheln(p);
     ok("(C1) Lea ohne eigene Anordnung sieht die fünf Whiteboard-Kacheln",
-      reihe.join(",") === "todoSollIst:halbkreis,tpmQuote:halbkreis,unfaelle:zahl,backlogLive:halbkreis,kosten:halbkreis", reihe.join(","));
+      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogLive:halbkreis,kosten:halbkreis", reihe.join(","));
     const untenTeile = await p.locator('[data-baukasten] > [data-baustein]').evaluateAll((els) => els.map((e) => e.getAttribute("data-baustein")));
     ok("(C1) … und die Bausteine in Whiteboard-Folge (Pinnwand · Einkauf · Heute da unten)", untenTeile.slice(-3).join(",") === "pinnwand,einkauf,heuteDa", untenTeile.join(","));
     const ko = await kachelText(p, "kosten");
