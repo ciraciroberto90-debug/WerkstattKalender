@@ -2,10 +2,10 @@
 //
 //  (A1) Vorlage "Whiteboard" (⚙ Personalisieren) legt fünf Kacheln an:
 //       Tagesleistung (Tabelle, seit 01.10. statt To-dos Soll/Ist), TPM-
-//       Erfüllungsgrad (Tabelle, seit 01.10.), Unfälle, Backlog live, Kosten;
+//       Erfüllungsgrad (Tabelle, seit 01.10.), BG-meldepflichtige Unfälle, Backlog-Tacho (seit 01.10.), Kosten;
 //       die alten sieben sind ausgeblendet.
 //  (A2) Die Kacheln rechnen richtig: TPM Soll 4 · Ist 3 (75 %) aus den
-//       Terminen, Unfälle 1 mit Tagen unfallfrei, Backlog Erledigt/Gesamt,
+//       Terminen, Unfälle 1 mit Tagen unfallfrei (rot), Backlog-Tacho 2 offen,
 //       Kosten ohne Budget = "Abstimmung Einkauf". (To-dos Soll/Ist: harte-104
 //       prüft die Tagesleistung, die To-do-Kennzahl bleibt im Katalog.)
 //  (A3) Whiteboard-Zeile: Tagesliste allein in der Hauptzeile, unten die
@@ -126,7 +126,7 @@ const stoer = [
     const reihe = await kacheln(p);
     // 01.10.: Tagesleistung (Tabelle) statt To-dos, TPM ebenfalls als Tabelle (Robertos Umbau)
     ok("(A1) Die Reihe zeigt genau die fünf Kacheln: Tagesleistung (Tabelle), TPM (Tabelle), Unfälle (Zahl), Backlog, Kosten - alle anderen ausgeblendet",
-      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogLive:halbkreis,kosten:halbkreis", reihe.join(","));
+      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogOffen:tacho,kosten:halbkreis", reihe.join(","));
 
     const tl = await kachelText(p, "tagesleistung");
     ok("(A2) Tagesleistung-Kachel steht mit Soll · Ist · Erfüllungsgrad", /Tagesleistung/.test(tl) && /Soll/.test(tl) && /Ist/.test(tl) && /Erfüllungsgrad/.test(tl), tl.replace(/\n/g, " | "));
@@ -134,9 +134,12 @@ const stoer = [
     const tpmAria = await p.locator('[data-kachel-inhalt="tpmQuote"] [aria-label^="TPM-Erfüllungsgrad"]').first().getAttribute("aria-label").catch(() => "");
     ok("(A2) TPM-Erfüllungsgrad · Sep als Tabelle: Soll 4 · Ist 3 -> 75 %", /TPM-Erfüllungsgrad · Sep/i.test(tpm) && /Soll 4, Ist 3, Erfüllungsgrad 75 %/.test(tpmAria) && /75\s*%/.test(tpm), tpm.replace(/\n/g, " | ") + " || " + tpmAria);
     const unf = await kachelText(p, "unfaelle");
-    ok("(A2) Unfälle · 2026: 1, seit dem 03.05. 143 Tage unfallfrei", /Unfälle · 2026/i.test(unf) && /\n1\n/.test("\n" + unf.replace(/\s+\n/g, "\n") + "\n") && /143 Tage unfallfrei/.test(unf), unf.replace(/\n/g, " | "));
-    const bl = await kachelText(p, "backlogLive");
-    ok("(A2) Backlog live: Erledigt 3 · Gesamt 5 -> 60 %", /Erledigt 3 · Gesamt 5/.test(bl) && /60\s*%/.test(bl), bl.replace(/\n/g, " | "));
+    // 01.10.: Überschrift "BG-meldepflichtige Unfälle", Jahr als zweite Zeile; mit Unfall sind Zahl und untere Zeile rot
+    const unfRot = await p.locator('[data-kachel-inhalt="unfaelle"]').first().evaluate((k) => { const z = [...k.querySelectorAll("div")].map((d) => [d.innerText.trim(), getComputedStyle(d).color]); return z.filter(([t]) => t === "1" || /Tage unfallfrei/.test(t)).map(([, c]) => c); });
+    ok("(A2) BG-meldepflichtige Unfälle / 2026: 1, seit dem 03.05. 143 Tage unfallfrei - Zahl und Zeile rot", /BG-meldepflichtige Unfälle/.test(unf) && /\n2026\n/.test("\n" + unf + "\n") && /\n1\n/.test("\n" + unf.replace(/\s+\n/g, "\n") + "\n") && /143 Tage unfallfrei/.test(unf) && unfRot.length === 2 && unfRot.every((c) => c === "rgb(178, 58, 52)"), unf.replace(/\n/g, " | ") + " · " + unfRot.join("/"));
+    const bl = await kachelText(p, "backlogOffen");
+    const blAria = await p.locator('[data-kachel-inhalt="backlogOffen"] [data-tacho]').getAttribute("aria-label").catch(() => "");
+    ok("(A2) Backlog-Tacho: 2 offen, Skala 0 · 200 · >1.000 (Vorgaben)", /^Backlog · offen: 2 offen, Ziel 200, Obergrenze 1000$/.test(blAria || "") && /\n2$/.test(bl.trimEnd()) && /\b200\b/.test(bl) && />1\.000/.test(bl), bl.replace(/\n/g, " | ") + " · " + blAria);
     const ko = await kachelText(p, "kosten");
     ok("(A2) Kosten ohne Budget: Bogen leer, „Abstimmung Einkauf“", /Abstimmung Einkauf/.test(ko) && /–/.test(ko), ko.replace(/\n/g, " | "));
 
@@ -205,7 +208,7 @@ const stoer = [
     await p.waitForTimeout(1700);
     const reihe = await kacheln(p);
     ok("(C1) Lea ohne eigene Anordnung sieht die fünf Whiteboard-Kacheln",
-      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogLive:halbkreis,kosten:halbkreis", reihe.join(","));
+      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogOffen:tacho,kosten:halbkreis", reihe.join(","));
     const untenTeile = await p.locator('[data-baukasten] > [data-baustein]').evaluateAll((els) => els.map((e) => e.getAttribute("data-baustein")));
     ok("(C1) … und die Bausteine in Whiteboard-Folge (Pinnwand · Einkauf · Heute da unten)", untenTeile.slice(-3).join(",") === "pinnwand,einkauf,heuteDa", untenTeile.join(","));
     const ko = await kachelText(p, "kosten");

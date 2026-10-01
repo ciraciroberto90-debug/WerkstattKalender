@@ -708,6 +708,7 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
 function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   const akzent = d.akzent || "#CBD1D8";
   const skala = kachelSkala(def);
+  const px = (n) => `${Math.round(n * skala)}px`;
   const klick = onKlick ? { role: "button", tabIndex: 0, onClick: onKlick, onKeyDown: (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onKlick(); } }, "aria-label": `${d.label || ""}${klickHinweis ? " – " + klickHinweis : ""}` } : {};
   // Tabelle: Ampelregel bzw. Ziel wandern in den Tooltip, in der Kachel steht keine Fußzeile mehr (01.10.).
   const titelText = (d.titel || "") + (def.form === "tabelle" && (d.hinweis || d.ampelRegel) ? `${d.titel ? " · " : ""}${d.hinweis || d.ampelRegel}` : "");
@@ -721,7 +722,8 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   // Kopfzeile der Zahl- und Halbkreis-Kacheln (Whiteboard 23.09.): gleiche
   // Schrift wie der Halbkreis-Kopf, damit die Reihe "eine Sprache" spricht.
   const kopfzeile = (t) => <div className="font-bold" style={{ color: KACHEL_TITEL, fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: `${6 * skala}px`, maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</div>;
-  const unterzeile = (t) => (t ? <div style={{ fontSize: `${0.68 * skala}rem`, color: "#8A9099", marginTop: "2px" }}>{t}</div> : null);
+  // farbe (01.10., Unfälle): die Nebenzeile kann die Ampelfarbe tragen - dann fett, damit sie als Aussage wirkt.
+  const unterzeile = (t, farbe = null) => (t ? <div style={{ fontSize: `${0.68 * skala}rem`, color: farbe || "#8A9099", fontWeight: farbe ? 600 : 400, marginTop: "2px" }}>{t}</div> : null);
   const delta = d.delta && d.delta.text ? (
     <span className="font-black" style={{ fontSize: "0.7rem", color: d.delta.gut === null ? "#8A9099" : d.delta.gut ? "#2F7D4F" : "#B23A34", marginLeft: "6px" }}>{d.delta.text}</span>
   ) : null;
@@ -740,7 +742,6 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
     const umfang = Math.PI * 34;
     // Bogenfarbe nach Ampel; eigene Farben der Kennzahl (Tagesleistung) gehen vor.
     const [, dunkelF] = d.farben || (d.ampel === "rot" ? ["#E06A64", "#B23A34"] : d.ampel === "gelb" ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"]);
-    const px = (n) => `${Math.round(n * skala)}px`;
     const kopfStil = { color: "#8A9099", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.2px", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center", paddingBottom: px(5) };
     // Werte-Zeile: 44 px Bogen + 6 px Luft über ihm; die Zahl (2 rem ≈ 32 px)
     // füllt die Zeile fast ganz - kein Loch zwischen Kopf und Zahl.
@@ -769,6 +770,39 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
       </div>
       {/* Keine Fußzeile (Roberto 01.10.: "die Zeilen können raus aus der Kachel") -
           Ampelregel und Ziel stehen im Tooltip der Kachel (title). */}
+    </>, {}, true);
+  }
+  if (def.form === "tacho") {
+    // Robertos Tacho-Skizze (01.10., Vorschlag A mit dem schmalen Ring aus B):
+    // fünf Farbbänder, schwarzer Zeiger, Skala 0 links · Ziel oben · Obergrenze
+    // rechts. Linke Hälfte = 0 bis Ziel, rechte Hälfte = Ziel bis Obergrenze.
+    // Die Zahl steht UNTER dem Bogen als eigene Zeile - im Bogen würde der
+    // Zeiger sie bei niedrigen und hohen Ständen kreuzen (Robertos Hinweis
+    // "Zahlen überlappt"). Zeiger (37) kürzer als der Innenradius (42).
+    const ziel = Math.max(1, Number(d.ziel) || 1);
+    const grenze = Math.max(ziel + 1, Number(d.obergrenze) || ziel + 1);
+    const wert = Math.max(0, Number(d.wert) || 0);
+    const anteil = wert <= ziel ? (wert / ziel) * 0.5 : 0.5 + Math.min(1, (wert - ziel) / (grenze - ziel)) * 0.5;
+    const winkel = Math.PI * (1 - anteil);
+    // Mitte bei y=58, Skalentexte bei y=71: so liegt zwischen waagerechtem
+    // Zeiger (Stand 0 bzw. Obergrenze) und den Texten "0" / ">1000" Luft.
+    const cx = 80, cy = 58, r = 46;
+    const punkt = (a, rad) => [cx + rad * Math.cos(a), cy - rad * Math.sin(a)];
+    const bogen = (a0, a1) => { const [x0, y0] = punkt(a0, r), [x1, y1] = punkt(a1, r); return `M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
+    const TACHO_FARBEN = ["#1F7A3D", "#43B26F", "#F2D11F", "#F28C1F", "#C8322B"];
+    const [zx, zy] = punkt(winkel, 37);
+    const zahlText = wert.toLocaleString("de-DE");
+    return karte(<>
+      {kopfzeile(d.label)}
+      <svg viewBox="0 -3 160 77" style={{ width: px(150), height: px(72), display: "block" }} role="img" aria-label={`${d.label}: ${zahlText} offen, Ziel ${ziel}, Obergrenze ${grenze}`} data-tacho="">
+        {TACHO_FARBEN.map((f, i) => <path key={f} d={bogen(Math.PI * (1 - i / 5) + (i === 0 ? 0 : 0.004), Math.PI * (1 - (i + 1) / 5) - (i === 4 ? 0 : 0.004))} fill="none" stroke={f} strokeWidth="8" />)}
+        <text x={cx - r} y="71" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#8A9099" style={{ fontFamily: "inherit" }}>0</text>
+        <text x={cx} y="5" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#22262B" style={{ fontFamily: "inherit" }}>{ziel.toLocaleString("de-DE")}</text>
+        <text x={cx + r} y="71" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#8A9099" style={{ fontFamily: "inherit" }}>{`>${grenze.toLocaleString("de-DE")}`}</text>
+        <line x1={cx} y1={cy} x2={zx.toFixed(1)} y2={zy.toFixed(1)} stroke="#22262B" strokeWidth="3" strokeLinecap="round" />
+        <circle cx={cx} cy={cy} r="4.5" fill="#fff" stroke="#22262B" strokeWidth="3" />
+      </svg>
+      <div className="font-extrabold" data-tacho-zahl="" style={{ fontSize: `${1.5 * skala}rem`, lineHeight: 1, color: d.farbe || "#22262B", marginTop: px(3), fontVariantNumeric: "tabular-nums" }}>{zahlText}</div>
     </>, {}, true);
   }
   if (def.form === "halbkreis") {
@@ -822,10 +856,13 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   const lang = String(gross).length > 6;
   // Die Zahl steht in einem Feld von Halbkreis-Höhe (59 px), damit Titel und
   // Nebenzeile in der Reihe auf gleicher Höhe liegen wie bei den Bögen.
+  // d.jahr (01.10., Unfälle, Vorlage B): die Jahreszahl als zweite Zeile unter
+  // der Überschrift - die Zahl rückt dafür etwas enger (46 statt 59 px).
   return karte(<>
     {kopfzeile(<>{d.label}{delta}</>)}
-    <div className="font-extrabold flex items-center justify-center" style={{ minHeight: `${59 * skala}px`, fontSize: `${(lang ? 1.15 : 2.1) * skala}rem`, lineHeight: 1.05, letterSpacing: lang ? 0 : "-1.6px", fontVariantNumeric: "tabular-nums", color: d.farbe || "#22262B", wordBreak: "break-word" }}>{gross}</div>
-    {unterzeile(d.sub)}
+    {d.jahr && <div className="font-bold" data-kachel-jahr="" style={{ color: "#8A9099", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, lineHeight: 1.2, marginTop: px(-4), marginBottom: px(2) }}>{d.jahr}</div>}
+    <div className="font-extrabold flex items-center justify-center" style={{ minHeight: `${(d.jahr ? 46 : 59) * skala}px`, fontSize: `${(lang ? 1.15 : 2.1) * skala}rem`, lineHeight: 1.05, letterSpacing: lang ? 0 : "-1.6px", fontVariantNumeric: "tabular-nums", color: d.farbe || "#22262B", wordBreak: "break-word" }}>{gross}</div>
+    {unterzeile(d.sub, d.subFarbe || null)}
   </>, null, true);
 }
 
@@ -1811,16 +1848,17 @@ function reihenfolgeAusBausteinen(bausteine) {
    vom 01.10., die Kennung "k-wbtodo" bleibt, damit gespeicherte Layouts die
    neue Kachel an derselben Stelle zeigen), TPM-Effizienz, Unfälle, Backlog, Kosten. */
 const WHITEBOARD_KACHELN = ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten"];
-// Stand der Whiteboard-Kacheln: 2 = TPM-Kachel als Tabelle (01.10.). Steht im
-// gespeicherten Layout (wbStand), damit normalisiereUebersichtLayout ältere
-// Anordnungen genau einmal nachzieht.
-const WHITEBOARD_STAND = 2;
+// Stand der Whiteboard-Kacheln: 2 = TPM-Kachel als Tabelle, 3 = Backlog als
+// Tacho (beide 01.10.). Steht im gespeicherten Layout (wbStand), damit
+// normalisiereUebersichtLayout ältere Anordnungen genau einmal nachzieht.
+const WHITEBOARD_STAND = 3;
 const WHITEBOARD_KACHEL_DEF = {
   "k-wbtodo": { inhalt: "tagesleistung", form: "tabelle" },
   // 01.10.: TPM-Erfüllungsgrad im selben Tabellen-Layout wie die Tagesleistung (Roberto)
   "k-wbtpm": { inhalt: "tpmQuote", form: "tabelle", zeitraum: "monat" },
   "k-wbunfall": { inhalt: "unfaelle", form: "zahl" },
-  "k-wbbacklog": { inhalt: "backlogLive", form: "halbkreis" },
+  // 01.10. (Stand 3): Backlog als Tacho (offene Arbeiten auf 0 · Ziel · Obergrenze) statt Erledigt-Quote
+  "k-wbbacklog": { inhalt: "backlogOffen", form: "tacho" },
   "k-wbkosten": { inhalt: "kosten", form: "halbkreis" },
 };
 const UEBERSICHT_VORLAGEN = [
@@ -1890,7 +1928,7 @@ function findeDoppelteStoerungen(liste) {
   return out;
 }
 
-const KENNZAHL_FORMEN = [["zahl", "Zahl"], ["halbkreis", "Halbkreis"], ["verlauf", "Verlauf"], ["ampel", "Ampel"], ["top3", "Top 3"], ["tabelle", "Tabelle (Soll · Ist · Grad)"]];
+const KENNZAHL_FORMEN = [["zahl", "Zahl"], ["halbkreis", "Halbkreis"], ["verlauf", "Verlauf"], ["ampel", "Ampel"], ["top3", "Top 3"], ["tabelle", "Tabelle (Soll · Ist · Grad)"], ["tacho", "Tacho (0 · Ziel · Obergrenze)"]];
 const KENNZAHL_ZEITRAEUME = { heute: "heute", woche: "diese Woche", monat: "Monat", jahr: "Jahr", tage30: "30 Tage" };
 const KENNZAHLEN = [
   // id, Bezeichnung, Gruppe, erlaubte Darstellungen, erlaubte Zeiträume (null = ohne), Standard-Zeitraum
@@ -1917,12 +1955,14 @@ const KENNZAHLEN = [
   ["erledigt", "Erledigte Arbeiten", "To-dos & Team", ["zahl", "verlauf"], ["woche", "monat"], "woche"],
   // Whiteboard 23.09.: erledigte Backlog-Arbeiten des Jahres, live in Prozent
   ["backlogLive", "Backlog erledigt (live)", "To-dos & Team", ["halbkreis", "zahl", "ampel"], null],
+  // Robertos Tacho-Skizze 01.10.: offene Backlog-Arbeiten heute auf einer Skala 0 · Ziel · Obergrenze (⚙ Schwellen & Ziele)
+  ["backlogOffen", "Backlog offen (Tacho)", "To-dos & Team", ["tacho", "zahl", "ampel"], null],
   // Whiteboard 23.09. (Einkauf-Kasten): Backlog > 48 h / > 7 Tage / > 14 Tage - wie lange liegt Offenes schon?
   ["backlogAlter", "Backlog-Alter (> 48 h / 7 / 14 Tage)", "To-dos & Team", ["zahl", "ampel", "top3"], null],
   ["stunden", "Stunden (Zeiterfassung)", "To-dos & Team", ["zahl", "verlauf", "top3"], ["woche", "monat"], "woche"],
   ["jetztDa", "Jetzt in der Werkstatt", "To-dos & Team", ["zahl"], null],
   // Whiteboard 23.09.: Unfälle des Jahres (Liste im ⚙ Regeln & Listen)
-  ["unfaelle", "Unfälle im Jahr", "Sicherheit", ["zahl"], null],
+  ["unfaelle", "BG-meldepflichtige Unfälle (Jahr)", "Sicherheit", ["zahl"], null],
   ["nachbestellungen", "Offene Nachbestellungen", "Einkauf", ["zahl", "top3"], null],
   // Whiteboard 23.09.: ausgegebener Anteil des Jahresbudgets (⚙ Regeln & Listen, Abstimmung mit dem Einkauf offen)
   ["kosten", "Kosten vom Jahresbudget", "Einkauf", ["halbkreis", "zahl"], null],
@@ -1985,7 +2025,7 @@ function normalisiereUebersichtLayout(roh) {
   const kacheln = [...kGewuenscht, ...UEBERSICHT_KACHELN.filter((k) => !kGewuenscht.includes(k))];
   // Umbau-Stand der Whiteboard-Kacheln (01.10.): gespeicherte Layouts ohne
   // das Feld stammen von vor dem Umbau und werden einmalig nachgezogen.
-  const wbStandAlt = !(roh && Number(roh.wbStand) >= WHITEBOARD_STAND);
+  const wbStandVon = (roh && Number(roh.wbStand)) || 0;
   const kachelDef = {};
   kacheln.forEach((k) => {
     // Robertos Tausch vom 01.10.: Die Whiteboard-Kachel k-wbtodo zeigt die
@@ -1997,8 +2037,10 @@ function normalisiereUebersichtLayout(roh) {
     // Tabelle (Soll · Ist · Erfüllungsgrad). Umgeschrieben wird nur ein Layout
     // von VOR diesem Stand (wbStand < 2) - wer die Form danach bewusst zurück
     // auf Halbkreis stellt, behält sie.
-    const roh2 = k === "k-wbtpm" && wbStandAlt && roh1 && roh1.inhalt === "tpmQuote" && roh1.form === "halbkreis" ? { ...roh1, form: "tabelle" } : roh1;
-    kachelDef[k] = normalisiereKachelDef(roh2, KACHEL_STANDARD_DEF[k]);
+    const roh2 = k === "k-wbtpm" && wbStandVon < 2 && roh1 && roh1.inhalt === "tpmQuote" && roh1.form === "halbkreis" ? { ...roh1, form: "tabelle" } : roh1;
+    // Stand 3: die Backlog-Kachel des Whiteboards wird zum Tacho (offene Arbeiten).
+    const roh3 = k === "k-wbbacklog" && wbStandVon < 3 && roh2 && roh2.inhalt === "backlogLive" ? WHITEBOARD_KACHEL_DEF[k] : roh2;
+    kachelDef[k] = normalisiereKachelDef(roh3, KACHEL_STANDARD_DEF[k]);
   });
   // tausch / zeileUnten: die alten Stellschrauben von vor dem Baukasten -
   // sie werden nur noch gelesen, um alte Anordnungen zu übersetzen.
@@ -2291,7 +2333,9 @@ const REGELN_STANDARD = () => ({
   feiertage: { bundesland: "", eigene: [] }, // "" = Bundesland des Standorts
   listen: { fehlerarten: [...STOER_FEHLERARTEN], abwesenheit: [...ABWESENHEIT_GRUENDE], gewerkNamen: { mech: "Mechanik", elek: "Elektrik", beide: "Mechanik + Elektrik" } },
   // quoteZiel 0 = kein Ziel (Halbkreis bleibt grün wie bisher)
-  schwellen: { ausfallHochMin: 60, todoWarnTage: 0, quoteZiel: 0, oeeGruen: 85, oeeGelb: 70, archivJahre: 3 },
+  // backlogZiel / backlogObergrenze (Robertos Tacho-Skizze 01.10.): Skala der
+  // Backlog-Kachel - 0 fest, Zielwert oben, Obergrenze rechts.
+  schwellen: { ausfallHochMin: 60, todoWarnTage: 0, quoteZiel: 0, oeeGruen: 85, oeeGelb: 70, archivJahre: 3, backlogZiel: 200, backlogObergrenze: 1000 },
   vorlagen: { zettel: [], stoerung: [], pflicht: { anlagenteil: false, gewerk: false, fehlerart: false, ausfallzeit: false, ursache: false, getan: false } },
   // Whiteboard 23.09.: Unfälle als Datumsliste (die Kachel zählt je Jahr und
   // rechnet die unfallfreien Tage); Kosten als Jahresbudget und bisher
@@ -2323,6 +2367,7 @@ function normalisiereRegeln(roh) {
       ausfallHochMin: zahlOder(sw.ausfallHochMin, 60, 1, 100000), todoWarnTage: zahlOder(sw.todoWarnTage, 0, 0, 365),
       quoteZiel: zahlOder(sw.quoteZiel, 0, 0, 100), oeeGruen: zahlOder(sw.oeeGruen, 85, 0, 100), oeeGelb: zahlOder(sw.oeeGelb, 70, 0, 100),
       archivJahre: zahlOder(sw.archivJahre, 3, 1, 50),
+      backlogZiel: zahlOder(sw.backlogZiel, 200, 1, 1000000), backlogObergrenze: zahlOder(sw.backlogObergrenze, 1000, 2, 10000000),
     },
     vorlagen: {
       zettel: textListe(v.zettel, []), stoerung: textListe(v.stoerung, []),
@@ -6805,9 +6850,26 @@ function App() {
         const letzter = alle.length ? alle[alle.length - 1].datum : "";
         const seit = letzter && letzter <= todayKey ? letzter : `${jahrKey}-01-01`;
         const tage = Math.max(0, Math.round((new Date(todayKey + "T12:00:00") - new Date(seit + "T12:00:00")) / 86400000));
-        return { label: `Unfälle · ${jahrKey}`, text: imJahr.length, sub: `Ziel 0 · ${tage} Tage unfallfrei`,
-          titel: letzter ? `Unfälle im Jahr ${jahrKey} · letzter Unfall am ${formatDateDE(letzter)}` : `Unfälle im Jahr ${jahrKey} · keiner erfasst (⚙ Regeln & Listen → Sicherheit)`,
-          farbe: imJahr.length > 0 ? "#B23A34" : "#2F7D4F", akzent: imJahr.length > 0 ? "#B23A34" : "#2F7D4F" };
+        // Roberto 01.10. (Vorlage B): Überschrift "BG-meldepflichtige Unfälle",
+        // Jahreszahl als zweite Zeile; Zahl UND untere Zeile grün ohne Unfall,
+        // rot ab dem ersten meldepflichtigen Unfall im Jahr.
+        const rot = imJahr.length > 0;
+        return { label: "BG-meldepflichtige Unfälle", jahr: jahrKey, text: imJahr.length, sub: `Ziel 0 · ${tage} Tage unfallfrei`, subFarbe: rot ? "#B23A34" : "#2F7D4F",
+          titel: letzter ? `BG-meldepflichtige Unfälle im Jahr ${jahrKey} · letzter Unfall am ${formatDateDE(letzter)}` : `BG-meldepflichtige Unfälle im Jahr ${jahrKey} · keiner erfasst (⚙ Regeln & Listen → Sicherheit)`,
+          farbe: rot ? "#B23A34" : "#2F7D4F", akzent: rot ? "#B23A34" : "#2F7D4F" };
+      }
+      case "backlogOffen": {
+        // Robertos Tacho (01.10.): offene Backlog-Arbeiten heute auf der Skala
+        // 0 (fest) · Zielwert · Obergrenze aus ⚙ Schwellen & Ziele. Grün bis
+        // zum Ziel, dann gelb/orange, rot ab der Mitte zwischen Ziel und Grenze.
+        const ziel = Math.max(1, regeln.schwellen.backlogZiel);
+        const grenze = Math.max(ziel + 1, regeln.schwellen.backlogObergrenze);
+        const n = arbeitenOffen.length;
+        const ampel = n <= ziel ? "gruen" : n <= ziel + (grenze - ziel) / 2 ? "gelb" : "rot";
+        const farbe = ampel === "gruen" ? "#2F7D4F" : ampel === "gelb" ? "#C97A2B" : "#B23A34";
+        return { label: "Backlog · offen", kurz: "Backlog · offen", text: n, wert: n, ziel, obergrenze: grenze, sub: `Ziel ${ziel} · Obergrenze ${grenze}`,
+          titel: `Offene Backlog-Arbeiten heute: ${n} · Ziel ${ziel} · Obergrenze ${grenze} (⚙ Regeln & Listen → Schwellen & Ziele)`,
+          farbe, akzent: farbe, ampel, ampelRegel: `grün bis ${ziel}, rot ab ${Math.round(ziel + (grenze - ziel) / 2)}` };
       }
       case "kosten": {
         // Budget und Ausgegebenes aus ⚙ Regeln & Listen → Kosten. Ohne Budget
@@ -11512,7 +11574,7 @@ function App() {
             case "stoerOffen": case "stoerAnzahl": case "ausfallzeit": case "sorgenkind": case "nachbestellungen": return bericht("STOERUNGEN", "Störungen öffnen");
             case "todoOffen": case "todoSollIst": return bericht("TODO", "To-dos öffnen");
             case "tagesleistung": return { mach: () => { const el = document.getElementById("wk-tagesplan"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, hinweis: "Zum Tagesplan" };
-            case "erledigt": case "backlogLive": case "backlogAlter": return bericht("BACKLOG", "Backlog öffnen");
+            case "erledigt": case "backlogLive": case "backlogOffen": case "backlogAlter": return bericht("BACKLOG", "Backlog öffnen");
             case "stunden": return bericht("ZEIT", "Zeiterfassung öffnen");
             case "jetztDa": return sichtbar("SCHICHTPLAN") ? { mach: () => { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }, hinweis: "Schichtplan öffnen" } : null;
             case "heuteFaellig": case "heuteErledigt": case "ueberfaellig": case "terminePlan": case "naechsterPitStop":
@@ -16719,6 +16781,8 @@ function App() {
               {zahl("Störung zählt als lang ab", ["schwellen", "ausfallHochMin"], r.schwellen.ausfallHochMin, "Minuten Ausfall", 1, 100000, "Filter „lang“ und roter Ausfall im Schichtbericht")}
               {zahl("To-do-Vorwarnung", ["schwellen", "todoWarnTage"], r.schwellen.todoWarnTage, "Tage vor der Frist", 0, 365, "0 = nur rot bei Überfälligkeit")}
               {zahl("TPM-Quote Ziel", ["schwellen", "quoteZiel"], r.schwellen.quoteZiel, "%", 0, 100, "darunter wird der Halbkreis orange · 0 = kein Ziel")}
+              {zahl("Backlog-Tacho Zielwert", ["schwellen", "backlogZiel"], r.schwellen.backlogZiel, "offene Arbeiten", 1, 1000000, "steht oben am Tacho · bis dahin grün")}
+              {zahl("Backlog-Tacho Obergrenze", ["schwellen", "backlogObergrenze"], r.schwellen.backlogObergrenze, "offene Arbeiten", 2, 10000000, "rechtes Ende des Tachos (rot) · die 0 links ist fest")}
               {zahl("OEE grün ab", ["schwellen", "oeeGruen"], r.schwellen.oeeGruen, "%", 0, 100)}
               {zahl("OEE orange ab", ["schwellen", "oeeGelb"], r.schwellen.oeeGelb, "%", 0, 100, "darunter rot")}
               {zahl("Archiv-Erinnerung ab", ["schwellen", "archivJahre"], r.schwellen.archivJahre, "Jahren im Bestand", 1, 50)}
@@ -16727,7 +16791,7 @@ function App() {
                   Programm keine Quelle - bis der Einkauf eine liefert, werden
                   sie hier gepflegt. Gemeinsame Datei, gilt auf jedem Rechner. */}
               {kopf("Sicherheit – Unfälle", "regeln-sicherheit")}
-              {hinweis("Für die Kachel „Unfälle im Jahr“: je Unfall ein Datum. Die Kachel zählt je Jahr und rechnet die unfallfreien Tage seit dem letzten Eintrag.")}
+              {hinweis("Für die Kachel „BG-meldepflichtige Unfälle“: je meldepflichtigem Unfall ein Datum. Die Kachel zählt je Jahr und rechnet die unfallfreien Tage seit dem letzten Eintrag; ab dem ersten Unfall wird sie rot.")}
               {r.sicherheit.unfaelle.map((u, i) => (
                 <div key={i} className="flex items-center gap-2 mb-1 flex-wrap">
                   <input type="date" value={u.datum} aria-label={`Unfall ${i + 1} Datum`} onChange={(ev) => setze(["sicherheit", "unfaelle"], r.sicherheit.unfaelle.map((x, j) => (j === i ? { ...x, datum: ev.target.value } : x)))} className="text-sm px-2 py-1 rounded border" style={eingabe} />

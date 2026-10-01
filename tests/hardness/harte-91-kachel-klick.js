@@ -81,7 +81,7 @@ const whiteboard = {
     ok("(K2) Kosten-Kachel -> ⚙ „Kosten & Budget“ (Jahresbudget im Bild)",
       (await sichtbarImBild(p, "#regeln-kosten")) && (await p.locator('input[aria-label="Jahresbudget"]').isVisible()));
     await zahnradZu(p);
-    await kachel(p, "backlogLive").click();
+    await kachel(p, "backlogOffen").click(); // seit 01.10. Tacho (k-wbbacklog wird umgeschrieben)
     await p.waitForTimeout(500);
     const bl = await p.locator("body").innerText();
     ok("(K3) Backlog-Kachel -> Berichte → Backlog", /Backlog/i.test(bl) && (await p.getByRole("button", { name: /^Backlog\s*\d*$/i }).count()) > 0 && !/Termin-Archiv/.test(bl));

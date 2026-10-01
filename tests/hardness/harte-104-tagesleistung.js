@@ -12,6 +12,9 @@
 //       gespeicherten Halbkreis-Layout umgeschrieben (wbStand)
 //  (T7) Gemessene Harmonie: Köpfe ganz, Zellen gleich hoch, Zahlen bündig
 //       mit dem Bogen, keine Fußzeile (Robertos Kritik am ersten Wurf, 3. Runde)
+//  (T9) Backlog-Kachel = Tacho (0 · Ziel · Obergrenze), umgeschrieben aus "Backlog live",
+//       Zahl unter dem Bogen; (T11) Ziel/Obergrenze aus ⚙ Schwellen & Ziele
+//  (T10) Unfälle-Kachel: "BG-meldepflichtige Unfälle", Jahr darunter, grün ohne Unfall
 //  (T3) Klick auf die Kachel springt zum Tagesplan
 //  (T4) Ein To-do erledigt -> Kachel zeigt 3 · 75 % (ohne Neuladen)
 //  (T5) Kein Plan heute -> Kachel ehrlich Soll 0 · Ist 0 · „–“ (ohne Fußzeile)
@@ -37,7 +40,7 @@ const entries = [
 (async () => {
   const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
   const fehler = [];
-  const seite = async (eintraege) => {
+  const seite = async (eintraege, cfg = config) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
     const p = await ctx.newPage();
     p.on("pageerror", (e) => { fehler.push(e.message); console.log("PAGEERROR:", e.message); });
@@ -55,7 +58,7 @@ const entries = [
         // Wie bei Roberto: nur die fünf Whiteboard-Kacheln (die sieben alten aus), dadurch ~300 px je Kachel
         bloecke: { zahlen: false, quote: false, oee: false, uhr: false }, bausteine: [{ id: "kennzahlen", breite: 12 }, { id: "tagesliste", breite: 12 }, { id: "pinnwand", breite: 4 }, { id: "einkauf", breite: 4 }, { id: "heuteDa", breite: 4 }, { id: "stoerungen", breite: 12 }],
       }));
-    }, { c: config, e: eintraege });
+    }, { c: cfg, e: eintraege });
     await p.clock.setFixedTime(new Date(HEUTE + "T10:00:00"));
     await p.goto(APP);
     await p.waitForTimeout(1500);
@@ -126,6 +129,33 @@ const entries = [
   ok("(T8) Alle fünf Kachel-Überschriften sind einheitlich dunkel (rgb(34, 38, 43)) und fett",
     titelFarben.length === 5 && titelFarben.every((t) => t.farbe === "rgb(34, 38, 43)" && Number(t.fett) >= 700), JSON.stringify(titelFarben));
 
+  /* (T9) Roberto 01.10.: Backlog als Tacho (Vorschlag A, Ring aus B) - aus dem gespeicherten
+     Halbkreis-Layout umgeschrieben; Vorgaben Ziel 200 · Obergrenze 1000; die Zahl steht UNTER dem
+     Bogen (kein Überlappen mit dem Zeiger), Skalentexte liegen im Bogenfeld. */
+  const tacho = a.p.locator('[data-kachel-huelle="k-wbbacklog"] [data-kachel-inhalt="backlogOffen"][data-kachel-form="tacho"]');
+  const tachoAria = (await tacho.count()) ? await tacho.first().locator("[data-tacho]").getAttribute("aria-label") : "";
+  const tachoMasse = (await tacho.count()) ? await tacho.first().evaluate((k) => {
+    const r = (el) => el.getBoundingClientRect();
+    const svg = k.querySelector("[data-tacho]"), zahl = k.querySelector("[data-tacho-zahl]"), titel = k.firstElementChild;
+    const texte = [...svg.querySelectorAll("text")].map((t) => t.textContent);
+    return { zahlUnterBogen: r(zahl).top >= r(svg).bottom - 1, bogenUnterTitel: r(svg).top >= r(titel).bottom, texte, zahl: zahl.innerText, inKachel: r(zahl).bottom <= r(k).bottom && r(svg).left >= r(k).left && r(svg).right <= r(k).right };
+  }) : null;
+  ok("(T9) Backlog-Kachel ist der Tacho (umgeschrieben aus „Backlog live“): 0 offen, Ziel 200, Obergrenze 1000; Zahl unter dem Bogen, Skala 0 · 200 · >1.000",
+    (await tacho.count()) === 1 && tachoAria === "Backlog · offen: 0 offen, Ziel 200, Obergrenze 1000" && !!tachoMasse && tachoMasse.zahlUnterBogen && tachoMasse.bogenUnterTitel && tachoMasse.inKachel && tachoMasse.texte.join("|") === "0|200|>1.000" && tachoMasse.zahl === "0",
+    `${tachoAria} · ${JSON.stringify(tachoMasse)}`);
+
+  /* (T10) Unfälle-Kachel (Vorlage B): Überschrift "BG-meldepflichtige Unfälle", Jahr als zweite Zeile,
+     ohne Unfall Zahl und untere Zeile grün. */
+  const unf = a.p.locator('[data-kachel-inhalt="unfaelle"]').first();
+  const unfInfo = await unf.evaluate((k) => {
+    const zeilen = [...k.querySelectorAll("div")].map((d) => ({ t: d.innerText.trim(), c: getComputedStyle(d).color }));
+    const titel = k.firstElementChild.innerText.trim(), jahr = k.querySelector("[data-kachel-jahr]");
+    const zahl = zeilen.find((z) => z.t === "0"), sub = zeilen.find((z) => /Tage unfallfrei/.test(z.t));
+    return { titel, jahr: jahr ? jahr.innerText.trim() : null, zahl: zahl && zahl.c, sub: sub && sub.t, subFarbe: sub && sub.c };
+  });
+  ok("(T10) Unfälle-Kachel: „BG-meldepflichtige Unfälle“, Jahr 2026 darunter, 0 und „Ziel 0 · 273 Tage unfallfrei“ beide grün",
+    unfInfo.titel === "BG-meldepflichtige Unfälle" && unfInfo.jahr === "2026" && unfInfo.zahl === "rgb(47, 125, 79)" && unfInfo.sub === "Ziel 0 · 273 Tage unfallfrei" && unfInfo.subFarbe === "rgb(47, 125, 79)", JSON.stringify(unfInfo));
+
   /* (T3) Klick springt zum Tagesplan */
   await a.p.evaluate(() => window.scrollTo(0, 0));
   await kachel.first().click();
@@ -146,7 +176,15 @@ const entries = [
   await a.ctx.close();
 
   /* (T5) Ohne Termine und To-dos heute: nur die Plan-Punkte zählen (oder „–“, wenn nichts geplant ist) */
-  const b = await seite(entries.filter((e) => e.id === "td3"));
+  const arbeiten = Array.from({ length: 60 }, (_, i) => ({ id: "ab" + i, date: "2026-09-10", category: "ARBEIT", name: "TS480", note: "Arbeit " + i, status: "open", prio: "ohne", art: "mech", updatedAt: HEUTE + "T06:00:00.000Z" }));
+  const b = await seite([...entries.filter((e) => e.id === "td3"), ...arbeiten], { ...config, regeln: { schwellen: { backlogZiel: 50, backlogObergrenze: 300 } } });
+  /* (T11) Zielwert und Obergrenze kommen aus ⚙ Schwellen & Ziele: 50 / 300 -> 60 offen ist über dem Ziel (gelb) */
+  const tb = b.p.locator('[data-kachel-inhalt="backlogOffen"] [data-tacho]');
+  const tbAria = (await tb.count()) ? await tb.first().getAttribute("aria-label") : "";
+  const tbText = (await tb.count()) ? await tb.first().evaluate((s) => [...s.querySelectorAll("text")].map((t) => t.textContent).join("|")) : "";
+  const tbFarbe = (await tb.count()) ? await b.p.locator('[data-kachel-inhalt="backlogOffen"] [data-tacho-zahl]').first().evaluate((z) => getComputedStyle(z).color) : "";
+  ok("(T11) Tacho mit eigenen Schwellen (Ziel 50 · Obergrenze 300): 60 offen -> Skala 0 · 50 · >300, Zahl orange (über dem Ziel)",
+    tbAria === "Backlog · offen: 60 offen, Ziel 50, Obergrenze 300" && tbText === "0|50|>300" && tbFarbe === "rgb(201, 122, 43)", `${tbAria} · ${tbText} · ${tbFarbe}`);
   const kb = b.p.locator('[data-kachel-inhalt="tagesleistung"]');
   const l5 = await listeZaehlen(b.p);
   const kbText = (await kb.count()) ? (await kb.first().innerText()).replace(/\s+/g, " ") : "";

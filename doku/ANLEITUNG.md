@@ -487,10 +487,16 @@ Störungen, nicht den Rest.
   Halbkreis): **Tagesleistung** (Soll = alles, was heute im Tagesplan steht –
   Plan-Punkte, Termine, To-dos mit Frist heute –, Ist = davon erledigt, grün ab
   80 %, gelb ab 50 %; Klick springt zum Tagesplan) und **TPM-Erfüllungsgrad**
-  (Soll = geplante Termine des Monats, Ist = erledigte). Dann **Unfälle im
-  Jahr** (als Zahl mit „Tage unfallfrei"), **Backlog live** (erledigte
-  Backlog-Arbeiten am Jahr gemessen) und **Kosten vom Jahresbudget** als
-  Halbkreis. Die Darstellung „Tabelle (Soll · Ist · Grad)" steht im Kachel-Menü
+  (Soll = geplante Termine des Monats, Ist = erledigte). Dann
+  **BG-meldepflichtige Unfälle** (Jahreszahl als zweite Zeile, darunter die
+  Zahl und „Ziel 0 · N Tage unfallfrei" – grün, solange kein Unfall erfasst
+  ist, rot ab dem ersten meldepflichtigen Unfall des Jahres), **Backlog ·
+  offen** als **Tacho** (Robertos Skizze: fünf Farbbänder, Zeiger, Skala 0
+  links · Zielwert oben · Obergrenze rechts; der Stand = offene
+  Backlog-Arbeiten heute; Zielwert und Obergrenze stehen im ⚙ unter „Schwellen
+  & Ziele", Vorgabe 200 und 1000, die 0 ist fest) und **Kosten vom
+  Jahresbudget** als Halbkreis. „Backlog erledigt (live)" bleibt im Katalog für
+  eigene Kacheln. Die Darstellung „Tabelle (Soll · Ist · Grad)" steht im Kachel-Menü
   auch für die Quoten und „To-dos Soll / Ist" zur Wahl; gespeicherte
   Whiteboard-Layouts von vor dem 01.10. werden beim Laden einmalig auf die
   neuen Kacheln umgeschrieben. Die Heute-Liste heißt seit dem 01.10.
