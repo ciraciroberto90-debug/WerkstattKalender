@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>So spricht das BTA-Cockpit miteinander</title>
+<style>
+  body{font-family:"Segoe UI",Arial,sans-serif;background:#fff;margin:0;padding:28px 32px;color:#22262B;width:1380px}
+  h1{font-size:22px;margin:0 0 4px}
+  .u{color:#5B6572;font-size:13px;margin:0 0 18px;line-height:1.5}
+  svg{display:block}
+  .legende{display:flex;gap:28px;font-size:12.5px;color:#5B6572;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .legende span{display:inline-flex;align-items:center;gap:7px}
+  .li{display:inline-block;width:34px;height:0;border-top:3px solid #2F6690}
+  .li.alt{border-top:3px dashed #8A9099}
+  .li.imp{border-top:3px solid #C97A2B}
+</style></head>
+<body>
+<h1>So spricht das BTA-Cockpit miteinander</h1>
+<p class="u">Links der Stand <b>heute</b> (die Werkstatt arbeitet mit der Datei auf W:, dein PC kann zusätzlich den Server-Weg testen). Rechts der Stand <b>nach dem Umschalttag</b> (alle Rechner reden nur noch mit dem Server, W: ist nur noch Archiv).</p>
+
+<svg viewBox="0 0 1380 620" width="1380" height="620" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="pf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2F6690"/></marker>
+    <marker id="pfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8A9099"/></marker>
+    <marker id="pfo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#C97A2B"/></marker>
+  </defs>
+
+  <!-- ================= LINKS: HEUTE ================= -->
+  <text x="20" y="26" font-size="15" font-weight="800" fill="#1E2761">HEUTE – Testbetrieb (01.10.2026)</text>
+
+  <!-- W: Freigabe -->
+  <rect x="20" y="48" width="250" height="118" rx="12" fill="#F5F0E6" stroke="#C97A2B" stroke-width="2"/>
+  <text x="145" y="72" text-anchor="middle" font-size="13.5" font-weight="800">Laufwerk W:  (scheudc1)</text>
+  <text x="145" y="92" text-anchor="middle" font-size="11.5" fill="#5B6572">Ordner Werkstatt_Kalender</text>
+  <rect x="38" y="104" width="214" height="48" rx="7" fill="#fff" stroke="#E3D7C0"/>
+  <text x="145" y="122" text-anchor="middle" font-size="11" font-family="Consolas, monospace">werkstatt-kalender-daten.json</text>
+  <text x="145" y="138" text-anchor="middle" font-size="11" font-family="Consolas, monospace">werkstatt-stoerungen.json · Fotos\</text>
+
+  <!-- Werkstatt-PCs -->
+  <g>
+    <rect x="20" y="230" width="250" height="150" rx="12" fill="#F6F8FA" stroke="#C3C7CB" stroke-width="2"/>
+    <text x="145" y="254" text-anchor="middle" font-size="13.5" font-weight="800">Werkstatt-PC 1 · PC 2 · Monitor</text>
+    <rect x="38" y="268" width="214" height="34" rx="7" fill="#fff" stroke="#C3C7CB"/>
+    <text x="145" y="290" text-anchor="middle" font-size="11.5" font-weight="700">Programm „Werkstatt-Cockpit“ 1.2</text>
+    <rect x="38" y="310" width="214" height="34" rx="7" fill="#fff" stroke="#C3C7CB"/>
+    <text x="145" y="332" text-anchor="middle" font-size="11.5">App (HTML) aus dem Programm-Ordner</text>
+    <text x="145" y="366" text-anchor="middle" font-size="11" fill="#5B6572">liest die Datei, führt zusammen, schreibt zurück</text>
+  </g>
+  <!-- Pfeil PCs <-> W: -->
+  <path d="M145 230 L145 168" stroke="#2F6690" stroke-width="3" fill="none" marker-start="url(#pf)" marker-end="url(#pf)"/>
+  <text x="156" y="203" font-size="11" fill="#2F6690" font-weight="700">Datei lesen / schreiben</text>
+
+  <!-- Robertos PC -->
+  <g>
+    <rect x="20" y="420" width="250" height="150" rx="12" fill="#F6F8FA" stroke="#C3C7CB" stroke-width="2"/>
+    <text x="145" y="444" text-anchor="middle" font-size="13.5" font-weight="800">Robertos PC (L-RCIRACI)</text>
+    <rect x="38" y="458" width="214" height="34" rx="7" fill="#fff" stroke="#8A9099" stroke-dasharray="5 3"/>
+    <text x="145" y="474" text-anchor="middle" font-size="11.5" font-weight="700">Browser (Chrome)</text>
+    <text x="145" y="487" text-anchor="middle" font-size="9.5" fill="#8A9099">bisher: Datei auf W: · heute auch …:8765/app/</text>
+    <rect x="38" y="500" width="214" height="34" rx="7" fill="#fff" stroke="#2F6690"/>
+    <text x="145" y="522" text-anchor="middle" font-size="11.5" font-weight="700">Programm 1.3 · Server-Weg (Test)</text>
+    <text x="145" y="556" text-anchor="middle" font-size="11" fill="#5B6572">App kommt vom Server, nicht von der Platte</text>
+  </g>
+
+  <!-- Server -->
+  <g>
+    <rect x="400" y="300" width="260" height="270" rx="12" fill="#EEF4F8" stroke="#2F6690" stroke-width="2.5"/>
+    <text x="530" y="326" text-anchor="middle" font-size="14" font-weight="800">Server V-BTACOCKPIT-1</text>
+    <text x="530" y="344" text-anchor="middle" font-size="11" fill="#5B6572">10.253.64.131 · Firmennetz</text>
+    <rect x="418" y="356" width="224" height="46" rx="7" fill="#fff" stroke="#2F6690"/>
+    <text x="530" y="375" text-anchor="middle" font-size="12" font-weight="700">BTA-Cockpit-Dienst 0.3.0</text>
+    <text x="530" y="392" text-anchor="middle" font-size="11" font-family="Consolas, monospace">node.exe · Port 8765</text>
+    <rect x="418" y="412" width="224" height="60" rx="7" fill="#fff" stroke="#C3C7CB"/>
+    <text x="530" y="431" text-anchor="middle" font-size="11.5" font-weight="700">Datenbanken (SQLite)</text>
+    <text x="530" y="448" text-anchor="middle" font-size="11">Scheurich 7.312 · Soendgen 0</text>
+    <text x="530" y="464" text-anchor="middle" font-size="11" fill="#5B6572">+ Ordner fotos\</text>
+    <rect x="418" y="482" width="224" height="34" rx="7" fill="#fff" stroke="#C3C7CB"/>
+    <text x="530" y="504" text-anchor="middle" font-size="11.5">App-Datei (HTML) · /app/</text>
+    <rect x="418" y="526" width="224" height="34" rx="7" fill="#fff" stroke="#2F7D4F"/>
+    <text x="530" y="548" text-anchor="middle" font-size="11.5" fill="#2F7D4F" font-weight="700">Sicherung jede Nacht 02:00</text>
+  </g>
+  <!-- Robertos PC -> Server -->
+  <path d="M270 500 L398 500" stroke="#2F6690" stroke-width="3" fill="none" marker-start="url(#pf)" marker-end="url(#pf)"/>
+  <text x="334" y="488" text-anchor="middle" font-size="11" fill="#2F6690" font-weight="700">http://v-btacockpit-1:8765</text>
+  <text x="334" y="516" text-anchor="middle" font-size="10.5" fill="#5B6572">/app/ · /api · live (SSE)</text>
+  <!-- Import W: -> Server -->
+  <path d="M270 120 C 360 120, 420 200, 470 298" stroke="#C97A2B" stroke-width="3" fill="none" marker-end="url(#pfo)"/>
+  <text x="392" y="112" font-size="11" fill="#C97A2B" font-weight="700">Import (Server-Werkzeug)</text>
+  <text x="392" y="127" font-size="10.5" fill="#C97A2B">13:33 Uhr: 7.311 / 2.933, Nachweis 0</text>
+
+  <!-- Trennlinie -->
+  <line x1="700" y1="20" x2="700" y2="600" stroke="#D6D9DC" stroke-width="2" stroke-dasharray="6 6"/>
+
+  <!-- ================= RECHTS: NACH DEM UMSCHALTTAG ================= -->
+  <text x="730" y="26" font-size="15" font-weight="800" fill="#1E2761">NACH DEM UMSCHALTTAG – Regelbetrieb</text>
+
+  <!-- W: Archiv -->
+  <rect x="730" y="48" width="250" height="90" rx="12" fill="#F8F8F8" stroke="#C3C7CB" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="855" y="74" text-anchor="middle" font-size="13.5" font-weight="800" fill="#8A9099">Laufwerk W:</text>
+  <text x="855" y="96" text-anchor="middle" font-size="11.5" fill="#8A9099">nur noch Archiv – niemand schreibt mehr</text>
+  <text x="855" y="114" text-anchor="middle" font-size="11" fill="#8A9099">letzter Import am Umschalttag</text>
+
+  <!-- Werkstatt-PCs rechts -->
+  <g>
+    <rect x="730" y="230" width="250" height="130" rx="12" fill="#F6F8FA" stroke="#C3C7CB" stroke-width="2"/>
+    <text x="855" y="254" text-anchor="middle" font-size="13.5" font-weight="800">Werkstatt-PC 1 · PC 2 · Monitor</text>
+    <rect x="748" y="268" width="214" height="34" rx="7" fill="#fff" stroke="#2F6690"/>
+    <text x="855" y="290" text-anchor="middle" font-size="11.5" font-weight="700">Programm 1.3 · Server-Weg EIN</text>
+    <rect x="748" y="310" width="214" height="34" rx="7" fill="#fff" stroke="#C3C7CB"/>
+    <text x="855" y="332" text-anchor="middle" font-size="11.5">App kommt vom Server · Daten live</text>
+  </g>
+  <!-- Robertos PC rechts -->
+  <g>
+    <rect x="730" y="420" width="250" height="110" rx="12" fill="#F6F8FA" stroke="#C3C7CB" stroke-width="2"/>
+    <text x="855" y="444" text-anchor="middle" font-size="13.5" font-weight="800">Robertos PC · Soendgen (später)</text>
+    <rect x="748" y="458" width="214" height="34" rx="7" fill="#fff" stroke="#2F6690"/>
+    <text x="855" y="480" text-anchor="middle" font-size="11.5" font-weight="700">Programm 1.3 · Server-Weg EIN</text>
+    <text x="855" y="516" text-anchor="middle" font-size="11" fill="#5B6572">oder einfach der Browser: …:8765/app/</text>
+  </g>
+  <!-- Server rechts -->
+  <g>
+    <rect x="1100" y="230" width="260" height="300" rx="12" fill="#EEF4F8" stroke="#2F6690" stroke-width="2.5"/>
+    <text x="1230" y="256" text-anchor="middle" font-size="14" font-weight="800">Server V-BTACOCKPIT-1</text>
+    <rect x="1118" y="272" width="224" height="46" rx="7" fill="#fff" stroke="#2F6690"/>
+    <text x="1230" y="291" text-anchor="middle" font-size="12" font-weight="700">BTA-Cockpit-Dienst</text>
+    <text x="1230" y="308" text-anchor="middle" font-size="11" fill="#5B6572">EINE Wahrheit für alle Rechner</text>
+    <rect x="1118" y="328" width="224" height="60" rx="7" fill="#fff" stroke="#C3C7CB"/>
+    <text x="1230" y="347" text-anchor="middle" font-size="11.5" font-weight="700">Datenbanken Scheurich · Soendgen</text>
+    <text x="1230" y="364" text-anchor="middle" font-size="11">Einträge · Störberichte · Zettel</text>
+    <text x="1230" y="380" text-anchor="middle" font-size="11" fill="#5B6572">Fotos · Verlauf · Einstellungen</text>
+    <rect x="1118" y="398" width="224" height="34" rx="7" fill="#fff" stroke="#C3C7CB"/>
+    <text x="1230" y="420" text-anchor="middle" font-size="11.5">App-Datei – ein Tausch gilt für alle</text>
+    <rect x="1118" y="442" width="224" height="34" rx="7" fill="#fff" stroke="#2F7D4F"/>
+    <text x="1230" y="464" text-anchor="middle" font-size="11.5" fill="#2F7D4F" font-weight="700">Sicherung 02:00 · Status-Seite</text>
+    <rect x="1118" y="486" width="224" height="34" rx="7" fill="#fff" stroke="#C3C7CB"/>
+    <text x="1230" y="508" text-anchor="middle" font-size="11.5">Server-Werkzeug: Prüfen · Wartung</text>
+  </g>
+  <!-- Pfeile rechts -->
+  <path d="M980 290 L1098 290" stroke="#2F6690" stroke-width="3" fill="none" marker-start="url(#pf)" marker-end="url(#pf)"/>
+  <path d="M980 480 C 1030 480, 1050 300, 1098 300" stroke="#2F6690" stroke-width="3" fill="none" marker-start="url(#pf)" marker-end="url(#pf)"/>
+  <text x="1040" y="276" text-anchor="middle" font-size="11" fill="#2F6690" font-weight="700">Port 8765 · live</text>
+  <text x="1010" y="392" text-anchor="middle" font-size="10.5" fill="#5B6572">kein Zusammenführen mehr,</text>
+  <text x="1010" y="406" text-anchor="middle" font-size="10.5" fill="#5B6572">keine Konfliktkopien</text>
+  <!-- letzter Import -->
+  <path d="M980 100 C 1060 100, 1130 150, 1180 228" stroke="#C97A2B" stroke-width="3" fill="none" marker-end="url(#pfo)"/>
+  <text x="1070" y="118" font-size="11" fill="#C97A2B" font-weight="700">letzter Import am Umschalttag</text>
+
+  <!-- Fußzeile Stick -->
+  <rect x="730" y="556" width="630" height="44" rx="10" fill="#FFF8EC" stroke="#E3D7C0"/>
+  <text x="1045" y="574" text-anchor="middle" font-size="11.5" font-weight="700" fill="#A25E14">USB-Stick / Komplettpaket 1.3</text>
+  <text x="1045" y="590" text-anchor="middle" font-size="11" fill="#5B6572">Rechner-Werkzeug: Einrichten · „Server-Weg einschalten“ · Server-Werkzeug: Einrichten · Import · Sicherung</text>
+</svg>
+
+<style>
+  .vn{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+  .karte{border:2px solid #C3C7CB;border-radius:12px;padding:14px 18px;background:#F6F8FA}
+  .karte.srv{border-color:#2F6690;background:#EEF4F8}
+  .karte h2{font-size:15px;margin:0 0 10px;color:#1E2761}
+  .karte h3{font-size:12px;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.4px}
+  .karte h3.plus{color:#2F7D4F}.karte h3.minus{color:#B23A34}
+  .karte ul{margin:0;padding-left:0;list-style:none;font-size:12.5px;line-height:1.55}
+  .karte li{padding-left:20px;position:relative;margin-bottom:3px}
+  .karte li::before{position:absolute;left:0;top:0;font-weight:900}
+  .plus+ul li::before{content:"✓";color:#2F7D4F}
+  .minus+ul li::before{content:"✗";color:#B23A34}
+  .karte .mess{color:#5B6572;font-size:11px}
+</style>
+<div class="vn">
+  <div class="karte">
+    <h2>Datei auf W: (bisher)</h2>
+    <h3 class="plus">Vorteile</h3>
+    <ul>
+      <li>Keine zusätzliche Technik: kein Server, kein Dienst, nichts, was nachts laufen muss.</li>
+      <li>Jeder kennt den Weg, seit August im Betrieb, Rückweg jederzeit möglich.</li>
+      <li>W: wird von der IT gesichert und betrieben.</li>
+    </ul>
+    <h3 class="minus">Nachteile</h3>
+    <ul>
+      <li>Jedes Speichern führt die ganze Datei zusammen (4–5 MB) <span class="mess">– gemessen 12,8 s, nach Umbau ≈ 5 s</span>.</li>
+      <li>Zwei Rechner gleichzeitig = Zusammenführen, im Streitfall Konfliktkopien.</li>
+      <li>Fällt W: aus, steht alles <span class="mess">– 30.09., 13:23 Uhr, ein halber Tag</span>.</li>
+      <li>Eine Datei kann kaputtgehen oder leer geschrieben werden <span class="mess">– 03.08., 0-KB-Reste, EPERM</span>; die Sicherung ist Handarbeit.</li>
+      <li>Änderungen anderer kommen erst beim nächsten Nachsehen an, nicht sofort.</li>
+      <li>Zwei Standorte heißen zwei Dateiordner und zwei Berechtigungswelten.</li>
+    </ul>
+  </div>
+  <div class="karte srv">
+    <h2>Server V-BTACOCKPIT-1 (ab dem Umschalttag)</h2>
+    <h3 class="plus">Vorteile</h3>
+    <ul>
+      <li>EINE Wahrheit: ein Eintrag, eine Datenbank, keine Zusammenführung, keine Konfliktkopien.</li>
+      <li>Live: ein Zettel im einen Fenster steht sofort im anderen <span class="mess">– gemessen 30.09. und 01.10.</span>.</li>
+      <li>Schnell: kein 5-MB-Schreiben mehr, nur die Änderung geht über die Leitung.</li>
+      <li>Sicherung jede Nacht automatisch, Rückweg „Sicherung einspielen“ geübt <span class="mess">– Etappe A</span>.</li>
+      <li>Status-Seite zeigt Stand, Versionen, Fehler der letzten 24 h – statt Raten.</li>
+      <li>App-Tausch einmal auf dem Server gilt für alle Rechner; Browser reicht, Programm ist nur noch Rahmen.</li>
+      <li>Import mit Nachweis (0 Abweichungen) – nichts geht beim Wechsel verloren.</li>
+      <li>Soendgen als zweite, getrennte Datenbank schon angelegt.</li>
+    </ul>
+    <h3 class="minus">Nachteile</h3>
+    <ul>
+      <li>Der Server ist der eine Punkt: ist er weg, zeigt jedes Fenster die Warteseite – keine Eingabe möglich (Notfallzettel auf dem Stick).</li>
+      <li>Dienst und Server sind Robertos Verantwortung, nicht IT-Betrieb: Prüfen, Sicherung kontrollieren, Updates.</li>
+      <li>Werkstatt-Schlüssel noch nicht gesetzt: bis dahin könnte jeder im Firmennetz schreiben. Verbindung ohne Zertifikat (http).</li>
+      <li>Umschalttag nötig: alle Rechner zusammen, letzter Import, danach kein W: mehr – kein schleichender Wechsel.</li>
+      <li>Zwei Teile müssen zueinander passen (Programm 1.3 und Dienst 0.3.0); das Werkzeug prüft die Fassungen.</li>
+      <li>Jung: der Server läuft seit zwei Tagen, der neue seit heute. Betriebserfahrung fehlt noch.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="legende">
+  <span><i class="li"></i> redet live miteinander (beide Richtungen)</span>
+  <span><i class="li alt"></i> gestrichelt = alter Weg über die Datei, läuft heute noch mit</span>
+  <span><i class="li imp"></i> Import: einmalig, mit Nachweis</span>
+</div>
+</body></html>
