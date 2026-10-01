@@ -142,6 +142,30 @@ Feinarbeit machen die NTFS-Rechte oben (wirksam ist immer das strengere).
 
 - [x] **Schritt 16** – Status-Seite vom Werkstatt-PC – **erledigt 30.09.** (Roberto: „am Werkstatt-PC sieht es gut aus“).
 
+## 01.10.: UMZUG AUF EINEN NEUEN SERVER (Robertos Nachricht: „ich bekomme einen anderen Server, andere Adresse; einmalig, der neue bleibt meiner“)
+
+**Was sich ändert:** nur die Maschine und ihr Name. Dienst, App, Werkzeuge und Datenformat sind
+unabhängig vom Servernamen; der Name steht nirgends mehr fest (seit 01.10. schreibt das
+Server-Werkzeug ihn beim Einrichten nach `05-Server\server-adresse.txt`, das Rechner-Werkzeug und
+der Notfallzettel lesen ihn von dort).
+
+**Was NICHT mitkopiert werden kann** (hängt am Server, nicht an Dateien): die fünf lokalen Gruppen
+samt Mitgliedern, die NTFS-Rechte, die Aufgabe `bta-cockpit-dienst`, die Firewall-Regel, die
+Freigabe. **Deshalb legt „Einrichten“ seit 01.10. als Schritt 0 die Grundlage selbst an**
+(Ordner, Gruppen, Mitglieder aus Schritt 4, Rechte aus Schritt 3/3c, Freigabe `BTA`).
+
+**Was nicht gebraucht wird:** die kopierte Datenbank. Auf dem alten Server lag nur der Import vom
+30.09. plus ein Test-Zettel – der Import ist wiederholbar und nimmt den aktuellen W:-Stand. Eine
+während des Laufens kopierte `cockpit.sqlite` ohne `-wal` wäre außerdem unvollständig.
+
+Ablauf auf dem neuen Server (jeder Schritt einzeln, wie gewohnt):
+- [ ] **N1** – Stick-Ordner (ZIP 01.10.) auf den neuen Server → `BTA-Server-Werkzeug.cmd` als Administrator → **Prüfen**: Admin grün; Ordner/Gruppen rot/gelb mit „Einrichten legt sie an“; Node rot. Bild.
+- [ ] **N2** – „Node herunterladen“ (oder `node.exe` aus dem alten `C:\BTA\BTA-Programm\Dienst\node\` kopieren → `05-Server\node\` auf dem Stick).
+- [ ] **N3** – Einrichten → **„Nur prüfen (Vorschau)“**: Schritt 0 zeigt, was angelegt würde (Ordner, Gruppen, Mitglieder, Rechte, Freigabe). Protokoll.
+- [ ] **N4** – **„Einrichten“** → Status-Seite. Danach Prüfen: neun Ampeln, Fassung 0.3.0. Protokoll zeigt die neue Adresse `http://<name>:8765`.
+- [ ] **N5** – Kopien der W:-Dateien nach `\\<name>\BTA\BTA-Programm\Installation`, Reiter Import → Vorschau → Import → 7.306+ / 2.931+ fachlich, Nachweise 0.
+- [ ] **N6** – App-Datei tauschen → von Robertos PC `http://<name>:8765/app/` → anmelden → Zettel → zweiter Tab. Dann weiter mit 19c (Foto) und 20.
+
 ## Etappe B – Import (ab 30.09. nachmittags)
 
 - [x] **Schritt 17a** – Dienst auf 0.2.0 – **erledigt 30.09.** („0.2.0 steht“): Einrichten wiederholt, Dienst-Dateien getauscht, Neustart, Datenbanken unberührt.

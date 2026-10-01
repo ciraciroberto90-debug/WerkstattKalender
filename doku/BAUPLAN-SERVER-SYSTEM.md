@@ -227,7 +227,7 @@ weiter dort behoben (kleine Fixes), größere Wünsche warten auf das neue Syste
    Rollen, gemerkte Anmeldung). Windows-Konto nur als späterer Ausbau.
 3. ~~**Soendgen**~~ – **entschieden 30.09.: ja**, von Anfang an als zweite, leere
    Datenbank in `BTA-Soendgen`; die Trennung wird ab Etappe A mitgeprüft.
-4. ~~**Port und Name**~~ – **entschieden 30.09.: `http://v-btacockpit-01:8765`**, kein IT-Eintrag.
+4. ~~**Port und Name**~~ – **entschieden 30.09.: Port 8765, Name des Servers, kein IT-Eintrag.** (01.10.: neuer Server mit anderem Namen – der Name ist seither Daten, kein Code: `05-Server\server-adresse.txt`.)
 5. ~~**Fotos**~~ – **entschieden 30.09.: ja**, der Server verwaltet die Fotos
    (`BTA-Scheurich\fotos`, `BTA-Soendgen\fotos`), die vorhandenen werden beim
    Import mitgenommen; der Foto-Weg am Störbericht kommt damit zurück.

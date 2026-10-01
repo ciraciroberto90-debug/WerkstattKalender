@@ -1,5 +1,5 @@
 ==========================================================
- 05-SERVER - DER DIENST FUER v-btacockpit-01 (Etappe A)
+ 05-SERVER - DER DIENST FUER DEN BTA-SERVER
 ==========================================================
 Stand: 30.09.2026 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
 
@@ -26,7 +26,8 @@ So wird der Server eingerichtet (immer als Administrator):
   3. Reiter Pruefen -> "Jetzt pruefen": alle Ampeln gruen oder gelb.
   4. Reiter Einrichten -> erst "Nur pruefen (Vorschau)", dann
      "Einrichten". Am Ende oeffnet sich die Status-Seite
-     http://v-btacockpit-01:8765/status
+     http://<servername>:8765/status (steht nach dem Einrichten in
+     server-adresse.txt in diesem Ordner)
 
 Was danach laeuft: Aufgabe "bta-cockpit-dienst" in der
 Aufgabenplanung (Beim Systemstart, Konto SYSTEM, Neustart bei

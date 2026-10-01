@@ -1,7 +1,13 @@
 ==========================================================
- NOTFALLZETTEL - BTA-COCKPIT AUF DEM SERVER v-btacockpit-01
+ NOTFALLZETTEL - BTA-COCKPIT AUF DEM BTA-SERVER
 ==========================================================
-Stand: 30.09.2026 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md, Abschnitt 12)
+Stand: 01.10.2026 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md, Abschnitt 12)
+
+DER SERVER heisst hier <SERVER>. Seine Adresse steht in
+05-Server\server-adresse.txt (schreibt das Server-Werkzeug beim
+Einrichten), z. B. http://servername:8765. Am 01.10. wurde der Server
+einmalig auf eine neue Maschine umgezogen - der Name im Zettel ist
+deshalb ein Platzhalter.
 
 Dieser Zettel ist fuer den Fall, dass niemand da ist, der das System
 gebaut hat. Alles hier geht ohne Sonderwerkzeug - mit Explorer,
@@ -10,7 +16,7 @@ Eingabeaufforderung und Browser.
 ----------------------------------------------------------
  1. WO LIEGEN DIE DATEN?
 ----------------------------------------------------------
-Auf dem Server v-btacockpit-01 (Freigabe \\v-btacockpit-01\BTA = C:\BTA):
+Auf dem Server <SERVER> (Freigabe \\<SERVER>\BTA = C:\BTA):
 
   C:\BTA\BTA-Scheurich\cockpit.sqlite      Datenbank Scheurich (alles:
                                            Eintraege, Stoerberichte,
@@ -34,7 +40,7 @@ den kompletten Eintrag als JSON.
 ----------------------------------------------------------
  2. LAEUFT DER DIENST?
 ----------------------------------------------------------
-Im Browser: http://v-btacockpit-01:8765/status
+Im Browser: http://<SERVER>:8765/status
   Kommt die Seite: er laeuft. Dort stehen Fassung, Stand je Standort,
   letzte Sicherung, Fehler der letzten 24 Stunden.
 Kommt nichts: auf dem Server Aufgabenplanung oeffnen ->
@@ -58,7 +64,7 @@ Das Fenster zeigt dann das Protokoll live. Beenden mit Strg+C.
   c) Aus C:\BTA\BTA-Sicherung die gewuenschte ..._scheurich.sqlite nach
      C:\BTA\BTA-Scheurich\cockpit.sqlite kopieren (umbenennen!).
   d) Dienst starten (Aufgabenplanung -> Ausfuehren).
-  e) http://v-btacockpit-01:8765/status pruefen: Version und Zahlen
+  e) http://<SERVER>:8765/status pruefen: Version und Zahlen
      entsprechen dem Stand der Sicherung.
 Mit dem Werkzeug: Wartung -> "Sicherung einspielen..." macht a-e allein.
 
@@ -67,9 +73,9 @@ Mit dem Werkzeug: Wartung -> "Sicherung einspielen..." macht a-e allein.
 ----------------------------------------------------------
 Die alte Fassung des Cockpits arbeitet mit zwei JSON-Dateien. Der Dienst
 liefert genau dieses Format:
-  http://v-btacockpit-01:8765/api/scheurich/export.json
+  http://<SERVER>:8765/api/scheurich/export.json
       -> als werkstatt-kalender-daten.json speichern
-  http://v-btacockpit-01:8765/api/scheurich/export.json?bereich=stoerungen
+  http://<SERVER>:8765/api/scheurich/export.json?bereich=stoerungen
       -> als werkstatt-stoerungen.json speichern
 Beide Dateien in den Werkstatt-Ordner auf W: legen (den alten Ordner
 vorher umbenennen, nie zwei lebende Kopien), Fotos aus
@@ -81,9 +87,9 @@ Exporte in C:\BTA\BTA-Sicherung sind dieselben Dateien.
 ----------------------------------------------------------
  5. EIN RECHNER KOMMT NICHT AN DEN SERVER
 ----------------------------------------------------------
-  - Im Browser http://v-btacockpit-01:8765/status probieren, dann
-    http://10.253.100.31:8765/status. Geht die zweite, ist der Name das
-    Problem (IT: DNS). Geht keine: Firewall-Regel "BTA-Cockpit-Dienst" auf
+  - Im Browser http://<SERVER>:8765/status probieren, dann
+    http://<IP-des-Servers>:8765/status (IP: ipconfig am Server). Geht die
+    zweite, ist der Name das Problem (IT: DNS). Geht keine: Firewall-Regel "BTA-Cockpit-Dienst" auf
     dem Server pruefen (Werkzeug -> Pruefen).
   - Das Cockpit arbeitet in der Zeit mit seinem oertlichen Spiegel weiter
     und schickt die Aenderungen, sobald der Server antwortet (rote Leiste

@@ -376,7 +376,10 @@ $lblSrvUrl.Text = "Server-Adresse:"
 $lblSrvUrl.Location = New-Object System.Drawing.Point(12, 26)
 $lblSrvUrl.Size = New-Object System.Drawing.Size(120, 22)
 $txtSrvUrl = New-Object System.Windows.Forms.TextBox
-$txtSrvUrl.Text = "http://v-btacockpit-01:8765"
+# Vorgabe kommt vom Stick: 05-Server\server-adresse.txt schreibt das Server-Werkzeug
+# beim Einrichten (01.10.: der Server bekam einen neuen Namen - nichts mehr fest verdrahtet).
+$txtSrvUrl.Text = "http://SERVERNAME:8765"
+try { $adrDatei = Join-Path $paket "05-Server\server-adresse.txt"; if (Test-Path -LiteralPath $adrDatei) { $gelesen = (Get-Content -LiteralPath $adrDatei -Raw).Trim(); if ($gelesen -match "^https?://") { $txtSrvUrl.Text = $gelesen } } } catch { }
 $txtSrvUrl.Location = New-Object System.Drawing.Point(136, 23)
 $txtSrvUrl.Size = New-Object System.Drawing.Size(456, 24)
 $lblSrvKey = New-Object System.Windows.Forms.Label
@@ -881,7 +884,7 @@ function Server-Weg-Setzen([bool]$ein) {
   try {
     $url = $txtSrvUrl.Text.Trim().TrimEnd("/")
     $key = $txtSrvKey.Text.Trim()
-    if ($ein -and $url -notmatch "^https?://") { Melde "Bitte eine Server-Adresse wie http://v-btacockpit-01:8765 eintragen."; return }
+    if ($ein -and $url -notmatch "^https?://") { Melde "Bitte eine Server-Adresse wie http://servername:8765 eintragen (steht nach dem Einrichten in 05-Server\server-adresse.txt)."; return }
     if ($ein) {
       # Erst nachsehen, ob der Server antwortet - ein Rechner auf einem toten Weg waere der Fehler vom 03.08. in neu.
       try { $s = Invoke-RestMethod -Uri ($url + "/api/status") -TimeoutSec 5 -ErrorAction Stop; Schreibe-Log ("Server antwortet: Fassung " + $s.fassung) }

@@ -1,4 +1,4 @@
-# BTA-Cockpit: SERVER-Werkzeug - Fenster-Programm fuer v-btacockpit-01
+# BTA-Cockpit: SERVER-Werkzeug - Fenster-Programm fuer den BTA-Server (Name egal - seit 01.10. eine neue Maschine)
 # ===================================================================
 #
 # Etappe A des Bauplans (doku/BAUPLAN-SERVER-SYSTEM.md, Abschnitt 11):
@@ -63,6 +63,18 @@ $Standorte = @(
   @{ Id = "soendgen";  Name = "Soendgen Keramik"; Ordner = (Join-Path $ServerOrdner "BTA-Soendgen") }
 )
 $Gruppen = @("BTA-Verwalter", "BTA-Scheurich-Werkstatt", "BTA-Scheurich-Ansehen", "BTA-Soendgen-Werkstatt", "BTA-Soendgen-Ansehen")
+# Mitglieder der Gruppen (Stand SERVER-AUFBAU Schritte 2 und 4, 29.09.) - damit ein
+# NEUER Server (01.10.: Umzug auf eine andere Maschine) in einem Durchgang entsteht.
+# Domaenen-Konten; ein Konto, das es nicht (mehr) gibt, wird gemeldet und uebersprungen.
+$Domaene = "SCHEURICH"
+$Mitglieder = @{
+  "BTA-Verwalter"           = @("rciraci", "serviceBTA", "thomas.smarsly")
+  "BTA-Scheurich-Werkstatt" = @("andreas.ecke", "aradke", "ciraci", "Elektro", "elektroabt", "elektroazubi", "Jaeger", "kczoczek", "mwerkstatt", "PBaier", "rciraci", "thomas.smarsly")
+  "BTA-Scheurich-Ansehen"   = @()
+  "BTA-Soendgen-Werkstatt"  = @()
+  "BTA-Soendgen-Ansehen"    = @()
+}
+$FreigabeName = "BTA"
 $NodeFassung = "v22.23.3"
 # Die Dienst-Fassung, die dieser Stick mitbringt (05-Server\dienst\dienst.js).
 # Import und Vorschau verlangen genau diese Fassung auf dem Server - sonst
@@ -225,34 +237,34 @@ $tabPruef.Controls.AddRange(@($lblPruef, $kPruefen, $kBericht))
 $gbEin = New-Object System.Windows.Forms.GroupBox
 $gbEin.Text = " Was eingerichtet wird "
 $gbEin.Location = New-Object System.Drawing.Point(10, 8)
-$gbEin.Size = New-Object System.Drawing.Size(648, 190)
+$gbEin.Size = New-Object System.Drawing.Size(648, 208)
 $lblEin = New-Object System.Windows.Forms.Label
-$lblEin.Text = "1. Ordner Dienst / App / Protokoll anlegen`n2. Node (portabel) und die Dienst-Dateien nach " + $DienstOrdner + " kopieren`n3. einstellungen.json schreiben (Port, Standorte, Ordner)`n4. Firewall-Regel fuer den Port (eingehend, nur Firmennetz)`n5. Aufgabe '" + $AufgabeName + "' anlegen: Beim Systemstart, Konto SYSTEM, Neustart bei Fehler`n6. Dienst starten und /api/status abfragen"
+$lblEin.Text = "0. Grundlage: Ordner C:\BTA, fuenf Gruppen + Mitglieder, Rechte, Freigabe (falls noch nicht da)`n1. Ordner Dienst / App / Protokoll anlegen`n2. Node (portabel) und die Dienst-Dateien nach " + $DienstOrdner + " kopieren`n3. einstellungen.json schreiben (Port, Standorte, Ordner)`n4. Firewall-Regel fuer den Port (eingehend, nur Firmennetz)`n5. Aufgabe '" + $AufgabeName + "' anlegen: Beim Systemstart, Konto SYSTEM, Neustart bei Fehler`n6. Dienst starten und /api/status abfragen"
 $lblEin.Location = New-Object System.Drawing.Point(14, 22)
-$lblEin.Size = New-Object System.Drawing.Size(620, 118)
+$lblEin.Size = New-Object System.Drawing.Size(620, 136)
 $lblPort = New-Object System.Windows.Forms.Label
 $lblPort.Text = "Port:"
-$lblPort.Location = New-Object System.Drawing.Point(14, 150)
+$lblPort.Location = New-Object System.Drawing.Point(14, 168)
 $lblPort.Size = New-Object System.Drawing.Size(40, 22)
 $txtPort = New-Object System.Windows.Forms.TextBox
 $txtPort.Text = "$PortVorgabe"
-$txtPort.Location = New-Object System.Drawing.Point(56, 147)
+$txtPort.Location = New-Object System.Drawing.Point(56, 165)
 $txtPort.Size = New-Object System.Drawing.Size(70, 24)
 $chkSoendgen = New-Object System.Windows.Forms.CheckBox
 $chkSoendgen.Text = "Soendgen Keramik als zweite (leere) Datenbank anlegen (Robertos Entscheidung 30.09.: ja)"
-$chkSoendgen.Location = New-Object System.Drawing.Point(150, 148)
+$chkSoendgen.Location = New-Object System.Drawing.Point(150, 166)
 $chkSoendgen.Size = New-Object System.Drawing.Size(490, 22)
 $chkSoendgen.Checked = $true
 $gbEin.Controls.AddRange(@($lblEin, $lblPort, $txtPort, $chkSoendgen))
 
 $kVorschau = New-Object System.Windows.Forms.Button
 $kVorschau.Text = "Nur pruefen (Vorschau, aendert nichts)"
-$kVorschau.Location = New-Object System.Drawing.Point(10, 210)
+$kVorschau.Location = New-Object System.Drawing.Point(10, 226)
 $kVorschau.Size = New-Object System.Drawing.Size(316, 40)
 $kVorschau.FlatStyle = "System"
 $kEinrichten = New-Object System.Windows.Forms.Button
 $kEinrichten.Text = "Einrichten"
-$kEinrichten.Location = New-Object System.Drawing.Point(342, 210)
+$kEinrichten.Location = New-Object System.Drawing.Point(342, 226)
 $kEinrichten.Size = New-Object System.Drawing.Size(316, 40)
 $kEinrichten.FlatStyle = "Flat"
 $kEinrichten.BackColor = $gruen
@@ -260,12 +272,12 @@ $kEinrichten.ForeColor = $weiss
 $kEinrichten.Font = New-Object System.Drawing.Font("Segoe UI", 10.5, [System.Drawing.FontStyle]::Bold)
 $kNode = New-Object System.Windows.Forms.Button
 $kNode.Text = "Node herunterladen (falls nicht auf dem Stick)"
-$kNode.Location = New-Object System.Drawing.Point(10, 262)
+$kNode.Location = New-Object System.Drawing.Point(10, 276)
 $kNode.Size = New-Object System.Drawing.Size(316, 32)
 $kNode.FlatStyle = "System"
 $lblEinHinweis = New-Object System.Windows.Forms.Label
 $lblEinHinweis.Text = "Einrichten laesst sich wiederholen: Bestehendes wird ersetzt, die Datenbanken bleiben unangetastet."
-$lblEinHinweis.Location = New-Object System.Drawing.Point(12, 306)
+$lblEinHinweis.Location = New-Object System.Drawing.Point(12, 316)
 $lblEinHinweis.Size = New-Object System.Drawing.Size(640, 40)
 $lblEinHinweis.ForeColor = [System.Drawing.Color]::Gray
 $tabEin.Controls.AddRange(@($gbEin, $kVorschau, $kEinrichten, $kNode, $lblEinHinweis))
@@ -454,11 +466,11 @@ function Pruefe-Alles([bool]$laut) {
   # 2 Ordner
   $fehlend = @()
   foreach ($o in @((Join-Path $ServerOrdner "BTA-Programm"), (Join-Path $ServerOrdner "BTA-Scheurich"), $SicherungOrdner, (Join-Path $ServerOrdner "BTA-Soendgen"))) { if (-not (Test-Path -LiteralPath $o)) { $fehlend += (Split-Path -Leaf $o) } }
-  if ($fehlend.Count -eq 0) { Setze-Ampel $ampelZeilen[1] "gruen" "alle vier da" } else { Setze-Ampel $ampelZeilen[1] "rot" ("fehlt: " + ($fehlend -join ", ") + " - siehe SERVER-AUFBAU Schritt 1") }
+  if ($fehlend.Count -eq 0) { Setze-Ampel $ampelZeilen[1] "gruen" "alle vier da" } else { Setze-Ampel $ampelZeilen[1] "rot" ("fehlt: " + ($fehlend -join ", ") + " - Einrichten legt sie an") }
   $ergebnis.ordner = ($fehlend.Count -eq 0)
   # 3 Gruppen
   $gFehlend = @(); foreach ($g in $Gruppen) { if (-not (Gruppe-Da $g)) { $gFehlend += $g } }
-  if ($gFehlend.Count -eq 0) { Setze-Ampel $ampelZeilen[2] "gruen" "alle fuenf da" } else { Setze-Ampel $ampelZeilen[2] "gelb" ("fehlt: " + ($gFehlend -join ", ") + " - SERVER-AUFBAU Schritt 2") }
+  if ($gFehlend.Count -eq 0) { Setze-Ampel $ampelZeilen[2] "gruen" "alle fuenf da" } else { Setze-Ampel $ampelZeilen[2] "gelb" ("fehlt: " + ($gFehlend -join ", ") + " - Einrichten legt sie an") }
   $ergebnis.gruppen = ($gFehlend.Count -eq 0)
   # 4 Node
   if (Test-Path -LiteralPath $nodeExe) { Setze-Ampel $ampelZeilen[3] "gruen" ("im Dienst-Ordner: " + (& $nodeExe -v)) }
@@ -597,6 +609,57 @@ function Einrichten-Laufen([bool]$nurVorschau) {
   Arbeit-Beginnt
   Schreibe-Log ($praefix + "Einrichten gestartet (Port $port).")
   try {
+    # 0 Grundlage (Ordner, Gruppen, Mitglieder, Rechte, Freigabe) - war am 29.09. Handarbeit
+    #   (SERVER-AUFBAU Schritte 1-5); seit dem Umzug auf einen neuen Server (01.10.) legt
+    #   das Werkzeug alles selbst an. Vorhandenes wird nicht angetastet.
+    Schreibe-Log ($praefix + "0. Grundlage: Ordnerstruktur, fuenf Gruppen, Mitglieder, Rechte, Freigabe")
+    foreach ($o in @($ServerOrdner, (Join-Path $ServerOrdner "BTA-Programm"), (Join-Path $ServerOrdner "BTA-Programm\Update"), (Join-Path $ServerOrdner "BTA-Programm\Installation"), (Join-Path $ServerOrdner "BTA-Scheurich"), (Join-Path $ServerOrdner "BTA-Soendgen"), $SicherungOrdner)) {
+      if (-not (Test-Path -LiteralPath $o)) { Schreibe-Log ($praefix + "   Ordner anlegen: " + $o); if ($tu) { New-Item -ItemType Directory -Path $o -Force | Out-Null } }
+    }
+    foreach ($g in $Gruppen) {
+      if (Gruppe-Da $g) { continue }
+      Schreibe-Log ($praefix + "   Gruppe anlegen: " + $g)
+      if ($tu) { try { New-LocalGroup -Name $g -Description "BTA-Cockpit (angelegt vom BTA-Server-Werkzeug)" -ErrorAction Stop | Out-Null } catch { $null = (net localgroup $g /add 2>&1) } }
+    }
+    foreach ($g in $Mitglieder.Keys) {
+      foreach ($konto in $Mitglieder[$g]) {
+        $voll = $Domaene + "\" + $konto
+        $drin = $false
+        try { $drin = @(Get-LocalGroupMember -Group $g -ErrorAction Stop | Where-Object { $_.Name -like ("*\" + $konto) }).Count -gt 0 } catch { $drin = $false }
+        if ($drin) { continue }
+        Schreibe-Log ($praefix + "   " + $g + " + " + $voll)
+        if ($tu) {
+          try { Add-LocalGroupMember -Group $g -Member $voll -ErrorAction Stop }
+          catch { Schreibe-Log ("      nicht aufgenommen (" + $_.Exception.Message.Trim() + ") - Konto pruefen oder von Hand ueber lusrmgr.msc") }
+        }
+      }
+    }
+    # Rechte wie SERVER-AUFBAU Schritt 3/3c (icacls; mehrfaches Setzen ist unschaedlich)
+    $rechte = @(
+      @($ServerOrdner, "BTA-Verwalter:(OI)(CI)F"),
+      @((Join-Path $ServerOrdner "BTA-Scheurich"), "BTA-Scheurich-Werkstatt:(OI)(CI)M"),
+      @((Join-Path $ServerOrdner "BTA-Scheurich"), "BTA-Scheurich-Ansehen:(OI)(CI)RX"),
+      @((Join-Path $ServerOrdner "BTA-Soendgen"),  "BTA-Soendgen-Werkstatt:(OI)(CI)M"),
+      @((Join-Path $ServerOrdner "BTA-Soendgen"),  "BTA-Soendgen-Ansehen:(OI)(CI)RX")
+    )
+    foreach ($g in @("BTA-Scheurich-Werkstatt", "BTA-Scheurich-Ansehen", "BTA-Soendgen-Werkstatt", "BTA-Soendgen-Ansehen")) {
+      $rechte += ,@((Join-Path $ServerOrdner "BTA-Programm"), ($g + ":(OI)(CI)RX"))
+      $rechte += ,@($ServerOrdner, ($g + ":RX"))   # nur den Ordner C:\BTA auflisten duerfen (Schritt 3c)
+    }
+    Schreibe-Log ($praefix + "   Rechte setzen (icacls): " + $rechte.Count + " Eintraege")
+    if ($tu) {
+      foreach ($r in $rechte) {
+        $aus = (& icacls.exe $r[0] /grant ("*" + $r[1]) 2>&1)
+        if ($LASTEXITCODE -ne 0) { $aus = (& icacls.exe $r[0] /grant $r[1] 2>&1); if ($LASTEXITCODE -ne 0) { Schreibe-Log ("      icacls " + $r[0] + " " + $r[1] + ": " + (($aus | Select-Object -Last 1) -join " ")) } }
+      }
+    }
+    $freigabeDa = $false
+    try { $freigabeDa = @(Get-SmbShare -Name $FreigabeName -ErrorAction Stop).Count -gt 0 } catch { $freigabeDa = $false }
+    if (-not $freigabeDa) {
+      Schreibe-Log ($praefix + "   Freigabe anlegen: \\" + $env:COMPUTERNAME + "\" + $FreigabeName + " -> " + $ServerOrdner + " (Jeder Vollzugriff auf der Freigabe, NTFS regelt)")
+      if ($tu) { try { New-SmbShare -Name $FreigabeName -Path $ServerOrdner -FullAccess "Jeder" -ErrorAction Stop | Out-Null } catch { try { New-SmbShare -Name $FreigabeName -Path $ServerOrdner -FullAccess "Everyone" -ErrorAction Stop | Out-Null } catch { Schreibe-Log ("      Freigabe nicht angelegt: " + $_.Exception.Message.Trim()) } } }
+    }
+    Schreibe-Log ($praefix + "0. Grundlage: fertig.")
     # 1 Ordner
     $ordner = @($DienstOrdner, (Join-Path $DienstOrdner "node"), (Join-Path $DienstOrdner "protokoll"), $AppOrdner, $SicherungOrdner, (Join-Path $ServerOrdner "BTA-Scheurich\fotos"))
     if ($mitSoendgen) { $ordner += (Join-Path $ServerOrdner "BTA-Soendgen\fotos") }
@@ -662,6 +725,10 @@ function Einrichten-Laufen([bool]$nurVorschau) {
       if ($s) {
         $teile = @(); foreach ($p2 in $s.standorte.PSObject.Properties) { $teile += ($p2.Name + ": Version " + $p2.Value.version + ", " + $p2.Value.eintraege + " Eintraege, " + $p2.Value.stoerungen + " Stoerberichte") }
         Schreibe-Log ("   Dienst antwortet: Fassung " + $s.fassung + " - " + ($teile -join " | "))
+        # Die Adresse dieses Servers auf den Stick schreiben - das Rechner-Werkzeug
+        # ("Server-Weg") und der Notfallzettel lesen sie von dort, statt einen Namen
+        # fest zu verdrahten (01.10.: der Server bekam einen neuen Namen).
+        try { Schreibe-OhneBom (Join-Path $paket "05-Server\server-adresse.txt") ("http://" + $env:COMPUTERNAME.ToLower() + ":" + $port); Schreibe-Log ("   Server-Adresse auf den Stick geschrieben: 05-Server\server-adresse.txt = http://" + $env:COMPUTERNAME.ToLower() + ":" + $port) } catch { Schreibe-Log ("   Hinweis: Adresse nicht auf den Stick geschrieben (" + $_.Exception.Message + ")") }
         Arbeit-Fertig
         Schreibe-Log "Fertig eingerichtet."
         Melde ("Fertig eingerichtet.`n`nDer Dienst laeuft und startet ab jetzt mit dem Server.`nStatus-Seite: http://" + $env:COMPUTERNAME + ":" + $port + "/status`n`nSie oeffnet sich gleich im Browser.")
