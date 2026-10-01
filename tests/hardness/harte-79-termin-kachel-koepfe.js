@@ -1,6 +1,6 @@
 // Härtetest: TERMIN-KACHEL MIT DROPDOWN DER ANWESENDEN (Robertos Wahl vom 21.09., Vorlage 2)
 //
-// Die Tagesliste ("Heute · Montag") bleibt wie sie ist. Rechts im Kopf steht
+// Die Tagesliste ("Tagesplan · Montag", bis 30.09. "Heute") bleibt wie sie ist. Rechts im Kopf steht
 // ein Knopf "Anwesende"; sein Menü listet die heute Anwesenden nach Schicht
 // mit Fortschritt, oben "Termine" = die Tagesliste. Wer fehlt (Schule, Krank,
 // Urlaub), steht nicht als Eintrag, sondern grau unter dem Menü. Die Wahl
@@ -208,7 +208,7 @@ const eintraege = [
   /* ---- (8) Ohne Team ---- */
   const o = await seite({ ohneTeam: true });
   ok("(8) Ohne Team: kein Knopf, die Tagesliste steht wie bisher",
-    (await knopf(o.p).count()) === 0 && /HEUTE · MONTAG, 21\.09\./.test(await o.p.locator("body").innerText()) && /PitStop/.test(await o.p.locator("body").innerText()));
+    (await knopf(o.p).count()) === 0 && /TAGESPLAN · MONTAG, 21\.09\./.test(await o.p.locator("body").innerText()) && /PitStop/.test(await o.p.locator("body").innerText()));
   await o.ctx.close();
 
   await browser.close();

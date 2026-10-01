@@ -718,6 +718,38 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
   const delta = d.delta && d.delta.text ? (
     <span className="font-black" style={{ fontSize: "0.7rem", color: d.delta.gut === null ? "#8A9099" : d.delta.gut ? "#2F7D4F" : "#B23A34", marginLeft: "6px" }}>{d.delta.text}</span>
   ) : null;
+  if (def.form === "tabelle") {
+    // Robertos Skizze vom 01.10.: drei Spalten Soll · Ist · Erfüllungsgrad, der
+    // Erfüllungsgrad als kleiner Halbkreis (Vorlage A mit dem Bogen aus B).
+    const hatWert = d.prozent !== null && d.prozent !== undefined;
+    const frac = hatWert ? Math.min(1, Math.max(0, d.prozent / 100)) : 0;
+    const umfang = Math.PI * 34;
+    const [hell, dunkelF] = d.farben || ["#43B26F", "#2F7D4F"];
+    const spalte = (kopf, inhalt) => (
+      <div className="flex flex-col items-center" style={{ flex: 1, minWidth: 0 }}>
+        <div className="font-bold" style={{ color: "#8A9099", fontSize: `calc(var(--wk-txt-etikett) * ${skala} * 0.9)`, letterSpacing: "0.3px", lineHeight: 1.2 }}>{kopf}</div>
+        <div className="flex items-center justify-center" style={{ height: `${44 * skala}px` }}>{inhalt}</div>
+      </div>
+    );
+    const zahl = (n, farbe) => <span className="font-extrabold" style={{ fontSize: `${1.7 * skala}rem`, lineHeight: 1, color: farbe }}>{hatWert ? n : "–"}</span>;
+    return karte(<>
+      {kopfzeile(d.label)}
+      <div className="flex items-stretch" style={{ gap: `${6 * skala}px` }} aria-label={`${d.label}: Soll ${d.soll ?? "–"}, Ist ${d.ist ?? "–"}, Erfüllungsgrad ${hatWert ? d.prozent + " %" : "–"}`}>
+        {spalte("Soll", zahl(d.soll, "#22262B"))}
+        <div style={{ width: "1px", background: "#E5E9ED" }} />
+        {spalte("Ist", zahl(d.ist, "#2F6690"))}
+        <div style={{ width: "1px", background: "#E5E9ED" }} />
+        {spalte("Erfüllungsgrad", (
+          <svg viewBox="0 0 84 50" style={{ width: `${74 * skala}px`, height: `${44 * skala}px`, display: "block" }} role="img" aria-hidden="true">
+            <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke="#E5E9ED" strokeWidth="9" strokeLinecap="round" />
+            {hatWert && frac > 0 && <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke={dunkelF} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${umfang}`} strokeDashoffset={`${umfang * (1 - frac)}`} />}
+            <text x="42" y="45" textAnchor="middle" fontSize="17" fontWeight="800" fill={hatWert ? dunkelF : "#8A9099"} style={{ fontFamily: "inherit" }}>{hatWert ? `${d.prozent} %` : "–"}</text>
+          </svg>
+        ))}
+      </div>
+      {unterzeile(hatWert ? d.ampelRegel : "heute steht laut Plan nichts an")}
+    </>, {}, true);
+  }
   if (def.form === "halbkreis") {
     // Der Halbkreis bringt seine eigene Karte mit - das Kennzeichen (Inhalt/
     // Form) hängt direkt an ihr, damit die Kachel im Raster ein echtes Kind
@@ -1754,10 +1786,12 @@ function reihenfolgeAusBausteinen(bausteine) {
 }
 /* Die fünf Whiteboard-Kacheln (Robertos Tafel vom 23.09., Vorlage U1) mit
    festen Kennungen, damit die Gruppen-Vorlage auf jedem Rechner dieselben
-   Kacheln meint: To-dos Soll/Ist, TPM-Effizienz, Unfälle, Backlog, Kosten. */
+   Kacheln meint: Tagesleistung (bis 30.09.: To-dos Soll/Ist - Robertos Tausch
+   vom 01.10., die Kennung "k-wbtodo" bleibt, damit gespeicherte Layouts die
+   neue Kachel an derselben Stelle zeigen), TPM-Effizienz, Unfälle, Backlog, Kosten. */
 const WHITEBOARD_KACHELN = ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten"];
 const WHITEBOARD_KACHEL_DEF = {
-  "k-wbtodo": { inhalt: "todoSollIst", form: "halbkreis", zeitraum: "monat" },
+  "k-wbtodo": { inhalt: "tagesleistung", form: "tabelle" },
   "k-wbtpm": { inhalt: "tpmQuote", form: "halbkreis", zeitraum: "monat" },
   "k-wbunfall": { inhalt: "unfaelle", form: "zahl" },
   "k-wbbacklog": { inhalt: "backlogLive", form: "halbkreis" },
@@ -1766,7 +1800,7 @@ const WHITEBOARD_KACHEL_DEF = {
 const UEBERSICHT_VORLAGEN = [
   ["standard", "Standard", "Alles an, wie bisher – Kennzahlen, Heute da, Störungen, Tagesliste, Pinnwand.",
     { aus: [], reihenfolge: ["kennzahlen", "heuteDa", "stoerungen", "hauptzeile"] }],
-  ["whiteboard", "Whiteboard", "Robertos Tafel vom 23.09.: fünf Halbkreis-Kacheln (To-dos, TPM, Unfälle, Backlog, Kosten), Tagesplan groß, darunter Pinnwand, Technischer Einkauf und Heute da nebeneinander.",
+  ["whiteboard", "Whiteboard", "Robertos Tafel vom 23.09.: fünf Kacheln (Tagesleistung, TPM, Unfälle, Backlog, Kosten), Tagesplan groß, darunter Pinnwand, Technischer Einkauf und Heute da nebeneinander.",
     { aus: ["neuigkeiten", "rueckblick", "zahlen", "quote", "oee", "uhr"], an: ["einkauf"], reihenfolge: ["kennzahlen", "hauptzeile", "stoerungen", "unten", "heuteDa"],
       zeileUnten: true, kacheln: WHITEBOARD_KACHELN, kachelDef: WHITEBOARD_KACHEL_DEF,
       bausteine: [{ id: "kennzahlen", breite: 12 }, { id: "tagesliste", breite: 12 }, { id: "stoerungen", breite: 12 }, { id: "pinnwand", breite: 4 }, { id: "einkauf", breite: 4 }, { id: "heuteDa", breite: 4 }] }],
@@ -1830,12 +1864,15 @@ function findeDoppelteStoerungen(liste) {
   return out;
 }
 
-const KENNZAHL_FORMEN = [["zahl", "Zahl"], ["halbkreis", "Halbkreis"], ["verlauf", "Verlauf"], ["ampel", "Ampel"], ["top3", "Top 3"]];
+const KENNZAHL_FORMEN = [["zahl", "Zahl"], ["halbkreis", "Halbkreis"], ["verlauf", "Verlauf"], ["ampel", "Ampel"], ["top3", "Top 3"], ["tabelle", "Tabelle (Soll · Ist · Grad)"]];
 const KENNZAHL_ZEITRAEUME = { heute: "heute", woche: "diese Woche", monat: "Monat", jahr: "Jahr", tage30: "30 Tage" };
 const KENNZAHLEN = [
   // id, Bezeichnung, Gruppe, erlaubte Darstellungen, erlaubte Zeiträume (null = ohne), Standard-Zeitraum
   ["heuteFaellig", "Heute fällig", "Termine", ["zahl"], null],
   ["heuteErledigt", "Heute erledigt", "Termine", ["zahl"], null],
+  // Robertos Skizze 01.10.: Tagesleistung = Auswertung des Tagesplans (Soll = was heute
+  // ansteht, Ist = davon erledigt, Erfüllungsgrad) - ersetzt im Whiteboard "To-dos · Monat".
+  ["tagesleistung", "Tagesleistung", "Termine", ["tabelle", "halbkreis", "zahl"], null],
   ["ueberfaellig", "Überfällig", "Termine", ["zahl", "top3"], null],
   ["terminePlan", "Termine im Plan", "Termine", ["zahl"], ["monat", "jahr"], "monat"],
   ["naechsterPitStop", "Nächster PitStop", "Termine", ["zahl", "top3"], null],
@@ -1919,7 +1956,14 @@ function normalisiereUebersichtLayout(roh) {
   });
   const kacheln = [...kGewuenscht, ...UEBERSICHT_KACHELN.filter((k) => !kGewuenscht.includes(k))];
   const kachelDef = {};
-  kacheln.forEach((k) => { kachelDef[k] = normalisiereKachelDef(rohDef[k], KACHEL_STANDARD_DEF[k]); });
+  kacheln.forEach((k) => {
+    // Robertos Tausch vom 01.10.: Die Whiteboard-Kachel k-wbtodo zeigt die
+    // Tagesleistung. Gespeicherte Layouts tragen noch "To-dos Soll/Ist" - die
+    // werden hier umgeschrieben, sonst bliebe die alte Kachel auf jedem Rechner,
+    // der das Whiteboard einmal gewählt hat.
+    const roh1 = k === "k-wbtodo" && rohDef[k] && rohDef[k].inhalt === "todoSollIst" ? WHITEBOARD_KACHEL_DEF[k] : rohDef[k];
+    kachelDef[k] = normalisiereKachelDef(roh1, KACHEL_STANDARD_DEF[k]);
+  });
   // tausch / zeileUnten: die alten Stellschrauben von vor dem Baukasten -
   // sie werden nur noch gelesen, um alte Anordnungen zu übersetzen.
   const tausch = !!(roh && roh.tausch);
@@ -6651,6 +6695,21 @@ function App() {
       case "nachbestellungen": return { label, text: offeneNachbestellungen.length, sub: offeneNachbestellungen.length > 0 ? "aus Störberichten" : "nichts offen", farbe: offeneNachbestellungen.length > 0 ? "#A25E14" : "#2F7D4F", akzent: offeneNachbestellungen.length > 0 ? "#C97A2B" : "#CBD1D8",
         top3: offeneNachbestellungen.slice(0, 3).map((s) => ({ name: String(s.ersatzteile || "").slice(0, 30), text: s.anlage || "" })) };
       /* ---- Whiteboard-Kacheln (Robertos Tafel vom 23.09.) ---- */
+      case "tagesleistung": {
+        // Der Tagesplan des heutigen Tages (die Heute-Liste): Plan-Punkte TPM/R+I,
+        // Regeltermine und To-dos mit Frist heute. Soll = alles, Ist = davon erledigt.
+        const planErledigt = heutePlan.filter((p) => statusFuerPlanPunkt(p) === "done").length;
+        const termineErledigt = heuteTermine.filter((t) => t.status === "done").length;
+        const todosHeute = todos.filter((t) => String(t.bis || "").slice(0, 10) === todayKey);
+        const todosErledigt = todosHeute.filter((t) => t.status === "done").length;
+        const soll = heutePlan.length + heuteTermine.length + todosHeute.length;
+        const ist = planErledigt + termineErledigt + todosErledigt;
+        const p = soll > 0 ? Math.round((ist / soll) * 100) : null;
+        const ampel = p === null ? "" : p >= 80 ? "gruen" : p >= 50 ? "gelb" : "rot";
+        return { label: "Tagesleistung", kurz: "Tagesleistung", text: p === null ? "–" : `${ist} / ${soll}`, prozent: p, soll, ist, sub: `Soll ${soll} · Ist ${ist}`,
+          titel: `Tagesplan heute: Soll = Plan-Punkte, Termine und To-dos mit Frist heute (${heutePlan.length} + ${heuteTermine.length} + ${todosHeute.length}), Ist = davon erledigt`, farbe: "#2F6690", akzent: p === null ? "#CBD1D8" : ampel === "rot" ? "#B23A34" : ampel === "gelb" ? "#C97A2B" : "#2F7D4F",
+          farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ampel === "gelb" ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"], ampel, ampelRegel: "grün ab 80 % erledigt, gelb ab 50 %" };
+      }
       case "todoSollIst": {
         // Soll = To-dos mit Frist im Zeitraum, Ist = davon erledigt. Ohne Frist
         // zählt ein To-do nicht - sonst wäre "Soll" nie erreichbar.
@@ -11405,6 +11464,7 @@ function App() {
             case "kosten": return zahnrad("regeln-kosten", "Budget und Ausgaben im ⚙ pflegen");
             case "stoerOffen": case "stoerAnzahl": case "ausfallzeit": case "sorgenkind": case "nachbestellungen": return bericht("STOERUNGEN", "Störungen öffnen");
             case "todoOffen": case "todoSollIst": return bericht("TODO", "To-dos öffnen");
+            case "tagesleistung": return { mach: () => { const el = document.getElementById("wk-tagesplan"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, hinweis: "Zum Tagesplan" };
             case "erledigt": case "backlogLive": case "backlogAlter": return bericht("BACKLOG", "Backlog öffnen");
             case "stunden": return bericht("ZEIT", "Zeiterfassung öffnen");
             case "jetztDa": return sichtbar("SCHICHTPLAN") ? { mach: () => { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }, hinweis: "Schichtplan öffnen" } : null;
@@ -11931,8 +11991,9 @@ function App() {
             };
             return (
             <div>
-              <div className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B", position: "relative" }}>
-                Heute · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
+              <div id="wk-tagesplan" className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B", position: "relative", scrollMarginTop: "110px" }}>
+                {/* Seit 01.10. "Tagesplan" statt "Heute" (Roberto) - die Liste selbst wird später überarbeitet. */}
+                Tagesplan · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
                 {/* Kalender-Popup (24.08.): der TPM/R+I-Monatskalender als
                     kleines Fenster, ohne den Reiter zu wechseln. */}
                 <button

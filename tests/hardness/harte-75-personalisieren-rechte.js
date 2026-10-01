@@ -363,7 +363,7 @@ const ok = (n, c, zusatz) => {
     (await ap.locator('[role="region"][aria-label="Übersicht anordnen"]').count()) === 0 && (await ap.locator("[data-anordnen]").count()) === 0);
   const text2 = await ap.locator("body").innerText();
   ok("(C6) Die Anordnung bleibt: Offene Störungen stehen vor „Heute fällig“, Pinnwand vor der Tagesliste",
-    text2.search(/Offene Störungen/i) < text2.indexOf("Heute fällig") && text2.search(/📌 Pinnwand/i) < text2.search(/HEUTE · /i));
+    text2.search(/Offene Störungen/i) < text2.indexOf("Heute fällig") && text2.search(/📌 Pinnwand/i) < text2.search(/TAGESPLAN · /i));
   await an.ctx.close();
 
   /* ================= (D) Schichtplan-Notizen je Gruppe sichtbar =================

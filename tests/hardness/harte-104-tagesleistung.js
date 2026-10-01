@@ -1,0 +1,117 @@
+// Härtetest: KACHEL „TAGESLEISTUNG“ + „TAGESPLAN“ (Robertos Skizze vom 01.10.)
+//
+// Im Whiteboard-Layout ersetzt die Kachel „Tagesleistung“ die bisherige
+// „To-dos · Monat“ (gleiche Kennung k-wbtodo, damit gespeicherte Layouts
+// sie an derselben Stelle zeigen). Sie wertet den Tagesplan aus: Soll =
+// Plan-Punkte, Termine und To-dos mit Frist heute, Ist = davon erledigt,
+// Erfüllungsgrad als kleiner Halbkreis. Die Heute-Liste heißt „Tagesplan“.
+//  (T1) Kachel da: Tabelle Soll · Ist · Erfüllungsgrad = 4 · 2 · 50 %
+//  (T2) Überschrift der Liste heißt „Tagesplan · …“, nicht mehr „Heute · …“
+//  (T3) Klick auf die Kachel springt zum Tagesplan
+//  (T4) Ein To-do erledigt -> Kachel zeigt 3 · 75 % (ohne Neuladen)
+//  (T5) Kein Plan heute -> Kachel ehrlich „–“ mit „nichts an“
+//  (E)  Keine Skriptfehler
+// Rot-Nachweis: Vor dem 01.10. gab es weder die Kennzahl noch die Form
+// „tabelle“ (T1 rot), und die Überschrift hieß „Heute“ (T2 rot).
+const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+
+let pass = 0, fail = 0;
+const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
+const HEUTE = "2026-10-01";
+// Ohne TPM-Anlagen: sonst plant der Takt-Planer PitStops fuer heute, die zu Recht mitzaehlen - hier soll die Rechnung ueberschaubar bleiben.
+const config = { tpmAnlagen: [], riItems: [], team: [{ name: "T. Balles", rolle: "mech" }], benutzer: [{ name: "Chef", rolle: "verwalter", kennwortHash: "" }] };
+const entries = [
+  { id: "te1", date: HEUTE, category: "TERMIN", name: "Schichtübergabe", status: "done", updatedAt: HEUTE + "T06:00:00.000Z" },
+  { id: "te2", date: HEUTE, category: "TERMIN", name: "Lieferant Hydraulik", status: "open", updatedAt: HEUTE + "T06:00:00.000Z" },
+  { id: "td1", date: "2026-09-29", category: "TODO", name: "Filter bestellen", wer: "T. Balles", bis: HEUTE, prio: "", bemerkung: "", status: "done", updatedAt: HEUTE + "T06:00:00.000Z" },
+  { id: "td2", date: "2026-09-29", category: "TODO", name: "Riemen prüfen", wer: "T. Balles", bis: HEUTE, prio: "", bemerkung: "", status: "offen", updatedAt: HEUTE + "T06:00:00.000Z" },
+  { id: "td3", date: "2026-09-29", category: "TODO", name: "Später erst", wer: "T. Balles", bis: "2026-10-09", prio: "", bemerkung: "", status: "offen", updatedAt: HEUTE + "T06:00:00.000Z" },
+];
+
+(async () => {
+  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const fehler = [];
+  const seite = async (eintraege) => {
+    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+    const p = await ctx.newPage();
+    p.on("pageerror", (e) => { fehler.push(e.message); console.log("PAGEERROR:", e.message); });
+    await p.addInitScript(({ c, e }) => {
+      localStorage.setItem("bta-standort", "scheurich");
+      localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
+      localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(e));
+      localStorage.setItem("werkstatt-kalender-benutzer", "Chef");
+      // Gespeichertes Whiteboard-Layout eines Rechners vom 30.09. - mit der ALTEN
+      // Kachel-Definition "To-dos Soll/Ist" auf k-wbtodo. Die App muss sie umschreiben.
+      localStorage.setItem("wk-uebersicht-layout", JSON.stringify({
+        vorlage: "whiteboard",
+        kacheln: ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten"],
+        kachelDef: { "k-wbtodo": { inhalt: "todoSollIst", form: "halbkreis", zeitraum: "monat" }, "k-wbtpm": { inhalt: "tpmQuote", form: "halbkreis", zeitraum: "monat" }, "k-wbunfall": { inhalt: "unfaelle", form: "zahl" }, "k-wbbacklog": { inhalt: "backlogLive", form: "halbkreis" }, "k-wbkosten": { inhalt: "kosten", form: "halbkreis" } },
+        bloecke: {}, bausteine: [{ id: "kennzahlen", breite: 12 }, { id: "tagesliste", breite: 12 }, { id: "pinnwand", breite: 4 }, { id: "einkauf", breite: 4 }, { id: "heuteDa", breite: 4 }, { id: "stoerungen", breite: 12 }],
+      }));
+    }, { c: config, e: eintraege });
+    await p.clock.setFixedTime(new Date(HEUTE + "T10:00:00"));
+    await p.goto(APP);
+    await p.waitForTimeout(1500);
+    return { ctx, p };
+  };
+
+  const a = await seite(entries);
+  // Die Plan-Punkte des Tages kommen aus dem Takt-Planer (auch mit den Vorgabe-
+  // Anlagen) - deshalb wird gegen die LISTE gerechnet: Soll der Kachel muss
+  // gleich Zeilen der Tagesplan-Liste + To-dos mit Frist heute sein.
+  const listeZaehlen = (p) => p.evaluate(() => {
+    const kopf = document.getElementById("wk-tagesplan");
+    const block = kopf ? kopf.parentElement : null;
+    const zeilen = block ? [...block.querySelectorAll("button.wk-karte")] : [];
+    const fertig = zeilen.filter((b) => b.querySelector("strong") && getComputedStyle(b.querySelector("strong")).textDecorationLine.includes("line-through")).length;
+    return { zeilen: zeilen.length, fertig };
+  });
+  const kachel = a.p.locator('[data-kachel-inhalt="tagesleistung"]');
+  const ariaVon = async () => (await kachel.count()) ? await kachel.first().locator("[aria-label^='Tagesleistung:']").getAttribute("aria-label") : "";
+  const zahlen = (aria) => { const m = /Soll (\d+|–), Ist (\d+|–), Erfüllungsgrad (\d+ %|–)/.exec(aria || ""); return m ? { soll: m[1], ist: m[2], grad: m[3] } : null; };
+  const l1 = await listeZaehlen(a.p);
+  const kText = (await kachel.count()) ? (await kachel.first().innerText()).replace(/\s+/g, " ") : "";
+  const z1 = zahlen(await ariaVon());
+  const sollErw = l1.zeilen + 2, istErw = l1.fertig + 1, gradErw = `${Math.round((istErw / sollErw) * 100)} %`;
+  ok("(T1) Kachel „Tagesleistung“ ersetzt „To-dos · Monat“ im gespeicherten Whiteboard-Layout: Soll = Listenzeilen + 2 To-dos, Ist = erledigte + 1, Erfüllungsgrad passt",
+    (await kachel.count()) === 1 && /Tagesleistung/.test(kText) && /Soll/.test(kText) && /Ist/.test(kText) && /Erfüllungsgrad/.test(kText) && z1 && z1.soll === String(sollErw) && z1.ist === String(istErw) && z1.grad === gradErw && (await a.p.locator('[data-kachel-inhalt="todoSollIst"]').count()) === 0,
+    `Liste ${l1.zeilen} Zeilen / ${l1.fertig} fertig · Kachel ${JSON.stringify(z1)} · erwartet ${sollErw}/${istErw}/${gradErw}`);
+
+  const body = await a.p.locator("body").innerText();
+  ok("(T2) Die Liste heißt „Tagesplan · Donnerstag, 01.10.“ – nicht mehr „Heute ·“", /TAGESPLAN · DONNERSTAG, 01\.10\./i.test(body) && !/HEUTE · DONNERSTAG/i.test(body), (body.match(/TAGESPLAN · [^\n]*/i) || [""])[0]);
+
+  /* (T3) Klick springt zum Tagesplan */
+  await a.p.evaluate(() => window.scrollTo(0, 0));
+  await kachel.first().click();
+  await a.p.waitForTimeout(900);
+  const lage = await a.p.evaluate(() => { const el = document.getElementById("wk-tagesplan"); const r = el && el.getBoundingClientRect(); return { da: !!el, top: r ? Math.round(r.top) : null, innen: r ? r.top >= 0 && r.top < window.innerHeight : false }; });
+  ok("(T3) Klick auf die Kachel bringt den Tagesplan ins Bild", lage.da && lage.innen, JSON.stringify(lage));
+
+  /* (T4) To-do erledigt -> Ist + 1, ohne Neuladen */
+  await a.p.evaluate(async (HEUTE) => {
+    const alt = JSON.parse(localStorage.getItem("werkstatt-kalender-entries"));
+    const neu = alt.map((e) => (e.id === "td2" ? { ...e, status: "done", updatedAt: HEUTE + "T10:01:00.000Z" } : e));
+    window.dispatchEvent(new CustomEvent("werkstatt-shared-update", { detail: { entries: neu, config: null } }));
+  }, HEUTE);
+  await a.p.waitForTimeout(800);
+  const z4 = zahlen(await ariaVon());
+  const grad4 = `${Math.round(((istErw + 1) / sollErw) * 100)} %`;
+  ok("(T4) Ein To-do erledigt: Ist + 1 und neuer Erfüllungsgrad ohne Neuladen", z4 && z4.soll === String(sollErw) && z4.ist === String(istErw + 1) && z4.grad === grad4, `${JSON.stringify(z4)} · erwartet ${sollErw}/${istErw + 1}/${grad4}`);
+  await a.ctx.close();
+
+  /* (T5) Ohne Termine und To-dos heute: nur die Plan-Punkte zählen (oder „–“, wenn nichts geplant ist) */
+  const b = await seite(entries.filter((e) => e.id === "td3"));
+  const kb = b.p.locator('[data-kachel-inhalt="tagesleistung"]');
+  const l5 = await listeZaehlen(b.p);
+  const kbText = (await kb.count()) ? (await kb.first().innerText()).replace(/\s+/g, " ") : "";
+  const z5 = zahlen((await kb.count()) ? await kb.first().locator("[aria-label^='Tagesleistung:']").getAttribute("aria-label") : "");
+  const t5ok = l5.zeilen === 0 ? (z5 && z5.soll === "–" && /nichts an/.test(kbText)) : (z5 && z5.soll === String(l5.zeilen) && z5.ist === String(l5.fertig));
+  ok("(T5) Ohne Termine/To-dos heute: Kachel zählt genau die Plan-Zeilen der Liste (bzw. „–“ ohne Plan)", !!t5ok, `Liste ${l5.zeilen}/${l5.fertig} · Kachel ${JSON.stringify(z5)}`);
+  await b.ctx.close();
+
+  ok("(E) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+  await browser.close();
+  console.log(`\n📊 Summary: ${pass}/${pass + fail} passed`);
+  process.exit(fail ? 1 : 0);
+})();

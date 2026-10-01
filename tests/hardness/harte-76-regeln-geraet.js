@@ -199,7 +199,7 @@ const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0
   ok("(G3) Nach 1,5 Minuten noch kein Rücksprung", /Aufgaben – erteilt/.test(await pL.locator("body").innerText()));
   await pL.clock.fastForward("01:00");
   await pL.waitForTimeout(300);
-  ok("(G3) Nach 2,5 Minuten Stille zurück auf der Übersicht (statt erst nach 15)", !/Aufgaben – erteilt/.test(await pL.locator("body").innerText()) && /HEUTE ·/i.test(await pL.locator("body").innerText()));
+  ok("(G3) Nach 2,5 Minuten Stille zurück auf der Übersicht (statt erst nach 15)", !/Aufgaben – erteilt/.test(await pL.locator("body").innerText()) && /TAGESPLAN ·/i.test(await pL.locator("body").innerText()));
   await pL.close();
   await ctxL.close();
   await ctx.close();
