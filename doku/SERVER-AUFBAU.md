@@ -166,10 +166,11 @@ des alten Servers auf seinen PC kopiert (`BTAServer`) – sie bleiben dort als S
 neuen Server kommt nur der frische Stick-Ordner (ZIP 01.10. nachmittags, Werkzeug + Dienst 0.3.0).
 
 Ablauf auf dem neuen Server (jeder Schritt einzeln, wie gewohnt):
-- [ ] **N1** – Stick-Ordner (ZIP 01.10.) auf den neuen Server → `BTA-Server-Werkzeug.cmd` als Administrator → **Prüfen**: Admin grün; Ordner/Gruppen rot/gelb mit „Einrichten legt sie an“; Node rot. Bild.
-- [ ] **N2** – „Node herunterladen“ (oder `node.exe` aus dem alten `C:\BTA\BTA-Programm\Dienst\node\` kopieren → `05-Server\node\` auf dem Stick).
-- [ ] **N3** – Einrichten → **„Nur prüfen (Vorschau)“**: Schritt 0 zeigt, was angelegt würde (Ordner, Gruppen, Mitglieder, Rechte, Freigabe). Protokoll.
-- [ ] **N4** – **„Einrichten“** → Status-Seite. Danach Prüfen: neun Ampeln, Fassung 0.3.0. Protokoll zeigt die neue Adresse `http://<name>:8765`.
+- [x] **N0 – Stick auf den Server (01.10., 12:53):** Zwischenablage im Remotedesktop ging nicht; stattdessen Remotedesktop mit **Laufwerk-Umleitung** (mstsc → Optionen → Lokale Ressourcen → Weitere → Laufwerke). Auf dem Server erscheinen Robertos Laufwerke als „C auf L-RCIRACI“ … „W auf L-RCIRACI“ – **auch W:**, nützlich für den Import. ZIP von dort auf den Server-Desktop, entpackt nach `C:\Users\serviceBTA\Desktop\BTA-Cockpit-USB-Stick`.
+- [x] **N1 – Prüfen (12:55):** wie erwartet – Admin grün, Node rot, Rest gelb. **Befund:** `C:\BTA`, `BTA-Scheurich`, `BTA-Soendgen` und die Freigabe `BTA` waren schon da (IT, 10:37), dazu ein Ordner **`BTA-Formwerk`** (IT, 10:38, nicht von uns – wird nicht angefasst). `BTA-Scheurich`/`BTA-Soendgen` leer (geprüft, 13:02) – keine alte Datenbank im Weg.
+- [x] **N2 – Node (12:56–12:57):** Download 35 MB in 15 s, v22.23.3 im Dienst-Ordner.
+- [x] **N3 – Vorschau (12:58):** Schritt 0 listet 3 Ordner, 5 Gruppen, 15 Mitgliedschaften, 13 Rechte-Einträge; Freigabe vorhanden. Protokoll 1258.
+- [ ] **N4 – Einrichten:** **Erster Anlauf 13:04 ABGEBROCHEN** nach Ordnern, Gruppen und Mitgliedern: `FEHLER beim Einrichten: *BTA-Verwalter: Die Struktur der Sicherheitskennung ist unzulässig.` Ursache im Werkzeug: beim Rechte-Setzen stand ein `*` vor dem Gruppennamen (für icacls heißt `*` „es folgt eine SID“), und unter `ErrorActionPreference = Stop` ist die stderr-Zeile von icacls ein harter Abbruch – der vorgesehene zweite Versuch ohne `*` kam nie dran. Dieser Teil war am Morgen neu und auf dem alten Server nie gelaufen (dort Handarbeit). **Behoben (ZIP 13:15):** `Native-Ruhig` führt icacls/net ohne Abbruch aus und liefert Rückgabewert und Ausgabe; Gruppen-Namen ohne `*`; Protokoll zählt „Rechte gesetzt: n von 13“. Prüfen nach dem Abbruch (13:05): Ordner und Gruppen grün – Einrichten ist wiederholbar, Vorhandenes wird übersprungen. **→ Zweiter Anlauf mit der neuen ZIP.**
 - [ ] **N5** – Kopien der W:-Dateien nach `\\<name>\BTA\BTA-Programm\Installation`, Reiter Import → Vorschau → Import → 7.306+ / 2.931+ fachlich, Nachweise 0.
 - [ ] **N6** – App-Datei tauschen → von Robertos PC `http://<name>:8765/app/` → anmelden → Zettel → zweiter Tab. Dann weiter mit 19c (Foto) und 20.
 

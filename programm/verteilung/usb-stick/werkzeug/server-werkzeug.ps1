@@ -102,9 +102,28 @@ function Schreibe-OhneBom([string]$pfad, [string]$inhalt) {
   # Der Dienst liest die Einstellungen mit JSON.parse - eine BOM liesse das scheitern.
   [System.IO.File]::WriteAllText($pfad, $inhalt, (New-Object System.Text.UTF8Encoding($false)))
 }
+# Windows-Programm (icacls, net) RUHIG ausfuehren: unter ErrorActionPreference=Stop
+# wird schon eine einzige Zeile auf stderr zum harten Abbruch des ganzen Laufs.
+# Genau so brach "Einrichten" am 01.10. um 13:04 auf dem neuen Server ab:
+# icacls meldete "*BTA-Verwalter: Die Struktur der Sicherheitskennung ist
+# unzulaessig" (der Stern heisst fuer icacls "es folgt eine SID", kein Name),
+# und der vorgesehene zweite Versuch ohne Stern kam nie an die Reihe.
+# Liefert Ausgabe und Rueckgabewert; der Aufrufer entscheidet, was ein Fehler ist.
+function Native-Ruhig([string[]]$befehl) {
+  $alt = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $exe = $befehl[0]
+    $argumente = @()
+    if ($befehl.Length -gt 1) { $argumente = $befehl[1..($befehl.Length - 1)] }
+    $aus = @(& $exe @argumente 2>&1 | ForEach-Object { "$_" })
+    $code = $LASTEXITCODE
+  } finally { $ErrorActionPreference = $alt }
+  return @{ Aus = $aus; Code = $code }
+}
 function Gruppe-Da([string]$name) {
   try { return [bool](Get-LocalGroup -Name $name -ErrorAction Stop) } catch { }
-  try { $r = (net localgroup $name 2>&1); return ($LASTEXITCODE -eq 0) } catch { return $false }
+  try { $r = Native-Ruhig @("net", "localgroup", $name); return ($r.Code -eq 0) } catch { return $false }
 }
 function Aufgabe-Holen { try { return Get-ScheduledTask -TaskName $AufgabeName -ErrorAction Stop } catch { return $null } }
 function Firewall-Da { try { return [bool](Get-NetFirewallRule -DisplayName $FirewallName -ErrorAction Stop) } catch { return $false } }
@@ -619,7 +638,7 @@ function Einrichten-Laufen([bool]$nurVorschau) {
     foreach ($g in $Gruppen) {
       if (Gruppe-Da $g) { continue }
       Schreibe-Log ($praefix + "   Gruppe anlegen: " + $g)
-      if ($tu) { try { New-LocalGroup -Name $g -Description "BTA-Cockpit (angelegt vom BTA-Server-Werkzeug)" -ErrorAction Stop | Out-Null } catch { $null = (net localgroup $g /add 2>&1) } }
+      if ($tu) { try { New-LocalGroup -Name $g -Description "BTA-Cockpit (angelegt vom BTA-Server-Werkzeug)" -ErrorAction Stop | Out-Null } catch { $null = Native-Ruhig @("net", "localgroup", $g, "/add") } }
     }
     foreach ($g in $Mitglieder.Keys) {
       foreach ($konto in $Mitglieder[$g]) {
@@ -648,10 +667,13 @@ function Einrichten-Laufen([bool]$nurVorschau) {
     }
     Schreibe-Log ($praefix + "   Rechte setzen (icacls): " + $rechte.Count + " Eintraege")
     if ($tu) {
+      # Gruppen-NAMEN ohne Stern (der Stern ist nur fuer SIDs wie S-1-5-18 richtig).
+      $rechteFehler = 0
       foreach ($r in $rechte) {
-        $aus = (& icacls.exe $r[0] /grant ("*" + $r[1]) 2>&1)
-        if ($LASTEXITCODE -ne 0) { $aus = (& icacls.exe $r[0] /grant $r[1] 2>&1); if ($LASTEXITCODE -ne 0) { Schreibe-Log ("      icacls " + $r[0] + " " + $r[1] + ": " + (($aus | Select-Object -Last 1) -join " ")) } }
+        $ergebnis = Native-Ruhig @("icacls.exe", $r[0], "/grant", $r[1])
+        if ($ergebnis.Code -ne 0) { $rechteFehler++; Schreibe-Log ("      icacls " + $r[0] + " " + $r[1] + ": " + (($ergebnis.Aus | Select-Object -Last 1) -join " ")) }
       }
+      Schreibe-Log ("      Rechte gesetzt: " + ($rechte.Count - $rechteFehler) + " von " + $rechte.Count + $(if ($rechteFehler -gt 0) { " - bitte die Zeilen darueber pruefen" } else { "" }))
     }
     $freigabeDa = $false
     try { $freigabeDa = @(Get-SmbShare -Name $FreigabeName -ErrorAction Stop).Count -gt 0 } catch { $freigabeDa = $false }
@@ -680,7 +702,7 @@ function Einrichten-Laufen([bool]$nurVorschau) {
     if ($systemHatRecht) { Schreibe-Log ($praefix + "1b. SYSTEM hat Schreibrecht auf " + $ServerOrdner + " - nichts zu tun.") }
     else {
       Schreibe-Log ($praefix + "1b. SYSTEM fehlt das Schreibrecht auf " + $ServerOrdner + " - wird gesetzt: icacls (OI)(CI)F fuer S-1-5-18")
-      if ($tu) { $aus = (& icacls.exe $ServerOrdner /grant "*S-1-5-18:(OI)(CI)F" 2>&1); Schreibe-Log ("   icacls: " + (($aus | Select-Object -Last 1) -join " ")) }
+      if ($tu) { $ergebnis = Native-Ruhig @("icacls.exe", $ServerOrdner, "/grant", "*S-1-5-18:(OI)(CI)F"); Schreibe-Log ("   icacls: " + (($ergebnis.Aus | Select-Object -Last 1) -join " ")) }
     }
     # 2 Node + Dienst-Dateien
     if ($nodeQuelle -ne $nodeExe) { Schreibe-Log ($praefix + "2. Node kopieren: " + $nodeQuelle + " -> " + $nodeExe); if ($tu) { Copy-Item -LiteralPath $nodeQuelle -Destination $nodeExe -Force } }
