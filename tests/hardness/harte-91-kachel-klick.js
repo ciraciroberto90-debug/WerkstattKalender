@@ -76,10 +76,10 @@ const whiteboard = {
     ok("(K1) Klick öffnet das ⚙ im Reiter „Regeln & Listen“, gerollt zu „Sicherheit – Unfälle“",
       (await p.locator("#regeln-sicherheit").count()) === 1 && (await sichtbarImBild(p, "#regeln-sicherheit")) && (await p.locator('button[aria-label="Unfall hinzufügen"]').isVisible()));
     await zahnradZu(p);
-    await kachel(p, "kosten").click();
+    await kachel(p, "budget").click(); // seit 01.10. Budget (k-wbkosten wird umgeschrieben)
     await p.waitForTimeout(700);
-    ok("(K2) Kosten-Kachel -> ⚙ „Kosten & Budget“ (Jahresbudget im Bild)",
-      (await sichtbarImBild(p, "#regeln-kosten")) && (await p.locator('input[aria-label="Jahresbudget"]').isVisible()));
+    ok("(K2) Budget-Kachel -> ⚙ „Budget (IH · Invest)“ (IH-Budget im Bild)",
+      (await sichtbarImBild(p, "#regeln-kosten")) && (await p.locator('input[aria-label="IH-Budget (Instandhaltung)"]').isVisible()));
     await zahnradZu(p);
     await kachel(p, "backlogOffen").click(); // seit 01.10. Tacho (k-wbbacklog wird umgeschrieben)
     await p.waitForTimeout(500);

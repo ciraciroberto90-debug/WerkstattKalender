@@ -15,6 +15,7 @@
 //  (T9) Backlog-Kachel = Tacho (0 · Ziel · Obergrenze), umgeschrieben aus "Backlog live",
 //       Zahl unter dem Bogen; (T11) Ziel/Obergrenze aus ⚙ Schwellen & Ziele
 //  (T10) Unfälle-Kachel: "BG-meldepflichtige Unfälle", Jahr darunter, grün ohne Unfall
+//  (T12/T13) Budget-Kachel (IH · INVEST) statt Kosten, umgeschrieben; Werte und Farben aus ⚙
 //  (T3) Klick auf die Kachel springt zum Tagesplan
 //  (T4) Ein To-do erledigt -> Kachel zeigt 3 · 75 % (ohne Neuladen)
 //  (T5) Kein Plan heute -> Kachel ehrlich Soll 0 · Ist 0 · „–“ (ohne Fußzeile)
@@ -158,6 +159,14 @@ const entries = [
   ok("(T10) Unfälle-Kachel: „BG-meldepflichtige Unfälle“, Jahr 2026 darunter, 0 und „Ziel 0 · 273 Tage unfallfrei“ beide grün",
     unfInfo.titel === "BG-meldepflichtige Unfälle" && unfInfo.jahr === "2026" && unfInfo.zahl === "rgb(47, 125, 79)" && unfInfo.sub === "Ziel 0 · 273 Tage unfallfrei" && unfInfo.subFarbe === "rgb(47, 125, 79)", JSON.stringify(unfInfo));
 
+  /* (T12) Roberto 01.10. (Vorlage B): "Kosten" wird "Budget 2026" mit IH und INVEST - aus dem gespeicherten
+     Layout (kosten:halbkreis) umgeschrieben; ohne eingetragenes Budget beide Ringe ehrlich "–". */
+  const bud = a.p.locator('[data-kachel-huelle="k-wbkosten"] [data-kachel-inhalt="budget"][data-kachel-form="budget"]');
+  const budAria = (await bud.count()) ? await bud.first().locator("[data-budget]").getAttribute("aria-label") : "";
+  const budTitel = (await bud.count()) ? await bud.first().evaluate((k) => k.firstElementChild.innerText.trim()) : "";
+  ok("(T12) Kosten-Kachel ist jetzt „Budget 2026“ mit IH | INVEST (umgeschrieben), ohne Budget beide „kein Budget“",
+    (await bud.count()) === 1 && budTitel === "Budget 2026" && budAria === "Budget 2026: IH kein Budget; INVEST kein Budget", `${budTitel} · ${budAria}`);
+
   /* (T3) Klick springt zum Tagesplan */
   await a.p.evaluate(() => window.scrollTo(0, 0));
   await kachel.first().click();
@@ -179,7 +188,7 @@ const entries = [
 
   /* (T5) Ohne Termine und To-dos heute: nur die Plan-Punkte zählen (oder „–“, wenn nichts geplant ist) */
   const arbeiten = Array.from({ length: 60 }, (_, i) => ({ id: "ab" + i, date: "2026-09-10", category: "ARBEIT", name: "TS480", note: "Arbeit " + i, status: "open", prio: "ohne", art: "mech", updatedAt: HEUTE + "T06:00:00.000Z" }));
-  const b = await seite([...entries.filter((e) => e.id === "td3"), ...arbeiten], { ...config, regeln: { schwellen: { backlogZiel: 50, backlogObergrenze: 300 } } });
+  const b = await seite([...entries.filter((e) => e.id === "td3"), ...arbeiten], { ...config, regeln: { schwellen: { backlogZiel: 50, backlogObergrenze: 300 }, kosten: { budgetJahr: 250000, ausgegeben: 180000, investBudget: 120000, investAusgegeben: 130000 } } });
   /* (T11) Zielwert und Obergrenze kommen aus ⚙ Schwellen & Ziele: 50 / 300 -> 60 offen ist über dem Ziel (gelb) */
   const tb = b.p.locator('[data-kachel-inhalt="backlogOffen"] [data-tacho]');
   const tbAria = (await tb.count()) ? await tb.first().getAttribute("aria-label") : "";
@@ -187,6 +196,12 @@ const entries = [
   const tbFarbe = (await tb.count()) ? await b.p.locator('[data-kachel-inhalt="backlogOffen"] [data-tacho-zahl]').first().evaluate((z) => getComputedStyle(z).color) : "";
   ok("(T11) Tacho mit eigenen Schwellen (Ziel 50 · Obergrenze 300): 60 offen -> Skala 0 · 50 · >300, Zahl orange (über dem Ziel)",
     tbAria === "Backlog · offen: 60 offen, Ziel 50, Obergrenze 300" && tbText === "0|50|>300" && tbFarbe === "rgb(201, 122, 43)", `${tbAria} · ${tbText} · ${tbFarbe}`);
+  /* (T13) Budget aus ⚙: IH 180.000 von 250.000 = 72 % (blau), INVEST 130.000 von 120.000 = 108 % (rot, überzogen) */
+  const bb = b.p.locator('[data-kachel-inhalt="budget"]').first();
+  const bbAria = (await bb.count()) ? await bb.locator("[data-budget]").getAttribute("aria-label") : "";
+  const bbFarben = (await bb.count()) ? await bb.evaluate((k) => [...k.querySelectorAll("[data-budget-topf] svg text")].map((t) => t.getAttribute("fill"))) : [];
+  ok("(T13) Budget mit Werten: IH 72 % (180 T€ von 250 T€, blau), INVEST 108 % (130 T€ von 120 T€, rot)",
+    bbAria === "Budget 2026: IH 72 %, 180 T€ von 250 T€; INVEST 108 %, 130 T€ von 120 T€" && bbFarben.join(",") === "#2F6690,#B23A34", `${bbAria} · ${bbFarben.join(",")}`);
   const kb = b.p.locator('[data-kachel-inhalt="tagesleistung"]');
   const l5 = await listeZaehlen(b.p);
   const kbText = (await kb.count()) ? (await kb.first().innerText()).replace(/\s+/g, " ") : "";

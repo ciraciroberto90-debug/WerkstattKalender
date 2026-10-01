@@ -784,6 +784,40 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
           Ampelregel und Ziel stehen im Tooltip der Kachel (title). */}
     </>, {}, true);
   }
+  if (def.form === "budget") {
+    // Robertos Wahl 01.10. (Vorlage B): Kopf IH | INVEST mit Linie wie in der
+    // Tabellen-Kachel, je ein Ring mit Prozent (dieselbe Form wie der
+    // Erfüllungsgrad), darunter das Ist und "von <Budget>". Beträge ab
+    // 10.000 € in Tausend (T€), sonst voll - der Tooltip nennt alles genau.
+    const umfang = Math.PI * 34;
+    const betrag = (n) => (n >= 10000 ? `${Math.round(n / 1000).toLocaleString("de-DE")} T€` : `${Math.round(n).toLocaleString("de-DE")} €`);
+    const kopfStil = { color: "#8A9099", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.2px", lineHeight: 1.2, whiteSpace: "nowrap", textAlign: "center", paddingBottom: px(5) };
+    const toepfe = Array.isArray(d.toepfe) ? d.toepfe : [];
+    return karte(<>
+      {kopfzeile(d.label)}
+      {koerper(<div data-budget="" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", width: "100%", marginTop: px(2) }}
+        aria-label={`${d.label}: ${toepfe.map((t) => `${t.name} ${t.prozent === null ? "kein Budget" : `${t.prozent} %, ${betrag(t.ist)} von ${betrag(t.budget)}`}`).join("; ")}`}>
+        {toepfe.map((t) => <div key={t.name} className="font-bold" style={kopfStil}>{t.name}</div>)}
+        <div style={{ gridColumn: "1 / -1", height: "1px", background: "#E5E9ED" }} />
+        {toepfe.map((t, i) => {
+          const hat = t.prozent !== null;
+          const farbe = !hat ? "#B4BAC1" : t.prozent > 100 ? "#B23A34" : "#2F6690";
+          const frac = hat ? Math.min(1, Math.max(0, t.prozent / 100)) : 0;
+          return (
+            <div key={t.name} data-budget-topf={t.name} style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: px(8), borderLeft: i > 0 ? "1px solid #E5E9ED" : "none", minWidth: 0 }}>
+              <svg viewBox="0 0 84 50" style={{ width: "88%", maxWidth: px(98), height: "auto", display: "block" }} role="img" aria-hidden="true">
+                <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke="#E5E9ED" strokeWidth="8" strokeLinecap="round" />
+                {hat && frac > 0 && <path d="M8 44 A34 34 0 0 1 76 44" fill="none" stroke={farbe} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${umfang}`} strokeDashoffset={`${umfang * (1 - frac)}`} />}
+                <text x="42" y="44" textAnchor="middle" fontSize="16" fontWeight="800" fill={farbe} style={{ fontFamily: "inherit" }}>{hat ? `${t.prozent} %` : "–"}</text>
+              </svg>
+              <div className="font-extrabold" data-budget-ist="" style={{ fontSize: `${1.05 * skala}rem`, lineHeight: 1.1, color: hat ? "#22262B" : "#B4BAC1", marginTop: px(4), fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{hat ? betrag(t.ist) : "–"}</div>
+              <div style={{ fontSize: `${0.66 * skala}rem`, color: "#8A9099", marginTop: px(2), whiteSpace: "nowrap" }}>{hat ? `von ${betrag(t.budget)}` : "kein Budget"}</div>
+            </div>
+          );
+        })}
+      </div>)}
+    </>, {}, true);
+  }
   if (def.form === "tacho") {
     // Robertos Tacho-Skizze (01.10., Vorschlag A mit dem schmalen Ring aus B):
     // fünf Farbbänder, schwarzer Zeiger, Skala 0 links · Ziel oben · Obergrenze
@@ -1867,9 +1901,10 @@ function reihenfolgeAusBausteinen(bausteine) {
    neue Kachel an derselben Stelle zeigen), TPM-Effizienz, Unfälle, Backlog, Kosten. */
 const WHITEBOARD_KACHELN = ["k-wbtodo", "k-wbtpm", "k-wbunfall", "k-wbbacklog", "k-wbkosten"];
 // Stand der Whiteboard-Kacheln: 2 = TPM-Kachel als Tabelle, 3 = Backlog als
-// Tacho (beide 01.10.). Steht im gespeicherten Layout (wbStand), damit
-// normalisiereUebersichtLayout ältere Anordnungen genau einmal nachzieht.
-const WHITEBOARD_STAND = 3;
+// Tacho, 4 = Budget statt Kosten (alle 01.10.). Steht im gespeicherten Layout
+// (wbStand), damit normalisiereUebersichtLayout ältere Anordnungen genau
+// einmal nachzieht.
+const WHITEBOARD_STAND = 4;
 const WHITEBOARD_KACHEL_DEF = {
   "k-wbtodo": { inhalt: "tagesleistung", form: "tabelle" },
   // 01.10.: TPM-Erfüllungsgrad im selben Tabellen-Layout wie die Tagesleistung (Roberto)
@@ -1877,7 +1912,8 @@ const WHITEBOARD_KACHEL_DEF = {
   "k-wbunfall": { inhalt: "unfaelle", form: "zahl" },
   // 01.10. (Stand 3): Backlog als Tacho (offene Arbeiten auf 0 · Ziel · Obergrenze) statt Erledigt-Quote
   "k-wbbacklog": { inhalt: "backlogOffen", form: "tacho" },
-  "k-wbkosten": { inhalt: "kosten", form: "halbkreis" },
+  // 01.10. (Stand 4): "Budget <Jahr>" mit IH und INVEST statt "Kosten vom Jahresbudget"
+  "k-wbkosten": { inhalt: "budget", form: "budget" },
 };
 const UEBERSICHT_VORLAGEN = [
   ["standard", "Standard", "Alles an, wie bisher – Kennzahlen, Heute da, Störungen, Tagesliste, Pinnwand.",
@@ -1946,7 +1982,7 @@ function findeDoppelteStoerungen(liste) {
   return out;
 }
 
-const KENNZAHL_FORMEN = [["zahl", "Zahl"], ["halbkreis", "Halbkreis"], ["verlauf", "Verlauf"], ["ampel", "Ampel"], ["top3", "Top 3"], ["tabelle", "Tabelle (Soll · Ist · Grad)"], ["tacho", "Tacho (0 · Ziel · Obergrenze)"]];
+const KENNZAHL_FORMEN = [["zahl", "Zahl"], ["halbkreis", "Halbkreis"], ["verlauf", "Verlauf"], ["ampel", "Ampel"], ["top3", "Top 3"], ["tabelle", "Tabelle (Soll · Ist · Grad)"], ["tacho", "Tacho (0 · Ziel · Obergrenze)"], ["budget", "Budget (IH · Invest)"]];
 const KENNZAHL_ZEITRAEUME = { heute: "heute", woche: "diese Woche", monat: "Monat", jahr: "Jahr", tage30: "30 Tage" };
 const KENNZAHLEN = [
   // id, Bezeichnung, Gruppe, erlaubte Darstellungen, erlaubte Zeiträume (null = ohne), Standard-Zeitraum
@@ -1984,6 +2020,8 @@ const KENNZAHLEN = [
   ["nachbestellungen", "Offene Nachbestellungen", "Einkauf", ["zahl", "top3"], null],
   // Whiteboard 23.09.: ausgegebener Anteil des Jahresbudgets (⚙ Regeln & Listen, Abstimmung mit dem Einkauf offen)
   ["kosten", "Kosten vom Jahresbudget", "Einkauf", ["halbkreis", "zahl"], null],
+  // Robertos Skizze 01.10. (Vorlage B): zwei Ringe nebeneinander, IH und INVEST, Budget/Ist aus ⚙
+  ["budget", "Budget (IH · Invest)", "Einkauf", ["budget"], null],
   ["oee", "OEE (Excel)", "Sonstiges", ["zahl"], null],
   ["uhr", "Uhr & Schicht", "Sonstiges", ["zahl"], null],
   ["text", "Freier Text", "Sonstiges", ["zahl"], null],
@@ -2058,7 +2096,9 @@ function normalisiereUebersichtLayout(roh) {
     const roh2 = k === "k-wbtpm" && wbStandVon < 2 && roh1 && roh1.inhalt === "tpmQuote" && roh1.form === "halbkreis" ? { ...roh1, form: "tabelle" } : roh1;
     // Stand 3: die Backlog-Kachel des Whiteboards wird zum Tacho (offene Arbeiten).
     const roh3 = k === "k-wbbacklog" && wbStandVon < 3 && roh2 && roh2.inhalt === "backlogLive" ? WHITEBOARD_KACHEL_DEF[k] : roh2;
-    kachelDef[k] = normalisiereKachelDef(roh3, KACHEL_STANDARD_DEF[k]);
+    // Stand 4: die Kosten-Kachel des Whiteboards wird zum Budget (IH · INVEST).
+    const roh4 = k === "k-wbkosten" && wbStandVon < 4 && roh3 && roh3.inhalt === "kosten" ? WHITEBOARD_KACHEL_DEF[k] : roh3;
+    kachelDef[k] = normalisiereKachelDef(roh4, KACHEL_STANDARD_DEF[k]);
   });
   // tausch / zeileUnten: die alten Stellschrauben von vor dem Baukasten -
   // sie werden nur noch gelesen, um alte Anordnungen zu übersetzen.
@@ -2359,7 +2399,10 @@ const REGELN_STANDARD = () => ({
   // rechnet die unfallfreien Tage); Kosten als Jahresbudget und bisher
   // Ausgegebenes - bis der Einkauf eine Quelle liefert, von Hand gepflegt.
   sicherheit: { unfaelle: [] },
-  kosten: { budgetJahr: 0, ausgegeben: 0, stand: "" },
+  // Budget (Roberto 01.10.): budgetJahr/ausgegeben = Instandhaltung (IH) - so
+  // bleiben schon eingetragene Werte gültig; investBudget/investAusgegeben neu.
+  // Das Ist kommt später 1× am Tag aus einer Excel-Tabelle, bis dahin von Hand.
+  kosten: { budgetJahr: 0, ausgegeben: 0, investBudget: 0, investAusgegeben: 0, stand: "" },
 });
 const textListe = (roh, standard) => (Array.isArray(roh) ? roh.map((x) => String(x || "").trim()).filter(Boolean) : standard);
 const zahlOder = (v, standard, min, max) => { const n = Number(v); return v !== "" && v != null && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : standard; };
@@ -2399,6 +2442,7 @@ function normalisiereRegeln(roh) {
     },
     kosten: {
       budgetJahr: zahlOder(r.kosten && r.kosten.budgetJahr, 0, 0, 1e9), ausgegeben: zahlOder(r.kosten && r.kosten.ausgegeben, 0, 0, 1e9),
+      investBudget: zahlOder(r.kosten && r.kosten.investBudget, 0, 0, 1e9), investAusgegeben: zahlOder(r.kosten && r.kosten.investAusgegeben, 0, 0, 1e9),
       stand: tag.test(r.kosten && r.kosten.stand || "") ? r.kosten.stand : "",
     },
   };
@@ -6899,6 +6943,19 @@ function App() {
           sub: p === null ? "Abstimmung Einkauf" : `${euro(ausgegeben)} von ${euro(budgetJahr)}`,
           titel: p === null ? "Jahresbudget im ⚙ (Regeln & Listen → Kosten) eintragen - Quelle mit dem technischen Einkauf abstimmen" : `Ausgegebener Anteil des Jahresbudgets ${jahrKey}${stand ? " · Stand " + formatDateDE(stand) : ""}`,
           farbe: "#22262B", akzent: p === null ? "#CBD1D8" : p > 100 ? "#B23A34" : "#2F6690", farben: p !== null && p > 100 ? ["#E06A64", "#B23A34"] : ["#7F8C9A", "#4B5D6E"] };
+      }
+      case "budget": {
+        // Robertos Skizze 01.10. (Vorlage B): zwei Töpfe, je Anteil Ist/Budget.
+        // Ohne Budget bleibt der Ring ehrlich leer ("–", "kein Budget").
+        const { budgetJahr, ausgegeben, investBudget, investAusgegeben, stand } = regeln.kosten;
+        const topf = (name, lang, budget, ist) => ({ name, lang, budget, ist, prozent: budget > 0 ? Math.round((ist / budget) * 100) : null });
+        const toepfe = [topf("IH", "Instandhaltung", budgetJahr, ausgegeben), topf("INVEST", "Invest", investBudget, investAusgegeben)];
+        const euroVoll = (n) => `${Math.round(n).toLocaleString("de-DE")} €`;
+        const ueber = toepfe.some((t) => t.prozent !== null && t.prozent > 100);
+        const keins = toepfe.every((t) => t.prozent === null);
+        return { label: `Budget ${jahrKey}`, toepfe,
+          titel: toepfe.map((t) => `${t.lang}: ${t.prozent === null ? "kein Budget eingetragen" : `${euroVoll(t.ist)} von ${euroVoll(t.budget)} (${t.prozent} %)`}`).join(" · ") + (stand ? ` · Stand ${formatDateDE(stand)}` : ""),
+          akzent: keins ? "#CBD1D8" : ueber ? "#B23A34" : "#2F6690" };
       }
       case "text": return { label: "Freier Text", text: def.text || "…", farbe: "#A25E14", akzent: "#C97A2B" };
       default: return { label, text: "–" };
@@ -11588,7 +11645,7 @@ function App() {
           const zahnrad = (sprung, hinweis) => (istVerwalter && !readerMode ? { mach: () => openSettings("regeln", sprung), hinweis } : null);
           switch (inhalt) {
             case "unfaelle": return zahnrad("regeln-sicherheit", "Unfälle im ⚙ eintragen");
-            case "kosten": return zahnrad("regeln-kosten", "Budget und Ausgaben im ⚙ pflegen");
+            case "kosten": case "budget": return zahnrad("regeln-kosten", "Budget und Ausgaben im ⚙ pflegen");
             case "stoerOffen": case "stoerAnzahl": case "ausfallzeit": case "sorgenkind": case "nachbestellungen": return bericht("STOERUNGEN", "Störungen öffnen");
             case "todoOffen": case "todoSollIst": return bericht("TODO", "To-dos öffnen");
             case "tagesleistung": return { mach: () => { const el = document.getElementById("wk-tagesplan"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, hinweis: "Zum Tagesplan" };
@@ -16819,14 +16876,16 @@ function App() {
               ))}
               <button onClick={() => setze(["sicherheit", "unfaelle"], [...r.sicherheit.unfaelle, { datum: todayKey, text: "" }])} aria-label="Unfall hinzufügen" className="text-xs font-bold mb-2" style={{ color: "#22262B" }}>+ Unfall eintragen</button>
 
-              {kopf("Kosten & Budget", "regeln-kosten")}
-              {hinweis("Für die Kachel „Kosten vom Jahresbudget“. Quelle und Bestellwege sind mit dem technischen Einkauf noch abzustimmen – bis dahin von Hand. Budget 0 = die Kachel zeigt „Abstimmung Einkauf“.")}
-              {zahl("Jahresbudget", ["kosten", "budgetJahr"], r.kosten.budgetJahr, "€", 0, 1000000000)}
-              {zahl("Bisher ausgegeben", ["kosten", "ausgegeben"], r.kosten.ausgegeben, "€", 0, 1000000000)}
+              {kopf("Budget (IH · Invest)", "regeln-kosten")}
+              {hinweis("Für die Kachel „Budget <Jahr>“: je Topf das Jahresbudget und das bisher Ausgegebene (Ist). Das Ist kommt später einmal am Tag aus einer Excel-Tabelle – bis dahin hier von Hand. Budget 0 = der Ring zeigt „–“ und „kein Budget“.")}
+              {zahl("IH-Budget (Instandhaltung)", ["kosten", "budgetJahr"], r.kosten.budgetJahr, "€", 0, 1000000000)}
+              {zahl("IH ausgegeben (Ist)", ["kosten", "ausgegeben"], r.kosten.ausgegeben, "€", 0, 1000000000)}
+              {zahl("Invest-Budget", ["kosten", "investBudget"], r.kosten.investBudget, "€", 0, 1000000000)}
+              {zahl("Invest ausgegeben (Ist)", ["kosten", "investAusgegeben"], r.kosten.investAusgegeben, "€", 0, 1000000000)}
               <label className="flex items-center gap-3 mb-2 text-sm">
                 <span className="w-64 font-bold" style={{ color: "#22262B" }}>Stand vom</span>
                 <input type="date" value={r.kosten.stand} aria-label="Kosten Stand" onChange={(e) => setze(["kosten", "stand"], e.target.value)} className="text-sm px-2 py-1 rounded border" style={eingabe} />
-                <span className="text-xs" style={{ color: "#8A9099" }}>steht klein unter dem Halbkreis</span>
+                <span className="text-xs" style={{ color: "#8A9099" }}>steht im Tooltip der Budget-Kachel</span>
               </label>
 
               {kopf("Textbausteine & Pflichtfelder")}

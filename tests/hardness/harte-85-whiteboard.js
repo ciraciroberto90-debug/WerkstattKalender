@@ -6,7 +6,7 @@
 //       die alten sieben sind ausgeblendet.
 //  (A2) Die Kacheln rechnen richtig: TPM Soll 4 · Ist 3 (75 %) aus den
 //       Terminen, Unfälle 1 mit Tagen unfallfrei (rot), Backlog-Tacho 2 offen,
-//       Kosten ohne Budget = "Abstimmung Einkauf". (To-dos Soll/Ist: harte-104
+//       Budget ohne Eintrag = Ringe "–" / "kein Budget" (seit 01.10. Budget IH · INVEST statt Kosten). (To-dos Soll/Ist: harte-104
 //       prüft die Tagesleistung, die To-do-Kennzahl bleibt im Katalog.)
 //  (A3) Whiteboard-Zeile: Tagesliste allein in der Hauptzeile, unten die
 //       Zeile mit Pinnwand · Technischer Einkauf · Heute da; kein eigener
@@ -14,7 +14,7 @@
 //  (A4) Der Einkauf zählt aus den Störberichten: 1 Bedarf, 2 bestellt,
 //       1 davon länger als 7 Tage, 1 eingetroffen.
 //  (B1) ⚙ Regeln & Listen: Unfall eintragen + Budget setzen -> in der
-//       gemeinsamen Einstellung; die Kosten-Kachel zeigt danach 61 %.
+//       gemeinsamen Einstellung; die Budget-Kachel zeigt danach IH 61 %, INVEST 34 %.
 //  (C1) Gruppen-Vorlage: "Whiteboard anlegen" für Leser -> ein Leser-Rechner
 //       ohne eigene Anordnung zeigt die fünf Kacheln und die untere Zeile.
 //  (D1) Bestandsschutz: ein altes Layout ohne "einkauf"/"zeileUnten" zeigt
@@ -126,7 +126,7 @@ const stoer = [
     const reihe = await kacheln(p);
     // 01.10.: Tagesleistung (Tabelle) statt To-dos, TPM ebenfalls als Tabelle (Robertos Umbau)
     ok("(A1) Die Reihe zeigt genau die fünf Kacheln: Tagesleistung (Tabelle), TPM (Tabelle), Unfälle (Zahl), Backlog, Kosten - alle anderen ausgeblendet",
-      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogOffen:tacho,kosten:halbkreis", reihe.join(","));
+      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogOffen:tacho,budget:budget", reihe.join(","));
 
     const tl = await kachelText(p, "tagesleistung");
     ok("(A2) Tagesleistung-Kachel steht mit Soll · Ist · Erfüllungsgrad", /Tagesleistung/.test(tl) && /Soll/.test(tl) && /Ist/.test(tl) && /Erfüllungsgrad/.test(tl), tl.replace(/\n/g, " | "));
@@ -140,8 +140,9 @@ const stoer = [
     const bl = await kachelText(p, "backlogOffen");
     const blAria = await p.locator('[data-kachel-inhalt="backlogOffen"] [data-tacho]').getAttribute("aria-label").catch(() => "");
     ok("(A2) Backlog-Tacho: 2 offen, Skala 0 · 200 · >1.000 (Vorgaben)", /^Backlog · offen: 2 offen, Ziel 200, Obergrenze 1000$/.test(blAria || "") && /\n2$/.test(bl.trimEnd()) && /\b200\b/.test(bl) && />1\.000/.test(bl), bl.replace(/\n/g, " | ") + " · " + blAria);
-    const ko = await kachelText(p, "kosten");
-    ok("(A2) Kosten ohne Budget: Bogen leer, „Abstimmung Einkauf“", /Abstimmung Einkauf/.test(ko) && /–/.test(ko), ko.replace(/\n/g, " | "));
+    // 01.10.: "Budget <Jahr>" mit IH und INVEST statt "Kosten vom Jahresbudget" (Robertos Vorlage B)
+    const ko = await kachelText(p, "budget");
+    ok("(A2) Budget 2026 ohne eingetragenes Budget: Köpfe IH | INVEST, beide Ringe „–“ mit „kein Budget“", /Budget 2026/.test(ko) && /IH/.test(ko) && /INVEST/.test(ko) && (ko.match(/kein Budget/g) || []).length === 2, ko.replace(/\n/g, " | "));
 
     // Baukasten: die untere Zeile sind drei Bausteine à 4 Spalten auf gleicher Höhe
     const untenTeile = await p.locator('[data-baukasten] > [data-baustein]').evaluateAll((els) => els.map((e) => e.getAttribute("data-baustein")));
@@ -162,12 +163,14 @@ const stoer = [
     await p.getByRole("button", { name: "Regeln & Listen", exact: true }).click();
     await p.waitForTimeout(300);
     ok("(B1) Regeln & Listen zeigt den erfassten Unfall (03.05.) und die Kosten-Felder",
-      (await p.locator('input[aria-label="Unfall 1 Datum"]').inputValue()) === "2026-05-03" && (await p.locator('input[aria-label="Jahresbudget"]').count()) === 1);
+      (await p.locator('input[aria-label="Unfall 1 Datum"]').inputValue()) === "2026-05-03" && (await p.locator('input[aria-label="IH-Budget (Instandhaltung)"]').count()) === 1 && (await p.locator('input[aria-label="Invest-Budget"]').count()) === 1);
     await p.locator('button[aria-label="Unfall hinzufügen"]').click();
     await p.locator('input[aria-label="Unfall 2 Datum"]').fill("2026-09-20");
     await p.locator('input[aria-label="Unfall 2 Text"]').fill("Sturz");
-    await p.locator('input[aria-label="Jahresbudget"]').fill("20000");
-    await p.locator('input[aria-label="Bisher ausgegeben"]').fill("12200");
+    await p.locator('input[aria-label="IH-Budget (Instandhaltung)"]').fill("20000");
+    await p.locator('input[aria-label="IH ausgegeben (Ist)"]').fill("12200");
+    await p.locator('input[aria-label="Invest-Budget"]').fill("120000");
+    await p.locator('input[aria-label="Invest ausgegeben (Ist)"]').fill("41000");
     await p.locator('input[aria-label="Kosten Stand"]').fill(HEUTE);
     await p.getByRole("button", { name: "Speichern", exact: true }).first().click();
     await p.waitForTimeout(900);
@@ -177,11 +180,12 @@ const stoer = [
     const r = cfg.regeln || {};
     regelnMerker = cfg.regeln || null;
     ok("(B1) Gemeinsame Einstellung: zwei Unfälle (sortiert), Budget 20000, ausgegeben 12200, Stand heute",
-      r.sicherheit && r.sicherheit.unfaelle.length === 2 && r.sicherheit.unfaelle[1].datum === "2026-09-20" && r.kosten && r.kosten.budgetJahr === 20000 && r.kosten.ausgegeben === 12200 && r.kosten.stand === HEUTE, JSON.stringify(r.kosten));
+      r.sicherheit && r.sicherheit.unfaelle.length === 2 && r.sicherheit.unfaelle[1].datum === "2026-09-20" && r.kosten && r.kosten.budgetJahr === 20000 && r.kosten.ausgegeben === 12200 && r.kosten.investBudget === 120000 && r.kosten.investAusgegeben === 41000 && r.kosten.stand === HEUTE, JSON.stringify(r.kosten));
     const unf2 = await kachelText(p, "unfaelle");
-    const ko2 = await kachelText(p, "kosten");
-    ok("(B1) Die Kacheln folgen sofort: Unfälle 2 · 3 Tage unfallfrei; Kosten 61 % · 12.200 € von 20.000 €",
-      /\n2\n/.test("\n" + unf2 + "\n") && /3 Tage unfallfrei/.test(unf2) && /61\s*%/.test(ko2) && /12\.200 € von 20\.000 €/.test(ko2), (unf2 + " || " + ko2).replace(/\n/g, " | "));
+    const ko2 = await kachelText(p, "budget");
+    const koAria = await p.locator('[data-kachel-inhalt="budget"] [data-budget]').getAttribute("aria-label").catch(() => "");
+    ok("(B1) Die Kacheln folgen sofort: Unfälle 2 · 3 Tage unfallfrei; Budget IH 61 % (12 T€ von 20 T€), INVEST 34 % (41 T€ von 120 T€)",
+      /\n2\n/.test("\n" + unf2 + "\n") && /3 Tage unfallfrei/.test(unf2) && koAria === "Budget 2026: IH 61 %, 12 T€ von 20 T€; INVEST 34 %, 41 T€ von 120 T€", (unf2 + " || " + ko2).replace(/\n/g, " | ") + " · " + koAria);
 
     /* (C1) Gruppen-Vorlage Leser = Whiteboard */
     await p.locator('button[aria-label="Verwalten"]').click();
@@ -208,11 +212,11 @@ const stoer = [
     await p.waitForTimeout(1700);
     const reihe = await kacheln(p);
     ok("(C1) Lea ohne eigene Anordnung sieht die fünf Whiteboard-Kacheln",
-      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogOffen:tacho,kosten:halbkreis", reihe.join(","));
+      reihe.join(",") === "tagesleistung:tabelle,tpmQuote:tabelle,unfaelle:zahl,backlogOffen:tacho,budget:budget", reihe.join(","));
     const untenTeile = await p.locator('[data-baukasten] > [data-baustein]').evaluateAll((els) => els.map((e) => e.getAttribute("data-baustein")));
     ok("(C1) … und die Bausteine in Whiteboard-Folge (Pinnwand · Einkauf · Heute da unten)", untenTeile.slice(-3).join(",") === "pinnwand,einkauf,heuteDa", untenTeile.join(","));
-    const ko = await kachelText(p, "kosten");
-    ok("(C1) Die Kosten-Kachel liest Budget und Ausgaben aus der gemeinsamen Einstellung (61 %)", /61\s*%/.test(ko), ko.replace(/\n/g, " | "));
+    const ko = await kachelText(p, "budget");
+    ok("(C1) Die Budget-Kachel liest Budget und Ausgaben aus der gemeinsamen Einstellung (IH 61 %, INVEST 34 %)", /61\s*%/.test(ko) && /34\s*%/.test(ko), ko.replace(/\n/g, " | "));
     ok("(E) Keine Skriptfehler (Leser)", fehler.length === 0, fehler.slice(0, 2).join(" | "));
     await zu();
   }

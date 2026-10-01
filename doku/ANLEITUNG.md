@@ -494,9 +494,13 @@ Störungen, nicht den Rest.
   offen** als **Tacho** (Robertos Skizze: fünf Farbbänder, Zeiger, Skala 0
   links · Zielwert oben · Obergrenze rechts; der Stand = offene
   Backlog-Arbeiten heute; Zielwert und Obergrenze stehen im ⚙ unter „Schwellen
-  & Ziele", Vorgabe 200 und 1000, die 0 ist fest) und **Kosten vom
-  Jahresbudget** als Halbkreis. „Backlog erledigt (live)" bleibt im Katalog für
-  eigene Kacheln. Die Darstellung „Tabelle (Soll · Ist · Grad)" steht im Kachel-Menü
+  & Ziele", Vorgabe 200 und 1000, die 0 ist fest) und **Budget <Jahr>** mit
+  zwei Ringen nebeneinander: **IH** (Instandhaltung) und **INVEST**, je Anteil
+  in Prozent, darunter das Ist und „von <Budget>" (ab 10.000 € in T€; über
+  100 % wird der Ring rot). Budget und Ist je Topf stehen im ⚙ unter „Budget
+  (IH · Invest)" (nur Verwalter); das Ist kommt später einmal am Tag aus einer
+  Excel-Tabelle. „Backlog erledigt (live)" und „Kosten vom Jahresbudget"
+  bleiben im Katalog für eigene Kacheln. Die Darstellung „Tabelle (Soll · Ist · Grad)" steht im Kachel-Menü
   auch für die Quoten und „To-dos Soll / Ist" zur Wahl; gespeicherte
   Whiteboard-Layouts von vor dem 01.10. werden beim Laden einmalig auf die
   neuen Kacheln umgeschrieben. Die Heute-Liste heißt seit dem 01.10.
