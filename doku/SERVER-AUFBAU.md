@@ -158,6 +158,13 @@ Freigabe. **Deshalb legt „Einrichten“ seit 01.10. als Schritt 0 die Grundlag
 30.09. plus ein Test-Zettel – der Import ist wiederholbar und nimmt den aktuellen W:-Stand. Eine
 während des Laufens kopierte `cockpit.sqlite` ohne `-wal` wäre außerdem unvollständig.
 
+**Stand 01.10. nachmittags (IT-Nachricht an Roberto):** neuer Server **`V-BTACOCKPIT-1`**, IP
+**`10.253.64.131`**, Benutzer und Kennwort wie bisher, Remotedesktop von Robertos PC eingerichtet,
+der alte Server ist heruntergefahren. Auf dem neuen Server liegen nur die Windows-Standardordner;
+`C:\BTA`, Gruppen, Rechte und Freigabe legt „Einrichten“ (Schritt 0) an. Roberto hat die Ordner
+des alten Servers auf seinen PC kopiert (`BTAServer`) – sie bleiben dort als Sicherung, auf den
+neuen Server kommt nur der frische Stick-Ordner (ZIP 01.10. nachmittags, Werkzeug + Dienst 0.3.0).
+
 Ablauf auf dem neuen Server (jeder Schritt einzeln, wie gewohnt):
 - [ ] **N1** – Stick-Ordner (ZIP 01.10.) auf den neuen Server → `BTA-Server-Werkzeug.cmd` als Administrator → **Prüfen**: Admin grün; Ordner/Gruppen rot/gelb mit „Einrichten legt sie an“; Node rot. Bild.
 - [ ] **N2** – „Node herunterladen“ (oder `node.exe` aus dem alten `C:\BTA\BTA-Programm\Dienst\node\` kopieren → `05-Server\node\` auf dem Stick).

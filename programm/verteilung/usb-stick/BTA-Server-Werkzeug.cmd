@@ -1,7 +1,7 @@
 @echo off
 rem =====================================================
 rem  BTA-Cockpit - SERVER-Werkzeug (Etappe A, 30.09.2026)
-rem  Auf dem Server v-btacockpit-01 als Administrator
+rem  Auf dem BTA-Server (seit 01.10. V-BTACOCKPIT-1) als Administrator
 rem  starten: Rechtsklick -> "Als Administrator ausfuehren".
 rem  Es oeffnet sich ein Fenster mit den Reitern
 rem  Pruefen / Einrichten / Wartung / Import.
