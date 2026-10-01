@@ -118,6 +118,14 @@ const entries = [
   ok("(T7) Beide Tabellen-Kacheln: Köpfe ganz und in einer Zeile, Zellen gleich hoch, Zahlen bündig mit dem Bogen, keine Fußzeile (Regel im Tooltip)",
     masse.length === 2 && masse.every((m) => m.koepfeGanz && m.koepfeEineZeile && m.zellenGleich && m.buendig && m.ohneFuss), JSON.stringify(masse));
 
+  /* (T8) Roberto 01.10.: "Überschriften der Kachel alle einheitlich schwarz (deutlicher)" -
+     die erste Zeile jeder Kennzahl-Kachel (Tabelle, Halbkreis, Zahl) hat dieselbe dunkle Farbe. */
+  const titelFarben = await a.p.evaluate(() => [...document.querySelectorAll("[data-kachel-inhalt]")].map((k) => {
+    const t = k.firstElementChild; return { inhalt: k.getAttribute("data-kachel-inhalt"), text: (t.innerText || "").trim().slice(0, 24), farbe: getComputedStyle(t).color, fett: getComputedStyle(t).fontWeight };
+  }));
+  ok("(T8) Alle fünf Kachel-Überschriften sind einheitlich dunkel (rgb(34, 38, 43)) und fett",
+    titelFarben.length === 5 && titelFarben.every((t) => t.farbe === "rgb(34, 38, 43)" && Number(t.fett) >= 700), JSON.stringify(titelFarben));
+
   /* (T3) Klick springt zum Tagesplan */
   await a.p.evaluate(() => window.scrollTo(0, 0));
   await kachel.first().click();

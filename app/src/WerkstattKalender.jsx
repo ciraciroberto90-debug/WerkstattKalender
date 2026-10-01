@@ -609,6 +609,11 @@ function MonatsDiagramm({ tage, monatName, jahr, erledigt, basis, prozent, filte
 // doppelt bzw. dreifach hohen Kacheln (kachelSkala).
 // onKlick (24.09.): Klick auf die Kachel öffnet die Stelle, an der ihre
 // Zahlen bearbeitet werden (Robertos Wunsch) - ohne onKlick bleibt sie stumm.
+// Kachel-Überschriften (Roberto 01.10.: "alle einheitlich schwarz, deutlicher"):
+// eine Farbe für Halbkreis-, Zahl-, Tabellen-, Verlauf-, Ampel-, Top-3- und
+// OEE-Kacheln. Auf der dunklen Monitor-Tafel entsprechend hell.
+const KACHEL_TITEL = "#22262B";
+const KACHEL_TITEL_DUNKEL = "#F2F4F6";
 function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = null, kennzeichen = null, kopf = false, skala = 1, onKlick = null, klickHinweis = "" }) {
   const hatWert = prozent !== null && prozent !== undefined;
   // Zielwert (⚙ Regeln & Listen): liegt die Quote darunter, wird der Bogen
@@ -652,7 +657,7 @@ function HalbkreisQuote({ prozent, label, sub, titel, dunkel = false, farben = n
     >
       {/* Bewusst ohne CSS-Großschreibung: innerText trüge sie mit, und die
           Prüfstände lesen die Kacheltitel im Klartext ("Heute fällig"). */}
-      {kopf && <div className="font-bold" style={{ color: dunkel ? "#B7BEC6" : "#6B7480", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: `${6 * skala}px`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>}
+      {kopf && <div className="font-bold" style={{ color: dunkel ? KACHEL_TITEL_DUNKEL : KACHEL_TITEL, fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: `${6 * skala}px`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>}
       <svg viewBox="0 0 84 50" style={{ width: `${(kopf ? 100 : 80) * skala}px`, height: `${(kopf ? 59 : 47) * skala}px`, display: "block", margin: "0 auto" }} role="img" aria-label={`${label}${sub ? " " + sub : ""}: ${hatWert ? prozent + " %" : "keine Daten"}`}>
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
@@ -712,10 +717,10 @@ function KennzahlKachel({ def, d, onKlick = null, klickHinweis = "" }) {
       {inhalt}
     </div>
   );
-  const etikett = (t) => <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{t}</div>;
+  const etikett = (t) => <div className="font-bold mt-1.5" style={{ color: KACHEL_TITEL, fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px" }}>{t}</div>;
   // Kopfzeile der Zahl- und Halbkreis-Kacheln (Whiteboard 23.09.): gleiche
   // Schrift wie der Halbkreis-Kopf, damit die Reihe "eine Sprache" spricht.
-  const kopfzeile = (t) => <div className="font-bold" style={{ color: "#6B7480", fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: `${6 * skala}px`, maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</div>;
+  const kopfzeile = (t) => <div className="font-bold" style={{ color: KACHEL_TITEL, fontSize: `calc(var(--wk-txt-etikett) * ${skala})`, letterSpacing: "0.3px", lineHeight: 1.2, marginBottom: `${6 * skala}px`, maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</div>;
   const unterzeile = (t) => (t ? <div style={{ fontSize: `${0.68 * skala}rem`, color: "#8A9099", marginTop: "2px" }}>{t}</div> : null);
   const delta = d.delta && d.delta.text ? (
     <span className="font-black" style={{ fontSize: "0.7rem", color: d.delta.gut === null ? "#8A9099" : d.delta.gut ? "#2F7D4F" : "#B23A34", marginLeft: "6px" }}>{d.delta.text}</span>
@@ -993,7 +998,7 @@ function OeeKachel({ stand, onKlick, darfEinrichten }) {
             </span>
           )}
         </div>
-        <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div className="font-bold mt-1.5" style={{ color: KACHEL_TITEL, fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           OEE · {zeitraum}
         </div>
       </button>
@@ -1015,7 +1020,7 @@ function OeeKachel({ stand, onKlick, darfEinrichten }) {
       <div className="font-extrabold" style={{ fontSize: "2.1rem", lineHeight: 1, letterSpacing: "-1.6px", color: lage === "fehler" ? "#B23A34" : "#C3C7CB" }}>
         {gross || zeichen}
       </div>
-      <div className="font-semibold mt-1.5" style={{ color: "#6B7480", fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <div className="font-bold mt-1.5" style={{ color: KACHEL_TITEL, fontSize: "var(--wk-txt-etikett)", letterSpacing: "0.2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {klein}
       </div>
     </button>
