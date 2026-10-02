@@ -3959,8 +3959,9 @@ function App() {
      mit 0 Berichten): Die LAUFENDE Schicht gehört nicht ins Blatt - sie
      interessiert erst morgen früh. Gezählt wird ab der zuletzt beendeten
      Schicht rückwärts: am Dienstagmorgen also Mo Früh, Mo Spät, Mo Nacht. */
-  const stoerSchichtSlots = () => {
-    const jetzt = new Date();
+  // jetzt (02.10.): Bezugszeit - Standard die Uhr; für die Datumsauswahl im
+  // Schichtbericht der Morgen des gewählten Tages (07:00, Morgenrunde).
+  const stoerSchichtSlots = (jetzt = new Date()) => {
     const h = jetzt.getHours();
     const tagKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const datum = new Date(jetzt);
@@ -4083,15 +4084,27 @@ function App() {
     "Spät": { chip: "#1F7A3D", chipText: "#fff", zeile: "#EAF3EC", gruppe: "#D8EADD" },
     "Nacht": { chip: "#2F6690", chipText: "#fff", zeile: "#E9F0F7", gruppe: "#D5E3F0" },
   };
-  const buildStoerSchichtberichtHTML = () => {
+  /* datum (Robertos Wunsch 02.10.: "Datumsauswahl - so kann man sich alte
+     Zusammenfassungen anschauen"): null = Morgenrunde jetzt; ein früherer Tag
+     = das Blatt, das die Morgenrunde an DIESEM Tag gesehen hat (07:00 Uhr,
+     dieselbe Schicht-Wahl inkl. Montag/Feiertag). Statuswerte (erledigt/offen)
+     sind die von heute - das Blatt sagt das ausdrücklich ("Nachschau"). */
+  const buildStoerSchichtberichtHTML = (datum = null) => {
+    const nachschau = typeof datum === "string" && /^\d{4}-\d{2}-\d{2}$/.test(datum) && datum < todayKey;
+    const bezugKey = nachschau ? datum : todayKey;
+    const bezugTag = nachschau ? new Date(datum + "T12:00:00") : today;
+    const bezugJetzt = nachschau ? new Date(datum + "T07:00:00") : new Date();
     const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const zeitVon = { "Früh": "06:00–14:00", "Spät": "14:00–22:00", "Nacht": "22:00–06:00" };
     // Die drei Zeitfenster kommen aus der Uhr; ANGEZEIGT wird in der festen
     // Folge Früh -> Spät -> Nacht (Robertos Ansage), nicht chronologisch.
-    const wahl = stoerSchichtSlots();
+    const wahl = stoerSchichtSlots(bezugJetzt);
     const slots = [...wahl.slots].sort((a, b) => STOER_SCHICHTEN.indexOf(a.schicht) - STOER_SCHICHTEN.indexOf(b.schicht));
     const jetzt = new Date();
-    const stand = jetzt.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const stand = nachschau
+      ? `Morgenrunde ${bezugTag.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}`
+      : jetzt.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const gedruckt = jetzt.toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     // Robertos Ansage vom 17.09. (in der Morgenrunde abgestimmt): OFFENE
     // Berichte stehen je Schicht-Block IMMER oben, danach nach Meldezeit.
     const proSlot = slots.map((slot) => ({
@@ -4111,7 +4124,7 @@ function App() {
        Morgenrunde braucht. Reihenfolge: Anzahl 7 Tage, dann Ausfallzeit 7
        Tage, dann Ausfallzeit im Blatt. Dazu eine kleine Analyse je Karte
        (30 Tage, offen, häufigste Ursache, zuletzt) und sieben Tagesbalken. */
-    const isoVor = (n) => { const d = new Date(todayKey + "T00:00:00"); d.setDate(d.getDate() - n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+    const isoVor = (n) => { const d = new Date(bezugKey + "T00:00:00"); d.setDate(d.getDate() - n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
     const ab7 = isoVor(6), ab30 = isoVor(29);
     const schluessel = (s) => `${String(s.anlage || "").trim().toLowerCase()}|${String(s.anlagenteil || "").trim().toLowerCase()}`;
     const gruppenTop = new Map();
@@ -4121,8 +4134,8 @@ function App() {
       gruppenTop.get(k).blatt.push(s);
     });
     const top3 = [...gruppenTop.values()].map((g) => {
-      const woche = stoerungen.filter((x) => schluessel(x) === g.k && x.date >= ab7 && x.date <= todayKey);
-      const monat = stoerungen.filter((x) => schluessel(x) === g.k && x.date >= ab30 && x.date <= todayKey);
+      const woche = stoerungen.filter((x) => schluessel(x) === g.k && x.date >= ab7 && x.date <= bezugKey);
+      const monat = stoerungen.filter((x) => schluessel(x) === g.k && x.date >= ab30 && x.date <= bezugKey);
       const summe = (l) => l.reduce((m, x) => m + (Number(x.ausfallzeit) || 0), 0);
       const zaehl = new Map();
       woche.forEach((x) => { const u = String(x.ursache || "").trim(); if (u) zaehl.set(u, (zaehl.get(u) || 0) + 1); });
@@ -4163,10 +4176,10 @@ function App() {
     // Roberto 28.09.: beides zählt - was HEUTE ansteht ("Aktuell PitStop") und
     // was als Nächstes kommt ("Nächster PitStop", der erste Tag nach heute).
     const pitAlle = entries
-      .filter((e) => e.category === "TPM" && String(e.date) >= todayKey)
+      .filter((e) => e.category === "TPM" && String(e.date) >= bezugKey)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.name).localeCompare(String(b.name)));
-    const pitHeute = pitAlle.filter((e) => String(e.date) === todayKey);
-    const pitKommend = pitAlle.filter((e) => String(e.date) > todayKey && e.status === "open");
+    const pitHeute = pitAlle.filter((e) => String(e.date) === bezugKey);
+    const pitKommend = pitAlle.filter((e) => String(e.date) > bezugKey && e.status === "open");
     const pitDatum = (d, lang) => new Date(d + "T12:00:00").toLocaleDateString("de-DE", lang ? { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" } : { day: "2-digit", month: "2-digit" });
     const heuteText = pitHeute.length
       ? pitHeute.map((e) => `<b>${esc(e.name)}</b>${e.status === "done" ? " ✓" : ""}`).join(", ")
@@ -4193,8 +4206,8 @@ function App() {
     const ampelSb = (q) => (q === null ? "#8A9099" : quoteZielSb > 0
       ? (q >= quoteZielSb ? "#2F7D4F" : q >= quoteZielSb - 10 ? "#C97A2B" : "#B23A34")
       : (q >= 90 ? "#2F7D4F" : q >= 75 ? "#C97A2B" : "#B23A34"));
-    const monatKeySb = todayKey.slice(0, 7);
-    const tpmMonat = quoteVon(entries.filter((e) => (e.category === "TPM" || e.category === "RI") && String(e.date).startsWith(monatKeySb) && String(e.date) <= todayKey));
+    const monatKeySb = bezugKey.slice(0, 7);
+    const tpmMonat = quoteVon(entries.filter((e) => (e.category === "TPM" || e.category === "RI") && String(e.date).startsWith(monatKeySb) && String(e.date) <= bezugKey));
     // Tacho wie die Backlog-Kachel: fünf Bänder rot -> grün, Zielstrich, Zeiger.
     const tachoSvg = (q) => {
       const cx = 80, cy = 58, r = 46;
@@ -4206,7 +4219,7 @@ function App() {
       const zeiger = q === null ? "" : (() => { const [zx, zy] = pt(Math.PI * (1 - Math.min(100, Math.max(0, q)) / 100), 37); return `<line x1="${cx}" y1="${cy}" x2="${zx.toFixed(1)}" y2="${zy.toFixed(1)}" stroke="#22262B" stroke-width="3" stroke-linecap="round"/>`; })();
       return `<svg viewBox="0 -3 160 78" class="tacho-svg" aria-hidden="true">${baender}<line x1="${m0x.toFixed(1)}" y1="${m0y.toFixed(1)}" x2="${m1x.toFixed(1)}" y2="${m1y.toFixed(1)}" stroke="#22262B" stroke-width="2.5"/>${zeiger}<circle cx="${cx}" cy="${cy}" r="4.5" fill="#fff" stroke="#22262B" stroke-width="3"/></svg>`;
     };
-    const monatName = MONTHS[today.getMonth()];
+    const monatName = MONTHS[bezugTag.getMonth()];
     const tachoHtml = `<div class="tachobox" data-tpm-tacho aria-label="TPM-Quote ${esc(monatName)}: ${tpmMonat.p === null ? "keine fälligen Termine" : `${tpmMonat.p} %, fällig bis heute ${tpmMonat.d} von ${tpmMonat.n}`}">
         ${tachoSvg(tpmMonat.p)}
         <div><div class="tt">TPM-Quote ${esc(monatName)}</div><div class="tw" style="color:${ampelSb(tpmMonat.p)}">${tpmMonat.p === null ? "–" : `${tpmMonat.p} %`}</div><div class="ts">${tpmMonat.p === null ? "noch nichts fällig" : `fällig bis heute: ${tpmMonat.d} von ${tpmMonat.n}`}</div></div>
@@ -4216,11 +4229,11 @@ function App() {
     // aktuellen rauslassen"; der laufende Monat steht schon im Tacho).
     const istTpm = (e) => e.category === "TPM" || e.category === "RI";
     const pitMonate = [3, 2, 1].map((zurueck) => {
-      const d = new Date(today.getFullYear(), today.getMonth() - zurueck, 1);
+      const d = new Date(bezugTag.getFullYear(), bezugTag.getMonth() - zurueck, 1);
       const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
       return { ...quoteVon(entries.filter((e) => istTpm(e) && String(e.date).startsWith(key))), name: MONTHS_SHORT[d.getMonth()] };
     });
-    const pitAb = (() => { const v = new Date(today.getFullYear(), today.getMonth() - 3, 1); return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-01`; })();
+    const pitAb = (() => { const v = new Date(bezugTag.getFullYear(), bezugTag.getMonth() - 3, 1); return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-01`; })();
     const pitGesamt = quoteVon(entries.filter((e) => istTpm(e) && String(e.date) >= pitAb && String(e.date) < `${monatKeySb}-01`));
     const pitGesamtText = pitGesamt.p === null ? "–" : `${pitGesamt.p} %`;
     const quoteHtml = `<section id="pitquote" data-pitquote hidden class="klapp">
@@ -4231,9 +4244,9 @@ function App() {
         </div>
       </section>`;
     // PitStop-Liste: heute, die nächsten 7 Tage, liegengeblieben (offen, schon fällig).
-    const bis7 = (() => { const d = new Date(todayKey + "T00:00:00"); d.setDate(d.getDate() + 7); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
+    const bis7 = (() => { const d = new Date(bezugKey + "T00:00:00"); d.setDate(d.getDate() + 7); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
     const pitWoche = pitKommend.filter((e) => String(e.date) <= bis7);
-    const pitLiegen = entries.filter((e) => e.category === "TPM" && e.status === "open" && String(e.date) < todayKey && String(e.date) >= isoVor(60))
+    const pitLiegen = entries.filter((e) => e.category === "TPM" && e.status === "open" && String(e.date) < bezugKey && String(e.date) >= isoVor(60))
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const pitZeilen = (liste, leer, rot) => (liste.length
       ? liste.map((e) => `<li${rot ? ' class="rot"' : ""}><span class="pl-d">${pitDatum(e.date, true)}</span><b>${esc(e.name)}</b>${e.status === "done" ? ' <span class="pl-ok">✓ erledigt</span>' : ""}</li>`).join("")
@@ -4247,7 +4260,7 @@ function App() {
         </div>
       </section>`;
     const top3Html = `<section id="top3" data-top3 hidden>
-        <div class="top3-kopf"><span>Top 3 dieses Schichtberichts</span><span class="top3-sub">nach Häufigkeit in den letzten 7 Tagen (${new Date(ab7 + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${new Date(todayKey + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })})</span></div>
+        <div class="top3-kopf"><span>Top 3 dieses Schichtberichts</span><span class="top3-sub">nach Häufigkeit in den letzten 7 Tagen (${new Date(ab7 + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${new Date(bezugKey + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })})</span></div>
         ${top3.length ? `<div class="top3-raster">${top3.map(top3Karte).join("")}</div>` : `<div class="top3-leer">Keine Störungen im Blatt – nichts zu bewerten.</div>`}
       </section>`;
     // Schicht -> CSS-Klasse fuer die Schichtfarbe (Balken + erste Spalte).
@@ -4319,6 +4332,9 @@ function App() {
         /* Knöpfe (Robertos Wahl 02.10.): Orange wie die Knöpfe im Cockpit, mit
            Unterkante wie eine Taste - Schwarz ging neben dem Tabellenkopf unter.
            Der Haupt-Knopf ist gefüllt, die anderen umrandet. */
+        .datumwahl { display: inline-flex; align-items: center; gap: 1mm; font-weight: 800; font-size: 10pt; color: #C2571B; border: 0.6mm solid #E8732A; border-radius: 2mm; padding: 0.6mm 2mm; background: #FFF7F0; box-shadow: 0 0.6mm 0 #F3C9A8; }
+        .datumwahl input { font: inherit; font-weight: 800; color: #C2571B; border: 0; background: transparent; cursor: pointer; }
+        .hinweis.nachschau { font-size: 9.5pt; color: #8A4B00; background: #FFF1E6; border-color: #E8732A; }
         .knopfleiste { margin-left: auto; margin-right: 5mm; display: flex; gap: 2mm; align-self: center; }
         .top3knopf, .sbknopf { font: inherit; font-weight: 800; font-size: 10pt; border-radius: 2mm; padding: 1.8mm 4mm; cursor: pointer; white-space: nowrap; color: #C2571B; background: #fff; border: 0.6mm solid #E8732A; box-shadow: 0 0.6mm 0 #F3C9A8; }
         .sbknopf.voll { color: #fff; background: #E8732A; border-color: #E8732A; box-shadow: 0 0.6mm 0 #B5541A; }
@@ -4421,12 +4437,15 @@ function App() {
         <h1>Schichtbericht Störungen</h1>
         ${tachoHtml}
         <div class="knopfleiste nurbild">
+          <label class="datumwahl" title="Den Schichtbericht eines früheren Tages ansehen - so, wie ihn die Morgenrunde an diesem Tag gesehen hat">📅 <input type="date" data-datum-wahl value="${bezugKey}" max="${todayKey}" aria-label="Schichtbericht vom Tag" onchange="(function(f){var h=null;try{var o=window.opener;if(o&&!o.closed&&o.__wkSchichtberichtFuer){h=o.__wkSchichtberichtFuer(f.value);}}catch(e){}if(h){document.open();document.write(h);document.close();}else{alert('Andere Tage lassen sich nur wählen, solange das Cockpit geöffnet ist (Schichtbericht dort neu öffnen).');}})(this)"></label>
+          ${nachschau ? `<button type="button" class="sbknopf" data-heute-knopf onclick="(function(){var h=null;try{var o=window.opener;if(o&&!o.closed&&o.__wkSchichtberichtFuer){h=o.__wkSchichtberichtFuer('');}}catch(e){}if(h){document.open();document.write(h);document.close();}})()">↺ Heute</button>` : ""}
           <button type="button" class="sbknopf voll" data-pitquote-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitquote');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.innerHTML=zu?'✕ TPM-Quote schließen':b.getAttribute('data-zu');})(this)" data-zu="📈 TPM-Quote &lt;small&gt;3 Mon. · ${pitGesamtText}&lt;/small&gt;">📈 TPM-Quote <small>3 Mon. · ${pitGesamtText}</small></button>
           <button type="button" class="sbknopf" data-pitliste-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitliste');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ PitStop schließen':'🔧 PitStop';})(this)">🔧 PitStop</button>
           <button type="button" class="top3knopf" data-top3-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('top3');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ Top 3 schließen':'⚠ Top 3';})(this)">⚠ Top 3</button>
         </div>
         <div class="stand">Stand: <strong>${esc(stand)}</strong><br><span class="fett">${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}</span> · <span class="fett" style="color:${offene > 0 ? "#C0392B" : "#1F7A3D"}">${offene} offen</span>${ausfallGesamt > 0 ? ` · <span class="fett">Ausfallzeit ${esc(minutenText(ausfallGesamt))}</span>` : ""}</div>
       </div>
+      ${nachschau ? `<div class="hinweis nachschau" data-nachschau>📅 Nachschau: So sah der Schichtbericht in der Morgenrunde am ${esc(bezugTag.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }))} aus. Erledigt/offen zeigt den Stand von heute.</div>` : ""}
       ${pitZeile}
       ${quoteHtml}
       ${pitListeHtml}
@@ -4437,7 +4456,7 @@ function App() {
       <tbody>
       ${proSlot.map((slot) => gruppe(slot) + slot.liste.map((s) => zeile(s, slot)).join("")).join("")}
       </tbody></table>
-      <div class="fuss"><span>${esc(appName)} · Schichtbericht</span><span>gedruckt ${esc(stand)}</span></div>
+      <div class="fuss"><span>${esc(appName)} · Schichtbericht</span><span>gedruckt ${esc(gedruckt)}</span></div>
       </body></html>`;
   };
 
@@ -9190,6 +9209,10 @@ function App() {
      Anschauen - ohne Druck-Dialog, ohne Blattwahl. Drucken oder „Als PDF
      speichern" geht aus dem Fenster heraus wie bisher. */
   const oeffneSchichtbericht = () => zeigeBlatt(buildStoerSchichtberichtHTML());
+  // Datumsauswahl im Blatt (02.10.): das Blatt-Fenster fragt über
+  // window.opener nach dem Bericht eines anderen Tages. Jede Darstellung
+  // setzt die Brücke neu - so liest sie immer den frischen Stand.
+  if (typeof window !== "undefined") window.__wkSchichtberichtFuer = (d) => buildStoerSchichtberichtHTML(d || null);
   const zeigeBlatt = (html) => {
     let w = null;
     // So groß wie der Bildschirm hergibt (Robertos Ansage 28.09.: "das Fenster

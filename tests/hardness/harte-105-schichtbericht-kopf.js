@@ -16,6 +16,11 @@
 //       (offener PitStop vom 21.09. rot).
 //  (K6) Top 3 klappt wie bisher (harte-93), die Knöpfe sind im Druck
 //       unsichtbar, der Tacho bleibt im Druck stehen.
+//  (K7) Datumsauswahl (Roberto 02.10.: "so kann man sich alte Zusammenfassungen
+//       anschauen") im ECHTEN Blatt-Fenster: Tag 29.09. wählen -> das Blatt
+//       der Morgenrunde vom Di., 29.09. (Schichten Mo. 28.09.), Hinweis
+//       „Nachschau“, Tacho „TPM-Quote September“ 11/12 = 92 %, TPM-Quote
+//       3 Monate = Jun–Aug 8/10 = 80 %; „↺ Heute“ führt zurück.
 //  (E)  Keine Skriptfehler.
 //
 // Rot-Nachweis: Gegen den Bau davor hat das Blatt weder Tacho noch
@@ -43,7 +48,10 @@ const TERMINE = [
   // Oktober später: 4 geplante PitStops (zählen NICHT in die Quote)
   t("2026-10-05", "TPM", "B2", "open"), t("2026-10-08", "TPM", "TS480", "open"), t("2026-10-12", "TPM", "B3", "open"), t("2026-10-20", "TPM", "B1", "open"),
 ];
-const STOER = [{ id: "s1", nr: 700, date: "2026-10-01", schicht: "Früh", anlage: "HRO", stoerung: "Test", ursache: "Riemen", offen: false, ausfallzeit: 10, melder: "T. Balles", gemeldetAt: "2026-10-01T07:00:00.000Z" }];
+const STOER = [
+  { id: "s1", nr: 700, date: "2026-10-01", schicht: "Früh", anlage: "HRO", stoerung: "Test", ursache: "Riemen", offen: false, ausfallzeit: 10, melder: "T. Balles", gemeldetAt: "2026-10-01T07:00:00.000Z" },
+  { id: "s2", nr: 690, date: "2026-09-28", schicht: "Spät", anlage: "Heimsoth Rollenofen", stoerung: "Alter Bericht vom Montag", ursache: "Lichtschranke", offen: false, ausfallzeit: 25, melder: "T. Balles", gemeldetAt: "2026-09-28T15:00:00.000Z" },
+];
 
 (async () => {
   const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
@@ -130,6 +138,50 @@ const STOER = [{ id: "s1", nr: 700, date: "2026-10-01", schicht: "Früh", anlage
   await b.emulateMedia({ media: "print" });
   const druck = await b.evaluate(() => ({ leiste: getComputedStyle(document.querySelector(".knopfleiste")).display, tacho: getComputedStyle(document.querySelector("[data-tpm-tacho]")).display }));
   ok("(K6) Im Druck: Knöpfe unsichtbar, Tacho bleibt stehen", druck.leiste === "none" && druck.tacho !== "none", JSON.stringify(druck));
+
+  /* (K7) Datumsauswahl im echten Fenster (ohne abgefangenes window.open) */
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+    const q = await ctx2.newPage();
+    q.on("pageerror", (e) => { fehler.push(e.message); console.log("PAGEERROR:", e.message); });
+    await q.clock.setFixedTime(new Date("2026-10-02T07:52:00"));
+    await q.addInitScript(({ c, s, termine }) => {
+      delete window.showOpenFilePicker; delete window.showSaveFilePicker;
+      localStorage.setItem("bta-standort", "scheurich");
+      localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
+      localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(termine));
+      localStorage.setItem("werkstatt-stoerungen-entries", JSON.stringify(s));
+      localStorage.setItem("werkstatt-kalender-benutzer", "Chef");
+    }, { c: config, s: STOER, termine: TERMINE });
+    await q.goto(APP);
+    await q.waitForTimeout(1300);
+    await q.getByRole("button", { name: /^Berichte\s*\d*$/i }).first().click(); await q.waitForTimeout(300);
+    await q.getByRole("button", { name: /^Störungen\s*\d*$/i }).first().click(); await q.waitForTimeout(400);
+    const [fenster] = await Promise.all([q.waitForEvent("popup"), q.locator('button[aria-label="Schichtbericht anzeigen"]').click()]);
+    await fenster.waitForTimeout(400);
+    fenster.on("pageerror", (e) => { fehler.push(e.message); console.log("PAGEERROR (Blatt):", e.message); });
+    const vorher = await fenster.locator("body").innerText();
+    ok("(K7) Blatt zeigt heute die Datumsauswahl mit 02.10., ohne Nachschau-Hinweis", (await fenster.locator("[data-datum-wahl]").inputValue()) === "2026-10-02" && (await fenster.locator("[data-nachschau]").count()) === 0 && !/Alter Bericht vom Montag/.test(vorher));
+    await fenster.locator("[data-datum-wahl]").fill("2026-09-29");
+    await fenster.waitForTimeout(500);
+    const nach = (await fenster.locator("body").innerText()).replace(/\s+/g, " ");
+    const tachoAlt = await fenster.locator("[data-tpm-tacho]").getAttribute("aria-label");
+    const quoteAlt = (await fenster.locator("[data-pitquote-knopf]").innerText()).replace(/\s+/g, " ");
+    ok("(K7) Tag 29.09. gewählt: Nachschau der Morgenrunde Di., 29.09. mit dem Bericht vom Mo., 28.09.",
+      (await fenster.locator("[data-nachschau]").count()) === 1 && /Morgenrunde Di\., 29\.09\.2026/.test(nach) && /Alter Bericht vom Montag/.test(nach) && !/HRO Test/.test(nach) && (await fenster.locator("[data-datum-wahl]").inputValue()) === "2026-09-29", nach.slice(0, 260));
+    ok("(K7) Kennzahlen auf den 29.09. bezogen: TPM-Quote September 92 % (11 von 12), 3 Monate Jun–Aug 80 %",
+      tachoAlt === "TPM-Quote September: 92 %, fällig bis heute 11 von 12" && /TPM-Quote 3 Mon\. · 80 %/.test(quoteAlt), `${tachoAlt} | ${quoteAlt}`);
+    await fenster.locator("[data-heute-knopf]").click();
+    await fenster.waitForTimeout(500);
+    ok("(K7) „↺ Heute“ führt zurück: wieder 02.10., kein Nachschau-Hinweis, Tacho Oktober",
+      (await fenster.locator("[data-datum-wahl]").inputValue()) === "2026-10-02" && (await fenster.locator("[data-nachschau]").count()) === 0 && /TPM-Quote Oktober/.test(await fenster.locator("[data-tpm-tacho]").getAttribute("aria-label")));
+    if (BILD) {
+      await fenster.locator("[data-datum-wahl]").fill("2026-09-29"); await fenster.waitForTimeout(400);
+      await fenster.setViewportSize({ width: 1600, height: 900 });
+      await fenster.screenshot({ path: BILD.replace(/\.png$/, "-nachschau.png"), clip: { x: 0, y: 0, width: 1600, height: 260 } });
+    }
+    await ctx2.close();
+  }
 
   ok("(E) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
   await browser.close();
