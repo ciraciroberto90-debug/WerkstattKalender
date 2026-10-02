@@ -177,7 +177,11 @@ function neuerStempel(jetzt, prev) {
   return alt && alt >= jetzt ? knappDanach(alt) : jetzt;
 }
 
-export function stampEntries(nextEntries, prevEntries) {
+/* istFremd (optional): Regel der jeweiligen Speicherschicht, welche Einträge
+   die Oberfläche NICHT darstellen kann - solche landen nie in removed.
+   Der Kalender gibt istFremderEintrag mit; Störberichte haben von Haus aus
+   keine Kategorie und keinen Namen, dort gibt es die Regel nicht. */
+export function stampEntries(nextEntries, prevEntries, istFremd = null) {
   const strip = OHNE_SPUR;
   const prevById = new Map((prevEntries || []).map((e) => [e.id, e]));
   const t = nowISO();
@@ -203,10 +207,25 @@ export function stampEntries(nextEntries, prevEntries) {
     return { ...ohneMarker, updatedAt: neuerStempel(t, prev), geaendertVon: ich, basis };
   });
   const removed = [];
-  prevById.forEach((_, id) => {
-    if (!nextEntries.some((e) => e.id === id)) removed.push(id);
+  const nextIds = new Set(nextEntries.map((e) => e && e.id));
+  prevById.forEach((prev, id) => {
+    if (nextIds.has(id)) return;
+    // NUR WAS DIE APP ZEIGEN KANN, KANN SIE LÖSCHEN (Vorfall 02.10., 10:06):
+    // In der Kalender-Datei fuhren 2.905 Störberichte ohne Kategorie und Name
+    // mit (ikom-Altlast vom 09.09.). Die App lässt beim Laden nur Einträge mit
+    // Kategorie und Name durch - der erste Speichervorgang im Server-Betrieb
+    // schrieb den Bestand ohne sie zurück, und das galt als "2.905 gelöscht".
+    // Ein Eintrag, den kein Bediener je gesehen hat, kann nicht gewollt
+    // gelöscht sein - er bleibt, bis ihn ein ausdrücklicher Aufräumweg entfernt.
+    if (istFremd && istFremd(prev)) return;
+    removed.push(id);
   });
   return { stamped, removed };
+}
+/* "Fremd" = fachlicher Eintrag, den die Oberfläche nicht darstellen kann
+   (dieselbe Regel wie der Lade-Filter der App: Kategorie und Name als Text). */
+export function istFremderEintrag(e) {
+  return !!e && !istSystemEintrag(e) && (typeof e.category !== "string" || typeof e.name !== "string");
 }
 
 /* Die Lösch-Merkliste altert NICHT nach der Uhr des einzelnen Rechners.
@@ -1824,7 +1843,7 @@ function createSharedStore(cfg) {
   // Datei stehen - falls nicht, wird neu zusammengeführt und nachgespeichert.
   async function saveEntries(nextEntries, prevEntries) {
     if (!fileHandle || accessMode !== "readwrite") return null;
-    let { stamped, removed } = stampEntries(nextEntries, prevEntries);
+    let { stamped, removed } = stampEntries(nextEntries, prevEntries, cfg.istFremd || null);
     merkeMeineAenderungen(stamped, prevEntries);
     // NOTBREMSE MASSENLÖSCHUNG (gefunden bei der 70.000er-Messfahrt, 11.09.):
     // Oberhalb der Browser-Speichergrenze bleibt der örtliche Spiegel leer,
@@ -2531,10 +2550,13 @@ const SERVER_HELFER = { mergeEntries, stampEntries, macheLogEintrag, benenneEint
 const main = SERVER_ADRESSE
   // dbName: derselbe Schlüssel wie die Datei-Fassung, damit der im Programm
   // gemerkte OEE-Quellordner nach dem Umschalten auf den Server weiter gilt.
-  ? createServerStore({ adresse: SERVER_ADRESSE, standort: STANDORT.id, bereich: "kalender", dbName: nsDb("werkstatt-kalender-fs"), entriesKey: nsKey("werkstatt-kalender-entries"), configKey: nsKey("werkstatt-kalender-config"), evPrefix: "werkstatt-shared" }, SERVER_HELFER)
+  // istFremd: Kalender-Einträge ohne Kategorie/Name zeigt die App nicht an -
+  // und was sie nicht zeigt, darf kein Speichervorgang löschen (Vorfall 02.10.).
+  ? createServerStore({ adresse: SERVER_ADRESSE, standort: STANDORT.id, bereich: "kalender", dbName: nsDb("werkstatt-kalender-fs"), entriesKey: nsKey("werkstatt-kalender-entries"), configKey: nsKey("werkstatt-kalender-config"), evPrefix: "werkstatt-shared", istFremd: istFremderEintrag }, SERVER_HELFER)
   : createSharedStore({
   dbName: nsDb("werkstatt-kalender-fs"),
   format: "werkstatt-kalender-v1",
+  istFremd: istFremderEintrag,
   standort: STANDORT.id,
   entriesKey: nsKey("werkstatt-kalender-entries"),
   configKey: nsKey("werkstatt-kalender-config"),

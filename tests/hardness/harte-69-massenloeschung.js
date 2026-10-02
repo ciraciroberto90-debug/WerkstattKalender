@@ -31,9 +31,12 @@ function baueBestand(n) {
   const entries = [];
   for (let i = 0; i < n; i++) {
     const jahr = 2019 + (i % 8);
+    // name wie jeder echte Eintrag: Seit dem 02.10. gilt "nur was die App
+    // zeigen kann, kann sie löschen" - ein Eintrag ohne Kategorie/Name
+    // (Lade-Filter der App) landet nie in der Löschmenge.
     entries.push({
       id: `alt|${i}`, date: `${jahr}-0${(i % 9) + 1}-1${i % 9}`, category: "NOTIZ",
-      text: `Bestand ${i}`, updatedAt: `${jahr}-01-01T08:00:00.000Z`,
+      name: `Bestand ${i}`, text: `Bestand ${i}`, updatedAt: `${jahr}-01-01T08:00:00.000Z`,
     });
   }
   return entries;

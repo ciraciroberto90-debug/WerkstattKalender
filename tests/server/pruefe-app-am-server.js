@@ -256,6 +256,46 @@ async function dienstStoppen() {
   const ausSpiegel = await D.p.evaluate(async () => { const s = window.__wkSharedTest.spiegel(); const g = await window.storage.get("werkstatt-kalender-entries"); return { n: s.entries.filter((e) => !String(e.id).startsWith("log|")).length, ausStorage: JSON.parse(g.value).length, erreichbar: window.__wkSharedTest.erreichbar(), meldungen: window.__meldungen.filter((m) => /nicht erreichbar/.test(m)).length }; });
   ok("(C7) Server weg, App neu gestartet: 32 Einträge aus dem örtlichen Spiegel (IndexedDB), Meldung 'nicht erreichbar'", ausSpiegel.n === 32 && ausSpiegel.ausStorage === 32 && !ausSpiegel.erreichbar && ausSpiegel.meldungen >= 1, JSON.stringify(ausSpiegel));
 
+  /* (C13) VORFALL 02.10., 10:06 (Version 10 auf v-btacockpit-1): Im Kalender-
+     Bestand fuhren 2.905 Störberichte ohne Kategorie und Name mit (ikom-Altlast).
+     Die App lässt beim Laden nur Einträge mit Kategorie+Name durch und schrieb
+     beim ersten Speichern (ein Zettel) den Bestand OHNE sie zurück - der Server
+     wertete das als 2.905 Löschungen + 2.905 Verlaufszeilen "gelöscht".
+     Hier derselbe Weg am Standort Soendgen: 150 sichtbare + 1.200 fremde
+     Einträge (mehr als 100 sichtbare, damit wie am 02.10. die alte Notbremse
+     "riesige Löschmenge bei fast leerem Stand" NICHT greift), dann ein
+     Speichern aus dem gefilterten Stand. Erwartet: alle 1.350 bleiben, keine
+     Löschmarken, keine "gelöscht"-Zeilen.
+     Rot-Nachweis: gegen den Bau vor der Sperre (APP_PFAD alte HTML) fehlen 1.200. */
+  await dienstStarten();
+  {
+    const sichtbar = Array.from({ length: 150 }, (_, i) => ({ id: "s-sicht-" + i, date: HEUTE, category: "TODO", name: "Sichtbar " + i, status: "open", updatedAt: T }));
+    const fremd = Array.from({ length: 1200 }, (_, i) => ({ id: "ikom-" + i, nr: String(20000 + i), date: "2025-08-18", schicht: "Früh", anlage: "B1", stoerung: "Altlast " + i, offen: false, updatedAt: "2026-09-09T14:23:39.746Z" }));
+    const imp = await post("/api/soendgen/import?bereich=kalender", { format: "werkstatt-kalender-v1", standort: "soendgen", savedAt: T, entries: sichtbar.concat(fremd), deleted: {}, config: { tpmAnlagen: [], riItems: [], team: [], benutzer: [{ name: "Chef", rolle: "verwalter" }] } });
+    const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
+    const p = await ctx.newPage();
+    p.on("pageerror", (e) => fehler.D.push("S:" + e.message));
+    await ctx.addInitScript((s) => { localStorage.setItem("bta-standort", "soendgen"); localStorage.setItem("werkstatt-kalender-benutzer", "Chef"); localStorage.setItem("werkstatt-kalender-name", "Chef"); localStorage.setItem("bta-server:schluessel", s); }, SCHLUESSEL);
+    await p.goto(APP + "?server=" + B);
+    await bereit(p);
+    const vorher = (await holen("/api/soendgen/stand?seit=0")).k;
+    // Zweiter Standort: Schlüssel im eigenen Namensraum (standort.js nsKey)
+    await p.evaluate(async (KEY) => {
+      const alle = JSON.parse((await window.storage.get(KEY)).value);
+      // Genau der Lade-Filter der App: nur Einträge mit Kategorie und Name
+      const gezeigt = alle.filter((e) => e && typeof e.date === "string" && typeof e.category === "string" && typeof e.name === "string" && typeof e.id !== "undefined");
+      await window.storage.set(KEY, JSON.stringify(gezeigt.concat([{ id: "zettel-1", date: "2026-09-30", category: "NOTIZ", name: "Servertest", status: "open" }])));
+      await window.__wkStorageTest.dateiFertig();
+    }, "bta-soendgen:" + KEY);
+    await warte(400);
+    const nachher = (await holen("/api/soendgen/stand?seit=0")).k;
+    const fachlich = (k) => k.eintraege.filter((e) => !String(e.id).startsWith("log|")).length;
+    const geloeschtZeilen = nachher.eintraege.filter((e) => String(e.id).startsWith("log|") && /gelöscht/.test(e.was || "")).length;
+    const marken = (nachher.geloescht && nachher.geloescht.eintraege || []).length;
+    ok("(C13) Fremde Einträge (ohne Kategorie/Name) überleben das erste Speichern: 1.350 + Zettel = 1.351 auf dem Server, keine Löschmarke, keine 'gelöscht'-Zeile", imp.status === 200 && fachlich(vorher) === 1350 && fachlich(nachher) === 1351 && marken === 0 && geloeschtZeilen === 0, `vorher ${fachlich(vorher)}, nachher ${fachlich(nachher)}, Löschmarken ${marken}, gelöscht-Zeilen ${geloeschtZeilen}`);
+    await ctx.close();
+  }
+
   ok("(E) Keine Skriptfehler in den Fenstern", fehler.A.length === 0 && fehler.B.length === 0 && fehler.C.length === 0 && fehler.D.length === 0, [...fehler.A, ...fehler.B, ...fehler.C, ...fehler.D].slice(0, 3).join(" | "));
   await browser.close();
   await dienstStoppen();

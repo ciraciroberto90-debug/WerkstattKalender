@@ -497,10 +497,15 @@ export function createServerStore(cfg, helfer) {
 
   async function saveEntries(nextEntries, prevEntries) {
     await bereit;
-    let { stamped, removed } = H.stampEntries(nextEntries, prevEntries);
+    let { stamped, removed } = H.stampEntries(nextEntries, prevEntries, cfg.istFremd || null);
     // Notbremse Massenlöschung wie in der Datei-Fassung (11.09.) - hier zusätzlich
-    // gegen einen leeren Vergleichsstand nach Neustart.
-    if (removed.length > 1000 && nextEntries.length < 100) removed = [];
+    // gegen einen leeren Vergleichsstand nach Neustart. Seit dem 02.10. LAUT:
+    // 2.905 Einträge gingen still (stampEntries lässt Unsichtbares inzwischen
+    // gar nicht mehr in removed - die Bremse ist das zweite Netz).
+    if (removed.length > 1000 && nextEntries.length < 100) {
+      dispatchError(`Sicherheits-Stopp: Dieser Speichervorgang hätte ${removed.length} Einträge auf einen Schlag als gelöscht markiert, obwohl er selbst fast leer ist. Das deutet auf einen kaputten Vergleichsstand hin, nicht auf gewolltes Löschen - der Bestand auf ${HOST} bleibt vollständig, nur die neuen Änderungen wurden übernommen.`);
+      removed = [];
+    }
     const ts = H.nowISO();
     const geaendert = stamped.filter((e) => e && e.id != null && !istConfig(e) && JSON.stringify(spiegel.entries.get(String(e.id))) !== JSON.stringify(e));
     const logZeilen = H.baueVerlauf ? H.baueVerlauf(nextEntries, prevEntries, removed, ts) : [];
