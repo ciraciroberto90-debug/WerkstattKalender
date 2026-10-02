@@ -8,9 +8,10 @@
 //       = 44 % gezeigt (Rot-Nachweis für die Rechenart).
 //  (K2) Reihenfolge im Kopf: Überschrift · Tacho · Knöpfe · Stand.
 //  (K3) Knöpfe sind farbig (Orange), nicht schwarz; der Haupt-Knopf gefüllt.
-//  (K4) Knopf „PitStop-Quote“ zeigt 3 Monate: Aug 3/4 = 75 %, Sep 9/10 = 90 %,
-//       Okt (bis heute) 3/4 = 75 % – nur PitStops (TPM), gesamt 15/18 = 83 %;
-//       die Summe steht auch auf dem Knopf. Klick öffnet, zweiter schließt.
+//  (K4) Knopf „TPM-Quote 3 Mon.“ (Roberto 02.10.: PitStop + R+I zusammen, nur
+//       die letzten ABGESCHLOSSENEN Monate, der laufende bleibt draußen):
+//       Jul 4/5 = 80 %, Aug 4/5 = 80 %, Sep 11/12 = 92 %, gesamt 19/22 = 86 %;
+//       Oktober taucht nicht auf. Summe auf dem Knopf. Klick öffnet, zweiter schließt.
 //  (K5) Knopf „PitStop“ zeigt heute / nächste 7 Tage / liegengeblieben
 //       (offener PitStop vom 21.09. rot).
 //  (K6) Top 3 klappt wie bisher (harte-93), die Knöpfe sind im Druck
@@ -29,9 +30,13 @@ const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItem
 let n = 0;
 const t = (date, cat, name, status) => ({ id: `t${n++}`, date, category: cat, name, status, updatedAt: "2026-10-01T06:00:00.000Z" });
 const TERMINE = [
-  // August: 4 PitStops, 3 erledigt -> 75 %
+  // Juli: 4 PitStops erledigt + 1 R+I offen -> 4/5 = 80 %
+  t("2026-07-06", "TPM", "B1", "done"), t("2026-07-13", "TPM", "B2", "done"), t("2026-07-20", "TPM", "TS480", "done"), t("2026-07-27", "TPM", "B3", "done"), t("2026-07-15", "RI", "Energieaufschreibung", "open"),
+  // August: 4 PitStops, 3 erledigt + 1 R+I erledigt -> 4/5 = 80 %
+  t("2026-08-14", "RI", "Kompressor Rundgang", "done"),
   t("2026-08-05", "TPM", "B1", "done"), t("2026-08-12", "TPM", "B2", "done"), t("2026-08-19", "TPM", "TS480", "done"), t("2026-08-26", "TPM", "B3", "open"),
-  // September: 10 PitStops, 9 erledigt -> 90 % (der offene 21.09. ist "liegengeblieben")
+  // September: 10 PitStops, 9 erledigt + 2 R+I erledigt -> 11/12 = 92 % (der offene 21.09. ist "liegengeblieben")
+  t("2026-09-11", "RI", "Werkstattreinigung", "done"), t("2026-09-25", "RI", "Elevatorprüfung", "done"),
   ...["01", "03", "08", "10", "14", "15", "17", "22", "24"].map((d) => t(`2026-09-${d}`, "TPM", "VSM2", "done")), t("2026-09-21", "TPM", "KUKA I", "open"),
   // Oktober bis heute (02.10.): 3 PitStops + 1 R+I erledigt, 1 PitStop offen
   t("2026-10-01", "TPM", "B1", "done"), t("2026-10-01", "TPM", "B4", "done"), t("2026-10-02", "TPM", "VSM2", "done"), t("2026-10-02", "TPM", "B5", "open"), t("2026-10-01", "RI", "Kompressor Rundgang", "done"),
@@ -91,15 +96,15 @@ const STOER = [{ id: "s1", nr: 700, date: "2026-10-01", schicht: "Früh", anlage
   /* (K4) PitStop-Quote */
   const qk = b.locator("[data-pitquote-knopf]"), qa = b.locator("#pitquote");
   const knopfText = (await qk.innerText()).replace(/\s+/g, " ");
-  ok("(K4) Knopf „PitStop-Quote“ trägt die 3-Monats-Summe (83 %), Abschnitt zunächst zu", /PitStop-Quote 3 Mon\. · 83 %/.test(knopfText) && !(await qa.isVisible()), knopfText);
+  ok("(K4) Knopf „TPM-Quote“ trägt die 3-Monats-Summe (86 %), Abschnitt zunächst zu", /TPM-Quote 3 Mon\. · 86 %/.test(knopfText) && !(await qa.isVisible()), knopfText);
   await qk.click(); await b.waitForTimeout(200);
   const monate = await b.locator("[data-pq-monat]").evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, " ").trim()));
   const gesamt = await b.locator("[data-pq-gesamt]").innerText();
-  ok("(K4) Klick zeigt Aug 75 % (3/4), Sep 90 % (9/10), Okt bis heute 75 % (3/4) – nur PitStops, R+I zählt hier nicht; gesamt 83 %",
-    (await qa.isVisible()) && monate.length === 3 && /^75 % Aug · 3 \/ 4$/.test(monate[0]) && /^90 % Sep · 9 \/ 10$/.test(monate[1]) && /^75 % Okt \(bis heute\) · 3 \/ 4$/.test(monate[2]) && gesamt.trim() === "83 %" && /schließen/.test(await qk.innerText()),
+  ok("(K4) Klick zeigt Jul 80 % (4/5), Aug 80 % (4/5), Sep 92 % (11/12) – PitStop + R+I, ohne Oktober; gesamt 86 %",
+    (await qa.isVisible()) && monate.length === 3 && /^80 % Jul · 4 \/ 5$/.test(monate[0]) && /^80 % Aug · 4 \/ 5$/.test(monate[1]) && /^92 % Sep · 11 \/ 12$/.test(monate[2]) && !/Okt/.test(monate.join(" ")) && gesamt.trim() === "86 %" && /schließen/.test(await qk.innerText()),
     monate.join(" | ") + " · " + gesamt);
   await qk.click(); await b.waitForTimeout(200);
-  ok("(K4) Zweiter Klick schließt, Knopf zeigt wieder die Summe", !(await qa.isVisible()) && /83 %/.test(await qk.innerText()));
+  ok("(K4) Zweiter Klick schließt, Knopf zeigt wieder die Summe", !(await qa.isVisible()) && /86 %/.test(await qk.innerText()));
 
   /* (K5) PitStop-Liste */
   const pk = b.locator("[data-pitliste-knopf]");

@@ -4177,7 +4177,7 @@ function App() {
     const pitZeile = `<div class="hinweis pit" data-pitstop><span data-pit-heute>🔧 Aktuell PitStop: ${heuteText}</span><span class="pit-trenner">|</span><span data-pit-naechster>Nächster PitStop: ${naechsterText}</span></div>`;
     /* Kopf für die Morgenrunde (Robertos Wahl 02.10., Vorlage A geändert):
        links neben der Überschrift der Tacho „TPM-Quote <Monat>“, rechts die
-       Knöpfe PitStop-Quote · PitStop · Top 3 – farbig, damit man sieht, dass
+       Knöpfe TPM-Quote 3 Monate · PitStop · Top 3 – farbig, damit man sieht, dass
        man sie drücken kann (Schwarz ging im Bericht unter).
        Quote „fällig bis heute“: Die Monatsquote der Kachel zählt auch die
        PitStops, die erst später im Monat kommen, als nicht erledigt – am
@@ -4211,22 +4211,23 @@ function App() {
         ${tachoSvg(tpmMonat.p)}
         <div><div class="tt">TPM-Quote ${esc(monatName)}</div><div class="tw" style="color:${ampelSb(tpmMonat.p)}">${tpmMonat.p === null ? "–" : `${tpmMonat.p} %`}</div><div class="ts">${tpmMonat.p === null ? "noch nichts fällig" : `fällig bis heute: ${tpmMonat.d} von ${tpmMonat.n}`}</div></div>
       </div>`;
-    // PitStop-Quote rollierend: laufender Monat (bis heute) und die zwei davor,
-    // wie das 3-Monats-Blatt (Robertos Wunsch 24.08.) - hier nur PitStops (TPM).
-    const pitMonate = [2, 1, 0].map((zurueck) => {
+    // TPM-Quote der letzten drei ABGESCHLOSSENEN Monate (Roberto 02.10.:
+    // "beides zusammen, PitStop und R+I - immer die letzten Monate, den
+    // aktuellen rauslassen"; der laufende Monat steht schon im Tacho).
+    const istTpm = (e) => e.category === "TPM" || e.category === "RI";
+    const pitMonate = [3, 2, 1].map((zurueck) => {
       const d = new Date(today.getFullYear(), today.getMonth() - zurueck, 1);
       const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
-      const q = quoteVon(entries.filter((e) => e.category === "TPM" && String(e.date).startsWith(key) && (zurueck > 0 || String(e.date) <= todayKey)));
-      return { ...q, name: MONTHS_SHORT[d.getMonth()] + (zurueck === 0 ? " (bis heute)" : "") };
+      return { ...quoteVon(entries.filter((e) => istTpm(e) && String(e.date).startsWith(key))), name: MONTHS_SHORT[d.getMonth()] };
     });
-    const pitAb = (() => { const v = new Date(today.getFullYear(), today.getMonth() - 2, 1); return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-01`; })();
-    const pitGesamt = quoteVon(entries.filter((e) => e.category === "TPM" && String(e.date) >= pitAb && String(e.date) <= todayKey));
+    const pitAb = (() => { const v = new Date(today.getFullYear(), today.getMonth() - 3, 1); return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-01`; })();
+    const pitGesamt = quoteVon(entries.filter((e) => istTpm(e) && String(e.date) >= pitAb && String(e.date) < `${monatKeySb}-01`));
     const pitGesamtText = pitGesamt.p === null ? "–" : `${pitGesamt.p} %`;
     const quoteHtml = `<section id="pitquote" data-pitquote hidden class="klapp">
-        <div class="klapp-kopf"><span>PitStop-Quote · letzte 3 Monate</span><span class="top3-sub">erledigte an fälligen PitStops${quoteZielSb > 0 ? ` · Ziel ${quoteZielSb} %` : " · grün ab 90 %"}</span></div>
+        <div class="klapp-kopf"><span>TPM-Quote · letzte 3 Monate</span><span class="top3-sub">PitStop + R+I · erledigte an geplanten Terminen · ohne laufenden Monat${quoteZielSb > 0 ? ` · Ziel ${quoteZielSb} %` : " · grün ab 90 %"}</span></div>
         <div class="pq">
           <div class="pq-monate">${pitMonate.map((m) => `<div class="pq-mon" data-pq-monat><div class="pq-bar"><i style="height:${m.p === null ? 0 : Math.max(4, Math.round(m.p * 0.7))}px;background:${ampelSb(m.p)}"></i></div><b style="color:${ampelSb(m.p)}">${m.p === null ? "–" : `${m.p} %`}</b><span>${esc(m.name)} · ${m.d} / ${m.n}</span></div>`).join("")}</div>
-          <div class="pq-summe"><div class="pq-l">3 Monate gesamt</div><div class="pq-z" data-pq-gesamt style="color:${ampelSb(pitGesamt.p)}">${pitGesamtText}</div><div class="pq-s">${pitGesamt.d} von ${pitGesamt.n} PitStops</div></div>
+          <div class="pq-summe"><div class="pq-l">3 Monate gesamt</div><div class="pq-z" data-pq-gesamt style="color:${ampelSb(pitGesamt.p)}">${pitGesamtText}</div><div class="pq-s">${pitGesamt.d} von ${pitGesamt.n} Terminen</div></div>
         </div>
       </section>`;
     // PitStop-Liste: heute, die nächsten 7 Tage, liegengeblieben (offen, schon fällig).
@@ -4420,7 +4421,7 @@ function App() {
         <h1>Schichtbericht Störungen</h1>
         ${tachoHtml}
         <div class="knopfleiste nurbild">
-          <button type="button" class="sbknopf voll" data-pitquote-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitquote');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.innerHTML=zu?'✕ PitStop-Quote schließen':b.getAttribute('data-zu');})(this)" data-zu="📈 PitStop-Quote &lt;small&gt;3 Mon. · ${pitGesamtText}&lt;/small&gt;">📈 PitStop-Quote <small>3 Mon. · ${pitGesamtText}</small></button>
+          <button type="button" class="sbknopf voll" data-pitquote-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitquote');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.innerHTML=zu?'✕ TPM-Quote schließen':b.getAttribute('data-zu');})(this)" data-zu="📈 TPM-Quote &lt;small&gt;3 Mon. · ${pitGesamtText}&lt;/small&gt;">📈 TPM-Quote <small>3 Mon. · ${pitGesamtText}</small></button>
           <button type="button" class="sbknopf" data-pitliste-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitliste');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ PitStop schließen':'🔧 PitStop';})(this)">🔧 PitStop</button>
           <button type="button" class="top3knopf" data-top3-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('top3');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ Top 3 schließen':'⚠ Top 3';})(this)">⚠ Top 3</button>
         </div>
