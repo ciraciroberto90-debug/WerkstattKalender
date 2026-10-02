@@ -145,6 +145,8 @@ node tools/stick-bauen.js --pruefen       # passen die Stick-Quellen zusammen? (
 node tools/render-aufsetzen.js             # nach Änderungen an tools/aufsetzen-pdf.html
 node --no-warnings tests/server/pruefe-dienst.js   # Server-Dienst (Etappe A): Schnittstelle, Konflikte, Import/Export, SSE, Sicherung
 node --no-warnings tests/server/pruefe-dienst-last.js   # Dienst unter Last (16.951 + 31.845 Einträge, Zeiten im Protokoll)
+node --no-warnings tests/server/pruefe-app-am-server.js   # die gebaute App gegen den echten Dienst (Etappe C)
+node --no-warnings tests/server/pruefe-quellen-am-server.js   # Excel-Quellen im Server-Betrieb: Kopie, Zubringer, Browser (Roll-out 54)
 ```
 
 Nach jeder Änderung an `arbeitsplatz/` gehört `node tools/startpaket-bauen.js`

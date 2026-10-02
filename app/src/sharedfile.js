@@ -2529,7 +2529,9 @@ export const serverBetrieb = () => SERVER_ADRESSE;
 export { werkstattSchluessel, setzeWerkstattSchluessel } from "./server-client.js";
 const SERVER_HELFER = { mergeEntries, stampEntries, macheLogEintrag, benenneEintrag, ohneSystemEntries, extractLogEntries, werBinIch, nowISO, baueVerlauf, configAusEintraegen };
 const main = SERVER_ADRESSE
-  ? createServerStore({ adresse: SERVER_ADRESSE, standort: STANDORT.id, bereich: "kalender", entriesKey: nsKey("werkstatt-kalender-entries"), configKey: nsKey("werkstatt-kalender-config"), evPrefix: "werkstatt-shared" }, SERVER_HELFER)
+  // dbName: derselbe Schlüssel wie die Datei-Fassung, damit der im Programm
+  // gemerkte OEE-Quellordner nach dem Umschalten auf den Server weiter gilt.
+  ? createServerStore({ adresse: SERVER_ADRESSE, standort: STANDORT.id, bereich: "kalender", dbName: nsDb("werkstatt-kalender-fs"), entriesKey: nsKey("werkstatt-kalender-entries"), configKey: nsKey("werkstatt-kalender-config"), evPrefix: "werkstatt-shared" }, SERVER_HELFER)
   : createSharedStore({
   dbName: nsDb("werkstatt-kalender-fs"),
   format: "werkstatt-kalender-v1",
@@ -2593,6 +2595,9 @@ export const vergissQuellOrdner = main.vergissQuellOrdner;
 export const quellOrdnerStatus = main.quellOrdnerStatus;
 export const quellOrdnerName = main.quellOrdnerName;
 export const setzeQuellOrdnerPfad = main.setzeQuellOrdnerPfad;
+// Nur im Server-Betrieb: woher die Tabelle kommt (Kopie auf dem Server,
+// Zubringer über das Laufwerk). In der Datei-Fassung gibt es das nicht - null.
+export const quellenLage = main.quellenLage ? main.quellenLage : () => null;
 export const saveEntries = main.saveEntries;
 export const saveConfig = main.saveConfig;
 export const readLog = main.readLog;

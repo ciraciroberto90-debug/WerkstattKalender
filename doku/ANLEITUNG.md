@@ -192,6 +192,15 @@ Zwei Dinge sind dabei getrennt:
 Liegt die Tabelle ausnahmsweise im Datenordner, genügt dessen Freigabe – dann
 wird dort gesucht, und der zweite Ordner entfällt.
 
+**Im Server-Betrieb** (Cockpit über den BTA-Server) lesen alle Rechner die
+Tabelle als **Kopie auf dem Server**. Dorthin bringt sie ein Cockpit-*Programm*,
+das Zugriff auf das Laufwerk hat und den Ordner gewählt hat – das genügt an
+einem einzigen Rechner; es spielt die Datei nur ein, wenn Excel sie geändert
+hat. Browser und Monitor brauchen keinen Ordner. Fehlt die Kopie noch, sagt die
+Kachel das im Tooltip („liegt noch nicht auf dem Server …“). Der Dienst
+schreibt nie in die Tabelle; die Status-Seite des Servers nennt die Quellen mit
+dem Stand der Vorlage.
+
 Die Spalten erkennt die App an den Überschriften (*Datum, Uhrzeit, Anlage,
 Schicht, OEE, Verfügbarkeit, Leistung, Qualität*); jede Zuordnung lässt sich
 darunter von Hand ändern. **Auch Pivot-Tabellen werden verstanden:** Ein über

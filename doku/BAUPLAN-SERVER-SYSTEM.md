@@ -116,6 +116,7 @@ fotos          id · stoerung_id · dateiname · groesse · zeit  (Datei liegt i
 | `GET /api/{standort}/ereignisse` (SSE) | „Es gibt Version X" – die App holt sich dann den Stand. Kein Polling. |
 | `GET /api/{standort}/export.json` | Der Bestand im **heutigen Dateiformat** (`werkstatt-kalender-v1`). Rückfallnetz und Handexport. |
 | `GET /api/{standort}/fotos/{id}` · `POST …/fotos` | Fotos am Störbericht. |
+| `GET /api/{standort}/quellen` · `GET/POST/DELETE …/quellen/{name}` | **Excel-Quellen (0.4.0, 02.10.):** Kopie der Tabellen, die die App nur liest (OEE, später Budget-Ist). Der Dienst kommt nicht an `W:` – ein Programm mit Laufwerkszugriff spielt die Datei ein (`?stand=` = Änderungszeit der Vorlage), Browser und Monitor lesen die Kopie. Nur Tabellen-Endungen, kein Pfad; Einspielen mit Werkstatt-Schlüssel. |
 | `GET /status` | Datenbankgröße, Version, letzte Sicherung, verbundene Rechner, Antwortzeit, Fehler der letzten 24 h – auch im ⚙ sichtbar. |
 | `GET /app/` | Die App selbst (eine HTML). Neuer Stand = Datei tauschen. |
 | `GET /api/ich` | Wer bin ich laut Server (Konto, Standort-Gruppen, App-Rolle). |

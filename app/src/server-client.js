@@ -260,6 +260,140 @@ export function createServerStore(cfg, helfer) {
     } catch (e) { return false; }
   }
 
+  /* ---------- Excel-Quellen (Roll-out 54, 02.10.) ----------
+     Die App LIEST Tabellen (OEE heute, Budget-Ist morgen). Im Server-Betrieb
+     gibt es zwei Wege zu ihnen, und beide gehen durch dieselben Methoden wie
+     in der Datei-Fassung (leseAusOrdner, listeOrdnerDateien, …):
+       1. Die KOPIE auf dem Server (api/<standort>/quellen). Sie liest jeder -
+          Browser, Monitor, Programm. Der Dienst selbst kommt nicht an W: heran
+          (Konto SYSTEM, Befund 30.09.), die Kopie muss also jemand hinbringen.
+       2. Der ZUBRINGER: läuft die App im Programm (Brücke __werkstattDesktop)
+          und hat einen Quellordner auf dem Laufwerk gemerkt (derselbe Schlüssel
+          wie in der Datei-Fassung, deshalb muss niemand ihn neu wählen), liest
+          sie die Tabelle direkt von dort - und spielt sie auf den Server, wenn
+          die Kopie dort fehlt oder älter ist. So reicht EIN Rechner mit
+          Laufwerkszugriff, damit alle die aktuelle Zahl sehen. */
+  const bruecke = () => (typeof window !== "undefined" && window.__werkstattDesktop) || null;
+  const QUELL_SCHLUESSEL = (cfg.dbName || `werkstatt-${BEREICH}-fs`) + ":quellordner";
+  let quellPfad = null;          // gemerkter Ordner auf dem Laufwerk (nur Programm)
+  let quellPfadGeladen = false;
+  let quellenAufServer = null;   // letzte Liste vom Server (Name -> {bytes, stand})
+  const quelleWeg = (name) => `${API}/quellen/${encodeURIComponent(name)}`;
+  const pfadVerbinden = (basis, name) => { const b = String(basis); const t = b.includes("\\") ? "\\" : "/"; return (b.endsWith(t) ? b : b + t) + String(name); };
+  const ordnerName = (pfad) => String(pfad).split(/[\\/]/).filter(Boolean).pop() || String(pfad);
+  async function quellPfadLaden() {
+    if (quellPfadGeladen) return quellPfad;
+    quellPfadGeladen = true;
+    const d = bruecke();
+    if (d && typeof d.gemerkt === "function") { try { quellPfad = (await d.gemerkt(QUELL_SCHLUESSEL)) || null; } catch (e) { quellPfad = null; } }
+    return quellPfad;
+  }
+  async function quellenListeHolen() {
+    const r = await anfrage(`${API}/quellen`, { fristMs: 8000 });
+    if (r.status !== 200 || !r.daten) throw new Error("Quellen-Liste nicht lesbar (" + r.status + ")");
+    quellenAufServer = new Map((r.daten.quellen || []).map((q) => [q.name, q]));
+    return quellenAufServer;
+  }
+  async function quelleVomServer(name) {
+    const r = await fetch(quelleWeg(name), { cache: "no-store" });
+    if (r.status === 404) {
+      const e = new Error(`„${name}" liegt noch nicht auf dem Server ${HOST}. Sie kommt dorthin, sobald ein Cockpit-Programm mit Zugriff auf das Laufwerk läuft (⚙ → OEE → Ordner mit der Tabelle).`);
+      e.name = "NotFoundError"; e.quellenHinweis = true; throw e;
+    }
+    if (!r.ok) throw new Error(`Quelle „${name}" nicht lesbar (${r.status})`);
+    const blob = await r.blob();
+    const stand = Number(r.headers.get("X-BTA-Stand")) || Date.now();
+    erreichbar = true;
+    return new File([blob], name, { type: blob.type || "", lastModified: stand });
+  }
+  /* Zubringer: Datei vom Laufwerk lesen und - wenn der Server sie nicht oder
+     älter hat - einspielen. Gibt die Datei zurück, oder null, wenn sie am
+     gemerkten Ort nicht liegt (dann gilt die Server-Kopie). Ein Fehlschlag beim
+     Hochladen ist kein Grund, die Zahl nicht zu zeigen: die Datei ist ja da. */
+  async function zubringer(name) {
+    const d = bruecke();
+    const pfad = await quellPfadLaden();
+    if (!d || !pfad) return null;
+    let kurz = null;
+    try { kurz = typeof d.stat === "function" ? await d.stat(pfadVerbinden(pfad, name)) : null; } catch (e) { kurz = null; }
+    const voll = kurz ? null : await d.lese(pfadVerbinden(pfad, name)).catch(() => null);
+    if (!kurz && !voll) return null;
+    const stand = Math.round((kurz || voll).geaendert);
+    const groesse = (kurz || voll).groesse;
+    let liste = quellenAufServer;
+    try { liste = await quellenListeHolen(); } catch (e) { liste = quellenAufServer; }
+    const dort = liste && liste.get(name);
+    const istNeuer = !dort || Number(dort.stand) < stand || Number(dort.bytes) !== groesse;
+    let bytes = voll ? voll.bytes : null;
+    if (istNeuer) {
+      try {
+        if (!bytes) { const r = await d.lese(pfadVerbinden(pfad, name)); if (!r) return null; bytes = r.bytes; }
+        const kopf = {}; const s = werkstattSchluessel(); if (s) kopf["X-BTA-Schluessel"] = s;
+        const r = await fetch(quelleWeg(name) + `?stand=${stand}&benutzer=${encodeURIComponent(H.werBinIch())}`, { method: "POST", headers: kopf, body: new Blob([bytes]), cache: "no-store" });
+        if (r.ok) { const a = await r.json(); if (quellenAufServer) quellenAufServer.set(name, { name, bytes: a.bytes, stand: a.stand }); }
+        else dispatchError(r.status === 401 ? `Die Tabelle „${name}" konnte nicht auf den Server: Werkstatt-Schlüssel fehlt oder ist falsch.` : `Die Tabelle „${name}" konnte nicht auf den Server (${r.status}).`);
+      } catch (e) { /* Server nicht erreichbar - die Datei vom Laufwerk zählt trotzdem */ }
+    }
+    if (bytes) return new File([bytes], name, { lastModified: stand });
+    // Unverändert und noch nicht gelesen: die Bytes erst holen, wenn jemand sie
+    // wirklich braucht. Der OEE-Takt vergleicht jede Minute nur Stand und Größe -
+    // eine Mappe mit tausenden Zeilen dafür jedes Mal über das Netz zu ziehen
+    // wäre Arbeit ohne Ergebnis.
+    return {
+      name, size: groesse, lastModified: stand, type: "",
+      async arrayBuffer() { const r = await d.lese(pfadVerbinden(pfad, name)); if (!r) { const e = new Error("Datei nicht gefunden: " + name); e.name = "NotFoundError"; throw e; } return r.bytes.buffer.slice(r.bytes.byteOffset, r.bytes.byteOffset + r.bytes.byteLength); },
+    };
+  }
+  async function leseAusOrdner(name) {
+    if (!name) return null;
+    const vomLaufwerk = await zubringer(name);
+    if (vomLaufwerk) return vomLaufwerk;
+    return quelleVomServer(name);
+  }
+  async function listeOrdnerDateien(endung) {
+    const passt = (n) => (!endung || n.toLowerCase().endsWith(String(endung).toLowerCase())) && !n.startsWith("~$");
+    const namen = new Set();
+    try { for (const n of (await quellenListeHolen()).keys()) if (passt(n)) namen.add(n); } catch (e) { /* Server weg: nur das Laufwerk */ }
+    const d = bruecke(); const pfad = await quellPfadLaden();
+    if (d && pfad) { try { for (const e of (await d.liste(pfad)) || []) if (passt(e.name)) namen.add(e.name); } catch (e) { /* Laufwerk weg */ } }
+    return [...namen].sort((a, b) => a.localeCompare(b, "de"));
+  }
+  async function quellOrdnerSetzen(pfad) {
+    quellPfad = pfad || null; quellPfadGeladen = true;
+    const d = bruecke();
+    if (d && typeof d.merke === "function") { try { await d.merke(QUELL_SCHLUESSEL, quellPfad); } catch (e) { /* nur diese Sitzung */ } }
+  }
+  async function pickQuellOrdner() {
+    const d = bruecke();
+    if (!d) { dispatchInfo("Im Browser liest das Cockpit die Tabelle aus der Kopie auf " + HOST + ". Einen Ordner wählen kann nur die Programm-Fassung - sie bringt die Tabelle vom Laufwerk auf den Server."); return null; }
+    const pfad = await d.waehleOrdner();
+    if (!pfad) return null;
+    await quellOrdnerSetzen(pfad);
+    return { name: ordnerName(pfad) };
+  }
+  async function setzeQuellOrdnerPfad(pfad) {
+    const d = bruecke();
+    if (!d) throw new Error("Pfad einfügen geht nur in der Programm-Fassung.");
+    const sauber = String(pfad || "").trim().replace(/^"|"$/g, "");
+    if (!sauber) throw new Error("Kein Pfad angegeben.");
+    const art = await d.pfadInfo(sauber);
+    if (!art) throw new Error(`Unter „${sauber}" wurde nichts gefunden - Pfad und Laufwerk prüfen.`);
+    let ordnerPfad = sauber; let dateiName = "";
+    if (art === "datei") { const teile = sauber.split(/[\\/]/); dateiName = teile.pop(); ordnerPfad = teile.join(sauber.includes("\\") ? "\\" : "/"); }
+    await quellOrdnerSetzen(ordnerPfad);
+    return { name: ordnerName(ordnerPfad), dateiName };
+  }
+  async function vergissQuellOrdner() { await quellOrdnerSetzen(null); }
+  // "ok" = lesebereit. Im Server-Betrieb gibt es keinen Ordner, der erst
+  // freigegeben werden müsste - die Kopie auf dem Server ist immer da.
+  function quellOrdnerStatus() { return gestartet ? "ok" : "none"; }
+  function quellOrdnerName() {
+    if (!quellPfadGeladen) quellPfadLaden();
+    return quellPfad ? `${quellPfad} → Server ${HOST}` : `Kopie auf dem Server ${HOST}`;
+  }
+  // Für die Oberfläche: woher kommt die Tabelle gerade, und bringt dieser Rechner sie auf den Server?
+  function quellenLage() { return { server: HOST, zubringer: !!(bruecke() && quellPfad), laufwerk: quellPfad, kopien: quellenAufServer ? [...quellenAufServer.values()] : null }; }
+
   /* ---------- Live-Meldungen (SSE) ---------- */
   function lauschen() {
     if (typeof EventSource === "undefined" || eventSource) return;
@@ -469,6 +603,7 @@ export function createServerStore(cfg, helfer) {
     save: saveEntries,
     fileInfo,
     fotos: { speichern: fotoSpeichern, lesen: fotoLesen, loeschen: fotoLoeschen },
+    quellen: { lese: leseAusOrdner, liste: listeOrdnerDateien, lage: quellenLage, setzePfad: quellOrdnerSetzen },
   };
 
   return {
@@ -496,8 +631,9 @@ export function createServerStore(cfg, helfer) {
     tagesSicherungStand: () => ({ server: true }),
     // Fotos liegen im fotos-Ordner des Standorts auf dem Server (Bauplan Entscheidung 5).
     fotosVerfuegbar: () => gestartet, fotoLage: () => (gestartet ? "ok" : "kein-ordner"), fotoSpeichern, fotoLesen, fotoLoeschen,
-    leseAusOrdner: nichts, listeOrdnerDateien: async () => [],
-    pickQuellOrdner: nichtImServerBetrieb, reconnectQuellOrdner: nichts, vergissQuellOrdner: nichts, quellOrdnerStatus: () => "none", quellOrdnerName: () => "", setzeQuellOrdnerPfad: nichts,
+    // Excel-Quellen: Kopie auf dem Server + Zubringer über die Programm-Brücke (siehe oben)
+    leseAusOrdner, listeOrdnerDateien,
+    pickQuellOrdner, reconnectQuellOrdner: async () => ({ name: quellOrdnerName() }), vergissQuellOrdner, quellOrdnerStatus, quellOrdnerName, setzeQuellOrdnerPfad, quellenLage,
     saveEntries, saveConfig,
     // Stand des Spiegels für storage.js (Bestand ohne Verwaltungszeilen + Einstellungen)
     standJetzt: () => ({ entries: H.ohneSystemEntries(lebende()), config: Object.keys(spiegel.config).length ? { ...spiegel.config } : null, version: spiegel.version, geladen: gestartet }),

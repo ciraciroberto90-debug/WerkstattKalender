@@ -1,7 +1,7 @@
 ==========================================================
  05-SERVER - DER DIENST FUER DEN BTA-SERVER
 ==========================================================
-Stand: 30.09.2026 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
+Stand: 02.10.2026, Dienst 0.4.0 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
 
 Dieser Ordner gehoert zum BTA-Server-Werkzeug (BTA-Server-Werkzeug.cmd
 eine Ebene hoeher). Er wird NICHT von Hand benutzt.

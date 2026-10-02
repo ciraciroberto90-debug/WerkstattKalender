@@ -5227,8 +5227,10 @@ function App() {
       try {
         datei = await sharedFile.leseAusOrdner(q.datei);
       } catch (e) {
-        // getFileHandle wirft, wenn die Datei nicht (mehr) da ist
-        setOeeStandStabil({ lage: "fehler", text: `„${q.datei}" liegt nicht im gewählten Ordner (${sharedFile.quellOrdnerName() || "kein Ordner"}).`, datei: q.datei });
+        // getFileHandle wirft, wenn die Datei nicht (mehr) da ist. Im Server-
+        // Betrieb bringt der Fehler seinen eigenen Text mit (Kopie fehlt noch
+        // auf dem Server - und wie sie dorthin kommt).
+        setOeeStandStabil({ lage: "fehler", text: e && e.quellenHinweis ? String(e.message) : `„${q.datei}" liegt nicht im gewählten Ordner (${sharedFile.quellOrdnerName() || "kein Ordner"}).`, datei: q.datei });
         return;
       }
       if (!datei) {
@@ -17408,7 +17410,7 @@ function App() {
                     >
                       Ordner wählen …
                     </button>
-                    {sharedFile.quellOrdnerStatus() !== "none" && sharedFile.quellOrdnerStatus() !== "ersatz" && (
+                    {sharedFile.quellOrdnerStatus() !== "none" && sharedFile.quellOrdnerStatus() !== "ersatz" && (!sharedFile.quellenLage() || sharedFile.quellenLage().zubringer) && (
                       <button
                         onClick={async () => { await sharedFile.vergissQuellOrdner(); setSettingsOee((v) => ({ ...v, dateien: null, blaetter: null })); }}
                         className="text-xs font-bold px-2 py-1.5 rounded"
@@ -17458,11 +17460,27 @@ function App() {
                       </button>
                     </div>
                   )}
-                  <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
-                    Der Ordner wird nur <strong>lesend</strong> geöffnet – die App kann auf dem Laufwerk nichts verändern.
-                    Er gilt für dieses Gerät; jeder Arbeitsplatz wählt ihn einmal selbst.
-                    Die Zuordnung darunter gilt für alle.
-                  </div>
+                  {(() => {
+                    // Server-Betrieb: die Tabelle kommt als Kopie vom Server; ein
+                    // Programm mit Laufwerkszugriff hält die Kopie frisch (Zubringer).
+                    const ql = sharedFile.quellenLage();
+                    if (!ql) return (
+                      <div className="text-xs mb-2" style={{ color: "#8A9099" }}>
+                        Der Ordner wird nur <strong>lesend</strong> geöffnet – die App kann auf dem Laufwerk nichts verändern.
+                        Er gilt für dieses Gerät; jeder Arbeitsplatz wählt ihn einmal selbst.
+                        Die Zuordnung darunter gilt für alle.
+                      </div>
+                    );
+                    return (
+                      <div className="text-xs mb-2" style={{ color: "#8A9099" }} data-testid="oee-quellen-lage">
+                        Server-Betrieb: Alle Rechner lesen die Tabelle als <strong>Kopie auf dem Server</strong> {ql.server}.
+                        {ql.zubringer
+                          ? <> Dieser Rechner bringt sie dorthin – er liest <strong>nur lesend</strong> aus „{ql.laufwerk}" und spielt sie ein, sobald Excel sie geändert hat.</>
+                          : <> Auf den Server bringt sie ein Cockpit-<strong>Programm</strong> mit Zugriff auf das Laufwerk (dort oben „Ordner wählen …" oder Pfad einfügen) – das genügt an einem einzigen Rechner.</>}
+                        {" "}Die Zuordnung darunter gilt für alle.
+                      </div>
+                    );
+                  })()}
                   {sharedFile.quellOrdnerStatus() === "none" ? (
                     <div className="text-xs rounded px-3 py-2 mb-2" style={{ backgroundColor: "#FBF3DA", color: "#7A5A00" }}>
                       Ohne Ordner findet die App die Tabelle nicht. Entweder oben einen wählen –

@@ -17,6 +17,9 @@
  *   GET  /api/:standort/export.json?bereich= Bestand im heutigen Dateiformat (kalender|stoerungen)
  *   POST /api/:standort/import               (Etappe B) Datei im v1-Format einlesen, Zählung zurück
  *   POST /api/:standort/sicherung            Sicherung jetzt (Datenbank-Kopie + Export)
+ *   GET  /api/:standort/quellen              (0.4.0) Excel-Quellen auf dem Server: Liste mit Stand
+ *   GET  /api/:standort/quellen/:name        eine Quelle (Bytes), Kopf X-BTA-Stand = Änderungszeit der Vorlage
+ *   POST /api/:standort/quellen/:name?stand=ms  Quelle einspielen (Programm mit Laufwerkszugriff); DELETE entfernt sie
  *   GET  /app/                               die App (eine HTML)
  */
 "use strict";
@@ -98,6 +101,31 @@ function rohLesen(req, maxBytes = 25 * 1024 * 1024) {
 const FOTO_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/;
 const FOTO_TYPEN = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif" };
 
+/* Excel-Quellen (0.4.0, Roll-out 54): Tabellen, die die App nur LIEST (OEE,
+   später Budget-Ist). Sie liegen auf W:, und W: darf der Dienst (Konto SYSTEM)
+   nicht lesen (Befund 30.09.). Deshalb hält der Dienst je Standort eine KOPIE
+   im Ordner quellen/: ein Cockpit-Programm mit Laufwerkszugriff spielt die
+   Datei ein, sobald sie auf W: jünger ist; jeder Rechner - auch der reine
+   Browser und der Monitor - liest die Kopie. Eine Quelle ist ein Dateiname,
+   wie Excel ihn vergibt (Leerzeichen, Umlaute erlaubt) - aber nie ein Pfad,
+   nie mit führendem Punkt, nur Tabellen-Endungen. */
+const QUELLE_NAME = /^[^\\/:*?"<>|\x00-\x1f.][^\\/:*?"<>|\x00-\x1f]{0,159}$/;
+const QUELLE_TYPEN = { ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12", ".xls": "application/vnd.ms-excel", ".csv": "text/csv; charset=utf-8" };
+const MAX_QUELLE = 50 * 1024 * 1024; // Robertos OEE-Auswertung hat wenige MB; 50 MB lässt Luft
+function quelleGueltig(name) {
+  return QUELLE_NAME.test(name) && !!QUELLE_TYPEN[path.extname(name).toLowerCase()] && !name.startsWith("~$");
+}
+/* Stand einer Kopie: die Änderungszeit der VORLAGE auf W: (beim Einspielen als
+   mtime gesetzt), damit die App „Excel hat die Datei um 06:12 angefasst“ sagt
+   und nicht die Zeit des Kopierens. */
+function quellenListe(ordner) {
+  if (!fs.existsSync(ordner)) return [];
+  return fs.readdirSync(ordner).filter(quelleGueltig).map((name) => {
+    const st = fs.statSync(path.join(ordner, name));
+    return { name, bytes: st.size, stand: Math.round(st.mtimeMs), standIso: new Date(st.mtimeMs).toISOString() };
+  }).sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
 function koerperLesen(req) {
   return new Promise((resolve, reject) => {
     const teile = []; let groesse = 0;
@@ -119,7 +147,8 @@ function starten(einstellungen, { still = false } = {}) {
     const dbPfad = path.join(s.datenOrdner, "cockpit.sqlite");
     standorte[id] = { id, name: s.name || id, datenOrdner: s.datenOrdner, db: oeffnen(dbPfad, { standort: id }), lauscher: new Set() };
     fs.mkdirSync(path.join(s.datenOrdner, "fotos"), { recursive: true });
-    log.info(`Standort ${id}: Datenbank ${dbPfad} (Version ${standorte[id].db.version()})`);
+    fs.mkdirSync(path.join(s.datenOrdner, "quellen"), { recursive: true });
+    log.info(`Standort ${id}: Datenbank ${dbPfad} (Version ${standorte[id].db.version()}), ${quellenListe(path.join(s.datenOrdner, "quellen")).length} Excel-Quelle(n)`);
   }
   /* Die jüngste Sicherung aus dem Ordner, damit ein Neustart des Dienstes
      nicht "noch keine" meldet (Sicherungs-Ampel im Werkzeug, Bauplan Abschnitt 12). */
@@ -184,7 +213,7 @@ function starten(einstellungen, { still = false } = {}) {
 
   function statusDaten() {
     const out = { dienst: "bta-cockpit-dienst", fassung: FASSUNG, gestartet: new Date(START).toISOString(), laufzeitSek: Math.round((Date.now() - START) / 1000), port: e.port, standorte: {}, letzteSicherung, fehlerLetzte24h: log.fehlerLetzte24h(), appDatei: e.appDatei && fs.existsSync(e.appDatei) ? { pfad: e.appDatei, bytes: fs.statSync(e.appDatei).size, geaendert: fs.statSync(e.appDatei).mtime.toISOString() } : null };
-    for (const st of Object.values(standorte)) out.standorte[st.id] = { name: st.name, ...st.db.zaehlen(), verbunden: st.lauscher.size, datenbank: st.db.pfad };
+    for (const st of Object.values(standorte)) out.standorte[st.id] = { name: st.name, ...st.db.zaehlen(), verbunden: st.lauscher.size, datenbank: st.db.pfad, quellen: quellenListe(path.join(st.datenOrdner, "quellen")) };
     return out;
   }
 
@@ -202,6 +231,8 @@ function starten(einstellungen, { still = false } = {}) {
     const zeilen = Object.entries(s.standorte).map(([id, st]) => `<tr><td>${esc(st.name)} <small>(${esc(id)})</small></td><td>${st.version}</td><td>${st.eintraege}</td><td>${st.stoerungen}</td><td>${st.verlauf.eintraege + st.verlauf.stoerungen}</td><td>${st.system.eintraege + st.system.stoerungen}</td><td>${st.geloescht}</td><td>${(st.bytes / 1024 / 1024).toFixed(2)} MB</td><td>${st.verbunden}</td></tr>`).join("");
     const sich = s.letzteSicherung ? `${esc(ortszeit(s.letzteSicherung.zeit))} (${esc(s.letzteSicherung.grund)})` : "noch keine seit dem Start";
     const fehler = s.fehlerLetzte24h.length ? `<ul>${s.fehlerLetzte24h.slice(-10).map((f) => `<li><code>${esc(f.zeit)}</code> ${esc(f.text)}</li>`).join("")}</ul>` : "<p class=ok>keine</p>";
+    const quellen = Object.entries(s.standorte).flatMap(([id, st]) => (st.quellen || []).map((q) => `<li>${esc(id)}: <code>${esc(q.name)}</code> · ${(q.bytes / 1024).toFixed(0)} kB · Stand der Vorlage ${esc(ortszeit(q.standIso))}</li>`));
+    const quellenHtml = quellen.length ? `<ul>${quellen.join("")}</ul>` : "<p>noch keine - ein Cockpit-Programm mit Zugriff auf das Laufwerk spielt sie ein (⚙ → OEE → Ordner mit der Tabelle).</p>";
     return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>BTA-Cockpit-Dienst</title>
 <style>body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#1F2933}h1{color:#1E2761}table{border-collapse:collapse}td,th{padding:6px 12px;border-bottom:1px solid #E5E9ED;text-align:left}th{font-size:12px;text-transform:uppercase;color:#5B6572}.ok{color:#1F7A3D;font-weight:bold}code{background:#EEF1F4;padding:0 4px}</style></head>
 <body><h1>BTA-Cockpit-Dienst <small style="color:#5B6572;font-size:14px">Fassung ${esc(s.fassung)} · Port ${s.port}</small></h1>
@@ -209,6 +240,7 @@ function starten(einstellungen, { still = false } = {}) {
 <table><tr><th>Standort</th><th>Version</th><th>Einträge</th><th>Störberichte</th><th>Verlauf</th><th>Einstellungen</th><th>gelöscht</th><th>Datenbank</th><th>verbunden</th></tr>${zeilen}</table>
 <p><small>Einträge und Störberichte wie die Kennkarte der App: nur fachliche Zeilen. Verlauf = Zeilen „wer hat wann was geändert“ (90 Tage), Einstellungen = Team, Anlagen, Listen.</small></p>
 <h2>Fehler der letzten 24 Stunden</h2>${fehler}
+<h2>Excel-Quellen</h2>${quellenHtml}
 <h2>App</h2><p>${s.appDatei ? `<a href="/app/">/app/</a> · ${(s.appDatei.bytes / 1024).toFixed(0)} kB · Stand ${esc(ortszeit(s.appDatei.geaendert))}` : "keine App-Datei hinterlegt"}</p>
 <p><small>JSON: <a href="/api/status">/api/status</a></small></p></body></html>`;
   }
@@ -314,6 +346,42 @@ function starten(einstellungen, { still = false } = {}) {
           return json(res, 200, { name, geloescht: true });
         }
       }
+      if (weg === "quellen") {
+        const ordner = path.join(st.datenOrdner, "quellen");
+        if (teile.length === 3) {
+          if (req.method !== "GET") return json(res, 405, { fehler: "Quellen: Liste nur lesen" });
+          return json(res, 200, { quellen: quellenListe(ordner) });
+        }
+        const name = decodeURIComponent(teile[3] || "");
+        if (!quelleGueltig(name)) return json(res, 400, { fehler: "Quelle: ungültiger Dateiname (nur .xlsx/.xlsm/.xls/.csv, kein Pfad)" });
+        const pfad = path.join(ordner, name);
+        if (req.method === "GET") {
+          if (!fs.existsSync(pfad)) return json(res, 404, { fehler: `Quelle „${name}“ liegt noch nicht auf dem Server` });
+          const stat = fs.statSync(pfad);
+          res.writeHead(200, { "Content-Type": QUELLE_TYPEN[path.extname(name).toLowerCase()], "Content-Length": stat.size, "Last-Modified": new Date(stat.mtimeMs).toUTCString(), "X-BTA-Stand": String(Math.round(stat.mtimeMs)), "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-BTA-Stand, Last-Modified" });
+          return fs.createReadStream(pfad).pipe(res);
+        }
+        if (req.method === "POST") {
+          const bytes = await rohLesen(req, MAX_QUELLE);
+          if (!bytes.length) return json(res, 400, { fehler: "Quelle: leere Datei" });
+          const stand = Number(u.query.stand) || Date.now();
+          fs.mkdirSync(ordner, { recursive: true });
+          // Zwischendatei, dann Umbenennen - ein Leser bekommt nie eine halbe Mappe.
+          const zwischen = pfad + ".teil";
+          fs.writeFileSync(zwischen, bytes);
+          fs.utimesSync(zwischen, new Date(), new Date(stand));
+          fs.renameSync(zwischen, pfad);
+          const st2 = fs.statSync(pfad);
+          if (st2.size !== bytes.length) { fs.unlinkSync(pfad); throw new Error("Quelle unvollständig geschrieben"); }
+          log.info(`${st.id}: Excel-Quelle ${name} (${st2.size} Bytes, Stand der Vorlage ${new Date(stand).toISOString()}) von ${u.query.benutzer || "?"}`);
+          return json(res, 200, { name, bytes: st2.size, stand: Math.round(st2.mtimeMs) });
+        }
+        if (req.method === "DELETE") {
+          if (fs.existsSync(pfad)) fs.unlinkSync(pfad);
+          log.info(`${st.id}: Excel-Quelle ${name} entfernt`);
+          return json(res, 200, { name, geloescht: true });
+        }
+      }
       return json(res, 404, { fehler: "Unbekannter Weg: " + u.pathname });
     } catch (x) {
       // Eine kaputte Anfrage (kein JSON, zu groß, ohne id) ist ein Fehler des
@@ -346,7 +414,7 @@ function starten(einstellungen, { still = false } = {}) {
   });
 }
 
-const FASSUNG = "0.3.0"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.)
+const FASSUNG = "0.4.0"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.)
 
 /* Import-Nachweis: eingelesene Datei gegen den Export aus der Datenbank.
    Einträge Feld für Feld (JSON-Text je id), Löschliste nach Kennung, Konfig je

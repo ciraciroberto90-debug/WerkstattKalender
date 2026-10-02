@@ -240,6 +240,34 @@ const T = "2026-09-30T10:00:00.000Z";
   ok("(A14) /status ist eine Seite mit beiden Standorten und Serverzeit", seite.status === 200 && /BTA-Cockpit-Dienst/.test(html) && /Scheurich/.test(html) && /Soendgen/.test(html) && /Läuft seit \d{2}\.\d{2}\.\d{4} \d{2}:\d{2} Uhr/.test(html) && !/Läuft seit \d{4}-\d{2}-\d{2}T/.test(html), (html.match(/Läuft seit [^(]*/) || [""])[0]);
   ok("(A14) /app/ ohne App-Datei -> 404; kaputtes JSON -> 400", (await fetch(B + "/app/")).status === 404 && (await fetch(B + "/api/scheurich/aenderungen", { method: "POST", body: "{kaputt", headers: { "Content-Type": "application/json", "X-BTA-Schluessel": "pruef-schluessel" } })).status === 400);
 
+  /* (Q) Excel-Quellen (0.4.0, Roll-out 54): Kopie auf dem Server, Stand = Zeit der Vorlage */
+  {
+    const bytes = Buffer.alloc(5000); for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 13) % 251;
+    const standVorlage = Date.parse("2026-10-02T04:12:00.000Z"); // Excel hat die Mappe um 06:12 Ortszeit angefasst
+    const name = "OEE Auswertung Halle 1.xlsx";                   // Leerzeichen wie bei Excel
+    const weg = "/api/scheurich/quellen/" + encodeURIComponent(name);
+    const leer = await holen("/api/scheurich/quellen");
+    ok("(Q1) Leere Liste vor dem Einspielen; fehlende Quelle -> 404 mit Hinweis", leer.status === 200 && Array.isArray(leer.k.quellen) && leer.k.quellen.length === 0 && (await holen(weg)).status === 404, JSON.stringify(leer.k));
+    const ohne = await fetch(B + weg + "?stand=" + standVorlage, { method: "POST", body: bytes });
+    ok("(Q2) Einspielen ohne Werkstatt-Schlüssel -> 401, nichts auf dem Server", ohne.status === 401 && (await holen("/api/scheurich/quellen")).k.quellen.length === 0, String(ohne.status));
+    const hoch = await fetch(B + weg + "?stand=" + standVorlage + "&benutzer=Chef", { method: "POST", headers: { "X-BTA-Schluessel": "pruef-schluessel" }, body: bytes });
+    const hochK = await hoch.json();
+    const liste = (await holen("/api/scheurich/quellen")).k.quellen;
+    ok("(Q3) Einspielen mit Schlüssel -> 200; Liste nennt Name, 5000 Bytes und den Stand der VORLAGE (nicht die Kopierzeit)", hoch.status === 200 && hochK.bytes === 5000 && liste.length === 1 && liste[0].name === name && liste[0].bytes === 5000 && Math.abs(liste[0].stand - standVorlage) < 1000, JSON.stringify(liste));
+    const runter = await fetch(B + weg);
+    const zurueck = Buffer.from(await runter.arrayBuffer());
+    ok("(Q4) Lesen liefert dieselben Bytes, Excel-Inhaltstyp und Kopf X-BTA-Stand = Vorlage", runter.status === 200 && zurueck.equals(bytes) && /spreadsheetml/.test(runter.headers.get("content-type") || "") && Math.abs(Number(runter.headers.get("x-bta-stand")) - standVorlage) < 1000, `${runter.headers.get("content-type")} | ${runter.headers.get("x-bta-stand")}`);
+    const boese = await Promise.all(["..%2F..%2Fcockpit.sqlite", "bild.jpg", ".versteckt.xlsx", "~%24offen.xlsx"].map((n) => fetch(B + "/api/scheurich/quellen/" + n, { method: "POST", headers: { "X-BTA-Schluessel": "pruef-schluessel" }, body: bytes }).then((r) => r.status)));
+    ok("(Q5) Pfad, fremde Endung, führender Punkt, Excel-Sperrdatei -> 400; Datenbank unangetastet", boese.every((s) => s === 400) && (await holen("/api/scheurich/stand?seit=0")).k.eintraege.length > 0, boese.join("/"));
+    const soendgen = (await holen("/api/soendgen/quellen")).k.quellen;
+    ok("(Q6) Standort-Trennung: Soendgen sieht die Scheurich-Quelle nicht", soendgen.length === 0);
+    const statusQ = (await holen("/api/status")).k.standorte.scheurich.quellen;
+    const seiteQ = await (await fetch(B + "/status")).text();
+    ok("(Q7) /api/status und /status zeigen die Quelle mit Stand in Serverzeit", Array.isArray(statusQ) && statusQ.length === 1 && /Excel-Quellen/.test(seiteQ) && /OEE Auswertung Halle 1\.xlsx/.test(seiteQ) && /Stand der Vorlage 02\.10\.2026/.test(seiteQ), (seiteQ.match(/Stand der Vorlage [^<]*/) || [""])[0]);
+    const weg2 = await fetch(B + weg, { method: "DELETE", headers: { "X-BTA-Schluessel": "pruef-schluessel" } });
+    ok("(Q8) Entfernen -> weg (404, leere Liste)", weg2.status === 200 && (await holen(weg)).status === 404 && (await holen("/api/scheurich/quellen")).k.quellen.length === 0);
+  }
+
   kind.kill("SIGTERM");
   await new Promise((r) => setTimeout(r, 300));
   const protokoll = fs.readdirSync(einst.protokollOrdner);
