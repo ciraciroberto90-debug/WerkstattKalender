@@ -4175,6 +4175,76 @@ function App() {
       ? `<b>${pitDatum(pitKommend[0].date, true)}</b> · <b>${esc(pitKommend[0].name)}</b>${pitKommend.length > 1 ? `<span class="pit-weiter"> · danach: ${pitKommend.slice(1, 3).map((e) => `${pitDatum(e.date)} ${esc(e.name)}`).join(" · ")}</span>` : ""}`
       : `<span class="pit-leer">keiner geplant</span>`;
     const pitZeile = `<div class="hinweis pit" data-pitstop><span data-pit-heute>🔧 Aktuell PitStop: ${heuteText}</span><span class="pit-trenner">|</span><span data-pit-naechster>Nächster PitStop: ${naechsterText}</span></div>`;
+    /* Kopf für die Morgenrunde (Robertos Wahl 02.10., Vorlage A geändert):
+       links neben der Überschrift der Tacho „TPM-Quote <Monat>“, rechts die
+       Knöpfe PitStop-Quote · PitStop · Top 3 – farbig, damit man sieht, dass
+       man sie drücken kann (Schwarz ging im Bericht unter).
+       Quote „fällig bis heute“: Die Monatsquote der Kachel zählt auch die
+       PitStops, die erst später im Monat kommen, als nicht erledigt – am
+       02.10. stand dort 11 % (4 von 38), obwohl alles Fällige erledigt war.
+       Für die Morgenrunde zählt nur, was bis heute fällig war. */
+    const quoteVon = (liste) => {
+      const d = liste.filter((e) => e.status === "done").length;
+      const n = liste.filter((e) => e.status === "done" || e.status === "open").length;
+      return { p: n > 0 ? Math.round((d / n) * 100) : null, d, n };
+    };
+    const quoteZielSb = regeln.schwellen.quoteZiel;
+    const zielSb = quoteZielSb > 0 ? quoteZielSb : 90;
+    const ampelSb = (q) => (q === null ? "#8A9099" : quoteZielSb > 0
+      ? (q >= quoteZielSb ? "#2F7D4F" : q >= quoteZielSb - 10 ? "#C97A2B" : "#B23A34")
+      : (q >= 90 ? "#2F7D4F" : q >= 75 ? "#C97A2B" : "#B23A34"));
+    const monatKeySb = todayKey.slice(0, 7);
+    const tpmMonat = quoteVon(entries.filter((e) => (e.category === "TPM" || e.category === "RI") && String(e.date).startsWith(monatKeySb) && String(e.date) <= todayKey));
+    // Tacho wie die Backlog-Kachel: fünf Bänder rot -> grün, Zielstrich, Zeiger.
+    const tachoSvg = (q) => {
+      const cx = 80, cy = 58, r = 46;
+      const pt = (w, rr) => [cx + rr * Math.cos(w), cy - rr * Math.sin(w)];
+      const bog = (a0, a1) => { const [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r); return `M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
+      const baender = ["#C8322B", "#F28C1F", "#F2D11F", "#43B26F", "#1F7A3D"].map((f, i) => `<path d="${bog(Math.PI * (1 - i / 5) + (i ? 0.004 : 0), Math.PI * (1 - (i + 1) / 5) - (i === 4 ? 0 : 0.004))}" fill="none" stroke="${f}" stroke-width="10"/>`).join("");
+      const az = Math.PI * (1 - zielSb / 100);
+      const [m0x, m0y] = pt(az, r - 9), [m1x, m1y] = pt(az, r + 9);
+      const zeiger = q === null ? "" : (() => { const [zx, zy] = pt(Math.PI * (1 - Math.min(100, Math.max(0, q)) / 100), 37); return `<line x1="${cx}" y1="${cy}" x2="${zx.toFixed(1)}" y2="${zy.toFixed(1)}" stroke="#22262B" stroke-width="3" stroke-linecap="round"/>`; })();
+      return `<svg viewBox="0 -3 160 78" class="tacho-svg" aria-hidden="true">${baender}<line x1="${m0x.toFixed(1)}" y1="${m0y.toFixed(1)}" x2="${m1x.toFixed(1)}" y2="${m1y.toFixed(1)}" stroke="#22262B" stroke-width="2.5"/>${zeiger}<circle cx="${cx}" cy="${cy}" r="4.5" fill="#fff" stroke="#22262B" stroke-width="3"/></svg>`;
+    };
+    const monatName = MONTHS[today.getMonth()];
+    const tachoHtml = `<div class="tachobox" data-tpm-tacho aria-label="TPM-Quote ${esc(monatName)}: ${tpmMonat.p === null ? "keine fälligen Termine" : `${tpmMonat.p} %, fällig bis heute ${tpmMonat.d} von ${tpmMonat.n}`}">
+        ${tachoSvg(tpmMonat.p)}
+        <div><div class="tt">TPM-Quote ${esc(monatName)}</div><div class="tw" style="color:${ampelSb(tpmMonat.p)}">${tpmMonat.p === null ? "–" : `${tpmMonat.p} %`}</div><div class="ts">${tpmMonat.p === null ? "noch nichts fällig" : `fällig bis heute: ${tpmMonat.d} von ${tpmMonat.n}`}</div></div>
+      </div>`;
+    // PitStop-Quote rollierend: laufender Monat (bis heute) und die zwei davor,
+    // wie das 3-Monats-Blatt (Robertos Wunsch 24.08.) - hier nur PitStops (TPM).
+    const pitMonate = [2, 1, 0].map((zurueck) => {
+      const d = new Date(today.getFullYear(), today.getMonth() - zurueck, 1);
+      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+      const q = quoteVon(entries.filter((e) => e.category === "TPM" && String(e.date).startsWith(key) && (zurueck > 0 || String(e.date) <= todayKey)));
+      return { ...q, name: MONTHS_SHORT[d.getMonth()] + (zurueck === 0 ? " (bis heute)" : "") };
+    });
+    const pitAb = (() => { const v = new Date(today.getFullYear(), today.getMonth() - 2, 1); return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-01`; })();
+    const pitGesamt = quoteVon(entries.filter((e) => e.category === "TPM" && String(e.date) >= pitAb && String(e.date) <= todayKey));
+    const pitGesamtText = pitGesamt.p === null ? "–" : `${pitGesamt.p} %`;
+    const quoteHtml = `<section id="pitquote" data-pitquote hidden class="klapp">
+        <div class="klapp-kopf"><span>PitStop-Quote · letzte 3 Monate</span><span class="top3-sub">erledigte an fälligen PitStops${quoteZielSb > 0 ? ` · Ziel ${quoteZielSb} %` : " · grün ab 90 %"}</span></div>
+        <div class="pq">
+          <div class="pq-monate">${pitMonate.map((m) => `<div class="pq-mon" data-pq-monat><div class="pq-bar"><i style="height:${m.p === null ? 0 : Math.max(4, Math.round(m.p * 0.7))}px;background:${ampelSb(m.p)}"></i></div><b style="color:${ampelSb(m.p)}">${m.p === null ? "–" : `${m.p} %`}</b><span>${esc(m.name)} · ${m.d} / ${m.n}</span></div>`).join("")}</div>
+          <div class="pq-summe"><div class="pq-l">3 Monate gesamt</div><div class="pq-z" data-pq-gesamt style="color:${ampelSb(pitGesamt.p)}">${pitGesamtText}</div><div class="pq-s">${pitGesamt.d} von ${pitGesamt.n} PitStops</div></div>
+        </div>
+      </section>`;
+    // PitStop-Liste: heute, die nächsten 7 Tage, liegengeblieben (offen, schon fällig).
+    const bis7 = (() => { const d = new Date(todayKey + "T00:00:00"); d.setDate(d.getDate() + 7); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
+    const pitWoche = pitKommend.filter((e) => String(e.date) <= bis7);
+    const pitLiegen = entries.filter((e) => e.category === "TPM" && e.status === "open" && String(e.date) < todayKey && String(e.date) >= isoVor(60))
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const pitZeilen = (liste, leer, rot) => (liste.length
+      ? liste.map((e) => `<li${rot ? ' class="rot"' : ""}><span class="pl-d">${pitDatum(e.date, true)}</span><b>${esc(e.name)}</b>${e.status === "done" ? ' <span class="pl-ok">✓ erledigt</span>' : ""}</li>`).join("")
+      : `<li class="pl-leer">${leer}</li>`);
+    const pitListeHtml = `<section id="pitliste" data-pitliste hidden class="klapp">
+        <div class="klapp-kopf"><span>PitStop</span><span class="top3-sub">heute · nächste 7 Tage · liegengeblieben (letzte 60 Tage)</span></div>
+        <div class="pl">
+          <div data-pl="heute"><div class="pl-t">Heute</div><ul>${pitZeilen(pitHeute, "keiner heute")}</ul></div>
+          <div data-pl="woche"><div class="pl-t">Nächste 7 Tage</div><ul>${pitZeilen(pitWoche, "keiner geplant")}</ul></div>
+          <div data-pl="liegen"><div class="pl-t${pitLiegen.length ? " rot" : ""}">Liegengeblieben${pitLiegen.length ? ` (${pitLiegen.length})` : ""}</div><ul>${pitZeilen(pitLiegen.slice(0, 8), "nichts liegengeblieben", true)}${pitLiegen.length > 8 ? `<li class="pl-leer">… und ${pitLiegen.length - 8} weitere</li>` : ""}</ul></div>
+        </div>
+      </section>`;
     const top3Html = `<section id="top3" data-top3 hidden>
         <div class="top3-kopf"><span>Top 3 dieses Schichtberichts</span><span class="top3-sub">nach Häufigkeit in den letzten 7 Tagen (${new Date(ab7 + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} – ${new Date(todayKey + "T00:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })})</span></div>
         ${top3.length ? `<div class="top3-raster">${top3.map(top3Karte).join("")}</div>` : `<div class="top3-leer">Keine Störungen im Blatt – nichts zu bewerten.</div>`}
@@ -4231,7 +4301,7 @@ function App() {
         * { box-sizing: border-box; }
         body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2430; margin: 0; }
         h1 { font-size: 13pt; margin: 0; }
-        .kopf { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #22262B; padding-bottom: 1.2mm; margin-bottom: 1.5mm; }
+        .kopf { display: flex; align-items: flex-end; border-bottom: 2px solid #22262B; padding-bottom: 1.2mm; margin-bottom: 1.5mm; }
         .kopf .stand { text-align: right; color: #5B6572; font-size: 8.5pt; line-height: 1.4; }
         .kopf .stand .fett { font-size: 10.5pt; font-weight: 800; color: #1f2430; }
         /* Tagesblick: Schicht-Summen auf einen Blick */
@@ -4245,8 +4315,46 @@ function App() {
            als Spalten zerdrücken. */
         @media screen { html { min-width: 1120px; } body { padding: 4mm 6mm; } }
         /* Top 3 (28.09.): Knopf nur am Bildschirm, drei große Karten */
-        .top3knopf { margin-left: auto; margin-right: 6mm; align-self: center; font: inherit; font-weight: 800; font-size: 10pt; color: #fff; background: #22262B; border: 0; border-radius: 2mm; padding: 2mm 5mm; cursor: pointer; }
-        .top3knopf:hover { background: #E85D10; }
+        /* Knöpfe (Robertos Wahl 02.10.): Orange wie die Knöpfe im Cockpit, mit
+           Unterkante wie eine Taste - Schwarz ging neben dem Tabellenkopf unter.
+           Der Haupt-Knopf ist gefüllt, die anderen umrandet. */
+        .knopfleiste { margin-left: auto; margin-right: 5mm; display: flex; gap: 2mm; align-self: center; }
+        .top3knopf, .sbknopf { font: inherit; font-weight: 800; font-size: 10pt; border-radius: 2mm; padding: 1.8mm 4mm; cursor: pointer; white-space: nowrap; color: #C2571B; background: #fff; border: 0.6mm solid #E8732A; box-shadow: 0 0.6mm 0 #F3C9A8; }
+        .sbknopf.voll { color: #fff; background: #E8732A; border-color: #E8732A; box-shadow: 0 0.6mm 0 #B5541A; }
+        .sbknopf small { font-weight: 700; font-size: 8pt; opacity: 0.9; }
+        .top3knopf:hover, .sbknopf:hover { background: #FFF1E6; }
+        .sbknopf.voll:hover { background: #D7651F; }
+        .top3knopf[aria-expanded="true"], .sbknopf[aria-expanded="true"] { color: #fff; background: #C2571B; border-color: #C2571B; }
+        .tachobox { display: flex; align-items: center; gap: 2mm; border: 0.4mm solid #C4CBD2; border-radius: 2mm; padding: 0.8mm 3mm 0.8mm 1.5mm; margin-left: 6mm; align-self: center; }
+        .tachobox .tacho-svg { width: 21mm; height: auto; display: block; }
+        .tachobox .tt { font-size: 7.5pt; font-weight: 800; color: #22262B; line-height: 1.2; }
+        .tachobox .tw { font-size: 14pt; font-weight: 900; line-height: 1.1; }
+        .tachobox .ts { font-size: 7pt; color: #5B6572; line-height: 1.3; }
+        .stand { margin-left: auto; }
+        .knopfleiste + .stand { margin-left: 0; }
+        @media print { .knopfleiste + .stand { margin-left: auto; } }
+        .klapp { margin: 0 0 3mm; padding: 3mm; border: 1pt solid #C2571B; border-radius: 2.5mm; background: #FFFBF7; page-break-inside: avoid; }
+        .klapp[hidden] { display: none; }
+        .klapp-kopf { display: flex; justify-content: space-between; align-items: baseline; font-size: 12pt; font-weight: 900; margin-bottom: 2.5mm; }
+        .pq { display: flex; gap: 8mm; align-items: flex-end; }
+        .pq-monate { display: flex; gap: 5mm; align-items: flex-end; }
+        .pq-mon { text-align: center; width: 32mm; }
+        .pq-bar { height: 72px; display: flex; align-items: flex-end; justify-content: center; }
+        .pq-bar i { display: block; width: 14mm; border-radius: 1mm 1mm 0 0; }
+        .pq-mon b { display: block; font-size: 13pt; margin-top: 1mm; }
+        .pq-mon span { font-size: 8pt; color: #5B6572; }
+        .pq-summe { border-left: 0.5pt solid #D6D9DC; padding-left: 6mm; }
+        .pq-l { font-size: 8pt; font-weight: 800; color: #5B6572; text-transform: uppercase; }
+        .pq-z { font-size: 24pt; font-weight: 900; line-height: 1.1; }
+        .pq-s { font-size: 9pt; color: #5B6572; }
+        .pl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4mm; }
+        .pl-t { font-size: 8.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.4pt; color: #5B6572; margin-bottom: 1mm; }
+        .pl-t.rot, .pl li.rot b { color: #B23A34; }
+        .pl ul { list-style: none; margin: 0; padding: 0; }
+        .pl li { font-size: 10pt; padding: 0.8mm 0; border-bottom: 0.4pt solid #ECEEF0; }
+        .pl-d { display: inline-block; min-width: 30mm; color: #5B6572; font-size: 9pt; }
+        .pl-ok { color: #1F7A3D; font-weight: 700; font-size: 9pt; }
+        .pl-leer { color: #8A9099; font-style: italic; }
         @media print { .nurbild { display: none !important; } }
         #top3 { margin: 0 0 3mm; padding: 3mm; border: 1pt solid #22262B; border-radius: 2.5mm; background: #FAFBFC; page-break-inside: avoid; }
         #top3[hidden] { display: none; }
@@ -4310,10 +4418,17 @@ function App() {
       </style></head><body>
       <div class="kopf">
         <h1>Schichtbericht Störungen</h1>
-        <button type="button" class="top3knopf nurbild" data-top3-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('top3');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ Top 3 schließen':'⚠ Top 3';})(this)">⚠ Top 3</button>
+        ${tachoHtml}
+        <div class="knopfleiste nurbild">
+          <button type="button" class="sbknopf voll" data-pitquote-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitquote');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.innerHTML=zu?'✕ PitStop-Quote schließen':b.getAttribute('data-zu');})(this)" data-zu="📈 PitStop-Quote &lt;small&gt;3 Mon. · ${pitGesamtText}&lt;/small&gt;">📈 PitStop-Quote <small>3 Mon. · ${pitGesamtText}</small></button>
+          <button type="button" class="sbknopf" data-pitliste-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitliste');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ PitStop schließen':'🔧 PitStop';})(this)">🔧 PitStop</button>
+          <button type="button" class="top3knopf" data-top3-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('top3');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ Top 3 schließen':'⚠ Top 3';})(this)">⚠ Top 3</button>
+        </div>
         <div class="stand">Stand: <strong>${esc(stand)}</strong><br><span class="fett">${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}</span> · <span class="fett" style="color:${offene > 0 ? "#C0392B" : "#1F7A3D"}">${offene} offen</span>${ausfallGesamt > 0 ? ` · <span class="fett">Ausfallzeit ${esc(minutenText(ausfallGesamt))}</span>` : ""}</div>
       </div>
       ${pitZeile}
+      ${quoteHtml}
+      ${pitListeHtml}
       ${top3Html}
       ${tagesblick}
       <table>
