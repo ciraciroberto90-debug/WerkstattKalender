@@ -70,11 +70,12 @@ const entries = [
   // Die Plan-Punkte des Tages kommen aus dem Takt-Planer (auch mit den Vorgabe-
   // Anlagen) - deshalb wird gegen die LISTE gerechnet: Soll der Kachel muss
   // gleich Zeilen der Tagesplan-Liste + To-dos mit Frist heute sein.
+  // Seit 05.10. ist der Tagesplan eine Tabelle (harte-79) und die Tagesleistung
+  // zählt JEDE Zeile (Robertos Ansage: "Tagesleistung zählt alles") - auch die
+  // To-dos mit Frist heute stehen als Zeilen in der Tabelle.
   const listeZaehlen = (p) => p.evaluate(() => {
-    const kopf = document.getElementById("wk-tagesplan");
-    const block = kopf ? kopf.parentElement : null;
-    const zeilen = block ? [...block.querySelectorAll("button.wk-karte")] : [];
-    const fertig = zeilen.filter((b) => b.querySelector("strong") && getComputedStyle(b.querySelector("strong")).textDecorationLine.includes("line-through")).length;
+    const zeilen = [...document.querySelectorAll("tr[data-tagesplan-zeile]")];
+    const fertig = zeilen.filter((tr) => getComputedStyle(tr.querySelector("td:nth-child(3)")).textDecorationLine.includes("line-through")).length;
     return { zeilen: zeilen.length, fertig };
   });
   const kachel = a.p.locator('[data-kachel-inhalt="tagesleistung"]');
@@ -83,8 +84,8 @@ const entries = [
   const l1 = await listeZaehlen(a.p);
   const kText = (await kachel.count()) ? (await kachel.first().innerText()).replace(/\s+/g, " ") : "";
   const z1 = zahlen(await ariaVon());
-  const sollErw = l1.zeilen + 2, istErw = l1.fertig + 1, gradErw = `${Math.round((istErw / sollErw) * 100)} %`;
-  ok("(T1) Kachel „Tagesleistung“ ersetzt „To-dos · Monat“ im gespeicherten Whiteboard-Layout: Soll = Listenzeilen + 2 To-dos, Ist = erledigte + 1, Erfüllungsgrad passt",
+  const sollErw = l1.zeilen, istErw = l1.fertig, gradErw = `${Math.round((istErw / sollErw) * 100)} %`;
+  ok("(T1) Kachel „Tagesleistung“ ersetzt „To-dos · Monat“ im gespeicherten Whiteboard-Layout: Soll = alle Zeilen der Tagesplan-Tabelle (inkl. 2 To-dos), Ist = erledigte Zeilen, Erfüllungsgrad passt",
     (await kachel.count()) === 1 && /Tagesleistung/.test(kText) && /Soll/.test(kText) && /Ist/.test(kText) && /Erfüllungsgrad/.test(kText) && z1 && z1.soll === String(sollErw) && z1.ist === String(istErw) && z1.grad === gradErw && (await a.p.locator('[data-kachel-inhalt="todoSollIst"]').count()) === 0,
     `Liste ${l1.zeilen} Zeilen / ${l1.fertig} fertig · Kachel ${JSON.stringify(z1)} · erwartet ${sollErw}/${istErw}/${gradErw}`);
 

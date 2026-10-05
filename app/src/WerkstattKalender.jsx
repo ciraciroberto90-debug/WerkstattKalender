@@ -3198,8 +3198,6 @@ function App() {
   // des anwesenden Kollegen, dessen geplante Punkte in der Kachel stehen.
   // Bewusst nur im Speicher - nach dem Neuladen (und am nächsten Tag) beginnt
   // die Kachel wieder bei den Terminen.
-  const [tagesPerson, setTagesPerson] = useState(null);
-  const [tagesMenue, setTagesMenue] = useState(false); // das Dropdown ist aufgeklappt
   useEffect(() => {
     if (!uebersichtBearbeiten) return undefined;
     const aufTaste = (ev) => { if (ev.key === "Escape") setUebersichtBearbeiten(false); };
@@ -3211,6 +3209,7 @@ function App() {
   // Minute - genauer braucht eine Minutenanzeige nicht zu sein, und ein
   // Neuzeichnen der Übersicht pro Sekunde wäre Verschwendung.
   const [tagesplanUhr, setTagesplanUhr] = useState(() => new Date());
+  const [tagesplanZeit, setTagesplanZeit] = useState(null); // Zeile (key), deren Uhrzeit gerade bearbeitet wird - sonst steht die Zeit als Text
   useEffect(() => {
     const t = setInterval(() => setTagesplanUhr(new Date()), 30000);
     return () => clearInterval(t);
@@ -5947,11 +5946,11 @@ function App() {
   const todoUeberfaellige = todoOffene.filter(todoIstUeberfaellig);
   const todoNeu = () => {
     setTodoFehler(null);
-    setTodoModal({ titel: "", wer: "", bis: "", prio: "", bemerkung: "" });
+    setTodoModal({ titel: "", wer: "", bis: "", uhrzeit: "", prio: "", bemerkung: "" });
   };
   const todoBearbeiten = (t) => {
     setTodoFehler(null);
-    setTodoModal({ id: t.id, titel: t.name || "", wer: t.wer || "", bis: t.bis || "", prio: t.prio || "", bemerkung: t.bemerkung || "" });
+    setTodoModal({ id: t.id, titel: t.name || "", wer: t.wer || "", bis: t.bis || "", uhrzeit: t.uhrzeit || "", prio: t.prio || "", bemerkung: t.bemerkung || "" });
   };
   const todoSpeichern = async () => {
     const m = todoModal;
@@ -5963,7 +5962,7 @@ function App() {
       id: m.id || `todo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       category: "TODO", name: String(m.titel).trim(),
       date: alt ? alt.date : todayKey, // erteilt am
-      wer: String(m.wer || "").trim(), bis: m.bis || "", prio: m.prio || "",
+      wer: String(m.wer || "").trim(), bis: m.bis || "", uhrzeit: m.uhrzeit || "", prio: m.prio || "",
       bemerkung: String(m.bemerkung || "").trim(),
       erteiltVon: alt ? (alt.erteiltVon || "") : (angemeldet || ""),
       status: alt ? alt.status : "offen",
@@ -6988,17 +6987,25 @@ function App() {
       /* ---- Whiteboard-Kacheln (Robertos Tafel vom 23.09.) ---- */
       case "tagesleistung": {
         // Der Tagesplan des heutigen Tages (die Heute-Liste): Plan-Punkte TPM/R+I,
-        // Regeltermine und To-dos mit Frist heute. Soll = alles, Ist = davon erledigt.
+        // Regeltermine, To-dos mit Frist heute - und seit dem 05.10. (Robertos
+        // Ansage: "Tagesleistung zählt alles") auch die heute eingeplanten
+        // Arbeiten und die Planungs-Notizen des Tages, also jede Zeile der
+        // Tagesplan-Tabelle. Soll = alles, Ist = davon erledigt. Sichtbarkeit
+        // wie in der Tabelle: Arbeiten/Notizen nur mit Bereich Planung, To-dos
+        // nur mit Bereich To-dos - sonst zählte die Kachel, was niemand sieht.
         const planErledigt = heutePlan.filter((p) => statusFuerPlanPunkt(p) === "done").length;
         const termineErledigt = heuteTermine.filter((t) => t.status === "done").length;
-        const todosHeute = todos.filter((t) => String(t.bis || "").slice(0, 10) === todayKey);
+        const todosHeute = sichtbar("TODO") ? todos.filter((t) => String(t.bis || "").slice(0, 10) === todayKey) : [];
         const todosErledigt = todosHeute.filter((t) => t.status === "done").length;
-        const soll = heutePlan.length + heuteTermine.length + todosHeute.length;
-        const ist = planErledigt + termineErledigt + todosErledigt;
+        const arbeitenHeute = sichtbar("PLANUNG") ? arbeiten.filter((a) => a.geplant === todayKey) : [];
+        const notizenHeute = sichtbar("PLANUNG") ? entries.filter((e) => e.category === "PLANNOTIZ" && e.date === todayKey) : [];
+        const planungErledigt = arbeitenHeute.filter((a) => a.status === "done").length + notizenHeute.filter((n) => n.status === "done").length;
+        const soll = heutePlan.length + heuteTermine.length + todosHeute.length + arbeitenHeute.length + notizenHeute.length;
+        const ist = planErledigt + termineErledigt + todosErledigt + planungErledigt;
         const p = soll > 0 ? Math.round((ist / soll) * 100) : null;
         const ampel = p === null ? "" : p >= 80 ? "gruen" : p >= 50 ? "gelb" : "rot";
         return { label: "Tagesleistung", kurz: "Tagesleistung", text: p === null ? "–" : `${ist} / ${soll}`, prozent: p, soll, ist, sub: `Soll ${soll} · Ist ${ist}`,
-          titel: `Tagesplan heute: Soll = Plan-Punkte, Termine und To-dos mit Frist heute (${heutePlan.length} + ${heuteTermine.length} + ${todosHeute.length}), Ist = davon erledigt`, farbe: "#2F6690", akzent: p === null ? "#CBD1D8" : ampel === "rot" ? "#B23A34" : ampel === "gelb" ? "#C97A2B" : "#2F7D4F",
+          titel: `Tagesplan heute: Soll = alle Zeilen des Tagesplans - PitStop/R+I ${heutePlan.length}, Termine ${heuteTermine.length}, To-dos ${todosHeute.length}, Arbeiten ${arbeitenHeute.length}, Notizen ${notizenHeute.length}; Ist = davon erledigt`, farbe: "#2F6690", akzent: p === null ? "#CBD1D8" : ampel === "rot" ? "#B23A34" : ampel === "gelb" ? "#C97A2B" : "#2F7D4F",
           farben: ampel === "rot" ? ["#E06A64", "#B23A34"] : ampel === "gelb" ? ["#E8B33C", "#C97A2B"] : ["#43B26F", "#2F7D4F"], ampel, ampelRegel: "grün ab 80 %, gelb ab 50 %", leer: "heute steht laut Plan nichts an" };
       }
       case "todoSollIst": {
@@ -7500,7 +7507,7 @@ function App() {
     setADraft({
       anlage: vorgabe.anlage || "", anlageCustom: "", note: vorgabe.note || "",
       prio: "ohne", art: vorgabe.art || "mech", azubi: false, stillstand: false,
-      wer: "", geplant: "", melder: vorgabe.melder || "",
+      wer: "", geplant: "", uhrzeit: "", uhrzeitBis: "", melder: vorgabe.melder || "",
       fotos: vorgabe.fotos || [], fotosNeu: [], fotosWeg: [],
     });
     setArbeitModal({ mode: "add", ausZettel: vorgabe.ausZettel || null });
@@ -7510,7 +7517,7 @@ function App() {
     setADraft({
       anlage: a.name, anlageCustom: "", note: a.note || "", prio: a.prio || "ohne",
       art: a.art ?? "", azubi: !!a.azubi, stillstand: !!a.stillstand,
-      wer: a.wer || "", geplant: a.geplant || "", melder: a.melder || "",
+      wer: a.wer || "", geplant: a.geplant || "", uhrzeit: a.uhrzeit || "", uhrzeitBis: a.uhrzeitBis || "", melder: a.melder || "",
       fotos: fotoListeVon(a), fotosNeu: [], fotosWeg: [],
     });
     setArbeitModal({ mode: "edit", id: a.id });
@@ -7543,7 +7550,7 @@ function App() {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         date: todayKey, category: "ARBEIT", name: anlage, status: "open", note,
         prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand,
-        wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined, melder: aDraft.melder || undefined,
+        wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined, uhrzeit: aDraft.uhrzeit || undefined, uhrzeitBis: aDraft.uhrzeitBis || undefined, melder: aDraft.melder || undefined,
         ...(fotos.length > 0 ? { fotos } : {}),
         zeit: new Date().toISOString(),
       };
@@ -7552,7 +7559,7 @@ function App() {
       await persist([...basis, a]);
     } else {
       await persist(entries.map((e) => e.id === arbeitModal.id
-        ? { ...e, name: anlage, note, prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand, wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined, fotos }
+        ? { ...e, name: anlage, note, prio: aDraft.prio, art: aDraft.art, azubi: aDraft.azubi, stillstand: aDraft.stillstand, wer: aDraft.wer || undefined, geplant: aDraft.geplant || undefined, uhrzeit: aDraft.uhrzeit || undefined, uhrzeitBis: aDraft.uhrzeitBis || undefined, fotos }
         : e));
     }
     fotosAufraeumen(aDraft.fotosWeg);
@@ -7764,6 +7771,29 @@ function App() {
   // Bearbeiten direkt aus dem Plan: Klick auf einen Plan-Punkt öffnet den
   // Eintrag (Gemacht/Offen/Notiz). Gibt es noch keinen Kalender-Eintrag zu
   // diesem Punkt, wird er dabei automatisch angelegt (Status: offen).
+  /* Tagesplan-Tabelle (05.10.): Feld-Änderungen direkt aus der Zeile.
+     eintragSetzen patcht einen vorhandenen Eintrag; planEintragSetzen legt
+     den Eintrag eines Plan-Punkts (PitStop/R+I ohne Eintrag) erst an - genau
+     wie openPlanEntry, nur ohne Dialog. Eine Zuteilung ("wer") ist damit
+     derselbe Eintrag, den die Planung in der Zelle der Person zeigt. */
+  const eintragSetzen = async (id, patch) => {
+    if (readerMode) return;
+    await persist(entries.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  };
+  const planEintragSetzen = async (p, patch) => {
+    if (readerMode) return;
+    const vorhanden = entries.find((e) => e.date === p.date && e.name === p.anlage);
+    if (vorhanden) { await eintragSetzen(vorhanden.id, patch); return; }
+    const category = riItems.some((r) => r.name === p.anlage) ? "RI" : "TPM";
+    await persist([...entries, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: p.date, category, name: p.anlage, status: "open", note: "", ...patch }]);
+  };
+  // Haken in der Tagesplan-Zeile: erledigen wie der Ein-Klick-Haken der Kachel, Wiederöffnen direkt.
+  const planHaken = async (p) => {
+    if (readerMode) return;
+    const vorhanden = entries.find((e) => e.date === p.date && e.name === p.anlage);
+    if (vorhanden && vorhanden.status === "done") { await eintragSetzen(vorhanden.id, { status: "open" }); return; }
+    await hakePlanTerminAb(p);
+  };
   const openPlanEntry = async (p) => {
     if (readerMode) return;
     let entry = entries.find((e) => e.date === p.date && e.name === p.anlage);
@@ -10722,8 +10752,13 @@ function App() {
                 </select>
               </label>
               <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Bis wann
-                <input type="date" value={todoModal.bis} onChange={(e) => setTodoModal((m) => ({ ...m, bis: e.target.value }))} aria-label="Bis wann"
-                  className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
+                <div className="flex gap-1.5 mt-1">
+                  <input type="date" value={todoModal.bis} onChange={(e) => setTodoModal((m) => ({ ...m, bis: e.target.value }))} aria-label="Bis wann"
+                    className="flex-1 text-sm border rounded px-2 py-1.5 font-normal" style={{ borderColor: "#D6D9DC", minWidth: 0 }} />
+                  {/* Uhrzeit (05.10.): Platz im Tagesplan des Frist-Tages - leer = ganztags */}
+                  <input type="time" value={todoModal.uhrzeit || ""} onChange={(e) => setTodoModal((m) => ({ ...m, uhrzeit: e.target.value }))} aria-label="Uhrzeit"
+                    title="Uhrzeit am Frist-Tag (leer = ganztags)" className="text-sm border rounded px-2 py-1.5 font-normal" style={{ borderColor: "#D6D9DC", width: "96px" }} />
+                </div>
               </label>
             </div>
             <div className="text-xs font-bold mb-2" style={{ color: "#5B6572" }}>Priorität
@@ -12055,167 +12090,226 @@ function App() {
         const spalten = {};
         /* Tagesliste */
         spalten.tagesliste = zeig.tagesliste && (() => {
-            /* Dropdown im Kopf (Robertos Wahl vom 21.09., Vorlage 2): rechts
-               in der Kopfzeile ein Knopf, das Menü listet die heute Anwesenden
-               nach Schicht mit Fortschritt, oben "Termine" = die Tagesliste.
-               Eine Wahl zeigt in der Kachel die geplanten Punkte der Person -
-               Backlog-Arbeiten mit "wer" + "geplant" = heute, offene To-dos
-               (fällig bis heute oder ohne Frist) und die Planungs-Notizen des
-               Tages - zum direkten Abhaken oder Bearbeiten. Wer heute fehlt
-               (Schule, Krank, Urlaub), steht nicht in der Leiste, sondern
-               grau unter der Liste. Störungen haben keine Person - sie
-               erscheinen hier nur, wenn ihre Restarbeit als Arbeit eingeplant
-               ist. Rechte: Arbeiten/Notizen nach PLANUNG, To-dos nach TODO. */
+            /* TAGESPLAN ALS TABELLE (Robertos Wahl vom 05.10., Vorlage A1 geändert):
+               Bis zum 04.10. zeigte die Liste nur die Termine und hinter einem
+               Personen-Menü die Punkte EINER Person - "zu unübersichtlich" für
+               den Werkstatt-Monitor. Jetzt steht ALLES in einer Tabelle, nach
+               Schicht gruppiert und nach Uhrzeit sortiert, je Zeile
+               Art · Anlage/Ort · Was · Uhrzeit · Wer · Erledigt. Uhrzeit und
+               Wer sind direkt in der Zeile änderbar; eine Zuteilung (z. B.
+               PitStop an K. Kranich) schreibt den Eintrag und taucht damit
+               auch in der Planung in der Zelle der Person auf. Rechte wie
+               bisher: Arbeiten/Notizen nach PLANUNG, To-dos nach TODO,
+               PitStop/R+I/Termine nach dem Schreibrecht der Datei. */
             const leiste = jetztInDerWerkstatt.spalten.filter(([, , crew]) => crew.length > 0);
             const anwesend = leiste.flatMap(([, , crew]) => crew);
-            const gewaehlt = tagesPerson && anwesend.some((x) => x.name === tagesPerson) ? tagesPerson : null;
             const darfPlanung = !nurLesen("PLANUNG");
             const darfTodo = !nurLesen("TODO");
-            const tagVon = (iso) => { const d = new Date(iso || ""); return isNaN(d) ? "" : dateKey(d.getFullYear(), d.getMonth(), d.getDate()); };
-            const punkteVon = (person) => {
-              const arbeitenHeute = sichtbar("PLANUNG") ? geplantFuer(person, todayKey) : [];
-              const meine = sichtbar("TODO") ? todos.filter((t) => t.wer === person) : [];
-              const rang = (t) => (t.status === "done" ? 3 : !t.bis ? 2 : String(t.bis) < todayKey ? 0 : 1);
-              const faellig = meine
-                .filter((t) => (t.status !== "done" && (!t.bis || String(t.bis) <= todayKey)) || (t.status === "done" && tagVon(t.erledigtAm) === todayKey))
-                .sort((x, y) => rang(x) - rang(y) || String(x.bis || "").localeCompare(String(y.bis || "")));
-              const spaeter = meine.filter((t) => t.status !== "done" && t.bis && String(t.bis) > todayKey);
-              const notizen = sichtbar("PLANUNG") ? notizenFuer(person, todayKey) : [];
-              const nichtFertig = (x) => x.status !== "done";
-              const offen = arbeitenHeute.filter(nichtFertig).length + faellig.filter(nichtFertig).length + notizen.filter(nichtFertig).length;
-              const gesamt = arbeitenHeute.length + faellig.length + notizen.length;
-              return { arbeitenHeute, faellig, spaeter, notizen, offen, gesamt };
-            };
+            const darfTermine = !readerMode;
             const abwesend = team
               .map((m) => ({ name: m.name, schicht: schichtFuer(m.name, todayKey) }))
               .filter((x) => x.schicht && SCHICHT_ABWESEND.has(x.schicht));
-            const kopfFarbe = (x) => { const sc = x.schicht && SCHICHTEN[x.schicht]; return sc ? { bg: sc.color, text: sc.text || "#fff" } : { bg: "#8A9099", text: "#fff" }; };
-            const kastenStil = { width: "20px", height: "20px", borderRadius: "7px", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", fontSize: "0.72rem" };
+            const schichtLabel = { FRUEH: "Frühschicht · 06:00–14:00", SPAET: "Spätschicht · 14:00–22:00", NACHT: "Nachtschicht · 22:00–06:00" };
+            const typVonUhrzeit = (hhmm) => { const h = Number(String(hhmm).slice(0, 2)); return h >= 6 && h < 14 ? "FRUEH" : h >= 14 && h < 22 ? "SPAET" : "NACHT"; };
+            const typVonPerson = (name) => { const sp = name ? leiste.find(([, , crew]) => crew.some((x) => x.name === name)) : null; return sp ? sp[0] : null; };
+            const jetztHHMM = `${String(tagesplanUhr.getHours()).padStart(2, "0")}:${String(tagesplanUhr.getMinutes()).padStart(2, "0")}`;
+            const plusMinuten = (hhmm, min) => { const [h, m] = String(hhmm).split(":").map(Number); const t = (h * 60 + m + min) % 1440; return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`; };
+            const laeuftJetzt = (z) => !!z.uhrzeit && !z.fertig && z.uhrzeit <= jetztHHMM && jetztHHMM < (z.bis || plusMinuten(z.uhrzeit, 60));
+            const kurzNotiz = (t) => (String(t || "").length > 70 ? String(t).slice(0, 70) + "…" : String(t || ""));
+
+            /* Alle Zeilen des Tages, je Art mit ihren Handgriffen */
+            const zeilen = [];
+            heutePlan.forEach((p) => {
+              const e = kalenderEntries.find((x) => x.date === p.date && x.name === p.anlage);
+              const kat = riItems.some((r) => r.name === p.anlage) ? "RI" : "TPM";
+              zeilen.push({
+                key: `plan|${p.anlage}`, art: kat, anlage: p.anlage,
+                was: (e && e.note) ? kurzNotiz(e.note) : (kat === "RI" ? "Rundgang & Inspektion" : "Wartung nach Plan"),
+                uhrzeit: (e && e.uhrzeit) || "", bis: (e && e.uhrzeitBis) || "", wer: (e && e.wer) || "",
+                fertig: !!e && e.status === "done", darf: darfTermine,
+                oeffnen: () => openPlanEntry(p),
+                haken: () => planHaken(p),
+                setzWer: (w) => planEintragSetzen(p, { wer: w || undefined }),
+                setzZeit: (von, bis) => planEintragSetzen(p, { uhrzeit: von || undefined, uhrzeitBis: bis || undefined }),
+              });
+            });
+            heuteTermine.forEach((t) => zeilen.push({
+              // Eine kurze Notiz am Termin ist meist der ORT ("Meisterbüro") - sie
+              // steht dann in der Spalte Anlage/Ort; eine lange Notiz bleibt bei Was.
+              key: t.id, art: "TERMIN", anlage: t.note && String(t.note).length <= 32 ? String(t.note) : "", was: t.name + (t.note && String(t.note).length > 32 ? ` · ${kurzNotiz(t.note)}` : ""),
+              uhrzeit: t.uhrzeit || "", bis: t.uhrzeitBis || "", wer: t.wer || "",
+              fertig: t.status === "done", darf: darfTermine,
+              oeffnen: () => openEditModal(t),
+              haken: () => eintragSetzen(t.id, { status: t.status === "done" ? "open" : "done" }),
+              setzWer: (w) => eintragSetzen(t.id, { wer: w || undefined }),
+              setzZeit: (von, bis) => eintragSetzen(t.id, { uhrzeit: von || undefined, uhrzeitBis: bis || undefined }),
+            }));
+            if (sichtbar("PLANUNG")) {
+              arbeiten.filter((a) => a.geplant === todayKey).forEach((a) => zeilen.push({
+                key: a.id, art: "ARBEIT", anlage: a.name, was: kurzNotiz(a.note),
+                uhrzeit: a.uhrzeit || "", bis: a.uhrzeitBis || "", wer: a.wer || "",
+                fertig: a.status === "done", darf: darfPlanung,
+                oeffnen: () => openArbeitEdit(a),
+                haken: () => setArbeitStatus(a.id, a.status === "done" ? "open" : "done"),
+                setzWer: (w) => eintragSetzen(a.id, { wer: w || undefined }),
+                setzZeit: (von, bis) => eintragSetzen(a.id, { uhrzeit: von || undefined, uhrzeitBis: bis || undefined }),
+              }));
+              entries.filter((e) => e.category === "PLANNOTIZ" && e.date === todayKey).forEach((n) => zeilen.push({
+                key: n.id, art: "NOTIZ", anlage: "", was: kurzNotiz(n.note),
+                uhrzeit: n.uhrzeit || "", bis: n.uhrzeitBis || "", wer: n.name || "",
+                fertig: n.status === "done", darf: darfPlanung,
+                oeffnen: () => setPlanNotiz({ person: n.name, datum: todayKey, id: n.id, text: n.note }),
+                haken: () => notizHaken(n),
+                // Die Person einer Planungs-Notiz steht in "name" (Planungszelle)
+                setzWer: (w) => { if (w) eintragSetzen(n.id, { name: w }); },
+                setzZeit: (von, bis) => eintragSetzen(n.id, { uhrzeit: von || undefined, uhrzeitBis: bis || undefined }),
+              }));
+            }
+            if (sichtbar("TODO")) {
+              todos.filter((t) => String(t.bis || "").slice(0, 10) === todayKey).forEach((t) => zeilen.push({
+                key: t.id, art: "TODO", anlage: "", was: t.name,
+                uhrzeit: t.uhrzeit || "", bis: t.uhrzeitBis || "", wer: t.wer || "",
+                fertig: t.status === "done", darf: darfTodo,
+                oeffnen: () => todoBearbeiten(t),
+                haken: () => todoHaken(t),
+                setzWer: (w) => eintragSetzen(t.id, { wer: w || "" }),
+                setzZeit: (von, bis) => eintragSetzen(t.id, { uhrzeit: von || "", uhrzeitBis: bis || "" }),
+              }));
+            }
+            /* Gruppe = Schicht: aus der Uhrzeit, sonst aus der Schicht der
+               zugeteilten Person; ohne beides "offen" ganz unten. In der Gruppe
+               erst die Zeilen mit Uhrzeit, dann "ganztags". */
+            const gruppeVon = (z) => (z.uhrzeit ? typVonUhrzeit(z.uhrzeit) : (typVonPerson(z.wer) || "OFFEN"));
+            const reihenfolge = ["FRUEH", "SPAET", "NACHT", "OFFEN"];
+            const sortiert = [...zeilen].sort((x, y) => reihenfolge.indexOf(gruppeVon(x)) - reihenfolge.indexOf(gruppeVon(y))
+              || (x.uhrzeit && y.uhrzeit ? x.uhrzeit.localeCompare(y.uhrzeit) : x.uhrzeit ? -1 : y.uhrzeit ? 1 : 0)
+              || x.anlage.localeCompare(y.anlage, "de") || x.was.localeCompare(y.was, "de"));
+            const gruppen = reihenfolge.map((g) => [g, sortiert.filter((z) => gruppeVon(z) === g)]).filter(([, l]) => l.length > 0);
+            const erledigt = zeilen.filter((z) => z.fertig).length;
+            const CHIP = { TPM: "tpm", RI: "ri", TERMIN: "termin", ARBEIT: "arbeit", NOTIZ: "notiz", TODO: "todo" };
+            const ARTNAME = { TPM: CATS.TPM.label, RI: CATS.RI.label, TERMIN: "Termin", ARBEIT: "Arbeit", NOTIZ: "Notiz", TODO: "To-do" };
+            const personen = [...anwesend.map((x) => x.name), ...team.map((m) => m.name).filter((n) => !anwesend.some((x) => x.name === n))];
+            const zelle = { padding: "7px 8px", borderBottom: "1px solid #E2E4E7", verticalAlign: "middle", fontSize: "var(--wk-txt)" };
+            const kopfZelle = { fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "#8A9099", textAlign: "left", padding: "2px 8px 4px", borderBottom: "2px solid #22262B", fontWeight: 800 };
+            const eingabe = { border: "1px solid transparent", borderRadius: "6px", padding: "2px 4px", fontSize: "var(--wk-txt-etikett)", fontWeight: 700, backgroundColor: "transparent", color: "#22262B", fontFamily: "inherit" };
             const kasten = (fertig, darf, label, onClick) => (
               <button
                 onClick={(ev) => { ev.stopPropagation(); if (darf) onClick(); }}
                 disabled={!darf}
                 aria-label={label}
                 title={darf ? label : "Nur ansehen"}
-                style={{ ...kastenStil, backgroundColor: fertig ? "#1F7A3D" : "white", border: fertig ? "none" : "2px solid #C3C7CB", cursor: darf ? "pointer" : "default" }}
+                style={{ width: "22px", height: "22px", borderRadius: "7px", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "white", fontSize: "0.78rem", backgroundColor: fertig ? "#1F7A3D" : "white", border: fertig ? "none" : "2px solid #C3C7CB", cursor: darf ? "pointer" : "default" }}
               >{fertig ? "✓" : ""}</button>
             );
-            const stift = (darf, label, onClick) => darf && (
-              <button onClick={(ev) => { ev.stopPropagation(); onClick(); }} aria-label={label} title={label} className="ml-auto" style={{ color: "#B7BEC6", fontSize: "13px", lineHeight: 1 }}>✎</button>
+            const tabelle = zeilen.length === 0 ? (
+              <div className="text-xs italic text-slate-400 mb-3">Heute steht laut Plan nichts an.</div>
+            ) : (
+              <table data-tagesplan-tabelle="" style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...kopfZelle, width: "82px" }}>Art</th>
+                    <th style={{ ...kopfZelle, width: "22%" }}>Anlage / Ort</th>
+                    <th style={kopfZelle}>Was</th>
+                    <th style={{ ...kopfZelle, width: "160px" }}>Uhrzeit</th>
+                    <th style={{ ...kopfZelle, width: "170px" }}>Wer</th>
+                    <th style={{ ...kopfZelle, width: "34px" }} aria-label="Erledigt"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gruppen.map(([g, liste]) => (
+                    <React.Fragment key={g}>
+                      <tr data-tagesplan-gruppe={g}>
+                        <td colSpan={6} style={{ padding: "4px 8px", backgroundColor: "#F5F6F8", fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.5px", color: "#5B6572", borderBottom: "1px solid #D6D9DC" }}>
+                          {g === "OFFEN" ? "Ohne Uhrzeit · noch niemandem zugeteilt" : schichtLabel[g]}{g === jetztInDerWerkstatt.aktuell ? " · jetzt" : ""}
+                        </td>
+                      </tr>
+                      {liste.map((z) => {
+                        const jetzt = laeuftJetzt(z);
+                        const text = { textDecoration: z.fertig ? "line-through" : "none", color: z.fertig ? "#8A9099" : "#22262B" };
+                        return (
+                          <tr key={z.key} data-tagesplan-zeile={z.art} data-tagesplan-jetzt={jetzt ? "1" : undefined} style={{ backgroundColor: jetzt ? "#FFF7F0" : "transparent", boxShadow: jetzt ? "inset 4px 0 0 0 #E8732A" : "none" }}>
+                            <td style={zelle}><span className={`wk-chip wk-chip-${CHIP[z.art]}`}>{ARTNAME[z.art]}</span></td>
+                            <td style={{ ...zelle, fontWeight: 800, ...text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              <button onClick={() => { if (z.darf) z.oeffnen(); }} className="text-left" style={{ font: "inherit", color: "inherit", textDecoration: "inherit", cursor: z.darf ? "pointer" : "default", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={z.darf ? `${z.anlage || z.was} öffnen` : undefined} aria-label={`${ARTNAME[z.art]} ${z.anlage || z.was} öffnen`}>
+                                {z.anlage || <span style={{ color: "#B7BEC6", fontWeight: 600 }}>–</span>}
+                              </button>
+                            </td>
+                            <td style={{ ...zelle, ...text, fontWeight: jetzt ? 800 : 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={z.was}>{z.was}</td>
+                            <td style={{ ...zelle, whiteSpace: "nowrap" }}>
+                              {/* Die Zeit steht als Text; erst ein Klick öffnet die zwei Felder
+                                  (von / bis) - so bleibt die Tabelle auf dem Monitor ruhig, und
+                                  nichts läuft in die Nachbarspalte. */}
+                              {z.darf && tagesplanZeit === z.key ? (
+                                /* Der Editor liegt ÜBER der Nachbarspalte (z-Index), falls er breiter
+                                   ist als die Spalte - sonst fing das Wer-Feld die Klicks auf ✓ ab
+                                   (gemessen 05.10. im Prüfstand: "select … intercepts pointer events"). */
+                                <span className="inline-flex items-center gap-1" data-tagesplan-zeiteingabe="" style={{ position: "relative", zIndex: 5, backgroundColor: "white", borderRadius: "8px", padding: "2px 4px", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+                                  <input type="time" value={z.uhrzeit} onChange={(ev) => z.setzZeit(ev.target.value, z.bis)} aria-label={`Uhrzeit von: ${z.anlage || z.was}`} title="von" style={{ ...eingabe, border: "1px solid #C9CED4", width: "84px", fontFamily: "ui-monospace, Consolas, monospace", fontSize: "0.8rem" }} />
+                                  <input type="time" value={z.bis} onChange={(ev) => z.setzZeit(z.uhrzeit, ev.target.value)} aria-label={`Uhrzeit bis: ${z.anlage || z.was}`} title="bis" style={{ ...eingabe, border: "1px solid #C9CED4", width: "84px", fontFamily: "ui-monospace, Consolas, monospace", fontSize: "0.8rem" }} />
+                                  <button onClick={() => setTagesplanZeit(null)} aria-label="Uhrzeit fertig" title="fertig" className="rounded font-black text-white" style={{ width: "22px", height: "22px", fontSize: "0.7rem", backgroundColor: "#22262B" }}>✓</button>
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => { if (z.darf) setTagesplanZeit(z.key); }}
+                                  disabled={!z.darf}
+                                  aria-label={`Uhrzeit ändern: ${z.anlage || z.was}`}
+                                  title={z.darf ? "Uhrzeit setzen oder ändern" : undefined}
+                                  className="font-mono text-left"
+                                  style={{ fontSize: "0.85rem", fontWeight: 800, color: z.uhrzeit ? "#22262B" : "#B7BEC6", cursor: z.darf ? "pointer" : "default", padding: "2px 4px", borderRadius: "6px", border: "1px solid transparent" }}
+                                >
+                                  {z.uhrzeit ? `${z.uhrzeit}${z.bis ? ` – ${z.bis}` : ""}` : "ganztags"}
+                                </button>
+                              )}
+                            </td>
+                            <td style={{ ...zelle, whiteSpace: "nowrap" }}>
+                              <span className="inline-flex items-center gap-1.5" style={{ maxWidth: "100%" }}>
+                                <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "22px", height: "22px", fontSize: "0.56rem", backgroundColor: z.wer ? "#2F6690" : "white", color: z.wer ? "white" : "#B7BEC6", border: z.wer ? "none" : "2px dashed #C3C7CB" }}>{z.wer ? personKuerzel(z.wer) : "?"}</span>
+                                {z.darf && team.length > 0 ? (
+                                  <select value={z.wer} onChange={(ev) => z.setzWer(ev.target.value)} aria-label={`Wer: ${z.anlage || z.was}`} title="Wer macht es? (Zuteilung landet in der Planung)" style={{ ...eingabe, maxWidth: "120px", color: z.wer ? "#22262B" : "#B7BEC6" }}>
+                                    <option value="">– niemand –</option>
+                                    {z.wer && !team.some((m) => m.name === z.wer) && <option value={z.wer}>{z.wer}</option>}
+                                    {personen.map((n) => <option key={n} value={n}>{n}{anwesend.some((x) => x.name === n) ? "" : " (nicht da)"}</option>)}
+                                  </select>
+                                ) : (
+                                  <span style={{ fontSize: "var(--wk-txt-etikett)", fontWeight: 700, color: z.wer ? "#22262B" : "#B7BEC6", overflow: "hidden", textOverflow: "ellipsis" }}>{z.wer || "niemand"}</span>
+                                )}
+                              </span>
+                            </td>
+                            <td style={{ ...zelle, textAlign: "right" }}>{kasten(z.fertig, z.darf, `${z.anlage ? z.anlage + ": " : ""}${z.was} ${z.fertig ? "wieder öffnen" : "abhaken"}`, z.haken)}</td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
             );
-            const personenListe = (person) => {
-              const x = anwesend.find((a) => a.name === person);
-              const f = kopfFarbe(x);
-              const p = punkteVon(person);
-              const leer = p.arbeitenHeute.length === 0 && p.faellig.length === 0 && p.notizen.length === 0;
-              return (
-                <div role="region" aria-label={`Punkte von ${person}`}>
-                  <div className="flex items-center gap-2 mb-2" style={{ minHeight: "28px" }}>
-                    <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "26px", height: "26px", fontSize: "0.62rem", backgroundColor: f.bg, color: f.text }}>{personKuerzel(person)}</span>
-                    <strong style={{ fontSize: "0.9rem", color: "#22262B" }}>{person}</strong>
-                    <span className="inline-flex items-center rounded font-extrabold uppercase" style={{ fontSize: "0.56rem", letterSpacing: "0.4px", padding: "2px 8px", backgroundColor: f.bg, color: f.text }}>{x.schicht || "Tagschicht"}</span>
-                    <span className="ml-auto text-xs font-bold" style={{ color: "#8A9099" }}>{p.gesamt > 0 ? `${p.gesamt - p.offen} von ${p.gesamt} erledigt` : ""}</span>
-                  </div>
-                  {leer && (
-                    <div className="text-xs italic text-slate-400 mb-3">
-                      Für {person} ist heute nichts eingeplant.
-                      {sichtbar("PLANUNG") && <button onClick={() => setCockpitTab("PLANUNG")} className="ml-2 font-bold not-italic" style={{ color: "#C97A2B" }}>➜ Planung</button>}
-                    </div>
-                  )}
-                  {p.arbeitenHeute.map((a) => {
-                    const fertig = a.status === "done";
-                    return (
-                      <div key={a.id} className="wk-karte w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left" style={{ boxShadow: "inset 3px 0 0 0 #C97A2B, var(--wk-schatten)" }}>
-                        {kasten(fertig, darfPlanung, `${a.note} ${fertig ? "wieder öffnen" : "abhaken"}`, () => setArbeitStatus(a.id, fertig ? "open" : "done"))}
-                        <span className="wk-chip wk-chip-arbeit">Arbeit</span>
-                        <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", textDecoration: fertig ? "line-through" : "none", color: fertig ? "#8A9099" : "#22262B" }}>{a.note}</strong>
-                        <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099" }}>{a.name}</span>
-                        {a.prio && a.prio !== "ohne" && <span style={{ fontSize: "0.6rem", fontWeight: 900, color: "#C0392B", textTransform: "uppercase" }}>{a.prio}</span>}
-                        {stift(darfPlanung, `${a.note} bearbeiten`, () => openArbeitEdit(a))}
-                      </div>
-                    );
-                  })}
-                  {p.faellig.map((t) => {
-                    const fertig = t.status === "done";
-                    const ueber = !fertig && t.bis && String(t.bis) < todayKey;
-                    return (
-                      <div key={t.id} className="wk-karte w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left" style={{ boxShadow: `inset 3px 0 0 0 ${ueber ? "#B23A34" : "#2F6690"}, var(--wk-schatten)` }}>
-                        {kasten(fertig, darfTodo, `${t.name} ${fertig ? "wieder öffnen" : "abhaken"}`, () => todoHaken(t))}
-                        <span className="wk-chip wk-chip-todo">To-do</span>
-                        <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", textDecoration: fertig ? "line-through" : "none", color: fertig ? "#8A9099" : "#22262B" }}>{t.name}</strong>
-                        {t.bis && <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: ueber ? "#B23A34" : "#8A9099" }}>{ueber ? "seit " : "bis "}{formatDateDE(t.bis)}</span>}
-                        {stift(darfTodo, `${t.name} bearbeiten`, () => todoBearbeiten(t))}
-                      </div>
-                    );
-                  })}
-                  {p.notizen.map((n) => {
-                    // Notizen sind abhakbar (Robertos Ansage vom 21.09.): "Zu Markus"
-                    // ist ein Auftrag, abgehakt = erledigt, bleibt durchgestrichen stehen.
-                    const fertig = n.status === "done";
-                    return (
-                      <div key={n.id} className="wk-karte w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left" style={{ boxShadow: "inset 3px 0 0 0 #E3B341, var(--wk-schatten)" }}>
-                        {kasten(fertig, darfPlanung, `${n.note} ${fertig ? "wieder öffnen" : "abhaken"}`, () => notizHaken(n))}
-                        <span className="wk-chip wk-chip-notiz">Notiz</span>
-                        <span className="flex-1" style={{ fontSize: "var(--wk-txt)", color: fertig ? "#8A9099" : "#22262B", whiteSpace: "pre-wrap", textDecoration: fertig ? "line-through" : "none" }}>{n.note}</span>
-                        {stift(darfPlanung, `Notiz bearbeiten: ${n.note}`, () => setPlanNotiz({ person, datum: todayKey, id: n.id, text: n.note }))}
-                      </div>
-                    );
-                  })}
-                  {p.spaeter.length > 0 && (
-                    <div className="text-xs" style={{ color: "#8A9099" }}>{p.spaeter.length === 1 ? "1 To-do" : `${p.spaeter.length} To-dos`} mit späterer Frist (siehe Berichte → To-dos)</div>
-                  )}
-                  {abwesend.length > 0 && (
-                    <div className="text-xs mt-3" style={{ color: "#8A9099" }}>
-                      <b style={{ color: "#5B6572" }}>Nicht da:</b> {abwesend.map((x) => `${x.name} (${x.schicht})`).join(" · ")}
-                    </div>
-                  )}
-                  <button onClick={() => setTagesPerson(null)} aria-label="Zurück zu den Terminen" className="text-xs font-extrabold mt-2" style={{ color: "#C97A2B" }}>← zurück zu den Terminen</button>
-                </div>
-              );
-            };
-            const termine = (
-              <>
-              {heutePlan.length === 0 && heuteTermine.length === 0 && (
-                <div className="text-xs italic text-slate-400 mb-3">Heute steht laut Plan nichts an.</div>
-              )}
-              {heutePlan.map((p) => {
-                const st = statusFuerPlanPunkt(p);
-                const kat = riItems.some((r) => r.name === p.anlage) ? "RI" : "TPM";
-                return (
-                  <button
-                    key={p.anlage}
-                    onClick={() => openPlanEntry(p)}
-                    className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
-                  >
-                    <span
-                      className="flex items-center justify-center font-black text-white"
-                      style={{ width: "20px", height: "20px", borderRadius: "7px", fontSize: "0.72rem", flexShrink: 0, backgroundColor: st === "done" ? "#1F7A3D" : "transparent", border: st === "done" ? "none" : "2px solid #C3C7CB" }}
-                    >
-                      {st === "done" ? "✓" : ""}
-                    </span>
-                    <span className={`wk-chip wk-chip-${kat.toLowerCase()}`}>{CATS[kat].label}</span>
-                    <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", textDecoration: st === "done" ? "line-through" : "none", color: st === "done" ? "#8A9099" : "#22262B" }}>{p.anlage}</strong>
-                  </button>
-                );
-              })}
-
-              {/* Regeltermine des Tages (24.08.): informieren wie R+I, aber
-                  eigene, lila Karte - keine Wartung, keine Quote. */}
-              {heuteTermine.map((t) => (
+            return (
+            <div>
+              <div id="wk-tagesplan" className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B", position: "relative", scrollMarginTop: "110px" }}>
+                {/* Seit 01.10. "Tagesplan" statt "Heute" (Roberto); Datum und Uhrzeit daneben. */}
+                Tagesplan · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
+                <span data-tagesplan-uhr="" style={{ color: "#6B7480", fontWeight: 700 }}>· {tagesplanUhr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr</span>
+                {/* Kalender-Popup (24.08.): der TPM/R+I-Monatskalender als kleines Fenster. */}
                 <button
-                  key={t.id}
-                  onClick={() => { if (!readerMode) openEditModal(t); }}
-                  disabled={readerMode}
-                  className="wk-karte wk-karte-hebt w-full flex items-center gap-2.5 px-3 py-2.5 mb-2 text-left"
-                  style={{ boxShadow: "inset 3px 0 0 0 #7C5CBF, var(--wk-schatten)", cursor: readerMode ? "default" : "pointer" }}
-                >
-                  <span style={{ fontSize: "0.95rem" }} aria-hidden="true">📅</span>
-                  <span className="wk-chip wk-chip-termin">Termin</span>
-                  <strong className="flex-1" style={{ fontSize: "var(--wk-txt)", textDecoration: t.status === "done" ? "line-through" : "none", color: t.status === "done" ? "#8A9099" : "#22262B" }}>{t.name}</strong>
-                  {t.note && <span className="font-mono" style={{ fontSize: "var(--wk-txt-etikett)", color: "#8A9099", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "180px" }}>{t.note}</span>}
-                </button>
-              ))}
-
+                  onClick={() => setKalenderPopup((o) => (o ? null : { jahr: today.getFullYear(), monat: today.getMonth() }))}
+                  aria-label="Wartungskalender als Fenster öffnen"
+                  title="TPM/R+I-Kalender in einem kleinen Fenster zeigen"
+                  className="rounded border px-1.5"
+                  style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px" }}
+                >📅</button>
+                <span className="ml-auto inline-flex items-center gap-1.5 normal-case tracking-normal" style={{ fontSize: "11px", fontWeight: 700, color: "#5B6572" }} data-tagesplan-stand="">
+                  <span className="rounded-full border px-2 py-0.5" style={{ borderColor: "#D6D9DC", backgroundColor: "white" }}>{zeilen.length} {zeilen.length === 1 ? "Punkt" : "Punkte"}</span>
+                  <span className="rounded-full border px-2 py-0.5" style={{ borderColor: erledigt === zeilen.length && zeilen.length > 0 ? "#A9CDB4" : "#D6D9DC", backgroundColor: erledigt === zeilen.length && zeilen.length > 0 ? "#EAF3EC" : "white", color: erledigt > 0 ? "#1F7A3D" : "#5B6572" }}>{erledigt} erledigt</span>
+                  {team.length > 0 && <span className="rounded-full border px-2 py-0.5" style={{ borderColor: "#D6D9DC", backgroundColor: "white" }} title={anwesend.map((x) => `${x.name} (${x.schicht || "Tagschicht"})`).join(" · ") || "niemand eingeteilt"}>👷 {anwesend.length} anwesend</span>}
+                </span>
+              </div>
+              {tabelle}
+              {abwesend.length > 0 && (
+                <div className="text-xs mt-2" style={{ color: "#8A9099" }}>
+                  <b style={{ color: "#5B6572" }}>Nicht da:</b> {abwesend.map((x) => `${x.name} (${x.schicht})`).join(" · ")}
+                </div>
+              )}
               {/* Termin-Archiv als Aufklapper (Robertos Wunsch vom 24.09.): EINE
                   Zeile sammelt alles Versäumte - Liegengebliebenes (bis eine
                   Woche) und das Archiv (älter, bis 30 Tage). Ein Klick klappt
@@ -12286,95 +12380,6 @@ function App() {
                   </>
                 );
               })()}
-              </>
-            );
-            const schichtLabel = { FRUEH: "Früh", SPAET: "Spät", NACHT: "Nacht" };
-            const jetztTyp = jetztInDerWerkstatt.aktuell;
-            const offenText = (n) => (n === 0 ? "nichts offen" : n === 1 ? "1 Punkt offen" : n + " Punkte offen");
-            const gewaehltPunkte = gewaehlt ? punkteVon(gewaehlt) : null;
-            const offenGesamt = anwesend.reduce((s, x) => s + punkteVon(x.name).offen, 0);
-            const menueEintrag = (x) => {
-              const f = kopfFarbe(x);
-              const an = gewaehlt === x.name;
-              const p = punkteVon(x.name);
-              return (
-                <button
-                  key={x.name}
-                  role="menuitemradio"
-                  aria-checked={an}
-                  aria-label={`Punkte von ${x.name}`}
-                  title={`${x.name} · ${x.schicht || "Tagschicht"} · ${offenText(p.offen)}`}
-                  onClick={() => { setTagesPerson(x.name); setTagesMenue(false); }}
-                  className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
-                  style={{ backgroundColor: an ? "#FDF3E7" : "transparent" }}
-                >
-                  <span className="inline-flex items-center justify-center rounded-full font-extrabold flex-shrink-0" style={{ width: "24px", height: "24px", fontSize: "0.6rem", backgroundColor: f.bg, color: f.text }}>{personKuerzel(x.name)}</span>
-                  <span className="text-sm font-bold" style={{ color: "#22262B" }}>{x.name}</span>
-                  <span className="ml-auto font-mono text-xs" style={{ color: p.gesamt === 0 ? "#C3C7CB" : p.offen === 0 ? "#1F7A3D" : "#8A9099" }}>{p.gesamt === 0 ? "–" : `${p.gesamt - p.offen} / ${p.gesamt}`}</span>
-                </button>
-              );
-            };
-            return (
-            <div>
-              <div id="wk-tagesplan" className="text-xs font-extrabold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: "#22262B", position: "relative", scrollMarginTop: "110px" }}>
-                {/* Seit 01.10. "Tagesplan" statt "Heute" (Roberto) - die Liste selbst wird später überarbeitet.
-                    Datum und Uhrzeit stehen daneben (Robertos Wunsch vom selben Tag). */}
-                Tagesplan · {today.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" })}
-                <span data-tagesplan-uhr="" style={{ color: "#6B7480", fontWeight: 700 }}>· {tagesplanUhr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr</span>
-                {/* Kalender-Popup (24.08.): der TPM/R+I-Monatskalender als
-                    kleines Fenster, ohne den Reiter zu wechseln. */}
-                <button
-                  onClick={() => setKalenderPopup((o) => (o ? null : { jahr: today.getFullYear(), monat: today.getMonth() }))}
-                  aria-label="Wartungskalender als Fenster öffnen"
-                  title="TPM/R+I-Kalender in einem kleinen Fenster zeigen"
-                  className="rounded border px-1.5"
-                  style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px" }}
-                >📅</button>
-                {leiste.length > 0 && (
-                  <button
-                    onClick={() => setTagesMenue((o) => !o)}
-                    aria-label="Anwesende wählen"
-                    aria-haspopup="menu"
-                    aria-expanded={tagesMenue}
-                    title="Heute anwesende Kollegen und ihre geplanten Punkte"
-                    className="ml-auto inline-flex items-center gap-1.5 rounded border px-2.5 py-1 normal-case tracking-normal"
-                    style={{ borderColor: "#D6D9DC", backgroundColor: "white", fontSize: "12px", lineHeight: "18px", color: "#22262B", fontWeight: 800 }}
-                  >
-                    <span aria-hidden="true">👷</span>
-                    {gewaehlt ? <>{gewaehlt} <span style={{ color: gewaehltPunkte.offen ? "#C97A2B" : "#1F7A3D" }}>{gewaehltPunkte.offen ? `${gewaehltPunkte.offen} offen` : "fertig"}</span></> : <>Anwesende <span style={{ color: "#8A9099" }}>{anwesend.length}{offenGesamt ? ` · ${offenGesamt} offen` : ""}</span></>}
-                    <span aria-hidden="true" style={{ fontSize: "0.6rem" }}>▾</span>
-                  </button>
-                )}
-                {tagesMenue && (
-                  <>
-                    <div style={{ position: "fixed", inset: 0, zIndex: 59 }} onClick={() => setTagesMenue(false)} />
-                    <div className="no-print normal-case tracking-normal" role="menu" aria-label="Heute anwesend" style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 60, backgroundColor: "white", borderRadius: "10px", padding: "6px", width: "300px", maxWidth: "100%", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", border: "1px solid #E2E4E7", fontWeight: 600 }}>
-                      <button
-                        role="menuitemradio"
-                        aria-checked={!gewaehlt}
-                        aria-label="Termine anzeigen"
-                        onClick={() => { setTagesPerson(null); setTagesMenue(false); }}
-                        className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
-                        style={{ backgroundColor: gewaehlt ? "transparent" : "#FDF3E7" }}
-                      >
-                        <span aria-hidden="true">📋</span>
-                        <span className="text-sm font-bold" style={{ color: "#22262B" }}>Termine</span>
-                        <span className="ml-auto text-xs" style={{ color: "#8A9099" }}>PitStop · R+I · Termine</span>
-                      </button>
-                      {leiste.map(([typ, , crew]) => (
-                        <React.Fragment key={typ}>
-                          <div className="px-2 pt-2 pb-0.5" style={{ fontSize: "0.56rem", fontWeight: 900, color: "#8A9099", textTransform: "uppercase", letterSpacing: "0.4px" }}>{schichtLabel[typ] || typ}{typ === jetztTyp ? " · jetzt" : ""}</div>
-                          {crew.map(menueEintrag)}
-                        </React.Fragment>
-                      ))}
-                      {abwesend.length > 0 && (
-                        <div className="px-2 pt-2 pb-1" style={{ fontSize: "0.6rem", fontWeight: 800, color: "#B7BEC6", textTransform: "uppercase", letterSpacing: "0.3px" }}>Nicht da: {abwesend.map((x) => x.name).join(" · ")}</div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              {gewaehlt ? personenListe(gewaehlt) : termine}
             </div>
             );
         })();
@@ -13136,9 +13141,22 @@ function App() {
                                   ) : tagesPlan.map((p, i) => {
                                     const done = isPlanDone(p);
                                     const c = done ? "#2F7D4F" : planGroupColor(p.anlage, tpmAnlagen, riItems);
+                                    // Zuteilung aus dem Tagesplan (05.10.): Kürzel und Uhrzeit am Chip;
+                                    // Ziehen auf eine Personen-Zeile desselben Tags teilt zu.
+                                    const ze = kalenderEntries.find((x) => x.date === p.date && x.name === p.anlage);
+                                    const wer = ze && ze.wer ? String(ze.wer) : "";
                                     return (
-                                      <button key={i} onClick={() => openPlanEntry(p)} className="rounded font-bold" style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18` }}>
-                                        {done ? "✓ " : ""}{p.anlage}
+                                      <button
+                                        key={i}
+                                        onClick={() => openPlanEntry(p)}
+                                        draggable={!readerMode && !done}
+                                        onDragStart={(ev) => { if (done) return; ev.dataTransfer.setData("text/wk-plan", JSON.stringify({ date: p.date, anlage: p.anlage })); ev.dataTransfer.effectAllowed = "move"; }}
+                                        className="rounded font-bold"
+                                        data-wartungsplan-chip={p.anlage}
+                                        title={`${p.anlage}${wer ? ` – zugeteilt: ${wer}` : ""}${ze && ze.uhrzeit ? ` · ${ze.uhrzeit} Uhr` : ""}${readerMode || done ? "" : " – auf eine Personen-Zeile ziehen = zuteilen"}`}
+                                        style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18`, cursor: readerMode || done ? "pointer" : "grab" }}
+                                      >
+                                        {done ? "✓ " : ""}{ze && ze.uhrzeit ? `${ze.uhrzeit} ` : ""}{p.anlage}{wer ? ` · ${personKuerzel(wer)}` : ""}
                                       </button>
                                     );
                                   })}
@@ -13198,9 +13216,31 @@ function App() {
                                         if (readerMode || abwesend) return;
                                         const arbeitId = ev.dataTransfer.getData("text/wk-arbeit");
                                         if (arbeitId) einplanen(arbeitId, person, t.key);
+                                        // PitStop/R+I aus der Wartungsplan-Zeile: nur am selben Tag zuteilen
+                                        // (Verschieben auf einen anderen Tag bleibt dem Dialog vorbehalten).
+                                        const planRoh = ev.dataTransfer.getData("text/wk-plan");
+                                        if (planRoh) { try { const pp = JSON.parse(planRoh); if (pp && pp.date === t.key && pp.anlage) planEintragSetzen(pp, { wer: person }); } catch (x) { /* kein Plan-Punkt */ } }
                                       }}
                                       style={{ padding: "2px 10px", borderTop: "1px solid #E2E4E7", cursor: readerMode ? "default" : "pointer", backgroundColor: dropZiel === `${person}|${t.key}` ? "#EAF3EC" : undefined, boxShadow: dropZiel === `${person}|${t.key}` ? "inset 0 0 0 2px #2F7D4F" : undefined }}
                                     >
+                                      {/* Zugeteilte PitStop/R+I-Punkte (Tagesplan 05.10.): derselbe Eintrag
+                                          wie in der Wartungsplan-Zeile, hier bei der Person. */}
+                                      {kalenderEntries.filter((e) => e.wer === person && e.date === t.key).map((e) => {
+                                        const done = e.status === "done";
+                                        const c = done ? "#2F7D4F" : planGroupColor(e.name, tpmAnlagen, riItems);
+                                        return (
+                                          <button
+                                            key={e.id}
+                                            onClick={() => { if (!readerMode) openEditModal(e); }}
+                                            className="rounded font-bold text-left"
+                                            data-plan-zuteilung={e.name}
+                                            style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: c, border: `1px solid ${c}`, backgroundColor: done ? "#E5F3EA" : `${c}18` }}
+                                            title={`${CATS[e.category] ? CATS[e.category].label : e.category} ${e.name}${e.uhrzeit ? ` · ${e.uhrzeit} Uhr` : ""} – zugeteilt im Tagesplan`}
+                                          >
+                                            {done ? "✓ " : ""}{e.uhrzeit ? `${e.uhrzeit} ` : ""}{CATS[e.category] ? CATS[e.category].label : e.category} {e.name}
+                                          </button>
+                                        );
+                                      })}
                                       {geplantFuer(person, t.key).map((a) => {
                                         const done = a.status === "done";
                                         const c = done ? "#2F7D4F" : a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color;
@@ -13925,6 +13965,14 @@ function App() {
                     style={{ borderColor: "#D6D9DC", width: "160px" }}
                     title="Geplant für (Tag)"
                   />
+                </div>
+                {/* Uhrzeit (05.10.): für die Reihenfolge im Tagesplan - leer = ganztags */}
+                <div className="flex gap-2 items-center text-xs font-bold" style={{ color: "#5B6572" }}>
+                  <span>Uhrzeit</span>
+                  <input type="time" value={aDraft.uhrzeit} onChange={(ev) => setADraft({ ...aDraft, uhrzeit: ev.target.value })} aria-label="Uhrzeit von" className="text-sm border rounded px-2 py-1.5 font-normal" style={{ borderColor: "#D6D9DC", width: "110px" }} title="Uhrzeit (von) - leer = ganztags" />
+                  <span>bis</span>
+                  <input type="time" value={aDraft.uhrzeitBis} onChange={(ev) => setADraft({ ...aDraft, uhrzeitBis: ev.target.value })} aria-label="Uhrzeit bis" className="text-sm border rounded px-2 py-1.5 font-normal" style={{ borderColor: "#D6D9DC", width: "110px" }} title="Uhrzeit (bis)" />
+                  <span className="font-normal" style={{ color: "#8A9099" }}>leer = ganztags</span>
                 </div>
                 {team.length === 0 && (
                   <div className="text-xs text-slate-400">Tipp: Dein Team legst du im ⚙-Verwalten-Dialog an – dann kannst du Arbeiten zuweisen und im Reiter „Planung" auf Tage verteilen.</div>
@@ -15000,6 +15048,24 @@ function App() {
                         </div>
                       );
                     })()}
+                    {/* Uhrzeit und Wer (05.10., Tagesplan-Tabelle): dieselben Felder wie
+                        in der Zeile des Tagesplans - hier mit Beschriftung. Die
+                        Zuteilung erscheint in der Planung bei der Person. */}
+                    <div className="flex items-end gap-2 flex-wrap text-xs font-bold" style={{ color: "#5B6572" }}>
+                      <label>Uhrzeit von
+                        <input type="time" value={liveEntry.uhrzeit || ""} onChange={(ev) => eintragSetzen(liveEntry.id, { uhrzeit: ev.target.value || undefined })} aria-label="Uhrzeit von" className="block text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC", width: "110px" }} />
+                      </label>
+                      <label>bis
+                        <input type="time" value={liveEntry.uhrzeitBis || ""} onChange={(ev) => eintragSetzen(liveEntry.id, { uhrzeitBis: ev.target.value || undefined })} aria-label="Uhrzeit bis" className="block text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC", width: "110px" }} />
+                      </label>
+                      <label className="flex-1" style={{ minWidth: "140px" }}>Wer
+                        <select value={liveEntry.wer || ""} onChange={(ev) => eintragSetzen(liveEntry.id, { wer: ev.target.value || undefined })} aria-label="Wer macht es" className="block w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }}>
+                          <option value="">– niemand –</option>
+                          {liveEntry.wer && !team.some((t) => t.name === liveEntry.wer) && <option value={liveEntry.wer}>{liveEntry.wer}</option>}
+                          {team.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+                        </select>
+                      </label>
+                    </div>
                     <textarea
                       spellCheck
                       lang="de"

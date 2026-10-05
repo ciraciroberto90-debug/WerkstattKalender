@@ -494,7 +494,8 @@ Störungen, nicht den Rest.
   Kacheln – seit dem 01.10. vorn zwei **Tabellen-Kacheln** (Robertos Skizze:
   Spalten Soll · Ist · Erfüllungsgrad, der Erfüllungsgrad als kleiner
   Halbkreis): **Tagesleistung** (Soll = alles, was heute im Tagesplan steht –
-  Plan-Punkte, Termine, To-dos mit Frist heute –, Ist = davon erledigt, grün ab
+  jede Zeile der Tabelle: Plan-Punkte, Termine, To-dos mit Frist heute,
+  eingeplante Arbeiten, Planungs-Notizen –, Ist = davon erledigt, grün ab
   80 %, gelb ab 50 %; Klick springt zum Tagesplan) und **TPM-Erfüllungsgrad**
   (Soll = geplante Termine des Monats, Ist = erledigte). Dann
   **BG-meldepflichtige Unfälle** (Jahreszahl als zweite Zeile, darunter die
@@ -731,22 +732,28 @@ Störungen, nicht den Rest.
   Farbe nachträglich ändern (Letzteres nur Verfasser oder Verwalter). Ein
   angehefteter Zettel zeigt ein kleines 📌, einer im Laufband ein 📺.
   Das Auge (Ansicht als Leser/Bearbeiter) zeigt genau, was diese Gruppe sieht.
-- **Tagesliste mit „Anwesende"-Menü (seit dem 21.09.):** Rechts im Kopf der
-  Tagesliste steht der Knopf **👷 Anwesende** mit der Zahl der Kollegen und der
-  offenen Punkte. Sein Menü listet die **heute Anwesenden** nach Früh / Spät /
-  Nacht (die laufende Schicht heißt „jetzt") mit Fortschritt „erledigt / gesamt";
-  oben steht **Termine** (= die gewohnte Tagesliste). Wer fehlt (Schule, Krank,
-  Urlaub), ist kein Eintrag, sondern steht grau unter „Nicht da". Die Wahl einer
-  Person zeigt in der Kachel, was für sie **heute** eingeplant ist: Backlog-
-  Arbeiten (Person + „geplant für" = heute), fällige To-dos (Frist bis heute oder
-  ohne Frist; spätere nur als Zeile) und die Planungs-Notizen des Tages. Das
-  Kästchen hakt direkt ab (und wieder auf) – **auch Notizen**, abgehakt heißt
-  erledigt und bleibt durchgestrichen stehen (in der Planung mit ✓); der Stift
-  öffnet den gewohnten Dialog. Störungen haben keine Person – ihre Restarbeit
-  erscheint erst, wenn sie als Arbeit eingeplant ist. Rechte wie in den
-  Bereichen: Arbeiten/Notizen nach „Planung", To-dos nach „To-dos"; Leser sehen
-  nur, was ihre Gruppe sehen darf. „← zurück zu den Terminen" oder der
-  Menüpunkt **Termine** führen zurück.
+- **Tagesplan als Tabelle (seit dem 05.10.; vom 21.09. bis 04.10. gab es ein
+  „Anwesende"-Menü):** Unter den Kacheln steht der Tagesplan als **eine
+  Tabelle mit allem, was heute ansteht** – PitStop- und R+I-Punkte, Termine,
+  eingeplante Arbeiten, To-dos mit Frist heute und Planungs-Notizen – in der
+  Spaltenfolge **Art · Anlage/Ort · Was · Uhrzeit · Wer · Erledigt**. Die
+  Zeilen sind nach **Schicht** gruppiert (aus der Uhrzeit, sonst aus der
+  Schicht der zugeteilten Person; was weder Uhrzeit noch Person hat, steht
+  unten unter „Ohne Uhrzeit · noch niemandem zugeteilt") und innerhalb der
+  Schicht nach Uhrzeit sortiert, „ganztags" dahinter. Die **laufende Zeile**
+  ist orange markiert, Erledigtes bleibt durchgestrichen stehen; im Kopf stehen
+  Punkte, Erledigte und Anwesende, darunter grau, wer fehlt. **Direkt in der
+  Zeile** lässt sich ändern: **Wer** (Auswahl, Anwesende zuerst – eine
+  Zuteilung eines PitStop/R+I-Punkts steht sofort auch in der **Planung** in der
+  Zelle der Person und am Wartungsplan-Chip), **Uhrzeit** (Klick auf die Zeit
+  bzw. „ganztags" öffnet zwei Felder von/bis, ✓ schließt) und der **Haken**;
+  ein Klick auf Anlage/Ort öffnet den gewohnten Dialog. Dieselben Felder
+  (Uhrzeit von/bis, Wer) stehen auch im Termin-/PitStop-Dialog, die Uhrzeit
+  zusätzlich bei Arbeiten und To-dos. Eine kurze Notiz am Termin
+  („Meisterbüro") gilt als Ort. Rechte wie in den Bereichen: Arbeiten/Notizen
+  nach „Planung", To-dos nach „To-dos", der Rest nach dem Schreibrecht – Leser
+  sehen die Tabelle ohne Eingabefelder. Der Vollbild-Monitor zeigt dieselbe
+  Tabelle.
 - **Schichtplan:** Monatsmatrix, je Person und Tag eine Schicht (Früh/Spät/Nacht u. a.).
   Zwei Ausdrucke: **Monat** (die Matrix, quer) und **Wochen** – je Kalenderwoche
   ein Blatt im Querformat, gedacht fürs Schwarze Brett.

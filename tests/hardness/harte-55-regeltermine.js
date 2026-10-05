@@ -67,9 +67,10 @@ const leseEintraege = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("w
       { id: "t-heute", date: "2026-08-24", category: "TERMIN", name: "Schichtübergabe", status: "open", note: "Halle 2" },
     ], "2026-08-24T10:00:00");
 
-    // (R3a) Tagesliste der Übersicht: lila Termin-Karte mit Chip "Termin".
-    const karte = p.locator("button", { has: p.locator(".wk-chip-termin") }).filter({ hasText: "Schichtübergabe" });
-    pruef("(R3) Tagesliste: der heutige Regeltermin steht als eigene Termin-Karte da",
+    // (R3a) Tagesplan der Übersicht (seit 05.10. eine Tabelle, harte-79): Zeile
+    // mit Chip "Termin", die kurze Notiz "Halle 2" steht als Ort in Spalte 2.
+    const karte = p.locator('tr[data-tagesplan-zeile="TERMIN"]').filter({ hasText: "Schichtübergabe" });
+    pruef("(R3) Tagesplan: der heutige Regeltermin steht als eigene Termin-Zeile da",
           (await karte.count()) === 1 && (await karte.innerText()).includes("Halle 2"));
 
     // (R3b) Kalender-Fenster (Schwebe-Fenster von der Übersicht aus).
@@ -257,8 +258,10 @@ const leseEintraege = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("w
     const uebersicht = p.getByRole("button", { name: "Übersicht", exact: true });
     if (await uebersicht.count()) { await uebersicht.first().click(); await p.waitForTimeout(500); }
 
-    pruef("(R7) Leser werden informiert: die Termin-Karte steht in ihrer Tagesliste (nur ansehen)",
-          (await p.locator("button:disabled", { has: p.locator(".wk-chip-termin") }).filter({ hasText: "Schichtübergabe" }).count()) === 1);
+    pruef("(R7) Leser werden informiert: die Termin-Zeile steht in ihrem Tagesplan (nur ansehen: Haken gesperrt, keine Eingabefelder)",
+          (await p.locator('tr[data-tagesplan-zeile="TERMIN"]').filter({ hasText: "Schichtübergabe" }).count()) === 1
+          && (await p.locator('tr[data-tagesplan-zeile="TERMIN"]').filter({ hasText: "Schichtübergabe" }).locator("button[aria-label$='abhaken']:disabled").count()) === 1
+          && (await p.locator('tr[data-tagesplan-zeile="TERMIN"]').filter({ hasText: "Schichtübergabe" }).locator("input, select").count()) === 0);
     const kachel = p.locator('button[aria-label="Termin-Archiv öffnen"]');
     pruef("(R7) Leser sehen die Termin-Archiv-Kachel",
           (await kachel.count()) === 1 && /1 über eine Woche versäumt/.test(await kachel.innerText()));
