@@ -4,7 +4,7 @@ import * as sharedFile from "./sharedfile.js";
 import { sha256Hex, sha256HexJs } from "./sha256.js";
 import { STANDORT, STANDORTE, STANDORT_GEWAEHLT, standortWaehlen, nsKey, leseGruppenPass, setzeGruppenPass } from "./standort.js";
 import { LOGO_GRUPPE, LOGO_SCHEURICH, LOGO_SOENDGEN } from "./logos.js";
-import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen } from "./xlsx.js";
+import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen, leseOeeSchichten } from "./xlsx.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -1104,7 +1104,7 @@ function OeeKachel({ stand, onKlick, darfEinrichten }) {
       onClick={onKlick}
       className="wk-karte px-4 py-3.5 flex flex-col justify-center text-left"
       style={{ boxShadow: `inset 3px 0 0 0 ${akzent}, var(--wk-schatten)` }}
-      title={lage === "fehler" ? String(stand.text || "") : "OEE aus einer Excel-Tabelle anzeigen"}
+      title={lage === "fehler" || (lage === "laedt" && stand.text) ? String(stand.text || "") : "OEE aus einer Excel-Tabelle anzeigen"}
     >
       <div className="font-extrabold" style={{ fontSize: "2.1rem", lineHeight: 1, letterSpacing: "-1.6px", color: lage === "fehler" ? "#B23A34" : "#C3C7CB" }}>
         {gross || zeichen}
@@ -1462,6 +1462,13 @@ const normalisiereOee = (roh) => {
   };
 };
 const oeeEingerichtet = (q) => !!(q && q.datei);
+/* Startmarke der App für die OEE-Kachel (06.10.): In den ersten zwei Minuten
+   ist ein Fehlschlag beim Lesen der Tabelle kein Rot, sondern "wird gelesen" -
+   der gemerkte Ordner oder das Laufwerk sind nach dem Programmstart oft noch
+   nicht da. Als Objekt, damit der Prüfstand die Marke zurückdrehen kann. */
+const APP_START = { ms: Date.now() };
+const OEE_START_SCHONFRIST_MS = 2 * 60 * 1000;
+if (typeof window !== "undefined") window.__wkOeeTest = { startZurueck: (ms) => { APP_START.ms -= ms; } };
 
 /* Aus den Zeilen der Tabelle die Zahlen für die Kachel.
    Gefragt ist die Gesamtübersicht aller Anlagen über die LETZTEN 24 STUNDEN.
@@ -4269,13 +4276,50 @@ function App() {
       return `<span class="chip" style="background:${f.chip};color:${f.chipText}">${esc(sch)}</span>`;
     };
     // Tagesblick: eine Zeile mit drei Kacheln Früh/Spät/Nacht (Anzahl + Zeit).
+    /* OEE je Schicht und Anlage (Robertos Wahl 06.10., Vorlage C): aus der
+       OEE-Tabelle der Kachel (Pivot: je Anlage Gutm. · OEE_M · OEE%n, Zeilen
+       Tag + FRÜH/MITTAG/NACHT). Im Bericht: eine Kachel je Anlage mit drei
+       Schicht-Balken und dem Tageswert, die Gesamt-OEE der Schicht als Marke
+       im Tagesblick, der Knopf 📊 OEE klappt den Block zu und auf (offen zu
+       Beginn - Robertos Ansage). Ampel wie im Excel-Blatt: rot < 60, gelb < 80. */
+    const oeeS = oeeSchichtenRef.current;
+    const oeeDa = oeeEingerichtet(oeeQuelle);
+    const oeeTage = [...new Set(slots.map((x) => x.datum))].sort();
+    const oeeWert = (tag, schicht, anlage) => (oeeS ? oeeS.werte.find((w) => w.tag === tag && (w.schicht || null) === (schicht || null) && w.anlage === anlage) : null);
+    const oeeAmpel = (v) => (v == null ? "x" : v < 60 ? "r" : v < 80 ? "y" : "g");
+    const oeeFmt = (v) => (v == null ? "–" : `${v.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`);
+    const zahlFmt = (v) => (v == null ? "–" : Math.round(v).toLocaleString("de-DE"));
+    const oeeMarke = (slot) => { const w = oeeDa ? oeeWert(slot.datum, slot.schicht, "Gesamt") : null; return w ? `<span class="oeeb ${oeeAmpel(w.oee)}" data-oee-marke="${esc(slot.schicht)}">OEE ${esc(oeeFmt(w.oee))}</span>` : ""; };
+    const oeeTagGesamt = oeeDa && oeeTage.length === 1 ? oeeWert(oeeTage[0], null, "Gesamt") : null;
+    const oeeKachel = (tag, anlage, gesamt) => {
+      const t = oeeWert(tag, null, anlage);
+      const schichten = STOER_SCHICHTEN.map((sch) => ({ sch, w: oeeWert(tag, sch, anlage) }));
+      if (!t && schichten.every((x) => !x.w)) return "";
+      return `<div class="oeek${gesamt ? " gesamt" : ""}" data-oee-kachel="${esc(anlage)}" role="button" tabindex="0" title="Klick: Gutmenge und Soll je Schicht" onclick="this.classList.toggle('zahlen')">
+        <div class="on"><span>${esc(anlage)}</span><b class="${oeeAmpel(t ? t.oee : null)}">${esc(oeeFmt(t ? t.oee : null))}</b></div>
+        ${schichten.map(({ sch, w }) => `<div class="or"><span class="ol">${esc(sch)}</span><span class="ob"><i class="${oeeAmpel(w ? w.oee : null)}" style="width:${w ? Math.min(100, Math.max(0, w.oee)) : 0}%"></i></span><b>${w ? esc(w.oee.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })) : "–"}</b><em>${w && (w.gutmenge != null || w.soll != null) ? `${esc(zahlFmt(w.gutmenge))} / ${esc(zahlFmt(w.soll))}` : ""}</em></div>`).join("")}
+        ${t && (t.gutmenge != null || t.soll != null) ? `<div class="or tag"><span class="ol">Tag</span><span class="ob"></span><b></b><em>${esc(zahlFmt(t.gutmenge))} / ${esc(zahlFmt(t.soll))}</em></div>` : ""}
+      </div>`;
+    };
+    const oeeBlockHtml = !oeeDa ? "" : (() => {
+      const standTab = oeeS && oeeS.dateiStand ? new Date(oeeS.dateiStand).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : null;
+      const inhalt = oeeTage.map((tag) => {
+        const d = new Date(tag + "T00:00:00");
+        const titel = d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+        const g = oeeWert(tag, null, "Gesamt");
+        const kacheln = oeeS ? oeeS.anlagen.map((a) => oeeKachel(tag, a, false)).join("") + oeeKachel(tag, "Gesamt", true) : "";
+        if (!kacheln) return `<div class="oeet"><b>📊 OEE · ${esc(titel)}</b><small>${oeeS ? `in der Tabelle „${esc(oeeS.datei)}" steht für diesen Tag (noch) nichts${standTab ? ` · Stand der Tabelle ${esc(standTab)}` : ""}` : "die OEE-Tabelle wurde noch nicht gelesen (Kachel in der Übersicht prüfen)"}</small></div>`;
+        return `<div class="oeet"><b>📊 OEE · ${esc(titel)}${g ? ` · Tag ${esc(oeeFmt(g.oee))}` : ""}</b><small>Gutmenge ÷ Soll je Schicht${oeeS && oeeS.blatt ? ` · Blatt ${esc(oeeS.blatt)}` : ""}${standTab ? ` · Stand der Tabelle ${esc(standTab)}` : ""}</small><span class="oz">Klick auf eine Kachel: Gutmenge / Soll</span></div><div class="oeeg">${kacheln}</div>`;
+      }).join("");
+      return `<section id="oeeblock" data-oeeblock class="klapp oeebox">${inhalt}</section>`;
+    })();
     const tagesblick = `<div class="tagesblick">${proSlot.map((slot) => {
       const n = slot.liste.length;
       const summe = slot.liste.reduce((m, s) => m + (Number(s.ausfallzeit) || 0), 0);
       const rechts = n === 0
         ? `<span class="tbz">0</span> Berichte`
         : `<span class="tbz">${n}</span> ${n === 1 ? "Bericht" : "Berichte"}${summe > 0 ? ` · <span class="tbz">${Math.round(summe)}</span> min` : ""}`;
-      return `<div class="tb ${tbCls[slot.schicht] || ""}"><span class="tbl">${esc(slot.schicht)}</span>${rechts}</div>`;
+      return `<div class="tb ${tbCls[slot.schicht] || ""}"><span class="tbl">${esc(slot.schicht)}</span>${rechts}${oeeMarke(slot)}</div>`;
     }).join("")}</div>`;
     const gruppe = (slot) => {
       const d = new Date(slot.datum + "T00:00:00");
@@ -4395,7 +4439,27 @@ function App() {
         .tk-balken .tb1 i { display: block; background: #E85D10; border-radius: 0.6mm 0.6mm 0 0; min-height: 0.6mm; }
         .tk-balken .tb1 em { font-style: normal; font-size: 6pt; color: #8A9099; margin-top: 0.6mm; }
         .tagesblick { display: flex; gap: 2mm; margin-bottom: 1.8mm; }
-        .tb { flex: 1; border: 0.8pt solid #C4CBD2; border-radius: 1.5mm; padding: 0.9mm 2mm; font-size: 8pt; color: #5B6572; white-space: nowrap; }
+        .tb { flex: 1; border: 0.8pt solid #C4CBD2; border-radius: 1.5mm; padding: 0.9mm 2mm; font-size: 8pt; color: #5B6572; white-space: nowrap; display: flex; align-items: center; gap: 1.5mm; }
+        /* OEE (06.10.): Marke im Tagesblick, Block mit Anlagen-Kacheln */
+        .oeeb { margin-left: auto; font-weight: 900; font-size: 8pt; border-radius: 3mm; padding: 0.2mm 2.2mm; color: #fff; }
+        .oeeb.r { background: #D9534F; } .oeeb.y { background: #E3B341; color: #1f2430; } .oeeb.g { background: #2F9E5B; } .oeeb.x { background: #C3C7CB; }
+        .oeebox { border: 0.6mm solid #E8732A; border-radius: 2mm; padding: 2mm 3mm 2.4mm; margin-bottom: 1.8mm; background: #FFFCF9; }
+        .oeet { display: flex; align-items: baseline; gap: 2.5mm; margin-bottom: 1.6mm; }
+        .oeet b { font-size: 10pt; } .oeet small { color: #5B6572; font-size: 8pt; } .oeet .oz { margin-left: auto; font-size: 7.5pt; color: #8A9099; }
+        .oeeg { display: grid; grid-template-columns: repeat(auto-fit, minmax(42mm, 1fr)); gap: 2mm; }
+        .oeek { border: 0.5pt solid #D6D9DC; border-radius: 2mm; padding: 1.5mm 2mm; background: #fff; cursor: pointer; }
+        .oeek.gesamt { border-color: #22262B; }
+        .oeek .on { display: flex; justify-content: space-between; align-items: baseline; font-weight: 900; font-size: 9.5pt; }
+        .oeek .on b { font-size: 10.5pt; } .oeek b.r { color: #B23A34; } .oeek b.y { color: #A97A12; } .oeek b.g { color: #2F7D4F; } .oeek b.x { color: #B7BEC6; }
+        .oeek .or { display: flex; align-items: center; gap: 1.5mm; font-size: 7.5pt; color: #5B6572; margin-top: 1mm; }
+        .oeek .or .ol { width: 9mm; font-weight: 800; }
+        .oeek .or .ob { flex: 1; height: 2.3mm; background: #EEF0F2; border-radius: 1mm; overflow: hidden; }
+        .oeek .or .ob i { display: block; height: 100%; } .oeek .or .ob i.r { background: #D9534F; } .oeek .or .ob i.y { background: #E3B341; } .oeek .or .ob i.g { background: #2F9E5B; }
+        .oeek .or b { width: 10mm; text-align: right; color: #1f2430; font-variant-numeric: tabular-nums; }
+        .oeek .or em { display: none; font-style: normal; font-size: 7pt; color: #8A9099; width: 22mm; text-align: right; font-variant-numeric: tabular-nums; }
+        .oeek.zahlen .or em { display: inline-block; }
+        .oeek .or.tag { display: none; border-top: 0.5pt dashed #D6D9DC; padding-top: 0.8mm; } .oeek.zahlen .or.tag { display: flex; }
+        .sbknopf.links { margin-left: 3mm; align-self: center; }
         .tb .tbz { font-size: 9.5pt; font-weight: 900; color: #1f2430; font-family: ui-monospace, Consolas, monospace; }
         .tb.frueh { background: #FDF6DF; border-color: #E3CE8F; }
         .tb.spaet { background: #EAF3EC; border-color: #A9CDB4; }
@@ -4435,16 +4499,18 @@ function App() {
       <div class="kopf">
         <h1>Schichtbericht Störungen</h1>
         ${tachoHtml}
+        <button type="button" class="sbknopf links nurbild" data-pitliste-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitliste');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ PitStop schließen':'🔧 PitStop';})(this)">🔧 PitStop</button>
         <div class="knopfleiste nurbild">
           <label class="datumwahl" title="Den Schichtbericht eines früheren Tages ansehen - so, wie ihn die Morgenrunde an diesem Tag gesehen hat">📅 <input type="date" data-datum-wahl value="${bezugKey}" max="${todayKey}" aria-label="Schichtbericht vom Tag" onchange="(function(f){var h=null;try{var o=window.opener;if(o&&!o.closed&&o.__wkSchichtberichtFuer){h=o.__wkSchichtberichtFuer(f.value);}}catch(e){}if(h){document.open();document.write(h);document.close();}else{alert('Andere Tage lassen sich nur wählen, solange das Cockpit geöffnet ist (Schichtbericht dort neu öffnen).');}})(this)"></label>
           ${nachschau ? `<button type="button" class="sbknopf" data-heute-knopf onclick="(function(){var h=null;try{var o=window.opener;if(o&&!o.closed&&o.__wkSchichtberichtFuer){h=o.__wkSchichtberichtFuer('');}}catch(e){}if(h){document.open();document.write(h);document.close();}})()">↺ Heute</button>` : ""}
           <button type="button" class="sbknopf voll" data-pitquote-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitquote');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.innerHTML=zu?'✕ TPM-Quote schließen':b.getAttribute('data-zu');})(this)" data-zu="📈 TPM-Quote &lt;small&gt;3 Mon. · ${pitGesamtText}&lt;/small&gt;">📈 TPM-Quote <small>3 Mon. · ${pitGesamtText}</small></button>
-          <button type="button" class="sbknopf" data-pitliste-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('pitliste');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ PitStop schließen':'🔧 PitStop';})(this)">🔧 PitStop</button>
+          ${oeeDa ? `<button type="button" class="sbknopf" data-oee-knopf aria-expanded="true" onclick="(function(b){var s=document.getElementById('oeeblock');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');})(this)" title="OEE je Anlage und Schicht ein- und ausblenden">📊 OEE${oeeTagGesamt ? ` <small>Tag ${esc(oeeFmt(oeeTagGesamt.oee))}</small>` : ""}</button>` : ""}
           <button type="button" class="top3knopf" data-top3-knopf aria-expanded="false" onclick="(function(b){var s=document.getElementById('top3');var zu=s.hasAttribute('hidden');if(zu){s.removeAttribute('hidden');}else{s.setAttribute('hidden','');}b.setAttribute('aria-expanded',zu?'true':'false');b.textContent=zu?'✕ Top 3 schließen':'⚠ Top 3';})(this)">⚠ Top 3</button>
         </div>
         <div class="stand">Stand: <strong>${esc(stand)}</strong><br><span class="fett">${alle.length} ${alle.length === 1 ? "Störung" : "Störungen"}</span> · <span class="fett" style="color:${offene > 0 ? "#C0392B" : "#1F7A3D"}">${offene} offen</span>${ausfallGesamt > 0 ? ` · <span class="fett">Ausfallzeit ${esc(minutenText(ausfallGesamt))}</span>` : ""}</div>
       </div>
       ${nachschau ? `<div class="hinweis nachschau" data-nachschau>📅 Nachschau: So sah der Schichtbericht in der Morgenrunde am ${esc(bezugTag.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }))} aus. Erledigt/offen zeigt den Stand von heute.</div>` : ""}
+      ${oeeBlockHtml}
       ${pitZeile}
       ${quoteHtml}
       ${pitListeHtml}
@@ -5208,7 +5274,11 @@ function App() {
      eine Mappe mit ein paar tausend Zeilen jede Minute komplett auszupacken
      wäre Arbeit ohne Ergebnis und würde die Übersicht ruckeln lassen.
      Geschrieben wird nie: Die Tabelle gehört jemand anderem. */
-  const oeeMerker = useRef({ stempel: "", laeuft: false });
+  const oeeMerker = useRef({ stempel: "", laeuft: false, nachlesen: 0, nachleseTimer: null, jeGelesen: false });
+  // OEE je Schicht und Anlage aus derselben Mappe (Schichtbericht, Roberto
+  // 06.10.) - als Ref, nicht als State: der Bericht liest sie beim Öffnen,
+  // die Übersicht soll davon nicht neu zeichnen.
+  const oeeSchichtenRef = useRef(null);
   const OEE_TAKT_MS = 60000;
 
   // Der OEE-Takt läuft jede Minute - ein UNVERÄNDERTER Stand ("aus", derselbe
@@ -5222,6 +5292,22 @@ function App() {
     if (oeeMerker.current.laeuft) return;
     oeeMerker.current.laeuft = true;
     try {
+      /* Fehlschlag melden (06.10., Roberto: "nach Programmstart jedesmal rot"):
+         in der Schonfrist nach dem Start grau "wird gelesen" statt rot - der
+         Grund steht im Tooltip -, und in jedem Fall bald nachlesen (10 s,
+         höchstens sechs Mal) statt erst im Minutentakt. Nach der Schonfrist
+         bleibt ein Fehlschlag rot - nichts wird dauerhaft verschwiegen. */
+      // Schonfrist nur, solange die Tabelle in dieser Sitzung noch NIE gelesen
+      // wurde - verschwindet sie später, bleibt das sofort rot (harte-40 (6)).
+      const oeeFehler = (f) => {
+        const jung = !oeeMerker.current.jeGelesen && Date.now() - APP_START.ms < OEE_START_SCHONFRIST_MS;
+        setOeeStandStabil(jung ? { lage: "laedt", text: f.text, datei: f.datei } : f);
+        if (oeeMerker.current.nachlesen < 6) {
+          oeeMerker.current.nachlesen++;
+          clearTimeout(oeeMerker.current.nachleseTimer);
+          oeeMerker.current.nachleseTimer = setTimeout(() => { oeeMerker.current.laeuft = false; leseOee(true); }, 10000);
+        }
+      };
       let datei = null;
       try {
         datei = await sharedFile.leseAusOrdner(q.datei);
@@ -5229,11 +5315,11 @@ function App() {
         // getFileHandle wirft, wenn die Datei nicht (mehr) da ist. Im Server-
         // Betrieb bringt der Fehler seinen eigenen Text mit (Kopie fehlt noch
         // auf dem Server - und wie sie dorthin kommt).
-        setOeeStandStabil({ lage: "fehler", text: e && e.quellenHinweis ? String(e.message) : `„${q.datei}" liegt nicht im gewählten Ordner (${sharedFile.quellOrdnerName() || "kein Ordner"}).`, datei: q.datei });
+        oeeFehler({ lage: "fehler", text: e && e.quellenHinweis ? String(e.message) : `„${q.datei}" liegt nicht im gewählten Ordner (${sharedFile.quellOrdnerName() || "kein Ordner"}).`, datei: q.datei });
         return;
       }
       if (!datei) {
-        setOeeStandStabil({
+        oeeFehler({
           lage: "fehler",
           text: "Kein Ordner mit der Tabelle verbunden – nach einem Neustart einmal in ⚙ → OEE freigeben.",
           ordnerFehlt: true, datei: q.datei,
@@ -5256,6 +5342,9 @@ function App() {
       const zeilen = leseOeeZeilen(blatt.zeilen, spalten, kopfzeile);
       const aus = werteOeeAus(zeilen, Date.now());
       oeeMerker.current.stempel = stempel;
+      // Schicht- und Anlagenwerte für den Schichtbericht - ein Fehler hier
+      // darf die Kachel nicht stören, deshalb eigener try.
+      try { oeeSchichtenRef.current = { ...leseOeeSchichten(blatt.zeilen, bereich.kopf, kopfzeile), datei: q.datei, blatt: blatt.name, dateiStand: datei.lastModified }; } catch (e) { oeeSchichtenRef.current = null; }
       if (!aus) {
         setOeeStand({
           lage: "fehler", datei: q.datei,
@@ -5263,13 +5352,19 @@ function App() {
         });
         return;
       }
+      oeeMerker.current.nachlesen = 0;
+      oeeMerker.current.jeGelesen = true;
       setOeeStand({
         lage: "ok", ...aus, datei: q.datei, blatt: blatt.name,
         gelesenAm: new Date().toISOString(),
         dateiStand: datei.lastModified,
       });
     } catch (e) {
-      setOeeStand({ lage: "fehler", datei: q.datei, text: String((e && e.message) || e) });
+      // Auch eine halb geschriebene Mappe (Excel speichert gerade) heilt sich
+      // über die Nachlese - in der Schonfrist grau, danach rot.
+      const jung = !oeeMerker.current.jeGelesen && Date.now() - APP_START.ms < OEE_START_SCHONFRIST_MS;
+      setOeeStand({ lage: jung ? "laedt" : "fehler", datei: q.datei, text: String((e && e.message) || e) });
+      if (oeeMerker.current.nachlesen < 6) { oeeMerker.current.nachlesen++; clearTimeout(oeeMerker.current.nachleseTimer); oeeMerker.current.nachleseTimer = setTimeout(() => { oeeMerker.current.laeuft = false; leseOee(true); }, 10000); }
     } finally {
       oeeMerker.current.laeuft = false;
     }
@@ -5287,11 +5382,16 @@ function App() {
     const beiFokus = () => { if (document.visibilityState === "visible") tick(); };
     window.addEventListener("focus", beiFokus);
     document.addEventListener("visibilitychange", beiFokus);
+    // Der gemerkte Quellordner ist nach dem Start wiederhergestellt: sofort lesen (06.10.)
+    const beiOrdner = () => { oeeMerker.current.stempel = ""; tick(); };
+    window.addEventListener("werkstatt-shared-quellordner", beiOrdner);
     return () => {
       lebt = false;
       clearInterval(timer);
       window.removeEventListener("focus", beiFokus);
       document.removeEventListener("visibilitychange", beiFokus);
+      window.removeEventListener("werkstatt-shared-quellordner", beiOrdner);
+      clearTimeout(oeeMerker.current.nachleseTimer);
     };
   }, [oeeQuelle, leseOee]);
 

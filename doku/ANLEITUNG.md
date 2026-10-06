@@ -663,6 +663,25 @@ Störungen, nicht den Rest.
   häufigste Ursache, zuletzt wann. Reihenfolge: Anzahl in 7 Tagen, dann
   Ausfallzeit. Der Knopf ist nur am Bildschirm da; sind die Top 3
   aufgeklappt, kommen sie mit auf den Ausdruck.
+- **OEE im Schichtbericht (seit dem 06.10.):** Ist die OEE-Tabelle
+  eingerichtet (⚙ → OEE), zeigt der Schichtbericht unter der Kopfleiste
+  einen Block mit **einer Kachel je Anlage** – drei Balken für Früh, Spät und
+  Nacht des Berichtstags und rechts oben der Tageswert, gefärbt wie im
+  Excel-Blatt (rot unter 60 %, gelb bis 80 %, grün ab 80 %). Ein Klick auf eine
+  Kachel blendet Gutmenge / Soll je Schicht ein. Im Tagesblick steht die
+  Gesamt-OEE jeder Schicht als Marke, der Knopf **📊 OEE** (mit dem Tageswert)
+  klappt den Block zu und wieder auf – er ist zu Beginn offen. Gelesen wird
+  die gespeicherte Pivot (je Anlage Gutm. · OEE_M · OEE%n, Zeilen Tag und
+  FRÜH / MITTAG / NACHT; MITTAG zählt als Spät). Steht für den Tag nichts in
+  der Tabelle, sagt der Block das. Der PitStop-Knopf steht seit demselben
+  Tag links neben der TPM-Quote.
+- **OEE-Kachel nach dem Programmstart (seit dem 06.10.):** Direkt nach dem
+  Start ist der gemerkte Ordner oder das Laufwerk oft noch nicht da. Die
+  Kachel zeigt dann grau „OEE wird gelesen" (Grund im Tooltip) statt rot und
+  liest nach zehn Sekunden von selbst nach – bis zu sechs Mal; sobald der
+  Ordner wiederhergestellt ist, sofort. Rot bleibt es nur, wenn die Tabelle
+  nach zwei Minuten noch nie lesbar war oder eine schon gelesene Tabelle
+  verschwindet.
 - **Klick auf eine Kachel öffnet ihre Pflegestelle (seit dem 24.09.):** Jede
   Kennzahl-Kachel ist ein Knopf, der Hinweis steht im Tooltip. Unfälle und
   Kosten öffnen das ⚙ unter „Regeln & Listen" direkt am passenden Abschnitt

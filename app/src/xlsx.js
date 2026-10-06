@@ -464,3 +464,92 @@ export function leseOeeZeilen(zeilen, spalten, kopfzeile) {
   }
   return raus;
 }
+
+/* ---------- OEE je Schicht und Anlage (Schichtbericht, 06.10.) ----------
+   Robertos Pivot hat je Anlage einen Spaltenblock Gutm. · OEE_M · OEE%n, der
+   Anlagenname steht nur ÜBER der ersten Spalte des Blocks (Gutm.), rechts der
+   Block "Gesamt: …". Die Zeilen sind Tage, darunter FRÜH / MITTAG / NACHT.
+   Der Kachel-Leser oben nimmt nur die Gesamt-Spalte und die Tageszeilen;
+   der Schichtbericht braucht alle Blöcke UND die Schichtzeilen - mit dem
+   Tag der Zeile darüber, denn die Schichtzeile selbst trägt kein Datum.
+   Liefert { anlagen: ["TS200", …], werte: [{ tag, schicht|null, anlage, gesamt,
+   oee, gutmenge, soll }] }. Nichts wird geschrieben, nichts gerechnet, was
+   nicht in der Tabelle steht - außer der Schicht-Zuordnung MITTAG = Spät. */
+const SCHICHT_NAME = [
+  [/fr(ü|ue)h|morgen/i, "Früh"],
+  [/mittag|sp(ä|ae)t/i, "Spät"],
+  [/nacht/i, "Nacht"],
+];
+export function leseOeeSchichten(zeilen, kopf, kopfzeile) {
+  const norm = (s) => String(s == null ? "" : s).toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
+  const ende = kopfzeile == null || kopfzeile < 0 ? findeKopfzeile(zeilen) : kopfzeile;
+  if (ende < 0) return { anlagen: [], werte: [] };
+  const start = Math.max(0, findeKopfzeile(zeilen));
+  const K = kopf || [];
+  // Anlagenname: die unterste beschriftete Zelle ÜBER der Gutm.-Zelle des Blocks
+  const nameUeber = (spalte) => {
+    for (let r = ende - 1; r >= start; r--) {
+      const z = (zeilen[r] || [])[spalte];
+      if (typeof z === "string" && z.trim()) return z.trim();
+    }
+    return "";
+  };
+  const bloecke = []; // { anlage, gesamt, gutm, soll, oee }
+  for (let c = 0; c < K.length; c++) {
+    const n = norm(K[c]);
+    if (!n.includes("oeen")) continue; // "OEE%n"
+    if (n.includes("gesamt")) {
+      let gutm = null, soll = null;
+      for (let d = c - 1; d >= Math.max(0, c - 3); d--) { const m = norm(K[d]); if (m.includes("gesamt") && m.includes("gutm")) gutm = d; if (m.includes("gesamt") && m.includes("oeem")) soll = d; }
+      bloecke.push({ anlage: "Gesamt", gesamt: true, gutm, soll, oee: c });
+      continue;
+    }
+    // Blockanfang: nächste Spalte links, deren Kopf "Gutm." enthält
+    let b = -1;
+    for (let d = c - 1; d >= Math.max(0, c - 3); d--) { if (norm(K[d]).includes("gutm")) { b = d; break; } }
+    let anlage = b >= 0 ? nameUeber(b) : "";
+    if (!anlage && b >= 0) anlage = String(K[b]).replace(/gutm\.?/i, "").trim();
+    if (!anlage) anlage = String(K[c]).replace(/oee\s*%?\s*n/i, "").trim() || `Spalte ${c + 1}`;
+    let soll = null;
+    for (let d = c - 1; d > b; d--) { if (norm(K[d]).includes("oeem")) { soll = d; break; } }
+    bloecke.push({ anlage, gesamt: false, gutm: b >= 0 ? b : null, soll, oee: c });
+  }
+  if (!bloecke.length) return { anlagen: [], werte: [] };
+  // Datumsspalte: die erkannte, sonst die erste Spalte mit einem Datum in den Datenzeilen
+  let datumSpalte = erkenneSpalten(K).datum;
+  if (datumSpalte == null) {
+    for (let i = ende + 1; i < zeilen.length && datumSpalte == null; i++) {
+      (zeilen[i] || []).forEach((z, s) => { if (datumSpalte == null && z instanceof Date) datumSpalte = s; });
+    }
+  }
+  if (datumSpalte == null) return { anlagen: bloecke.filter((b) => !b.gesamt).map((b) => b.anlage), werte: [] };
+  const zahl = (v) => (typeof v === "number" && Number.isFinite(v) ? v : (v != null && v !== "" && !Number.isNaN(Number(String(v).replace(/\./g, "").replace(",", "."))) ? Number(String(v).replace(/\./g, "").replace(",", ".")) : null));
+  const werte = [];
+  let tag = null;
+  for (let i = ende + 1; i < zeilen.length; i++) {
+    const z = zeilen[i] || [];
+    const roh = z[datumSpalte];
+    let schicht = null;
+    if (typeof roh === "string" && roh.trim()) {
+      const t = roh.trim();
+      if (SUMMEN_MUSTER.test(t)) { continue; }
+      const alsTag = alsTagesschluessel(t);
+      if (alsTag) { tag = alsTag; }
+      else {
+        const sn = SCHICHT_NAME.find(([m]) => m.test(t));
+        if (!sn || !tag) continue;
+        schicht = sn[1];
+      }
+    } else {
+      const alsTag = alsTagesschluessel(roh);
+      if (!alsTag) continue;
+      tag = alsTag;
+    }
+    for (const b of bloecke) {
+      const oee = alsProzent(z[b.oee]);
+      if (oee == null) continue;
+      werte.push({ tag, schicht, anlage: b.anlage, gesamt: b.gesamt, oee, gutmenge: b.gutm != null ? zahl(z[b.gutm]) : null, soll: b.soll != null ? zahl(z[b.soll]) : null });
+    }
+  }
+  return { anlagen: bloecke.filter((b) => !b.gesamt).map((b) => b.anlage), werte };
+}

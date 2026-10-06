@@ -1353,6 +1353,9 @@ function createSharedStore(cfg) {
         quellHandle = qh;
         const qp = await rechteFragen(qh, "read");
         quellPerm = qp === "granted" ? "ok" : "needs-permission";
+        // Der OEE-Leser soll nicht bis zum nächsten Minutentakt warten (Roberto
+        // 06.10.: Kachel nach dem Start rot) - Bescheid geben, der Ordner ist da.
+        try { window.dispatchEvent(new CustomEvent(EV + "-quellordner")); } catch (x) { /* egal */ }
       }
     } catch (e) { /* IndexedDB nicht verfügbar */ }
 

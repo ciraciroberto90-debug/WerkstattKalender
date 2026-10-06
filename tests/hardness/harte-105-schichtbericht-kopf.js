@@ -97,9 +97,12 @@ const STOER = [
   ok("(K2) Kopf von links nach rechts: Überschrift · Tacho · Knöpfe · Stand", reihe.every((v, i) => v >= 0 && (i === 0 || v > reihe[i - 1])), reihe.join(" < "));
 
   /* (K3) Farbe */
+  // Seit 06.10. (Robertos Ansage) steht der PitStop-Knopf LINKS neben der TPM-Quote,
+  // rechts bleiben TPM-Quote (gefüllt) und Top 3 (umrandet); ohne OEE-Quelle kein OEE-Knopf.
   const farben = await b.evaluate(() => [...document.querySelectorAll(".knopfleiste button")].map((k) => [k.textContent.trim().slice(0, 14), getComputedStyle(k).backgroundColor, getComputedStyle(k).borderTopColor]));
-  ok("(K3) Drei Knöpfe, keiner schwarz: Haupt-Knopf orange gefüllt, PitStop und Top 3 orange umrandet",
-    farben.length === 3 && farben[0][1] === "rgb(232, 115, 42)" && farben.slice(1).every((f) => f[1] === "rgb(255, 255, 255)" && f[2] === "rgb(232, 115, 42)") && !farben.some((f) => f[1] === "rgb(34, 38, 43)"), JSON.stringify(farben));
+  const pit = await b.evaluate(() => { const k = document.querySelector("button[data-pitliste-knopf]"); const t = document.querySelector("[data-tpm-tacho]"); const l = document.querySelector(".knopfleiste"); if (!k || !t || !l) return null; const r = k.getBoundingClientRect(); return { bg: getComputedStyle(k).backgroundColor, rand: getComputedStyle(k).borderTopColor, links: r.left > t.getBoundingClientRect().right && r.right < l.getBoundingClientRect().left && !l.contains(k) }; });
+  ok("(K3) Knöpfe orange, keiner schwarz: rechts TPM-Quote gefüllt und Top 3 umrandet; PitStop umrandet LINKS neben dem Tacho",
+    farben.length === 2 && farben[0][1] === "rgb(232, 115, 42)" && farben[1][1] === "rgb(255, 255, 255)" && farben[1][2] === "rgb(232, 115, 42)" && !farben.some((f) => f[1] === "rgb(34, 38, 43)") && !!pit && pit.bg === "rgb(255, 255, 255)" && pit.rand === "rgb(232, 115, 42)" && pit.links === true, JSON.stringify({ farben, pit }));
 
   /* (K4) PitStop-Quote */
   const qk = b.locator("[data-pitquote-knopf]"), qa = b.locator("#pitquote");
