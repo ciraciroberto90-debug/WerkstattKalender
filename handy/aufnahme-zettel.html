@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#C97A2B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Aufnahme-Zettel</title>
+<!--
+  BTA-Cockpit · Aufnahme-Zettel fürs Handy (Roll-out 64, Robertos Auftrag 06.10.)
+
+  Der Weg über mobile Daten OHNE Firmennetz: Diese Seite läuft allein im
+  Handy-Browser, braucht keinen Server und schickt nichts irgendwohin. Beim
+  Ablegen entstehen je Foto ZWEI Dateien mit demselben Namen -
+    2026-10-06_0742_RC_k3f9.jpg    das Bild (am Handy auf 1600 px verkleinert)
+    2026-10-06_0742_RC_k3f9.json   Zeit, Kürzel, Anlage, Ziel, Notiz
+  - und gehen über das normale „Teilen" des Handys an OneDrive (oder Dropbox,
+  WhatsApp …). Am PC liest der Reiter „Aufnahme" des Cockpits beide Dateien
+  aus dem synchronisierten Ordner; der „Einzug" der Programm-Fassung holt sie
+  auf den Server und räumt sie aus der Cloud.
+
+  Bewusst eine einzige Datei ohne fremde Bibliotheken: Sie liegt auf dem
+  Handy (Android: aus „Dateien" öffnen) oder wird einmal im WLAN vom Server
+  geladen. Alles, was sie sich merkt (Kürzel, Anlagen, Tagesliste), bleibt
+  im Browser-Speicher dieses Handys.
+-->
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #EBEDEF; color: #22262B; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: #C97A2B; color: #fff; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top)); display: flex; align-items: center; gap: 10px; }
+  header .titel { font-weight: 900; font-size: 18px; }
+  header .rechts { margin-left: auto; font-size: 12px; opacity: .9; text-align: right; }
+  header button { background: rgba(255,255,255,.18); color: #fff; border: 0; border-radius: 10px; padding: 6px 10px; font-weight: 800; font-size: 13px; }
+  main { max-width: 560px; margin: 0 auto; padding: 14px 16px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .feld { width: 100%; border: 1px solid #D6D9DC; border-radius: 12px; padding: 12px 14px; font-size: 16px; background: #fff; font-family: inherit; color: inherit; }
+  textarea.feld { resize: vertical; min-height: 64px; }
+  .knopf { border: 0; border-radius: 12px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  .kamera { display: block; background: #22262B; color: #fff; border-radius: 16px; padding: 34px 14px; text-align: center; cursor: pointer; }
+  .kamera.klein { padding: 14px; }
+  .kamera .gross { font-size: 22px; font-weight: 900; }
+  .kamera.klein .gross { font-size: 16px; }
+  .kamera .unter { font-size: 12px; opacity: .75; margin-top: 4px; }
+  .galerie { text-align: center; font-size: 13px; color: #4B5259; text-decoration: underline; cursor: pointer; }
+  .vorschauen { display: flex; gap: 8px; flex-wrap: wrap; }
+  .vorschau { position: relative; }
+  .vorschau img { width: 88px; height: 88px; object-fit: cover; border-radius: 10px; border: 1px solid #D6D9DC; display: block; }
+  .vorschau button { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 50%; background: #B23A34; color: #fff; border: 0; font-size: 13px; line-height: 24px; padding: 0; }
+  .ziele { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .ziel { padding: 9px 12px; font-size: 14px; border: 2px solid #D6D9DC; background: #fff; color: #22262B; border-radius: 12px; font-weight: 800; }
+  .ziel[aria-pressed="true"] { color: #fff; }
+  .hinweis { font-size: 12px; color: #8A9099; align-self: center; }
+  .senden { width: 100%; padding: 16px; background: #22262B; color: #fff; font-size: 17px; }
+  .senden:disabled { background: #8A9099; }
+  .meldung { border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+  .meldung.ok { background: #E3F1E6; color: #1F7A3D; border: 1px solid #B9DCC2; }
+  .meldung.fehler { background: #FBEAE8; color: #B23A34; border: 1px solid #E8B4AE; }
+  .meldung.hinweis { background: #FBF3DA; color: #7A5A00; border: 1px solid #E7CF8F; font-size: 13px; }
+  .etikett { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; color: #8A9099; margin-top: 6px; }
+  .zeile { display: flex; gap: 10px; align-items: center; background: #fff; border-radius: 12px; padding: 8px; border: 1px solid #E2E4E7; }
+  .zeile .bild { width: 56px; height: 56px; border-radius: 8px; background: #D6D9DC; overflow: hidden; flex-shrink: 0; }
+  .zeile .bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .zeile .text { flex: 1; min-width: 0; }
+  .zeile .t1 { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .zeile .t2 { font-size: 12px; color: #8A9099; }
+  .karte { background: #fff; border-radius: 14px; padding: 14px; border: 1px solid #E2E4E7; display: grid; gap: 8px; }
+  .karte h3 { margin: 0; font-size: 15px; }
+  .karte p { margin: 0; font-size: 13px; color: #5B6572; }
+  .leer { font-size: 13px; color: #8A9099; font-style: italic; }
+  .fuss { font-size: 11px; color: #8A9099; text-align: center; margin-top: 10px; }
+  .ablage-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ablage-knoepfe .knopf { flex: 1; padding: 12px; font-size: 14px; background: #fff; border: 2px solid #22262B; color: #22262B; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:20px">📷</span>
+  <span class="titel">Aufnahme-Zettel</span>
+  <span class="rechts" id="kopf-rechts"></span>
+  <button type="button" id="knopf-einstellungen" aria-label="Einstellungen">⚙</button>
+</header>
+<main>
+  <section class="karte" id="einstellungen" hidden>
+    <h3>Einstellungen (bleiben auf diesem Handy)</h3>
+    <label class="etikett" for="kuerzel">Dein Kürzel / Name</label>
+    <input class="feld" id="kuerzel" placeholder="z. B. RC" autocapitalize="characters" maxlength="24">
+    <label class="etikett" for="anlagen-liste">Anlagen (eine je Zeile – erscheinen in der Auswahl)</label>
+    <textarea class="feld" id="anlagen-liste" rows="5" placeholder="TS480&#10;B2&#10;OF320&#10;VSM1"></textarea>
+    <p>Ablage: In OneDrive beim Teilen den Ordner wählen, den das Cockpit am PC als <strong>Eingangsordner</strong> liest (z. B. <em>Werkstatt-Eingang</em>). Die Dateien heißen <code>Datum_Uhrzeit_Kürzel_xxxx.jpg</code> und <code>.json</code>.</p>
+    <button type="button" class="knopf senden" id="einstellungen-fertig" style="padding:12px;font-size:15px">Fertig</button>
+  </section>
+
+  <div id="kuerzel-fehlt" class="meldung hinweis" hidden>Erst oben rechts ⚙ dein Kürzel eintragen – es steht später an jeder Aufnahme.</div>
+
+  <label class="kamera" id="kamera-knopf">
+    <div class="gross" id="kamera-text">📷 Foto machen</div>
+    <div class="unter" id="kamera-unter">öffnet die Kamera · mehrere nacheinander</div>
+    <input type="file" accept="image/*" capture="environment" multiple hidden id="kamera" aria-label="Foto machen">
+  </label>
+  <label class="galerie">aus der Galerie wählen<input type="file" accept="image/*" multiple hidden id="galerie" aria-label="Aus der Galerie wählen"></label>
+  <div class="vorschauen" id="vorschauen"></div>
+
+  <div class="ziele" id="ziele">
+    <button type="button" class="ziel" data-ziel="ARBEIT" data-farbe="#C97A2B" aria-pressed="false">🧰 Arbeit</button>
+    <button type="button" class="ziel" data-ziel="TODO" data-farbe="#2F6690" aria-pressed="false">📋 To-do</button>
+    <button type="button" class="ziel" data-ziel="STOERUNG" data-farbe="#C0392B" aria-pressed="false">⚠️ Störung</button>
+    <button type="button" class="ziel" data-ziel="ZETTEL" data-farbe="#B8860B" aria-pressed="false">📌 Pinnwand-Zettel</button>
+    <button type="button" class="ziel" data-ziel="AKTE" data-farbe="#4B5259" aria-pressed="false">🗂 Akte</button>
+    <span class="hinweis" id="ziel-hinweis">ohne Wahl: am PC sortieren</span>
+  </div>
+  <textarea class="feld" id="notiz" placeholder="Notiz … (was ist zu sehen, was ist zu tun?)" aria-label="Notiz"></textarea>
+  <input class="feld" id="anlage" list="anlagen" placeholder="Anlage: – noch offen –" aria-label="Anlage" autocomplete="off">
+  <datalist id="anlagen"></datalist>
+
+  <button type="button" class="knopf senden" id="ablegen">✓ Ablegen (Teilen an OneDrive)</button>
+  <div id="meldung" class="meldung" hidden></div>
+  <div id="ablage" class="karte" hidden>
+    <h3>Teilen geht hier nicht – Dateien speichern</h3>
+    <p>Dieser Browser kann Dateien nicht teilen. Die Dateien landen in Downloads; von dort in den OneDrive-Ordner schieben.</p>
+    <div class="ablage-knoepfe" id="ablage-knoepfe"></div>
+  </div>
+
+  <div class="etikett">Heute abgelegt · <span id="heute-zahl">0</span></div>
+  <div id="heute"></div>
+  <div class="fuss">Tipp: Im Browser „Zum Startbildschirm hinzufügen“ – dann liegt der Zettel wie eine App auf dem Handy. Die Dateien gehen nur dorthin, wohin du sie teilst.</div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var FORMAT = "bta-aufnahme-v1";
+  var MAX_KANTE = 1600;       // wie im Cockpit: Schaden erkennbar, Datei 200-400 kB
+  var ZIEL_NAME = { ARBEIT: "Arbeit", TODO: "To-do", STOERUNG: "Störung", ZETTEL: "Pinnwand-Zettel", AKTE: "Akte" };
+  var $ = function (id) { return document.getElementById(id); };
+  var merk = {
+    lese: function (k, std) { try { var v = localStorage.getItem("bta-zettel:" + k); return v === null ? std : v; } catch (e) { return std; } },
+    setze: function (k, v) { try { localStorage.setItem("bta-zettel:" + k, v); } catch (e) { /* voll o. ä. */ } }
+  };
+  var fotos = [];     // {id, blob, url}
+  var ziel = "";
+  var laeuft = false;
+
+  /* ---------- Hilfen ---------- */
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function isoOrt(d) { // ISO mit Ortszeit-Versatz, damit die Zeit am PC genau so lesbar ist
+    var v = -d.getTimezoneOffset(), s = v >= 0 ? "+" : "-"; v = Math.abs(v);
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()) + s + pad(Math.floor(v / 60)) + ":" + pad(v % 60);
+  }
+  function stamm(d, kuerzel) { // 2026-10-06_0742_RC_k3f9
+    var k = String(kuerzel || "").replace(/[^A-Za-z0-9ÄÖÜäöüß]/g, "").slice(0, 8) || "x";
+    var rnd = Math.random().toString(36).slice(2, 6);
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "_" + pad(d.getHours()) + pad(d.getMinutes()) + "_" + k + "_" + rnd;
+  }
+  function eindampfen(datei) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(datei), img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var f = Math.min(1, MAX_KANTE / Math.max(img.width || 1, img.height || 1));
+        var c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.width * f)); c.height = Math.max(1, Math.round(img.height * f));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(function (b) { b ? resolve(b) : reject(new Error("Bild nicht lesbar")); }, "image/jpeg", 0.82);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("Bild nicht lesbar")); };
+      img.src = url;
+    });
+  }
+  function meldung(art, text) { var m = $("meldung"); m.hidden = false; m.className = "meldung " + art; m.textContent = (art === "ok" ? "✓ " : "⚠ ") + text; }
+  function zeitText(iso) { var d = new Date(iso); return isNaN(d) ? "" : pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+
+  /* ---------- Einstellungen ---------- */
+  function anlagenListe() { return merk.lese("anlagen", "").split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean); }
+  function zeichneAnlagen() {
+    var dl = $("anlagen"); dl.innerHTML = "";
+    anlagenListe().forEach(function (a) { var o = document.createElement("option"); o.value = a; dl.appendChild(o); });
+  }
+  function zeichneKopf() {
+    var k = merk.lese("kuerzel", "");
+    $("kopf-rechts").innerHTML = new Date().toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }) + "<br>" + (k ? "Kürzel " + k : "kein Kürzel");
+    $("kuerzel-fehlt").hidden = !!k;
+  }
+  $("knopf-einstellungen").addEventListener("click", function () {
+    var e = $("einstellungen"); e.hidden = !e.hidden;
+    if (!e.hidden) { $("kuerzel").value = merk.lese("kuerzel", ""); $("anlagen-liste").value = merk.lese("anlagen", ""); }
+  });
+  $("einstellungen-fertig").addEventListener("click", function () {
+    merk.setze("kuerzel", $("kuerzel").value.trim());
+    merk.setze("anlagen", $("anlagen-liste").value);
+    $("einstellungen").hidden = true; zeichneAnlagen(); zeichneKopf();
+  });
+
+  /* ---------- Fotos ---------- */
+  function zeichneFotos() {
+    var v = $("vorschauen"); v.innerHTML = "";
+    fotos.forEach(function (f) {
+      var w = document.createElement("div"); w.className = "vorschau";
+      var img = document.createElement("img"); img.src = f.url; img.alt = ""; w.appendChild(img);
+      var b = document.createElement("button"); b.type = "button"; b.textContent = "✕"; b.setAttribute("aria-label", "Foto entfernen");
+      b.addEventListener("click", function () { URL.revokeObjectURL(f.url); fotos = fotos.filter(function (x) { return x !== f; }); zeichneFotos(); });
+      w.appendChild(b); v.appendChild(w);
+    });
+    $("kamera-knopf").className = "kamera" + (fotos.length ? " klein" : "");
+    $("kamera-text").textContent = fotos.length ? "📷 Noch ein Foto" : "📷 Foto machen";
+    $("kamera-unter").hidden = fotos.length > 0;
+  }
+  function bilderWaehlen(ev) {
+    var dateien = Array.prototype.slice.call(ev.target.files || []);
+    ev.target.value = "";
+    (function naechstes(i) {
+      if (i >= dateien.length) { zeichneFotos(); return; }
+      eindampfen(dateien[i]).then(function (blob) {
+        fotos.push({ id: Date.now() + "-" + i, blob: blob, url: URL.createObjectURL(blob) });
+        naechstes(i + 1);
+      }, function () { meldung("fehler", "„" + dateien[i].name + "“ ist kein lesbares Bild – übersprungen."); naechstes(i + 1); });
+    })(0);
+  }
+  $("kamera").addEventListener("change", bilderWaehlen);
+  $("galerie").addEventListener("change", bilderWaehlen);
+
+  /* ---------- Ziel ---------- */
+  Array.prototype.forEach.call(document.querySelectorAll(".ziel"), function (b) {
+    b.addEventListener("click", function () {
+      ziel = ziel === b.dataset.ziel ? "" : b.dataset.ziel;
+      Array.prototype.forEach.call(document.querySelectorAll(".ziel"), function (x) {
+        var an = x.dataset.ziel === ziel;
+        x.setAttribute("aria-pressed", an ? "true" : "false");
+        x.style.borderColor = an ? x.dataset.farbe : "#D6D9DC";
+        x.style.background = an ? x.dataset.farbe : "#fff";
+      });
+      $("ziel-hinweis").textContent = ziel ? "Vorschlag fürs Sortieren am PC" : "ohne Wahl: am PC sortieren";
+    });
+  });
+
+  /* ---------- Ablegen: Dateien bauen und teilen ---------- */
+  function dateienBauen() {
+    var kuerzel = merk.lese("kuerzel", "");
+    var jetzt = new Date();
+    var notiz = $("notiz").value.trim(), anlage = $("anlage").value.trim();
+    var raus = [];
+    var quellen = fotos.length ? fotos : [null]; // ohne Foto: nur der Zettel (Text)
+    quellen.forEach(function (f) {
+      var basis = stamm(jetzt, kuerzel);
+      var daten = { format: FORMAT, zeit: isoOrt(jetzt), wer: kuerzel, anlage: anlage, ziel: ziel, notiz: notiz, foto: f ? basis + ".jpg" : "" };
+      var json = new File([JSON.stringify(daten, null, 2)], basis + ".json", { type: "application/json", lastModified: jetzt.getTime() });
+      if (f) raus.push(new File([f.blob], basis + ".jpg", { type: "image/jpeg", lastModified: jetzt.getTime() }));
+      raus.push(json);
+      merkeHeute({ zeit: daten.zeit, notiz: notiz, anlage: anlage, ziel: ziel, foto: f ? f.url : "", datei: basis });
+    });
+    return raus;
+  }
+  function herunterladen(datei) {
+    var a = document.createElement("a"); a.href = URL.createObjectURL(datei); a.download = datei.name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  }
+  function zuruecksetzen() {
+    fotos = []; zeichneFotos(); $("notiz").value = ""; // Anlage bleibt - das nächste Bild ist oft dieselbe
+    ziel = ""; Array.prototype.forEach.call(document.querySelectorAll(".ziel"), function (x) { x.setAttribute("aria-pressed", "false"); x.style.borderColor = "#D6D9DC"; x.style.background = "#fff"; });
+    $("ziel-hinweis").textContent = "ohne Wahl: am PC sortieren";
+  }
+  $("ablegen").addEventListener("click", function () {
+    if (laeuft) return;
+    if (!merk.lese("kuerzel", "")) { meldung("fehler", "Erst oben rechts ⚙ dein Kürzel eintragen."); $("einstellungen").hidden = false; return; }
+    if (!fotos.length && !$("notiz").value.trim()) { meldung("fehler", "Erst ein Foto machen oder eine Notiz schreiben."); return; }
+    laeuft = true; $("ablegen").disabled = true;
+    var dateien = dateienBauen();
+    window.__letzteDateien = dateien; // Prüfstand liest hier mit
+    var kannTeilen = !!(navigator.share && navigator.canShare && navigator.canShare({ files: dateien }));
+    var fertig = function (wie) {
+      meldung("ok", dateien.length + " Datei(en) " + wie + " · " + zeitText(new Date().toISOString()) + " Uhr. Am PC erscheint die Aufnahme, sobald OneDrive sie abgeholt hat.");
+      zuruecksetzen(); zeichneHeute();
+      laeuft = false; $("ablegen").disabled = false;
+    };
+    if (kannTeilen) {
+      navigator.share({ files: dateien, title: "Aufnahme " + dateien[0].name.replace(/\.(jpg|json)$/, "") }).then(function () { fertig("geteilt"); }, function (e) {
+        laeuft = false; $("ablegen").disabled = false;
+        if (e && e.name === "AbortError") { meldung("hinweis", "Teilen abgebrochen – nichts abgelegt. Die Fotos sind noch da."); return; }
+        // Teilen nicht möglich -> Dateien zum Speichern anbieten
+        ablageAnbieten(dateien, fertig);
+      });
+    } else {
+      ablageAnbieten(dateien, fertig);
+    }
+  });
+  function ablageAnbieten(dateien, fertig) {
+    var k = $("ablage-knoepfe"); k.innerHTML = "";
+    dateien.forEach(function (d) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "knopf"; b.textContent = "⬇ " + d.name;
+      b.addEventListener("click", function () { herunterladen(d); b.disabled = true; b.textContent = "✓ " + d.name; });
+      k.appendChild(b);
+    });
+    var alle = document.createElement("button"); alle.type = "button"; alle.className = "knopf"; alle.style.background = "#22262B"; alle.style.color = "#fff"; alle.textContent = "⬇ Alle speichern";
+    alle.addEventListener("click", function () { dateien.forEach(herunterladen); $("ablage").hidden = true; fertig("gespeichert (Downloads)"); });
+    k.appendChild(alle);
+    $("ablage").hidden = false;
+    laeuft = false; $("ablegen").disabled = false;
+  }
+
+  /* ---------- Heute abgelegt (nur Gedächtnis dieses Handys) ---------- */
+  function heuteListe() { try { return JSON.parse(merk.lese("heute", "[]")); } catch (e) { return []; } }
+  function merkeHeute(e) {
+    var heute = new Date().toISOString().slice(0, 10);
+    var l = heuteListe().filter(function (x) { return String(x.zeit).slice(0, 10) === heute; });
+    l.unshift({ zeit: e.zeit, notiz: e.notiz, anlage: e.anlage, ziel: e.ziel, datei: e.datei });
+    merk.setze("heute", JSON.stringify(l.slice(0, 50)));
+  }
+  function zeichneHeute() {
+    var heute = new Date().toISOString().slice(0, 10);
+    var l = heuteListe().filter(function (x) { return String(x.zeit).slice(0, 10) === heute; });
+    $("heute-zahl").textContent = l.length;
+    var h = $("heute"); h.innerHTML = "";
+    if (!l.length) { var p = document.createElement("div"); p.className = "leer"; p.textContent = "noch nichts"; h.appendChild(p); return; }
+    l.forEach(function (e) {
+      var z = document.createElement("div"); z.className = "zeile";
+      z.innerHTML = '<div class="bild"></div><div class="text"><div class="t1"></div><div class="t2"></div></div><span style="color:#1F7A3D;font-weight:900">✓</span>';
+      z.querySelector(".t1").textContent = e.notiz || "ohne Notiz";
+      z.querySelector(".t2").textContent = zeitText(e.zeit) + (e.anlage ? " · " + e.anlage : "") + (e.ziel && ZIEL_NAME[e.ziel] ? " · Vorschlag " + ZIEL_NAME[e.ziel] : "") + " · " + e.datei;
+      h.appendChild(z);
+    });
+  }
+
+  zeichneAnlagen(); zeichneKopf(); zeichneHeute(); zeichneFotos();
+  if (!merk.lese("kuerzel", "")) $("einstellungen").hidden = false;
+})();
+</script>
+</body>
+</html>

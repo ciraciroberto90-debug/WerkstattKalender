@@ -201,9 +201,13 @@ export async function vergessen() {
 export async function listeBilder({ seitMs = 0, max = 300 } = {}) {
   if (!handle || perm !== "ok") return [];
   const raus = [];
+  const begleiter = new Map(); // Stamm -> Begleitdatei-Verweis (.json / .txt)
   for await (const [dateiName, h] of handle.entries()) {
     if (!h || h.kind !== "file") continue;
-    if (!BILD_ENDUNG.test(dateiName) || dateiName.startsWith(".") || dateiName.startsWith("~")) continue;
+    if (dateiName.startsWith(".") || dateiName.startsWith("~")) continue;
+    const begleit = BEGLEIT_ENDUNG.exec(dateiName);
+    if (begleit) { begleiter.set(dateiName.slice(0, -begleit[0].length), { name: dateiName, h }); continue; }
+    if (!BILD_ENDUNG.test(dateiName)) continue;
     let kurz = null;
     try {
       kurz = typeof h.kurz === "function" ? await h.kurz() : await h.getFile(); // getFile() liest nur die Kennwerte, nicht den Inhalt
@@ -214,17 +218,80 @@ export async function listeBilder({ seitMs = 0, max = 300 } = {}) {
     raus.push({
       key: `${dateiName}|${kurz.size}|${geaendert}`,
       name: dateiName, groesse: Number(kurz.size) || 0, geaendert,
+      pfad: h.pfad || "",
       datei: () => h.getFile(),
+      _stamm: dateiName.replace(BILD_ENDUNG, ""),
     });
   }
   raus.sort((a, b) => b.geaendert - a.geaendert);
-  return raus.slice(0, max);
+  const liste = raus.slice(0, max);
+  // Begleitdateien lesen (klein, deshalb gleich hier): Der Aufnahme-Zettel
+  // legt neben 2026-10-06_0742_RC_k3f9.jpg eine gleichnamige .json mit Zeit,
+  // Kürzel, Anlage, Ziel und Notiz. Eine von Hand geschriebene .txt mit
+  // „Schlüssel: Wert"-Zeilen gilt genauso.
+  for (const b of liste) {
+    const bg = begleiter.get(b._stamm);
+    delete b._stamm;
+    b.begleit = null; b.begleitName = ""; b.begleitPfad = "";
+    if (!bg) continue;
+    try {
+      const f = await bg.h.getFile();
+      b.begleit = leseBegleit(await f.text());
+      b.begleitName = bg.name; b.begleitPfad = bg.h.pfad || "";
+    } catch (e) { b.begleit = null; }
+  }
+  return liste;
+}
+const BEGLEIT_ENDUNG = /\.(json|txt)$/i;
+const BEGLEIT_FELDER = { zeit: "zeit", wer: "wer", kuerzel: "wer", name: "wer", anlage: "anlage", ziel: "ziel", notiz: "notiz", note: "notiz", text: "notiz" };
+export function leseBegleit(text) {
+  const roh = String(text || "").replace(/^﻿/, "").trim();
+  if (!roh) return null;
+  let o = null;
+  if (roh.startsWith("{")) {
+    try { o = JSON.parse(roh); } catch (e) { o = null; }
+  }
+  if (!o) {
+    // „Anlage: TS480" je Zeile; alles ohne Doppelpunkt ist Notiz
+    o = {}; const frei = [];
+    roh.split(/\r?\n/).forEach((zeile) => {
+      const m = /^\s*([A-Za-zÄÖÜäöüß]+)\s*:\s*(.*)$/.exec(zeile);
+      if (m && BEGLEIT_FELDER[m[1].toLowerCase()]) o[BEGLEIT_FELDER[m[1].toLowerCase()]] = m[2].trim();
+      else if (zeile.trim()) frei.push(zeile.trim());
+    });
+    if (frei.length && !o.notiz) o.notiz = frei.join(" ");
+  }
+  if (!o || typeof o !== "object") return null;
+  const s = (v) => (v == null ? "" : String(v).trim());
+  const zeit = s(o.zeit); const d = zeit ? new Date(zeit) : null;
+  const ziel = s(o.ziel).toUpperCase();
+  return {
+    zeit: d && !isNaN(d) ? d.toISOString() : "",
+    wer: s(o.wer).slice(0, 40), anlage: s(o.anlage).slice(0, 80),
+    ziel: ["ARBEIT", "TODO", "STOERUNG", "ZETTEL", "AKTE"].includes(ziel) ? ziel : "",
+    notiz: s(o.notiz).slice(0, 1000),
+  };
+}
+
+/* Einzug (Roll-out 64): Bild und Begleitdatei aus dem Ordner ENTFERNEN -
+   nur in der Programm-Fassung (Pfade über die Brücke; der Browser hat den
+   Ordner nur lesend). Der Aufrufer löscht erst, wenn Foto und Eintrag
+   nachweislich auf dem Server bzw. im Datenordner liegen. */
+export function kannEntfernen() { return !!(bruecke() && handle && handle.pfad); }
+export async function entferne(bild) {
+  const d = bruecke();
+  if (!d || !bild || !bild.pfad) throw new Error("Entfernen geht nur in der Programm-Fassung.");
+  await d.entferne(bild.pfad);
+  if (bild.begleitPfad) { try { await d.entferne(bild.begleitPfad); } catch (e) { /* Begleitdatei fehlt schon - egal */ } }
+  return true;
 }
 
 /* Test-Zugang: ein nachgebauter Ordner-Verweis ohne Dialog (harte-108). */
 if (typeof window !== "undefined") {
   window.__wkEingangTest = {
     adopt(h) { handle = h; perm = "ok"; try { window.dispatchEvent(new CustomEvent("bta-eingangsordner")); } catch (e) { /* egal */ } },
-    status,
+    // Programm-Fassung im Prüfstand: Pfad über die (nachgebaute) Brücke
+    async setzePfad(p) { const r = await setzePfad(p); try { window.dispatchEvent(new CustomEvent("bta-eingangsordner")); } catch (e) { /* egal */ } return r; },
+    status, leseBegleit,
   };
 }

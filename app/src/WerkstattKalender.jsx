@@ -3343,6 +3343,9 @@ function App() {
   const [aufnahmeTag, setAufnahmeTag] = useState(null); // Tagesfilm: Tag (null = heute)
   const [aufnahmeEdit, setAufnahmeEdit] = useState({}); // Schlüssel -> {note, anlage}: Änderungen vor dem Sortieren
   const eingangVorschauRef = useRef(new Map()); // Datei-Schlüssel -> Objekt-URL | "" (lädt) | null (nicht lesbar)
+  // Einzug (Roll-out 64): neue Bilder sofort zur Aufnahme machen und aus dem Ordner räumen (nur Programm)
+  const [einzugAn, setEinzugAn] = useState(() => { try { return localStorage.getItem(nsKey("aufnahme-einzug")) === "1"; } catch (e) { return false; } });
+  const [einzugStand, setEinzugStand] = useState(null); // {am, anzahl, fehler}
   const [akteAnlage, setAkteAnlage] = useState(null); // Anlagen-Akte (Name) | null
   const [planungCursor, setPlanungCursor] = useState(() => new Date()); // Woche der Arbeitsplanung
   const [planungPicker, setPlanungPicker] = useState(null); // {person, datum} | null
@@ -7984,8 +7987,14 @@ function App() {
   // Eine Karte im Eingangskorb: Aufnahme vom Handy (Eintrag) oder Datei aus
   // dem Eingangsordner. Beide tragen dieselben Felder, damit Korb, Durch-
   // blättern und Tagesfilm nicht zwei Sorten kennen müssen.
-  const karteAusEintrag = (e) => ({ art: "eintrag", key: e.id, id: e.id, e, zeit: aufnahmeZeitVon(e), note: e.note || "", anlage: e.name || "", wer: e.wer || "", quelle: e.quelle === "pc" ? "PC-Ordner" : "Handy", zielWunsch: e.zielWunsch || "", sortiert: e.status === "done" ? { ziel: e.ziel, am: e.sortiertAm } : null });
-  const karteAusDatei = (d) => ({ art: "datei", key: d.key, d, zeit: new Date(d.geaendert).toISOString(), note: "", anlage: "", wer: "", quelle: "PC-Ordner", zielWunsch: "", sortiert: aufnahmeVerarbeitet[d.key] || null, dateiName: d.name });
+  const quelleText = (q) => (q === "pc" ? "PC-Ordner" : q === "einzug" ? "Einzug" : "Handy");
+  const karteAusEintrag = (e) => ({ art: "eintrag", key: e.id, id: e.id, e, zeit: aufnahmeZeitVon(e), note: e.note || "", anlage: e.name || "", wer: e.wer || "", quelle: quelleText(e.quelle), zielWunsch: e.zielWunsch || "", sortiert: e.status === "done" ? { ziel: e.ziel, am: e.sortiertAm } : null });
+  // Eine Datei aus dem Eingangsordner - mit Begleitdatei (Aufnahme-Zettel,
+  // Roll-out 64) kommen Notiz, Anlage, Kürzel, Ziel und die echte Aufnahmezeit mit.
+  const karteAusDatei = (d) => {
+    const b = d.begleit || null;
+    return { art: "datei", key: d.key, d, zeit: (b && b.zeit) || new Date(d.geaendert).toISOString(), note: (b && b.notiz) || "", anlage: (b && b.anlage) || "", wer: (b && b.wer) || "", quelle: b ? "Zettel" : "PC-Ordner", zielWunsch: (b && b.ziel) || "", sortiert: aufnahmeVerarbeitet[d.key] || null, dateiName: d.name };
+  };
   const aufnahmeKarten = useMemo(() => [
     ...aufnahmenOffen.map(karteAusEintrag),
     ...eingangOffen.map(karteAusDatei),
@@ -8021,9 +8030,71 @@ function App() {
       const liste = await eingangsordner.listeBilder({ seitMs: Date.now() - eingangTage * 864e5 });
       setEingangDateien(liste);
       setEingangFehler("");
+      if (einzugAn && einzugMoeglich) await einzugLaufen(liste);
     } catch (e) {
       setEingangFehler(`Der Eingangsordner ist gerade nicht lesbar: ${(e && e.message) || e}`);
     }
+  };
+  /* ---------- Einzug (Roll-out 64, Robertos „Zwischenprogramm") ----------
+     Nur Programm-Fassung: Jedes neue Bild im Eingangsordner (bei Roberto der
+     OneDrive-Ordner, in den der Aufnahme-Zettel teilt) wird SOFORT zur
+     Aufnahme - Foto in die Ablage (Server oder Datenordner), Eintrag mit den
+     Angaben der Begleitdatei - und danach samt Begleitdatei aus dem Ordner
+     gelöscht. So liegt das Bild nur Sekunden in der Cloud.
+     Regeln: (1) Gelöscht wird erst, wenn Foto UND Eintrag bestätigt sind.
+     (2) Die Kennung der Aufnahme kommt aus dem Dateinamen - zwei PCs (Roberto
+     und Vertreter) dürfen denselben Ordner einziehen, es entsteht nichts
+     doppelt; wer zu spät kommt, findet den Eintrag vor und räumt nur die
+     Datei weg. (3) Ein Fehlschlag hält den Einzug für diesen Durchlauf an und
+     steht in der Kopfzeile - nie eine Endlosschleife. */
+  const einzugMoeglich = istProgramm && eingangsordner.kannEntfernen() && sharedFile.fotosVerfuegbar() && aufnahmeDarf;
+  const einzugLaeuftRef = useRef(false);
+  const einzugLaufen = async (liste) => {
+    if (einzugLaeuftRef.current) return;
+    einzugLaeuftRef.current = true;
+    let gezogen = 0;
+    try {
+      for (const d of liste) {
+        if (aufnahmeVerarbeitet[d.key]) continue;
+        const id = `aufn-datei-${d.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_.-]/g, "_").slice(0, 80)}`;
+        const b = d.begleit || null;
+        const zeit = (b && b.zeit) || new Date(d.geaendert).toISOString();
+        const wer = (b && b.wer) || "";
+        const schonDa = entriesRef.current.find((e) => e.id === id);
+        if (!schonDa) {
+          const roh = await d.datei();
+          // Der Zettel hat schon verkleinert (1600 px); große Originale (WhatsApp-
+          // Kopien, Kamera-Upload) werden hier eingedampft wie jedes Handyfoto.
+          // Entscheidend ist das Pixelmaß, nicht die Dateigröße (ein 3000-px-Bild
+          // mit wenig Struktur ist klein und trotzdem zu groß).
+          let zuGross = roh.size > 450000;
+          if (!zuGross) { try { const bmp = await createImageBitmap(roh); zuGross = Math.max(bmp.width, bmp.height) > FOTO_MAX_KANTE; bmp.close(); } catch (e) { zuGross = true; } }
+          const blob = zuGross ? await fotoEindampfen(roh) : roh;
+          const fotoName = neuerFotoName(aufnahmeTagKey(zeit) || todayKey);
+          await sharedFile.fotoSpeichern(fotoName, blob); // mit Kontroll-Lesung
+          const neu = {
+            id, date: aufnahmeTagKey(zeit) || todayKey, category: "AUFNAHME", name: (b && b.anlage) || "", status: "open",
+            note: (b && b.notiz) || "", fotos: [{ datei: fotoName, wer, ts: zeit }], wer, zeit, quelle: "einzug",
+            herkunft: d.name, ...(b && b.ziel ? { zielWunsch: b.ziel } : {}),
+          };
+          const ok = await persist([...entriesRef.current, neu]);
+          if (!ok) throw new Error(`Die Aufnahme zu „${d.name}" konnte nicht gespeichert werden - die Datei bleibt im Ordner.`);
+        }
+        await eingangsordner.entferne(d);
+        setAufnahmeVerarbeitet((v) => schreibeAufnahmeVerarbeitet({ ...v, [d.key]: { ziel: "EINZUG", am: new Date().toISOString(), zielId: id } }));
+        gezogen++;
+      }
+      if (gezogen) { setEinzugStand({ am: new Date().toISOString(), anzahl: gezogen, fehler: "" }); eingangsordner.listeBilder({ seitMs: Date.now() - eingangTage * 864e5 }).then(setEingangDateien).catch(() => {}); }
+    } catch (e) {
+      setEinzugStand({ am: new Date().toISOString(), anzahl: gezogen, fehler: `Einzug angehalten: ${(e && e.message) || e}` });
+    } finally {
+      einzugLaeuftRef.current = false;
+    }
+  };
+  const einzugSchalten = (an) => {
+    setEinzugAn(an);
+    try { localStorage.setItem(nsKey("aufnahme-einzug"), an ? "1" : "0"); } catch (e) { /* egal */ }
+    if (an) eingangScannen();
   };
   useEffect(() => {
     let weg = false;
@@ -8042,7 +8113,7 @@ function App() {
     window.addEventListener("focus", aufFokus);
     return () => { clearInterval(t); window.removeEventListener("focus", aufFokus); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eingangLage, eingangTage, view]);
+  }, [eingangLage, eingangTage, view, einzugAn]);
   const eingangWaehlen = async () => {
     try {
       const r = await eingangsordner.waehlen();
@@ -11193,6 +11264,18 @@ function App() {
                 <button onClick={eingangScannen} className="font-bold" style={{ color: "#2F6690" }} title="Ordner jetzt neu lesen">↻ neu lesen</button>
                 <button onClick={eingangWaehlen} className="font-bold" style={{ color: "#2F6690" }}>Ordner wechseln</button>
                 <button onClick={eingangTrennen} className="font-bold" style={{ color: "#8A9099" }}>trennen</button>
+                {programm && (
+                  <label className="flex items-center gap-1.5 rounded px-2 py-0.5" style={{ border: `1px solid ${einzugAn ? "#C97A2B" : "#D6D9DC"}`, backgroundColor: einzugAn ? "#FDF3E7" : "#fff", opacity: einzugMoeglich || einzugAn ? 1 : 0.6 }}
+                    title={einzugMoeglich ? "Neue Bilder sofort als Aufnahme auf den Server bzw. in den Datenordner holen und aus dem Ordner (z. B. OneDrive) löschen - erst nach Bestätigung" : "Einzug braucht die Foto-Ablage (Server oder freigegebener Datenordner)"}>
+                    <input type="checkbox" checked={einzugAn} disabled={!einzugMoeglich && !einzugAn} onChange={(e) => einzugSchalten(e.target.checked)} data-einzug-schalter />
+                    <span className="font-bold" style={{ color: einzugAn ? "#C97A2B" : "#5B6572" }}>Einzug: Bilder sofort holen und aus dem Ordner räumen</span>
+                  </label>
+                )}
+                {einzugStand && (
+                  <span data-einzug-stand style={{ color: einzugStand.fehler ? "#B23A34" : "#1F7A3D" }}>
+                    {einzugStand.fehler ? `⚠ ${einzugStand.fehler}` : `✓ ${einzugStand.anzahl} eingezogen · ${aufnahmeZeitText(einzugStand.am)}`}
+                  </span>
+                )}
               </>
             ) : eingangLage === "needs-permission" ? (
               <button onClick={eingangFreigeben} className="font-bold rounded px-2.5 py-1 text-white" style={{ backgroundColor: "#C97A2B" }} data-eingang-freigeben>📁 Eingangsordner „{eingangsordner.name()}" freigeben (einmal bestätigen)</button>

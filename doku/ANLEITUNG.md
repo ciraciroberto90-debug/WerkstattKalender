@@ -847,6 +847,36 @@ Störungen, nicht den Rest.
      selbst raus – gemessen 10 s nach Rückkehr des Servers. Was der Puffer
      nicht kann: einen geschlossenen Tab oder ein Neuladen überleben (dafür
      bräuchte es HTTPS, siehe Roll-out 61 Stufe 3).
+  3. **Über mobile Daten ohne Firmennetz – der Aufnahme-Zettel + OneDrive
+     (seit dem 06.10., Roll-out 64).** Die Datei `handy/aufnahme-zettel.html`
+     ist eine eigene kleine Seite fürs Handy, die ohne Server auskommt:
+     Kürzel und Anlagen einmal unter ⚙ eintragen, dann Foto, Notiz, Anlage,
+     Ziel-Vorschlag, **Ablegen**. Je Foto entstehen zwei Dateien mit
+     demselben Namen, z. B. `2026-10-06_0742_RC_k3f9.jpg` und
+     `…_k3f9.json` (Zeit, Kürzel, Anlage, Ziel, Notiz), das Bild schon auf
+     1600 px verkleinert. Beide gehen über das normale **Teilen** des Handys
+     an OneDrive (oder Dropbox, WhatsApp) – in den Ordner, den der PC als
+     Eingangsordner liest. Kann ein Browser nicht teilen, bietet die Seite
+     die Dateien zum Speichern an. Am PC füllt die Begleitdatei die Karte:
+     Notiz, Anlage, Kürzel, Ziel-Vorschlag und die **echte Aufnahmezeit**
+     (nicht die Sync-Zeit). Eine von Hand geschriebene `.txt` neben einem
+     Bild gilt genauso (`Anlage: B2`, `Ziel: Akte`, der Rest ist Notiz).
+     Android: die Seite in den Handy-Speicher legen und aus „Dateien" mit
+     Chrome öffnen, dann „Zum Startbildschirm". iPhone: **nicht gemessen**.
+  4. **Einzug (nur Programm-Fassung, Roll-out 64, Robertos „Zwischen-
+     programm").** Schalter in der Kopfzeile des Reiters: Ist er an, holt
+     das Programm jedes neue Bild aus dem Eingangsordner **sofort** als
+     Aufnahme in die Ablage (Server oder Datenordner), mit den Angaben der
+     Begleitdatei, und löscht Bild und Begleitdatei danach aus dem Ordner –
+     so liegt ein Foto nur Sekunden in OneDrive. Gelöscht wird **erst, wenn
+     Foto und Eintrag bestätigt sind**; scheitert etwas, bleibt die Datei
+     liegen und die Kopfzeile sagt „Einzug angehalten: …" (nächster Durchlauf
+     versucht es neu). Die Kennung der Aufnahme kommt aus dem Dateinamen:
+     Roberto und sein Vertreter dürfen denselben OneDrive-Ordner einziehen,
+     es entsteht nichts doppelt – wer zu spät kommt, räumt nur die Datei.
+     Große Originale werden beim Einzug eingedampft. Der Einzug läuft, solange
+     ein Cockpit-Programm mit diesem Ordner offen ist (alle 20 s im Reiter,
+     alle 2 min sonst, zusätzlich beim Fenster-Fokus).
   Rechte: Bereich **Aufnahme** in der Rechte-Matrix (Bearbeiter: bearbeiten,
   Leser: aus – Sortieren schreibt immer). Sortierte Handy-Aufnahmen bleiben
   als Einträge im Bestand (Tagesfilm, Akte), nichts wird gelöscht außer bei
