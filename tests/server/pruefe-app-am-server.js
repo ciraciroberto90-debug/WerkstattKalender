@@ -296,6 +296,83 @@ async function dienstStoppen() {
     await ctx.close();
   }
 
+  /* (C14) HANDY-ANSICHT (Roll-out 61, Stufe 2): http://server/app/?ansicht=aufnahme
+     im Handy-Browser. Foto + Notiz + Anlage + Vorschlag -> „Ab ins Cockpit":
+     die Bilddatei geht über den Foto-Weg des Dienstes, die Aufnahme als
+     Eintrag AUFNAHME in den Kalender-Bestand; der PC sieht sie im Reiter
+     Aufnahme mit Bild vom Server; sortiert der PC, zeigt das Handy es live.
+     (C15) VERBINDUNGSLOCH: Dienst weg -> die Aufnahme wartet im Tab und geht
+     nach dem Neustart von selbst raus (Foto + Eintrag, nichts doppelt).
+     Rot-Nachweis: der Bau vor dem 06.10. kennt ?ansicht=aufnahme nicht. */
+  {
+    const hctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    const hp = await hctx.newPage();
+    hp.on("pageerror", (e) => fehler.D.push("H:" + e.message));
+    await hctx.addInitScript((s) => { localStorage.setItem("bta-standort", "scheurich"); localStorage.setItem("werkstatt-kalender-benutzer", "Chef"); localStorage.setItem("werkstatt-kalender-name", "Chef"); localStorage.setItem("bta-server:schluessel", s); }, SCHLUESSEL);
+    await hp.goto(APP + "?server=" + B + "&ansicht=aufnahme");
+    const hBereit = await bereit(hp);
+    ok("(C14) Handy-Ansicht: nur die Aufnahme (kein Cockpit-Menü), Server-Bestand geladen, Name Chef", hBereit && (await hp.locator("[data-handy-aufnahme]").count()) === 1 && (await hp.locator("button[data-hauptbereich]").count()) === 0 && (await hp.locator('input[aria-label="Name"]').inputValue()) === "Chef");
+    const foto = async (text) => Buffer.from((await hp.evaluate((t) => { const c = document.createElement("canvas"); c.width = 2400; c.height = 1600; const g = c.getContext("2d"); g.fillStyle = "#3A4756"; g.fillRect(0, 0, 2400, 1600); g.fillStyle = "#fff"; g.font = "bold 160px sans-serif"; g.fillText(t, 100, 800); for (let i = 0; i < 40; i++) { g.fillStyle = `hsl(${i * 9},60%,50%)`; g.fillRect(i * 60, 1200, 50, 50); } return c.toDataURL("image/jpeg", 0.92); }, text)).split(",")[1], "base64");
+    await hp.locator('input[aria-label="Foto machen"]').setInputFiles({ name: "IMG_0001.jpg", mimeType: "image/jpeg", buffer: await foto("Hydraulik") });
+    await hp.waitForFunction(() => document.querySelectorAll("[data-handy-aufnahme] img").length >= 1, null, { timeout: 8000 }).catch(() => {});
+    await hp.locator('textarea[aria-label="Notiz"]').fill("Leck Hydraulik TS480, Pfütze");
+    await hp.locator('select[aria-label="Anlage"]').selectOption("TS480");
+    await hp.locator('button[data-handy-ziel="ARBEIT"]').click();
+    const t14 = Date.now();
+    await hp.locator("button[data-handy-senden]").click();
+    const gesendet = await hp.waitForFunction(() => !!document.querySelector('[data-handy-meldung="ok"]'), null, { timeout: 12000 }).then(() => true).catch(() => false);
+    const sendeMs = Date.now() - t14;
+    console.log(`MESSUNG Handy -> Server (Foto eindampfen + hochladen + Eintrag): ${sendeMs} ms`);
+    const stand14 = (await holen("/api/scheurich/stand?seit=0")).k;
+    const aufn = stand14.eintraege.find((e) => e.category === "AUFNAHME");
+    let fotoAufServer = null;
+    if (aufn && aufn.fotos && aufn.fotos[0]) { const r = await fetch(B + "/api/scheurich/fotos/" + encodeURIComponent(aufn.fotos[0].datei)); fotoAufServer = { status: r.status, bytes: (await r.arrayBuffer()).byteLength, typ: r.headers.get("content-type") }; }
+    ok("(C14) Aufnahme auf dem Server: AUFNAHME · Notiz · Anlage TS480 · Vorschlag ARBEIT · von Chef · Foto-Verweis; die Bilddatei liegt lesbar im fotos-Ordner (JPEG, eingedampft)",
+      gesendet && !!aufn && aufn.note === "Leck Hydraulik TS480, Pfütze" && aufn.name === "TS480" && aufn.zielWunsch === "ARBEIT" && aufn.wer === "Chef" && aufn.quelle === "handy" && aufn.status === "open" && aufn.fotos.length === 1 && fotoAufServer && fotoAufServer.status === 200 && fotoAufServer.bytes > 5000 && fotoAufServer.bytes < 400000 && /image\/jpeg/.test(fotoAufServer.typ),
+      JSON.stringify({ gesendet, aufn: aufn && { note: aufn.note, name: aufn.name, zielWunsch: aufn.zielWunsch, wer: aufn.wer, fotos: aufn.fotos }, fotoAufServer }));
+    const heuteText = await hp.locator("[data-handy-heute]").allInnerTexts();
+    ok("(C14) „Heute aufgenommen“ zeigt die Aufnahme mit Vorschlag und „…“ (noch nicht sortiert)", heuteText.length === 1 && /Leck Hydraulik/.test(heuteText[0]) && /Vorschlag Arbeit/.test(heuteText[0]), heuteText.join(" | ").slice(0, 120));
+    // PC-Fenster: Reiter Aufnahme zeigt die Karte mit Bild vom Server
+    const PC = await fenster("D");
+    await bereit(PC.p);
+    await PC.p.locator('button[data-hauptbereich="AUFNAHME"]').click();
+    const pcKarte = await PC.p.waitForFunction(() => { const i = document.querySelector("[data-aufnahme-karte] img[data-aufnahme-bild]"); return !!i && i.naturalWidth > 0; }, null, { timeout: 10000 }).then(() => true).catch(() => false);
+    const pcText = await PC.p.locator("[data-aufnahme-karte]").allInnerTexts();
+    ok("(C14) PC: Reiter Aufnahme zeigt die Handy-Karte mit Bild vom Server, Notiz, Anlage TS480 und Quelle Handy Chef", pcKarte && pcText.length === 1 && /Leck Hydraulik/.test(pcText[0]) && /TS480/.test(pcText[0]) && /Handy Chef/.test(pcText[0]), pcText.join(" | ").replace(/\n/g, " · ").slice(0, 160));
+    // PC sortiert als Zettel -> das Handy sieht es live
+    await PC.p.locator('[data-aufnahme-karte] button[data-aufnahme-ziel="ZETTEL"]').click();
+    const t14b = Date.now();
+    const liveHandy = await hp.waitForFunction(() => /Pinnwand-Zettel/.test((document.querySelector("[data-handy-heute]") || {}).innerText || ""), null, { timeout: 8000 }).then(() => true).catch(() => false);
+    const stand14b = (await holen("/api/scheurich/stand?seit=0")).k;
+    const zettel = stand14b.eintraege.find((e) => e.category === "NOTIZ" && /Leck Hydraulik/.test(e.note || ""));
+    const aufnNach = stand14b.eintraege.find((e) => e.id === aufn.id);
+    ok("(C14) Sortieren am PC (Zettel): Zettel mit demselben Foto-Verweis, Aufnahme done · ZETTEL - das Handy zeigt es live", liveHandy && !!zettel && zettel.fotos && zettel.fotos[0].datei === aufn.fotos[0].datei && aufnNach && aufnNach.status === "done" && aufnNach.ziel === "ZETTEL", `${Date.now() - t14b} ms; ${JSON.stringify({ zettel: !!zettel, status: aufnNach && aufnNach.status })}`);
+    ok("(C14) Keine Löschmarke, keine „gelöscht“-Zeile durch den Handy-Weg", (stand14b.geloescht && stand14b.geloescht.eintraege || []).length === 0 && !stand14b.eintraege.some((e) => String(e.id).startsWith("log|") && /gelöscht/.test(e.was || "")));
+
+    /* (C15) Verbindungsloch */
+    await dienstStoppen();
+    await hp.locator('input[aria-label="Foto machen"]').setInputFiles({ name: "IMG_0002.jpg", mimeType: "image/jpeg", buffer: await foto("Aussenlager") });
+    await hp.waitForFunction(() => document.querySelectorAll("[data-handy-aufnahme] img").length >= 1, null, { timeout: 8000 }).catch(() => {});
+    await hp.locator('textarea[aria-label="Notiz"]').fill("Außenlager Lampe defekt");
+    await hp.locator("button[data-handy-senden]").click();
+    const wartet = await hp.waitForFunction(() => !!document.querySelector("[data-handy-wartend]"), null, { timeout: 15000 }).then(() => true).catch(() => false);
+    const meldung15 = await hp.locator("[data-handy-meldung]").innerText().catch(() => "");
+    ok("(C15) Server weg: die Aufnahme wartet im Tab (gelber Hinweis), Meldung nennt „Keine Verbindung“ und den Rat, den Tab offen zu lassen", wartet && /Keine Verbindung/.test(meldung15) && /Tab offen lassen/.test(meldung15), meldung15.slice(0, 120));
+    await dienstStarten();
+    const t15 = Date.now();
+    const nachgesendet = await hp.waitForFunction(() => !document.querySelector("[data-handy-wartend]") && !!document.querySelector('[data-handy-meldung="ok"]'), null, { timeout: 30000 }).then(() => true).catch(() => false);
+    const nachMs = Date.now() - t15;
+    console.log(`MESSUNG Nachsenden nach Server-Neustart: ${nachMs} ms`);
+    const stand15 = (await holen("/api/scheurich/stand?seit=0")).k;
+    const aufn15 = stand15.eintraege.filter((e) => e.category === "AUFNAHME");
+    const zweite = aufn15.find((e) => e.note === "Außenlager Lampe defekt");
+    let foto15 = null;
+    if (zweite && zweite.fotos[0]) { const r = await fetch(B + "/api/scheurich/fotos/" + encodeURIComponent(zweite.fotos[0].datei)); foto15 = r.status; }
+    ok("(C15) Server wieder da: binnen 30 s von selbst nachgesendet - zweite Aufnahme mit Foto auf dem Server, genau 2 Aufnahmen (nichts doppelt)", nachgesendet && aufn15.length === 2 && !!zweite && foto15 === 200, `${nachMs} ms; ${aufn15.length} Aufnahmen; Foto ${foto15}`);
+    await hctx.close();
+    await PC.ctx.close();
+  }
+
   ok("(E) Keine Skriptfehler in den Fenstern", fehler.A.length === 0 && fehler.B.length === 0 && fehler.C.length === 0 && fehler.D.length === 0, [...fehler.A, ...fehler.B, ...fehler.C, ...fehler.D].slice(0, 3).join(" | "));
   await browser.close();
   await dienstStoppen();

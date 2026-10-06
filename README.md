@@ -77,7 +77,7 @@ Messwerte und Begründung stehen im
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
-| `tests/` | 99 Härtetests, fünf Browser-Reserve-Tests und weitere Suiten | Entwicklung |
+| `tests/` | 100 Härtetests, fünf Browser-Reserve-Tests und weitere Suiten | Entwicklung |
 | `programm/` | die App als installierbares Programm (Electron, Probelauf) | Werkstatt & IT |
 | `tools/` | Diagnose-Seite, Testdaten, PDF-Erzeugung | Entwicklung |
 | `archiv/` | frühere Entwürfe, Beispieldaten | Nachschlagen |
@@ -129,7 +129,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 99 Härtetests (vor jedem Push)
+bash tests/run-hardness-tests.sh           # 100 Härtetests (vor jedem Push)
 bash tests/run-browser-reserve.sh          # 5 Browser-Reserve-Tests (vor einer Freigabe; Dateizugriff über den Browser)
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
@@ -145,7 +145,7 @@ node tools/stick-bauen.js --pruefen       # passen die Stick-Quellen zusammen? (
 node tools/render-aufsetzen.js             # nach Änderungen an tools/aufsetzen-pdf.html
 node --no-warnings tests/server/pruefe-dienst.js   # Server-Dienst (Etappe A): Schnittstelle, Konflikte, Import/Export, SSE, Sicherung
 node --no-warnings tests/server/pruefe-dienst-last.js   # Dienst unter Last (16.951 + 31.845 Einträge, Zeiten im Protokoll)
-node --no-warnings tests/server/pruefe-app-am-server.js   # die gebaute App gegen den echten Dienst (Etappe C)
+node --no-warnings tests/server/pruefe-app-am-server.js   # die gebaute App gegen den echten Dienst (Etappe C; C14/C15 = Handy-Aufnahme)
 node --no-warnings tests/server/pruefe-quellen-am-server.js   # Excel-Quellen im Server-Betrieb: Kopie, Zubringer, Browser (Roll-out 54)
 ```
 

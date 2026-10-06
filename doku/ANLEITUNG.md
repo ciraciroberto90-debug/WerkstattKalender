@@ -313,7 +313,8 @@ getrennt. Gemeinsam sind nur die Programmdatei und der Update-Ordner.
 Seit dem 21.09. legt der Verwalter je Bereich fest, was Bearbeiter und Leser
 dürfen: **ausgeblendet** (der Reiter fehlt), **nur ansehen** oder
 **bearbeiten** – für Schichtplan, Planung, To-do, Störungen, Backlog,
-Zeiterfassung, TPM, Pinnwand und Linkstreifen. Aktionen (Drucken,
+Zeiterfassung, TPM, Pinnwand, Linkstreifen und Aufnahme (Leser: aus –
+Sortieren schreibt immer). Aktionen (Drucken,
 Werkstatt-Monitor, Datensicherung, Zahnrad, Störung melden) sind je Gruppe
 gesperrt oder erlaubt. Der Verwalter selbst ist nie eingeschränkt. Ein Leser
 bleibt Nur-Leser (Höchststufe „nur ansehen"); die eine Ausnahme sind
@@ -808,6 +809,48 @@ Störungen, nicht den Rest.
   **immer auf eine A4-Seite**: das Blatt misst sich selbst und verkleinert
   sich nur so weit, wie es nötig ist (bei sechs Personen gar nicht).
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.
+- **Aufnahme (seit dem 06.10., eigener Hauptbereich):** Bilder vom Handy und
+  aus einem Ordner des PCs landen in **einem Eingangskorb** und werden von dort
+  mit einem Griff in sechs Ziele sortiert: **Arbeit → Backlog**, **To-do**,
+  **Störung melden**, **Pinnwand-Zettel**, **Anlagen-Akte** (Beleg ohne
+  Aufgabe, z. B. Typenschild) oder **Weg damit**. Arbeit, To-do und Störung
+  öffnen den gewohnten Dialog mit Bild, Anlage und Text schon drin – erst
+  **Speichern** nimmt das Bild aus dem Korb, Abbrechen lässt es liegen. Drei
+  Blicke auf denselben Korb: **Eingang** (Karten mit Uhrzeit und Herkunft,
+  rechts die Ziele – Karte hinziehen oder Knopf drücken), **Durchblättern**
+  (ein großes Bild, Felder „Was ist zu sehen?" und Anlage, sechs große
+  Ziel-Knöpfe mit den **Tasten 1–6**, Pfeiltasten blättern) und **Tagesfilm**
+  (die Aufnahmen eines Tages nach Uhrzeit, Sortiertes blass mit seinem Ziel).
+  Der Zählkreis am Reiter zeigt, wie viel unsortiert ist.
+  **Zwei Wege hinein:**
+  1. **Eingangsordner am PC** (oben im Reiter wählen – z. B. **Downloads**,
+     dort legt WhatsApp die gespeicherten Bilder ab). Die App liest den Ordner
+     nur; verschoben oder gelöscht wird nichts. Aufnahmezeit = Dateizeit.
+     Gezeigt werden die Bilder der letzten 14 Tage (umstellbar 7/30/90).
+     Sortiertes merkt sich dieser Rechner (Name, Größe, Zeit der Datei) und
+     zeigt es nicht wieder, auch nach dem Neustart. In der Programm-Fassung
+     geht jeder Ordner (auch als eingefügter Pfad); im Browser (HTML vom
+     Laufwerk) der Ordner-Dialog – **ob Chrome den Downloads-Ordner selbst
+     freigibt, ist noch nicht gemessen**; notfalls ein Unterordner. Im
+     Browser über den Server geht kein PC-Ordner (dort das Programm nehmen).
+  2. **Handy im Firmen-WLAN** (braucht den Server-Betrieb): im Handy-Browser
+     `http://v-btacockpit-1:8765/app/?ansicht=aufnahme` öffnen – Android
+     und iPhone gleich; „Zum Startbildschirm" macht daraus eine App ohne
+     Store. Die Ansicht zeigt nur: Name, **Foto machen** (Kamera, mehrere
+     nacheinander) oder aus der Galerie, Ziel-Vorschlag, Notiz, Anlage,
+     **Ab ins Cockpit**, darunter „Heute aufgenommen" mit dem Stand (wartet
+     am PC / ✓ sortiert – live). Das Bild geht eingedampft über den Foto-Weg
+     des Dienstes, die Aufnahme als Eintrag; am PC steht sie Sekunden später
+     im Eingang. Beim ersten Mal den **Werkstatt-Schlüssel** eintragen (wie
+     am PC), bei Benutzerliste anmelden. **Verbindungsloch** (Außenlager,
+     WLAN-Rand): die Aufnahme wartet im offenen Tab und geht alle 10 s von
+     selbst raus – gemessen 10 s nach Rückkehr des Servers. Was der Puffer
+     nicht kann: einen geschlossenen Tab oder ein Neuladen überleben (dafür
+     bräuchte es HTTPS, siehe Roll-out 61 Stufe 3).
+  Rechte: Bereich **Aufnahme** in der Rechte-Matrix (Bearbeiter: bearbeiten,
+  Leser: aus – Sortieren schreibt immer). Sortierte Handy-Aufnahmen bleiben
+  als Einträge im Bestand (Tagesfilm, Akte), nichts wird gelöscht außer bei
+  „Weg damit" nach Rückfrage.
 - **TPM → Übersicht:** ein digitales **TPM-Board**, das beim Klick auf **TPM** zuerst öffnet.
   Oben die **Monats- und Jahresquote als Halbkreise**. Es holt das Team ab und erklärt kurz,
   **was** TPM und R+I sind und **warum** sie wichtig sind (Sicherheit, Verfügbarkeit, Nachweis).

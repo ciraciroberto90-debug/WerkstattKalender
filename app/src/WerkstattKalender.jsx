@@ -5,6 +5,7 @@ import { sha256Hex, sha256HexJs } from "./sha256.js";
 import { STANDORT, STANDORTE, STANDORT_GEWAEHLT, standortWaehlen, nsKey, leseGruppenPass, setzeGruppenPass } from "./standort.js";
 import { LOGO_GRUPPE, LOGO_SCHEURICH, LOGO_SOENDGEN } from "./logos.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen, leseOeeSchichten } from "./xlsx.js";
+import * as eingangsordner from "./eingangsordner.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -1237,6 +1238,269 @@ const neuerFotoName = (datum) => `foto-${datum}-${Date.now().toString(36)}${Math
 // Verweise im Eintrag normalisieren - fremde/alte Stände dürfen nie crashen.
 const fotoListeVon = (e) => (Array.isArray(e && e.fotos) ? e.fotos.filter((f) => f && typeof f.datei === "string" && f.datei) : []);
 
+/* ---------- Reiter „Aufnahme" (Roll-out 61, Robertos Freigabe 06.10.) ----------
+   Bilder vom Handy und aus dem Eingangsordner des PCs kommen in EINEN
+   Eingangskorb und werden von dort in sechs Ziele sortiert. Eine Aufnahme
+   vom Handy ist ein Kalender-Eintrag der Kategorie AUFNAHME (Foto als Verweis
+   wie überall, siehe sharedfile.js); eine Datei aus dem Eingangsordner wird
+   erst beim Sortieren zum Eintrag - bis dahin ist sie nur eine Datei auf
+   diesem PC. Sortiert heißt: status "done" + ziel (+ zielId); so bleibt der
+   Tagesfilm vollständig und nichts geht verloren. */
+const AUFNAHME_ZIELE = [
+  // [Schlüssel, Name, Erklärung, Zeichen, Farbe] - Reihenfolge = Tasten 1-6 im Durchblättern
+  ["ARBEIT", "Arbeit → Backlog", "Anlage, Prio, Art – das Foto hängt dran", "🧰", "#C97A2B"],
+  ["TODO", "To-do", "für wen, bis wann", "📋", "#2F6690"],
+  ["STOERUNG", "Störung melden", "Schicht, Anlage, Ausfallzeit", "⚠️", "#C0392B"],
+  ["ZETTEL", "Pinnwand-Zettel", "für alle sichtbar", "📌", "#B8860B"],
+  ["AKTE", "Anlagen-Akte", "Beleg ohne Aufgabe (Typenschild, Zustand)", "🗂", "#4B5259"],
+  ["WEG", "Weg damit", "Doppelte, Fehlschüsse", "🗑", "#8A9099"],
+];
+const AUFNAHME_ZIEL = Object.fromEntries(AUFNAHME_ZIELE.map(([k, label, text, zeichen, farbe]) => [k, { label, text, zeichen, farbe }]));
+const aufnahmeZeitText = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }); };
+const aufnahmeTagKey = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : dateKey(d.getFullYear(), d.getMonth(), d.getDate()); };
+const aufnahmeZeitVon = (e) => e.zeit || `${e.date}T00:00:00`;
+// Was dieser PC aus dem Eingangsordner schon sortiert hat (je Rechner, die
+// Datei selbst bleibt unangetastet): Schlüssel -> { ziel, am, zielId }.
+// Gedeckelt, damit ein Jahr Downloads den Speicher nicht füllt.
+const AUFNAHME_VERARBEITET_KEY = nsKey("aufnahme-verarbeitet");
+const AUFNAHME_VERARBEITET_MAX = 3000;
+const leseAufnahmeVerarbeitet = () => {
+  try { const v = JSON.parse(localStorage.getItem(AUFNAHME_VERARBEITET_KEY) || "{}"); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (e) { return {}; }
+};
+const schreibeAufnahmeVerarbeitet = (v) => {
+  let out = v;
+  const keys = Object.keys(v);
+  if (keys.length > AUFNAHME_VERARBEITET_MAX) {
+    out = {};
+    keys.sort((a, b) => String(v[a].am || "").localeCompare(String(v[b].am || ""))).slice(keys.length - AUFNAHME_VERARBEITET_MAX).forEach((k) => { out[k] = v[k]; });
+  }
+  try { localStorage.setItem(AUFNAHME_VERARBEITET_KEY, JSON.stringify(out)); } catch (e) { /* voll - dann gilt es bis zum Neustart */ }
+  return out;
+};
+
+/* ---------- Handy-Ansicht (Roll-out 61, Stufe 2) ----------
+   Aufgerufen als http://v-btacockpit-1:8765/app/?ansicht=aufnahme im Browser
+   des Handys (Android und iPhone gleich, „zum Startbildschirm" macht daraus
+   eine App ohne Store). Dieselbe Datei wie am PC, aber statt des Cockpits
+   nur: Foto · Notiz · Anlage · Ziel-Vorschlag · „Ab ins Cockpit". Das Foto
+   geht über den Foto-Weg des Dienstes (seit 30.09.), die Aufnahme als
+   Eintrag über denselben Speicherweg wie alles andere.
+   Verbindungsloch (Außenlager, WLAN-Rand): Die Aufnahme bleibt im offenen
+   Tab und wird alle 10 s neu versucht. Was dieser Puffer NICHT kann: einen
+   geschlossenen Tab oder ein Neuladen überleben - dafür bräuchte es HTTPS
+   (Service Worker), siehe Roll-out 61 Stufe 3. Die Oberfläche sagt das. */
+function HandyAufnahme({ entries, persistNeu, anlagen, todayKey, fotoUrl, darfSchreiben, benutzerAktiv, angemeldet, anmeldung, setAnmeldung, anmelden, abmelden, host, name, setName, onFotoGross }) {
+  const [notiz, setNotiz] = useState("");
+  const [anlage, setAnlage] = useState("");
+  const [ziel, setZiel] = useState("");
+  const [fotos, setFotos] = useState([]);        // frisch gemachte Bilder: {neuId, datei, blob, url, ts}
+  const [sendet, setSendet] = useState(false);
+  const [wartend, setWartend] = useState([]);    // Pakete ohne Verbindung: {eintrag, offen: [Foto…]}
+  const [meldung, setMeldung] = useState(null);  // {art: "ok"|"fehler", text}
+  const [schluesselZeigen, setSchluesselZeigen] = useState(() => !sharedFile.werkstattSchluessel());
+  const [laeuft, setLaeuft] = useState(false);
+  const laeuftRef = useRef(false);
+  const uhr = new Date();
+
+  const bildWaehlen = async (ev) => {
+    const dateien = Array.from(ev.target.files || []);
+    ev.target.value = "";
+    setLaeuft(true);
+    for (const datei of dateien) {
+      try {
+        const blob = await fotoEindampfen(datei);
+        setFotos((f) => [...f, { neuId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, datei: neuerFotoName(todayKey), blob, url: URL.createObjectURL(blob), ts: new Date().toISOString() }]);
+      } catch (e) {
+        setMeldung({ art: "fehler", text: `„${datei.name}" ist kein lesbares Bild - übersprungen.` });
+      }
+    }
+    setLaeuft(false);
+  };
+  const bildWeg = (neuId) => setFotos((f) => { const raus = f.find((x) => x.neuId === neuId); if (raus) { try { URL.revokeObjectURL(raus.url); } catch (e) { /* egal */ } } return f.filter((x) => x.neuId !== neuId); });
+
+  // Ein Paket zum Server bringen: erst die Fotos (jedes nur einmal - was
+  // oben ist, bleibt oben), dann der Eintrag. Scheitert etwas, bleibt der
+  // Rest im Paket und der nächste Versuch macht dort weiter.
+  const versenden = async (paket) => {
+    try {
+      while (paket.offen.length) {
+        const n = paket.offen[0];
+        await sharedFile.fotoSpeichern(n.datei, n.blob);
+        paket.eintrag.fotos.push({ datei: n.datei, wer: paket.eintrag.wer, ts: n.ts });
+        paket.offen.shift();
+        try { URL.revokeObjectURL(n.url); } catch (e) { /* egal */ }
+      }
+      const ok = await persistNeu(paket.eintrag);
+      if (!ok) throw new Error("Der Eintrag konnte nicht gespeichert werden.");
+      setMeldung({ art: "ok", text: `Im Cockpit · ${aufnahmeZeitText(new Date().toISOString())} Uhr${paket.eintrag.fotos.length ? ` · ${paket.eintrag.fotos.length} Foto(s)` : ""}` });
+      return true;
+    } catch (e) {
+      const abgewiesen = /Schlüssel/.test(String((e && e.message) || ""));
+      if (abgewiesen) setSchluesselZeigen(true);
+      setMeldung({ art: "fehler", text: abgewiesen
+        ? "Der Server hat das Foto abgewiesen: Werkstatt-Schlüssel fehlt oder ist falsch - unten eintragen, dann geht es von selbst weiter."
+        : "Keine Verbindung zum Server - die Aufnahme wartet hier im Tab und geht raus, sobald das WLAN wieder da ist. Tab offen lassen." });
+      return false;
+    }
+  };
+  const abschicken = async () => {
+    const wer = String(name || "").trim();
+    if (!wer) { setMeldung({ art: "fehler", text: "Erst oben den Namen eintragen - er steht später an der Aufnahme." }); return; }
+    if (!fotos.length && !notiz.trim()) { setMeldung({ art: "fehler", text: "Erst ein Foto machen oder eine Notiz schreiben." }); return; }
+    const eintrag = {
+      id: `aufn-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      date: todayKey, category: "AUFNAHME", name: anlage, status: "open",
+      note: notiz.trim(), fotos: [], wer, zeit: new Date().toISOString(), quelle: "handy",
+      ...(ziel ? { zielWunsch: ziel } : {}),
+    };
+    const paket = { eintrag, offen: fotos };
+    setFotos([]); setNotiz(""); setZiel(""); // die Anlage bleibt - das nächste Bild ist oft dieselbe
+    setSendet(true);
+    const ok = await versenden(paket);
+    setSendet(false);
+    if (!ok) setWartend((w) => [...w, paket]);
+  };
+  // Nachsenden alle 10 s, solange etwas wartet (ein Versuch zur Zeit).
+  useEffect(() => {
+    if (!wartend.length) return undefined;
+    const t = setInterval(async () => {
+      if (laeuftRef.current) return;
+      laeuftRef.current = true;
+      const paket = wartend[0];
+      const ok = await versenden(paket);
+      if (ok) setWartend((w) => w.filter((x) => x !== paket));
+      laeuftRef.current = false;
+    }, 10000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wartend]);
+
+  const heute = entries
+    .filter((e) => e.category === "AUFNAHME" && aufnahmeTagKey(aufnahmeZeitVon(e)) === todayKey && (!name || !e.wer || e.wer === name))
+    .sort((a, b) => String(aufnahmeZeitVon(b)).localeCompare(String(aufnahmeZeitVon(a))));
+  const knopf = { border: "none", borderRadius: "12px", fontWeight: 800, cursor: "pointer" };
+  const feld = { width: "100%", boxSizing: "border-box", border: "1px solid #D6D9DC", borderRadius: "12px", padding: "12px 14px", fontSize: "16px", backgroundColor: "#fff" };
+  const anmeldeBlock = benutzerAktiv && !angemeldet;
+  return (
+    <div data-handy-aufnahme style={{ minHeight: "100vh", backgroundColor: "#EBEDEF", fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", color: "#22262B" }}>
+      <div style={{ backgroundColor: "#C97A2B", color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px", position: "sticky", top: 0, zIndex: 5 }}>
+        <span style={{ fontSize: "20px" }}>📷</span>
+        <span style={{ fontWeight: 900, fontSize: "18px" }}>Aufnahme</span>
+        <span style={{ marginLeft: "auto", fontSize: "12px", opacity: 0.9, textAlign: "right" }}>
+          {uhr.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })}<br />{host}
+        </span>
+      </div>
+      {/* minmax(0, 1fr): sonst drückt eine lange Notiz (nowrap) das Raster breiter als das Handy */}
+      <div style={{ maxWidth: "560px", margin: "0 auto", padding: "14px 16px 40px", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: "12px" }}>
+        {anmeldeBlock ? (
+          <div style={{ backgroundColor: "#fff", borderRadius: "14px", padding: "14px", border: "1px solid #E2E4E7" }}>
+            <div style={{ fontWeight: 800, marginBottom: "8px" }}>Anmelden wie am PC</div>
+            <input value={anmeldung.name} onChange={(e) => setAnmeldung((v) => ({ ...v, name: e.target.value, fehler: "" }))} placeholder="Benutzername" aria-label="Benutzername" autoCapitalize="none" style={{ ...feld, marginBottom: "8px" }} />
+            <input type="password" value={anmeldung.kennwort} onChange={(e) => setAnmeldung((v) => ({ ...v, kennwort: e.target.value, fehler: "" }))} placeholder="Kennwort (falls gesetzt)" aria-label="Kennwort" style={{ ...feld, marginBottom: "8px" }} />
+            {anmeldung.fehler && <div style={{ color: "#C0392B", fontSize: "13px", marginBottom: "8px" }}>{anmeldung.fehler}</div>}
+            <button onClick={anmelden} style={{ ...knopf, width: "100%", padding: "12px", backgroundColor: "#22262B", color: "#fff", fontSize: "16px" }}>Anmelden</button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Dein Name / Kürzel" aria-label="Name" readOnly={!!angemeldet} style={{ ...feld, flex: 1, backgroundColor: angemeldet ? "#F4F5F6" : "#fff" }} />
+            {angemeldet && <button onClick={abmelden} style={{ ...knopf, padding: "10px 12px", backgroundColor: "#E2E4E7", color: "#4B5259", fontSize: "13px" }}>Abmelden</button>}
+          </div>
+        )}
+        {!darfSchreiben && !anmeldeBlock && (
+          <div style={{ backgroundColor: "#FBF3DA", border: "1px solid #E7CF8F", borderRadius: "12px", padding: "10px 12px", fontSize: "13px", color: "#7A5A00" }}>
+            Dieses Gerät darf gerade nicht schreiben (Nur-Lesen oder Benutzer ohne Schreibrecht). Aufnahmen landen erst, wenn das Schreibrecht da ist.
+          </div>
+        )}
+
+        {/* Foto machen: capture öffnet am Handy direkt die Kamera; der zweite Weg die Galerie */}
+        <label data-handy-foto style={{ display: "block", backgroundColor: "#22262B", color: "#fff", borderRadius: "16px", padding: fotos.length ? "14px" : "34px 14px", textAlign: "center", cursor: "pointer" }}>
+          <div style={{ fontSize: fotos.length ? "16px" : "22px", fontWeight: 900 }}>📷 {fotos.length ? "Noch ein Foto" : "Foto machen"}</div>
+          {!fotos.length && <div style={{ fontSize: "12px", opacity: 0.75, marginTop: "4px" }}>öffnet die Kamera · mehrere nacheinander</div>}
+          <input type="file" accept="image/*" capture="environment" multiple hidden onChange={bildWaehlen} aria-label="Foto machen" />
+        </label>
+        <label style={{ textAlign: "center", fontSize: "13px", color: "#4B5259", cursor: "pointer", textDecoration: "underline" }}>
+          aus der Galerie wählen
+          <input type="file" accept="image/*" multiple hidden onChange={bildWaehlen} aria-label="Aus der Galerie wählen" />
+        </label>
+        {fotos.length > 0 && (
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {fotos.map((f) => (
+              <div key={f.neuId} style={{ position: "relative" }}>
+                <img src={f.url} alt="" onClick={() => onFotoGross && onFotoGross(fotos, fotos.indexOf(f))} style={{ width: "88px", height: "88px", objectFit: "cover", borderRadius: "10px", border: "1px solid #D6D9DC" }} />
+                <button onClick={() => bildWeg(f.neuId)} aria-label="Foto entfernen" style={{ ...knopf, position: "absolute", top: "-6px", right: "-6px", width: "24px", height: "24px", borderRadius: "50%", backgroundColor: "#B23A34", color: "#fff", fontSize: "13px", lineHeight: "24px", padding: 0 }}>✕</button>
+              </div>
+            ))}
+            {laeuft && <div style={{ fontSize: "12px", color: "#8A9099", alignSelf: "center" }}>Bild wird verkleinert …</div>}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          {AUFNAHME_ZIELE.filter(([k]) => k !== "WEG" && k !== "AKTE").map(([k, label, , zeichen, farbe]) => (
+            <button key={k} onClick={() => setZiel(ziel === k ? "" : k)} aria-pressed={ziel === k} data-handy-ziel={k}
+              style={{ ...knopf, padding: "9px 12px", fontSize: "14px", border: `2px solid ${ziel === k ? farbe : "#D6D9DC"}`, backgroundColor: ziel === k ? farbe : "#fff", color: ziel === k ? "#fff" : "#22262B" }}>
+              {zeichen} {label.replace(" → Backlog", "").replace(" melden", "")}
+            </button>
+          ))}
+          <button onClick={() => setZiel(ziel === "AKTE" ? "" : "AKTE")} aria-pressed={ziel === "AKTE"} data-handy-ziel="AKTE" style={{ ...knopf, padding: "9px 12px", fontSize: "14px", border: `2px solid ${ziel === "AKTE" ? "#4B5259" : "#D6D9DC"}`, backgroundColor: ziel === "AKTE" ? "#4B5259" : "#fff", color: ziel === "AKTE" ? "#fff" : "#22262B" }}>🗂 Akte</button>
+          <span style={{ alignSelf: "center", fontSize: "12px", color: "#8A9099" }}>{ziel ? "Vorschlag fürs Sortieren am PC" : "ohne Wahl: am PC sortieren"}</span>
+        </div>
+        <textarea value={notiz} onChange={(e) => setNotiz(e.target.value)} placeholder="Notiz … (was ist zu sehen, was ist zu tun?)" aria-label="Notiz" rows={2} style={{ ...feld, resize: "vertical" }} />
+        <select value={anlage} onChange={(e) => setAnlage(e.target.value)} aria-label="Anlage" style={{ ...feld, fontWeight: anlage ? 700 : 400 }}>
+          <option value="">Anlage: – noch offen –</option>
+          {anlagen.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <button onClick={abschicken} disabled={sendet || !darfSchreiben || anmeldeBlock} data-handy-senden
+          style={{ ...knopf, width: "100%", padding: "16px", backgroundColor: sendet ? "#8A9099" : "#22262B", color: "#fff", fontSize: "17px", opacity: !darfSchreiben || anmeldeBlock ? 0.5 : 1 }}>
+          {sendet ? "wird gesendet …" : "✓ Ab ins Cockpit"}
+        </button>
+        {meldung && (
+          <div data-handy-meldung={meldung.art} style={{ borderRadius: "12px", padding: "10px 12px", fontSize: "14px", backgroundColor: meldung.art === "ok" ? "#E3F1E6" : "#FBEAE8", color: meldung.art === "ok" ? "#1F7A3D" : "#B23A34", border: `1px solid ${meldung.art === "ok" ? "#B9DCC2" : "#E8B4AE"}` }}>
+            {meldung.art === "ok" ? "✓ " : "⚠ "}{meldung.text}
+          </div>
+        )}
+        {wartend.length > 0 && (
+          <div data-handy-wartend={wartend.length} style={{ borderRadius: "12px", padding: "10px 12px", fontSize: "13px", backgroundColor: "#FBF3DA", color: "#7A5A00", border: "1px solid #E7CF8F" }}>
+            ⏳ {wartend.length} Aufnahme{wartend.length > 1 ? "n warten" : " wartet"} auf die Verbindung - alle 10 s ein neuer Versuch. Diesen Tab offen lassen; ein Neuladen würde sie verlieren.
+          </div>
+        )}
+        {schluesselZeigen && (
+          <div style={{ backgroundColor: "#fff", borderRadius: "12px", padding: "10px 12px", border: "1px solid #E2E4E7", fontSize: "13px" }}>
+            <div style={{ fontWeight: 800, marginBottom: "4px" }}>Werkstatt-Schlüssel</div>
+            <div style={{ color: "#5B6572", marginBottom: "6px" }}>Einmal eintragen - derselbe wie am PC (Zahnrad → Server). Bleibt auf diesem Handy.</div>
+            <input type="password" defaultValue={sharedFile.werkstattSchluessel()} onChange={(e) => sharedFile.setzeWerkstattSchluessel(e.target.value)} placeholder="Schlüssel" aria-label="Werkstatt-Schlüssel" autoCapitalize="none" style={feld} />
+          </div>
+        )}
+
+        <div style={{ fontSize: "11px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8A9099", marginTop: "6px" }}>Heute aufgenommen · {heute.length}</div>
+        {heute.length === 0 && <div style={{ fontSize: "13px", color: "#8A9099", fontStyle: "italic" }}>noch nichts</div>}
+        {heute.map((e) => {
+          const f = fotoListeVon(e)[0];
+          const url = f ? fotoUrl(f.datei) : null;
+          const sortiert = e.status === "done" && AUFNAHME_ZIEL[e.ziel];
+          return (
+            <div key={e.id} data-handy-heute style={{ display: "flex", gap: "10px", alignItems: "center", backgroundColor: "#fff", borderRadius: "12px", padding: "8px", border: "1px solid #E2E4E7" }}>
+              <div style={{ width: "56px", height: "56px", borderRadius: "8px", backgroundColor: "#D6D9DC", overflow: "hidden", flexShrink: 0 }}>
+                {url ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.note || <span style={{ color: "#8A9099", fontStyle: "italic" }}>ohne Notiz</span>}</div>
+                <div style={{ fontSize: "12px", color: "#8A9099" }}>
+                  {aufnahmeZeitText(aufnahmeZeitVon(e))}{e.name ? ` · ${e.name}` : ""}
+                  {sortiert ? ` · ${AUFNAHME_ZIEL[e.ziel].zeichen} ${AUFNAHME_ZIEL[e.ziel].label}` : e.zielWunsch && AUFNAHME_ZIEL[e.zielWunsch] ? ` · Vorschlag ${AUFNAHME_ZIEL[e.zielWunsch].label}` : " · wartet am PC"}
+                </div>
+              </div>
+              <span style={{ color: sortiert ? "#1F7A3D" : "#C97A2B", fontWeight: 900 }}>{sortiert ? "✓" : "…"}</span>
+            </div>
+          );
+        })}
+        <div style={{ fontSize: "11px", color: "#8A9099", textAlign: "center", marginTop: "10px" }}>
+          Tipp: Im Browser „Zum Startbildschirm hinzufügen" - dann liegt die Aufnahme wie eine App auf dem Handy.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Benutzergruppen (Robertos Wunsch vom 07.08.) ----------
    Eine Namensliste in der gemeinsamen Datei entscheidet, wer schreiben darf -
    damit hängt die Rechtevergabe nicht an den Datei-Freigaben des Laufwerks. Drei Rollen:
@@ -1761,6 +2025,10 @@ const RECHTE_BEREICHE = [
   ["TPM", "TPM", "Wissen, Plan, Auswertung, Register", "bereich", "sehen"],
   ["PINNWAND", "Pinnwand", "auf der Übersicht – Leser sehen nur veröffentlichte Zettel", "bereich", "sehen"],
   ["LINKS", "Links & Dokumente", "Linkstreifen auf der Übersicht", "bereich", "sehen"],
+  // Reiter Aufnahme (Roll-out 61, 06.10.): Bilder vom Handy und aus dem
+  // Eingangsordner sortieren. Sortieren schreibt immer (Arbeit, To-do, …) -
+  // deshalb für Leser aus.
+  ["AUFNAHME", "Aufnahme", "Reiter Aufnahme – Bilder vom Handy und aus dem Eingangsordner in Arbeit, To-do, Störung, Zettel oder Akte sortieren", "bereich", "aus"],
   ["MELDEN", "Störung melden", "neuen Störbericht erfassen – auch ohne Schreibrecht im Bereich", "aktion", "sehen"],
   // Seit dem 24.09. (Robertos Ansage) nur noch Verwaltersache - die Zeilen
   // bleiben in der Tabelle stehen, damit man sieht, dass es so gewollt ist.
@@ -1797,12 +2065,12 @@ function normalisiereProgrammStand(roh) {
 const RECHTE_STANDARD = {
   bearbeiter: {
     SCHICHTPLAN: "bearbeiten", PLANUNG: "bearbeiten", TODO: "bearbeiten", STOERUNGEN: "bearbeiten", BACKLOG: "bearbeiten",
-    ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten",
+    ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten", AUFNAHME: "bearbeiten",
     MELDEN: "sehen", DRUCKEN: "sehen", SCHICHTBERICHT: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
   leser: {
     SCHICHTPLAN: "sehen", PLANUNG: "aus", TODO: "sehen", STOERUNGEN: "bearbeiten", BACKLOG: "aus",
-    ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus",
+    ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus", AUFNAHME: "aus",
     MELDEN: "sehen", DRUCKEN: "sehen", SCHICHTBERICHT: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
 };
@@ -3062,8 +3330,19 @@ function App() {
   const [verbindenBlockiert, setVerbindenBlockiert] = useState(false);
   const [stoerVerbindenBlockiert, setStoerVerbindenBlockiert] = useState(false);
   const istRechteVerweigerung = (e) => /Not allowed to request permissions/.test(String(e && e.message || ""));
-  const [arbeitModal, setArbeitModal] = useState(null); // null | {mode:'add', ausZettel?} | {mode:'edit', id}
+  const [arbeitModal, setArbeitModal] = useState(null); // null | {mode:'add', ausZettel?, ausAufnahme?} | {mode:'edit', id}
   const [aDraft, setADraft] = useState(null);
+  // Reiter Aufnahme (Roll-out 61, 06.10.)
+  const [aufnahmeTab, setAufnahmeTab] = useState("EINGANG"); // EINGANG (Korb) | BLAETTERN (eines nach dem anderen) | FILM (Tagesfilm)
+  const [eingangDateien, setEingangDateien] = useState([]); // Bilder im Eingangsordner dieses PCs (Kennwerte + Lader)
+  const [eingangLage, setEingangLage] = useState(() => eingangsordner.status()); // none | needs-permission | ok
+  const [eingangFehler, setEingangFehler] = useState("");
+  const [eingangTage, setEingangTage] = useState(() => { const v = Number(localStorage.getItem(nsKey("aufnahme-eingang-tage"))); return [7, 14, 30, 90].includes(v) ? v : 14; });
+  const [aufnahmeVerarbeitet, setAufnahmeVerarbeitet] = useState(leseAufnahmeVerarbeitet);
+  const [aufnahmeKarteKey, setAufnahmeKarteKey] = useState(null); // Durchblättern: aktuelle Karte (null = erste offene)
+  const [aufnahmeTag, setAufnahmeTag] = useState(null); // Tagesfilm: Tag (null = heute)
+  const [aufnahmeEdit, setAufnahmeEdit] = useState({}); // Schlüssel -> {note, anlage}: Änderungen vor dem Sortieren
+  const eingangVorschauRef = useRef(new Map()); // Datei-Schlüssel -> Objekt-URL | "" (lädt) | null (nicht lesbar)
   const [akteAnlage, setAkteAnlage] = useState(null); // Anlagen-Akte (Name) | null
   const [planungCursor, setPlanungCursor] = useState(() => new Date()); // Woche der Arbeitsplanung
   const [planungPicker, setPlanungPicker] = useState(null); // {person, datum} | null
@@ -3635,6 +3914,7 @@ function App() {
     if (v === "COCKPIT") return cTab === "UEBERSICHT" || sichtbar(cTab);
     if (v === "BERICHTE") return bTab === "START" || sichtbar(bTab);
     if (v === "REGISTER") return sichtbar("TPM") && !readerMode;
+    if (v === "AUFNAHME") return sichtbar("AUFNAHME") && !readerMode; // Sortieren schreibt immer
     return sichtbar("TPM"); // TPMINFO, MONAT, JAHR
   };
 
@@ -3813,6 +4093,9 @@ function App() {
     // Der gespeicherte Bericht wird zurückgegeben (mit endgültiger Nummer) -
     // "Speichern + zur Zeiterfassung" braucht ihn zum Vorbefüllen.
     let ergebnis = null;
+    // Kam der Bericht aus dem Reiter Aufnahme? Dann gilt die Aufnahme nach
+    // dem Speichern als sortiert (Kalender-Bestand, eigener Speicherweg).
+    const ausAufnahme = stoerModal && stoerModal.mode === "add" ? stoerModal.ausAufnahme || null : null;
     // Maske JETZT schließen - persistStoer setzt den örtlichen Stand sofort,
     // nur das Schreiben in die Datei dauert. Darauf muss niemand warten.
     setStoerModal(null);
@@ -3848,6 +4131,7 @@ function App() {
     }
     fotosAufraeumen(draft.fotosWeg);
     if (fotoFehler) setErr(fotoFehler); // nach dem persist, sonst räumt der Erfolg die Warnung weg
+    if (ausAufnahme) await persist(aufnahmeAbschliessen(entriesRef.current, ausAufnahme, "STOERUNG", ergebnis ? ergebnis.id : null));
     return ergebnis;
   };
   const stoerStatusUmschalten = async (id) => {
@@ -5095,6 +5379,9 @@ function App() {
   // ein BEARBEITER fälschlich im Schreibschutz gelandet ist. Normale Leser sehen
   // diese Knöpfe nicht (zu verlockend).
   const rettungsModus = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("verwalten") === "1";
+  // ...app/?ansicht=aufnahme: die schlanke Handy-Ansicht (Roll-out 61, Stufe 2)
+  // statt des ganzen Cockpits - siehe HandyAufnahme.
+  const handyAufnahme = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("ansicht") === "aufnahme";
   // In der PROGRAMM-Fassung gibt es keine Adresszeile - ?verwalten=1 ist dort
   // unerreichbar (Robertos Laufwerks-Probe am 10.08.: Schreibschutz, aber kein
   // Weg zum technischen Grund). Deshalb zeigt das Programm den Grund und den
@@ -6057,6 +6344,11 @@ function App() {
     if (!m) return;
     if (!String(m.titel || "").trim()) { setTodoFehler("Bitte aufschreiben, WAS zu tun ist."); return; }
     const alt = m.id ? todos.find((t) => t.id === m.id) : null;
+    // Fotos am To-do (Roll-out 61): kommen nur aus dem Reiter Aufnahme mit -
+    // ein Bild aus dem Eingangsordner wird jetzt in den Datenordner geschrieben.
+    const { verweise: fotos, fotoFehler } = (m.fotosNeu && m.fotosNeu.length) || (m.fotos && m.fotos.length)
+      ? await fotosVerarbeiten({ fotos: m.fotos || [], fotosNeu: m.fotosNeu || [] })
+      : { verweise: fotoListeVon(alt), fotoFehler: null };
     const eintrag = {
       ...(alt || {}),
       id: m.id || `todo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -6066,8 +6358,12 @@ function App() {
       bemerkung: String(m.bemerkung || "").trim(),
       erteiltVon: alt ? (alt.erteiltVon || "") : (angemeldet || ""),
       status: alt ? alt.status : "offen",
+      ...(fotos.length > 0 ? { fotos } : {}),
     };
-    const ok = await persist(m.id ? entries.map((e) => (e.id === m.id ? eintrag : e)) : [...entries, eintrag]);
+    let basis = entries;
+    if (m.ausAufnahme) basis = aufnahmeAbschliessen(basis, m.ausAufnahme, "TODO", eintrag.id);
+    const ok = await persist(m.id ? basis.map((e) => (e.id === m.id ? eintrag : e)) : [...basis, eintrag]);
+    if (fotoFehler) setErr(fotoFehler);
     if (ok) { setTodoModal(null); setTodoFehler(null); }
   };
   const todoLoeschen = async () => {
@@ -7249,14 +7545,16 @@ function App() {
     setZettelFotosNeu([]);
     setZettelOpen(false);
   };
-  const addZettel = async (text, name, extras = {}) => {
+  // zusatz (Reiter Aufnahme, 06.10.): {fotos, fotosNeu, ausAufnahme} - der
+  // Zettel entsteht dann ohne das Pinnwand-Formular, direkt aus einer Karte.
+  const addZettel = async (text, name, extras = {}, zusatz = null) => {
     if (!String(text || "").trim() || !String(name || "").trim()) return;
     setZettelName(String(name).trim());
     localStorage.setItem(nsKey("werkstatt-kalender-name"), String(name).trim());
     const sichtbar = ZETTEL_SICHTBAR.some(([k]) => k === extras.sichtbar) ? extras.sichtbar : "verwalter";
     // Erst die angehängten Fotos in den Datenordner schreiben - am Zettel
     // steht wie bei Arbeit und Störung nur der Verweis, die JSON bleibt klein.
-    const { verweise: fotos, fotoFehler } = await fotosVerarbeiten({ fotos: [], fotosNeu: zettelFotosNeu });
+    const { verweise: fotos, fotoFehler } = await fotosVerarbeiten({ fotos: (zusatz && zusatz.fotos) || [], fotosNeu: zusatz ? (zusatz.fotosNeu || []) : zettelFotosNeu });
     const zettel = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       date: todayKey,
@@ -7276,8 +7574,10 @@ function App() {
       veroeffentlicht: sichtbar === "alle",
       ...(fotos.length > 0 ? { fotos } : {}),
     };
-    await persist([...entries, zettel]);
+    const basis = zusatz && zusatz.ausAufnahme ? aufnahmeAbschliessen(entries, zusatz.ausAufnahme, "ZETTEL", zettel.id) : entries;
+    await persist([...basis, zettel]);
     if (fotoFehler) setErr(fotoFehler); // nach dem persist, sonst räumt der Erfolg die Warnung weg
+    if (zusatz) return;
     setZettelFotosNeu([]);
     setZettelOpen(false);
   };
@@ -7608,9 +7908,11 @@ function App() {
       anlage: vorgabe.anlage || "", anlageCustom: "", note: vorgabe.note || "",
       prio: "ohne", art: vorgabe.art || "mech", azubi: false, stillstand: false,
       wer: "", geplant: "", uhrzeit: "", uhrzeitBis: "", melder: vorgabe.melder || "",
-      fotos: vorgabe.fotos || [], fotosNeu: [], fotosWeg: [],
+      // fotosNeu kommt aus dem Reiter Aufnahme (Bild aus dem Eingangsordner,
+      // noch nicht im Datenordner) - geschrieben wird es erst mit „Speichern".
+      fotos: vorgabe.fotos || [], fotosNeu: vorgabe.fotosNeu || [], fotosWeg: [],
     });
-    setArbeitModal({ mode: "add", ausZettel: vorgabe.ausZettel || null });
+    setArbeitModal({ mode: "add", ausZettel: vorgabe.ausZettel || null, ausAufnahme: vorgabe.ausAufnahme || null });
   };
   const openArbeitEdit = (a) => {
     if (readerMode) return;
@@ -7655,7 +7957,9 @@ function App() {
         zeit: new Date().toISOString(),
       };
       // Kam die Arbeit von einem Pinnwand-Zettel, wird er in derselben Speicherung entfernt
-      const basis = arbeitModal.ausZettel ? entries.filter((e) => e.id !== arbeitModal.ausZettel) : entries;
+      let basis = arbeitModal.ausZettel ? entries.filter((e) => e.id !== arbeitModal.ausZettel) : entries;
+      // Kam sie aus dem Reiter Aufnahme, gilt die Aufnahme damit als sortiert
+      if (arbeitModal.ausAufnahme) basis = aufnahmeAbschliessen(basis, arbeitModal.ausAufnahme, "ARBEIT", a.id);
       await persist([...basis, a]);
     } else {
       await persist(entries.map((e) => e.id === arbeitModal.id
@@ -7671,6 +7975,210 @@ function App() {
       ? { ...e, status, erledigtAm: status === "done" ? todayKey : undefined }
       : e));
   };
+  /* ---------- Reiter Aufnahme: Daten und Sortieren (Roll-out 61, 06.10.) ---------- */
+  const aufnahmen = useMemo(() => entries.filter((e) => e.category === "AUFNAHME"), [entries]);
+  const aufnahmenOffen = aufnahmen.filter((e) => e.status !== "done");
+  const eingangOffen = eingangDateien.filter((d) => !aufnahmeVerarbeitet[d.key]);
+  const aufnahmeOffenZahl = aufnahmenOffen.length + eingangOffen.length;
+  const aufnahmeDarf = !readerMode && !nurLesen("AUFNAHME");
+  // Eine Karte im Eingangskorb: Aufnahme vom Handy (Eintrag) oder Datei aus
+  // dem Eingangsordner. Beide tragen dieselben Felder, damit Korb, Durch-
+  // blättern und Tagesfilm nicht zwei Sorten kennen müssen.
+  const karteAusEintrag = (e) => ({ art: "eintrag", key: e.id, id: e.id, e, zeit: aufnahmeZeitVon(e), note: e.note || "", anlage: e.name || "", wer: e.wer || "", quelle: e.quelle === "pc" ? "PC-Ordner" : "Handy", zielWunsch: e.zielWunsch || "", sortiert: e.status === "done" ? { ziel: e.ziel, am: e.sortiertAm } : null });
+  const karteAusDatei = (d) => ({ art: "datei", key: d.key, d, zeit: new Date(d.geaendert).toISOString(), note: "", anlage: "", wer: "", quelle: "PC-Ordner", zielWunsch: "", sortiert: aufnahmeVerarbeitet[d.key] || null, dateiName: d.name });
+  const aufnahmeKarten = useMemo(() => [
+    ...aufnahmenOffen.map(karteAusEintrag),
+    ...eingangOffen.map(karteAusDatei),
+  ].sort((a, b) => String(a.zeit).localeCompare(String(b.zeit))), [aufnahmen, eingangDateien, aufnahmeVerarbeitet]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Die Felder einer Karte, wie der Bediener sie vor dem Sortieren geändert hat
+  const karteFelder = (k) => {
+    const ed = aufnahmeEdit[k.key] || {};
+    const note = ed.note !== undefined ? ed.note : k.note;
+    const anlage = ed.anlage !== undefined ? ed.anlage : (k.anlage || rateAnlage(note));
+    return { note: String(note || "").trim(), anlage: String(anlage || "").trim() };
+  };
+  const karteFeldSetzen = (key, patch) => setAufnahmeEdit((m) => ({ ...m, [key]: { ...(m[key] || {}), ...patch } }));
+  // Vorschau einer Datei aus dem Eingangsordner: einmal lesen, als Objekt-URL
+  // merken. "" = lädt, null = nicht lesbar.
+  const eingangVorschau = (d) => {
+    const m = eingangVorschauRef.current;
+    if (m.has(d.key)) return m.get(d.key);
+    m.set(d.key, "");
+    d.datei().then((f) => { m.set(d.key, URL.createObjectURL(f)); setFotoTick((t) => t + 1); })
+      .catch(() => { m.set(d.key, null); setFotoTick((t) => t + 1); });
+    return "";
+  };
+  const karteBild = (k) => {
+    if (k.art === "datei") return eingangVorschau(k.d);
+    const f = fotoListeVon(k.e)[0];
+    return f ? fotoUrl(f.datei) : null;
+  };
+  // Eingangsordner lesen (jüngste N Tage). Still bei Fehlern - die Oberfläche
+  // zeigt den Grund in der Kopfzeile, nie eine rote Meldung im Takt.
+  const eingangScannen = async () => {
+    if (eingangsordner.status() !== "ok") { setEingangDateien([]); return; }
+    try {
+      const liste = await eingangsordner.listeBilder({ seitMs: Date.now() - eingangTage * 864e5 });
+      setEingangDateien(liste);
+      setEingangFehler("");
+    } catch (e) {
+      setEingangFehler(`Der Eingangsordner ist gerade nicht lesbar: ${(e && e.message) || e}`);
+    }
+  };
+  useEffect(() => {
+    let weg = false;
+    eingangsordner.wiederherstellen().then((s) => { if (!weg) setEingangLage(s); });
+    // Prüfstand (harte-108): Ordner-Attrappe ohne Dialog angebunden
+    const h = () => setEingangLage(eingangsordner.status());
+    window.addEventListener("bta-eingangsordner", h);
+    return () => { weg = true; window.removeEventListener("bta-eingangsordner", h); };
+  }, []);
+  useEffect(() => {
+    if (eingangLage !== "ok") return undefined;
+    eingangScannen();
+    // Im Reiter alle 20 s, sonst alle 2 Minuten (nur fürs Zählkreischen am Reiter)
+    const t = setInterval(eingangScannen, view === "AUFNAHME" ? 20000 : 120000);
+    const aufFokus = () => eingangScannen();
+    window.addEventListener("focus", aufFokus);
+    return () => { clearInterval(t); window.removeEventListener("focus", aufFokus); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eingangLage, eingangTage, view]);
+  const eingangWaehlen = async () => {
+    try {
+      const r = await eingangsordner.waehlen();
+      setEingangLage(eingangsordner.status());
+      setEingangFehler("");
+      sharedFile.dispatchOk(`Eingangsordner „${r.name}" verbunden - neue Bilder erscheinen im Eingang.`);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      setEingangFehler(String((e && e.message) || e));
+    }
+  };
+  const eingangPfadSetzen = async (pfad) => {
+    try { const r = await eingangsordner.setzePfad(pfad); setEingangLage(eingangsordner.status()); setEingangFehler(""); sharedFile.dispatchOk(`Eingangsordner „${r.name}" verbunden.`); }
+    catch (e) { setEingangFehler(String((e && e.message) || e)); }
+  };
+  const eingangFreigeben = async () => {
+    try { await eingangsordner.freigeben(); setEingangLage(eingangsordner.status()); setEingangFehler(""); }
+    catch (e) { setEingangFehler(String((e && e.message) || e)); }
+  };
+  const eingangTrennen = async () => {
+    if (!window.confirm("Den Eingangsordner trennen? Die Dateien bleiben auf dem PC, der Eingang zeigt sie nur nicht mehr.")) return;
+    await eingangsordner.vergessen();
+    setEingangLage("none"); setEingangDateien([]);
+  };
+  const merkeVerarbeitet = (key, ziel, zielId) => {
+    setAufnahmeVerarbeitet((v) => schreibeAufnahmeVerarbeitet({ ...v, [key]: { ziel, am: new Date().toISOString(), zielId: zielId || undefined } }));
+  };
+  // Eine Aufnahme als sortiert abschließen: beim Eintrag (Handy) im Bestand
+  // (status done + ziel), bei der Datei (PC) im Gedächtnis dieses Rechners.
+  // Gibt die Liste zurück, die der Aufrufer in DERSELBEN Speicherung schreibt.
+  const aufnahmeAbschliessen = (liste, herkunft, ziel, zielId) => {
+    if (!herkunft) return liste;
+    const stempel = { sortiertAm: new Date().toISOString(), sortiertVon: angemeldet || zettelName || "" };
+    if (herkunft.art === "eintrag") {
+      const felder = herkunft.felder || {};
+      return liste.map((x) => (x.id === herkunft.id ? { ...x, status: "done", ziel, zielId: zielId || undefined, ...(felder.note !== undefined ? { note: felder.note } : {}), ...(felder.anlage ? { name: felder.anlage } : {}), ...stempel } : x));
+    }
+    merkeVerarbeitet(herkunft.key, ziel, zielId);
+    return liste;
+  };
+  // Das Bild einer Datei-Karte für den Ziel-Dialog vorbereiten: eindampfen
+  // wie ein Handyfoto, in den Datenordner kommt es erst mit „Speichern".
+  const karteFotosNeu = async (k, wer) => {
+    if (k.art !== "datei") return [];
+    const f = await k.d.datei();
+    const blob = await fotoEindampfen(f);
+    return [{ neuId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, datei: neuerFotoName(aufnahmeTagKey(k.zeit) || todayKey), blob, url: URL.createObjectURL(blob), wer, ts: k.zeit }];
+  };
+  // Durchblättern: welche Karte ist dran?
+  const aufnahmeAktuelleKarte = aufnahmeKarten.find((k) => k.key === aufnahmeKarteKey) || aufnahmeKarten[0] || null;
+  const aufnahmeBlaettern = (schritt) => {
+    if (!aufnahmeKarten.length) return;
+    const i = Math.max(0, aufnahmeKarten.findIndex((k) => k.key === (aufnahmeAktuelleKarte && aufnahmeAktuelleKarte.key)));
+    const n = (i + schritt + aufnahmeKarten.length) % aufnahmeKarten.length;
+    setAufnahmeKarteKey(aufnahmeKarten[n].key);
+  };
+  /* Sortieren = die Karte in ein Ziel bringen. Arbeit, To-do und Störung
+     öffnen den gewohnten Dialog mit Bild, Anlage und Text vorbelegt - erst
+     dessen „Speichern" schließt die Aufnahme ab (Abbrechen lässt sie im Korb).
+     Zettel, Akte und Weg brauchen keinen Dialog. */
+  const aufnahmeSortieren = async (k, ziel) => {
+    if (!k || !aufnahmeDarf) return;
+    const { note, anlage } = karteFelder(k);
+    const wer = k.wer || angemeldet || zettelName || "";
+    const herkunft = { art: k.art, key: k.key, id: k.id, felder: { note, anlage } };
+    const fotos = k.art === "eintrag" ? fotoListeVon(k.e) : [];
+    const zeitText = `${formatDateDE(aufnahmeTagKey(k.zeit))} ${aufnahmeZeitText(k.zeit)} Uhr`;
+    try {
+      if (ziel === "WEG") {
+        if (k.art === "eintrag") {
+          if (!window.confirm("Diese Aufnahme samt Foto endgültig verwerfen?")) return;
+          await persist(entries.filter((x) => x.id !== k.id));
+          fotosAufraeumen(fotos.map((f) => f.datei));
+        } else {
+          merkeVerarbeitet(k.key, "WEG"); // die Datei bleibt auf dem PC - nur der Eingang zeigt sie nicht mehr
+        }
+        return;
+      }
+      if (ziel === "AKTE" && !anlage) {
+        setErr("Für die Anlagen-Akte braucht das Bild eine Anlage - im Durchblättern auswählen, dann „Akte“.");
+        setAufnahmeKarteKey(k.key); setAufnahmeTab("BLAETTERN");
+        return;
+      }
+      const fotosNeu = ziel === "ZETTEL" || ziel === "AKTE" || ziel === "ARBEIT" || ziel === "TODO" || ziel === "STOERUNG" ? await karteFotosNeu(k, wer) : [];
+      if (ziel === "ARBEIT") {
+        openArbeitNeu({ note, anlage, melder: wer, fotos, fotosNeu, ausAufnahme: herkunft });
+      } else if (ziel === "TODO") {
+        setTodoFehler(null);
+        setTodoModal({ titel: note, wer: "", bis: "", uhrzeit: "", prio: "", bemerkung: anlage ? `Anlage: ${anlage}` : "", fotos, fotosNeu, ausAufnahme: herkunft });
+      } else if (ziel === "STOERUNG") {
+        if (!stoerDarfMelden) { setErr("Störungen melden ist auf diesem Rechner gerade nicht möglich (Störungs-Datei nur lesend oder Recht fehlt)."); return; }
+        setSDraft({ ...neuerStoerEntwurf(), anlage, stoerung: note, fotos, fotosNeu, fotosWeg: [] });
+        setStoerModal({ mode: "add", ausAufnahme: herkunft });
+      } else if (ziel === "ZETTEL") {
+        const name = angemeldet || zettelName || "";
+        if (!name) { setErr("Für einen Pinnwand-Zettel braucht es einen Namen - oben rechts anmelden oder den Namen auf der Pinnwand eintragen."); return; }
+        await addZettel(note || `Foto vom ${zeitText}${anlage ? ` · ${anlage}` : ""}`, name, { sichtbar: "alle" }, { fotos, fotosNeu, ausAufnahme: herkunft });
+      } else if (ziel === "AKTE") {
+        if (k.art === "eintrag") {
+          await persist(aufnahmeAbschliessen(entries, herkunft, "AKTE"));
+        } else {
+          const { verweise, fotoFehler } = await fotosVerarbeiten({ fotos: [], fotosNeu });
+          if (!verweise.length) { setErr(fotoFehler || "Das Bild konnte nicht in den Datenordner geschrieben werden."); return; }
+          const neu = { id: `aufn-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: aufnahmeTagKey(k.zeit) || todayKey, category: "AUFNAHME", name: anlage, status: "done", note, fotos: verweise, wer, zeit: k.zeit, quelle: "pc", ziel: "AKTE", sortiertAm: new Date().toISOString(), sortiertVon: angemeldet || zettelName || "" };
+          merkeVerarbeitet(k.key, "AKTE", neu.id);
+          await persist([...entries, neu]);
+        }
+      }
+    } catch (e) {
+      setErr(`Das Bild konnte nicht übernommen werden: ${(e && e.message) || e}`);
+    }
+  };
+  // Durchblättern mit Tasten: 1-6 = Ziel, Pfeile = blättern. Nicht, wenn ein
+  // Dialog offen ist oder der Bediener gerade in ein Feld tippt.
+  useEffect(() => {
+    if (view !== "AUFNAHME" || aufnahmeTab !== "BLAETTERN") return undefined;
+    const h = (ev) => {
+      if (arbeitModal || todoModal || stoerModal || fotoGross || akteAnlage) return;
+      const t = ev.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (ev.key === "ArrowLeft") { aufnahmeBlaettern(-1); ev.preventDefault(); return; }
+      if (ev.key === "ArrowRight") { aufnahmeBlaettern(1); ev.preventDefault(); return; }
+      const i = ["1", "2", "3", "4", "5", "6"].indexOf(ev.key);
+      if (i >= 0 && aufnahmeAktuelleKarte) { aufnahmeSortieren(aufnahmeAktuelleKarte, AUFNAHME_ZIELE[i][0]); ev.preventDefault(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  });
+  // Heute sortiert, je Ziel (für die Zählkreise an den Zielen)
+  const aufnahmeHeuteSortiert = (() => {
+    const z = {}; AUFNAHME_ZIELE.forEach(([k]) => { z[k] = 0; });
+    aufnahmen.forEach((e) => { if (e.status === "done" && e.ziel && z[e.ziel] !== undefined && aufnahmeTagKey(e.sortiertAm || "") === todayKey) z[e.ziel]++; });
+    Object.values(aufnahmeVerarbeitet).forEach((v) => { if (v && z[v.ziel] !== undefined && aufnahmeTagKey(v.am || "") === todayKey && v.ziel !== "AKTE") z[v.ziel]++; }); // Akte aus Datei zählt schon als Eintrag
+    return z;
+  })();
+
   // ---- Anlagen-Akte ----
   const akteDaten = (() => {
     if (!akteAnlage) return null;
@@ -7691,7 +8199,12 @@ function App() {
     const quote = quoteFuer(tpm12);
     const tpmItem = tpmAnlagen.find((a) => a.name === akteAnlage);
     const naechste = todayPlanResult.assignments.find((p) => p.anlage === akteAnlage && p.date >= todayKey);
-    return { offene, erledigte, historie, quote, tpmItem, naechste };
+    // Bilder aus dem Reiter Aufnahme, die als Beleg in die Akte sortiert wurden (06.10.)
+    const bilder = aufnahmen
+      .filter((e) => e.status === "done" && e.ziel === "AKTE" && e.name === akteAnlage && fotoListeVon(e).length)
+      .sort((x, y) => String(aufnahmeZeitVon(y)).localeCompare(String(aufnahmeZeitVon(x))))
+      .slice(0, 12);
+    return { offene, erledigte, historie, quote, tpmItem, naechste, bilder };
   })();
 
   // ---- Arbeitsplanung (Wochenraster) ----
@@ -9489,6 +10002,48 @@ function App() {
   // ein "Nur Verwalter"-Zettel darf dort nie laufen (23.09.).
   const monitorZettelListe = () => zettelListe.filter((z) => z.monitor && zettelArtVon(z) === "alle" && !zettelAbgelaufen(z, todayKey));
 
+  // Handy-Ansicht (Roll-out 61, Stufe 2): statt des Cockpits nur die
+  // Aufnahme. Alle Hooks oben sind durchgelaufen - erst hier verzweigt die
+  // Anzeige, damit React in jeder Fassung dieselbe Hook-Reihe sieht.
+  if (handyAufnahme) {
+    return (
+      <>
+        <HandyAufnahme
+          entries={entries}
+          persistNeu={async (e) => persist([...entriesRef.current, e])}
+          anlagen={bereichOptionen}
+          todayKey={todayKey}
+          fotoUrl={fotoUrl}
+          darfSchreiben={!readerMode}
+          benutzerAktiv={benutzerAktiv}
+          angemeldet={angemeldet}
+          anmeldung={anmeldung}
+          setAnmeldung={setAnmeldung}
+          anmelden={anmelden}
+          abmelden={abmelden}
+          host={(sharedFile.serverBetrieb() || "").replace(/^https?:\/\//, "") || "ohne Server"}
+          name={zettelName}
+          setName={(n) => { setZettelName(n); try { localStorage.setItem(nsKey("werkstatt-kalender-name"), String(n).trim()); } catch (e) { /* egal */ } }}
+          onFotoGross={(liste, index) => setFotoGross({ fotos: liste, index, setDraft: null })}
+        />
+        {err && (
+          <div role="alert" style={{ position: "fixed", left: "12px", right: "12px", bottom: "12px", backgroundColor: "#FBEAE8", color: "#B23A34", border: "1px solid #E8B4AE", borderRadius: "12px", padding: "10px 12px", fontSize: "13px", zIndex: 50 }} onClick={() => setErr(null)}>
+            ⚠ {err}
+          </div>
+        )}
+        {fotoGross && (() => {
+          const f = fotoGross.fotos[fotoGross.index];
+          const url = f ? (f.neuId ? f.url : fotoUrl(f.datei)) : null;
+          return (
+            <div role="dialog" aria-label="Foto-Großansicht" onClick={() => setFotoGross(null)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(10,12,14,0.9)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: "12px" }}>
+              {url ? <img src={url} alt="" style={{ maxWidth: "96vw", maxHeight: "86vh", borderRadius: "10px" }} /> : <div style={{ color: "#C9CED4" }}>📷 Bild lädt …</div>}
+            </div>
+          );
+        })()}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen font-sans text-slate-800" style={{ backgroundColor: "#EBEDEF" }}>
       {/* Monitor als Tafel (Whiteboard 23.09.): schmale dunkle Leiste mit Uhr,
@@ -9603,22 +10158,27 @@ function App() {
                 else if (sp || pl) tabs.push(["WERKSTATT", "Werkstatt"]);
                 if (["TODO", "STOERUNGEN", "BACKLOG", "ZEIT"].some((k) => sichtbar(k))) tabs.push(["BERICHTE", "Berichte"]);
                 if (sichtbar("TPM")) tabs.push(["TPM", "TPM"]);
+                // Aufnahme (Roll-out 61): Bilder sortieren - nur mit Schreibrecht
+                if (sichtbar("AUFNAHME") && !readerMode) tabs.push(["AUFNAHME", "Aufnahme"]);
                 return tabs;
               })().map(([v, label]) => {
                 const active =
                   v === "UEBERSICHT" ? (view === "COCKPIT" && cockpitTab === "UEBERSICHT")
                   : v === "SCHICHTPLAN" ? (view === "COCKPIT" && cockpitTab === "SCHICHTPLAN")
                   : v === "BERICHTE" ? view === "BERICHTE"
+                  : v === "AUFNAHME" ? view === "AUFNAHME"
                   : v === "WERKSTATT" ? (view === "COCKPIT" && cockpitTab !== "UEBERSICHT")
-                  : (view !== "COCKPIT" && view !== "BERICHTE");
-                const badge = v === "BERICHTE" ? stoerOffenCount + todoUeberfaellige.length : 0;
+                  : (view !== "COCKPIT" && view !== "BERICHTE" && view !== "AUFNAHME");
+                const badge = v === "BERICHTE" ? stoerOffenCount + todoUeberfaellige.length : v === "AUFNAHME" ? aufnahmeOffenZahl : 0;
                 return (
                   <button
                     key={v}
+                    data-hauptbereich={v}
                     onClick={() => {
                       if (v === "UEBERSICHT") { setView("COCKPIT"); setCockpitTab("UEBERSICHT"); }
                       else if (v === "SCHICHTPLAN") { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }
                       else if (v === "BERICHTE") { setView("BERICHTE"); setBerichtTab("START"); }
+                      else if (v === "AUFNAHME") { setView("AUFNAHME"); }
                       else if (v === "WERKSTATT") { setView("COCKPIT"); setCockpitTab(sichtbar("SCHICHTPLAN") ? "SCHICHTPLAN" : "PLANUNG"); }
                       else setView("TPMINFO");
                     }}
@@ -9627,7 +10187,7 @@ function App() {
                   >
                     {label}
                     {badge > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{badge}</span>
+                      <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" data-hauptbereich-zahl={v} style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: v === "AUFNAHME" && !active ? "#C97A2B" : "#C0392B", fontSize: "0.58rem" }}>{badge}</span>
                     )}
                   </button>
                 );
@@ -9926,6 +10486,24 @@ function App() {
                 )}
                 {v === "TODO" && todoUeberfaellige.length > 0 && (
                   <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C0392B", fontSize: "0.58rem" }}>{todoUeberfaellige.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : view === "AUFNAHME" ? (
+          <div className="flex" style={{ scrollbarWidth: "none" }}>
+            {/* Aufnahme (Roll-out 61): drei Blicke auf denselben Eingangskorb */}
+            {[["EINGANG", "Eingang"], ["BLAETTERN", "Durchblättern"], ["FILM", "Tagesfilm"]].map(([v, label]) => (
+              <button
+                key={v}
+                data-aufnahme-tab={v}
+                onClick={() => setAufnahmeTab(v)}
+                className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide inline-flex items-center shrink-0 whitespace-nowrap rounded"
+                style={{ backgroundColor: aufnahmeTab === v ? "#4B5259" : "transparent", color: aufnahmeTab === v ? "#fff" : "#B7BEC6" }}
+              >
+                {label}
+                {v === "EINGANG" && aufnahmeOffenZahl > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center rounded-full text-white" style={{ minWidth: "15px", height: "15px", padding: "0 4px", backgroundColor: "#C97A2B", fontSize: "0.58rem" }}>{aufnahmeOffenZahl}</span>
                 )}
               </button>
             ))}
@@ -10542,6 +11120,268 @@ function App() {
         <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen{donePercent !== null ? ` · ${donePercent} %` : ""}</div>
       </div>
 
+      {/* ================= Bereich AUFNAHME (Roll-out 61, Robertos Freigabe 06.10.) =========
+          Robertos Wunsch: „eine Kombi aus allen" Vorlagen - Eingangskorb mit
+          Zielspalten (A), Durchblättern mit Tasten (B) und Tagesfilm (D) auf
+          demselben Korb; das Handy (C) füllt ihn über den Server. */}
+      {view === "AUFNAHME" && (() => {
+        const karten = aufnahmeKarten;
+        const sortiertHeute = Object.values(aufnahmeHeuteSortiert).reduce((a, b) => a + b, 0);
+        const tag = aufnahmeTag || todayKey;
+        const serverHost = (sharedFile.serverBetrieb() || "").replace(/^https?:\/\//, "");
+        const programm = istProgramm;
+        const bildKasten = (k, hoehe) => {
+          const bild = karteBild(k);
+          return (
+            <div style={{ height: hoehe, backgroundColor: "#4B5259", borderRadius: "10px 10px 0 0", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {bild ? <img src={bild} alt="" data-aufnahme-bild style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <span style={{ color: "#B7BEC6", fontSize: "0.8rem" }}>{bild === null ? "📷 Bild nicht lesbar" : k.art === "eintrag" && !fotoListeVon(k.e).length ? "📝 nur Notiz" : "📷 lädt …"}</span>}
+              <span style={{ position: "absolute", left: "8px", bottom: "8px", backgroundColor: "rgba(20,22,25,0.72)", color: "#fff", fontSize: "0.68rem", fontWeight: 800, padding: "2px 7px", borderRadius: "999px" }}>
+                {aufnahmeZeitText(k.zeit)} · {k.quelle}{k.wer ? ` ${k.wer}` : ""}
+              </span>
+              {k.zielWunsch && AUFNAHME_ZIEL[k.zielWunsch] && (
+                <span title="Vorschlag vom Handy" style={{ position: "absolute", right: "8px", top: "8px", backgroundColor: AUFNAHME_ZIEL[k.zielWunsch].farbe, color: "#fff", fontSize: "0.62rem", fontWeight: 900, padding: "2px 7px", borderRadius: "999px" }}>
+                  {AUFNAHME_ZIEL[k.zielWunsch].zeichen} Vorschlag
+                </span>
+              )}
+            </div>
+          );
+        };
+        const zielKnoepfeKlein = (k) => (
+          <div className="flex gap-1 flex-wrap" style={{ padding: "6px 8px 8px" }}>
+            {AUFNAHME_ZIELE.map(([z, label, , zeichen, farbe]) => (
+              <button key={z} onClick={(ev) => { ev.stopPropagation(); aufnahmeSortieren(k, z); }} disabled={!aufnahmeDarf} data-aufnahme-ziel={z}
+                title={AUFNAHME_ZIEL[z].text}
+                className="text-[11px] font-bold rounded px-2 py-1"
+                style={{ border: `1px solid ${z === "WEG" ? "#D6D9DC" : farbe}`, color: z === "WEG" ? "#8A9099" : farbe, backgroundColor: "#fff", opacity: aufnahmeDarf ? 1 : 0.5, cursor: aufnahmeDarf ? "pointer" : "default" }}>
+                {z === "WEG" ? zeichen : `→ ${label.replace(" → Backlog", "").replace(" melden", "").replace("Pinnwand-", "").replace("Anlagen-", "")}`}
+              </button>
+            ))}
+          </div>
+        );
+        const karte = (k, { klein = false } = {}) => {
+          const { note, anlage } = karteFelder(k);
+          const sortiert = k.sortiert && AUFNAHME_ZIEL[k.sortiert.ziel];
+          return (
+            <div key={k.key} data-aufnahme-karte={k.key} data-aufnahme-sortiert={sortiert ? k.sortiert.ziel : undefined}
+              draggable={aufnahmeDarf && !sortiert}
+              onDragStart={(ev) => { ev.dataTransfer.setData("text/wk-aufnahme", k.key); ev.dataTransfer.effectAllowed = "move"; }}
+              className="bg-white rounded-xl border"
+              style={{ borderColor: "#E2E4E7", width: klein ? "170px" : "auto", opacity: sortiert ? 0.55 : 1, boxShadow: "0 1px 4px rgba(20,22,25,0.05)" }}>
+              {bildKasten(k, klein ? "96px" : "150px")}
+              <button onClick={() => { setAufnahmeKarteKey(k.key); setAufnahmeTab("BLAETTERN"); }} className="block w-full text-left" style={{ padding: "8px 10px 2px" }} title="Groß ansehen und sortieren (Durchblättern)">
+                <div className="font-bold text-sm truncate" style={{ color: note ? "#22262B" : "#8A9099", fontStyle: note ? "normal" : "italic" }}>{note || (k.art === "datei" ? k.dateiName : "ohne Notiz")}</div>
+                <div className="text-xs truncate" style={{ color: "#8A9099" }}>
+                  {sortiert ? `${sortiert.zeichen} ${sortiert.label} · sortiert` : anlage ? `Anlage: ${anlage}${k.anlage ? "" : " (erkannt)"}` : "Anlage noch offen"}
+                </div>
+              </button>
+              {!sortiert && !klein && zielKnoepfeKlein(k)}
+              {!sortiert && klein && <div style={{ height: "6px" }} />}
+            </div>
+          );
+        };
+        const eingangZeile = (
+          <div className="flex items-center gap-2 flex-wrap text-xs" style={{ color: "#5B6572" }} data-eingang-lage={eingangLage}>
+            {!eingangsordner.unterstuetzt() ? (
+              <span>📁 {eingangsordner.grundNichtUnterstuetzt()}</span>
+            ) : eingangLage === "ok" ? (
+              <>
+                <span>📁 <strong style={{ color: "#22262B" }}>{eingangsordner.name()}</strong>{eingangsordner.pfad() ? <span title={eingangsordner.pfad()}> ({eingangsordner.pfad()})</span> : null} · {eingangDateien.length} Bild{eingangDateien.length === 1 ? "" : "er"}, davon {eingangOffen.length} unsortiert · letzte</span>
+                <select value={eingangTage} onChange={(e) => { const v = Number(e.target.value); setEingangTage(v); try { localStorage.setItem(nsKey("aufnahme-eingang-tage"), String(v)); } catch (x) { /* egal */ } }} aria-label="Zeitraum Eingangsordner" className="border rounded px-1 py-0.5" style={{ borderColor: "#D6D9DC" }}>
+                  {[7, 14, 30, 90].map((t) => <option key={t} value={t}>{t} Tage</option>)}
+                </select>
+                <button onClick={eingangScannen} className="font-bold" style={{ color: "#2F6690" }} title="Ordner jetzt neu lesen">↻ neu lesen</button>
+                <button onClick={eingangWaehlen} className="font-bold" style={{ color: "#2F6690" }}>Ordner wechseln</button>
+                <button onClick={eingangTrennen} className="font-bold" style={{ color: "#8A9099" }}>trennen</button>
+              </>
+            ) : eingangLage === "needs-permission" ? (
+              <button onClick={eingangFreigeben} className="font-bold rounded px-2.5 py-1 text-white" style={{ backgroundColor: "#C97A2B" }} data-eingang-freigeben>📁 Eingangsordner „{eingangsordner.name()}" freigeben (einmal bestätigen)</button>
+            ) : (
+              <>
+                <button onClick={eingangWaehlen} className="font-bold rounded px-2.5 py-1 text-white" style={{ backgroundColor: "#22262B" }} data-eingang-waehlen>📁 Eingangsordner wählen</button>
+                <span>z. B. <strong>Downloads</strong> - dort legt WhatsApp die gespeicherten Bilder ab. Es wird nur gelesen, nichts verschoben.</span>
+                {programm && (
+                  <form onSubmit={(ev) => { ev.preventDefault(); const f = ev.target.elements.pfad; eingangPfadSetzen(f.value); f.value = ""; }} className="flex items-center gap-1">
+                    <input name="pfad" placeholder="oder Pfad einfügen: C:\Users\…\Downloads" aria-label="Pfad des Eingangsordners" className="border rounded px-2 py-0.5" style={{ borderColor: "#D6D9DC", width: "280px" }} />
+                    <button type="submit" className="font-bold" style={{ color: "#2F6690" }}>übernehmen</button>
+                  </form>
+                )}
+              </>
+            )}
+            {eingangFehler && <span style={{ color: "#B23A34" }} data-eingang-fehler>⚠ {eingangFehler}</span>}
+          </div>
+        );
+        const handyZeile = serverHost
+          ? <span className="text-xs" style={{ color: "#5B6572" }}>📱 Handy im Firmen-WLAN: <code style={{ backgroundColor: "#EEF1F4", padding: "0 4px" }}>http://{serverHost}/app/?ansicht=aufnahme</code></span>
+          : <span className="text-xs" style={{ color: "#8A9099" }}>📱 Der Handy-Weg braucht den Server-Betrieb (Roll-out 61, Stufe 2) - bis dahin kommen Bilder über den Eingangsordner.</span>;
+        const leer = (
+          <div className="bg-white rounded-xl border p-6 text-sm" style={{ borderColor: "#E2E4E7", color: "#5B6572" }} data-aufnahme-leer>
+            <div className="font-black text-base mb-2" style={{ color: "#22262B" }}>Der Eingang ist leer.</div>
+            <div>So kommen Bilder herein:</div>
+            <ol className="list-decimal ml-5 mt-1" style={{ lineHeight: 1.6 }}>
+              <li><strong>Vom Handy</strong> im Firmen-WLAN über {serverHost ? <code style={{ backgroundColor: "#EEF1F4", padding: "0 4px" }}>http://{serverHost}/app/?ansicht=aufnahme</code> : "den Server (sobald er läuft)"} - Foto, Notiz, Anlage, „Ab ins Cockpit".</li>
+              <li><strong>Vom PC</strong>: Bilder wie heute aus WhatsApp speichern - der Eingangsordner (oben) liest sie von selbst ein, mit Aufnahmezeit = Dateizeit.</li>
+            </ol>
+          </div>
+        );
+        return (
+          <div className="no-print max-w-7xl mx-auto px-4 mt-4 mb-10" data-aufnahme-bereich={aufnahmeTab}>
+            <div className="flex items-start gap-3 flex-wrap mb-2">
+              <div>
+                <div className="font-black text-sm uppercase tracking-wide" style={{ color: "#22262B" }}>
+                  📷 Aufnahme · {aufnahmeTab === "EINGANG" ? "Eingang" : aufnahmeTab === "BLAETTERN" ? "Durchblättern" : "Tagesfilm"}
+                  <span className="ml-2 normal-case tracking-normal" style={{ color: "#C97A2B" }} data-aufnahme-offen={karten.length}>{karten.length} unsortiert</span>
+                  <span className="ml-2 normal-case tracking-normal font-bold" style={{ color: "#8A9099" }}>· {sortiertHeute} heute sortiert</span>
+                </div>
+                <div className="mt-1">{eingangZeile}</div>
+                <div className="mt-0.5">{handyZeile}</div>
+              </div>
+              {aufnahmeTab !== "BLAETTERN" && karten.length > 0 && (
+                <button onClick={() => { setAufnahmeKarteKey(karten[0].key); setAufnahmeTab("BLAETTERN"); }} className="ml-auto text-white px-3 py-1.5 rounded font-bold text-sm" style={{ backgroundColor: "#C97A2B" }}>
+                  Alle sortieren (Durchblättern) ›
+                </button>
+              )}
+            </div>
+            {!aufnahmeDarf && <div className="text-xs mb-2" style={{ color: "#9A6B00" }}>Nur ansehen - Sortieren braucht Schreibrecht im Bereich Aufnahme.</div>}
+
+            {/* ---- A: Eingangskorb mit Zielspalten ---- */}
+            {aufnahmeTab === "EINGANG" && (
+              karten.length === 0 ? leer : (
+                <div className="flex gap-4 items-start">
+                  <div className="flex-1 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))" }} data-aufnahme-korb>
+                    {karten.map((k) => karte(k))}
+                  </div>
+                  <div className="shrink-0 grid gap-2" style={{ width: "250px" }} data-aufnahme-ziele>
+                    {AUFNAHME_ZIELE.map(([z, label, text, zeichen, farbe]) => (
+                      <div key={z} data-aufnahme-zielspalte={z}
+                        onDragOver={(ev) => { if (aufnahmeDarf && ev.dataTransfer.types.includes("text/wk-aufnahme")) { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; } }}
+                        onDrop={(ev) => { ev.preventDefault(); const key = ev.dataTransfer.getData("text/wk-aufnahme"); const k = karten.find((x) => x.key === key); if (k) aufnahmeSortieren(k, z); }}
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 bg-white"
+                        style={{ border: `1px dashed ${z === "WEG" ? "#D6D9DC" : farbe}` }}>
+                        <span style={{ width: "34px", height: "34px", borderRadius: "10px", backgroundColor: z === "WEG" ? "#F0F2F5" : farbe, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>{zeichen}</span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block font-bold text-sm" style={{ color: "#22262B" }}>{label}</span>
+                          <span className="block text-[11px]" style={{ color: "#8A9099" }}>{text}</span>
+                        </span>
+                        <span className="font-black text-sm" style={{ color: "#5B6572" }} title="heute hierhin sortiert">{aufnahmeHeuteSortiert[z]}</span>
+                      </div>
+                    ))}
+                    <div className="text-[11px]" style={{ color: "#8A9099" }}>Karte auf ein Ziel ziehen oder den Knopf an der Karte drücken. Zahl = heute dorthin sortiert.</div>
+                  </div>
+                </div>
+              )
+            )}
+
+            {/* ---- B: Durchblättern - eines nach dem anderen ---- */}
+            {aufnahmeTab === "BLAETTERN" && (
+              karten.length === 0 || !aufnahmeAktuelleKarte ? (
+                <div className="bg-white rounded-xl border p-6 text-sm" style={{ borderColor: "#E2E4E7", color: "#5B6572" }} data-aufnahme-leer>
+                  <div className="font-black text-base mb-1" style={{ color: "#22262B" }}>Alles sortiert.</div>
+                  Heute {sortiertHeute} Bild{sortiertHeute === 1 ? "" : "er"} sortiert - der Tagesfilm zeigt, was wohin ging.
+                </div>
+              ) : (() => {
+                const k = aufnahmeAktuelleKarte;
+                const nr = karten.findIndex((x) => x.key === k.key) + 1;
+                const { note, anlage } = karteFelder(k);
+                const bild = karteBild(k);
+                const anlagenListe = anlage && !bereichOptionen.includes(anlage) ? [anlage, ...bereichOptionen] : bereichOptionen;
+                return (
+                  <>
+                    <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 400px" }}>
+                      <div style={{ position: "relative", minHeight: "440px", backgroundColor: "#4B5259", borderRadius: "14px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }} data-aufnahme-gross={k.key}>
+                        {bild ? <img src={bild} alt="" style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", cursor: "zoom-in" }} onClick={() => setFotoGross({ fotos: [k.art === "eintrag" && fotoListeVon(k.e)[0] ? fotoListeVon(k.e)[0] : { neuId: k.key, url: bild, ts: k.zeit, wer: k.wer }], index: 0, setDraft: null })} />
+                          : <span style={{ color: "#B7BEC6" }}>{bild === null ? "📷 Bild nicht lesbar" : k.art === "eintrag" && !fotoListeVon(k.e).length ? "📝 Aufnahme ohne Bild - nur die Notiz" : "📷 lädt …"}</span>}
+                        <span style={{ position: "absolute", right: "10px", top: "10px", backgroundColor: "rgba(20,22,25,0.72)", color: "#fff", fontSize: "0.72rem", fontWeight: 800, padding: "3px 8px", borderRadius: "999px" }}>
+                          {formatDateDE(aufnahmeTagKey(k.zeit))} {aufnahmeZeitText(k.zeit)} · {k.quelle}{k.wer ? ` ${k.wer}` : ""}{k.art === "datei" ? ` · ${k.dateiName}` : ""}
+                        </span>
+                        <span style={{ position: "absolute", left: "10px", bottom: "10px", backgroundColor: "rgba(20,22,25,0.72)", color: "#fff", fontSize: "0.72rem", fontWeight: 800, padding: "3px 8px", borderRadius: "999px" }} data-aufnahme-nr>Nr. {nr} von {karten.length}</span>
+                        <button onClick={() => aufnahmeBlaettern(-1)} aria-label="Voriges Bild" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", width: "38px", height: "38px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.85)", fontWeight: 900 }}>‹</button>
+                        <button onClick={() => aufnahmeBlaettern(1)} aria-label="Nächstes Bild" style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "38px", height: "38px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.85)", fontWeight: 900 }}>›</button>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: "#5B6572" }}>Was ist zu sehen?
+                          <input value={aufnahmeEdit[k.key] && aufnahmeEdit[k.key].note !== undefined ? aufnahmeEdit[k.key].note : k.note} onChange={(e) => karteFeldSetzen(k.key, { note: e.target.value })} placeholder="kurz beschreiben - wird Text der Arbeit / des To-dos" aria-label="Was ist zu sehen"
+                            className="w-full text-sm border rounded-lg px-3 py-2 mt-1 font-normal normal-case tracking-normal" style={{ borderColor: "#D6D9DC" }} />
+                        </label>
+                        <label className="block text-[11px] font-black uppercase tracking-wide mb-1 mt-2" style={{ color: "#5B6572" }}>Anlage {!k.anlage && anlage && (!aufnahmeEdit[k.key] || aufnahmeEdit[k.key].anlage === undefined) ? <span className="normal-case tracking-normal font-bold" style={{ color: "#8A9099" }}>· aus der Notiz erkannt</span> : null}
+                          <select value={anlage} onChange={(e) => karteFeldSetzen(k.key, { anlage: e.target.value })} aria-label="Anlage" className="w-full text-sm border rounded-lg px-3 py-2 mt-1 font-normal normal-case tracking-normal" style={{ borderColor: "#D6D9DC" }}>
+                            <option value="">– noch offen –</option>
+                            {anlagenListe.map((a) => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                        </label>
+                        {k.art === "eintrag" && k.note && (
+                          <div className="text-xs rounded-lg px-3 py-2 mt-2" style={{ backgroundColor: "#F7F8F9", color: "#5B6572" }}>Notiz vom Handy: „{k.note}"{k.wer ? ` – ${k.wer}` : ""}</div>
+                        )}
+                        <div className="grid grid-cols-2 gap-2 mt-3" data-aufnahme-grossziele>
+                          {AUFNAHME_ZIELE.map(([z, label, text, zeichen, farbe], i) => (
+                            <button key={z} onClick={() => aufnahmeSortieren(k, z)} disabled={!aufnahmeDarf} data-aufnahme-ziel={z} title={text}
+                              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-white font-bold text-sm"
+                              style={{ backgroundColor: z === "WEG" ? "#8A9099" : farbe, opacity: aufnahmeDarf ? 1 : 0.5, boxShadow: k.zielWunsch === z ? "0 0 0 3px #22262B" : "none" }}>
+                              <span>{zeichen}</span>
+                              <span className="flex-1">{label}</span>
+                              <span className="rounded-full" style={{ backgroundColor: "rgba(0,0,0,0.25)", fontSize: "0.65rem", padding: "1px 6px" }}>{i + 1}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="text-[11px] mt-2" style={{ color: "#8A9099" }}>
+                          Tasten <strong>1–6</strong> = Ziel, <strong>← →</strong> = blättern. Arbeit, To-do und Störung öffnen den gewohnten Dialog mit Bild und Text vorbelegt - <strong>Speichern</strong> springt zum nächsten Bild.{k.zielWunsch && AUFNAHME_ZIEL[k.zielWunsch] ? ` Vom Handy vorgeschlagen: ${AUFNAHME_ZIEL[k.zielWunsch].label}.` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3 overflow-x-auto pb-1" data-aufnahme-streifen>
+                      {karten.map((x) => {
+                        const b = karteBild(x);
+                        return (
+                          <button key={x.key} onClick={() => setAufnahmeKarteKey(x.key)} aria-label={`Bild ${aufnahmeZeitText(x.zeit)}`} style={{ width: "72px", height: "54px", borderRadius: "8px", overflow: "hidden", backgroundColor: "#4B5259", flexShrink: 0, border: x.key === k.key ? "3px solid #C97A2B" : "3px solid transparent" }}>
+                            {b ? <img src={b} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs" style={{ color: "#8A9099" }}>
+                      <span>{sortiertHeute} heute sortiert · {karten.length} offen</span>
+                      <div className="flex-1 rounded-full" style={{ height: "6px", backgroundColor: "#E2E4E7", overflow: "hidden" }}>
+                        <div style={{ width: `${Math.round((sortiertHeute / Math.max(1, sortiertHeute + karten.length)) * 100)}%`, height: "100%", backgroundColor: "#C97A2B" }} />
+                      </div>
+                    </div>
+                  </>
+                );
+              })()
+            )}
+
+            {/* ---- D: Tagesfilm - die Aufnahmen eines Tages nach Uhrzeit ---- */}
+            {aufnahmeTab === "FILM" && (() => {
+              const schieben = (n) => { const d = new Date(tag + "T12:00:00"); d.setDate(d.getDate() + n); setAufnahmeTag(dateKey(d.getFullYear(), d.getMonth(), d.getDate())); };
+              const amTag = [
+                ...aufnahmen.filter((e) => aufnahmeTagKey(aufnahmeZeitVon(e)) === tag).map(karteAusEintrag),
+                ...eingangDateien.filter((d) => aufnahmeTagKey(new Date(d.geaendert).toISOString()) === tag && !(aufnahmeVerarbeitet[d.key] && aufnahmeVerarbeitet[d.key].ziel === "AKTE")).map(karteAusDatei),
+              ].sort((a, b) => String(a.zeit).localeCompare(String(b.zeit)));
+              const stunden = new Map();
+              amTag.forEach((k) => { const h = new Date(k.zeit).getHours(); if (!stunden.has(h)) stunden.set(h, []); stunden.get(h).push(k); });
+              const offen = amTag.filter((k) => !k.sortiert).length;
+              return (
+                <div data-aufnahme-film={tag}>
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <button onClick={() => schieben(-1)} className="text-xs font-bold rounded px-2.5 py-1 bg-white border" style={{ borderColor: "#D6D9DC" }}>‹ Vortag</button>
+                    <span className="font-black text-sm" style={{ color: "#22262B" }}>{new Date(tag + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+                    <button onClick={() => schieben(1)} disabled={tag >= todayKey} className="text-xs font-bold rounded px-2.5 py-1 bg-white border" style={{ borderColor: "#D6D9DC", opacity: tag >= todayKey ? 0.4 : 1 }}>Folgetag ›</button>
+                    {tag !== todayKey && <button onClick={() => setAufnahmeTag(null)} className="text-xs font-bold rounded px-2.5 py-1 text-white" style={{ backgroundColor: "#22262B" }}>Heute</button>}
+                    <span className="text-xs ml-2" style={{ color: "#8A9099" }} data-aufnahme-film-zahl={amTag.length}>{amTag.length} Aufnahme{amTag.length === 1 ? "" : "n"} · {offen} unsortiert</span>
+                  </div>
+                  {amTag.length === 0 && <div className="bg-white rounded-xl border p-5 text-sm italic" style={{ borderColor: "#E2E4E7", color: "#8A9099" }}>An diesem Tag keine Aufnahmen.</div>}
+                  {[...stunden.keys()].sort((a, b) => a - b).map((h) => (
+                    <div key={h} className="flex gap-3 mb-3">
+                      <div className="shrink-0 font-mono text-xs font-bold pt-1" style={{ width: "48px", color: "#8A9099", borderRight: "2px solid #D6D9DC" }}>{String(h).padStart(2, "0")}:00</div>
+                      <div className="flex gap-2 flex-wrap">{stunden.get(h).map((k) => karte(k, { klein: true }))}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        );
+      })()}
+
       {/* Cockpit: Störungen (eigene, für alle beschreibbare Datei) */}
       {/* ================= Bereich BERICHTE: Kachel-Start (Meeting 10.09.) ===========
           Der Einstieg für alle - und für Leser (zusammen mit der Übersicht)
@@ -10774,6 +11614,11 @@ function App() {
               </div>
             </button>
             <div className="flex items-center gap-2 shrink-0">
+              {/* Fotos am To-do (Roll-out 61): kommen aus dem Reiter Aufnahme - Klick öffnet die Großansicht */}
+              {fotoListeVon(t).length > 0 && (
+                <button onClick={() => setFotoGross({ fotos: fotoListeVon(t), index: 0, setDraft: null })} className="rounded-full font-bold" aria-label={`${fotoListeVon(t).length} Foto(s) zu „${t.name}" zeigen`}
+                  style={{ fontSize: "0.68rem", padding: "3px 8px", backgroundColor: "#F0F2F5", color: "#4B5259", border: "1px solid #D6D9DC" }}>📷 {fotoListeVon(t).length}</button>
+              )}
               {t.prio && (
                 <span className="rounded-full font-black uppercase" style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: t.prio === "hoch" ? "#FBEAE8" : "#FBF3DA", color: t.prio === "hoch" ? "#C0392B" : "#9A6B00" }}>{t.prio}</span>
               )}
@@ -13942,6 +14787,29 @@ function App() {
               <span className="ml-auto text-xs font-bold uppercase px-3 py-1.5 rounded text-white" style={{ backgroundColor: "#B23A34" }}>➜ Im Backlog anzeigen</span>
             </button>
 
+            {/* Bilder aus der Aufnahme (Roll-out 61): Typenschilder, Zustände -
+                Belege ohne Aufgabe, Klick öffnet die Großansicht */}
+            {akteDaten.bilder.length > 0 && (
+              <div className="mb-4" data-akte-bilder>
+                <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: "#4B5259" }}>🗂 Bilder aus der Aufnahme</div>
+                <div className="flex gap-2 flex-wrap">
+                  {akteDaten.bilder.map((e) => {
+                    const f = fotoListeVon(e)[0];
+                    const url = fotoUrl(f.datei);
+                    return (
+                      <button key={e.id} onClick={() => setFotoGross({ fotos: fotoListeVon(e), index: 0, setDraft: null })} title={`${formatDateDE(aufnahmeTagKey(aufnahmeZeitVon(e)))} ${aufnahmeZeitText(aufnahmeZeitVon(e))}${e.note ? ` · ${e.note}` : ""}${e.wer ? ` · ${e.wer}` : ""}`}
+                        style={{ width: "96px", textAlign: "left" }}>
+                        <div style={{ width: "96px", height: "72px", borderRadius: "8px", overflow: "hidden", backgroundColor: "#D6D9DC" }}>
+                          {url ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
+                        </div>
+                        <div className="text-[10px] truncate" style={{ color: "#5B6572", marginTop: "2px" }}>{formatDateDE(aufnahmeTagKey(aufnahmeZeitVon(e)))}{e.note ? ` · ${e.note}` : ""}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 1fr" }}>
               <div>
                 <div className="text-xs font-extrabold uppercase mb-1.5" style={{ color: "#2F7D4F" }}>Zuletzt erledigt</div>
@@ -13989,6 +14857,7 @@ function App() {
                 <div className="font-bold text-sm">
                   {arbeitModal.mode === "add" ? "Neue Arbeit" : "Arbeit bearbeiten"}
                   {arbeitModal.ausZettel && aDraft.melder && <span className="font-normal text-slate-400"> – aus Notiz von {aDraft.melder}</span>}
+                  {arbeitModal.ausAufnahme && <span className="font-normal text-slate-400"> – aus der Aufnahme</span>}
                 </div>
                 <button onClick={arbeitDialogSchliessen} className="text-slate-400 hover:text-slate-700" aria-label="Schließen"><X size={18} /></button>
               </div>
@@ -14688,7 +15557,7 @@ function App() {
                   <div className="flex-1" style={{ minWidth: "220px", opacity: 0.55 }} data-bald="fotos">
                     {etikett(<>📷 Fotos{bald}</>)}
                     <div className="text-sm rounded-lg px-3 py-2 border" style={{ ...feldRand, backgroundColor: "#F4F5F6", color: "#A6AEB6", cursor: "not-allowed" }} aria-label="Fotos (bald)">
-                      {(sDraft.fotos || []).length > 0 ? `${sDraft.fotos.length} Foto(s) am Bericht` : "kommt in einem späteren Schritt"}
+                      {(sDraft.fotos || []).length + (sDraft.fotosNeu || []).length > 0 ? `${(sDraft.fotos || []).length + (sDraft.fotosNeu || []).length} Foto(s) am Bericht` : "kommt in einem späteren Schritt"}
                     </div>
                   </div>
                 </div>
