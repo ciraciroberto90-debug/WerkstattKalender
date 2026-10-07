@@ -23,7 +23,14 @@
 //      erkennt seinen Briefkasten (eigene Herkunft), übernimmt einen
 //      Einrichtungs-Link (#kuerzel=…&schluessel=…) und entfernt ihn aus der
 //      Adresszeile; ein Einwurf von dieser Herkunft landet beim Dienst.
-// Rot-Nachweis: Dienst 0.4.0 (git show 2feefe6:server/dienst.js) kennt keinen
+//  (A) AUTOMATISCH EINSORTIEREN (Roll-out 66, Robertos Freigabe 07.10.):
+//      Der Dienst 0.6.0 sortiert beim Abholen nach den Werkstatt-Regeln:
+//      To-do (bekannte Anlage + Notiz) -> To-do mit Foto, Akte (bekannte
+//      Anlage) -> Akte, Zettel (Notiz) -> Pinnwand; unbekannte Anlage, ohne
+//      Notiz, Störung bleiben offen; Schalter aus -> bleibt offen; nochmal
+//      abholen legt nichts doppelt an; der PC nimmt es im Tagesfilm zurück.
+// Rot-Nachweis: Dienst 0.5.0 (git show 84be479:server/dienst.js) sortiert
+// nichts - (A) rot; Dienst 0.4.0 (git show 2feefe6:server/dienst.js) kennt keinen
 // Briefkasten - (E) rot; der Zettel vor 06.10. abends kennt kein Einwerfen.
 // Kern 0.1.0 (git show 5ee5b47:briefkasten/kern.js) kennt /zettel nicht -
 // (H)-Kern/Worker/Node rot; der Zettel vor 07.10. nachmittags kennt weder
@@ -168,7 +175,7 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
   const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItems: [], team: [], benutzer: [{ name: "Chef", rolle: "verwalter" }] };
   await fetch(D + "/api/scheurich/import?bereich=kalender", { method: "POST", headers: { "Content-Type": "application/json", "X-BTA-Schluessel": SCHLUESSEL }, body: JSON.stringify({ format: "werkstatt-kalender-v1", standort: "scheurich", savedAt: "2026-10-06T05:00:00.000Z", entries: [{ id: "e1", date: "2026-10-06", category: "TODO", name: "Aufgabe", status: "open", updatedAt: "2026-10-06T05:00:00.000Z" }], deleted: {}, config }) });
   const status0 = await (await fetch(D + "/api/status")).json();
-  ok("(E) Dienst 0.5.0 liest briefkasten.json: Briefkasten aktiv, Adresse, Standort scheurich", status0.fassung === "0.5.0" && status0.briefkasten && status0.briefkasten.aktiv && status0.briefkasten.adresse === BK && status0.briefkasten.standort === "scheurich", JSON.stringify(status0.briefkasten));
+  ok("(E) Dienst 0.6.0 liest briefkasten.json: Briefkasten aktiv, Adresse, Standort scheurich", status0.fassung === "0.6.0" && status0.briefkasten && status0.briefkasten.aktiv && status0.briefkasten.adresse === BK && status0.briefkasten.standort === "scheurich", JSON.stringify(status0.briefkasten));
   await warte(2000);
   const status1 = await (await fetch(D + "/api/status")).json();
   ok("(E) Erster Takt: Briefkasten erreichbar, 0 im Briefkasten, kein Fehler", status1.briefkasten.erreichbar === true && status1.briefkasten.imBriefkasten === 0 && !status1.briefkasten.letzterFehler, JSON.stringify(status1.briefkasten));
@@ -227,6 +234,42 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
   const dop = stand3.eintraege.filter((e) => e.id === "aufn-bk-" + doppelId);
   const bkNach = await (await fetch(BK + "/liste", { headers: { "X-BTA-Schluessel": ABHOL } })).json();
   ok("(E) Kennung schon vorhanden: nichts doppelt angelegt (Eintrag bleibt „schon da“), der Einwurf wird trotzdem aus dem Briefkasten geräumt", dop.length === 1 && dop[0].note === "schon da" && bkNach.eintraege.length === 0 && fs.readdirSync(path.join(datenOrdner, "fotos")).length === 1);
+  /* ================= (A) Automatisch einsortieren (Roll-out 66) ================= */
+  const einwurf = async (begleit, bytes = new Uint8Array([7, 7, 7, 7, 7, 7])) => { const r = await fetch(BK + "/einwurf", { method: "POST", headers: { "X-BTA-Schluessel": EINWURF, "X-BTA-Begleit": begleitKopf(begleit) }, body: bytes }); return String((await r.json()).id).replace(/[^A-Za-z0-9]/g, ""); };
+  const abholen = () => fetch(D + "/api/scheurich/briefkasten", { method: "POST", headers: { "X-BTA-Schluessel": SCHLUESSEL } }).then((r) => r.json());
+  const standAlle = async () => (await (await fetch(D + "/api/scheurich/stand?seit=0")).json()).eintraege;
+  const regelSetzen = async (auto) => { const v = (await (await fetch(D + "/api/status")).json()).standorte.scheurich.version; await fetch(D + "/api/scheurich/aenderungen", { method: "POST", headers: { "Content-Type": "application/json", "X-BTA-Schluessel": SCHLUESSEL }, body: JSON.stringify({ benutzer: "Test", basisVersion: v, eintraege: [], konfig: { kalender: { regeln: { aufnahme: { auto } } } } }) }); };
+  let autoTodoId = null;
+  {
+    const kTodo = await einwurf({ zeit: new Date().toISOString(), wer: "RC", anlage: "ts480", ziel: "TODO", notiz: "Ölstand prüfen" });
+    const kAkte = await einwurf({ wer: "RC", anlage: "TS480", ziel: "AKTE", notiz: "Typenschild" });
+    const kZettel = await einwurf({ wer: "RC", ziel: "ZETTEL", notiz: "Ersatzteil kommt Do." });
+    const kUnbekannt = await einwurf({ wer: "RC", anlage: "Presse 9", ziel: "TODO", notiz: "x" });
+    const kOhneNotiz = await einwurf({ wer: "RC", anlage: "TS480", ziel: "TODO" });
+    const kStoer = await einwurf({ wer: "RC", anlage: "TS480", ziel: "STOERUNG", notiz: "Leck" });
+    const r = await abholen();
+    const alle = await standAlle();
+    const auf = (k) => alle.find((e) => e.id === "aufn-bk-" + k) || {};
+    const todo = alle.find((e) => e.id === "todo-bk-" + kTodo);
+    autoTodoId = "aufn-bk-" + kTodo;
+    ok("(A) Ziel To-do + bekannte Anlage (klein geschrieben) + Notiz: offenes To-do mit der Notiz als Titel, demselben Foto, Anlage in der Bemerkung; Aufnahme „automatisch“ → TODO, Anlage TS480", !!todo && todo.category === "TODO" && todo.status === "offen" && todo.name === "Ölstand prüfen" && /TS480/.test(todo.bemerkung) && !!(todo.fotos && todo.fotos[0] && auf(kTodo).fotos && auf(kTodo).fotos[0]) && todo.fotos[0].datei === auf(kTodo).fotos[0].datei && auf(kTodo).status === "done" && auf(kTodo).ziel === "TODO" && auf(kTodo).zielId === todo.id && auf(kTodo).sortiertVon === "automatisch" && auf(kTodo).name === "TS480", JSON.stringify(todo && { name: todo.name, bemerkung: todo.bemerkung }));
+    ok("(A) Ziel Akte + bekannte Anlage: Aufnahme gleich in der Akte (done, Ziel AKTE), kein neuer Eintrag", auf(kAkte).status === "done" && auf(kAkte).ziel === "AKTE" && auf(kAkte).sortiertVon === "automatisch" && !alle.some((e) => e.id.endsWith("-bk-" + kAkte) && e.id !== "aufn-bk-" + kAkte));
+    const zettel = alle.find((e) => e.id === "notiz-bk-" + kZettel);
+    ok("(A) Ziel Pinnwand-Zettel + Notiz: gelber Zettel (NOTIZ, sichtbar Verwalter) mit Foto; Aufnahme → ZETTEL", !!zettel && zettel.category === "NOTIZ" && zettel.note === "Ersatzteil kommt Do." && zettel.farbe === "gelb" && zettel.sichtbar === "verwalter" && !!(zettel.fotos && zettel.fotos.length === 1) && auf(kZettel).ziel === "ZETTEL" && auf(kZettel).zielId === zettel.id);
+    ok("(A) Nicht eindeutig bleibt offen: unbekannte Anlage, To-do ohne Notiz, Ziel Störung - drei offene Aufnahmen, keine neuen Einträge", [kUnbekannt, kOhneNotiz, kStoer].every((k) => auf(k).status === "open" && !auf(k).ziel) && !alle.some((e) => [kUnbekannt, kOhneNotiz, kStoer].some((k) => e.id === "todo-bk-" + k)), JSON.stringify([kUnbekannt, kOhneNotiz, kStoer].map((k) => auf(k).status)));
+    ok("(A) Der Abholer-Stand zählt drei automatisch Einsortierte", r.automatischGesamt === 3, JSON.stringify(r.automatischGesamt));
+    // Schalter aus (⚙ Regeln & Listen → regeln.aufnahme.auto.TODO) - der Dienst hält sich daran
+    await regelSetzen({ TODO: false });
+    const kAus = await einwurf({ wer: "RC", anlage: "TS480", ziel: "TODO", notiz: "bleibt offen" });
+    await abholen();
+    const alle2 = await standAlle();
+    const aufAus = alle2.find((e) => e.id === "aufn-bk-" + kAus);
+    ok("(A) Schalter „To-do“ aus: dieselbe Aufnahme bleibt offen, kein To-do", !!aufAus && aufAus.status === "open" && !alle2.some((e) => e.id === "todo-bk-" + kAus));
+    await regelSetzen({ TODO: true });
+    await abholen();
+    ok("(A) Nochmal abholen legt nichts doppelt an: genau ein To-do zur ersten Aufnahme", (await standAlle()).filter((e) => e.id === "todo-bk-" + kTodo).length === 1);
+  }
+
   // PC sieht die Karte mit Bild vom Server
   const pc = await browser.newContext({ viewport: { width: 1500, height: 950 } });
   const pp = await pc.newPage();
@@ -238,6 +281,16 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
   const pcKarte = await pp.waitForFunction(() => { const i = document.querySelector("[data-aufnahme-karte] img[data-aufnahme-bild]"); return !!i && i.naturalWidth > 0; }, null, { timeout: 10000 }).then(() => true).catch(() => false);
   const pcText = (await pp.locator("[data-aufnahme-karte]").allInnerTexts()).join(" | ");
   ok("(E) PC: Reiter Aufnahme zeigt die Karte mit Bild vom Server, Quelle „Briefkasten RC“, Anlage TS480, Vorschlag", pcKarte && /Briefkasten RC/.test(pcText) && /TS480/.test(pcText) && /Vorschlag/.test(pcText), pcText.replace(/\n/g, " · ").slice(0, 160));
+  // (A) Tagesfilm: automatisch Sortiertes ist gekennzeichnet und zurücknehmbar
+  await pp.locator('button[data-aufnahme-tab="FILM"]').click();
+  await pp.waitForTimeout(600);
+  const autoKarte = pp.locator(`[data-aufnahme-karte="${autoTodoId}"]`);
+  const autoText = await autoKarte.innerText().catch(() => "");
+  ok("(A) PC-Tagesfilm: die automatisch sortierte Aufnahme steht blass mit „To-do · automatisch“ und dem Knopf „Zurück in die Aufnahme“", /To-do · automatisch/.test(autoText) && (await autoKarte.locator("[data-aufnahme-zurueck]").count()) === 1, autoText.replace(/\n/g, " · ").slice(0, 120));
+  await autoKarte.locator("[data-aufnahme-zurueck]").click().catch(() => {});
+  let zurueck = null;
+  for (let i = 0; i < 40; i++) { await warte(250); const alle = await standAlle(); const a = alle.find((e) => e.id === autoTodoId); if (a && a.status === "open" && !alle.some((e) => e.id === "todo-bk-" + autoTodoId.slice(8))) { zurueck = a; break; } }
+  ok("(A) „Zurück in die Aufnahme“ am PC: das To-do ist auf dem Server weg, die Aufnahme wieder offen ohne Ziel", !!zurueck && !zurueck.ziel && !zurueck.sortiertVon, JSON.stringify(zurueck && { status: zurueck.status, ziel: zurueck.ziel }));
   await pc.close();
 
   /* ================= (H) Handy über mobile Daten: Zettel vom Briefkasten selbst ================= */

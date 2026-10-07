@@ -896,6 +896,22 @@ Störungen, nicht den Rest.
   Leser: aus – Sortieren schreibt immer). Sortierte Handy-Aufnahmen bleiben
   als Einträge im Bestand (Tagesfilm, Akte), nichts wird gelöscht außer bei
   „Weg damit" nach Rückfrage.
+
+  **Automatisch einsortiert (seit dem 07.10., Roll-out 66):** Was über den
+  Briefkasten kommt, sortiert der **Server beim Abholen** selbst, wenn es
+  eindeutig ist – eindeutig heißt: am Zettel ist ein Ziel gewählt und die
+  Anlage steht in der Anlagenliste. **Akte** (Anlage bekannt) → gleich in die
+  Akte; **To-do** (Anlage bekannt + Notiz) → offenes To-do mit Foto, Notiz als
+  Titel, Anlage in der Bemerkung; **Pinnwand-Zettel** (Notiz) → gelber Zettel.
+  **Arbeit und Störung nie** – die brauchen Datum/Dauer bzw. Zeiten und
+  Ursache. Alles andere (kein Ziel, Anlage unbekannt, To-do ohne Notiz)
+  bleibt im Eingang. Im **Tagesfilm** steht so Sortiertes blass mit
+  „automatisch“ und dem Knopf **„Zurück in die Aufnahme“**: der erzeugte
+  Eintrag verschwindet, die Aufnahme ist wieder offen, das Bild bleibt. Die
+  drei Schalter stehen im ⚙ unter **Regeln & Listen → Aufnahme**; Bilder, die
+  nicht aus dem Briefkasten kommen (PC-Ordner, Handy im WLAN), werden nicht
+  automatisch sortiert. Die Status-Seite des Dienstes zählt „davon …
+  automatisch einsortiert“.
 - **TPM → Übersicht:** ein digitales **TPM-Board**, das beim Klick auf **TPM** zuerst öffnet.
   Oben die **Monats- und Jahresquote als Halbkreise**. Es holt das Team ab und erklärt kurz,
   **was** TPM und R+I sind und **warum** sie wichtig sind (Sicherheit, Verfügbarkeit, Nachweis).

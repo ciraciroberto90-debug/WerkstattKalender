@@ -371,7 +371,15 @@ function oeffnen(dateiPfad, { standort } = {}) {
     const r = stmts.eintragLesen.get(String(id));
     return !!(r && !r.geloescht);
   }
-  return { pfad: dateiPfad, version, standSeit, aenderungenAnwenden, eintragVorhanden, exportV1, importV1, sicherungNach, zaehlen, schliessen, meta, KonfliktFehler };
+  /* Einen Einstellungswert lesen (z. B. kalender/regeln, kalender/tpmAnlagen) - für den
+   * Abholer, der nach den Werkstatt-Regeln automatisch einsortiert. null = nicht gesetzt. */
+  function konfigWert(bereich, schluessel) {
+    const r = stmts.konfigLesen.get(bereich, schluessel);
+    if (!r) return null;
+    try { return JSON.parse(r.daten); } catch (e) { return null; }
+  }
+
+  return { pfad: dateiPfad, version, standSeit, aenderungenAnwenden, eintragVorhanden, konfigWert, exportV1, importV1, sicherungNach, zaehlen, schliessen, meta, KonfliktFehler };
 }
 
 module.exports = { oeffnen, KonfliktFehler, TABELLEN };

@@ -243,7 +243,7 @@ function starten(einstellungen, { still = false } = {}) {
      Der Server braucht dafür nur AUSGEHENDES HTTPS (gemessen 06.10.: Roberto
      „ich habe da Internet"). */
   const bk = e.briefkasten;
-  const briefkastenStand = { aktiv: !!bk, adresse: bk ? bk.adresse : "", standort: bk ? bk.standort : "", letzterTakt: null, letzteAbholung: null, abgeholtGesamt: 0, imBriefkasten: null, letzterFehler: null, erreichbar: null };
+  const briefkastenStand = { aktiv: !!bk, adresse: bk ? bk.adresse : "", standort: bk ? bk.standort : "", letzterTakt: null, letzteAbholung: null, abgeholtGesamt: 0, automatischGesamt: 0, imBriefkasten: null, letzterFehler: null, erreichbar: null };
   let bkLaeuft = false;
   async function briefkastenAnfrage(weg, opts = {}) {
     const ac = new AbortController();
@@ -251,6 +251,62 @@ function starten(einstellungen, { still = false } = {}) {
     try {
       return await fetch(bk.adresse + weg, { method: opts.method || "GET", headers: { "X-BTA-Schluessel": bk.schluessel, ...(opts.headers || {}) }, signal: ac.signal, cache: "no-store" });
     } finally { clearTimeout(frist); }
+  }
+  /* Automatisch einsortieren (Roll-out 66, Robertos Freigabe 07.10.: „ja freigeben und bauen“).
+   * „Klar“ kann nur sein, was der Zettel mitschickt - kein Bild wird gedeutet. Regeln:
+   *   AKTE   + bekannte Anlage           -> Aufnahme gleich in die Akte (nur Markierung, kein neuer Eintrag)
+   *   TODO   + bekannte Anlage + Notiz   -> offenes To-do mit Foto (Kennung todo-bk-<id>)
+   *   ZETTEL + Notiz                     -> Pinnwand-Zettel (Kennung notiz-bk-<id>)
+   *   ARBEIT, STOERUNG                   -> immer von Hand (brauchen Datum/Dauer bzw. Zeiten/Ursache)
+   * Bekannt = Name steht in der Anlagenliste (Groß/Klein egal). Je Ziel ein Schalter in
+   * ⚙ Regeln & Listen (regeln.aufnahme.auto); fehlt die Regel, gilt: an.
+   * Alles läuft HIER im Dienst, nicht am PC: ein Ort, die Kennungen leiten sich aus der
+   * Briefkasten-Kennung ab - zweimal abholen legt nichts doppelt an. Der PC kann es
+   * zurücknehmen („Zurück in die Aufnahme“). */
+  const AUTO_STANDARD = { AKTE: true, TODO: true, ZETTEL: true };
+  function autoEinsortieren(st, aufnahme, kennung) {
+    const ziel = aufnahme.zielWunsch;
+    if (!ziel || !(ziel in AUTO_STANDARD)) return null;
+    const regeln = st.db.konfigWert("kalender", "regeln");
+    const auto = (regeln && regeln.aufnahme && regeln.aufnahme.auto) || {};
+    if (!(ziel in auto ? !!auto[ziel] : AUTO_STANDARD[ziel])) return null;
+    const anlagen = st.db.konfigWert("kalender", "tpmAnlagen");
+    const gesucht = String(aufnahme.name || "").trim().toLowerCase();
+    const bekannt = gesucht && Array.isArray(anlagen) ? anlagen.find((a) => a && String(a.name || "").trim().toLowerCase() === gesucht) : null;
+    const notiz = String(aufnahme.note || "").trim();
+    const jetzt = new Date().toISOString();
+    const stempel = { status: "done", ziel, sortiertAm: jetzt, sortiertVon: "automatisch" };
+    if (ziel === "AKTE") {
+      if (!bekannt) return null;
+      Object.assign(aufnahme, stempel, { name: bekannt.name });
+      return { neu: [], text: "Akte " + bekannt.name };
+    }
+    if (ziel === "TODO") {
+      if (!bekannt || !notiz) return null;
+      const zielId = "todo-bk-" + kennung;
+      const todo = {
+        id: zielId, category: "TODO", name: notiz.slice(0, 200), date: aufnahme.date, status: "offen",
+        wer: "", bis: "", uhrzeit: "", prio: "",
+        bemerkung: `Anlage ${bekannt.name} · aus der Aufnahme${aufnahme.wer ? " von " + aufnahme.wer : ""}, automatisch einsortiert`,
+        erteiltVon: aufnahme.wer || "Briefkasten", ...(aufnahme.fotos.length ? { fotos: aufnahme.fotos } : {}),
+        updatedAt: jetzt, geaendertVon: "Briefkasten",
+      };
+      Object.assign(aufnahme, stempel, { name: bekannt.name, zielId });
+      return { neu: st.db.eintragVorhanden(zielId) ? [] : [todo], text: "To-do „" + notiz.slice(0, 40) + "“" };
+    }
+    if (ziel === "ZETTEL") {
+      if (!notiz) return null;
+      const zielId = "notiz-bk-" + kennung;
+      const zettel = {
+        id: zielId, category: "NOTIZ", name: aufnahme.wer || "Briefkasten", date: aufnahme.date, status: "open",
+        note: notiz, zeit: aufnahme.zeit, farbe: "gelb", monitor: false, sichtbar: "verwalter", empfaenger: [],
+        konto: aufnahme.wer || "Briefkasten", gueltigBis: "", veroeffentlicht: false,
+        ...(aufnahme.fotos.length ? { fotos: aufnahme.fotos } : {}), updatedAt: jetzt, geaendertVon: "Briefkasten",
+      };
+      Object.assign(aufnahme, stempel, { zielId, ...(bekannt ? { name: bekannt.name } : {}) });
+      return { neu: st.db.eintragVorhanden(zielId) ? [] : [zettel], text: "Pinnwand-Zettel" };
+    }
+    return null;
   }
   async function briefkastenAbholen(grund) {
     if (!bk || bkLaeuft) return briefkastenStand;
@@ -266,7 +322,8 @@ function starten(einstellungen, { still = false } = {}) {
       briefkastenStand.imBriefkasten = liste.length;
       let versionNeu = null;
       for (const ein of liste) {
-        const id = "aufn-bk-" + String(ein.id).replace(/[^A-Za-z0-9]/g, "");
+        const kennung = String(ein.id).replace(/[^A-Za-z0-9]/g, "");
+        const id = "aufn-bk-" + kennung;
         const b = ein.begleit || {};
         const zeitRoh = new Date(b.zeit || ein.eingeworfen || Date.now());
         const zeit = Number.isNaN(zeitRoh.getTime()) ? new Date().toISOString() : zeitRoh.toISOString();
@@ -292,8 +349,12 @@ function starten(einstellungen, { still = false } = {}) {
             eingeworfen: ein.eingeworfen || null, updatedAt: new Date().toISOString(), geaendertVon: "Briefkasten",
             ...(["ARBEIT", "TODO", "STOERUNG", "ZETTEL", "AKTE"].includes(ziel) ? { zielWunsch: ziel } : {}),
           };
-          const res = st.db.aenderungenAnwenden({ benutzer: "Briefkasten", basisVersion: st.db.version(), eintraege: [eintrag] });
+          // Automatisch einsortieren - Aufnahme und Ziel-Eintrag in EINER Änderung, damit nie
+          // ein To-do ohne seine Aufnahme (oder umgekehrt) stehen bleibt.
+          const auto = autoEinsortieren(st, eintrag, kennung);
+          const res = st.db.aenderungenAnwenden({ benutzer: "Briefkasten", basisVersion: st.db.version(), eintraege: [eintrag, ...((auto && auto.neu) || [])] });
           versionNeu = res.version;
+          if (auto) { briefkastenStand.automatischGesamt = (briefkastenStand.automatischGesamt || 0) + 1; log.info(`${st.id}: Aufnahme ${id} automatisch einsortiert -> ${auto.text}`); }
         }
         // Erst jetzt - Foto und Eintrag liegen hier - im Briefkasten löschen
         const rd = await briefkastenAnfrage("/abholen/" + encodeURIComponent(ein.id), { method: "DELETE" });
@@ -349,7 +410,7 @@ function starten(einstellungen, { still = false } = {}) {
 <h2>Excel-Quellen</h2>${quellenHtml}
 <h2>Briefkasten (Aufnahme vom Handy über das Internet)</h2>${s.briefkasten.aktiv
     ? `<p>${esc(s.briefkasten.adresse)} → Standort <code>${esc(s.briefkasten.standort)}</code> · ${s.briefkasten.erreichbar === null ? "noch nicht abgefragt" : s.briefkasten.erreichbar ? '<span class=ok>erreichbar</span>' : '<strong style="color:#B23A34">nicht erreichbar</strong>'}${s.briefkasten.letzterTakt ? ` · letzter Takt ${esc(ortszeit(s.briefkasten.letzterTakt))}` : ""}</p>
-<p>${s.briefkasten.abgeholtGesamt} Aufnahme(n) seit dem Start abgeholt${s.briefkasten.letzteAbholung ? `, zuletzt ${esc(ortszeit(s.briefkasten.letzteAbholung))}` : ""} · im Briefkasten liegen ${s.briefkasten.imBriefkasten === null ? "?" : s.briefkasten.imBriefkasten}${s.briefkasten.letzterFehler ? `<br><strong style="color:#B23A34">Fehler:</strong> ${esc(s.briefkasten.letzterFehler)}` : ""}</p>`
+<p>${s.briefkasten.abgeholtGesamt} Aufnahme(n) seit dem Start abgeholt${s.briefkasten.letzteAbholung ? `, zuletzt ${esc(ortszeit(s.briefkasten.letzteAbholung))}` : ""}, davon ${s.briefkasten.automatischGesamt || 0} automatisch einsortiert · im Briefkasten liegen ${s.briefkasten.imBriefkasten === null ? "?" : s.briefkasten.imBriefkasten}${s.briefkasten.letzterFehler ? `<br><strong style="color:#B23A34">Fehler:</strong> ${esc(s.briefkasten.letzterFehler)}` : ""}</p>`
     : "<p>nicht eingerichtet (einstellungen.json → briefkasten: adresse, schluessel, standort).</p>"}
 <h2>App</h2><p>${s.appDatei ? `<a href="/app/">/app/</a> · ${(s.appDatei.bytes / 1024).toFixed(0)} kB · Stand ${esc(ortszeit(s.appDatei.geaendert))}` : "keine App-Datei hinterlegt"}</p>
 <p><small>JSON: <a href="/api/status">/api/status</a></small></p></body></html>`;
@@ -534,7 +595,7 @@ function starten(einstellungen, { still = false } = {}) {
   });
 }
 
-const FASSUNG = "0.5.0"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.); 0.5.0 = Briefkasten-Abholer (06.10.)
+const FASSUNG = "0.6.0"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.); 0.5.0 = Briefkasten-Abholer (06.10.); 0.6.0 = automatisches Einsortieren aus dem Briefkasten (07.10.)
 
 /* Import-Nachweis: eingelesene Datei gegen den Export aus der Datenbank.
    Einträge Feld für Feld (JSON-Text je id), Löschliste nach Kennung, Konfig je

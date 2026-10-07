@@ -375,6 +375,20 @@ als URL-kodiertes JSON, Körper = Bild-Bytes) · `GET /liste`, `GET/DELETE
 /abholen/{id}` (Abhol-Schlüssel). **Zwei Schlüssel**, weil das Handy
 verloren gehen kann: Einwurf darf nur einwerfen und nichts lesen.
 
+**Automatisch einsortieren (0.6.0, Roll-out 66, Robertos Freigabe 07.10.):**
+Der Abholer sortiert eine Aufnahme sofort, wenn Ziel und Anlage eindeutig sind
+– entschieden wird nur nach der Begleitdatei, nie nach dem Bild. `AKTE` +
+bekannte Anlage → Aufnahme done/AKTE; `TODO` + bekannte Anlage + Notiz →
+To-do `todo-bk-<id>` (Notiz = Titel, Foto-Verweis geteilt, Anlage in der
+Bemerkung); `ZETTEL` + Notiz → Pinnwand-Zettel `notiz-bk-<id>`; `ARBEIT`,
+`STOERUNG` nie. Bekannt = Name in `konfig kalender/tpmAnlagen` (Groß/Klein
+egal); Schalter je Ziel in `konfig kalender/regeln → aufnahme.auto` (fehlt:
+an). Aufnahme und Ziel-Eintrag gehen in **einer** Änderung in die Datenbank;
+die Kennungen stammen aus der Briefkasten-Kennung, zweimal abholen legt
+nichts doppelt an. Der PC nimmt es im Tagesfilm zurück („Zurück in die
+Aufnahme“: Ziel-Eintrag weg, Aufnahme offen, Bilddatei bleibt). Prüfstand
+(A) in `pruefe-briefkasten.js`, Rot-Nachweis gegen 0.5.0.
+
 **Regeln des Abholers (dieselben wie beim Einzug):** Kennung
 `aufn-bk-<Briefkasten-Kennung>` → zweimal abholen legt nichts doppelt an;
 gelöscht wird im Briefkasten erst, wenn Foto (Kontroll-Lesung) **und**
@@ -382,7 +396,7 @@ Eintrag auf dem Server liegen; ein Fehler hält den Takt an, steht auf der
 Status-Seite, der nächste Takt versucht es neu; Protokollzeile nur beim
 Wechsel des Fehlers.
 
-**Gemessen 06.10. (Prüfstand `pruefe-briefkasten.js`, 38 Prüfungen; 07.10. 46 mit dem Zettel vom Briefkasten):**
+**Gemessen 06.10. (Prüfstand `pruefe-briefkasten.js`, 38 Prüfungen; 07.10. 46 mit dem Zettel vom Briefkasten, 55 mit dem automatischen Einsortieren):**
 Einwurf vom Zettel 72 ms; Abholung durch den Dienst nach 2,0 s (Takt 5 s im
 Prüfstand); Nachsenden aus der Warteschlange bis zur Aufnahme auf dem Dienst
 3,1 s. **Nicht gemessen:** der echte Cloudflare-Worker (nur mit nachgebautem

@@ -2678,6 +2678,9 @@ const REGELN_STANDARD = () => ({
   // bleiben schon eingetragene Werte gültig; investBudget/investAusgegeben neu.
   // Das Ist kommt später 1× am Tag aus einer Excel-Tabelle, bis dahin von Hand.
   kosten: { budgetJahr: 0, ausgegeben: 0, investBudget: 0, investAusgegeben: 0, stand: "" },
+  // Aufnahme (Roll-out 66, 07.10.): Was der Dienst beim Abholen aus dem Briefkasten von
+  // selbst einsortiert, wenn Ziel und Anlage eindeutig sind. Arbeit und Störung nie.
+  aufnahme: { auto: { AKTE: true, TODO: true, ZETTEL: true } },
 });
 const textListe = (roh, standard) => (Array.isArray(roh) ? roh.map((x) => String(x || "").trim()).filter(Boolean) : standard);
 const zahlOder = (v, standard, min, max) => { const n = Number(v); return v !== "" && v != null && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : standard; };
@@ -2720,6 +2723,8 @@ function normalisiereRegeln(roh) {
       investBudget: zahlOder(r.kosten && r.kosten.investBudget, 0, 0, 1e9), investAusgegeben: zahlOder(r.kosten && r.kosten.investAusgegeben, 0, 0, 1e9),
       stand: tag.test(r.kosten && r.kosten.stand || "") ? r.kosten.stand : "",
     },
+    // Fehlt ein Schalter (ältere Datei), gilt „an“ - wie der Dienst es auch hält.
+    aufnahme: { auto: Object.fromEntries(Object.keys(st.aufnahme.auto).map((k) => [k, r.aufnahme && r.aufnahme.auto && k in r.aufnahme.auto ? !!r.aufnahme.auto[k] : true])) },
   };
 }
 // Modul-Stand für Helfer außerhalb des Bauteils (Feiertage, Kachel-Farben,
@@ -7994,7 +7999,7 @@ function App() {
   // dem Eingangsordner. Beide tragen dieselben Felder, damit Korb, Durch-
   // blättern und Tagesfilm nicht zwei Sorten kennen müssen.
   const quelleText = (q) => (q === "pc" ? "PC-Ordner" : q === "einzug" ? "Einzug" : q === "briefkasten" ? "Briefkasten" : "Handy");
-  const karteAusEintrag = (e) => ({ art: "eintrag", key: e.id, id: e.id, e, zeit: aufnahmeZeitVon(e), note: e.note || "", anlage: e.name || "", wer: e.wer || "", quelle: quelleText(e.quelle), zielWunsch: e.zielWunsch || "", sortiert: e.status === "done" ? { ziel: e.ziel, am: e.sortiertAm } : null });
+  const karteAusEintrag = (e) => ({ art: "eintrag", key: e.id, id: e.id, e, zeit: aufnahmeZeitVon(e), note: e.note || "", anlage: e.name || "", wer: e.wer || "", quelle: quelleText(e.quelle), zielWunsch: e.zielWunsch || "", sortiert: e.status === "done" ? { ziel: e.ziel, am: e.sortiertAm, von: e.sortiertVon || "", zielId: e.zielId || "" } : null });
   // Eine Datei aus dem Eingangsordner - mit Begleitdatei (Aufnahme-Zettel,
   // Roll-out 64) kommen Notiz, Anlage, Kürzel, Ziel und die echte Aufnahmezeit mit.
   const karteAusDatei = (d) => {
@@ -8159,6 +8164,15 @@ function App() {
     }
     merkeVerarbeitet(herkunft.key, ziel, zielId);
     return liste;
+  };
+  // Zurück in die Aufnahme (Roll-out 66): Was der Dienst automatisch einsortiert hat, nimmt der
+  // PC mit einem Klick zurück - der erzeugte To-do/Zettel verschwindet, die Aufnahme ist wieder
+  // offen. Die Bilddatei bleibt: Aufnahme und Ziel-Eintrag zeigen auf dieselbe Datei.
+  const aufnahmeZurueck = async (k) => {
+    if (k.art !== "eintrag" || !k.sortiert) return;
+    const zielId = k.sortiert.zielId;
+    const ohneZiel = zielId && k.sortiert.ziel !== "AKTE" ? entries.filter((x) => x.id !== zielId) : entries;
+    await persist(ohneZiel.map((x) => (x.id === k.id ? { ...x, status: "open", ziel: undefined, zielId: undefined, sortiertAm: undefined, sortiertVon: undefined } : x)));
   };
   // Das Bild einer Datei-Karte für den Ziel-Dialog vorbereiten: eindampfen
   // wie ein Handyfoto, in den Datenordner kommt es erst mit „Speichern".
@@ -11249,11 +11263,14 @@ function App() {
               <button onClick={() => { setAufnahmeKarteKey(k.key); setAufnahmeTab("BLAETTERN"); }} className="block w-full text-left" style={{ padding: "8px 10px 2px" }} title="Groß ansehen und sortieren (Durchblättern)">
                 <div className="font-bold text-sm truncate" style={{ color: note ? "#22262B" : "#8A9099", fontStyle: note ? "normal" : "italic" }}>{note || (k.art === "datei" ? k.dateiName : "ohne Notiz")}</div>
                 <div className="text-xs truncate" style={{ color: "#8A9099" }}>
-                  {sortiert ? `${sortiert.zeichen} ${sortiert.label} · sortiert` : anlage ? `Anlage: ${anlage}${k.anlage ? "" : " (erkannt)"}` : "Anlage noch offen"}
+                  {sortiert ? `${sortiert.zeichen} ${sortiert.label} · ${k.sortiert.von === "automatisch" ? "automatisch" : "sortiert"}` : anlage ? `Anlage: ${anlage}${k.anlage ? "" : " (erkannt)"}` : "Anlage noch offen"}
                 </div>
               </button>
               {!sortiert && !klein && zielKnoepfeKlein(k)}
               {!sortiert && klein && <div style={{ height: "6px" }} />}
+              {sortiert && k.sortiert.von === "automatisch" && aufnahmeDarf && (
+                <button onClick={() => aufnahmeZurueck(k)} data-aufnahme-zurueck className="block w-full text-left text-xs font-bold" style={{ padding: "2px 10px 8px", color: "#2F6690" }} title={`Automatisch einsortiert (${AUFNAHME_ZIEL[k.sortiert.ziel].label}) - zurücknehmen: der Eintrag verschwindet, die Aufnahme ist wieder offen`}>↩ Zurück in die Aufnahme</button>
+              )}
             </div>
           );
         };
@@ -18166,6 +18183,16 @@ function App() {
                 {[["anlagenteil", "Anlagenteil"], ["gewerk", "Gewerk"], ["fehlerart", "Fehlerart"], ["ausfallzeit", "Ausfallzeit"], ["ursache", "Ursache (immer)"], ["getan", "Sofort Maßnahme (immer)"]].map(([k, name]) => (
                   <label key={k} className="flex items-center gap-1.5 text-sm">
                     <input type="checkbox" checked={!!r.vorlagen.pflicht[k]} aria-label={`Pflichtfeld ${name}`} onChange={(e) => setze(["vorlagen", "pflicht", k], e.target.checked)} />
+                    {name}
+                  </label>
+                ))}
+              </div>
+              {kopf("Aufnahme – automatisch einsortieren", "regeln-aufnahme")}
+              {hinweis("Was vom Handy über den Briefkasten kommt, sortiert der Server beim Abholen selbst ein, wenn Ziel und Anlage eindeutig sind (Anlage muss in der Anlagenliste stehen). Arbeit und Störung bleiben immer von Hand. Im Tagesfilm steht „automatisch“ mit „Zurück in die Aufnahme“.")}
+              <div className="flex gap-x-4 gap-y-1 flex-wrap mb-2">
+                {[["AKTE", "Akte (Anlage bekannt)"], ["TODO", "To-do (Anlage bekannt + Notiz)"], ["ZETTEL", "Pinnwand-Zettel (Notiz)"]].map(([k, name]) => (
+                  <label key={k} className="flex items-center gap-1.5 text-sm">
+                    <input type="checkbox" checked={!!r.aufnahme.auto[k]} aria-label={`Automatisch einsortieren ${name}`} data-regel-aufnahme-auto={k} onChange={(e) => setze(["aufnahme", "auto", k], e.target.checked)} />
                     {name}
                   </label>
                 ))}

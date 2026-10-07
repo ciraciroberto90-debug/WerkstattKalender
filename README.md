@@ -149,7 +149,7 @@ node --no-warnings tests/server/pruefe-dienst.js   # Server-Dienst (Etappe A): S
 node --no-warnings tests/server/pruefe-dienst-last.js   # Dienst unter Last (16.951 + 31.845 Einträge, Zeiten im Protokoll)
 node --no-warnings tests/server/pruefe-app-am-server.js   # die gebaute App gegen den echten Dienst (Etappe C; C14/C15 = Handy-Aufnahme)
 node --no-warnings tests/server/pruefe-quellen-am-server.js   # Excel-Quellen im Server-Betrieb: Kopie, Zubringer, Browser (Roll-out 54)
-node --no-warnings tests/server/pruefe-briefkasten.js   # Briefkasten: Kern, Worker-Attrappe, Zettel -> Briefkasten -> Dienst 0.5.0 -> PC, Warteschlange ohne Netz, Zettel vom Briefkasten (/zettel, Einrichtungs-Link) (Roll-out 65)
+node --no-warnings tests/server/pruefe-briefkasten.js   # Briefkasten: Kern, Worker-Attrappe, Zettel -> Briefkasten -> Dienst 0.6.0 -> PC, Warteschlange ohne Netz, Zettel vom Briefkasten (/zettel, Einrichtungs-Link), automatisches Einsortieren (Roll-out 65/66)
 node briefkasten/worker-bauen.js --pruefen   # ist worker.js auf dem Stand von kern.js und handy/aufnahme-zettel.html? (ohne --pruefen: neu bauen)
 ```
 

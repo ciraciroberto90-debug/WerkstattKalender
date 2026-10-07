@@ -254,7 +254,9 @@ Rechte), Eingabeaufforderung **als Administrator**:
 ## Briefkasten im Internet (Roll-out 65, 06.10.) – die Schritte am Server
 
 Voraussetzung: Dienst **0.5.0** auf dem Server (Stick-ZIP → „Einrichten"; die
-Status-Seite nennt die Fassung). Der Briefkasten selbst entsteht im Browser
+Status-Seite nennt die Fassung; **0.6.0 vom 07.10.** sortiert zusätzlich
+automatisch ein, Roll-out 66 – Tausch über das Werkzeug „Einrichten" mit dem
+Stick 0.6.0, die Daten bleiben). Der Briefkasten selbst entsteht im Browser
 (Cloudflare, zehn Klick-Schritte in `briefkasten/LIESMICH-BRIEFKASTEN.md`).
 Am Server dann, einer nach dem anderen:
 

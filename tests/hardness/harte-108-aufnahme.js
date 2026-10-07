@@ -287,6 +287,25 @@ const bilderGeladen = (p) => p.evaluate(() => [...document.querySelectorAll("[da
     await w.ctx.close();
   }
 
+  /* (7) ⚙ Regeln & Listen: Schalter „automatisch einsortieren“ (Roll-out 66) */
+  {
+    const w = await start(browser, { entries: [] });
+    await w.p.locator('button[aria-label="Verwalten"]').click();
+    await w.p.waitForTimeout(300);
+    await w.p.getByRole("button", { name: "Regeln & Listen", exact: true }).click();
+    await w.p.waitForTimeout(300);
+    const schalter = w.p.locator("[data-regel-aufnahme-auto]");
+    const vorher = await schalter.evaluateAll((l) => l.map((i) => [i.getAttribute("data-regel-aufnahme-auto"), i.checked]));
+    ok("(7) Regeln & Listen: drei Schalter Akte / To-do / Pinnwand-Zettel, alle an (Standard); Arbeit und Störung haben keinen", vorher.length === 3 && vorher.every(([, an]) => an) && vorher.map(([k]) => k).join(",") === "AKTE,TODO,ZETTEL", JSON.stringify(vorher));
+    await w.p.locator('[data-regel-aufnahme-auto="TODO"]').uncheck();
+    await w.p.getByRole("button", { name: "Speichern", exact: true }).first().click();
+    await w.p.waitForTimeout(600);
+    const gespeichert = await w.p.evaluate(() => { const k = Object.keys(localStorage).find((x) => x.endsWith("werkstatt-kalender-config")); const c = k ? JSON.parse(localStorage.getItem(k) || "{}") : {}; return c.regeln && c.regeln.aufnahme ? c.regeln.aufnahme.auto : null; });
+    ok("(7) Speichern schreibt regeln.aufnahme.auto in die gemeinsame Einstellung: TODO aus, AKTE und ZETTEL an - genau das liest der Dienst", !!gespeichert && gespeichert.TODO === false && gespeichert.AKTE === true && gespeichert.ZETTEL === true, JSON.stringify(gespeichert));
+    ok("(7) Keine Skriptfehler", w.fehler.length === 0, w.fehler.slice(0, 2).join(" | "));
+    await w.ctx.close();
+  }
+
   await browser.close();
   console.log(`\n${pass} bestanden, ${fail} durchgefallen`);
   process.exit(fail ? 1 : 0);
