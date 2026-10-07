@@ -20,7 +20,9 @@
  *   GET  /api/:standort/quellen              (0.4.0) Excel-Quellen auf dem Server: Liste mit Stand
  *   GET  /api/:standort/quellen/:name        eine Quelle (Bytes), Kopf X-BTA-Stand = Änderungszeit der Vorlage
  *   POST /api/:standort/quellen/:name?stand=ms  Quelle einspielen (Programm mit Laufwerkszugriff); DELETE entfernt sie
+ *   POST /api/:standort/briefkasten          (0.5.0) Briefkasten jetzt abholen (sonst im Takt, Vorgabe 30 s)
  *   GET  /app/                               die App (eine HTML)
+ *   GET  /zettel                             (0.5.0) der Aufnahme-Zettel fürs Handy (handy/aufnahme-zettel.html), falls neben der App hinterlegt
  */
 "use strict";
 const http = require("http");
@@ -36,6 +38,14 @@ const MAX_KOERPER = 64 * 1024 * 1024; // 64 MB - der heutige Vollbestand hat 9 M
 /* ---------- Einstellungen ---------- */
 function ladeEinstellungen(pfad) {
   const roh = JSON.parse(fs.readFileSync(pfad, "utf8"));
+  // Briefkasten-Zugang (0.5.0) wahlweise in einer EIGENEN Datei briefkasten.json
+  // neben den Einstellungen: Das Server-Werkzeug schreibt einstellungen.json
+  // bei jedem „Einrichten" neu - die kleine Datei daneben bleibt stehen, und
+  // Roberto trägt dort Adresse und Abhol-Schlüssel von Hand ein (vier Zeilen).
+  const bkPfad = path.join(path.dirname(pfad), "briefkasten.json");
+  if (!roh.briefkasten && fs.existsSync(bkPfad)) {
+    try { roh.briefkasten = JSON.parse(fs.readFileSync(bkPfad, "utf8").replace(/^﻿/, "")); } catch (x) { throw new Error("briefkasten.json ist kein gültiges JSON: " + x.message); }
+  }
   const e = {
     port: Number(roh.port) || 8765,
     host: roh.host || "0.0.0.0",
@@ -49,7 +59,18 @@ function ladeEinstellungen(pfad) {
     // schreibende Anfrage braucht den Kopf X-BTA-Schluessel; Lesen bleibt frei.
     schluessel: typeof roh.schluessel === "string" ? roh.schluessel.trim() : "",
     standorte: roh.standorte || {},
+    // Briefkasten im Internet (0.5.0, Roll-out 65): der Dienst holt dort ab,
+    // was der Aufnahme-Zettel vom Handy eingeworfen hat. Leer = aus.
+    briefkasten: roh.briefkasten && typeof roh.briefkasten === "object" && roh.briefkasten.adresse
+      ? {
+        adresse: String(roh.briefkasten.adresse).trim().replace(/\/+$/, ""),
+        schluessel: String(roh.briefkasten.schluessel || "").trim(), // der Abhol-Schlüssel
+        standort: String(roh.briefkasten.standort || Object.keys(roh.standorte || {})[0] || "").trim(),
+        taktSek: Math.max(5, Number(roh.briefkasten.taktSek) || 30),
+      }
+      : null,
   };
+  if (e.briefkasten && !e.standorte[e.briefkasten.standort]) throw new Error("Einstellungen: briefkasten.standort unbekannt: " + e.briefkasten.standort);
   if (!Object.keys(e.standorte).length) throw new Error("Einstellungen: kein Standort angegeben");
   for (const [id, s] of Object.entries(e.standorte)) {
     if (!/^[a-z0-9-]+$/.test(id)) throw new Error("Einstellungen: Standort-Kennung nur Kleinbuchstaben/Ziffern: " + id);
@@ -211,8 +232,93 @@ function starten(einstellungen, { still = false } = {}) {
   // Lebenszeichen für die SSE-Verbindungen, damit kein Proxy/Router sie für tot hält.
   const herzschlag = setInterval(() => { for (const st of Object.values(standorte)) for (const res of st.lauscher) { try { res.write(": herz\n\n"); } catch (x) { st.lauscher.delete(res); } } }, 25 * 1000);
 
+  /* ---------- Briefkasten-Abholer (0.5.0, Roll-out 65) ----------
+     Robertos Weg über mobile Daten ohne Firmennetz: Das Handy wirft Foto +
+     Begleitdatei in den Briefkasten im Internet (briefkasten/kern.js), dieser
+     Dienst holt im Takt ab - Foto in den fotos-Ordner des Standorts, Aufnahme
+     als Eintrag AUFNAHME (Kennung aus der Briefkasten-Kennung, deshalb nie
+     doppelt), dann DELETE im Briefkasten. Reihenfolge ist Programm: Erst wenn
+     Foto UND Eintrag hier liegen, wird im Briefkasten gelöscht; scheitert
+     etwas, bleibt der Einwurf dort und der nächste Takt versucht es neu.
+     Der Server braucht dafür nur AUSGEHENDES HTTPS (gemessen 06.10.: Roberto
+     „ich habe da Internet"). */
+  const bk = e.briefkasten;
+  const briefkastenStand = { aktiv: !!bk, adresse: bk ? bk.adresse : "", standort: bk ? bk.standort : "", letzterTakt: null, letzteAbholung: null, abgeholtGesamt: 0, imBriefkasten: null, letzterFehler: null, erreichbar: null };
+  let bkLaeuft = false;
+  async function briefkastenAnfrage(weg, opts = {}) {
+    const ac = new AbortController();
+    const frist = setTimeout(() => ac.abort(), opts.fristMs || 20000);
+    try {
+      return await fetch(bk.adresse + weg, { method: opts.method || "GET", headers: { "X-BTA-Schluessel": bk.schluessel, ...(opts.headers || {}) }, signal: ac.signal, cache: "no-store" });
+    } finally { clearTimeout(frist); }
+  }
+  async function briefkastenAbholen(grund) {
+    if (!bk || bkLaeuft) return briefkastenStand;
+    bkLaeuft = true;
+    const st = standorte[bk.standort];
+    try {
+      briefkastenStand.letzterTakt = new Date().toISOString();
+      const r = await briefkastenAnfrage("/liste");
+      if (r.status === 401) throw new Error("Briefkasten weist den Abhol-Schlüssel ab (401)");
+      if (!r.ok) throw new Error("Briefkasten antwortet " + r.status);
+      const liste = (await r.json()).eintraege || [];
+      briefkastenStand.erreichbar = true;
+      briefkastenStand.imBriefkasten = liste.length;
+      let versionNeu = null;
+      for (const ein of liste) {
+        const id = "aufn-bk-" + String(ein.id).replace(/[^A-Za-z0-9]/g, "");
+        const b = ein.begleit || {};
+        const zeitRoh = new Date(b.zeit || ein.eingeworfen || Date.now());
+        const zeit = Number.isNaN(zeitRoh.getTime()) ? new Date().toISOString() : zeitRoh.toISOString();
+        const tag = zeit.slice(0, 10);
+        if (!st.db.eintragVorhanden(id)) {
+          let fotos = [];
+          if (Number(ein.bytes) > 0) {
+            const rb = await briefkastenAnfrage("/abholen/" + encodeURIComponent(ein.id), { fristMs: 60000 });
+            if (!rb.ok) throw new Error(`Briefkasten: Bild ${ein.id} nicht lesbar (${rb.status})`);
+            const bytes = Buffer.from(await rb.arrayBuffer());
+            if (bytes.length !== Number(ein.bytes)) throw new Error(`Briefkasten: Bild ${ein.id} unvollständig (${bytes.length} von ${ein.bytes} Bytes)`);
+            const fotoName = `foto-${tag}-bk${String(ein.id).replace(/[^a-z0-9]/gi, "")}.jpg`;
+            const pfad = path.join(st.datenOrdner, "fotos", fotoName);
+            fs.mkdirSync(path.dirname(pfad), { recursive: true });
+            fs.writeFileSync(pfad + ".teil", bytes); fs.renameSync(pfad + ".teil", pfad);
+            if (fs.statSync(pfad).size !== bytes.length) { fs.unlinkSync(pfad); throw new Error("Foto unvollständig geschrieben"); }
+            fotos = [{ datei: fotoName, wer: String(b.wer || ""), ts: zeit }];
+          }
+          const ziel = String(b.ziel || "").toUpperCase();
+          const eintrag = {
+            id, date: tag, category: "AUFNAHME", name: String(b.anlage || "").slice(0, 80), status: "open",
+            note: String(b.notiz || "").slice(0, 1000), fotos, wer: String(b.wer || "").slice(0, 40), zeit, quelle: "briefkasten",
+            eingeworfen: ein.eingeworfen || null, updatedAt: new Date().toISOString(), geaendertVon: "Briefkasten",
+            ...(["ARBEIT", "TODO", "STOERUNG", "ZETTEL", "AKTE"].includes(ziel) ? { zielWunsch: ziel } : {}),
+          };
+          const res = st.db.aenderungenAnwenden({ benutzer: "Briefkasten", basisVersion: st.db.version(), eintraege: [eintrag] });
+          versionNeu = res.version;
+        }
+        // Erst jetzt - Foto und Eintrag liegen hier - im Briefkasten löschen
+        const rd = await briefkastenAnfrage("/abholen/" + encodeURIComponent(ein.id), { method: "DELETE" });
+        if (!rd.ok) throw new Error(`Briefkasten: Löschen von ${ein.id} schlug fehl (${rd.status})`);
+        briefkastenStand.abgeholtGesamt++;
+        briefkastenStand.letzteAbholung = new Date().toISOString();
+        log.info(`${st.id}: Briefkasten -> Aufnahme ${id}${b.anlage ? " (" + b.anlage + ")" : ""}${b.wer ? " von " + b.wer : ""}, ${Number(ein.bytes) || 0} Bytes`);
+      }
+      if (versionNeu) melde(st, versionNeu);
+      briefkastenStand.imBriefkasten = 0;
+      briefkastenStand.letzterFehler = null;
+    } catch (x) {
+      const text = x && x.name === "AbortError" ? "Briefkasten antwortet nicht (Frist)" : (x && x.message) || String(x);
+      briefkastenStand.erreichbar = false;
+      // Jeder Takt würde sonst dieselbe Zeile ins Protokoll schreiben - nur beim Wechsel
+      if (briefkastenStand.letzterFehler !== text) log.fehler(`Briefkasten (${grund}): ${text}`);
+      briefkastenStand.letzterFehler = text;
+    } finally { bkLaeuft = false; }
+    return briefkastenStand;
+  }
+  const briefkastenUhr = bk ? setInterval(() => { briefkastenAbholen("Takt"); }, bk.taktSek * 1000) : null;
+  if (bk) { log.info(`Briefkasten: ${bk.adresse} -> Standort ${bk.standort}, alle ${bk.taktSek} s`); setTimeout(() => briefkastenAbholen("Start"), 1500); }
+
   function statusDaten() {
-    const out = { dienst: "bta-cockpit-dienst", fassung: FASSUNG, gestartet: new Date(START).toISOString(), laufzeitSek: Math.round((Date.now() - START) / 1000), port: e.port, standorte: {}, letzteSicherung, fehlerLetzte24h: log.fehlerLetzte24h(), appDatei: e.appDatei && fs.existsSync(e.appDatei) ? { pfad: e.appDatei, bytes: fs.statSync(e.appDatei).size, geaendert: fs.statSync(e.appDatei).mtime.toISOString() } : null };
+    const out = { dienst: "bta-cockpit-dienst", fassung: FASSUNG, gestartet: new Date(START).toISOString(), laufzeitSek: Math.round((Date.now() - START) / 1000), port: e.port, standorte: {}, letzteSicherung, fehlerLetzte24h: log.fehlerLetzte24h(), appDatei: e.appDatei && fs.existsSync(e.appDatei) ? { pfad: e.appDatei, bytes: fs.statSync(e.appDatei).size, geaendert: fs.statSync(e.appDatei).mtime.toISOString() } : null, briefkasten: briefkastenStand };
     for (const st of Object.values(standorte)) out.standorte[st.id] = { name: st.name, ...st.db.zaehlen(), verbunden: st.lauscher.size, datenbank: st.db.pfad, quellen: quellenListe(path.join(st.datenOrdner, "quellen")) };
     return out;
   }
@@ -241,6 +347,10 @@ function starten(einstellungen, { still = false } = {}) {
 <p><small>Einträge und Störberichte wie die Kennkarte der App: nur fachliche Zeilen. Verlauf = Zeilen „wer hat wann was geändert“ (90 Tage), Einstellungen = Team, Anlagen, Listen.</small></p>
 <h2>Fehler der letzten 24 Stunden</h2>${fehler}
 <h2>Excel-Quellen</h2>${quellenHtml}
+<h2>Briefkasten (Aufnahme vom Handy über das Internet)</h2>${s.briefkasten.aktiv
+    ? `<p>${esc(s.briefkasten.adresse)} → Standort <code>${esc(s.briefkasten.standort)}</code> · ${s.briefkasten.erreichbar === null ? "noch nicht abgefragt" : s.briefkasten.erreichbar ? '<span class=ok>erreichbar</span>' : '<strong style="color:#B23A34">nicht erreichbar</strong>'}${s.briefkasten.letzterTakt ? ` · letzter Takt ${esc(ortszeit(s.briefkasten.letzterTakt))}` : ""}</p>
+<p>${s.briefkasten.abgeholtGesamt} Aufnahme(n) seit dem Start abgeholt${s.briefkasten.letzteAbholung ? `, zuletzt ${esc(ortszeit(s.briefkasten.letzteAbholung))}` : ""} · im Briefkasten liegen ${s.briefkasten.imBriefkasten === null ? "?" : s.briefkasten.imBriefkasten}${s.briefkasten.letzterFehler ? `<br><strong style="color:#B23A34">Fehler:</strong> ${esc(s.briefkasten.letzterFehler)}` : ""}</p>`
+    : "<p>nicht eingerichtet (einstellungen.json → briefkasten: adresse, schluessel, standort).</p>"}
 <h2>App</h2><p>${s.appDatei ? `<a href="/app/">/app/</a> · ${(s.appDatei.bytes / 1024).toFixed(0)} kB · Stand ${esc(ortszeit(s.appDatei.geaendert))}` : "keine App-Datei hinterlegt"}</p>
 <p><small>JSON: <a href="/api/status">/api/status</a></small></p></body></html>`;
   }
@@ -256,6 +366,14 @@ function starten(einstellungen, { still = false } = {}) {
         if (!e.appDatei || !fs.existsSync(e.appDatei)) return json(res, 404, { fehler: "Keine App-Datei hinterlegt" });
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
         return fs.createReadStream(e.appDatei).pipe(res);
+      }
+      // Der Aufnahme-Zettel (0.5.0): liegt als aufnahme-zettel.html neben der App-Datei.
+      // Im WLAN einmal laden, dann "Zum Startbildschirm" - danach läuft er auf dem Handy.
+      if (teile[0] === "zettel") {
+        const zettel = e.appDatei ? path.join(path.dirname(e.appDatei), "aufnahme-zettel.html") : null;
+        if (!zettel || !fs.existsSync(zettel)) return json(res, 404, { fehler: "Kein Aufnahme-Zettel hinterlegt (aufnahme-zettel.html neben der App-Datei)" });
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+        return fs.createReadStream(zettel).pipe(res);
       }
       if (teile[0] !== "api") return json(res, 404, { fehler: "Unbekannter Weg" });
       if (teile[1] === "status") return json(res, 200, statusDaten());
@@ -317,6 +435,8 @@ function starten(einstellungen, { still = false } = {}) {
         return json(res, 200, { ...r, kopf, nachweis, stand: { vorher, nachher } });
       }
       if (weg === "sicherung" && req.method === "POST") return json(res, 200, sicherungJetzt("auf Anforderung"));
+      // Briefkasten jetzt abholen (Werkzeug-Knopf „Prüfen", Prüfstand) - statt auf den Takt zu warten
+      if (weg === "briefkasten" && req.method === "POST") { if (!bk) return json(res, 400, { fehler: "Kein Briefkasten eingerichtet" }); return json(res, 200, await briefkastenAbholen("auf Anforderung")); }
       if (weg === "fotos") {
         const name = decodeURIComponent(teile[3] || "");
         if (!FOTO_NAME.test(name)) return json(res, 400, { fehler: "Foto: ungültiger Dateiname" });
@@ -403,7 +523,7 @@ function starten(einstellungen, { still = false } = {}) {
       resolve({
         port: adresse.port, standorte, sicherungJetzt, statusDaten, log,
         async stoppen() {
-          clearInterval(sicherungsUhr); clearInterval(herzschlag);
+          clearInterval(sicherungsUhr); clearInterval(herzschlag); if (briefkastenUhr) clearInterval(briefkastenUhr);
           for (const st of Object.values(standorte)) { for (const r of st.lauscher) { try { r.end(); } catch (x) { /* egal */ } } st.lauscher.clear(); }
           await new Promise((r) => server.close(() => r()));
           for (const st of Object.values(standorte)) st.db.schliessen();
@@ -414,7 +534,7 @@ function starten(einstellungen, { still = false } = {}) {
   });
 }
 
-const FASSUNG = "0.4.0"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.)
+const FASSUNG = "0.5.0"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.); 0.5.0 = Briefkasten-Abholer (06.10.)
 
 /* Import-Nachweis: eingelesene Datei gegen den Export aus der Datenbank.
    Einträge Feld für Feld (JSON-Text je id), Löschliste nach Kennung, Konfig je

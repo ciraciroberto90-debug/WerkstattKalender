@@ -1,7 +1,10 @@
 ==========================================================
  05-SERVER - DER DIENST FUER DEN BTA-SERVER
 ==========================================================
-Stand: 02.10.2026, Dienst 0.4.0 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
+Stand: 06.10.2026, Dienst 0.5.0 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
+0.5.0 = Briefkasten-Abholer (Roll-out 65): Zugang in briefkasten.json neben einstellungen.json
+        (Vorlage server/briefkasten.beispiel.json); Status-Seite zeigt den Abschnitt Briefkasten.
+        Aufnahme-Zettel fuers Handy: aufnahme-zettel.html neben die App-Datei legen -> /zettel
 
 Dieser Ordner gehoert zum BTA-Server-Werkzeug (BTA-Server-Werkzeug.cmd
 eine Ebene hoeher). Er wird NICHT von Hand benutzt.

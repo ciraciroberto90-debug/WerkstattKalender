@@ -251,6 +251,32 @@ Rechte), Eingabeaufforderung **als Administrator**:
 4. **Noch nichts auf `W:` umbenennen.** Erst Schritt 8 (alle Rechner auf die
    Server-Pfade), dann Schritt 9.
 
+## Briefkasten im Internet (Roll-out 65, 06.10.) – die Schritte am Server
+
+Voraussetzung: Dienst **0.5.0** auf dem Server (Stick-ZIP → „Einrichten"; die
+Status-Seite nennt die Fassung). Der Briefkasten selbst entsteht im Browser
+(Cloudflare, zehn Klick-Schritte in `briefkasten/LIESMICH-BRIEFKASTEN.md`).
+Am Server dann, einer nach dem anderen:
+
+1. Neben `C:\BTA\BTA-Programm\Dienst\einstellungen.json` die Datei
+   **`briefkasten.json`** anlegen (Vorlage `server/briefkasten.beispiel.json`):
+   Adresse des Workers, **Abhol**-Schlüssel, `"standort": "scheurich"`.
+   Das Werkzeug fasst diese Datei nie an – sie überlebt jedes „Einrichten".
+2. Aufgabe `BTA-Cockpit-Dienst` neu starten (Werkzeug → Wartung, oder
+   Aufgabenplanung → Beenden/Ausführen).
+3. Kontrolle: `http://v-btacockpit-1:8765/status` → Abschnitt **Briefkasten**:
+   Adresse, **erreichbar**, „0 Aufnahme(n) seit dem Start abgeholt".
+   „nicht erreichbar": der Dienst kommt nicht ins Internet (Firewall oder
+   Proxy für Dienste, obwohl der Browser durchkommt) → melden, nächster Schritt.
+4. Den Aufnahme-Zettel neben die App legen:
+   `C:\BTA\BTA-Programm\App\aufnahme-zettel.html` → im WLAN am Handy
+   `http://v-btacockpit-1:8765/zettel` öffnen, ⚙ → Briefkasten-Adresse +
+   **Einwurf**-Schlüssel, „Verbindung prüfen", „Zum Startbildschirm".
+   (Android kann die Datei auch aus dem Handy-Speicher öffnen – dann läuft der
+   Zettel ganz ohne Server.)
+5. Probe: Foto mit Notiz „Probe" einwerfen → binnen einer Minute im Reiter
+   Aufnahme am PC (Quelle „Briefkasten"), Status-Seite zählt 1 abgeholt.
+
 ## Offene Fragen
 
 - Sind die Soendgen-Rechner und -Kollegen in **derselben Windows-Domäne** wie

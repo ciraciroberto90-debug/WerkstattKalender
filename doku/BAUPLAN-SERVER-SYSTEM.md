@@ -117,8 +117,10 @@ fotos          id · stoerung_id · dateiname · groesse · zeit  (Datei liegt i
 | `GET /api/{standort}/export.json` | Der Bestand im **heutigen Dateiformat** (`werkstatt-kalender-v1`). Rückfallnetz und Handexport. |
 | `GET /api/{standort}/fotos/{id}` · `POST …/fotos` | Fotos am Störbericht. |
 | `GET /api/{standort}/quellen` · `GET/POST/DELETE …/quellen/{name}` | **Excel-Quellen (0.4.0, 02.10.):** Kopie der Tabellen, die die App nur liest (OEE, später Budget-Ist). Der Dienst kommt nicht an `W:` – ein Programm mit Laufwerkszugriff spielt die Datei ein (`?stand=` = Änderungszeit der Vorlage), Browser und Monitor lesen die Kopie. Nur Tabellen-Endungen, kein Pfad; Einspielen mit Werkstatt-Schlüssel. |
-| `GET /status` | Datenbankgröße, Version, letzte Sicherung, verbundene Rechner, Antwortzeit, Fehler der letzten 24 h – auch im ⚙ sichtbar. |
+| `POST /api/{standort}/briefkasten` | **Briefkasten jetzt abholen (0.5.0, 06.10.)** – sonst im Takt (30 s). Antwort: Stand des Abholers (erreichbar, abgeholt, im Briefkasten, letzter Fehler). Siehe Abschnitt 13. |
+| `GET /status` | Datenbankgröße, Version, letzte Sicherung, verbundene Rechner, Antwortzeit, Fehler der letzten 24 h, **Briefkasten** – auch im ⚙ sichtbar. |
 | `GET /app/` | Die App selbst (eine HTML). Neuer Stand = Datei tauschen. |
+| `GET /zettel` | (0.5.0) Der Aufnahme-Zettel fürs Handy (`aufnahme-zettel.html` neben der App-Datei) – im WLAN einmal laden, dann „Zum Startbildschirm". |
 | `GET /api/ich` | Wer bin ich laut Server (Konto, Standort-Gruppen, App-Rolle). |
 
 Größenordnung, gemessen an heute: Vollbestand Scheurich 7.285 Einträge +
@@ -339,3 +341,52 @@ und wo wir stehen (Stand 30.09., Etappe A fertig, B gebaut, C/D offen):
 Anbieter, der es abschalten kann, ein offenes Datenformat, einen geübten Rückweg
 und eine Neuinstallation in Sekunden. Die drei Lücken sind klein, benannt und
 werden in Etappe C geschlossen (Schlüssel, Sicherungs-Ampel, Notfallzettel).
+
+---
+
+## 13. Briefkasten im Internet (0.5.0, Roll-out 65 – Robertos Favorit 06.10.)
+
+**Die Frage:** Fotos vom Handy ins Cockpit, auch über mobile Daten (Außenlager,
+unterwegs) – ohne IT-Antrag (kein VPN, kein Zertifikat, Server bleibt im
+Firmennetz). **Die Antwort:** ein Durchgang im Internet, den nur wir
+betreiben. Der Server **meldet sich beim Briefkasten**, nie umgekehrt – es
+wird kein Port geöffnet, nichts kommt von außen herein.
+
+```
+Handy (Aufnahme-Zettel)  --HTTPS-->  Briefkasten (Cloudflare-Worker, KV)  <--HTTPS--  BTA-Dienst (holt alle 30 s, löscht sofort)
+      Foto + Begleitdatei              liegt bis zum Abholen, max. 7 Tage                Foto -> fotos/, Eintrag AUFNAHME -> SQLite
+```
+
+| Teil | Datei | Was es tut |
+|---|---|---|
+| Kern | `briefkasten/kern.js` | Wege, zwei Schlüssel, Grenzen (3 MB, 7 Tage), CORS – ohne HTTP und ohne Ablage, deshalb ohne Netz prüfbar |
+| Node-Programm | `briefkasten/briefkasten.js` | Kern + HTTP + Ordner-Ablage; für den Prüfstand und einen Eigenbetrieb |
+| Cloudflare-Worker | `briefkasten/worker.js` | Kern + KV-Ablage; eine Datei zum Einfügen im Dashboard (`worker-bauen.js` hält sie auf dem Stand des Kerns) |
+| Abholer | `server/dienst.js` (0.5.0), `server/briefkasten.beispiel.json` | liest `briefkasten.json` neben den Einstellungen (bleibt beim Werkzeug-„Einrichten" stehen); Takt, Kontroll-Lesung, Löschen erst nach Eintrag |
+| Einwurf | `handy/aufnahme-zettel.html` | „Einwerfen" statt Teilen; ohne Netz Warteschlange in der IndexedDB des Handys (überlebt Schließen/Neuladen), Nachsenden beim Öffnen, bei Netzwechsel, im 20-s-Takt |
+
+**Wege des Briefkastens:** `GET /status` · `POST /einwurf` (Kopf
+`X-BTA-Schluessel` = Einwurf-Schlüssel, Kopf `X-BTA-Begleit` = Begleitdatei
+als URL-kodiertes JSON, Körper = Bild-Bytes) · `GET /liste`, `GET/DELETE
+/abholen/{id}` (Abhol-Schlüssel). **Zwei Schlüssel**, weil das Handy
+verloren gehen kann: Einwurf darf nur einwerfen und nichts lesen.
+
+**Regeln des Abholers (dieselben wie beim Einzug):** Kennung
+`aufn-bk-<Briefkasten-Kennung>` → zweimal abholen legt nichts doppelt an;
+gelöscht wird im Briefkasten erst, wenn Foto (Kontroll-Lesung) **und**
+Eintrag auf dem Server liegen; ein Fehler hält den Takt an, steht auf der
+Status-Seite, der nächste Takt versucht es neu; Protokollzeile nur beim
+Wechsel des Fehlers.
+
+**Gemessen 06.10. (Prüfstand `pruefe-briefkasten.js`, 38 Prüfungen):**
+Einwurf vom Zettel 72 ms; Abholung durch den Dienst nach 2,0 s (Takt 5 s im
+Prüfstand); Nachsenden aus der Warteschlange bis zur Aufnahme auf dem Dienst
+3,1 s. **Nicht gemessen:** der echte Cloudflare-Worker (nur mit nachgebautem
+KV), der Weg vom Firmen-Server ins Internet (Roberto: Browser am Server hat
+Internet – ob Node ohne Proxy-Einstellung durchkommt, zeigt die Status-Seite),
+Android/iPhone mit echter Kamera.
+
+**Was dort liegt und was nicht:** je Einwurf ein eingedampftes Bild und die
+Begleitdatei (Zeit, Kürzel, Anlage, Ziel, Notiz) – bis zum Abholen. Kein
+Bestand, keine Namen außer dem Kürzel, kein Rückweg vom Briefkasten zum
+Server. Einrichtung in zehn Schritten: `briefkasten/LIESMICH-BRIEFKASTEN.md`.

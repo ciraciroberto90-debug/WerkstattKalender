@@ -7987,7 +7987,7 @@ function App() {
   // Eine Karte im Eingangskorb: Aufnahme vom Handy (Eintrag) oder Datei aus
   // dem Eingangsordner. Beide tragen dieselben Felder, damit Korb, Durch-
   // blättern und Tagesfilm nicht zwei Sorten kennen müssen.
-  const quelleText = (q) => (q === "pc" ? "PC-Ordner" : q === "einzug" ? "Einzug" : "Handy");
+  const quelleText = (q) => (q === "pc" ? "PC-Ordner" : q === "einzug" ? "Einzug" : q === "briefkasten" ? "Briefkasten" : "Handy");
   const karteAusEintrag = (e) => ({ art: "eintrag", key: e.id, id: e.id, e, zeit: aufnahmeZeitVon(e), note: e.note || "", anlage: e.name || "", wer: e.wer || "", quelle: quelleText(e.quelle), zielWunsch: e.zielWunsch || "", sortiert: e.status === "done" ? { ziel: e.ziel, am: e.sortiertAm } : null });
   // Eine Datei aus dem Eingangsordner - mit Begleitdatei (Aufnahme-Zettel,
   // Roll-out 64) kommen Notiz, Anlage, Kürzel, Ziel und die echte Aufnahmezeit mit.

@@ -364,7 +364,14 @@ function oeffnen(dateiPfad, { standort } = {}) {
 
   function schliessen() { try { db.close(); } catch (e) { /* schon zu */ } }
 
-  return { pfad: dateiPfad, version, standSeit, aenderungenAnwenden, exportV1, importV1, sicherungNach, zaehlen, schliessen, meta, KonfliktFehler };
+  /* Gibt es einen lebenden Eintrag mit dieser Kennung? Für den Briefkasten-
+     Abholer (0.5.0): Er darf dieselbe Aufnahme nie zweimal anlegen - und ein
+     Vollbestand (standSeit(0)) wäre dafür alle 30 s zu viel. */
+  function eintragVorhanden(id) {
+    const r = stmts.eintragLesen.get(String(id));
+    return !!(r && !r.geloescht);
+  }
+  return { pfad: dateiPfad, version, standSeit, aenderungenAnwenden, eintragVorhanden, exportV1, importV1, sicherungNach, zaehlen, schliessen, meta, KonfliktFehler };
 }
 
 module.exports = { oeffnen, KonfliktFehler, TABELLEN };

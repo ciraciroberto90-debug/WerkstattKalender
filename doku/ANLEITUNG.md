@@ -877,6 +877,21 @@ Störungen, nicht den Rest.
      Große Originale werden beim Einzug eingedampft. Der Einzug läuft, solange
      ein Cockpit-Programm mit diesem Ordner offen ist (alle 20 s im Reiter,
      alle 2 min sonst, zusätzlich beim Fenster-Fokus).
+  5. **Briefkasten im Internet (seit dem 06.10., Roll-out 65) – Fotos über
+     mobile Daten ohne Firmennetz.** Im Aufnahme-Zettel unter ⚙ die
+     Briefkasten-Adresse und den **Einwurf**-Schlüssel eintragen; der Knopf
+     heißt dann **Einwerfen**. Foto und Begleitdatei gehen verschlüsselt an
+     den Briefkasten (unser eigener kleiner Dienst im Internet, nur
+     Durchgang), der Werkstatt-Server holt alle 30 Sekunden ab, legt die
+     Aufnahme an (Quelle „Briefkasten") und löscht sie dort sofort. Ohne Netz
+     wartet die Aufnahme **auf dem Handy** (auch nach dem Schließen der
+     Seite) und geht beim nächsten Öffnen, beim Netzwechsel oder im
+     20-Sekunden-Takt von selbst raus – „⏳ wartet auf Netz" in der
+     Heute-Liste. Der Zettel ist im WLAN unter
+     `http://v-btacockpit-1:8765/zettel` zu laden (Android auch als Datei).
+     Einrichtung des Briefkastens: `briefkasten/LIESMICH-BRIEFKASTEN.md`,
+     am Server: `briefkasten.json` neben den Einstellungen; Stand auf der
+     Status-Seite unter „Briefkasten".
   Rechte: Bereich **Aufnahme** in der Rechte-Matrix (Bearbeiter: bearbeiten,
   Leser: aus – Sortieren schreibt immer). Sortierte Handy-Aufnahmen bleiben
   als Einträge im Bestand (Tagesfilm, Akte), nichts wird gelöscht außer bei

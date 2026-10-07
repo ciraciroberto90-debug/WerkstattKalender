@@ -88,7 +88,13 @@
     <input class="feld" id="kuerzel" placeholder="z. B. RC" autocapitalize="characters" maxlength="24">
     <label class="etikett" for="anlagen-liste">Anlagen (eine je Zeile – erscheinen in der Auswahl)</label>
     <textarea class="feld" id="anlagen-liste" rows="5" placeholder="TS480&#10;B2&#10;OF320&#10;VSM1"></textarea>
-    <p>Ablage: In OneDrive beim Teilen den Ordner wählen, den das Cockpit am PC als <strong>Eingangsordner</strong> liest (z. B. <em>Werkstatt-Eingang</em>). Die Dateien heißen <code>Datum_Uhrzeit_Kürzel_xxxx.jpg</code> und <code>.json</code>.</p>
+    <label class="etikett" for="bk-adresse">Briefkasten-Adresse (leer = Teilen an OneDrive)</label>
+    <input class="feld" id="bk-adresse" placeholder="https://…workers.dev" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="url">
+    <label class="etikett" for="bk-schluessel">Einwurf-Schlüssel</label>
+    <input class="feld" id="bk-schluessel" type="password" placeholder="vom Werkstattleiter" autocapitalize="none">
+    <button type="button" class="knopf" id="bk-pruefen" style="padding:10px;font-size:14px;background:#fff;border:2px solid #22262B;color:#22262B">Verbindung zum Briefkasten prüfen</button>
+    <div id="bk-pruefung" class="meldung hinweis" hidden></div>
+    <p>Mit Briefkasten geht jede Aufnahme über das Internet direkt zum Werkstatt-Server – auch über mobile Daten; ohne Netz wartet sie hier auf dem Handy und geht später von selbst raus. Ohne Briefkasten: Teilen an OneDrive in den Ordner, den das Cockpit am PC als <strong>Eingangsordner</strong> liest. Dateien heißen <code>Datum_Uhrzeit_Kürzel_xxxx.jpg</code> und <code>.json</code>.</p>
     <button type="button" class="knopf senden" id="einstellungen-fertig" style="padding:12px;font-size:15px">Fertig</button>
   </section>
 
@@ -115,7 +121,9 @@
   <datalist id="anlagen"></datalist>
 
   <button type="button" class="knopf senden" id="ablegen">✓ Ablegen (Teilen an OneDrive)</button>
+  <div class="galerie" id="teilen-stattdessen" hidden>stattdessen teilen (OneDrive, WhatsApp …)</div>
   <div id="meldung" class="meldung" hidden></div>
+  <div id="bk-wartend" class="meldung hinweis" hidden></div>
   <div id="ablage" class="karte" hidden>
     <h3>Teilen geht hier nicht – Dateien speichern</h3>
     <p>Dieser Browser kann Dateien nicht teilen. Die Dateien landen in Downloads; von dort in den OneDrive-Ordner schieben.</p>
@@ -184,13 +192,31 @@
   }
   $("knopf-einstellungen").addEventListener("click", function () {
     var e = $("einstellungen"); e.hidden = !e.hidden;
-    if (!e.hidden) { $("kuerzel").value = merk.lese("kuerzel", ""); $("anlagen-liste").value = merk.lese("anlagen", ""); }
+    if (!e.hidden) { $("kuerzel").value = merk.lese("kuerzel", ""); $("anlagen-liste").value = merk.lese("anlagen", ""); $("bk-adresse").value = merk.lese("bkAdresse", ""); $("bk-schluessel").value = merk.lese("bkSchluessel", ""); }
   });
   $("einstellungen-fertig").addEventListener("click", function () {
     merk.setze("kuerzel", $("kuerzel").value.trim());
     merk.setze("anlagen", $("anlagen-liste").value);
-    $("einstellungen").hidden = true; zeichneAnlagen(); zeichneKopf();
+    merk.setze("bkAdresse", $("bk-adresse").value.trim().replace(/\/+$/, ""));
+    merk.setze("bkSchluessel", $("bk-schluessel").value.trim());
+    $("einstellungen").hidden = true; zeichneAnlagen(); zeichneKopf(); zeichneAblegeKnopf();
+    warteSenden("Einstellungen");
   });
+  $("bk-pruefen").addEventListener("click", function () {
+    var adresse = $("bk-adresse").value.trim().replace(/\/+$/, ""), s = $("bk-schluessel").value.trim();
+    var aus = $("bk-pruefung"); aus.hidden = false; aus.className = "meldung hinweis"; aus.textContent = "Prüfe …";
+    if (!adresse) { aus.textContent = "Keine Adresse eingetragen."; return; }
+    fetch(adresse + "/status", { headers: { "X-BTA-Schluessel": s }, cache: "no-store" }).then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }); }).then(function (r) {
+      if (r.status === 200 && r.j && r.j.dienst === "bta-briefkasten") { aus.className = "meldung ok"; aus.textContent = "✓ Briefkasten erreichbar (Fassung " + r.j.fassung + "). Ob der Einwurf-Schlüssel stimmt, zeigt der erste Einwurf."; }
+      else { aus.className = "meldung fehler"; aus.textContent = "⚠ Unter der Adresse antwortet kein Briefkasten (" + r.status + ")."; }
+    }, function (e) { aus.className = "meldung fehler"; aus.textContent = "⚠ Keine Verbindung: " + (e && e.message ? e.message : e) + " – Adresse prüfen (https://…), Netz an?"; });
+  });
+  // Mit eingetragenem Briefkasten heißt der Knopf „Einwerfen", Teilen bleibt als zweiter Weg
+  function mitBriefkasten() { return !!merk.lese("bkAdresse", ""); }
+  function zeichneAblegeKnopf() {
+    $("ablegen").textContent = mitBriefkasten() ? "✓ Einwerfen (Briefkasten → Werkstatt-Server)" : "✓ Ablegen (Teilen an OneDrive)";
+    $("teilen-stattdessen").hidden = !mitBriefkasten();
+  }
 
   /* ---------- Fotos ---------- */
   function zeichneFotos() {
@@ -261,19 +287,128 @@
     ziel = ""; Array.prototype.forEach.call(document.querySelectorAll(".ziel"), function (x) { x.setAttribute("aria-pressed", "false"); x.style.borderColor = "#D6D9DC"; x.style.background = "#fff"; });
     $("ziel-hinweis").textContent = "ohne Wahl: am PC sortieren";
   }
-  $("ablegen").addEventListener("click", function () {
+  /* ---------- Briefkasten: Einwerfen mit Warteschlange (IndexedDB) ----------
+     Ohne Netz (Außenlager) wartet die Aufnahme HIER auf dem Handy - in der
+     IndexedDB, also auch nach dem Schließen des Tabs - und geht beim nächsten
+     Öffnen, beim Netzwechsel oder im 20-s-Takt von selbst raus. Je Foto ein
+     Einwurf (Bytes + Begleitdatei als Kopf). */
+  var DB_NAME = "bta-zettel", DB_STORE = "warte";
+  function dbOeffnen() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) return reject(new Error("keine IndexedDB"));
+      var req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore(DB_STORE, { keyPath: "id" }); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error || new Error("IndexedDB-Fehler")); };
+    });
+  }
+  function warteAlle() {
+    return dbOeffnen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var r = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).getAll();
+        r.onsuccess = function () { db.close(); resolve(r.result || []); };
+        r.onerror = function () { db.close(); reject(r.error); };
+      });
+    }).catch(function () { return []; });
+  }
+  function warteSetze(eintrag) {
+    return dbOeffnen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(DB_STORE, "readwrite"); tx.objectStore(DB_STORE).put(eintrag);
+        tx.oncomplete = function () { db.close(); resolve(); }; tx.onerror = function () { db.close(); reject(tx.error); };
+      });
+    });
+  }
+  function warteLoesche(id) {
+    return dbOeffnen().then(function (db) {
+      return new Promise(function (resolve) {
+        var tx = db.transaction(DB_STORE, "readwrite"); tx.objectStore(DB_STORE).delete(id);
+        tx.oncomplete = function () { db.close(); resolve(); }; tx.onerror = function () { db.close(); resolve(); };
+      });
+    }).catch(function () {});
+  }
+  function einwerfen(eintrag) { // -> Promise<{ok, abgewiesen}>
+    var adresse = merk.lese("bkAdresse", ""), s = merk.lese("bkSchluessel", "");
+    return fetch(adresse + "/einwurf", { method: "POST", headers: { "X-BTA-Schluessel": s, "X-BTA-Begleit": encodeURIComponent(JSON.stringify(eintrag.begleit)), "Content-Type": "application/octet-stream" }, body: eintrag.bytes || new Blob([]), cache: "no-store" })
+      .then(function (r) { return { ok: r.ok, status: r.status, abgewiesen: r.status === 401 }; });
+  }
+  var warteLaeuft = false;
+  function zeichneWartend(n) {
+    var w = $("bk-wartend");
+    if (!n) { w.hidden = true; return; }
+    w.hidden = false; w.textContent = "⏳ " + n + " Aufnahme" + (n > 1 ? "n warten" : " wartet") + " auf Verbindung – geht von selbst raus, sobald Netz da ist. Auch nach dem Schließen dieser Seite.";
+    w.setAttribute("data-wartend", String(n));
+  }
+  function warteSenden(grund) {
+    if (!mitBriefkasten() || warteLaeuft) return Promise.resolve();
+    warteLaeuft = true;
+    return warteAlle().then(function (liste) {
+      liste.sort(function (a, b) { return String(a.id).localeCompare(String(b.id)); });
+      var gesendet = 0, abgewiesen = false;
+      return liste.reduce(function (kette, e) {
+        return kette.then(function (weiter) {
+          if (!weiter) return false;
+          return einwerfen(e).then(function (r) {
+            if (r.ok) { gesendet++; return warteLoesche(e.id).then(function () { heuteStatus(e.id, "eingeworfen"); return true; }); }
+            if (r.abgewiesen) { abgewiesen = true; }
+            return false; // Server-Fehler oder abgewiesen: Rest wartet
+          }, function () { return false; }); // kein Netz: Rest wartet
+        });
+      }, Promise.resolve(true)).then(function () {
+        return warteAlle().then(function (rest) {
+          zeichneWartend(rest.length); zeichneHeute();
+          if (gesendet && grund !== "Einwurf") meldung("ok", gesendet + " wartende Aufnahme(n) nachgesendet · " + zeitText(new Date().toISOString()) + " Uhr.");
+          if (abgewiesen) meldung("fehler", "Der Briefkasten weist den Einwurf-Schlüssel ab – unter ⚙ prüfen. Die Aufnahmen warten hier.");
+          warteLaeuft = false;
+        });
+      });
+    }).catch(function () { warteLaeuft = false; });
+  }
+  window.addEventListener("online", function () { warteSenden("Netz"); });
+  setInterval(function () { warteAlle().then(function (l) { if (l.length) warteSenden("Takt"); }); }, 20000);
+  function einwurfStarten(dateien) {
+    // Aus den gebauten Dateien je Foto einen Einwurf machen (ohne Foto: nur die Begleitdatei)
+    var jsons = dateien.filter(function (d) { return /\.json$/.test(d.name); });
+    return Promise.all(jsons.map(function (j) { return j.text().then(function (t) { return { name: j.name.replace(/\.json$/, ""), begleit: JSON.parse(t) }; }); })).then(function (paare) {
+      return paare.reduce(function (kette, p) {
+        return kette.then(function () {
+          var jpg = dateien.find(function (d) { return d.name === p.name + ".jpg"; });
+          var e = { id: p.name, begleit: p.begleit, bytes: jpg || null, angelegt: new Date().toISOString() };
+          return warteSetze(e).then(function () { return einwerfen(e); }).then(function (r) {
+            if (r.ok) return warteLoesche(e.id).then(function () { heuteStatus(e.id, "eingeworfen"); return "ok"; });
+            heuteStatus(e.id, r.abgewiesen ? "abgewiesen" : "wartet"); return r.abgewiesen ? "abgewiesen" : "wartet";
+          }, function () { heuteStatus(e.id, "wartet"); return "wartet"; });
+        });
+      }, Promise.resolve());
+    });
+  }
+  $("teilen-stattdessen").addEventListener("click", function () { ablegen(true); });
+  $("ablegen").addEventListener("click", function () { ablegen(false); });
+  function ablegen(erzwingeTeilen) {
     if (laeuft) return;
     if (!merk.lese("kuerzel", "")) { meldung("fehler", "Erst oben rechts ⚙ dein Kürzel eintragen."); $("einstellungen").hidden = false; return; }
     if (!fotos.length && !$("notiz").value.trim()) { meldung("fehler", "Erst ein Foto machen oder eine Notiz schreiben."); return; }
     laeuft = true; $("ablegen").disabled = true;
     var dateien = dateienBauen();
     window.__letzteDateien = dateien; // Prüfstand liest hier mit
-    var kannTeilen = !!(navigator.share && navigator.canShare && navigator.canShare({ files: dateien }));
     var fertig = function (wie) {
-      meldung("ok", dateien.length + " Datei(en) " + wie + " · " + zeitText(new Date().toISOString()) + " Uhr. Am PC erscheint die Aufnahme, sobald OneDrive sie abgeholt hat.");
+      meldung("ok", dateien.length + " Datei(en) " + wie + " · " + zeitText(new Date().toISOString()) + " Uhr." + (mitBriefkasten() && !erzwingeTeilen ? "" : " Am PC erscheint die Aufnahme, sobald OneDrive sie abgeholt hat."));
       zuruecksetzen(); zeichneHeute();
       laeuft = false; $("ablegen").disabled = false;
     };
+    if (mitBriefkasten() && !erzwingeTeilen) {
+      einwurfStarten(dateien).then(function () {
+        return warteAlle().then(function (rest) {
+          zeichneWartend(rest.length);
+          zuruecksetzen(); zeichneHeute();
+          laeuft = false; $("ablegen").disabled = false;
+          if (!rest.length) meldung("ok", "Eingeworfen · " + zeitText(new Date().toISOString()) + " Uhr. Der Werkstatt-Server holt es binnen einer Minute ab.");
+          else meldung("hinweis", "Keine Verbindung – die Aufnahme wartet auf dem Handy und geht von selbst raus, sobald Netz da ist.");
+        });
+      });
+      return;
+    }
+    var kannTeilen = !!(navigator.share && navigator.canShare && navigator.canShare({ files: dateien }));
     if (kannTeilen) {
       navigator.share({ files: dateien, title: "Aufnahme " + dateien[0].name.replace(/\.(jpg|json)$/, "") }).then(function () { fertig("geteilt"); }, function (e) {
         laeuft = false; $("ablegen").disabled = false;
@@ -284,7 +419,7 @@
     } else {
       ablageAnbieten(dateien, fertig);
     }
-  });
+  }
   function ablageAnbieten(dateien, fertig) {
     var k = $("ablage-knoepfe"); k.innerHTML = "";
     dateien.forEach(function (d) {
@@ -301,28 +436,41 @@
 
   /* ---------- Heute abgelegt (nur Gedächtnis dieses Handys) ---------- */
   function heuteListe() { try { return JSON.parse(merk.lese("heute", "[]")); } catch (e) { return []; } }
+  // „Heute" in ORTSZEIT - toISOString() nennt den Weltzeit-Tag, und der ist zwischen 0 und 2 Uhr noch gestern
+  function heuteKey() { return isoOrt(new Date()).slice(0, 10); }
   function merkeHeute(e) {
-    var heute = new Date().toISOString().slice(0, 10);
+    var heute = heuteKey();
     var l = heuteListe().filter(function (x) { return String(x.zeit).slice(0, 10) === heute; });
-    l.unshift({ zeit: e.zeit, notiz: e.notiz, anlage: e.anlage, ziel: e.ziel, datei: e.datei });
+    l.unshift({ zeit: e.zeit, notiz: e.notiz, anlage: e.anlage, ziel: e.ziel, datei: e.datei, status: mitBriefkasten() ? "wartet" : "geteilt" });
     merk.setze("heute", JSON.stringify(l.slice(0, 50)));
   }
+  function heuteStatus(datei, status) {
+    var l = heuteListe().map(function (x) { return x.datei === datei ? Object.assign({}, x, { status: status }) : x; });
+    merk.setze("heute", JSON.stringify(l));
+  }
   function zeichneHeute() {
-    var heute = new Date().toISOString().slice(0, 10);
+    var heute = heuteKey();
     var l = heuteListe().filter(function (x) { return String(x.zeit).slice(0, 10) === heute; });
     $("heute-zahl").textContent = l.length;
     var h = $("heute"); h.innerHTML = "";
     if (!l.length) { var p = document.createElement("div"); p.className = "leer"; p.textContent = "noch nichts"; h.appendChild(p); return; }
     l.forEach(function (e) {
       var z = document.createElement("div"); z.className = "zeile";
-      z.innerHTML = '<div class="bild"></div><div class="text"><div class="t1"></div><div class="t2"></div></div><span style="color:#1F7A3D;font-weight:900">✓</span>';
+      var wartet = e.status === "wartet", abgewiesen = e.status === "abgewiesen";
+      z.innerHTML = '<div class="bild"></div><div class="text"><div class="t1"></div><div class="t2"></div></div><span class="stand" style="font-weight:900"></span>';
       z.querySelector(".t1").textContent = e.notiz || "ohne Notiz";
-      z.querySelector(".t2").textContent = zeitText(e.zeit) + (e.anlage ? " · " + e.anlage : "") + (e.ziel && ZIEL_NAME[e.ziel] ? " · Vorschlag " + ZIEL_NAME[e.ziel] : "") + " · " + e.datei;
+      z.querySelector(".t2").textContent = zeitText(e.zeit) + (e.anlage ? " · " + e.anlage : "") + (e.ziel && ZIEL_NAME[e.ziel] ? " · Vorschlag " + ZIEL_NAME[e.ziel] : "") + " · " + (wartet ? "wartet auf Netz" : abgewiesen ? "Schlüssel abgewiesen" : e.status === "eingeworfen" ? "eingeworfen" : e.datei);
+      var st = z.querySelector(".stand"); st.textContent = wartet ? "⏳" : abgewiesen ? "⚠" : "✓"; st.style.color = wartet ? "#C97A2B" : abgewiesen ? "#B23A34" : "#1F7A3D";
+      z.setAttribute("data-heute-status", e.status || "");
       h.appendChild(z);
     });
   }
 
-  zeichneAnlagen(); zeichneKopf(); zeichneHeute(); zeichneFotos();
+  // Prüfstand: Warteschlange einsehen und Nachsenden anstoßen
+  window.__zettelTest = { warteAlle: warteAlle, warteSenden: function () { return warteSenden("Prüfstand"); } };
+
+  zeichneAnlagen(); zeichneKopf(); zeichneHeute(); zeichneFotos(); zeichneAblegeKnopf();
+  warteAlle().then(function (l) { zeichneWartend(l.length); if (l.length) warteSenden("Start"); });
   if (!merk.lese("kuerzel", "")) $("einstellungen").hidden = false;
 })();
 </script>

@@ -74,7 +74,8 @@ Messwerte und Begründung stehen im
 | Ordner | Inhalt | Für wen |
 |---|---|---|
 | **`arbeitsplatz/`** | Startpaket, Starter, Ausliefer-Dienst, Kurzanleitung | Werkstatt |
-| **`handy/`** | Aufnahme-Zettel fürs Handy (eine Seite, ohne Server: Foto + Begleitdatei → OneDrive) | Werkstatt |
+| **`handy/`** | Aufnahme-Zettel fürs Handy (eine Seite: Einwerfen in den Briefkasten oder Teilen an OneDrive) | Werkstatt |
+| **`briefkasten/`** | Briefkasten im Internet: Kern, Node-Programm, Cloudflare-Worker, Einrichtungsanleitung (Roll-out 65) | Werkstatt & Entwicklung |
 | **`doku/`** | Anleitung, Prüfbericht, IT-Anfrage, PDFs | Werkstatt & Führungskreis |
 | `Werkstatt_Kalender_TPM.html` | die fertige App | Werkstatt |
 | `app/` | Quellcode (React, Vite) | Entwicklung |
@@ -148,6 +149,8 @@ node --no-warnings tests/server/pruefe-dienst.js   # Server-Dienst (Etappe A): S
 node --no-warnings tests/server/pruefe-dienst-last.js   # Dienst unter Last (16.951 + 31.845 Einträge, Zeiten im Protokoll)
 node --no-warnings tests/server/pruefe-app-am-server.js   # die gebaute App gegen den echten Dienst (Etappe C; C14/C15 = Handy-Aufnahme)
 node --no-warnings tests/server/pruefe-quellen-am-server.js   # Excel-Quellen im Server-Betrieb: Kopie, Zubringer, Browser (Roll-out 54)
+node --no-warnings tests/server/pruefe-briefkasten.js   # Briefkasten: Kern, Worker-Attrappe, Zettel -> Briefkasten -> Dienst 0.5.0 -> PC, Warteschlange ohne Netz (Roll-out 65)
+node briefkasten/worker-bauen.js --pruefen   # ist worker.js auf dem Stand von kern.js? (ohne --pruefen: neu bauen)
 ```
 
 Nach jeder Änderung an `arbeitsplatz/` gehört `node tools/startpaket-bauen.js`

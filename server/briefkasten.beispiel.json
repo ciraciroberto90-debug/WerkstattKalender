@@ -1,0 +1,7 @@
+{
+  "_was_ist_das": "Zugang des BTA-Cockpit-Dienstes zum Briefkasten im Internet (Roll-out 65). Im Betrieb heisst die Datei briefkasten.json und liegt neben einstellungen.json (C:\\BTA\\BTA-Programm\\Dienst). Das Server-Werkzeug fasst sie nicht an - von Hand pflegen, danach die Aufgabe BTA-Cockpit-Dienst neu starten. Fehlt die Datei, holt der Dienst nichts ab.",
+  "adresse": "https://bta-briefkasten.DEIN-KONTO.workers.dev",
+  "schluessel": "HIER-DEN-ABHOL-SCHLUESSEL",
+  "standort": "scheurich",
+  "taktSek": 30
+}
