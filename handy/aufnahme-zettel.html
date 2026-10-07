@@ -274,8 +274,30 @@
       if (f) raus.push(new File([f.blob], basis + ".jpg", { type: "image/jpeg", lastModified: jetzt.getTime() }));
       raus.push(json);
       merkeHeute({ zeit: daten.zeit, notiz: notiz, anlage: anlage, ziel: ziel, foto: f ? f.url : "", datei: basis });
+      if (f) miniBild(f.blob).then(function (m) { heuteMini(basis, m); });
     });
     return raus;
+  }
+  // Kleines Vorschaubild (96 px) für „Heute abgelegt" - Roberto 07.10.: „unten keine Bildvorschau".
+  // Bleibt im Browser-Speicher dieses Handys (je Bild ~3 kB, höchstens 50 Einträge).
+  function miniBild(blob) {
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(blob), img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var f = 96 / Math.max(img.width || 1, img.height || 1);
+        var c = document.createElement("canvas"); c.width = Math.max(1, Math.round(img.width * f)); c.height = Math.max(1, Math.round(img.height * f));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        try { resolve(c.toDataURL("image/jpeg", 0.7)); } catch (e) { resolve(""); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(""); };
+      img.src = url;
+    });
+  }
+  function heuteMini(datei, mini) {
+    if (!mini) return;
+    var l = heuteListe().map(function (x) { return x.datei === datei ? Object.assign({}, x, { mini: mini }) : x; });
+    merk.setze("heute", JSON.stringify(l)); zeichneHeute();
   }
   function herunterladen(datei) {
     var a = document.createElement("a"); a.href = URL.createObjectURL(datei); a.download = datei.name;
@@ -458,6 +480,7 @@
       var z = document.createElement("div"); z.className = "zeile";
       var wartet = e.status === "wartet", abgewiesen = e.status === "abgewiesen";
       z.innerHTML = '<div class="bild"></div><div class="text"><div class="t1"></div><div class="t2"></div></div><span class="stand" style="font-weight:900"></span>';
+      if (e.mini) { var im = document.createElement("img"); im.src = e.mini; im.alt = ""; z.querySelector(".bild").appendChild(im); }
       z.querySelector(".t1").textContent = e.notiz || "ohne Notiz";
       z.querySelector(".t2").textContent = zeitText(e.zeit) + (e.anlage ? " · " + e.anlage : "") + (e.ziel && ZIEL_NAME[e.ziel] ? " · Vorschlag " + ZIEL_NAME[e.ziel] : "") + " · " + (wartet ? "wartet auf Netz" : abgewiesen ? "Schlüssel abgewiesen" : e.status === "eingeworfen" ? "eingeworfen" : e.datei);
       var st = z.querySelector(".stand"); st.textContent = wartet ? "⏳" : abgewiesen ? "⚠" : "✓"; st.style.color = wartet ? "#C97A2B" : abgewiesen ? "#B23A34" : "#1F7A3D";
