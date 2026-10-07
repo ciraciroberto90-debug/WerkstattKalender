@@ -189,6 +189,15 @@ const bilderGeladen = (p) => p.evaluate(() => [...document.querySelectorAll("[da
   const todo = nach3.find((e) => e.category === "TODO");
   ok("(3) To-do gespeichert: mit Foto-Verweis und Bemerkung „Anlage: B2“", !!todo && Array.isArray(todo.fotos) && todo.fotos.length === 1 && /Anlage: B2/.test(todo.bemerkung || ""), JSON.stringify(todo && { fotos: todo.fotos, bemerkung: todo.bemerkung }));
   ok("(3) Fotos/-Ordner: Handy-Foto + Arbeit + To-do = 3 Dateien", (await p.evaluate(() => window.__fotoDateien())).length === 3);
+  // Roberto 07.10.: „beim Anklicken des To-dos wird das Bild nicht angezeigt" -> der To-do-Dialog zeigt den Foto-Bereich
+  await p.getByRole("button", { name: /^Berichte/ }).first().click(); await p.waitForTimeout(300);
+  await p.getByRole("button", { name: "To-do", exact: true }).first().click(); await p.waitForTimeout(500);
+  await p.getByText("Typenschild SEW R47 fotografieren lassen").first().click(); await p.waitForTimeout(700);
+  const todoDialogBild = p.locator('[role="dialog"][aria-label="To-do bearbeiten"]');
+  const bildImDialog = await todoDialogBild.locator("img").evaluateAll((l) => l.map((i) => i.naturalWidth > 0));
+  ok("(3) Das gespeicherte To-do zeigt im Dialog sein Foto (geladen) samt ✕ zum Entfernen", (await todoDialogBild.count()) === 1 && bildImDialog.length === 1 && bildImDialog[0] && (await todoDialogBild.getByRole("button", { name: "Foto 1 entfernen" }).count()) === 1, `Bilder: ${JSON.stringify(bildImDialog)}`);
+  await todoDialogBild.getByRole("button", { name: "Abbrechen", exact: true }).click(); await p.waitForTimeout(300);
+  await inAufnahme(p, "BLAETTERN");
   ok("(3) Die Ansicht springt weiter: „Nr. … von 2“", /von 2/.test(await p.locator("[data-aufnahme-nr]").innerText()));
 
   /* (4) Handy-Aufnahme -> Zettel */

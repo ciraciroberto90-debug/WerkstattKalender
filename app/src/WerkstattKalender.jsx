@@ -6336,11 +6336,13 @@ function App() {
   const todoUeberfaellige = todoOffene.filter(todoIstUeberfaellig);
   const todoNeu = () => {
     setTodoFehler(null);
-    setTodoModal({ titel: "", wer: "", bis: "", uhrzeit: "", prio: "", bemerkung: "" });
+    setTodoModal({ titel: "", wer: "", bis: "", uhrzeit: "", prio: "", bemerkung: "", fotos: [], fotosNeu: [], fotosWeg: [] });
   };
   const todoBearbeiten = (t) => {
     setTodoFehler(null);
-    setTodoModal({ id: t.id, titel: t.name || "", wer: t.wer || "", bis: t.bis || "", uhrzeit: t.uhrzeit || "", prio: t.prio || "", bemerkung: t.bemerkung || "" });
+    // Fotos (Roberto 07.10.: „beim Anklicken des To-dos wird das Bild nicht angezeigt") -
+    // derselbe Foto-Bereich wie bei Arbeit und Störung: ansehen, anhängen, entfernen.
+    setTodoModal({ id: t.id, titel: t.name || "", wer: t.wer || "", bis: t.bis || "", uhrzeit: t.uhrzeit || "", prio: t.prio || "", bemerkung: t.bemerkung || "", fotos: fotoListeVon(t), fotosNeu: [], fotosWeg: [] });
   };
   const todoSpeichern = async () => {
     const m = todoModal;
@@ -6349,7 +6351,10 @@ function App() {
     const alt = m.id ? todos.find((t) => t.id === m.id) : null;
     // Fotos am To-do (Roll-out 61): kommen nur aus dem Reiter Aufnahme mit -
     // ein Bild aus dem Eingangsordner wird jetzt in den Datenordner geschrieben.
-    const { verweise: fotos, fotoFehler } = (m.fotosNeu && m.fotosNeu.length) || (m.fotos && m.fotos.length)
+    // Trägt der Entwurf Foto-Listen (Bearbeiten, Aufnahme), gelten die - auch
+    // ein leeres fotos nach ✕ (fotosWeg). Nur ein Entwurf ohne Listen (alter
+    // Weg „To-do erteilen") behält die Fotos des Bestands.
+    const { verweise: fotos, fotoFehler } = Array.isArray(m.fotos) || Array.isArray(m.fotosNeu)
       ? await fotosVerarbeiten({ fotos: m.fotos || [], fotosNeu: m.fotosNeu || [] })
       : { verweise: fotoListeVon(alt), fotoFehler: null };
     const eintrag = {
@@ -6366,6 +6371,7 @@ function App() {
     let basis = entries;
     if (m.ausAufnahme) basis = aufnahmeAbschliessen(basis, m.ausAufnahme, "TODO", eintrag.id);
     const ok = await persist(m.id ? basis.map((e) => (e.id === m.id ? eintrag : e)) : [...basis, eintrag]);
+    if (ok) fotosAufraeumen(m.fotosWeg); // mit ✕ entfernte Bilddateien erst NACH dem Speichern wegräumen
     if (fotoFehler) setErr(fotoFehler);
     if (ok) { setTodoModal(null); setTodoFehler(null); }
   };
@@ -11806,6 +11812,8 @@ function App() {
               <input value={todoModal.bemerkung} onChange={(e) => setTodoModal((m) => ({ ...m, bemerkung: e.target.value }))}
                 className="w-full text-sm border rounded px-2 py-1.5 mt-1 font-normal" style={{ borderColor: "#D6D9DC" }} />
             </label>
+            {/* Fotos am To-do (07.10.): aus der Aufnahme mitgebracht oder hier angehängt - Klick öffnet die Großansicht */}
+            <div className="mb-3">{fotoFeld(todoModal, setTodoModal)}</div>
             {todoFehler && <div className="text-xs font-bold mb-2" style={{ color: "#B23A34" }}>{todoFehler}</div>}
             <div className="flex gap-2">
               <button onClick={todoSpeichern} className="flex-1 text-sm font-bold py-2 rounded text-white" style={{ backgroundColor: "#22262B" }}>Speichern</button>
