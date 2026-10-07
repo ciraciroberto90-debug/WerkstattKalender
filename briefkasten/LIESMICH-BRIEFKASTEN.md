@@ -27,7 +27,9 @@ z. B. aus einem Passwort-Generator):
    `https://bta-briefkasten.<konto>.workers.dev` wird angezeigt – notieren.
 3. **Code einsetzen:** „Edit code“ → den gesamten Inhalt im Editor löschen →
    Inhalt von `briefkasten/worker.js` einfügen → „Deploy“ (oben rechts).
-   Kontrolle: Keine rote Fehlermeldung.
+   Kontrolle: Keine rote Fehlermeldung. *Dieser Schritt wird wiederholt,
+   wenn es eine neue `worker.js` gibt (Kern oder Zettel geändert) – der
+   Worker trägt seit 0.2.0 den Aufnahme-Zettel in sich.*
 4. **Ablage (KV) anlegen:** links „Storage & Databases“ → „KV“ → „Create
    namespace“, Name `bta-briefkasten`. Kontrolle: Der Namensraum steht in
    der Liste.
@@ -41,7 +43,7 @@ z. B. aus einem Passwort-Generator):
    dein Abhol-Schlüssel. „Deploy“. Kontrolle: Beide Namen stehen in der
    Liste (Werte bleiben verborgen).
 7. **Lebenszeichen prüfen:** Im Browser `https://bta-briefkasten.<konto>.workers.dev/status`
-   öffnen. Erwartet: `{"dienst":"bta-briefkasten","fassung":"0.1.0"}`.
+   öffnen. Erwartet: `{"dienst":"bta-briefkasten","fassung":"0.2.0"}`.
    Kommt stattdessen `KV-Namensraum ABLAGE ist nicht gebunden` → Schritt 5.
 8. **Server anbinden:** Auf v-btacockpit-1 neben `einstellungen.json`
    (C:\BTA\BTA-Programm\Dienst) die Datei **`briefkasten.json`** anlegen
@@ -55,9 +57,17 @@ z. B. aus einem Passwort-Generator):
    zeigt unter „Briefkasten“: Adresse, **erreichbar**, „0 Aufnahme(n) seit dem
    Start abgeholt“. Steht dort „nicht erreichbar“, hat der Server keinen Weg
    ins Internet (Firewall/Proxy) – dann melden, das ist der nächste Schritt.
-9. **Handy einrichten:** Im Aufnahme-Zettel ⚙ → Briefkasten-Adresse und
-   **Einwurf**-Schlüssel eintragen → „Verbindung zum Briefkasten prüfen“.
-   Erwartet: grün „Briefkasten erreichbar“.
+9. **Handy einrichten (mobile Daten reichen, kein WLAN, keine Datei):**
+   Am Handy in Chrome `https://bta-briefkasten.<konto>.workers.dev/zettel`
+   öffnen – der Briefkasten liefert den Zettel selbst aus und der Zettel
+   trägt seine Adresse von allein ein. **Ohne Tippen:** Der Werkstattleiter
+   gibt einen Einrichtungs-Link (oder QR-Code) weiter:
+   `…/zettel#kuerzel=RC&schluessel=<Einwurf-Schlüssel>` – Kürzel und
+   Schlüssel werden übernommen, der Teil hinter `#` verlässt das Handy nie
+   und verschwindet sofort aus der Adresszeile. Danach Chrome-Menü ⋮ →
+   „Zum Startbildschirm hinzufügen“ → der Zettel liegt als Symbol neben den
+   Apps. Kontrolle: ⚙ → „Verbindung zum Briefkasten prüfen“ → grün
+   „Briefkasten erreichbar (Fassung 0.2.0)“.
 10. **Die Probe:** Am Handy ein Foto mit Notiz „Probe Briefkasten“ →
     „Einwerfen“. Erwartet: grün „Eingeworfen“. Binnen einer Minute steht die
     Aufnahme am PC im Reiter Aufnahme (Quelle „Briefkasten“), und die
@@ -85,5 +95,5 @@ bei ihm, nie umgekehrt.
 
 - `kern.js` – die Logik (Wege, Schlüssel, Fristen), ohne HTTP und ohne Ablage
 - `briefkasten.js` – als Node-Programm (Ablage = Ordner), für Prüfstand und Eigenbetrieb
-- `worker.js` – Cloudflare-Worker (Ablage = KV); entsteht aus kern.js: `node briefkasten/worker-bauen.js` (`--pruefen` im Stick-Bau)
+- `worker.js` – Cloudflare-Worker (Ablage = KV); entsteht aus kern.js **und** `handy/aufnahme-zettel.html` (eingebettet, Weg `/zettel`): `node briefkasten/worker-bauen.js` (`--pruefen` im Prüfstand). Nach jeder Änderung an Kern oder Zettel neu bauen **und** im Dashboard neu einfügen (Schritt 3).
 - Prüfstand: `node --no-warnings tests/server/pruefe-briefkasten.js`

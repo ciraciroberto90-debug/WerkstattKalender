@@ -17,8 +17,17 @@
 //  (F) FEHLER am Server: Foto nicht schreibbar -> nichts gelöscht im
 //      Briefkasten, kein Eintrag, Status nennt den Fehler; nach Reparatur
 //      holt der nächste Takt ab.
+//  (H) HANDY ÜBER MOBILE DATEN (07.10., Robertos Android): Der Briefkasten
+//      liefert den Zettel selbst unter /zettel aus (Kern 0.2.0, Worker mit
+//      eingebettetem Zettel, Node von der Platte). Der so geöffnete Zettel
+//      erkennt seinen Briefkasten (eigene Herkunft), übernimmt einen
+//      Einrichtungs-Link (#kuerzel=…&schluessel=…) und entfernt ihn aus der
+//      Adresszeile; ein Einwurf von dieser Herkunft landet beim Dienst.
 // Rot-Nachweis: Dienst 0.4.0 (git show 2feefe6:server/dienst.js) kennt keinen
 // Briefkasten - (E) rot; der Zettel vor 06.10. abends kennt kein Einwerfen.
+// Kern 0.1.0 (git show 5ee5b47:briefkasten/kern.js) kennt /zettel nicht -
+// (H)-Kern/Worker/Node rot; der Zettel vor 07.10. nachmittags kennt weder
+// Einrichtungs-Link noch Erkennung - (H)-Browserfälle rot.
 const { spawn } = require("child_process");
 const fs = require("fs");
 const os = require("os");
@@ -72,6 +81,10 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
     ok("(K) OPTIONS (Browser-Vorabfrage): 204 mit erlaubten Köpfen X-BTA-Schluessel/X-BTA-Begleit", opt.status === 204 && /X-BTA-Begleit/.test(opt.kopf["Access-Control-Allow-Headers"]));
     const ohne = await behandle(anf("GET", "/status"), ab, { einwurf: "", abhol: "" });
     ok("(K) Ohne eingerichtete Schlüssel: 500 mit klarem Text", ohne.status === 500 && /nicht eingerichtet/.test(ohne.json.fehler));
+    const zOhne = await behandle(anf("GET", "/zettel"), ab, S);
+    const zMit = await behandle(anf("GET", "/zettel"), ab, S, Date.now(), "<!doctype html><title>Aufnahme-Zettel</title>");
+    const wurzel = await behandle(anf("GET", "/"), ab, { einwurf: "", abhol: "" }, Date.now(), "<!doctype html><title>Aufnahme-Zettel</title>");
+    ok("(H) Kern: /zettel ohne hinterlegten Zettel 404; mit Zettel 200 als text/html, kein Schlüssel nötig; / liefert ihn auch - noch vor der Schlüssel-Prüfung", zOhne.status === 404 && zMit.status === 200 && /^text\/html/.test(zMit.kopf["Content-Type"]) && /Aufnahme-Zettel/.test(zMit.text) && wurzel.status === 200 && /no-cache/.test(wurzel.kopf["Cache-Control"]));
   }
 
   /* ================= (W) Worker mit nachgebautem KV ================= */
@@ -103,6 +116,11 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
     void ttl;
     const ohneAblage = await m.exports.fetch(req("GET", "/status"), { EINWURF_SCHLUESSEL: EINWURF, ABHOL_SCHLUESSEL: ABHOL });
     ok("(W) Ohne gebundenen KV-Namensraum: 500 mit Hinweis ABLAGE", ohneAblage.status === 500 && /ABLAGE/.test((await ohneAblage.json()).fehler));
+    const zettelDatei = fs.readFileSync(path.join(WURZEL, "handy", "aufnahme-zettel.html"), "utf8");
+    const wz = await m.exports.fetch(req("GET", "/zettel"), env);
+    const wzText = await wz.text();
+    const wWurzel = await m.exports.fetch(req("GET", "/"), env);
+    ok("(H) Worker: /zettel liefert den eingebetteten Aufnahme-Zettel - Zeichen für Zeichen handy/aufnahme-zettel.html, als text/html; / ebenso", wz.status === 200 && /^text\/html/.test(wz.headers.get("Content-Type")) && wzText === zettelDatei && wWurzel.status === 200 && (await wWurzel.text()) === zettelDatei, `${wzText.length} Zeichen`);
   }
 
   /* ================= (N) Node-Programm über HTTP ================= */
@@ -119,6 +137,9 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
     ok("(N) Einwurf über HTTP landet als <id>.bin + <id>.json im Ordner", r.status === 200 && dateien.includes(j.id + ".bin") && dateien.includes(j.id + ".json"), dateien.join(", "));
     await fetch(BK + "/abholen/" + j.id, { method: "DELETE", headers: { "X-BTA-Schluessel": ABHOL } });
     ok("(N) Löschen räumt beide Dateien", fs.readdirSync(path.join(ORDNER, "ablage")).length === 0);
+    const nz = await fetch(BK + "/zettel");
+    const nzText = await nz.text();
+    ok("(H) Node: /zettel liefert handy/aufnahme-zettel.html von der Platte (text/html, Titel Aufnahme-Zettel)", nz.status === 200 && /^text\/html/.test(nz.headers.get("content-type")) && /<title>Aufnahme-Zettel<\/title>/.test(nzText) && nzText === fs.readFileSync(briefkasten.ZETTEL_PFAD, "utf8"));
   }
 
   /* ================= (E) Ende zu Ende: Zettel -> Briefkasten -> Dienst -> PC ================= */
@@ -218,6 +239,43 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
   const pcText = (await pp.locator("[data-aufnahme-karte]").allInnerTexts()).join(" | ");
   ok("(E) PC: Reiter Aufnahme zeigt die Karte mit Bild vom Server, Quelle „Briefkasten RC“, Anlage TS480, Vorschlag", pcKarte && /Briefkasten RC/.test(pcText) && /TS480/.test(pcText) && /Vorschlag/.test(pcText), pcText.replace(/\n/g, " · ").slice(0, 160));
   await pc.close();
+
+  /* ================= (H) Handy über mobile Daten: Zettel vom Briefkasten selbst ================= */
+  {
+    // Frischer Handy-Kontext ohne jede Einstellung - wie Robertos Android beim ersten Öffnen der https-Adresse
+    const handy2 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const h2 = await handy2.newPage();
+    h2.on("pageerror", (e) => { fehler.push("H:" + e.message); console.log("PAGEERROR(Zettel vom Briefkasten):", e.message); });
+    await h2.goto(BK + "/zettel");
+    const erkannt = await h2.waitForFunction(() => window.__zettelErkannt, null, { timeout: 8000 }).then(() => true).catch(() => false);
+    const gemerkt = await h2.evaluate(() => ({ adresse: localStorage.getItem("bta-zettel:bkAdresse"), knopf: document.getElementById("ablegen").textContent, einst: !document.getElementById("einstellungen").hidden }));
+    ok("(H) Zettel vom Briefkasten geöffnet: er erkennt seine Herkunft als Briefkasten-Adresse, der Knopf heißt „Einwerfen“, Einstellungen sind offen (Kürzel fehlt noch)", erkannt && gemerkt.adresse === BK && /Einwerfen/.test(gemerkt.knopf) && gemerkt.einst, JSON.stringify(gemerkt));
+    // Einrichtungs-Link (z. B. als QR-Code vom Werkstattleiter): Kürzel, Schlüssel, Anlagen - ohne Tippen.
+    // Erst als Raute-Wechsel auf der offenen Seite (kein Neuladen), dann als frisches Öffnen wie am Handy.
+    const linkLesen = () => h2.evaluate(() => ({ kuerzel: localStorage.getItem("bta-zettel:kuerzel"), schluessel: localStorage.getItem("bta-zettel:bkSchluessel"), anlagen: localStorage.getItem("bta-zettel:anlagen"), hash: location.hash, url: location.href, meldung: document.getElementById("meldung").textContent, kopf: document.getElementById("kopf-rechts").textContent, einst: !document.getElementById("einstellungen").hidden }));
+    await h2.goto(BK + "/zettel#kuerzel=XY&schluessel=" + encodeURIComponent(EINWURF) + "&anlagen=TS480|B2");
+    await h2.waitForTimeout(500);
+    const nachWechsel = await linkLesen();
+    ok("(H) Einrichtungs-Link bei offener Seite (nur die Raute wechselt): Kürzel XY, Schlüssel, Anlagen übernommen, Einstellungen zu", nachWechsel.kuerzel === "XY" && nachWechsel.schluessel === EINWURF && nachWechsel.anlagen === "TS480\nB2" && nachWechsel.hash === "" && !nachWechsel.einst && /Kürzel XY/.test(nachWechsel.kopf), nachWechsel.url + " · " + nachWechsel.meldung.slice(0, 60));
+    await h2.goto("about:blank");
+    await h2.goto(BK + "/zettel#kuerzel=RC&schluessel=" + encodeURIComponent(EINWURF));
+    await h2.waitForTimeout(500);
+    const nachLink = await linkLesen();
+    ok("(H) Einrichtungs-Link frisch geöffnet: Kürzel RC und Einwurf-Schlüssel übernommen, Meldung „Einrichtung übernommen“, der Schlüssel ist aus der Adresszeile verschwunden", nachLink.kuerzel === "RC" && nachLink.schluessel === EINWURF && nachLink.hash === "" && !nachLink.url.includes(EINWURF) && /Einrichtung übernommen/.test(nachLink.meldung) && /Kürzel RC/.test(nachLink.kopf), nachLink.url + " · " + nachLink.meldung.slice(0, 60));
+    await h2.reload();
+    await h2.waitForTimeout(400);
+    const nachReload = await h2.evaluate(() => ({ kuerzel: localStorage.getItem("bta-zettel:kuerzel"), adresse: localStorage.getItem("bta-zettel:bkAdresse"), einst: !document.getElementById("einstellungen").hidden }));
+    ok("(H) Nach dem Neuladen ohne Link bleibt alles eingerichtet, die Einstellungen bleiben zu", nachReload.kuerzel === "RC" && nachReload.adresse === BK && !nachReload.einst);
+    // Einwurf von dieser Herkunft (Text-Aufnahme ohne Foto) - der Dienst holt sie ab
+    await h2.locator("#notiz").fill("Probe vom Briefkasten-Zettel");
+    await h2.locator("#ablegen").click();
+    await h2.waitForFunction(() => /Eingeworfen/.test(document.getElementById("meldung").textContent), null, { timeout: 10000 }).catch(() => {});
+    let standH = null;
+    for (let i = 0; i < 60; i++) { await warte(500); standH = await (await fetch(D + "/api/scheurich/stand?seit=0")).json(); if (standH.eintraege.some((e) => e.category === "AUFNAHME" && e.note === "Probe vom Briefkasten-Zettel")) break; }
+    const probeH = standH.eintraege.find((e) => e.category === "AUFNAHME" && e.note === "Probe vom Briefkasten-Zettel");
+    ok("(H) Einwurf aus dem vom Briefkasten gelieferten Zettel: „Eingeworfen“, der Dienst holt die Aufnahme mit Kürzel RC ab", /Eingeworfen/.test(await h2.locator("#meldung").innerText()) && !!probeH && probeH.wer === "RC" && probeH.quelle === "briefkasten", JSON.stringify(probeH && { id: probeH.id, wer: probeH.wer }));
+    await handy2.close();
+  }
 
   /* ================= (O) Ohne Netz: Warteschlange im Zettel ================= */
   await bk.stoppen(); bk = null;

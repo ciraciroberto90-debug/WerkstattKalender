@@ -21,13 +21,17 @@
  *   GET    /liste                  (Abhol-Schlüssel) -> {eintraege: [{id, bytes, eingeworfen, begleit}]}
  *   GET    /abholen/:id            (Abhol-Schlüssel) -> Bytes, Köpfe X-BTA-Begleit, X-BTA-Eingeworfen
  *   DELETE /abholen/:id            (Abhol-Schlüssel) -> {geloescht: true}
+ *   GET    /zettel  (und /)        der Aufnahme-Zettel als HTML, wenn die Hülle ihn mitgibt (0.2.0)
+ *                                  - so kommt der Zettel als echte https-Seite aufs Handy (Robertos
+ *                                  Android, mobile Daten, 07.10.): Kamera, Teilen, Speicher und
+ *                                  „Zum Startbildschirm" brauchen eine https-Herkunft, keine Datei.
  * Zwei Schlüssel, weil das Handy verloren gehen kann: Der Einwurf-Schlüssel
  * darf nur einwerfen - wer ihn hat, liest nichts. Der Abhol-Schlüssel bleibt
  * auf dem Werkstatt-Server.
  */
 "use strict";
 
-const FASSUNG = "0.1.0";
+const FASSUNG = "0.2.0"; // 0.2.0: liefert den Aufnahme-Zettel unter /zettel aus
 const MAX_BYTES = 3 * 1024 * 1024;      // ein eingedampftes Handyfoto hat 200-400 kB; 3 MB lässt Luft
 const MAX_BEGLEIT = 4 * 1024;           // Begleitdatei: Zeit, Kürzel, Anlage, Ziel, Notiz
 const HALTEN_MS = 7 * 24 * 3600 * 1000; // länger liegt nichts - der Briefkasten ist kein Archiv
@@ -58,11 +62,21 @@ function leseBegleitKopf(roh) {
 }
 const zeitVergleich = (a, b) => String(a.id).localeCompare(String(b.id)); // ids beginnen mit der Zeit (Basis 36)
 
-/* schluessel = { einwurf, abhol } - beide Pflicht beim Betrieb. */
-async function behandle(anfrage, ablage, schluessel, jetzt = Date.now()) {
+/* schluessel = { einwurf, abhol } - beide Pflicht beim Betrieb.
+ * zettel = HTML des Aufnahme-Zettels (Text) oder null - die Hülle reicht ihn herein
+ * (Worker: eingebettet beim Bau, Node: handy/aufnahme-zettel.html von der Platte). */
+async function behandle(anfrage, ablage, schluessel, jetzt = Date.now(), zettel = null) {
   const methode = String(anfrage.methode || "GET").toUpperCase();
   const pfad = String(anfrage.pfad || "/").replace(/\/+$/, "") || "/";
   if (methode === "OPTIONS") return { status: 204, kopf: { ...CORS, "Access-Control-Max-Age": "86400" } };
+  // Der Zettel braucht keinen Schlüssel: Er enthält keinen - der Einwurf-Schlüssel wird erst am Handy
+  // eingetragen. Vor der Schlüssel-Prüfung, damit er auch auf einem halb eingerichteten Worker erscheint.
+  if ((pfad === "/zettel" || pfad === "/") && (methode === "GET" || methode === "HEAD")) {
+    if (!zettel) return json(404, { fehler: "Kein Aufnahme-Zettel hinterlegt (Worker ohne eingebetteten Zettel bzw. handy/aufnahme-zettel.html fehlt)" });
+    // no-cache statt no-store: der Browser darf ihn behalten, fragt aber bei jedem Öffnen nach - ein neuer
+    // Stand (nach erneutem Deploy) kommt so sofort an, und offline bleibt die letzte Fassung anzeigbar.
+    return { status: 200, text: String(zettel), kopf: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", ...CORS } };
+  }
   if (!schluessel || !schluessel.einwurf || !schluessel.abhol) return json(500, { fehler: "Briefkasten nicht eingerichtet: Einwurf- und Abhol-Schlüssel fehlen" });
   const gegeben = String(anfrage.kopf("x-bta-schluessel") || "").trim();
   const darfAbholen = gegeben && gegeben === schluessel.abhol;

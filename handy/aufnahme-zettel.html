@@ -489,10 +489,48 @@
     });
   }
 
+  /* ---------- Einrichtung ohne Tippen (07.10., Robertos Android über mobile Daten) ---------- */
+  // Einrichtungs-Link: …/zettel#kuerzel=RC&adresse=https://…&schluessel=… - vom Werkstattleiter, z. B. als QR-Code.
+  // Der Teil hinter # geht nie zum Server. Nach dem Übernehmen wird er aus der Adresszeile entfernt, damit
+  // „Zum Startbildschirm", Lesezeichen und der Verlauf den Schlüssel nicht mitführen.
+  function einrichtungAusLink() {
+    var h = String(location.hash || "").replace(/^#/, "");
+    if (!h || h.indexOf("=") < 0) return false;
+    var p = {};
+    h.split("&").forEach(function (t) { var i = t.indexOf("="); if (i > 0) { try { p[decodeURIComponent(t.slice(0, i))] = decodeURIComponent(t.slice(i + 1).replace(/\+/g, " ")); } catch (e) { /* kaputt kodiert - Feld auslassen */ } } });
+    var uebernommen = [];
+    if (p.kuerzel) { merk.setze("kuerzel", p.kuerzel.trim()); uebernommen.push("Kürzel " + p.kuerzel.trim()); }
+    if (p.adresse) { merk.setze("bkAdresse", p.adresse.trim().replace(/\/+$/, "")); uebernommen.push("Briefkasten-Adresse"); }
+    if (p.schluessel) { merk.setze("bkSchluessel", p.schluessel.trim()); uebernommen.push("Einwurf-Schlüssel"); }
+    if (p.anlagen) { merk.setze("anlagen", p.anlagen.split(/[|\n]/).map(function (x) { return x.trim(); }).filter(Boolean).join("\n")); uebernommen.push("Anlagen"); }
+    if (!uebernommen.length) return false;
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* dann bleibt der Link stehen */ }
+    meldung("ok", "Einrichtung übernommen: " + uebernommen.join(", ") + ". Oben rechts ⚙ zeigt die Werte.");
+    return true;
+  }
+  // Kommt der Zettel direkt vom Briefkasten (https://…workers.dev/zettel), ist die Adresse die eigene Herkunft.
+  // Eingetragen wird sie nur, wenn dort wirklich ein Briefkasten antwortet - vom Werkstatt-Server (/zettel am
+  // BTA-Dienst) oder aus einer Datei kommt kein „bta-briefkasten", dann bleibt es beim Teilen.
+  function briefkastenErkennen() {
+    if (merk.lese("bkAdresse", "") || !/^https?:$/.test(location.protocol)) return;
+    fetch(location.origin + "/status", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j || j.dienst !== "bta-briefkasten" || merk.lese("bkAdresse", "")) return;
+      merk.setze("bkAdresse", location.origin);
+      $("bk-adresse").value = location.origin;
+      zeichneAblegeKnopf();
+      window.__zettelErkannt = location.origin; // Prüfstand liest hier mit
+    }).catch(function () { /* kein Briefkasten unter dieser Adresse */ });
+  }
+
   // Prüfstand: Warteschlange einsehen und Nachsenden anstoßen
   window.__zettelTest = { warteAlle: warteAlle, warteSenden: function () { return warteSenden("Prüfstand"); } };
 
+  einrichtungAusLink();
+  // Kommt ein Einrichtungs-Link an, während der Zettel schon offen ist (gleiche Seite, nur die Raute wechselt),
+  // lädt der Browser nicht neu - dann hier übernehmen und die Anzeige nachziehen.
+  window.addEventListener("hashchange", function () { if (einrichtungAusLink()) { zeichneAnlagen(); zeichneKopf(); zeichneAblegeKnopf(); $("einstellungen").hidden = true; } });
   zeichneAnlagen(); zeichneKopf(); zeichneHeute(); zeichneFotos(); zeichneAblegeKnopf();
+  briefkastenErkennen();
   warteAlle().then(function (l) { zeichneWartend(l.length); if (l.length) warteSenden("Start"); });
   if (!merk.lese("kuerzel", "")) $("einstellungen").hidden = false;
 })();

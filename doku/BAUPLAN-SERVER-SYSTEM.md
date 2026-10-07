@@ -361,11 +361,15 @@ Handy (Aufnahme-Zettel)  --HTTPS-->  Briefkasten (Cloudflare-Worker, KV)  <--HTT
 |---|---|---|
 | Kern | `briefkasten/kern.js` | Wege, zwei Schlüssel, Grenzen (3 MB, 7 Tage), CORS – ohne HTTP und ohne Ablage, deshalb ohne Netz prüfbar |
 | Node-Programm | `briefkasten/briefkasten.js` | Kern + HTTP + Ordner-Ablage; für den Prüfstand und einen Eigenbetrieb |
-| Cloudflare-Worker | `briefkasten/worker.js` | Kern + KV-Ablage; eine Datei zum Einfügen im Dashboard (`worker-bauen.js` hält sie auf dem Stand des Kerns) |
+| Cloudflare-Worker | `briefkasten/worker.js` | Kern + KV-Ablage **+ eingebetteter Aufnahme-Zettel** (0.2.0); eine Datei zum Einfügen im Dashboard (`worker-bauen.js` hält sie auf dem Stand von Kern und Zettel) |
 | Abholer | `server/dienst.js` (0.5.0), `server/briefkasten.beispiel.json` | liest `briefkasten.json` neben den Einstellungen (bleibt beim Werkzeug-„Einrichten" stehen); Takt, Kontroll-Lesung, Löschen erst nach Eintrag |
 | Einwurf | `handy/aufnahme-zettel.html` | „Einwerfen" statt Teilen; ohne Netz Warteschlange in der IndexedDB des Handys (überlebt Schließen/Neuladen), Nachsenden beim Öffnen, bei Netzwechsel, im 20-s-Takt |
 
-**Wege des Briefkastens:** `GET /status` · `POST /einwurf` (Kopf
+**Wege des Briefkastens:** `GET /zettel` (und `/`) liefert den Aufnahme-Zettel
+als https-Seite – so kommt er mit mobilen Daten aufs Handy, ohne WLAN und
+ohne Datei; der Zettel erkennt dabei seine Herkunft als Briefkasten-Adresse
+und übernimmt einen Einrichtungs-Link `#kuerzel=…&schluessel=…` (nur im
+Browser, nie zum Server) · `GET /status` · `POST /einwurf` (Kopf
 `X-BTA-Schluessel` = Einwurf-Schlüssel, Kopf `X-BTA-Begleit` = Begleitdatei
 als URL-kodiertes JSON, Körper = Bild-Bytes) · `GET /liste`, `GET/DELETE
 /abholen/{id}` (Abhol-Schlüssel). **Zwei Schlüssel**, weil das Handy
@@ -378,7 +382,7 @@ Eintrag auf dem Server liegen; ein Fehler hält den Takt an, steht auf der
 Status-Seite, der nächste Takt versucht es neu; Protokollzeile nur beim
 Wechsel des Fehlers.
 
-**Gemessen 06.10. (Prüfstand `pruefe-briefkasten.js`, 38 Prüfungen):**
+**Gemessen 06.10. (Prüfstand `pruefe-briefkasten.js`, 38 Prüfungen; 07.10. 46 mit dem Zettel vom Briefkasten):**
 Einwurf vom Zettel 72 ms; Abholung durch den Dienst nach 2,0 s (Takt 5 s im
 Prüfstand); Nachsenden aus der Warteschlange bis zur Aufnahme auf dem Dienst
 3,1 s. **Nicht gemessen:** der echte Cloudflare-Worker (nur mit nachgebautem

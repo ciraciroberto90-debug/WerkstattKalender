@@ -16,6 +16,11 @@ const fs = require("fs");
 const path = require("path");
 const { behandle, MAX_BYTES, FASSUNG } = require("./kern.js");
 
+// Der Aufnahme-Zettel liegt im Repo unter handy/ - die Node-Fassung liest ihn bei jeder Anfrage
+// frisch (kein Neustart nach einer Änderung); fehlt er, antwortet der Kern mit 404.
+const ZETTEL_PFAD = path.join(__dirname, "..", "handy", "aufnahme-zettel.html");
+function zettelLesen() { try { return fs.readFileSync(ZETTEL_PFAD, "utf8"); } catch (e) { return null; } }
+
 function ordnerAblage(ordner) {
   fs.mkdirSync(ordner, { recursive: true });
   const p = (id, endung) => path.join(ordner, id + endung);
@@ -57,9 +62,9 @@ function starten(e) {
   const server = http.createServer(async (req, res) => {
     try {
       const u = new URL(req.url, "http://x");
-      const antwort = await behandle({ methode: req.method, pfad: u.pathname, kopf: (n) => req.headers[n.toLowerCase()], bytes: () => koerper(req) }, ablage, schluessel);
+      const antwort = await behandle({ methode: req.method, pfad: u.pathname, kopf: (n) => req.headers[n.toLowerCase()], bytes: () => koerper(req) }, ablage, schluessel, Date.now(), zettelLesen());
       res.writeHead(antwort.status, antwort.kopf || {});
-      if (antwort.bytes) res.end(Buffer.from(antwort.bytes)); else if (antwort.json !== undefined) res.end(JSON.stringify(antwort.json)); else res.end();
+      if (antwort.bytes) res.end(Buffer.from(antwort.bytes)); else if (antwort.text !== undefined) res.end(antwort.text); else if (antwort.json !== undefined) res.end(JSON.stringify(antwort.json)); else res.end();
     } catch (x) {
       res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ fehler: x.message }));
@@ -85,7 +90,7 @@ function ladeEinstellungen(pfad) {
   return e;
 }
 
-module.exports = { starten, ordnerAblage, ladeEinstellungen, FASSUNG };
+module.exports = { starten, ordnerAblage, ladeEinstellungen, FASSUNG, ZETTEL_PFAD };
 
 if (require.main === module) {
   let e;
