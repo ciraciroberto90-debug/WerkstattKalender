@@ -67,6 +67,8 @@ function ladeEinstellungen(pfad) {
         schluessel: String(roh.briefkasten.schluessel || "").trim(), // der Abhol-Schlüssel
         standort: String(roh.briefkasten.standort || Object.keys(roh.standorte || {})[0] || "").trim(),
         taktSek: Math.max(5, Number(roh.briefkasten.taktSek) || 30),
+        // Sicherheitsnetz (0.6.1): spätestens so oft die volle Liste ziehen, auch ohne neue Marke
+        listeAlleSek: Math.max(30, Number(roh.briefkasten.listeAlleSek) || 600),
       }
       : null,
   };
@@ -243,7 +245,13 @@ function starten(einstellungen, { still = false } = {}) {
      Der Server braucht dafür nur AUSGEHENDES HTTPS (gemessen 06.10.: Roberto
      „ich habe da Internet"). */
   const bk = e.briefkasten;
-  const briefkastenStand = { aktiv: !!bk, adresse: bk ? bk.adresse : "", standort: bk ? bk.standort : "", letzterTakt: null, letzteAbholung: null, abgeholtGesamt: 0, automatischGesamt: 0, imBriefkasten: null, letzterFehler: null, erreichbar: null };
+  const briefkastenStand = { aktiv: !!bk, adresse: bk ? bk.adresse : "", standort: bk ? bk.standort : "", letzterTakt: null, letzteAbholung: null, abgeholtGesamt: 0, automatischGesamt: 0, imBriefkasten: null, letzterFehler: null, erreichbar: null, nachfragenGesamt: 0, listenGesamt: 0 };
+  // Marke des Briefkastens (0.6.1): Kennung des letzten Einwurfs, wie der Dienst sie zuletzt gesehen hat.
+  // undefined = noch nie gefragt (erster Takt zieht die Liste). Cloudflare erlaubt kostenlos 1.000 Listen
+  // am Tag - der 30-s-Takt mit /liste waren 2.880 und hat das Konto am 07.10. um 21:04 gesperrt.
+  let bkMarkeGesehen;
+  let bkLetzteListe = 0;
+  let bkKanNeu = true; // false: alter Briefkasten (< 0.3.0) ohne /neu - dann wie bisher jede Runde die Liste
   let bkLaeuft = false;
   async function briefkastenAnfrage(weg, opts = {}) {
     const ac = new AbortController();
@@ -308,12 +316,31 @@ function starten(einstellungen, { still = false } = {}) {
     }
     return null;
   }
-  async function briefkastenAbholen(grund) {
+  async function briefkastenAbholen(grund, { voll = false } = {}) {
     if (!bk || bkLaeuft) return briefkastenStand;
     bkLaeuft = true;
     const st = standorte[bk.standort];
     try {
       briefkastenStand.letzterTakt = new Date().toISOString();
+      briefkastenStand.nachfragenGesamt++;
+      // Erst die billige Marke: Liste nur bei neuer Marke, nach einem Fehler, auf Anforderung
+      // oder spätestens alle listeAlleSek (Sicherheitsnetz gegen eine verpasste Marke).
+      let listeNoetig = voll || bkMarkeGesehen === undefined || !!briefkastenStand.letzterFehler || Date.now() - bkLetzteListe > bk.listeAlleSek * 1000;
+      if (bkKanNeu) {
+        const rn = await briefkastenAnfrage("/neu");
+        if (rn.status === 401) throw new Error("Briefkasten weist den Abhol-Schlüssel ab (401)");
+        if (rn.status === 404) { bkKanNeu = false; listeNoetig = true; log.info("Briefkasten kennt /neu nicht (Fassung vor 0.3.0) - Liste in jedem Takt"); }
+        else if (!rn.ok) throw new Error("Briefkasten antwortet " + rn.status);
+        else {
+          const marke = (await rn.json()).marke || null;
+          if (marke !== bkMarkeGesehen) listeNoetig = true;
+          bkMarkeGesehen = marke; // VOR der Liste gemerkt: ein Einwurf während der Liste ändert die Marke erneut
+        }
+        briefkastenStand.erreichbar = true;
+      } else listeNoetig = true;
+      if (!listeNoetig) { briefkastenStand.letzterFehler = null; return briefkastenStand; }
+      briefkastenStand.listenGesamt++;
+      bkLetzteListe = Date.now();
       const r = await briefkastenAnfrage("/liste");
       if (r.status === 401) throw new Error("Briefkasten weist den Abhol-Schlüssel ab (401)");
       if (!r.ok) throw new Error("Briefkasten antwortet " + r.status);
@@ -376,7 +403,7 @@ function starten(einstellungen, { still = false } = {}) {
     return briefkastenStand;
   }
   const briefkastenUhr = bk ? setInterval(() => { briefkastenAbholen("Takt"); }, bk.taktSek * 1000) : null;
-  if (bk) { log.info(`Briefkasten: ${bk.adresse} -> Standort ${bk.standort}, alle ${bk.taktSek} s`); setTimeout(() => briefkastenAbholen("Start"), 1500); }
+  if (bk) { log.info(`Briefkasten: ${bk.adresse} -> Standort ${bk.standort}, alle ${bk.taktSek} s nachfragen, Liste bei neuer Marke oder alle ${bk.listeAlleSek} s`); setTimeout(() => briefkastenAbholen("Start"), 1500); }
 
   function statusDaten() {
     const out = { dienst: "bta-cockpit-dienst", fassung: FASSUNG, gestartet: new Date(START).toISOString(), laufzeitSek: Math.round((Date.now() - START) / 1000), port: e.port, standorte: {}, letzteSicherung, fehlerLetzte24h: log.fehlerLetzte24h(), appDatei: e.appDatei && fs.existsSync(e.appDatei) ? { pfad: e.appDatei, bytes: fs.statSync(e.appDatei).size, geaendert: fs.statSync(e.appDatei).mtime.toISOString() } : null, briefkasten: briefkastenStand };
@@ -410,7 +437,7 @@ function starten(einstellungen, { still = false } = {}) {
 <h2>Excel-Quellen</h2>${quellenHtml}
 <h2>Briefkasten (Aufnahme vom Handy über das Internet)</h2>${s.briefkasten.aktiv
     ? `<p>${esc(s.briefkasten.adresse)} → Standort <code>${esc(s.briefkasten.standort)}</code> · ${s.briefkasten.erreichbar === null ? "noch nicht abgefragt" : s.briefkasten.erreichbar ? '<span class=ok>erreichbar</span>' : '<strong style="color:#B23A34">nicht erreichbar</strong>'}${s.briefkasten.letzterTakt ? ` · letzter Takt ${esc(ortszeit(s.briefkasten.letzterTakt))}` : ""}</p>
-<p>${s.briefkasten.abgeholtGesamt} Aufnahme(n) seit dem Start abgeholt${s.briefkasten.letzteAbholung ? `, zuletzt ${esc(ortszeit(s.briefkasten.letzteAbholung))}` : ""}, davon ${s.briefkasten.automatischGesamt || 0} automatisch einsortiert · im Briefkasten liegen ${s.briefkasten.imBriefkasten === null ? "?" : s.briefkasten.imBriefkasten}${s.briefkasten.letzterFehler ? `<br><strong style="color:#B23A34">Fehler:</strong> ${esc(s.briefkasten.letzterFehler)}` : ""}</p>`
+<p>${s.briefkasten.abgeholtGesamt} Aufnahme(n) seit dem Start abgeholt${s.briefkasten.letzteAbholung ? `, zuletzt ${esc(ortszeit(s.briefkasten.letzteAbholung))}` : ""}, davon ${s.briefkasten.automatischGesamt || 0} automatisch einsortiert · ${s.briefkasten.nachfragenGesamt || 0} Nachfragen seit dem Start, davon ${s.briefkasten.listenGesamt || 0} Listen (Cloudflare: 1.000 Listen am Tag frei) · im Briefkasten liegen ${s.briefkasten.imBriefkasten === null ? "?" : s.briefkasten.imBriefkasten}${s.briefkasten.letzterFehler ? `<br><strong style="color:#B23A34">Fehler:</strong> ${esc(s.briefkasten.letzterFehler)}` : ""}</p>`
     : "<p>nicht eingerichtet (einstellungen.json → briefkasten: adresse, schluessel, standort).</p>"}
 <h2>App</h2><p>${s.appDatei ? `<a href="/app/">/app/</a> · ${(s.appDatei.bytes / 1024).toFixed(0)} kB · Stand ${esc(ortszeit(s.appDatei.geaendert))}` : "keine App-Datei hinterlegt"}</p>
 <p><small>JSON: <a href="/api/status">/api/status</a></small></p></body></html>`;
@@ -497,7 +524,7 @@ function starten(einstellungen, { still = false } = {}) {
       }
       if (weg === "sicherung" && req.method === "POST") return json(res, 200, sicherungJetzt("auf Anforderung"));
       // Briefkasten jetzt abholen (Werkzeug-Knopf „Prüfen", Prüfstand) - statt auf den Takt zu warten
-      if (weg === "briefkasten" && req.method === "POST") { if (!bk) return json(res, 400, { fehler: "Kein Briefkasten eingerichtet" }); return json(res, 200, await briefkastenAbholen("auf Anforderung")); }
+      if (weg === "briefkasten" && req.method === "POST") { if (!bk) return json(res, 400, { fehler: "Kein Briefkasten eingerichtet" }); return json(res, 200, await briefkastenAbholen("auf Anforderung", { voll: true })); }
       if (weg === "fotos") {
         const name = decodeURIComponent(teile[3] || "");
         if (!FOTO_NAME.test(name)) return json(res, 400, { fehler: "Foto: ungültiger Dateiname" });
@@ -595,7 +622,7 @@ function starten(einstellungen, { still = false } = {}) {
   });
 }
 
-const FASSUNG = "0.6.0"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.); 0.5.0 = Briefkasten-Abholer (06.10.); 0.6.0 = automatisches Einsortieren aus dem Briefkasten (07.10.)
+const FASSUNG = "0.6.1"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.); 0.5.0 = Briefkasten-Abholer (06.10.); 0.6.0 = automatisches Einsortieren aus dem Briefkasten (07.10.); 0.6.1 = Marke statt Liste im Takt (Cloudflare-Kontingent, 08.10.)
 
 /* Import-Nachweis: eingelesene Datei gegen den Export aus der Datenbank.
    Einträge Feld für Feld (JSON-Text je id), Löschliste nach Kennung, Konfig je

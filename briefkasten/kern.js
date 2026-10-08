@@ -8,7 +8,8 @@
  *
  * Dieser Kern kennt kein HTTP und keine Ablage - er bekommt beides gereicht:
  *   anfrage = { methode, pfad, kopf(name) -> string, bytes() -> Promise<Uint8Array> }
- *   ablage  = { lege(id, bytes, meta), liste() -> [{id, bytes, meta}], hole(id) -> {bytes, meta}|null, loesche(id) }
+ *   ablage  = { lege(id, bytes, meta), liste() -> [{id, bytes, meta}], hole(id) -> {bytes, meta}|null, loesche(id),
+ *               marke() -> string|null, markeSetzen(wert) }   (Marke = Kennung des letzten Einwurfs, 0.3.0)
  * So läuft derselbe Code als Node-Programm (briefkasten.js, auch im
  * Prüfstand) und als Cloudflare-Worker (worker.js) - und der Prüfstand misst
  * den Kern ohne Netz.
@@ -18,6 +19,12 @@
  *   POST   /einwurf                Kopf X-BTA-Schluessel (Einwurf- oder Abhol-Schlüssel),
  *                                  Kopf X-BTA-Begleit (JSON, URL-kodiert), Körper = Bild-Bytes (darf leer sein)
  *                                  -> {id, bytes}
+ *   GET    /neu                    (Abhol-Schlüssel) -> {marke} - die Kennung des letzten Einwurfs (0.3.0).
+ *                                  Billig (ein Lesezugriff). Der Dienst fragt im Takt nur das und holt
+ *                                  die teure Liste erst, wenn sich die Marke geändert hat. Grund: Cloudflare
+ *                                  erlaubt kostenlos 100.000 Lesezugriffe, aber nur 1.000 Listen am Tag -
+ *                                  der 30-s-Takt mit /liste (2.880/Tag) hat das Konto am 07.10. um 21:04
+ *                                  gesperrt (Robertos zwei Mails).
  *   GET    /liste                  (Abhol-Schlüssel) -> {eintraege: [{id, bytes, eingeworfen, begleit}]}
  *   GET    /abholen/:id            (Abhol-Schlüssel) -> Bytes, Köpfe X-BTA-Begleit, X-BTA-Eingeworfen
  *   DELETE /abholen/:id            (Abhol-Schlüssel) -> {geloescht: true}
@@ -31,7 +38,7 @@
  */
 "use strict";
 
-const FASSUNG = "0.2.0"; // 0.2.0: liefert den Aufnahme-Zettel unter /zettel aus
+const FASSUNG = "0.3.0"; // 0.2.0: liefert den Aufnahme-Zettel unter /zettel aus; 0.3.0: /neu mit Marke statt Liste im Takt (Cloudflare-Kontingent)
 const MAX_BYTES = 3 * 1024 * 1024;      // ein eingedampftes Handyfoto hat 200-400 kB; 3 MB lässt Luft
 const MAX_BEGLEIT = 4 * 1024;           // Begleitdatei: Zeit, Kürzel, Anlage, Ziel, Notiz
 const HALTEN_MS = 7 * 24 * 3600 * 1000; // länger liegt nichts - der Briefkasten ist kein Archiv
@@ -45,9 +52,14 @@ const CORS = {
 };
 const json = (status, daten, extra = {}) => ({ status, json: daten, kopf: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...CORS, ...extra } });
 
+let idZeit = 0, idLauf = 0;
 function neueId() {
-  // Zeit zuerst (sortierbar, älteste zuerst beim Abholen), dann Zufall gegen zwei Einwürfe in derselben Millisekunde
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  // Zeit zuerst (sortierbar, älteste zuerst beim Abholen), dann ein Laufzähler für Einwürfe in
+  // derselben Millisekunde (sonst entschied der Zufall über die Reihenfolge - Prüfstand 08.10.),
+  // dann Zufall gegen zwei Briefkasten-Instanzen in derselben Millisekunde
+  const t = Date.now();
+  if (t === idZeit) idLauf = (idLauf + 1) % 1296; else { idZeit = t; idLauf = 0; }
+  return t.toString(36) + idLauf.toString(36).padStart(2, "0") + Math.random().toString(36).slice(2, 8);
 }
 // Die Begleitdatei kommt URL-kodiert im Kopf, weil der Körper die Bild-Bytes trägt.
 function leseBegleitKopf(roh) {
@@ -96,7 +108,14 @@ async function behandle(anfrage, ablage, schluessel, jetzt = Date.now(), zettel 
     if (!bytes.length && !Object.keys(begleit).length) return json(400, { fehler: "Weder Bild noch Begleitdatei" });
     const id = neueId();
     await ablage.lege(id, bytes, { eingeworfen: new Date(jetzt).toISOString(), begleit, bytes: bytes.length });
+    // Marke zuletzt: Wer sie sieht, findet den Einwurf auch in der Liste.
+    if (ablage.markeSetzen) await ablage.markeSetzen(id);
     return json(200, { id, bytes: bytes.length });
+  }
+  if (pfad === "/neu" && methode === "GET") {
+    if (!darfAbholen) return json(401, { fehler: "Abhol-Schlüssel fehlt oder ist falsch" });
+    const marke = ablage.marke ? await ablage.marke() : null;
+    return json(200, { marke: marke || null });
   }
   if (pfad === "/liste" && methode === "GET") {
     if (!darfAbholen) return json(401, { fehler: "Abhol-Schlüssel fehlt oder ist falsch" });
@@ -131,11 +150,14 @@ async function behandle(anfrage, ablage, schluessel, jetzt = Date.now(), zettel 
 /* Ablage im Arbeitsspeicher - für den Prüfstand und als Vorlage für echte Ablagen. */
 function speicherAblage() {
   const m = new Map();
+  let marke = null;
   return {
     async lege(id, bytes, meta) { m.set(id, { bytes: new Uint8Array(bytes), meta }); },
     async liste() { return [...m.entries()].map(([id, e]) => ({ id, bytes: e.bytes.length, meta: e.meta })); },
     async hole(id) { const e = m.get(id); return e ? { bytes: e.bytes, meta: e.meta } : null; },
     async loesche(id) { m.delete(id); },
+    async marke() { return marke; },
+    async markeSetzen(w) { marke = String(w); },
     _groesse: () => m.size,
   };
 }

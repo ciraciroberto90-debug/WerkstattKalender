@@ -3,5 +3,7 @@
   "adresse": "https://bta-briefkasten.DEIN-KONTO.workers.dev",
   "schluessel": "HIER-DEN-ABHOL-SCHLUESSEL",
   "standort": "scheurich",
-  "taktSek": 30
+  "taktSek": 30,
+  "_listeAlleSek": "0.6.1: Im Takt fragt der Dienst nur die billige Marke (/neu); die Liste (Cloudflare: 1.000 am Tag frei) zieht er bei neuer Marke und spaetestens alle listeAlleSek Sekunden.",
+  "listeAlleSek": 600
 }

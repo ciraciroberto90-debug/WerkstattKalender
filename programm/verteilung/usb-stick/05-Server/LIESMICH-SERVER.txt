@@ -1,7 +1,10 @@
 ==========================================================
  05-SERVER - DER DIENST FUER DEN BTA-SERVER
 ==========================================================
-Stand: 07.10.2026, Dienst 0.6.0 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
+Stand: 08.10.2026, Dienst 0.6.1 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
+0.6.1 = Briefkasten: im Takt nur die billige Marke (/neu) abfragen, Liste nur bei neuer Marke
+        oder alle listeAlleSek (600) - Cloudflare erlaubt kostenlos 1.000 Listen am Tag, der
+        30-s-Takt mit Liste (2.880) hat das Konto am 07.10. gesperrt. Braucht Worker 0.3.0.
 0.6.0 = automatisches Einsortieren aus dem Briefkasten (Roll-out 66): To-do / Akte / Pinnwand
         nach den Regeln aus dem Zahnrad (Regeln & Listen -> Aufnahme), Arbeit und Stoerung nie;
         Status-Seite zaehlt "davon ... automatisch einsortiert".

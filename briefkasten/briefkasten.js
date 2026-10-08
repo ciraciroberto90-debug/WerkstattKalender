@@ -44,6 +44,9 @@ function ordnerAblage(ordner) {
       return { bytes, meta };
     },
     async loesche(id) { for (const e of [".bin", ".json"]) { try { fs.unlinkSync(p(id, e)); } catch (x) { /* schon weg */ } } },
+    // Marke des letzten Einwurfs (0.3.0) - eigene Datei, taucht nicht in der Liste auf (kein .json)
+    async marke() { try { return fs.readFileSync(path.join(ordner, "_marke.txt"), "utf8").trim() || null; } catch (e) { return null; } },
+    async markeSetzen(w) { fs.writeFileSync(path.join(ordner, "_marke.txt.teil"), String(w)); fs.renameSync(path.join(ordner, "_marke.txt.teil"), path.join(ordner, "_marke.txt")); },
   };
 }
 
@@ -59,9 +62,13 @@ function koerper(req) {
 function starten(e) {
   const ablage = ordnerAblage(e.ordner);
   const schluessel = { einwurf: e.einwurfSchluessel, abhol: e.abholSchluessel };
+  // Zähler je Weg - der Prüfstand misst damit, wie oft der Dienst die teure Liste zieht
+  const zaehler = { neu: 0, liste: 0, einwurf: 0, abholen: 0, zettel: 0, sonst: 0 };
   const server = http.createServer(async (req, res) => {
     try {
       const u = new URL(req.url, "http://x");
+      const weg = u.pathname.replace(/\/+$/, "") || "/";
+      zaehler[weg === "/neu" ? "neu" : weg === "/liste" ? "liste" : weg === "/einwurf" ? "einwurf" : weg.startsWith("/abholen/") ? "abholen" : weg === "/zettel" || weg === "/" ? "zettel" : "sonst"]++;
       const antwort = await behandle({ methode: req.method, pfad: u.pathname, kopf: (n) => req.headers[n.toLowerCase()], bytes: () => koerper(req) }, ablage, schluessel, Date.now(), zettelLesen());
       res.writeHead(antwort.status, antwort.kopf || {});
       if (antwort.bytes) res.end(Buffer.from(antwort.bytes)); else if (antwort.text !== undefined) res.end(antwort.text); else if (antwort.json !== undefined) res.end(JSON.stringify(antwort.json)); else res.end();
@@ -72,7 +79,7 @@ function starten(e) {
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(e.port, e.host, () => resolve({ port: server.address().port, async stoppen() { await new Promise((r) => server.close(() => r())); } }));
+    server.listen(e.port, e.host, () => resolve({ port: server.address().port, zaehler, async stoppen() { await new Promise((r) => server.close(() => r())); } }));
   });
 }
 

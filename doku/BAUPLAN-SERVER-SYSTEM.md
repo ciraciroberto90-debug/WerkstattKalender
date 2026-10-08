@@ -389,6 +389,19 @@ nichts doppelt an. Der PC nimmt es im Tagesfilm zurück („Zurück in die
 Aufnahme“: Ziel-Eintrag weg, Aufnahme offen, Bilddatei bleibt). Prüfstand
 (A) in `pruefe-briefkasten.js`, Rot-Nachweis gegen 0.5.0.
 
+**Kontingent und Marke (Kern 0.3.0 / Dienst 0.6.1, 08.10.):** Der kostenlose
+Cloudflare-Tarif erlaubt je Tag 100.000 Lesezugriffe, aber nur 1.000 Listen,
+1.000 Schreib- und 1.000 Löschvorgänge. Der 30-s-Takt mit `/liste` waren 2.880
+Listen – am 07.10. um 21:04 war die Ablage gesperrt (Robertos zwei Mails). Seit
+0.3.0 schreibt jeder Einwurf eine **Marke** (Kennung des letzten Einwurfs,
+ein KV-Schlüssel); der Dienst fragt im Takt nur `GET /neu` (ein Lesezugriff)
+und zieht die Liste nur bei geänderter Marke, nach einem Fehler, auf
+Anforderung oder spätestens alle `listeAlleSek` (600 s, Sicherheitsnetz gegen
+eine verpasste Marke). Ein Einwurf kostet 3 Schreibvorgänge → rund 300 Fotos am
+Tag; die Status-Seite zählt „N Nachfragen, davon M Listen“. Ein Briefkasten
+vor 0.3.0 (kein `/neu`, 404) wird wie bisher in jedem Takt gelistet. Prüfstand
+(M); Rot-Nachweis: Dienst 0.6.0 zieht in jedem Takt die Liste.
+
 **Regeln des Abholers (dieselben wie beim Einzug):** Kennung
 `aufn-bk-<Briefkasten-Kennung>` → zweimal abholen legt nichts doppelt an;
 gelöscht wird im Briefkasten erst, wenn Foto (Kontroll-Lesung) **und**
@@ -396,7 +409,7 @@ Eintrag auf dem Server liegen; ein Fehler hält den Takt an, steht auf der
 Status-Seite, der nächste Takt versucht es neu; Protokollzeile nur beim
 Wechsel des Fehlers.
 
-**Gemessen 06.10. (Prüfstand `pruefe-briefkasten.js`, 38 Prüfungen; 07.10. 46 mit dem Zettel vom Briefkasten, 55 mit dem automatischen Einsortieren):**
+**Gemessen 06.10. (Prüfstand `pruefe-briefkasten.js`, 38 Prüfungen; 07.10. 46 mit dem Zettel vom Briefkasten, 55 mit dem automatischen Einsortieren, 08.10. 60 mit der Marke):**
 Einwurf vom Zettel 72 ms; Abholung durch den Dienst nach 2,0 s (Takt 5 s im
 Prüfstand); Nachsenden aus der Warteschlange bis zur Aufnahme auf dem Dienst
 3,1 s. **Nicht gemessen:** der echte Cloudflare-Worker (nur mit nachgebautem

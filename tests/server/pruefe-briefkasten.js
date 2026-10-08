@@ -29,6 +29,13 @@
 //      Anlage) -> Akte, Zettel (Notiz) -> Pinnwand; unbekannte Anlage, ohne
 //      Notiz, Störung bleiben offen; Schalter aus -> bleibt offen; nochmal
 //      abholen legt nichts doppelt an; der PC nimmt es im Tagesfilm zurück.
+//  (M) MARKE STATT LISTE (Kern 0.3.0 / Dienst 0.6.1, Robertos zwei Cloudflare-
+//      Mails 07.10.: „KV daily operation limit exceeded“ - 1.000 Listen am Tag
+//      frei, der 30-s-Takt mit /liste waren 2.880): Der Dienst fragt im Takt
+//      nur /neu (ein Lesezugriff) und zieht die Liste erst bei neuer Marke;
+//      ein Einwurf wird trotzdem binnen eines Takts abgeholt.
+// Rot-Nachweis: Dienst 0.6.0 (git show e8b4d4a:server/dienst.js) zieht in
+// jedem Takt die Liste - (M) rot; Kern 0.2.0 kennt /neu nicht - (M) Kern rot.
 // Rot-Nachweis: Dienst 0.5.0 (git show 84be479:server/dienst.js) sortiert
 // nichts - (A) rot; Dienst 0.4.0 (git show 2feefe6:server/dienst.js) kennt keinen
 // Briefkasten - (E) rot; der Zettel vor 06.10. abends kennt kein Einwerfen.
@@ -88,6 +95,12 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
     ok("(K) OPTIONS (Browser-Vorabfrage): 204 mit erlaubten Köpfen X-BTA-Schluessel/X-BTA-Begleit", opt.status === 204 && /X-BTA-Begleit/.test(opt.kopf["Access-Control-Allow-Headers"]));
     const ohne = await behandle(anf("GET", "/status"), ab, { einwurf: "", abhol: "" });
     ok("(K) Ohne eingerichtete Schlüssel: 500 mit klarem Text", ohne.status === 500 && /nicht eingerichtet/.test(ohne.json.fehler));
+    const abM = speicherAblage(); // frische Ablage: die Marke muss anfangs null sein
+    const neu401 = await behandle(anf("GET", "/neu", { "x-bta-schluessel": EINWURF }), abM, S);
+    const neu0 = await behandle(anf("GET", "/neu", { "x-bta-schluessel": ABHOL }), abM, S);
+    const eM = await behandle(anf("POST", "/einwurf", { "x-bta-schluessel": EINWURF, "x-bta-begleit": begleitKopf({ notiz: "Marke" }) }, new Uint8Array([1])), abM, S);
+    const neu1 = await behandle(anf("GET", "/neu", { "x-bta-schluessel": ABHOL }), abM, S);
+    ok("(M) Kern: /neu nur mit Abhol-Schlüssel (401 sonst); Marke erst null, nach einem Einwurf = dessen Kennung", neu401.status === 401 && neu0.status === 200 && neu0.json.marke === null && neu1.status === 200 && neu1.json.marke === eM.json.id, JSON.stringify(neu1.json));
     const zOhne = await behandle(anf("GET", "/zettel"), ab, S);
     const zMit = await behandle(anf("GET", "/zettel"), ab, S, Date.now(), "<!doctype html><title>Aufnahme-Zettel</title>");
     const wurzel = await behandle(anf("GET", "/"), ab, { einwurf: "", abhol: "" }, Date.now(), "<!doctype html><title>Aufnahme-Zettel</title>");
@@ -118,11 +131,15 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
     const h = await m.exports.fetch(req("GET", "/abholen/" + ej.id, { "X-BTA-Schluessel": ABHOL }), env);
     const hb = new Uint8Array(await h.arrayBuffer());
     const d = await (await m.exports.fetch(req("DELETE", "/abholen/" + ej.id, { "X-BTA-Schluessel": ABHOL }), env)).json();
-    ok("(W) Worker: Einwurf -> KV (Bytes + Meta mit 7-Tage-Frist) -> Liste -> Abholen (gleiche Bytes) -> Löschen", e.status === 200 && kv.size === 0 && l.eintraege.length === 1 && l.eintraege[0].begleit.anlage === "B2" && hb.length === 3000 && hb.every((b, i) => b === (i * 7) % 256) && d.geloescht, `kv danach ${kv.size}`);
+    ok("(W) Worker: Einwurf -> KV (Bytes + Meta mit 7-Tage-Frist) -> Liste -> Abholen (gleiche Bytes) -> Löschen", e.status === 200 && [...kv.keys()].filter((k) => k !== "marke").length === 0 && l.eintraege.length === 1 && l.eintraege[0].begleit.anlage === "B2" && hb.length === 3000 && hb.every((b, i) => b === (i * 7) % 256) && d.geloescht, `kv danach ${kv.size}`);
     const ttl = (() => { const kv2 = new Map(); return kv2; })();
     void ttl;
     const ohneAblage = await m.exports.fetch(req("GET", "/status"), { EINWURF_SCHLUESSEL: EINWURF, ABHOL_SCHLUESSEL: ABHOL });
     ok("(W) Ohne gebundenen KV-Namensraum: 500 mit Hinweis ABLAGE", ohneAblage.status === 500 && /ABLAGE/.test((await ohneAblage.json()).fehler));
+    const eM = await (await m.exports.fetch(req("POST", "/einwurf", { "X-BTA-Schluessel": EINWURF, "X-BTA-Begleit": begleitKopf({ notiz: "Marke" }) }, new Uint8Array([2, 2])), env)).json();
+    const wNeu = await (await m.exports.fetch(req("GET", "/neu", { "X-BTA-Schluessel": ABHOL }), env)).json();
+    ok("(M) Worker: Einwurf schreibt die Marke in den KV-Schlüssel „marke“, /neu liest genau sie (ein Lesezugriff)", wNeu.marke === eM.id && kv.has("marke"), JSON.stringify(wNeu));
+    await m.exports.fetch(req("DELETE", "/abholen/" + eM.id, { "X-BTA-Schluessel": ABHOL }), env);
     const zettelDatei = fs.readFileSync(path.join(WURZEL, "handy", "aufnahme-zettel.html"), "utf8");
     const wz = await m.exports.fetch(req("GET", "/zettel"), env);
     const wzText = await wz.text();
@@ -143,7 +160,7 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
     const dateien = fs.readdirSync(path.join(ORDNER, "ablage"));
     ok("(N) Einwurf über HTTP landet als <id>.bin + <id>.json im Ordner", r.status === 200 && dateien.includes(j.id + ".bin") && dateien.includes(j.id + ".json"), dateien.join(", "));
     await fetch(BK + "/abholen/" + j.id, { method: "DELETE", headers: { "X-BTA-Schluessel": ABHOL } });
-    ok("(N) Löschen räumt beide Dateien", fs.readdirSync(path.join(ORDNER, "ablage")).length === 0);
+    ok("(N) Löschen räumt beide Dateien (nur die Marken-Datei bleibt)", fs.readdirSync(path.join(ORDNER, "ablage")).filter((n) => n !== "_marke.txt").length === 0, fs.readdirSync(path.join(ORDNER, "ablage")).join(", "));
     const nz = await fetch(BK + "/zettel");
     const nzText = await nz.text();
     ok("(H) Node: /zettel liefert handy/aufnahme-zettel.html von der Platte (text/html, Titel Aufnahme-Zettel)", nz.status === 200 && /^text\/html/.test(nz.headers.get("content-type")) && /<title>Aufnahme-Zettel<\/title>/.test(nzText) && nzText === fs.readFileSync(briefkasten.ZETTEL_PFAD, "utf8"));
@@ -175,10 +192,11 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
   const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItems: [], team: [], benutzer: [{ name: "Chef", rolle: "verwalter" }] };
   await fetch(D + "/api/scheurich/import?bereich=kalender", { method: "POST", headers: { "Content-Type": "application/json", "X-BTA-Schluessel": SCHLUESSEL }, body: JSON.stringify({ format: "werkstatt-kalender-v1", standort: "scheurich", savedAt: "2026-10-06T05:00:00.000Z", entries: [{ id: "e1", date: "2026-10-06", category: "TODO", name: "Aufgabe", status: "open", updatedAt: "2026-10-06T05:00:00.000Z" }], deleted: {}, config }) });
   const status0 = await (await fetch(D + "/api/status")).json();
-  ok("(E) Dienst 0.6.0 liest briefkasten.json: Briefkasten aktiv, Adresse, Standort scheurich", status0.fassung === "0.6.0" && status0.briefkasten && status0.briefkasten.aktiv && status0.briefkasten.adresse === BK && status0.briefkasten.standort === "scheurich", JSON.stringify(status0.briefkasten));
+  ok("(E) Dienst 0.6.1 liest briefkasten.json: Briefkasten aktiv, Adresse, Standort scheurich", status0.fassung === "0.6.1" && status0.briefkasten && status0.briefkasten.aktiv && status0.briefkasten.adresse === BK && status0.briefkasten.standort === "scheurich", JSON.stringify(status0.briefkasten));
   await warte(2000);
   const status1 = await (await fetch(D + "/api/status")).json();
   ok("(E) Erster Takt: Briefkasten erreichbar, 0 im Briefkasten, kein Fehler", status1.briefkasten.erreichbar === true && status1.briefkasten.imBriefkasten === 0 && !status1.briefkasten.letzterFehler, JSON.stringify(status1.briefkasten));
+
 
   const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
   const fehler = [];
@@ -234,6 +252,24 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
   const dop = stand3.eintraege.filter((e) => e.id === "aufn-bk-" + doppelId);
   const bkNach = await (await fetch(BK + "/liste", { headers: { "X-BTA-Schluessel": ABHOL } })).json();
   ok("(E) Kennung schon vorhanden: nichts doppelt angelegt (Eintrag bleibt „schon da“), der Einwurf wird trotzdem aus dem Briefkasten geräumt", dop.length === 1 && dop[0].note === "schon da" && bkNach.eintraege.length === 0 && fs.readdirSync(path.join(datenOrdner, "fotos")).length === 1);
+  /* ================= (M) Marke statt Liste im Takt ================= */
+  {
+    // bk.zaehler zählt auch die /liste-Aufrufe dieses Prüfstands - deshalb Differenzen, und der Status des Dienstes daneben
+    const l0 = bk.zaehler.liste, n0 = bk.zaehler.neu;
+    const stat0 = (await (await fetch(D + "/api/status")).json()).briefkasten;
+    await warte(11000); // zwei Takte à 5 s ohne Einwurf
+    ok("(M) Zwei leere Takte: der Dienst fragt nur /neu (billig), die Liste bleibt unangetastet", bk.zaehler.neu >= n0 + 2 && bk.zaehler.liste === l0, `neu +${bk.zaehler.neu - n0}, liste +${bk.zaehler.liste - l0}`);
+    const tM = Date.now();
+    await fetch(BK + "/einwurf", { method: "POST", headers: { "X-BTA-Schluessel": EINWURF, "X-BTA-Begleit": begleitKopf({ wer: "RC", notiz: "Marke gesetzt" }) }, body: new Uint8Array([3, 3, 3]) });
+    let standM = null;
+    for (let i = 0; i < 40; i++) { await warte(500); standM = await (await fetch(D + "/api/scheurich/stand?seit=0")).json(); if (standM.eintraege.some((e) => e.note === "Marke gesetzt")) break; }
+    const statusM = await (await fetch(D + "/api/status")).json();
+    console.log(`MESSUNG Marke: Einwurf bis Abholung ${Date.now() - tM} ms, Listen bisher ${bk.zaehler.liste}, Nachfragen ${bk.zaehler.neu}`);
+    ok("(M) Ein Einwurf ändert die Marke: der nächste Takt zieht GENAU EINE Liste und holt die Aufnahme ab; der Status zählt Nachfragen und Listen getrennt", standM.eintraege.some((e) => e.note === "Marke gesetzt") && bk.zaehler.liste === l0 + 1 && statusM.briefkasten.listenGesamt === stat0.listenGesamt + 1 && statusM.briefkasten.nachfragenGesamt - stat0.nachfragenGesamt >= 3, `liste ${bk.zaehler.liste} (vorher ${l0}) · Status Listen ${stat0.listenGesamt}→${statusM.briefkasten.listenGesamt}, Nachfragen ${stat0.nachfragenGesamt}→${statusM.briefkasten.nachfragenGesamt}`);
+    const statusSeiteM = await (await fetch(D + "/status")).text();
+    ok("(M) Die Status-Seite nennt Nachfragen und Listen mit dem Cloudflare-Kontingent", /Nachfragen seit dem Start, davon \d+ Listen \(Cloudflare: 1\.000 Listen am Tag frei\)/.test(statusSeiteM));
+  }
+
   /* ================= (A) Automatisch einsortieren (Roll-out 66) ================= */
   const einwurf = async (begleit, bytes = new Uint8Array([7, 7, 7, 7, 7, 7])) => { const r = await fetch(BK + "/einwurf", { method: "POST", headers: { "X-BTA-Schluessel": EINWURF, "X-BTA-Begleit": begleitKopf(begleit) }, body: bytes }); return String((await r.json()).id).replace(/[^A-Za-z0-9]/g, ""); };
   const abholen = () => fetch(D + "/api/scheurich/briefkasten", { method: "POST", headers: { "X-BTA-Schluessel": SCHLUESSEL } }).then((r) => r.json());

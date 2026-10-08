@@ -43,7 +43,7 @@ z. B. aus einem Passwort-Generator):
    dein Abhol-Schlüssel. „Deploy“. Kontrolle: Beide Namen stehen in der
    Liste (Werte bleiben verborgen).
 7. **Lebenszeichen prüfen:** Im Browser `https://bta-briefkasten.<konto>.workers.dev/status`
-   öffnen. Erwartet: `{"dienst":"bta-briefkasten","fassung":"0.2.0"}`.
+   öffnen. Erwartet: `{"dienst":"bta-briefkasten","fassung":"0.3.0"}`.
    Kommt stattdessen `KV-Namensraum ABLAGE ist nicht gebunden` → Schritt 5.
 8. **Server anbinden:** Auf v-btacockpit-1 neben `einstellungen.json`
    (C:\BTA\BTA-Programm\Dienst) die Datei **`briefkasten.json`** anlegen
@@ -67,7 +67,7 @@ z. B. aus einem Passwort-Generator):
    und verschwindet sofort aus der Adresszeile. Danach Chrome-Menü ⋮ →
    „Zum Startbildschirm hinzufügen“ → der Zettel liegt als Symbol neben den
    Apps. Kontrolle: ⚙ → „Verbindung zum Briefkasten prüfen“ → grün
-   „Briefkasten erreichbar (Fassung 0.2.0)“.
+   „Briefkasten erreichbar (Fassung 0.3.0)“.
 10. **Die Probe:** Am Handy ein Foto mit Notiz „Probe Briefkasten“ →
     „Einwerfen“. Erwartet: grün „Eingeworfen“. Binnen einer Minute steht die
     Aufnahme am PC im Reiter Aufnahme (Quelle „Briefkasten“), und die
@@ -82,6 +82,21 @@ z. B. aus einem Passwort-Generator):
 | Status-Seite: „antwortet nicht (Frist)“ / „nicht erreichbar“ | Server kommt nicht ins Internet (Firewall, Proxy) | im Server-Browser `/status` des Workers öffnen; geht es dort, aber nicht im Dienst, läuft ein Proxy – dann bitte melden |
 | Aufnahmen bleiben „im Briefkasten liegen N“ | Dienst holt nicht ab (gestoppt?) | Aufgabe prüfen, Protokoll `dienst-<Datum>.log` lesen |
 | Zettel zeigt „⏳ wartet auf Netz“ | Handy ohne Internet | wartet auf dem Handy, geht von selbst raus (auch nach Schließen der Seite, beim nächsten Öffnen) |
+| Mail von Cloudflare „KV daily operation limit 90 % / exceeded“, Status-Seite ab dann „Briefkasten antwortet 5xx“ bis 02:00 Uhr | Tageskontingent verbraucht (siehe unten) – vor 0.3.0/0.6.1 zog der Dienst in jedem 30-s-Takt die Liste (2.880/Tag bei 1.000 frei; passiert am 07.10. um 21:04) | Worker 0.3.0 einfügen (Schritt 3) **und** Dienst 0.6.1 einrichten; Kontrolle: Status-Seite „N Nachfragen, davon M Listen“ – M wächst nur bei Einwürfen und alle 10 Minuten |
+
+## Was es kostet – das Tageskontingent (kostenloser Tarif, Stand 10/2026)
+
+| Vorgang | frei je Tag | was wir brauchen |
+|---|---|---|
+| Lesezugriffe | 100.000 | Dienst fragt alle 30 s die Marke (`/neu`): 2.880; dazu je Liste ein Lesezugriff je Eintrag |
+| Listen | **1.000** | nur bei neuer Marke und alle 10 Minuten: ≈ 150 + Einwürfe |
+| Schreibvorgänge | 1.000 | 3 je Einwurf (Bild, Begleitdatei, Marke) → **rund 300 Fotos am Tag** |
+| Löschvorgänge | 1.000 | 2 je Abholung → 500 Abholungen |
+
+Die Mail „90 %“ ist die Vorwarnung; bei 100 % sperrt Cloudflare die Ablage bis
+00:00 UTC (02:00 unserer Zeit). Eingeworfenes liegt dann sicher im Briefkasten
+(bzw. wartet am Handy) und wird danach abgeholt. Mehr als 300 Fotos am Tag
+brauchen den bezahlten Tarif (5 $/Monat) – dann melden.
 
 ## Was der Briefkasten speichert – und was nicht
 
@@ -93,7 +108,7 @@ bei ihm, nie umgekehrt.
 
 ## Für die Entwicklung
 
-- `kern.js` – die Logik (Wege, Schlüssel, Fristen), ohne HTTP und ohne Ablage
+- `kern.js` – die Logik (Wege, Schlüssel, Fristen, Marke), ohne HTTP und ohne Ablage
 - `briefkasten.js` – als Node-Programm (Ablage = Ordner), für Prüfstand und Eigenbetrieb
 - `worker.js` – Cloudflare-Worker (Ablage = KV); entsteht aus kern.js **und** `handy/aufnahme-zettel.html` (eingebettet, Weg `/zettel`): `node briefkasten/worker-bauen.js` (`--pruefen` im Prüfstand). Nach jeder Änderung an Kern oder Zettel neu bauen **und** im Dashboard neu einfügen (Schritt 3).
 - Prüfstand: `node --no-warnings tests/server/pruefe-briefkasten.js`

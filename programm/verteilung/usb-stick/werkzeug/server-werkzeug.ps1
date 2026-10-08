@@ -80,7 +80,7 @@ $NodeFassung = "v22.23.3"
 # Import und Vorschau verlangen genau diese Fassung auf dem Server - sonst
 # passen Werkzeug und Dienst nicht zusammen (30.09., 22:03: leere "davon"-Zeile,
 # weil "Einrichten" uebersprungen wurde). stick-bauen.js prueft den Gleichstand.
-$DienstFassungStick = "0.6.0"
+$DienstFassungStick = "0.6.1"
 $NodeUrl = "https://nodejs.org/dist/$NodeFassung/node-$NodeFassung-win-x64.zip"
 
 $hier  = Split-Path -Parent $MyInvocation.MyCommand.Path
