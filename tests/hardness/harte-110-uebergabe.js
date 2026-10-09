@@ -170,7 +170,15 @@ const inUebergabe = async (p) => {
     && pk("ARBEIT:arb-1").anlage === "OF320" && pk("ARBEIT:arb-1").bis === "KW 42" && pk("ARBEIT:arb-1").zusatz === "hohe Prio" && /Lieferung Hansa/.test(pk("NOTIZ:notiz-1").text),
     JSON.stringify(m2 && m2.punkte.map((x) => x.key)));
   await p.waitForFunction(() => { const i = document.querySelector("[data-uebergabe-bild]"); return !!i && i.naturalWidth > 0; }, null, { timeout: 8000 }).catch(() => {});
-  ok("(2) Das Foto des To-dos ist in der Mappe sichtbar (geladen)", await p.evaluate(() => { const i = document.querySelector("[data-uebergabe-bild]"); return !!i && i.naturalWidth > 0; }));
+  ok("(2) Das Foto des To-dos ist in der Mappe sichtbar (geladen), 100 × 72 px", await p.evaluate(() => { const i = document.querySelector("[data-uebergabe-bild]"); const r = i && i.getBoundingClientRect(); return !!i && i.naturalWidth > 0 && r.width >= 96 && r.height >= 68; })); // 100 × 72 außen, 1 px Rand
+  // Anklicken -> Großansicht (Roberto 09.10.), Escape schließt
+  await p.locator("[data-uebergabe-bild]").first().click();
+  await p.waitForTimeout(300);
+  const gross = p.locator('[role="dialog"][aria-label="Foto-Großansicht"]');
+  ok("(2) Klick auf das Bild öffnet die Großansicht mit dem Foto", (await gross.count()) === 1 && await gross.locator("img").evaluate((i) => i.naturalWidth > 0).catch(() => false));
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(200);
+  ok("(2) Escape schließt die Großansicht", (await gross.count()) === 0);
   ok("(2) Die Liste führt fünf Punkte in fünf Abschnitten, alle offen", (await p.locator("[data-uebergabe-punkt]").count()) === 5 && (await p.locator('[data-uebergabe-erledigt="offen"]').count()) === 5);
 
   /* (3) Notiz + Haken */
@@ -216,7 +224,7 @@ const inUebergabe = async (p) => {
     const bildOk = await blatt.evaluate(() => [...document.querySelectorAll("img")].some((i) => i.naturalWidth > 0));
     ok("(5) Blatt „Mappe“: Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; sechs Abschnitte; sechs Kästchen, zwei angehakt; Planungs-Notiz mit Person; To-do mit Zeitraum von – bis; keine Spalte „Bemerkung“",
       /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && (await blatt.locator("h4").count()) >= 6 && (await blatt.locator(".k").count()) === 6 && (await blatt.locator(".k.ok").count()) === 2 && /T Balles/.test(bText) && /12\.10\.2026 – 14\.10\.2026/.test(bText) && !/Bemerkung/.test(bText), bText.replace(/\n/g, " · ").slice(0, 200));
-    ok("(5) Blatt „Mappe“: das Foto ist als Bild geladen (größer, 90 px hoch) und der neue Punkt steht unter „neu dazukam“", bildOk && (await blatt.locator("img").first().evaluate((i) => i.style.height)) === "90px" && /Kompressor 2 tropft/.test(bText));
+    ok("(5) Blatt „Mappe“: das Foto ist als Bild geladen (110 px hoch) und der neue Punkt steht unter „neu dazukam“", bildOk && (await blatt.locator("img").first().evaluate((i) => i.style.height)) === "110px" && /Kompressor 2 tropft/.test(bText));
     await blatt.close();
 
     /* (5) Druck kompakt */

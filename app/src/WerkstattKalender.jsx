@@ -7748,7 +7748,7 @@ function App() {
       const liste = mappe.punkte.filter((p) => p.art === art); if (!liste.length) return "";
       return `<div class="abschnitt"><h4><span>${htmlText(UEBERGABE_ARTEN[art].label)}</span><span>${liste.length}</span></h4><table>${liste.map((p) => {
         const st = uebergabeStatus(p);
-        return `<tr><td class="kz">${kasten(!!st)}</td><td class="nr">${htmlText(p.nr || fristText(p))}</td><td class="an">${htmlText(p.anlage)}</td><td class="tx">${htmlText(p.text)}${p.zusatz ? `<br><small>${htmlText(p.zusatz)}</small>` : ""}${st && st.wer === "automatisch" ? `<br><small>✓ ${htmlText(st.grund || "erledigt")}</small>` : st ? `<br><small>✓ ${htmlText(st.wer)} ${st.am ? formatDateDE(String(st.am).slice(0, 10)) : ""}</small>` : ""}</td><td class="fo">${fotoListeVon(p).slice(0, 2).map((f) => bild(f, 90)).join("")}</td></tr>`;
+        return `<tr><td class="kz">${kasten(!!st)}</td><td class="nr">${htmlText(p.nr || fristText(p))}</td><td class="an">${htmlText(p.anlage)}</td><td class="tx">${htmlText(p.text)}${p.zusatz ? `<br><small>${htmlText(p.zusatz)}</small>` : ""}${st && st.wer === "automatisch" ? `<br><small>✓ ${htmlText(st.grund || "erledigt")}</small>` : st ? `<br><small>✓ ${htmlText(st.wer)} ${st.am ? formatDateDE(String(st.am).slice(0, 10)) : ""}</small>` : ""}</td><td class="fo">${fotoListeVon(p).slice(0, 2).map((f) => bild(f, 110)).join("")}</td></tr>`;
       }).join("")}</table></div>`;
     }).join("");
     const zeilenB = `<table class="kompakt"><tr><th></th><th>Art</th><th>bis / Nr</th><th>Anlage</th><th>Was</th><th>Foto</th></tr>${UEBERGABE_REIHE.flatMap((art) => mappe.punkte.filter((p) => p.art === art)).map((p) => {
@@ -7767,7 +7767,7 @@ function App() {
       .meta b { display:block; font-size:10px; text-transform:uppercase; color:#8A9099; }
       .abschnitt { margin-top:12px; page-break-inside:avoid; } h4 { margin:0 0 4px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#5B6572; border-bottom:1px solid #D6D9DC; padding-bottom:3px; display:flex; justify-content:space-between; }
       table { width:100%; border-collapse:collapse; } td, th { padding:5px 6px; vertical-align:top; border-bottom:1px solid #E6E8EB; text-align:left; } th { font-size:10px; text-transform:uppercase; color:#8A9099; }
-      tr { page-break-inside:avoid; } td.kz { width:24px; } td.nr { width:64px; white-space:nowrap; } td.an { width:70px; font-weight:800; } td.fo { width:${kompakt ? "50" : "150"}px; text-align:right; }
+      tr { page-break-inside:avoid; } td.kz { width:24px; } td.nr { width:64px; white-space:nowrap; } td.an { width:70px; font-weight:800; } td.fo { width:${kompakt ? "50" : "180"}px; text-align:right; }
       .k { width:16px; height:16px; border:2px solid #22262B; border-radius:3px; display:inline-block; vertical-align:middle; position:relative; }
       .k.ok { background:#22262B; } .k.ok::after { content:"✓"; color:#fff; position:absolute; left:2px; top:-4px; font-size:14px; font-weight:900; }
       .art { font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; color:#fff; } .kompakt td { padding:4px 5px; }
@@ -11913,7 +11913,11 @@ function App() {
                               <span className="block text-sm" style={{ color: "#22262B", textDecoration: p.st ? "line-through" : "none" }}>{p.anlage && <b>{p.anlage} · </b>}{p.text}</span>
                               <span className="block text-xs" style={{ color: "#8A9099" }}>{[p.nr, fristText(p) ? "bis " + fristText(p) : "", p.zusatz, p.st ? (p.st.wer === "automatisch" ? `✓ ${p.st.grund || "erledigt"}` : `✓ ${p.st.wer} ${p.st.am ? formatDateDE(String(p.st.am).slice(0, 10)) : ""}`) : ""].filter(Boolean).join(" · ")}</span>
                             </span>
-                            {fotoListeVon(p).slice(0, 2).map((f) => { const u = fotoUrl(f.datei); return u ? <img key={f.datei} src={u} alt="" data-uebergabe-bild className="rounded shrink-0" style={{ height: "44px", width: "60px", objectFit: "cover" }} /> : null; })}
+                            {fotoListeVon(p).slice(0, 3).map((f, fi) => { const u = fotoUrl(f.datei); return u ? (
+                              <button key={f.datei} onClick={() => setFotoGross({ fotos: fotoListeVon(p), index: fi, setDraft: null })} aria-label={`Foto ${fi + 1} groß ansehen`} className="shrink-0 rounded overflow-hidden" style={{ height: "72px", width: "100px", border: "1px solid #D6D9DC", backgroundColor: "#EDEFF2", padding: 0 }} title="Groß ansehen">
+                                <img src={u} alt="" data-uebergabe-bild style={{ height: "100%", width: "100%", objectFit: "cover", display: "block" }} />
+                              </button>
+                            ) : null; })}
                             {uebergabeDarf && <button onClick={() => uebergabePunktWeg(m, p.key)} className="text-xs shrink-0" style={{ color: "#8A9099" }} title="Aus der Mappe nehmen">✕</button>}
                           </div>
                         ))}
