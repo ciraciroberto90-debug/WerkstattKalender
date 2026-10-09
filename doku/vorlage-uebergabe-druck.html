@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vorlagen: Druckblatt der Übergabe-Mappe</title>
+<style>
+  /* Vorlagen (Roberto 09.10.): Das Druckblatt der Übergabe-Mappe soll dem Vertreter wirklich
+     helfen - oben kompakt die WOCHENTERMINE Montag bis Freitag (PitStop, R+I, Termine, datierte
+     To-dos/Arbeiten), darunter die sonstigen Aufgaben zum freien Verteilen; Kopfzeile nur auf
+     Seite 1. Nur Anschauung, Beispieldaten erfunden. */
+  :root { --tinte:#22262B; --grau:#8A9099; --linie:#D6D9DC; --hell:#F4F5F7; --orange:#C97A2B; --rot:#B23A34; --gruen:#1F7A3D; --blau:#2F6690; --lila:#6B5B95; --gelb:#9A6B00; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI",system-ui,sans-serif; color:var(--tinte); background:#E9EBEE; }
+  .kopf { background:var(--tinte); color:#fff; padding:18px 28px; }
+  .kopf h1 { margin:0 0 6px; font-size:22px; } .kopf p { margin:0; color:#C9CED5; font-size:14px; max-width:960px; }
+  .inhalt { max-width:1180px; margin:0 auto; padding:22px 16px 60px; }
+  .erklaer { background:#fff; border:1px solid var(--linie); border-radius:12px; padding:16px 20px; margin-bottom:22px; font-size:14px; }
+  .erklaer h2 { margin:0 0 8px; font-size:16px; } .erklaer ul { margin:6px 0 0 18px; padding:0; } .erklaer li { margin:3px 0; }
+  .variante { margin:34px 0 10px; } .variante h2 { margin:0 0 4px; font-size:19px; } .variante .warum { color:#5B6572; font-size:13px; margin:0 0 12px; }
+  .marke { display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; color:#fff; background:var(--orange); vertical-align:middle; margin-left:8px; }
+  .blatt { background:#fff; width:794px; min-height:600px; margin:0 auto 14px; padding:30px 38px; box-shadow:0 4px 18px rgba(0,0,0,.12); font-size:12px; position:relative; }
+  .blatt.zwei { min-height:300px; }
+  .seite { position:absolute; right:38px; bottom:14px; font-size:10px; color:var(--grau); }
+  .titel { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid var(--tinte); padding-bottom:6px; margin-bottom:8px; }
+  .titel h3 { margin:0; font-size:18px; } .titel small { color:var(--grau); }
+  .meta { display:flex; gap:22px; margin-bottom:10px; font-size:11.5px; } .meta b { color:var(--grau); font-weight:700; font-size:10px; text-transform:uppercase; display:block; }
+  h4 { margin:12px 0 4px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#5B6572; border-bottom:1px solid var(--linie); padding-bottom:3px; display:flex; justify-content:space-between; }
+  h4.block { background:var(--tinte); color:#fff; border:none; padding:4px 8px; border-radius:4px; }
+  table { width:100%; border-collapse:collapse; } td, th { padding:4px 6px; vertical-align:top; border-bottom:1px solid #E6E8EB; text-align:left; } th { font-size:10px; text-transform:uppercase; color:var(--grau); }
+  .kasten { width:14px; height:14px; border:2px solid var(--tinte); border-radius:3px; display:inline-block; vertical-align:middle; }
+  .kasten.klein { width:11px; height:11px; border-width:1.5px; }
+  .foto { width:48px; height:36px; background:linear-gradient(135deg,#B9C0C8,#8A9099); border-radius:3px; display:inline-block; vertical-align:middle; position:relative; }
+  .foto::after { content:"📷"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:13px; opacity:.8; }
+  .foto.gross { width:150px; height:100px; }
+  .art { font-size:9px; font-weight:800; padding:1px 5px; border-radius:3px; color:#fff; white-space:nowrap; }
+  .stoer { background:var(--rot); } .todo { background:var(--blau); } .back { background:var(--orange); } .zettel { background:var(--lila); } .notiz { background:#4B5259; } .plan { background:var(--gelb); }
+  .pit { color:var(--orange); border:1px solid var(--orange); } .ri { color:var(--blau); border:1px solid var(--blau); } .term { color:#4B5259; border:1px solid #4B5259; }
+  .chip { display:inline-block; font-size:10px; font-weight:700; padding:0 5px; border-radius:3px; margin:1px 3px 1px 0; white-space:nowrap; }
+  .chip.td { color:var(--blau); border:1px solid #9FB9CF; background:#EEF3F8; } .chip.ab { color:var(--orange); border:1px solid #E6C9A8; background:#FDF3E7; }
+  /* Tagesliste (A, C) */
+  .tage td.tag { width:92px; font-weight:800; white-space:nowrap; } .tage td.tag small { display:block; font-weight:400; color:var(--grau); font-size:10px; }
+  .tage tr.we td { background:#F7F8F9; color:var(--grau); }
+  .tage td.frei { color:var(--grau); font-style:italic; }
+  /* Wochenraster (B) */
+  .raster { table-layout:fixed; } .raster th { text-align:center; padding:3px; } .raster td { height:86px; border:1px solid #E6E8EB; padding:3px 4px; font-size:10px; }
+  .raster .zeile { font-weight:800; color:var(--grau); font-size:9px; text-transform:uppercase; }
+  .liste td.kz { width:22px; } .liste td.ar { width:48px; } .liste td.an { width:72px; font-weight:800; } .liste td.fo { width:54px; text-align:right; } .liste td.wann { width:70px; color:var(--grau); white-space:nowrap; }
+  .fuss { margin-top:14px; border-top:1px solid var(--linie); padding-top:5px; display:flex; justify-content:space-between; font-size:10px; color:var(--grau); }
+  .frei { border:1px dashed var(--linie); border-radius:6px; min-height:60px; }
+  .vergleich { background:#fff; border:1px solid var(--linie); border-radius:12px; padding:16px 20px; margin-top:30px; font-size:14px; }
+  .vergleich table td, .vergleich table th { border-bottom:1px solid var(--linie); padding:7px 8px; font-size:13px; }
+  @media print { body { background:#fff; } .kopf, .erklaer, .variante .warum, .vergleich, .marke { display:none; } .blatt { box-shadow:none; width:auto; page-break-after:always; } }
+</style>
+</head>
+<body>
+<div class="kopf">
+  <h1>Druckblatt der Übergabe-Mappe – drei Vorlagen</h1>
+  <p>Robertos Vorgabe 09.10.: „Mein Vertreter druckt die Mappe und hat alles auf dem Schirm: PitStop-Termine, R+I-Punkte und Termine der Woche. Die Wochentermine stehen immer ganz oben, Montag bis Freitag, kompakt – nicht nach To-do, Störung oder Backlog sortiert. Darunter die sonstigen Aufgaben, die er frei über die Woche verteilt. Kopfzeile nur auf der ersten Seite. Übersichtlich.“ Beispiel: Vertretung 13.–24.10. (zwei Wochen). Beispieldaten erfunden.</p>
+</div>
+<div class="inhalt">
+
+<div class="erklaer">
+  <h2>Was auf jedem der drei Blätter gleich ist</h2>
+  <ul>
+    <li><strong>Oben die Wochentermine, automatisch:</strong> Alles, was im Zeitraum der Mappe ein Datum hat – PitStops und R+I aus dem Wartungsplan, Regel-/Einzeltermine, To-dos mit Von/Bis, Arbeiten mit „geplant für“, Planungs-Notizen. Nichts davon muss man einzeln in die Mappe legen; die Mappe liest es aus dem Kalender. Je Woche ein Block Montag bis Freitag (Samstag/Sonntag nur, wenn dort etwas liegt).</li>
+    <li><strong>Darunter die sonstigen Aufgaben</strong> – das, was in der Mappe ausgewählt wurde und kein festes Datum hat: offene Störungen, To-dos ohne Tag, Backlog, Pinnwand, freie Notizen. Zum freien Verteilen über die Woche; je Zeile ein Kästchen.</li>
+    <li><strong>Kopfzeile nur auf Seite 1</strong> (Titel, Zeitraum, Vertreter, Ersteller, Stand). Folgeseiten tragen nur „Seite 2 von 3“ unten.</li>
+    <li><strong>Erledigtes</strong> (von Hand oder automatisch) steht mit angehaktem Kästchen und bleibt sichtbar – der Vertreter sieht, was schon weg ist.</li>
+  </ul>
+</div>
+
+<!-- ===================== A ===================== -->
+<div class="variante">
+  <h2>A · Tagesliste oben, Aufgaben nach Dringlichkeit <span class="marke">Empfehlung</span></h2>
+  <p class="warum">Je Woche fünf Zeilen Montag bis Freitag mit allen Terminen des Tages in einer Zeile – das Kompakteste, was lesbar bleibt. Darunter EINE Aufgabenliste, sortiert: dringende Störungen zuerst, dann To-dos mit Frist, dann der Rest; die Art steht als Kürzel am Zeilenanfang. Kleines Foto in der Zeile, wo eines dran ist.</p>
+  <div class="blatt">
+    <div class="titel"><div><h3>Vertretung 13.–24.10.2026</h3><small>Übergabe-Mappe Werkstatt Scheurich · Vertreter A. Richter · erstellt 09.10. von R. Ciraci · Stand 09.10., 14:40</small></div><div style="text-align:right"><small>14 Punkte · 3 dringend<br>Erreichbar: R. Ciraci, mobil</small></div></div>
+
+    <h4 class="block"><span>Termine der Woche · KW 42 · 12.–16.10.</span><span>Montag – Freitag</span></h4>
+    <table class="tage">
+      <tr><td class="tag">Mo 12.10.<small>KW 42</small></td><td><span class="chip pit">PitStop B3 · GG</span><span class="chip ri">R+I Wasserrundgang · J</span></td></tr>
+      <tr><td class="tag">Di 13.10.</td><td><span class="chip ri">R+I Druckluft</span><span class="chip td">📋 Ölstand VSM1 · AR</span><span class="chip ab">🧰 Brennerdüsen OF320 (geplant) · T Balles</span></td></tr>
+      <tr><td class="tag">Mi 14.10.</td><td><span class="chip pit">PitStop TS480 · GG</span><span class="chip term">Termin 10:00 Abteilungsversammlung</span><span class="chip td">📋 Hebebühne BG-Protokoll (bis)</span></td></tr>
+      <tr><td class="tag">Do 15.10.</td><td><span class="chip ri">R+I Wasserrundgang · J</span><span class="chip term">Lieferung Hansa (Hydraulikschlauch)</span></td></tr>
+      <tr><td class="tag">Fr 16.10.</td><td><span class="chip pit">PitStop OF320 · Brenner</span><span class="chip td">📋 Zählerstände Druckluft</span></td></tr>
+    </table>
+    <h4 class="block" style="margin-top:10px"><span>Termine der Woche · KW 43 · 19.–23.10.</span><span>Montag – Freitag</span></h4>
+    <table class="tage">
+      <tr><td class="tag">Mo 19.10.</td><td><span class="chip pit">PitStop B3 · GG</span><span class="chip ri">R+I Wasserrundgang · J</span></td></tr>
+      <tr><td class="tag">Di 20.10.</td><td><span class="chip td">📋 Quartalswartung TS480 (bis)</span></td></tr>
+      <tr><td class="tag">Mi 21.10.</td><td class="frei">– keine Termine –</td></tr>
+      <tr><td class="tag">Do 22.10.</td><td><span class="chip ab">🧰 Leuchten Reihe 3 auf LED (Elektro Mai)</span></td></tr>
+      <tr><td class="tag">Fr 23.10.</td><td><span class="chip ri">R+I Druckluft</span><span class="chip td">📋 Zählerstände Druckluft</span></td></tr>
+    </table>
+
+    <h4 style="margin-top:14px"><span>Sonstige Aufgaben – frei über die Wochen verteilen</span><span>9 · nach Dringlichkeit</span></h4>
+    <table class="liste">
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art stoer">STÖR</span></td><td class="an">TS480</td><td>Leck Hydraulik, Pfütze unter Aggregat · Noch zu tun: Schlauch kommt Do., Einbau mit Hansa <b>· dringend</b></td><td class="wann">412</td><td class="fo"><span class="foto"></span></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art stoer">STÖR</span></td><td class="an">B2</td><td>Förderband läuft unrund, Lager Abtrieb prüfen</td><td class="wann">418</td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art stoer">STÖR</span></td><td class="an">OF320</td><td>Türkontakt Ofen meldet sporadisch – Kabel nachziehen</td><td class="wann">421</td><td class="fo"><span class="foto"></span></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art todo">TODO</span></td><td class="an">B2</td><td>Ersatzrolle aus Lager holen (Regal 4C)</td><td class="wann">kein Tag</td><td class="fo"><span class="foto"></span></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art back">BACK</span></td><td class="an">Halle</td><td>Pumpenschütze in den Wasserstationen durch Halbleiterschütze ersetzen</td><td class="wann">hohe Prio</td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art back">BACK</span></td><td class="an">B+T</td><td>Station 7 Transfer 6 Schienen sind verschlissen</td><td class="wann"></td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art plan">PLAN</span></td><td class="an">–</td><td>Treppenhaus 1 (Zentrale) Griffe hängen teilweise an jeder Türe <small>· T Balles</small></td><td class="wann"></td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art zettel">ZETTEL</span></td><td class="an">–</td><td>Lieferung Hansa annehmen, Lieferschein in Ordner „Einkauf 2026“</td><td class="wann"></td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="ar"><span class="art notiz">NOTIZ</span></td><td class="an">–</td><td>Zählerstände Druckluft jeden Montag ins Cockpit (Reiter Zeiterfassung → Zähler)</td><td class="wann"></td><td class="fo"></td></tr>
+    </table>
+    <h4><span>Was während der Vertretung neu dazukam</span></h4>
+    <div class="frei"></div>
+    <div class="fuss"><span>BTA-Cockpit · Übergabe-Mappe</span><span>zurück am ______ · Unterschrift ______</span></div>
+    <div class="seite">Seite 1 von 1</div>
+  </div>
+</div>
+
+<!-- ===================== B ===================== -->
+<div class="variante">
+  <h2>B · Wochenraster oben, Aufgaben nach Art</h2>
+  <p class="warum">Die Woche als Kalenderraster Mo–Fr nebeneinander, je Woche eine Zeile – wie ein Wandkalender. Darunter die sonstigen Aufgaben in Abschnitten je Art (Störungen, To-dos, Backlog, Pinnwand, Notizen) wie heute. Braucht mehr Höhe als A, aber man sieht freie Tage auf einen Blick.</p>
+  <div class="blatt">
+    <div class="titel"><div><h3>Vertretung 13.–24.10.2026</h3><small>Übergabe-Mappe Werkstatt Scheurich · Vertreter A. Richter · erstellt 09.10. von R. Ciraci</small></div><div style="text-align:right"><small>14 Punkte · 3 dringend</small></div></div>
+    <h4 class="block"><span>Termine Montag – Freitag</span><span>automatisch aus dem Kalender</span></h4>
+    <table class="raster">
+      <tr><th style="width:52px"></th><th>Montag</th><th>Dienstag</th><th>Mittwoch</th><th>Donnerstag</th><th>Freitag</th></tr>
+      <tr>
+        <td class="zeile">KW 42<br>12.–16.10.</td>
+        <td><span class="chip pit">PitStop B3</span><span class="chip ri">R+I Wasser · J</span></td>
+        <td><span class="chip ri">R+I Druckluft</span><span class="chip td">📋 Ölstand VSM1</span><span class="chip ab">🧰 Brenner OF320</span></td>
+        <td><span class="chip pit">PitStop TS480</span><span class="chip term">10:00 Abt.-Vers.</span><span class="chip td">📋 BG-Protokoll</span></td>
+        <td><span class="chip ri">R+I Wasser · J</span><span class="chip term">Lieferung Hansa</span></td>
+        <td><span class="chip pit">PitStop OF320</span><span class="chip td">📋 Zählerstände</span></td>
+      </tr>
+      <tr>
+        <td class="zeile">KW 43<br>19.–23.10.</td>
+        <td><span class="chip pit">PitStop B3</span><span class="chip ri">R+I Wasser · J</span></td>
+        <td><span class="chip td">📋 Quartalswartung TS480</span></td>
+        <td></td>
+        <td><span class="chip ab">🧰 LED Reihe 3</span></td>
+        <td><span class="chip ri">R+I Druckluft</span><span class="chip td">📋 Zählerstände</span></td>
+      </tr>
+    </table>
+    <h4><span>Offene Störungen</span><span>3</span></h4>
+    <table class="liste">
+      <tr><td class="kz"><span class="kasten"></span></td><td class="an">TS480</td><td>Leck Hydraulik, Pfütze unter Aggregat · Schlauch kommt Do., Einbau mit Hansa <b>· dringend</b></td><td class="wann">412</td><td class="fo"><span class="foto"></span></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="an">B2</td><td>Förderband läuft unrund, Lager Abtrieb prüfen</td><td class="wann">418</td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="an">OF320</td><td>Türkontakt Ofen meldet sporadisch – Kabel nachziehen</td><td class="wann">421</td><td class="fo"><span class="foto"></span></td></tr>
+    </table>
+    <h4><span>To-dos ohne festen Tag</span><span>1</span></h4>
+    <table class="liste"><tr><td class="kz"><span class="kasten"></span></td><td class="an">B2</td><td>Ersatzrolle aus Lager holen (Regal 4C)</td><td class="wann"></td><td class="fo"><span class="foto"></span></td></tr></table>
+    <h4><span>Backlog</span><span>2</span></h4>
+    <table class="liste">
+      <tr><td class="kz"><span class="kasten"></span></td><td class="an">Halle</td><td>Pumpenschütze in den Wasserstationen durch Halbleiterschütze ersetzen</td><td class="wann">hohe Prio</td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="an">B+T</td><td>Station 7 Transfer 6 Schienen sind verschlissen</td><td class="wann"></td><td class="fo"></td></tr>
+    </table>
+    <h4><span>Pinnwand und Notizen</span><span>3</span></h4>
+    <table class="liste">
+      <tr><td class="kz"><span class="kasten"></span></td><td class="an">–</td><td>Treppenhaus 1 (Zentrale) Griffe hängen teilweise an jeder Türe <small>· T Balles</small></td><td class="wann"></td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="an">–</td><td>Lieferung Hansa annehmen, Lieferschein in Ordner „Einkauf 2026“</td><td class="wann"></td><td class="fo"></td></tr>
+      <tr><td class="kz"><span class="kasten"></span></td><td class="an">–</td><td>Zählerstände Druckluft jeden Montag ins Cockpit</td><td class="wann"></td><td class="fo"></td></tr>
+    </table>
+    <div class="fuss"><span>BTA-Cockpit · Übergabe-Mappe</span><span>zurück am ______ · Unterschrift ______</span></div>
+    <div class="seite">Seite 1 von 1</div>
+  </div>
+</div>
+
+<!-- ===================== C ===================== -->
+<div class="variante">
+  <h2>C · Alles als Checkliste, Bilder als Anhang</h2>
+  <p class="warum">Maximal dicht: Auch die Termine bekommen ein Kästchen, alles in einer Schriftgröße, keine Bilder in den Zeilen – die kommen nummeriert auf das letzte Blatt. 30 Termine und 25 Aufgaben passen auf zwei Seiten. Für die Pinnwand in der Halle.</p>
+  <div class="blatt" style="min-height:520px">
+    <div class="titel"><div><h3>Vertretung 13.–24.10.2026</h3><small>Übergabe-Mappe · Vertreter A. Richter · erstellt 09.10. von R. Ciraci</small></div><div style="text-align:right"><small>Bilder: Anhang Blatt 2</small></div></div>
+    <h4><span>Termine KW 42 · 12.–16.10.</span></h4>
+    <table class="tage">
+      <tr><td class="kz" style="width:20px"><span class="kasten klein"></span></td><td class="tag">Mo 12.10.</td><td>PitStop B3 · GG &nbsp;|&nbsp; R+I Wasserrundgang · J</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="tag">Di 13.10.</td><td>R+I Druckluft &nbsp;|&nbsp; To-do Ölstand VSM1 · AR ① &nbsp;|&nbsp; Arbeit Brennerdüsen OF320 · T Balles ②</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="tag">Mi 14.10.</td><td>PitStop TS480 · GG &nbsp;|&nbsp; 10:00 Abteilungsversammlung &nbsp;|&nbsp; To-do BG-Protokoll Hebebühne</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="tag">Do 15.10.</td><td>R+I Wasserrundgang · J &nbsp;|&nbsp; Lieferung Hansa</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="tag">Fr 16.10.</td><td>PitStop OF320 · Brenner &nbsp;|&nbsp; To-do Zählerstände Druckluft</td></tr>
+    </table>
+    <h4><span>Termine KW 43 · 19.–23.10.</span></h4>
+    <table class="tage">
+      <tr><td class="kz" style="width:20px"><span class="kasten klein"></span></td><td class="tag">Mo 19.10.</td><td>PitStop B3 · GG &nbsp;|&nbsp; R+I Wasserrundgang · J</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="tag">Di 20.10.</td><td>To-do Quartalswartung TS480</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="tag">Mi 21.10.</td><td class="frei">–</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="tag">Do 22.10.</td><td>Arbeit Leuchten Reihe 3 auf LED (Elektro Mai)</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="tag">Fr 23.10.</td><td>R+I Druckluft &nbsp;|&nbsp; To-do Zählerstände Druckluft</td></tr>
+    </table>
+    <h4><span>Sonstige Aufgaben</span><span>9</span></h4>
+    <table class="liste">
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art stoer">STÖR</span></td><td class="an">TS480</td><td>Leck Hydraulik, Pfütze unter Aggregat · Schlauch Do., Einbau mit Hansa · <b>dringend</b> ③</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art stoer">STÖR</span></td><td class="an">B2</td><td>Förderband läuft unrund, Lager Abtrieb prüfen</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art stoer">STÖR</span></td><td class="an">OF320</td><td>Türkontakt sporadisch – Kabel nachziehen ④</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art todo">TODO</span></td><td class="an">B2</td><td>Ersatzrolle aus Lager holen (Regal 4C) ⑤</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art back">BACK</span></td><td class="an">Halle</td><td>Pumpenschütze durch Halbleiterschütze ersetzen · hohe Prio</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art back">BACK</span></td><td class="an">B+T</td><td>Station 7 Transfer 6 Schienen verschlissen</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art plan">PLAN</span></td><td class="an">–</td><td>Treppenhaus 1 Griffe hängen · T Balles</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art zettel">ZETTEL</span></td><td class="an">–</td><td>Lieferung Hansa annehmen, Lieferschein Ordner Einkauf</td></tr>
+      <tr><td class="kz"><span class="kasten klein"></span></td><td class="ar"><span class="art notiz">NOTIZ</span></td><td class="an">–</td><td>Zählerstände Druckluft montags ins Cockpit</td></tr>
+    </table>
+    <div class="fuss"><span>BTA-Cockpit · Übergabe-Mappe</span><span>Seite 1 von 2</span></div>
+  </div>
+  <div class="blatt zwei">
+    <h4><span>Anhang – Bilder</span></h4>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px">
+      <div><b>①</b> Ölstand VSM1<br><span class="foto gross"></span></div>
+      <div><b>②</b> Brennerdüsen OF320<br><span class="foto gross"></span></div>
+      <div><b>③</b> Leck TS480<br><span class="foto gross"></span></div>
+      <div><b>④</b> Türkontakt OF320<br><span class="foto gross"></span></div>
+      <div><b>⑤</b> Ersatzrolle B2<br><span class="foto gross"></span></div>
+    </div>
+    <div class="seite">Seite 2 von 2 · ohne Kopfzeile</div>
+  </div>
+</div>
+
+<div class="vergleich">
+  <h2 style="margin:0 0 8px;font-size:16px">Vergleich</h2>
+  <table>
+    <tr><th>Vorlage</th><th>Stärke</th><th>Schwäche</th><th>Blätter bei 2 Wochen, 14 Punkten</th></tr>
+    <tr><td><b>A Tagesliste + Dringlichkeit</b></td><td>Kompakteste lesbare Form; eine Aufgabenliste, das Dringende zuerst; kleine Fotos direkt in der Zeile</td><td>Freie Tage fallen weniger ins Auge als im Raster</td><td>1–2</td></tr>
+    <tr><td><b>B Wochenraster + Art</b></td><td>Woche auf einen Blick wie ein Wandkalender; Abschnitte je Art wie heute</td><td>Braucht mehr Höhe, lange Texte werden im Raster abgekürzt</td><td>2</td></tr>
+    <tr><td><b>C Checkliste pur</b></td><td>Dichteste Form, Kästchen auch an Terminen, Bilder groß im Anhang</td><td>Einheitliche Schrift, weniger Orientierung; Bilder erst auf dem letzten Blatt</td><td>2 (+ Anhang)</td></tr>
+  </table>
+  <p style="margin:10px 0 0"><strong>Empfehlung:</strong> A als „Mappe drucken“. Die heutige „Kompakt-Checkliste“ bekommt den Terminblock von C obendrauf. Das Wochenraster B nur, wenn du es nach der ersten Vertretung vermisst.</p>
+</div>
+
+</div>
+</body>
+</html>
