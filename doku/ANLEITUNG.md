@@ -809,6 +809,18 @@ Störungen, nicht den Rest.
   **immer auf eine A4-Seite**: das Blatt misst sich selbst und verkleinert
   sich nur so weit, wie es nötig ist (bei sechs Personen gar nicht).
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.
+- **Übergabe (seit dem 09.10., Roll-out 69) – die Mappe für die Vertretung:**
+  „Neue Mappe“ mit Titel, Zeitraum und Vertreter; „Punkte wählen“ zeigt alles
+  Offene aus Störungen, To-do, Backlog und Pinnwand zum Ankreuzen, „+ Notiz“
+  ergänzt freie Hinweise („Zählerstände montags eintragen“). Jeder Punkt ist
+  ein Schnappschuss mit Text, Anlage, Frist und Foto. Der Vertreter hakt am
+  PC ab (Name und Zeit stehen dran, live auf allen Rechnern); wird ein To-do,
+  eine Arbeit oder eine Störung im Cockpit erledigt, hakt die Mappe von
+  selbst ab („automatisch“). **Drucken:** „Mappe“ (A4 hoch, Abschnitte je
+  Art, Kästchen, Bilder) oder „Kompakt-Checkliste“ (eine Zeile je Punkt,
+  Bilder als nummerierter Anhang) – beides aus derselben Mappe. Unten „Was
+  während der Vertretung neu dazukam“ als Rückmeldung nach dem Urlaub.
+  Rechte-Schlüssel UEBERGABE (Bearbeiter: bearbeiten, Leser: ansehen).
 - **Aufnahme (seit dem 06.10., eigener Hauptbereich):** Bilder vom Handy und
   aus einem Ordner des PCs landen in **einem Eingangskorb** und werden von dort
   mit einem Griff in sechs Ziele sortiert: **Arbeit → Backlog**, **To-do**,

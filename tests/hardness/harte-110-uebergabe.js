@@ -1,0 +1,200 @@
+// Härtetest 110: ÜBERGABE-MAPPE AN DIE VERTRETUNG (Roll-out 69, Roberto 09.10.:
+// „listet alle von mir ausgewählten Punkte auf - offene Störungen, To-dos,
+// Backlog mit Fotos, Notizen zum Eintragen; muss digital existieren und zum
+// Ausdrucken sein, mit Abhak-Funktion“ - Wahl: Mappe ohne Bemerkungsspalte
+// mit größeren Bildern, dazu Kompakt-Checkliste, digital mit Live-Haken).
+//
+//   (1) Berichte zeigt die Kachel „Übergabe“; „Neue Mappe“ legt einen Eintrag
+//       UEBERGABE in der gemeinsamen Datei an (Titel, Zeitraum, Vertreter).
+//   (2) „Punkte wählen“ bietet alles Offene aus Störungen, To-do, Backlog und
+//       Pinnwand; vier Punkte übernommen = vier Schnappschüsse mit Text,
+//       Anlage, Frist und Foto-Verweis - das Bild erscheint in der Liste.
+//   (3) „+ Notiz“ legt einen freien Punkt an; Haken schreibt wer/wann in die
+//       Datei und zählt den Fortschritt; Haken weg = wieder offen.
+//   (4) Ursprung im Cockpit erledigt (To-do done, Störung behoben) -> die Mappe
+//       hakt von selbst ab („automatisch“), das Kästchen ist nicht klickbar.
+//   (5) Drucken „Mappe“: Blatt mit Kopf, fünf Abschnitten, Kästchen je Punkt
+//       (angehakt wo erledigt), Bilder geladen, keine Bemerkungsspalte.
+//       Drucken „kompakt“: eine Zeile je Punkt, Bilder als nummerierter Anhang.
+//   (6) Neu während der Vertretung: Zeile landet in der Datei und auf dem Blatt.
+// Rot-Nachweis: gegen den Bau vor dem 09.10. (APP_PFAD) gibt es keine Kachel
+// „Übergabe“ - (1) und alles danach ist rot.
+const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+
+let pass = 0, fail = 0;
+const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
+const JETZT = new Date("2026-10-09T10:00:00");
+const HEUTE = "2026-10-09";
+
+const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }, { id: "a2", name: "B2", role: "takt" }], riItems: [], team: [{ id: "t1", name: "A. Richter", gewerk: "mech" }] };
+const entriesStart = [
+  { id: "todo-1", date: HEUTE, category: "TODO", name: "Ölstand prüfen, DTE 25 nachfüllen", status: "offen", bis: "2026-10-14", bemerkung: "Anlage VSM1", fotos: [{ datei: "foto-todo.jpg", wer: "RC", ts: "2026-10-08T06:00:00.000Z" }] },
+  { id: "todo-2", date: HEUTE, category: "TODO", name: "Prüfprotokoll Hebebühne an BG", status: "offen", bis: "2026-10-16" },
+  { id: "arb-1", date: HEUTE, category: "ARBEIT", name: "OF320", status: "open", note: "Brennerdüsen tauschen (Teile Schrank 2)", prio: "hoch", geplant: "KW 42" },
+  { id: "notiz-1", date: HEUTE, category: "NOTIZ", name: "R. Ciraci", status: "open", note: "Lieferung Hansa annehmen, Lieferschein Ordner Einkauf", zeit: "2026-10-09T07:00:00.000Z", farbe: "gelb", sichtbar: "verwalter", konto: "R. Ciraci" },
+];
+const stoerungenStart = [
+  { id: "s-1", nr: 412, date: HEUTE, schicht: "Früh", anlage: "TS480", stoerung: "Leck Hydraulik, Pfütze unter Aggregat", nochZuTun: "Schlauch kommt Do., Einbau mit Hansa", offen: true, ausfallzeit: 45, melder: "T. Balles", gemeldetAt: HEUTE + "T06:10:00.000Z" },
+  { id: "s-2", nr: 409, date: "2026-10-07", schicht: "Spät", anlage: "B2", stoerung: "Band unrund", offen: false, behobenAt: "2026-10-07T14:00:00.000Z", ausfallzeit: 30, melder: "T. Balles" },
+];
+
+async function start(browser, { entries = entriesStart, stoerungen = stoerungenStart } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const p = await ctx.newPage();
+  const fehler = [];
+  p.on("pageerror", (e) => { fehler.push(e.message); console.log("PAGEERROR:", e.message); });
+  await p.clock.setFixedTime(JETZT);
+  await p.addInitScript(({ e, s, c }) => {
+    delete window.showOpenFilePicker; delete window.showSaveFilePicker;
+    localStorage.setItem("bta-standort", "scheurich");
+    localStorage.setItem("werkstatt-kalender-entries", JSON.stringify(e));
+    localStorage.setItem("werkstatt-stoerungen-entries", JSON.stringify(s));
+    localStorage.setItem("werkstatt-kalender-config", JSON.stringify(c));
+    localStorage.setItem("werkstatt-kalender-name", "M. Weber");
+    const bild = (farbe, text) => new Promise((resolve) => {
+      const cv = document.createElement("canvas"); cv.width = 1200; cv.height = 800;
+      const g = cv.getContext("2d"); g.fillStyle = farbe; g.fillRect(0, 0, 1200, 800);
+      g.fillStyle = "#fff"; g.font = "bold 90px sans-serif"; g.fillText(text, 80, 420);
+      cv.toBlob((b) => resolve(b), "image/jpeg", 0.9);
+    });
+    const ordnerAus = (knoten) => ({
+      kind: "directory", name: "Werkstatt_Kalender",
+      async getDirectoryHandle(name, opts) {
+        if (!knoten.dirs.has(name)) { if (!opts || !opts.create) { const err = new Error("nicht da"); err.name = "NotFoundError"; throw err; } knoten.dirs.set(name, { dirs: new Map(), files: new Map() }); }
+        return ordnerAus(knoten.dirs.get(name));
+      },
+      async getFileHandle(name, opts) {
+        if (!knoten.files.has(name)) { if (!opts || !opts.create) { const err = new Error("nicht da"); err.name = "NotFoundError"; throw err; } knoten.files.set(name, new Blob([])); }
+        return { kind: "file", name,
+          async createWritable() { const teile = []; return { async write(x) { teile.push(x); }, async close() { knoten.files.set(name, new Blob(teile)); } }; },
+          async getFile() { return new File([knoten.files.get(name)], name, { type: "image/jpeg" }); } };
+      },
+      async removeEntry(name) { if (knoten.files.has(name)) knoten.files.delete(name); else if (knoten.dirs.has(name)) knoten.dirs.delete(name); else { const err = new Error("nicht da"); err.name = "NotFoundError"; throw err; } },
+      async *entries() { for (const [n, b] of knoten.files) yield [n, { kind: "file", name: n, async getFile() { return new File([b], n); } }]; },
+      async queryPermission() { return "granted"; }, async requestPermission() { return "granted"; },
+    });
+    const wurzel = { dirs: new Map([["Fotos", { dirs: new Map(), files: new Map() }]]), files: new Map() };
+    window.__mockOrdnerHandle = ordnerAus(wurzel);
+    window.__fotoAnlegen = async () => { wurzel.dirs.get("Fotos").files.set("foto-todo.jpg", await bild("#3A4756", "Ölstand")); };
+    // Druckfenster: print() stummschalten, damit der Kopflos-Browser nicht hängt
+    const oeffne = window.open.bind(window);
+    window.open = (...a) => { const w = oeffne(...a); if (w) { try { w.print = () => {}; } catch (e) { /* egal */ } } return w; };
+  }, { e: entries, s: stoerungen, c: config });
+  await p.goto(APP);
+  await p.waitForTimeout(900);
+  await p.evaluate(async () => { await window.__fotoAnlegen(); window.__wkSharedTest.adoptFolder(window.__mockOrdnerHandle); });
+  await p.waitForTimeout(600);
+  return { p, ctx, fehler };
+}
+const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]"));
+const mappeAus = async (p) => (await gespeichert(p)).find((e) => e.category === "UEBERGABE");
+const inUebergabe = async (p) => {
+  await p.locator('button[data-hauptbereich="BERICHTE"]').click();
+  await p.waitForTimeout(400);
+  await p.getByRole("button", { name: /Mappe für die Vertretung/ }).first().click();
+  await p.waitForTimeout(400);
+};
+
+(async () => {
+  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const { p, ctx, fehler } = await start(browser);
+
+  /* (1) Kachel + neue Mappe */
+  await p.locator('button[data-hauptbereich="BERICHTE"]').click();
+  await p.waitForTimeout(400);
+  const kachel = p.getByRole("button", { name: /Mappe für die Vertretung/ }); // die Kachel, nicht der Reiter im Untermenü
+  ok("(1) Berichte zeigt die Kachel „Übergabe“ und den Reiter im Untermenü", (await kachel.count()) === 1 && (await p.getByRole("button", { name: /^Übergabe$/ }).count()) === 1);
+  await kachel.first().click();
+  await p.waitForTimeout(400);
+  await p.locator("[data-uebergabe-neu]").click();
+  await p.locator('input[aria-label="Titel der Mappe"]').fill("Vertretung 13.–24.10.");
+  await p.locator('input[aria-label="Von"]').fill("2026-10-13");
+  await p.locator('input[aria-label="Bis"]').fill("2026-10-24");
+  await p.locator('input[aria-label="Vertreter"]').fill("A. Richter");
+  await p.locator("[data-uebergabe-speichern]").click();
+  await p.waitForTimeout(600);
+  const m1 = await mappeAus(p);
+  ok("(1) „Neue Mappe“: Eintrag UEBERGABE mit Titel, Zeitraum, Vertreter, Ersteller M. Weber, offen, ohne Punkte", !!m1 && m1.name === "Vertretung 13.–24.10." && m1.von === "2026-10-13" && m1.bis === "2026-10-24" && m1.vertreter === "A. Richter" && m1.ersteller === "M. Weber" && m1.status === "open" && Array.isArray(m1.punkte) && m1.punkte.length === 0, JSON.stringify(m1 && { name: m1.name, vertreter: m1.vertreter, ersteller: m1.ersteller }));
+  ok("(1) Kopf zeigt die Mappe mit 0 von 0 erledigt", (await p.locator("[data-uebergabe-kopf]").innerText()).includes("Vertretung 13.–24.10.") && (await p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "0/0");
+
+  /* (2) Punkte wählen */
+  await p.locator("[data-uebergabe-waehlen]").click();
+  await p.waitForTimeout(300);
+  const angebot = await p.locator("[data-uebergabe-wahl-punkt]").evaluateAll((l) => l.map((i) => i.getAttribute("data-uebergabe-wahl-punkt")));
+  ok("(2) Auswahl bietet genau das Offene: 1 Störung (behobene fehlt), 2 To-dos, 1 Backlog-Arbeit, 1 Pinnwand-Zettel", angebot.length === 5 && angebot.includes("STOERUNG:s-1") && !angebot.includes("STOERUNG:s-2") && angebot.includes("TODO:todo-1") && angebot.includes("TODO:todo-2") && angebot.includes("ARBEIT:arb-1") && angebot.includes("NOTIZ:notiz-1"), angebot.join(","));
+  for (const k of ["STOERUNG:s-1", "TODO:todo-1", "ARBEIT:arb-1", "NOTIZ:notiz-1"]) await p.locator(`[data-uebergabe-wahl-punkt="${k}"]`).check();
+  await p.locator("[data-uebergabe-wahl-uebernehmen]").click();
+  await p.waitForTimeout(600);
+  const m2 = await mappeAus(p);
+  const pk = (k) => (m2 ? m2.punkte.find((x) => x.key === k) : null);
+  ok("(2) Vier Punkte als Schnappschuss in der Datei: Störung mit Nr 412, Anlage TS480, Text + „Noch zu tun“; To-do mit Frist und Foto-Verweis; Backlog mit Anlage OF320, KW 42, „hohe Prio“; Zettel-Text",
+    !!m2 && m2.punkte.length === 4 && pk("STOERUNG:s-1").nr === "412" && pk("STOERUNG:s-1").anlage === "TS480" && /Leck Hydraulik/.test(pk("STOERUNG:s-1").text) && /Noch zu tun: Schlauch/.test(pk("STOERUNG:s-1").text)
+    && pk("TODO:todo-1").bis === "2026-10-14" && pk("TODO:todo-1").fotos.length === 1 && pk("TODO:todo-1").fotos[0].datei === "foto-todo.jpg"
+    && pk("ARBEIT:arb-1").anlage === "OF320" && pk("ARBEIT:arb-1").bis === "KW 42" && pk("ARBEIT:arb-1").zusatz === "hohe Prio" && /Lieferung Hansa/.test(pk("NOTIZ:notiz-1").text),
+    JSON.stringify(m2 && m2.punkte.map((x) => x.key)));
+  await p.waitForFunction(() => { const i = document.querySelector("[data-uebergabe-bild]"); return !!i && i.naturalWidth > 0; }, null, { timeout: 8000 }).catch(() => {});
+  ok("(2) Das Foto des To-dos ist in der Mappe sichtbar (geladen)", await p.evaluate(() => { const i = document.querySelector("[data-uebergabe-bild]"); return !!i && i.naturalWidth > 0; }));
+  ok("(2) Die Liste führt vier Punkte in vier Abschnitten, alle offen", (await p.locator("[data-uebergabe-punkt]").count()) === 4 && (await p.locator('[data-uebergabe-erledigt="offen"]').count()) === 4);
+
+  /* (3) Notiz + Haken */
+  await p.locator('input[aria-label="Notiz für die Mappe"]').fill("Zählerstände Druckluft montags eintragen");
+  await p.locator("[data-uebergabe-notiz-dazu]").click();
+  await p.waitForTimeout(500);
+  const m3 = await mappeAus(p);
+  ok("(3) „+ Notiz“: fünfter Punkt der Art FREI mit dem Text", !!m3 && m3.punkte.length === 5 && m3.punkte[4].art === "FREI" && m3.punkte[4].text === "Zählerstände Druckluft montags eintragen");
+  await p.locator('[data-uebergabe-punkt="TODO:todo-1"] input[type="checkbox"]').check();
+  await p.waitForTimeout(500);
+  const m3b = await mappeAus(p);
+  const h = m3b.punkte.find((x) => x.key === "TODO:todo-1").erledigt;
+  ok("(3) Haken am To-do-Punkt: erledigt {wer M. Weber, am heute} in der Datei, Fortschritt 1/5, Zeile als „hand“ markiert", !!h && h.wer === "M. Weber" && String(h.am).startsWith(HEUTE) && (await p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "1/5" && (await p.locator('[data-uebergabe-punkt="TODO:todo-1"]').getAttribute("data-uebergabe-erledigt")) === "hand", JSON.stringify(h));
+  await p.locator('[data-uebergabe-punkt="TODO:todo-1"] input[type="checkbox"]').uncheck();
+  await p.waitForTimeout(500);
+  ok("(3) Haken weg: Punkt wieder offen, 0/5", (await mappeAus(p)).punkte.find((x) => x.key === "TODO:todo-1").erledigt === null && (await p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "0/5");
+  ok("(1-3) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
+  const mappeStand = await mappeAus(p);
+  await ctx.close();
+
+  /* (4) Automatisch erledigt + (5) Druck + (6) Neu - mit erledigtem Ursprung */
+  {
+    const entries2 = entriesStart.map((e) => (e.id === "arb-1" ? { ...e, status: "done", erledigtAm: "2026-10-15" } : e)).concat([mappeStand]);
+    const stoer2 = stoerungenStart.map((s) => (s.id === "s-1" ? { ...s, offen: false, behobenAt: "2026-10-16T09:00:00.000Z" } : s));
+    const w = await start(browser, { entries: entries2, stoerungen: stoer2 });
+    await inUebergabe(w.p);
+    const arten = await w.p.locator("[data-uebergabe-punkt]").evaluateAll((l) => Object.fromEntries(l.map((i) => [i.getAttribute("data-uebergabe-punkt"), i.getAttribute("data-uebergabe-erledigt")])));
+    ok("(4) Arbeit erledigt und Störung behoben: beide Punkte „automatisch“ abgehakt, die anderen offen, Stand 2/5", arten["ARBEIT:arb-1"] === "automatisch" && arten["STOERUNG:s-1"] === "automatisch" && arten["TODO:todo-1"] === "offen" && arten["NOTIZ:notiz-1"] === "offen" && (await w.p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "2/5", JSON.stringify(arten));
+    ok("(4) Das automatische Kästchen ist nicht klickbar, die Zeile nennt den Grund „Störung behoben“", await w.p.locator('[data-uebergabe-punkt="STOERUNG:s-1"] input[type="checkbox"]').isDisabled() && /Störung behoben/.test(await w.p.locator('[data-uebergabe-punkt="STOERUNG:s-1"]').innerText()));
+
+    /* (6) Neu während der Vertretung */
+    await w.p.locator('input[aria-label="Neu während der Vertretung"]').fill("Kompressor 2 tropft, Dichtung bestellt");
+    await w.p.keyboard.press("Enter");
+    await w.p.waitForTimeout(500);
+    const m6 = await mappeAus(w.p);
+    ok("(6) „Neu während der Vertretung“: Zeile mit Text, wer, wann in der Datei und in der Liste", !!m6 && m6.neu.length === 1 && m6.neu[0].text === "Kompressor 2 tropft, Dichtung bestellt" && m6.neu[0].wer === "M. Weber" && /Kompressor 2 tropft/.test(await w.p.locator("[data-uebergabe-neu-liste]").innerText()));
+
+    /* (5) Druck Mappe */
+    await w.p.waitForFunction(() => { const i = document.querySelector("[data-uebergabe-bild]"); return !!i && i.naturalWidth > 0; }, null, { timeout: 8000 }).catch(() => {});
+    const [blatt] = await Promise.all([w.p.waitForEvent("popup"), w.p.locator('[data-uebergabe-drucken="mappe"]').click()]);
+    await blatt.waitForTimeout(700);
+    const bText = await blatt.locator("body").innerText();
+    const bildOk = await blatt.evaluate(() => [...document.querySelectorAll("img")].some((i) => i.naturalWidth > 0));
+    ok("(5) Blatt „Mappe“: Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; fünf Abschnitte; fünf Kästchen, zwei angehakt; keine Spalte „Bemerkung“",
+      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && (await blatt.locator("h4").count()) >= 5 && (await blatt.locator(".k").count()) === 5 && (await blatt.locator(".k.ok").count()) === 2 && !/Bemerkung/.test(bText), bText.replace(/\n/g, " · ").slice(0, 200));
+    ok("(5) Blatt „Mappe“: das Foto ist als Bild geladen (größer, 90 px hoch) und der neue Punkt steht unter „neu dazukam“", bildOk && (await blatt.locator("img").first().evaluate((i) => i.style.height)) === "90px" && /Kompressor 2 tropft/.test(bText));
+    await blatt.close();
+
+    /* (5) Druck kompakt */
+    const [blatt2] = await Promise.all([w.p.waitForEvent("popup"), w.p.locator('[data-uebergabe-drucken="kompakt"]').click()]);
+    await blatt2.waitForTimeout(700);
+    const kText = await blatt2.locator("body").innerText();
+    ok("(5) Blatt „kompakt“: eine Tabelle mit fünf Zeilen, Art-Kürzel STÖR/TODO/BACK/ZETTEL/NOTIZ, „Bild 1“ als Verweis und Anhang mit Bild 1",
+      (await blatt2.locator("table.kompakt tr").count()) === 6 && /STÖR/.test(kText) && /TODO/.test(kText) && /BACK/.test(kText) && /ZETTEL/.test(kText) && /NOTIZ/.test(kText) && /Bild 1/.test(kText) && (await blatt2.locator(".anhang img").count()) === 1 && (await blatt2.locator(".k.ok").count()) === 2, kText.replace(/\n/g, " · ").slice(0, 200));
+    await blatt2.close();
+    ok("(4-6) Keine Skriptfehler", w.fehler.length === 0, w.fehler.slice(0, 2).join(" | "));
+    await w.ctx.close();
+  }
+
+  await browser.close();
+  console.log(`\n${pass} bestanden, ${fail} durchgefallen`);
+  process.exit(fail ? 1 : 0);
+})().catch((e) => { console.error("ABBRUCH:", e); process.exit(1); });

@@ -1237,6 +1237,24 @@ const fotoEindampfen = (quelle) => new Promise((resolve, reject) => {
 const neuerFotoName = (datum) => `foto-${datum}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.jpg`;
 // Verweise im Eintrag normalisieren - fremde/alte Stände dürfen nie crashen.
 const fotoListeVon = (e) => (Array.isArray(e && e.fotos) ? e.fotos.filter((f) => f && typeof f.datei === "string" && f.datei) : []);
+/* Übergabe-Mappe an die Vertretung (Roll-out 69, Roberto 09.10.: „listet alle von mir
+   ausgewählten Punkte auf - offene Störungen, To-dos, Backlog mit Fotos, Notizen zum
+   Eintragen; digital und zum Ausdrucken, mit Abhak-Funktion“). Eine Mappe ist ein
+   Eintrag der Kategorie UEBERGABE in der gemeinsamen Datei: { name (Titel), von, bis,
+   vertreter, ersteller, status open|done, punkte: [{ key, art, refId, nr, text, anlage,
+   bis, fotos, erledigt: {wer, am}|null }], neu: [{ text, wer, am }] }. Die Punkte sind
+   Schnappschüsse (Text, Anlage, Foto-Verweise) - die Mappe bleibt lesbar, auch wenn
+   der Ursprung später geändert oder gelöscht wird; über refId erkennt sie, ob der
+   Ursprung im Cockpit erledigt wurde, und hakt dann von selbst ab. */
+const UEBERGABE_ARTEN = {
+  STOERUNG: { label: "Offene Störungen", kurz: "STÖR", farbe: "#C0392B" },
+  TODO: { label: "To-dos", kurz: "TODO", farbe: "#2F6690" },
+  ARBEIT: { label: "Backlog – geplante Arbeiten", kurz: "BACK", farbe: "#C97A2B" },
+  NOTIZ: { label: "Pinnwand-Zettel", kurz: "ZETTEL", farbe: "#6B5B95" },
+  FREI: { label: "Notizen – bitte eintragen / beachten", kurz: "NOTIZ", farbe: "#4B5259" },
+};
+const UEBERGABE_REIHE = ["STOERUNG", "TODO", "ARBEIT", "NOTIZ", "FREI"];
+const htmlText = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 /* ---------- Reiter „Aufnahme" (Roll-out 61, Robertos Freigabe 06.10.) ----------
    Bilder vom Handy und aus dem Eingangsordner des PCs kommen in EINEN
@@ -2021,6 +2039,8 @@ const RECHTE_BEREICHE = [
   ["TODO", "To-do", "Berichte → To-do", "bereich", "sehen"],
   ["STOERUNGEN", "Störungen", "Berichte → Störungen – eigene Datei, laut Grundregel auch für Leser beschreibbar", "bereich", "bearbeiten"],
   ["BACKLOG", "Backlog", "Berichte → Backlog", "bereich", "sehen"],
+  // Übergabe-Mappe (Roll-out 69, 09.10.): Vertretung sieht und hakt ab; Leser dürfen ansehen.
+  ["UEBERGABE", "Übergabe", "Berichte → Übergabe-Mappe an die Vertretung (zusammenstellen, abhaken, drucken)", "bereich", "sehen"],
   ["ZEIT", "Zeiterfassung", "Berichte → Zeiterfassung", "bereich", "sehen"],
   ["TPM", "TPM", "Wissen, Plan, Auswertung, Register", "bereich", "sehen"],
   ["PINNWAND", "Pinnwand", "auf der Übersicht – Leser sehen nur veröffentlichte Zettel", "bereich", "sehen"],
@@ -2064,12 +2084,12 @@ function normalisiereProgrammStand(roh) {
 // Standard = das Verhalten vor dem 21.09., damit ein Update nichts verändert.
 const RECHTE_STANDARD = {
   bearbeiter: {
-    SCHICHTPLAN: "bearbeiten", PLANUNG: "bearbeiten", TODO: "bearbeiten", STOERUNGEN: "bearbeiten", BACKLOG: "bearbeiten",
+    SCHICHTPLAN: "bearbeiten", PLANUNG: "bearbeiten", TODO: "bearbeiten", STOERUNGEN: "bearbeiten", BACKLOG: "bearbeiten", UEBERGABE: "bearbeiten",
     ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten", AUFNAHME: "bearbeiten",
     MELDEN: "sehen", DRUCKEN: "sehen", SCHICHTBERICHT: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
   leser: {
-    SCHICHTPLAN: "sehen", PLANUNG: "aus", TODO: "sehen", STOERUNGEN: "bearbeiten", BACKLOG: "aus",
+    SCHICHTPLAN: "sehen", PLANUNG: "aus", TODO: "sehen", STOERUNGEN: "bearbeiten", BACKLOG: "aus", UEBERGABE: "sehen",
     ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus", AUFNAHME: "aus",
     MELDEN: "sehen", DRUCKEN: "sehen", SCHICHTBERICHT: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
@@ -7632,6 +7652,117 @@ function App() {
   // ---- Backlog (Kategorie ARBEIT) ----
   const arbeiten = entries.filter((e) => e.category === "ARBEIT");
   const arbeitenOffen = arbeiten.filter((e) => e.status !== "done");
+
+  /* ---------- Übergabe-Mappe (Roll-out 69) ---------- */
+  const uebergaben = useMemo(() => entries.filter((e) => e.category === "UEBERGABE").sort((a, b) => String(b.zeit || b.date || "").localeCompare(String(a.zeit || a.date || ""))), [entries]);
+  const uebergabenOffen = uebergaben.filter((m) => m.status !== "done");
+  const [uebergabeId, setUebergabeId] = useState(null);
+  const [uebergabeDialog, setUebergabeDialog] = useState(null); // { id?, titel, von, bis, vertreter, ersteller }
+  const [uebergabeWahl, setUebergabeWahl] = useState(null);     // Auswahl-Dialog: Set der Schlüssel
+  const [uebergabeNotiz, setUebergabeNotiz] = useState("");
+  const [uebergabeNeuText, setUebergabeNeuText] = useState("");
+  const uebergabeDarf = !nurLesen("UEBERGABE");
+  const uebergabeAktiv = uebergaben.find((m) => m.id === uebergabeId) || uebergabenOffen[0] || uebergaben[0] || null;
+  const uebergabeWer = () => angemeldet || zettelName || "";
+  // Schnappschuss eines Punktes aus seinem Ursprung - Text, Anlage, Frist, Foto-Verweise
+  const uebergabePunktAus = (art, o) => {
+    const basis = { key: `${art}:${o.id}`, art, refId: o.id, erledigt: null, fotos: fotoListeVon(o) };
+    if (art === "STOERUNG") return { ...basis, nr: stoerNrLang(o), anlage: o.anlage || "", text: [o.stoerung, o.nochZuTun ? "Noch zu tun: " + o.nochZuTun : ""].filter(Boolean).join(" · "), bis: "" };
+    if (art === "TODO") return { ...basis, nr: "", anlage: "", text: o.name || "", bis: o.bis || "", zusatz: o.bemerkung || "" };
+    if (art === "ARBEIT") return { ...basis, nr: "", anlage: o.name || "", text: o.note || "", bis: o.geplant || "", zusatz: o.prio === "hoch" ? "hohe Prio" : "" };
+    return { ...basis, nr: "", anlage: "", text: o.note || "", bis: "" };
+  };
+  // Erledigt? Von Hand abgehakt - oder der Ursprung ist im Cockpit erledigt (dann automatisch)
+  const uebergabeStatus = (p) => {
+    if (p.erledigt) return p.erledigt;
+    if (p.art === "STOERUNG") { const s = stoerungen.find((x) => x.id === p.refId); return s && !s.offen ? { wer: "automatisch", am: s.behobenAt || "", grund: "Störung behoben" } : null; }
+    if (p.art === "TODO" || p.art === "ARBEIT") { const e = entries.find((x) => x.id === p.refId); return e && e.status === "done" ? { wer: "automatisch", am: e.erledigtAm || "", grund: p.art === "TODO" ? "To-do erledigt" : "Arbeit erledigt" } : null; }
+    return null;
+  };
+  const uebergabeSchreiben = async (mappe) => persist(entries.some((e) => e.id === mappe.id) ? entries.map((e) => (e.id === mappe.id ? mappe : e)) : [...entries, mappe]);
+  const uebergabeAnlegen = async () => {
+    const d = uebergabeDialog; if (!d) return;
+    if (!String(d.titel || "").trim()) { setErr("Bitte der Mappe einen Titel geben, z. B. „Vertretung 13.–24.10.“"); return; }
+    const alt = d.id ? uebergaben.find((m) => m.id === d.id) : null;
+    const mappe = { ...(alt || { id: `ueb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, date: todayKey, category: "UEBERGABE", status: "open", punkte: [], neu: [], zeit: new Date().toISOString() }),
+      name: String(d.titel).trim(), von: d.von || "", bis: d.bis || "", vertreter: String(d.vertreter || "").trim(), ersteller: String(d.ersteller || uebergabeWer()).trim() };
+    const ok = await uebergabeSchreiben(mappe);
+    if (ok) { setUebergabeDialog(null); setUebergabeId(mappe.id); }
+  };
+  const uebergabeHaken = async (mappe, key) => {
+    if (!uebergabeDarf) return;
+    const punkte = mappe.punkte.map((p) => (p.key === key ? { ...p, erledigt: p.erledigt ? null : { wer: uebergabeWer(), am: new Date().toISOString() } } : p));
+    await uebergabeSchreiben({ ...mappe, punkte });
+  };
+  const uebergabePunktWeg = async (mappe, key) => uebergabeSchreiben({ ...mappe, punkte: mappe.punkte.filter((p) => p.key !== key) });
+  const uebergabeNotizDazu = async (mappe) => {
+    const text = uebergabeNotiz.trim(); if (!text) return;
+    const ok = await uebergabeSchreiben({ ...mappe, punkte: [...mappe.punkte, { key: `FREI:${Date.now()}`, art: "FREI", refId: "", nr: "", anlage: "", text, bis: "", fotos: [], erledigt: null }] });
+    if (ok) setUebergabeNotiz("");
+  };
+  const uebergabeNeuDazu = async (mappe) => {
+    const text = uebergabeNeuText.trim(); if (!text) return;
+    const ok = await uebergabeSchreiben({ ...mappe, neu: [...(mappe.neu || []), { text, wer: uebergabeWer(), am: new Date().toISOString() }] });
+    if (ok) setUebergabeNeuText("");
+  };
+  // Auswahl-Dialog: alles Offene aus Störungen, To-do, Backlog und Pinnwand
+  const uebergabeAngebot = () => [
+    ...stoerungen.filter((x) => x.offen).map((x) => uebergabePunktAus("STOERUNG", x)),
+    ...todoOffene.map((x) => uebergabePunktAus("TODO", x)),
+    ...arbeitenOffen.map((x) => uebergabePunktAus("ARBEIT", x)),
+    ...entries.filter((e) => e.category === "NOTIZ").map((x) => uebergabePunktAus("NOTIZ", x)),
+  ];
+  const uebergabeWahlUebernehmen = async (mappe) => {
+    const neu = uebergabeAngebot().filter((p) => uebergabeWahl.has(p.key) && !mappe.punkte.some((q) => q.key === p.key));
+    const ok = await uebergabeSchreiben({ ...mappe, punkte: [...mappe.punkte, ...neu] });
+    if (ok) setUebergabeWahl(null);
+  };
+  // Druck: A „Mappe“ (Abschnitte, Kästchen, größere Fotos - Robertos Wahl 09.10.: ohne Bemerkung/erledigt-am)
+  // und B „kompakt“ (eine Zeile je Punkt, Fotos als nummerierter Anhang). Beide aus derselben Mappe.
+  const uebergabeDrucken = (mappe, kompakt) => {
+    const zeitraum = [mappe.von ? formatDateDE(mappe.von) : "", mappe.bis ? formatDateDE(mappe.bis) : ""].filter(Boolean).join(" – ");
+    const bild = (f, h) => { const u = fotoUrl(f.datei); return u ? `<img src="${u}" style="height:${h}px;max-width:${Math.round(h * 1.5)}px;object-fit:cover;border-radius:4px;margin:0 4px 4px 0">` : ""; };
+    const kasten = (fertig) => `<span class="k${fertig ? " ok" : ""}"></span>`;
+    const fristText = (p) => (p.bis ? (/^\d{4}-\d{2}-\d{2}$/.test(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
+    let anhang = [], nr = 0;
+    const zeilenA = UEBERGABE_REIHE.map((art) => {
+      const liste = mappe.punkte.filter((p) => p.art === art); if (!liste.length) return "";
+      return `<div class="abschnitt"><h4><span>${htmlText(UEBERGABE_ARTEN[art].label)}</span><span>${liste.length}</span></h4><table>${liste.map((p) => {
+        const st = uebergabeStatus(p);
+        return `<tr><td class="kz">${kasten(!!st)}</td><td class="nr">${htmlText(p.nr || fristText(p))}</td><td class="an">${htmlText(p.anlage)}</td><td class="tx">${htmlText(p.text)}${p.zusatz ? `<br><small>${htmlText(p.zusatz)}</small>` : ""}${st && st.wer === "automatisch" ? `<br><small>✓ ${htmlText(st.grund || "erledigt")}</small>` : st ? `<br><small>✓ ${htmlText(st.wer)} ${st.am ? formatDateDE(String(st.am).slice(0, 10)) : ""}</small>` : ""}</td><td class="fo">${fotoListeVon(p).slice(0, 2).map((f) => bild(f, 90)).join("")}</td></tr>`;
+      }).join("")}</table></div>`;
+    }).join("");
+    const zeilenB = `<table class="kompakt"><tr><th></th><th>Art</th><th>bis / Nr</th><th>Anlage</th><th>Was</th><th>Foto</th></tr>${UEBERGABE_REIHE.flatMap((art) => mappe.punkte.filter((p) => p.art === art)).map((p) => {
+      const st = uebergabeStatus(p); const fotos = fotoListeVon(p);
+      let ref = ""; if (fotos.length) { nr++; ref = String(nr); anhang.push({ nr, p }); }
+      return `<tr><td class="kz">${kasten(!!st)}</td><td><span class="art" style="background:${UEBERGABE_ARTEN[p.art].farbe}">${htmlText(UEBERGABE_ARTEN[p.art].kurz)}</span></td><td>${htmlText(p.nr || fristText(p))}</td><td>${htmlText(p.anlage)}</td><td>${htmlText(p.text)}</td><td>${ref ? "Bild " + ref : ""}</td></tr>`;
+    }).join("")}</table>${anhang.length ? `<div class="anhang"><h4>Anhang – Bilder</h4>${anhang.map((a) => `<div class="bildzeile"><b>Bild ${a.nr}</b> · ${htmlText(a.p.anlage)} ${htmlText(a.p.text).slice(0, 80)}<br>${fotoListeVon(a.p).map((f) => bild(f, 140)).join("")}</div>`).join("")}</div>` : ""}`;
+    const neuListe = (mappe.neu || []).length ? `<ul>${mappe.neu.map((n) => `<li>${htmlText(n.text)} <small>(${htmlText(n.wer)} ${n.am ? formatDateDE(String(n.am).slice(0, 10)) : ""})</small></li>`).join("")}</ul>` : `<div class="frei"></div>`;
+    const offen = mappe.punkte.filter((p) => !uebergabeStatus(p)).length;
+    const html = `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${htmlText(mappe.name)}</title><style>
+      @page { size: A4 portrait; margin: 12mm; } ${DRUCK_FARBTREUE}
+      body { font-family: "Segoe UI", system-ui, sans-serif; color: #22262B; font-size: ${kompakt ? "11.5px" : "12.5px"}; margin: 0; }
+      .titel { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #22262B; padding-bottom:6px; margin-bottom:8px; }
+      h1 { margin:0; font-size:18px; } small { color:#8A9099; } .meta { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px 16px; margin-bottom:10px; font-size:12px; }
+      .meta b { display:block; font-size:10px; text-transform:uppercase; color:#8A9099; }
+      .abschnitt { margin-top:12px; page-break-inside:avoid; } h4 { margin:0 0 4px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#5B6572; border-bottom:1px solid #D6D9DC; padding-bottom:3px; display:flex; justify-content:space-between; }
+      table { width:100%; border-collapse:collapse; } td, th { padding:5px 6px; vertical-align:top; border-bottom:1px solid #E6E8EB; text-align:left; } th { font-size:10px; text-transform:uppercase; color:#8A9099; }
+      tr { page-break-inside:avoid; } td.kz { width:24px; } td.nr { width:64px; white-space:nowrap; } td.an { width:70px; font-weight:800; } td.fo { width:${kompakt ? "50" : "150"}px; text-align:right; }
+      .k { width:16px; height:16px; border:2px solid #22262B; border-radius:3px; display:inline-block; vertical-align:middle; position:relative; }
+      .k.ok { background:#22262B; } .k.ok::after { content:"✓"; color:#fff; position:absolute; left:2px; top:-4px; font-size:14px; font-weight:900; }
+      .art { font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; color:#fff; } .kompakt td { padding:4px 5px; }
+      .anhang { margin-top:14px; page-break-before:always; } .bildzeile { margin:8px 0; page-break-inside:avoid; }
+      .frei { border:1px dashed #D6D9DC; border-radius:6px; min-height:70px; } ul { margin:4px 0 0 18px; padding:0; }
+      .fuss { margin-top:14px; border-top:1px solid #D6D9DC; padding-top:5px; display:flex; justify-content:space-between; font-size:10px; color:#8A9099; }
+    </style></head><body>
+      <div class="titel"><div><h1>${htmlText(mappe.name)}</h1><small>Übergabe-Mappe ${htmlText(werkstattName || "")}${zeitraum ? " · " + htmlText(zeitraum) : ""} · erstellt ${formatDateDE(mappe.date)} von ${htmlText(mappe.ersteller)}</small></div><div style="text-align:right"><small>${kompakt ? "Kompakt-Checkliste" : "Mappe"}<br>Stand ${new Date().toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</small></div></div>
+      <div class="meta"><div><b>Vertreter</b>${htmlText(mappe.vertreter || "–")}</div><div><b>Erreichbar bei Fragen</b>${htmlText(mappe.ersteller)}</div><div><b>Punkte</b>${mappe.punkte.length} · offen ${offen}</div></div>
+      ${kompakt ? zeilenB : zeilenA}
+      <div class="abschnitt"><h4><span>Was während der Vertretung neu dazukam</span></h4>${neuListe}</div>
+      <div class="fuss"><span>BTA-Cockpit · Übergabe-Mappe</span><span>zurück am ________ · Unterschrift ________</span></div>
+    </body></html>`;
+    openPrintWindow(html, `Uebergabe-${String(mappe.name).replace(/[^\wäöüÄÖÜß-]+/g, "_")}.html`);
+  };
   const saeubere = (t) => String(t || "").replace(/\s+/g, " ").trim();
   const backlogListe = (blErledigte ? arbeiten.filter((e) => e.status === "done") : arbeitenOffen)
     .filter((e) => blArt === "ALLE" || e.art === blArt || e.art === "beide")
@@ -10563,7 +10694,7 @@ function App() {
         <div className="w-px self-stretch shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.12)", margin: "3px 0" }} />
         {view === "BERICHTE" ? (
           <div className="flex" style={{ scrollbarWidth: "none" }}>
-            {[["START", "Alle Berichte"], ...[["TODO", "To-do"], ["STOERUNGEN", "Störungen"], ["BACKLOG", "Backlog"], ["ZEIT", "Zeiterfassung"]]
+            {[["START", "Alle Berichte"], ...[["TODO", "To-do"], ["STOERUNGEN", "Störungen"], ["BACKLOG", "Backlog"], ["UEBERGABE", "Übergabe"], ["ZEIT", "Zeiterfassung"]]
               .filter(([v]) => sichtbar(v) && !(v === "BACKLOG" && leserAnzeige))].map(([v, label]) => (
               <button
                 key={v}
@@ -11678,9 +11809,158 @@ function App() {
                     prioHochZahl ? [[`${prioHochZahl} hohe Prio`, "#FBEAE8", "#C0392B"]] : [])}
                   {sichtbar("ZEIT") && kachel("ZEIT", "⏱️", "#F0F2F5", "Zeiterfassung", "Stunden auf Kostenstellen buchen", null, "#8A9099",
                     [["in Klärung – bleibt erreichbar", "#FBF3DA", "#9A6B00"]])}
+                  {sichtbar("UEBERGABE") && kachel("UEBERGABE", "🗂️", "#EEF0F3", "Übergabe", "Mappe für die Vertretung – digital abhaken, als Blatt drucken", uebergabenOffen.length ? uebergabenOffen.reduce((n, m) => n + m.punkte.filter((p) => !uebergabeStatus(p)).length, 0) : null, "#4B5259",
+                    uebergabenOffen.length ? [[`${uebergabenOffen.length} Mappe(n) offen`, "#EEF0F3", "#4B5259"]] : [])}
                 </div>
               </>
             )}
+          </div>
+        );
+      })()}
+
+      {/* ================= Bereich BERICHTE: Übergabe-Mappe (Roll-out 69, 09.10.) =====
+          Robertos Wunsch: alle für die Vertretung ausgewählten Punkte (offene
+          Störungen, To-dos, Backlog mit Fotos, Notizen) als Liste - digital mit
+          Haken, als Blatt gedruckt. Links die Mappen, rechts die Punkte. */}
+      {view === "BERICHTE" && berichtTab === "UEBERGABE" && (() => {
+        const m = uebergabeAktiv;
+        const punkteMit = m ? m.punkte.map((p) => ({ ...p, st: uebergabeStatus(p) })) : [];
+        const erledigtZahl = punkteMit.filter((p) => p.st).length;
+        const fristText = (p) => (p.bis ? (/^\d{4}-\d{2}-\d{2}$/.test(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
+        const eingabe = { borderColor: "#D7DCE1" };
+        return (
+          <div className="p-5" data-uebergabe>
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <button onClick={() => setBerichtTab("START")} className="text-xs font-bold rounded px-2.5 py-1 bg-white border" style={{ borderColor: "#D6D9DC" }}>‹ Berichte</button>
+              <span className="font-black text-lg" style={{ color: "#22262B" }}>🗂️ Übergabe an die Vertretung</span>
+              {uebergabeDarf && <button onClick={() => setUebergabeDialog({ titel: "", von: todayKey, bis: "", vertreter: "", ersteller: uebergabeWer() })} className="ml-auto text-xs font-bold rounded px-3 py-1.5 text-white" style={{ backgroundColor: "#22262B" }} data-uebergabe-neu>+ Neue Mappe</button>}
+            </div>
+            {!m ? (
+              <div className="bg-white rounded-xl border p-6 text-sm" style={{ borderColor: "#E2E4E7", color: "#5B6572" }}>Noch keine Mappe. „Neue Mappe“ legt eine an – mit Zeitraum und Vertreter. Danach Punkte aus Störungen, To-do, Backlog und Pinnwand hineinlegen.</div>
+            ) : (
+              <div className="grid gap-4" style={{ gridTemplateColumns: "300px minmax(0,1fr)" }}>
+                <div>
+                  <div className="bg-white rounded-xl border p-4 mb-3" style={{ borderColor: "#E2E4E7" }} data-uebergabe-kopf>
+                    <div className="font-black text-base" style={{ color: "#22262B" }}>{m.name}</div>
+                    <div className="text-xs" style={{ color: "#5B6572" }}>{[m.von ? formatDateDE(m.von) : "", m.bis ? formatDateDE(m.bis) : ""].filter(Boolean).join(" – ")}{m.vertreter ? ` · an ${m.vertreter}` : ""} · von {m.ersteller}</div>
+                    <div className="rounded-full overflow-hidden my-2" style={{ height: "8px", backgroundColor: "#E6E8EB" }}><div style={{ height: "100%", width: `${m.punkte.length ? Math.round((erledigtZahl / m.punkte.length) * 100) : 0}%`, backgroundColor: "#1F7A3D" }} /></div>
+                    <div className="text-xs font-bold" style={{ color: "#22262B" }} data-uebergabe-stand={`${erledigtZahl}/${m.punkte.length}`}>{erledigtZahl} von {m.punkte.length} erledigt{m.status === "done" ? " · Mappe abgeschlossen" : ""}</div>
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      <button onClick={() => uebergabeDrucken(m, false)} className="text-xs font-bold rounded px-2.5 py-1.5 text-white" style={{ backgroundColor: "#C97A2B" }} data-uebergabe-drucken="mappe">🖨 Mappe drucken</button>
+                      <button onClick={() => uebergabeDrucken(m, true)} className="text-xs font-bold rounded px-2.5 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }} data-uebergabe-drucken="kompakt">🖨 Kompakt-Checkliste</button>
+                    </div>
+                    {uebergabeDarf && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <button onClick={() => setUebergabeWahl(new Set())} className="text-xs font-bold rounded px-2.5 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }} data-uebergabe-waehlen>+ Punkte wählen</button>
+                        <button onClick={() => setUebergabeDialog({ id: m.id, titel: m.name, von: m.von, bis: m.bis, vertreter: m.vertreter, ersteller: m.ersteller })} className="text-xs font-bold rounded px-2.5 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }}>Kopf ändern</button>
+                        <button onClick={() => uebergabeSchreiben({ ...m, status: m.status === "done" ? "open" : "done" })} className="text-xs font-bold rounded px-2.5 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }}>{m.status === "done" ? "Wieder öffnen" : "Mappe abschließen"}</button>
+                      </div>
+                    )}
+                  </div>
+                  {uebergaben.length > 1 && (
+                    <div className="bg-white rounded-xl border p-3" style={{ borderColor: "#E2E4E7" }}>
+                      <div className="text-[11px] font-black uppercase mb-1" style={{ color: "#8A9099" }}>Alle Mappen</div>
+                      {uebergaben.map((x) => (
+                        <button key={x.id} onClick={() => setUebergabeId(x.id)} className="block w-full text-left text-sm py-1 border-b" style={{ borderColor: "#F0F1F3", fontWeight: x.id === m.id ? 800 : 400, color: x.status === "done" ? "#8A9099" : "#22262B" }}>{x.name}{x.status === "done" ? " ✓" : ""}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  {m.punkte.length === 0 && <div className="bg-white rounded-xl border p-5 text-sm italic mb-3" style={{ borderColor: "#E2E4E7", color: "#8A9099" }}>Noch keine Punkte – „+ Punkte wählen“ zeigt alles Offene aus Störungen, To-do, Backlog und Pinnwand.</div>}
+                  {UEBERGABE_REIHE.map((art) => {
+                    const liste = punkteMit.filter((p) => p.art === art); if (!liste.length) return null;
+                    return (
+                      <div key={art} className="bg-white rounded-xl border mb-3 overflow-hidden" style={{ borderColor: "#E2E4E7" }}>
+                        <div className="text-[11px] font-black uppercase px-4 py-2 border-b flex justify-between" style={{ color: "#5B6572", backgroundColor: "#FAFBFC", borderColor: "#F0F1F3" }}><span>{UEBERGABE_ARTEN[art].label}</span><span>{liste.filter((p) => p.st).length}/{liste.length}</span></div>
+                        {liste.map((p) => (
+                          <div key={p.key} className="flex items-start gap-3 px-4 py-2.5 border-b" style={{ borderColor: "#F0F1F3", opacity: p.st ? 0.65 : 1 }} data-uebergabe-punkt={p.key} data-uebergabe-erledigt={p.st ? (p.st.wer === "automatisch" ? "automatisch" : "hand") : "offen"}>
+                            <input type="checkbox" checked={!!p.st} disabled={!uebergabeDarf || (p.st && p.st.wer === "automatisch" && !p.erledigt)} onChange={() => uebergabeHaken(m, p.key)} aria-label={`Erledigt: ${p.text}`} className="mt-1" style={{ width: "18px", height: "18px" }} />
+                            <span className="rounded font-black text-white text-center shrink-0 mt-0.5" style={{ fontSize: "0.6rem", padding: "2px 0", width: "52px", backgroundColor: UEBERGABE_ARTEN[art].farbe }}>{UEBERGABE_ARTEN[art].kurz}</span>
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-sm" style={{ color: "#22262B", textDecoration: p.st ? "line-through" : "none" }}>{p.anlage && <b>{p.anlage} · </b>}{p.text}</span>
+                              <span className="block text-xs" style={{ color: "#8A9099" }}>{[p.nr, fristText(p) ? "bis " + fristText(p) : "", p.zusatz, p.st ? (p.st.wer === "automatisch" ? `✓ ${p.st.grund || "erledigt"}` : `✓ ${p.st.wer} ${p.st.am ? formatDateDE(String(p.st.am).slice(0, 10)) : ""}`) : ""].filter(Boolean).join(" · ")}</span>
+                            </span>
+                            {fotoListeVon(p).slice(0, 2).map((f) => { const u = fotoUrl(f.datei); return u ? <img key={f.datei} src={u} alt="" data-uebergabe-bild className="rounded shrink-0" style={{ height: "44px", width: "60px", objectFit: "cover" }} /> : null; })}
+                            {uebergabeDarf && <button onClick={() => uebergabePunktWeg(m, p.key)} className="text-xs shrink-0" style={{ color: "#8A9099" }} title="Aus der Mappe nehmen">✕</button>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {uebergabeDarf && (
+                    <div className="bg-white rounded-xl border p-3 mb-3 flex gap-2" style={{ borderColor: "#E2E4E7" }}>
+                      <input value={uebergabeNotiz} onChange={(e) => setUebergabeNotiz(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") uebergabeNotizDazu(m); }} placeholder="Notiz für die Vertretung, z. B. „Zählerstände montags eintragen“" aria-label="Notiz für die Mappe" className="flex-1 border rounded px-2 py-1.5 text-sm" style={eingabe} />
+                      <button onClick={() => uebergabeNotizDazu(m)} className="text-xs font-bold rounded px-3 py-1.5 text-white" style={{ backgroundColor: "#22262B" }} data-uebergabe-notiz-dazu>+ Notiz</button>
+                    </div>
+                  )}
+                  <div className="bg-white rounded-xl border p-3" style={{ borderColor: "#E2E4E7" }} data-uebergabe-neu-liste>
+                    <div className="text-[11px] font-black uppercase mb-1" style={{ color: "#8A9099" }}>Was während der Vertretung neu dazukam</div>
+                    {(m.neu || []).length === 0 && <div className="text-xs italic" style={{ color: "#8A9099" }}>noch nichts – der Vertreter trägt hier ein, was neu aufkam; nach dem Urlaub steht es hier gesammelt.</div>}
+                    {(m.neu || []).map((n, i) => <div key={i} className="text-sm py-1 border-b" style={{ borderColor: "#F0F1F3" }}>{n.text} <span className="text-xs" style={{ color: "#8A9099" }}>({n.wer} {n.am ? formatDateDE(String(n.am).slice(0, 10)) : ""})</span></div>)}
+                    {uebergabeDarf && (
+                      <div className="flex gap-2 mt-2">
+                        <input value={uebergabeNeuText} onChange={(e) => setUebergabeNeuText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") uebergabeNeuDazu(m); }} placeholder="Neu aufgekommen …" aria-label="Neu während der Vertretung" className="flex-1 border rounded px-2 py-1.5 text-sm" style={eingabe} />
+                        <button onClick={() => uebergabeNeuDazu(m)} className="text-xs font-bold rounded px-3 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }}>+ hinzufügen</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {uebergabeDialog && (
+              <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: "rgba(20,22,25,0.45)" }} onClick={() => setUebergabeDialog(null)}>
+                <div className="bg-white rounded-2xl p-5 w-full" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()} data-uebergabe-dialog>
+                  <div className="font-black text-base mb-3" style={{ color: "#22262B" }}>{uebergabeDialog.id ? "Mappe – Kopf ändern" : "Neue Übergabe-Mappe"}</div>
+                  <label className="block text-xs font-bold mb-1" style={{ color: "#5B6572" }}>Titel<input value={uebergabeDialog.titel} onChange={(e) => setUebergabeDialog({ ...uebergabeDialog, titel: e.target.value })} placeholder="z. B. Vertretung 13.–24.10." aria-label="Titel der Mappe" className="block w-full border rounded px-2 py-1.5 text-sm font-normal mt-1" style={eingabe} /></label>
+                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <label className="block text-xs font-bold" style={{ color: "#5B6572" }}>Von<input type="date" value={uebergabeDialog.von || ""} onChange={(e) => setUebergabeDialog({ ...uebergabeDialog, von: e.target.value })} aria-label="Von" className="block w-full border rounded px-2 py-1.5 text-sm font-normal mt-1" style={eingabe} /></label>
+                    <label className="block text-xs font-bold" style={{ color: "#5B6572" }}>Bis<input type="date" value={uebergabeDialog.bis || ""} onChange={(e) => setUebergabeDialog({ ...uebergabeDialog, bis: e.target.value })} aria-label="Bis" className="block w-full border rounded px-2 py-1.5 text-sm font-normal mt-1" style={eingabe} /></label>
+                    <label className="block text-xs font-bold" style={{ color: "#5B6572" }}>Vertreter<input value={uebergabeDialog.vertreter || ""} onChange={(e) => setUebergabeDialog({ ...uebergabeDialog, vertreter: e.target.value })} aria-label="Vertreter" list="uebergabe-team" className="block w-full border rounded px-2 py-1.5 text-sm font-normal mt-1" style={eingabe} /></label>
+                    <label className="block text-xs font-bold" style={{ color: "#5B6572" }}>Erstellt von<input value={uebergabeDialog.ersteller || ""} onChange={(e) => setUebergabeDialog({ ...uebergabeDialog, ersteller: e.target.value })} aria-label="Erstellt von" className="block w-full border rounded px-2 py-1.5 text-sm font-normal mt-1" style={eingabe} /></label>
+                    <datalist id="uebergabe-team">{team.map((t) => <option key={t.id || t.name} value={t.name} />)}</datalist>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-3">
+                    <button onClick={() => setUebergabeDialog(null)} className="text-xs font-bold rounded px-3 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }}>Abbrechen</button>
+                    <button onClick={uebergabeAnlegen} className="text-xs font-bold rounded px-3 py-1.5 text-white" style={{ backgroundColor: "#22262B" }} data-uebergabe-speichern>Speichern</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {uebergabeWahl && m && (() => {
+              const angebot = uebergabeAngebot();
+              return (
+                <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: "rgba(20,22,25,0.45)" }} onClick={() => setUebergabeWahl(null)}>
+                  <div className="bg-white rounded-2xl p-5 w-full flex flex-col" style={{ maxWidth: "760px", maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()} data-uebergabe-wahl>
+                    <div className="font-black text-base mb-1" style={{ color: "#22262B" }}>Punkte für die Mappe wählen</div>
+                    <div className="text-xs mb-3" style={{ color: "#8A9099" }}>Alles Offene aus Störungen, To-do, Backlog und Pinnwand. Was schon in der Mappe liegt, ist ausgegraut.</div>
+                    <div className="overflow-auto flex-1" style={{ minHeight: 0 }}>
+                      {UEBERGABE_REIHE.filter((a) => a !== "FREI").map((art) => {
+                        const liste = angebot.filter((p) => p.art === art); if (!liste.length) return null;
+                        return (
+                          <div key={art} className="mb-3">
+                            <div className="text-[11px] font-black uppercase mb-1" style={{ color: UEBERGABE_ARTEN[art].farbe }}>{UEBERGABE_ARTEN[art].label} ({liste.length})</div>
+                            {liste.map((p) => { const drin = m.punkte.some((q) => q.key === p.key); return (
+                              <label key={p.key} className="flex items-start gap-2 py-1 border-b text-sm" style={{ borderColor: "#F0F1F3", opacity: drin ? 0.5 : 1 }}>
+                                <input type="checkbox" disabled={drin} checked={drin || uebergabeWahl.has(p.key)} onChange={(e) => setUebergabeWahl((alt) => { const n = new Set(alt); if (e.target.checked) n.add(p.key); else n.delete(p.key); return n; })} data-uebergabe-wahl-punkt={p.key} className="mt-1" />
+                                <span className="flex-1 min-w-0"><span className="block" style={{ color: "#22262B" }}>{p.anlage && <b>{p.anlage} · </b>}{p.text}</span><span className="block text-xs" style={{ color: "#8A9099" }}>{[p.nr, p.bis ? "bis " + p.bis : "", fotoListeVon(p).length ? `📷 ${fotoListeVon(p).length}` : ""].filter(Boolean).join(" · ")}</span></span>
+                              </label>
+                            ); })}
+                          </div>
+                        );
+                      })}
+                      {angebot.length === 0 && <div className="text-sm italic" style={{ color: "#8A9099" }}>Nichts Offenes gefunden.</div>}
+                    </div>
+                    <div className="flex justify-end gap-2 mt-3">
+                      <button onClick={() => setUebergabeWahl(null)} className="text-xs font-bold rounded px-3 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }}>Abbrechen</button>
+                      <button onClick={() => uebergabeWahlUebernehmen(m)} className="text-xs font-bold rounded px-3 py-1.5 text-white" style={{ backgroundColor: "#22262B" }} data-uebergabe-wahl-uebernehmen>{uebergabeWahl.size} Punkt(e) übernehmen</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         );
       })()}
