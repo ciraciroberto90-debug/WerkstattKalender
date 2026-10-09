@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vorlagen: Übergabe an die Vertretung</title>
+<style>
+  /* Vorlagen-Seite (Robertos Wunsch 09.10.): vier Entwürfe für eine Übergabe-Mappe
+     an die Urlaubsvertretung - digital zum Abhaken UND als Ausdruck. Nur Anschauung,
+     keine Funktion; die Beispieldaten sind erfunden. */
+  :root { --tinte:#22262B; --grau:#8A9099; --linie:#D6D9DC; --hell:#F4F5F7; --orange:#C97A2B; --rot:#B23A34; --gruen:#1F7A3D; --blau:#2F6690; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI",system-ui,sans-serif; color:var(--tinte); background:#E9EBEE; }
+  .kopf { background:var(--tinte); color:#fff; padding:18px 28px; }
+  .kopf h1 { margin:0 0 6px; font-size:22px; }
+  .kopf p { margin:0; color:#C9CED5; font-size:14px; max-width:900px; }
+  .inhalt { max-width:1180px; margin:0 auto; padding:22px 16px 60px; }
+  .erklaer { background:#fff; border:1px solid var(--linie); border-radius:12px; padding:16px 20px; margin-bottom:22px; font-size:14px; }
+  .erklaer h2 { margin:0 0 8px; font-size:16px; }
+  .erklaer ol { margin:6px 0 0 18px; padding:0; } .erklaer li { margin:3px 0; }
+  .variante { margin:34px 0 10px; }
+  .variante h2 { margin:0 0 4px; font-size:19px; }
+  .variante .warum { color:#5B6572; font-size:13px; margin:0 0 12px; }
+  .marke { display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; color:#fff; background:var(--orange); vertical-align:middle; margin-left:8px; }
+  /* A4-Blatt als Vorschau */
+  .blatt { background:#fff; width:794px; min-height:560px; margin:0 auto; padding:34px 40px; box-shadow:0 4px 18px rgba(0,0,0,.12); font-size:12.5px; }
+  .blatt .titel { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid var(--tinte); padding-bottom:8px; margin-bottom:10px; }
+  .blatt .titel h3 { margin:0; font-size:18px; } .blatt .titel small { color:var(--grau); }
+  .blatt .meta { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px 18px; margin-bottom:12px; font-size:12px; }
+  .blatt .meta b { color:var(--grau); font-weight:700; font-size:10px; text-transform:uppercase; display:block; }
+  .abschnitt { margin-top:14px; }
+  .abschnitt h4 { margin:0 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:#5B6572; border-bottom:1px solid var(--linie); padding-bottom:3px; display:flex; justify-content:space-between; }
+  table { width:100%; border-collapse:collapse; }
+  td, th { padding:5px 6px; vertical-align:top; border-bottom:1px solid #E6E8EB; text-align:left; }
+  th { font-size:10px; text-transform:uppercase; color:var(--grau); }
+  .kasten { width:15px; height:15px; border:2px solid var(--tinte); border-radius:3px; display:inline-block; vertical-align:middle; }
+  .kasten.gross { width:22px; height:22px; }
+  .kasten.ok { background:var(--tinte); position:relative; } .kasten.ok::after { content:"✓"; color:#fff; position:absolute; left:3px; top:-3px; font-size:13px; font-weight:900; }
+  .foto { width:54px; height:40px; background:linear-gradient(135deg,#B9C0C8,#8A9099); border-radius:4px; display:inline-block; position:relative; }
+  .foto::after { content:"📷"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:16px; opacity:.8; }
+  .foto.gross { width:100%; height:120px; }
+  .art { font-size:10px; font-weight:800; padding:1px 6px; border-radius:4px; color:#fff; }
+  .art.stoer { background:var(--rot); } .art.todo { background:var(--blau); } .art.back { background:var(--orange); } .art.notiz { background:#6B5B95; }
+  .feld { border-bottom:1px dotted var(--grau); color:transparent; display:inline-block; min-width:90px; }
+  .feld.lang { min-width:220px; }
+  .hinweisfeld { border:1px dashed var(--linie); border-radius:6px; min-height:46px; padding:4px 6px; color:var(--grau); font-style:italic; }
+  .fuss { margin-top:16px; border-top:1px solid var(--linie); padding-top:6px; display:flex; justify-content:space-between; font-size:10px; color:var(--grau); }
+  /* Karten (C) */
+  .karten { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .karte { border:1px solid var(--linie); border-radius:8px; padding:8px; }
+  .karte .z1 { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+  .karte .t { font-weight:800; font-size:13px; margin:4px 0 2px; }
+  /* Bildschirm (D) */
+  .schirm { background:#F4F5F7; border:1px solid var(--linie); border-radius:12px; overflow:hidden; margin:0 auto; max-width:1100px; }
+  .schirm .leiste { background:var(--tinte); color:#fff; padding:8px 14px; font-size:12px; display:flex; gap:14px; align-items:center; }
+  .schirm .leiste b { background:var(--orange); padding:2px 8px; border-radius:4px; }
+  .schirm .flaeche { padding:14px; display:grid; grid-template-columns:300px 1fr; gap:14px; }
+  .box { background:#fff; border:1px solid var(--linie); border-radius:10px; padding:12px; font-size:13px; }
+  .box h5 { margin:0 0 8px; font-size:12px; text-transform:uppercase; color:#5B6572; }
+  .zeile { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #EEF0F2; }
+  .zeile .fortschritt { margin-left:auto; font-size:11px; color:var(--grau); }
+  .knopf { display:inline-block; padding:6px 12px; border-radius:7px; font-weight:800; font-size:12px; color:#fff; background:var(--tinte); margin:4px 4px 0 0; }
+  .knopf.o { background:var(--orange); } .knopf.w { background:#fff; color:var(--tinte); border:1px solid var(--linie); }
+  .balken { height:8px; background:#E6E8EB; border-radius:999px; overflow:hidden; margin:6px 0 10px; } .balken i { display:block; height:100%; width:40%; background:var(--gruen); }
+  .fertig { color:var(--grau); text-decoration:line-through; }
+  .vergleich { background:#fff; border:1px solid var(--linie); border-radius:12px; padding:16px 20px; margin-top:30px; font-size:14px; }
+  .vergleich table td, .vergleich table th { border-bottom:1px solid var(--linie); padding:7px 8px; font-size:13px; }
+  @media print { body { background:#fff; } .kopf, .erklaer, .variante .warum, .vergleich, .marke { display:none; } .blatt { box-shadow:none; width:auto; page-break-after:always; } .schirm { display:none; } }
+</style>
+</head>
+<body>
+<div class="kopf">
+  <h1>Übergabe an die Vertretung – vier Vorlagen</h1>
+  <p>Robertos Wunsch 09.10.: „Für den Backlog eine Art Urlaubsvertretung: listet alle von mir ausgewählten Punkte auf (offene Störungen, To-dos, Backlog mit Fotos, Notizen zum Eintragen). Die Liste muss digital existieren und zum Ausdrucken sein, mit Abhak-Funktion.“ Beispieldaten sind erfunden. Nur Anschauung, noch keine Funktion.</p>
+</div>
+<div class="inhalt">
+
+<div class="erklaer">
+  <h2>Wie es funktionieren würde (gleich für alle vier Vorlagen)</h2>
+  <ol>
+    <li><strong>Zusammenstellen:</strong> Im Backlog (und in Störungen, To-dos, Pinnwand) bekommt jede Zeile ein Kästchen „für die Übergabe“. Dazu ein Feld für Notizen, die nur in der Mappe stehen („bitte eintragen: …“).</li>
+    <li><strong>Mappe anlegen:</strong> Knopf „Übergabe-Mappe“ → Zeitraum, Vertreter, Ersteller. Die Mappe ist ein eigener Eintrag in der gemeinsamen Datei – sie existiert digital auf jedem Rechner.</li>
+    <li><strong>Abhaken:</strong> Der Vertreter hakt am PC ab (Haken geht live an alle Rechner, mit Bemerkung und Zeit). Wird ein To-do oder eine Störung im Cockpit erledigt, hakt die Mappe den Punkt von selbst ab.</li>
+    <li><strong>Drucken:</strong> Knopf „Drucken“ gibt genau das Blatt unten aus (A4, Kästchen zum Ankreuzen, Platz für Bemerkungen). Nach dem Urlaub: Ausdruck ansehen oder Mappe digital durchgehen – was noch offen ist, steht oben.</li>
+  </ol>
+</div>
+
+<!-- ===================== A ===================== -->
+<div class="variante">
+  <h2>A · Die Mappe <span class="marke">Empfehlung</span></h2>
+  <p class="warum">Ein Kopf, dann je Art ein Abschnitt. Jede Zeile hat Kästchen, Nummer, Anlage, Text, Foto-Miniatur und eine Spalte „erledigt am / Bemerkung“ zum Handschreiben. Digital dieselbe Gliederung mit Live-Haken.</p>
+  <div class="blatt">
+    <div class="titel">
+      <div><h3>Übergabe-Mappe Werkstatt Scheurich</h3><small>Vertretung 13.10. – 24.10.2026 · erstellt 09.10. von R. Ciraci</small></div>
+      <div style="text-align:right"><small>Blatt 1 von 2</small><br><small>Stand aus dem Cockpit, 09.10. 14:10</small></div>
+    </div>
+    <div class="meta">
+      <div><b>Vertreter</b>A. Richter (AR)</div>
+      <div><b>Erreichbar bei Fragen</b>R. Ciraci, mobil</div>
+      <div><b>Punkte</b>11 · davon 3 dringend</div>
+    </div>
+
+    <div class="abschnitt">
+      <h4><span>Offene Störungen</span><span>3</span></h4>
+      <table>
+        <tr><th></th><th>Nr</th><th>Anlage</th><th>Was</th><th>Foto</th><th style="width:170px">erledigt am / Bemerkung</th></tr>
+        <tr><td><span class="kasten"></span></td><td>S-412</td><td><b>TS480</b></td><td>Leck Hydraulik, Pfütze unter Aggregat. <span class="art stoer">dringend</span><br><small>Hinweis: Ersatzschlauch bestellt, kommt Do. – Einbau mit Fa. Hansa</small></td><td><span class="foto"></span></td><td><span class="feld lang"></span></td></tr>
+        <tr><td><span class="kasten"></span></td><td>S-418</td><td><b>B2</b></td><td>Förderband läuft unrund, Lager Abtrieb prüfen</td><td></td><td><span class="feld lang"></span></td></tr>
+        <tr><td><span class="kasten"></span></td><td>S-421</td><td><b>OF320</b></td><td>Türkontakt Ofen meldet sporadisch – Kabel nachziehen</td><td><span class="foto"></span></td><td><span class="feld lang"></span></td></tr>
+      </table>
+    </div>
+
+    <div class="abschnitt">
+      <h4><span>To-dos</span><span>4</span></h4>
+      <table>
+        <tr><th></th><th>bis</th><th>Anlage</th><th>Was</th><th>Foto</th><th style="width:170px">erledigt am / Bemerkung</th></tr>
+        <tr><td><span class="kasten"></span></td><td>14.10.</td><td>VSM1</td><td>Ölstand prüfen, Nachfüllen Mobil DTE 25</td><td><span class="foto"></span></td><td><span class="feld lang"></span></td></tr>
+        <tr><td><span class="kasten"></span></td><td>16.10.</td><td>–</td><td>Prüfprotokoll Hebebühne an BG schicken (liegt im Postfach)</td><td></td><td><span class="feld lang"></span></td></tr>
+        <tr><td><span class="kasten"></span></td><td>20.10.</td><td>TS480</td><td>Wartung Quartal: Filter, Riemen, Schmierplan</td><td></td><td><span class="feld lang"></span></td></tr>
+        <tr><td><span class="kasten"></span></td><td>–</td><td>B2</td><td>Ersatzrolle aus Lager holen (Regal 4C)</td><td><span class="foto"></span></td><td><span class="feld lang"></span></td></tr>
+      </table>
+    </div>
+
+    <div class="abschnitt">
+      <h4><span>Backlog – geplante Arbeiten</span><span>2</span></h4>
+      <table>
+        <tr><th></th><th>KW</th><th>Anlage</th><th>Was</th><th>Foto</th><th style="width:170px">erledigt am / Bemerkung</th></tr>
+        <tr><td><span class="kasten"></span></td><td>42</td><td>OF320</td><td>Brennerdüsen tauschen (Teile liegen bereit, Schrank 2)</td><td><span class="foto"></span></td><td><span class="feld lang"></span></td></tr>
+        <tr><td><span class="kasten"></span></td><td>43</td><td>Halle</td><td>Leuchten Reihe 3 auf LED (Fa. Elektro Mai, Termin steht)</td><td></td><td><span class="feld lang"></span></td></tr>
+      </table>
+    </div>
+
+    <div class="abschnitt">
+      <h4><span>Notizen – bitte eintragen / beachten</span><span>2</span></h4>
+      <table>
+        <tr><td style="width:24px"><span class="kasten"></span></td><td>Zählerstände Druckluft jeden Montag ins Cockpit (Reiter Zeiterfassung → Zähler)</td><td style="width:170px"><span class="feld lang"></span></td></tr>
+        <tr><td><span class="kasten"></span></td><td>Lieferung Hansa (Hydraulikschlauch) annehmen, Lieferschein in Ordner „Einkauf 2026“</td><td><span class="feld lang"></span></td></tr>
+      </table>
+    </div>
+
+    <div class="abschnitt">
+      <h4><span>Was während der Vertretung neu dazukam</span></h4>
+      <div class="hinweisfeld">Platz für Handschrift – oder digital: neue Punkte, die der Vertreter in die Mappe legt, stehen hier und gehen nach dem Urlaub an Roberto zurück.</div>
+    </div>
+    <div class="fuss"><span>BTA-Cockpit · Übergabe-Mappe · gedruckt 09.10.2026 14:12</span><span>Übergabe zurück am ______ · Unterschrift ______</span></div>
+  </div>
+</div>
+
+<!-- ===================== B ===================== -->
+<div class="variante">
+  <h2>B · Kompakt-Checkliste</h2>
+  <p class="warum">Nur eine Zeile je Punkt, ohne Fotos – 30 Punkte passen auf ein Blatt. Fotos kommen als Anhangsblatt mit Nummern. Gut für die Pinnwand in der Werkstatt.</p>
+  <div class="blatt" style="min-height:380px">
+    <div class="titel"><div><h3>Vertretung 13.–24.10. · Checkliste</h3><small>R. Ciraci → A. Richter · 11 Punkte</small></div><div><small>Fotos: Anhang Blatt 2</small></div></div>
+    <table>
+      <tr><th style="width:22px"></th><th style="width:44px">Art</th><th style="width:70px">bis / KW</th><th style="width:60px">Anlage</th><th>Was</th><th style="width:40px">Foto</th><th style="width:110px">erledigt</th></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art stoer">STÖR</span></td><td>sofort</td><td>TS480</td><td>Leck Hydraulik – Schlauch kommt Do., Einbau mit Hansa</td><td>① </td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art stoer">STÖR</span></td><td>diese Wo</td><td>B2</td><td>Förderband unrund, Lager Abtrieb prüfen</td><td></td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art stoer">STÖR</span></td><td>diese Wo</td><td>OF320</td><td>Türkontakt sporadisch – Kabel nachziehen</td><td>②</td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art todo">TODO</span></td><td>14.10.</td><td>VSM1</td><td>Ölstand prüfen, DTE 25 nachfüllen</td><td>③</td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art todo">TODO</span></td><td>16.10.</td><td>–</td><td>Prüfprotokoll Hebebühne an BG (Postfach)</td><td></td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art todo">TODO</span></td><td>20.10.</td><td>TS480</td><td>Quartalswartung: Filter, Riemen, Schmierplan</td><td></td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art todo">TODO</span></td><td>–</td><td>B2</td><td>Ersatzrolle aus Lager (Regal 4C)</td><td>④</td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art back">BACK</span></td><td>KW 42</td><td>OF320</td><td>Brennerdüsen tauschen (Teile Schrank 2)</td><td>⑤</td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art back">BACK</span></td><td>KW 43</td><td>Halle</td><td>Leuchten Reihe 3 auf LED (Elektro Mai)</td><td></td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art notiz">NOTIZ</span></td><td>montags</td><td>–</td><td>Zählerstände Druckluft ins Cockpit</td><td></td><td><span class="feld"></span></td></tr>
+      <tr><td><span class="kasten"></span></td><td><span class="art notiz">NOTIZ</span></td><td>Do.</td><td>–</td><td>Lieferung Hansa annehmen, Lieferschein Ordner Einkauf</td><td></td><td><span class="feld"></span></td></tr>
+    </table>
+    <div class="fuss"><span>BTA-Cockpit · Checkliste Vertretung</span><span>offen: ___ von 11</span></div>
+  </div>
+</div>
+
+<!-- ===================== C ===================== -->
+<div class="variante">
+  <h2>C · Karten mit großem Foto</h2>
+  <p class="warum">Für Backlog-Punkte, bei denen das Bild die halbe Erklärung ist. Zwei Karten nebeneinander, großes Kästchen, Foto groß. Braucht mehr Blätter (sechs Karten je Seite).</p>
+  <div class="blatt" style="min-height:420px">
+    <div class="titel"><div><h3>Vertretung 13.–24.10. · Karten</h3><small>Blatt 1 von 2 · Störungen und Backlog mit Bild</small></div></div>
+    <div class="karten">
+      <div class="karte"><div class="z1"><span class="kasten gross"></span><span class="art stoer">Störung S-412 · dringend</span></div><span class="foto gross"></span><div class="t">TS480 · Leck Hydraulik</div><div>Pfütze unter dem Aggregat. Ersatzschlauch bestellt (Hansa), kommt Do. Einbau mit Monteur, Anlage dafür 2 h aus.</div><div style="margin-top:6px;font-size:11px;color:var(--grau)">erledigt am <span class="feld"></span> von <span class="feld"></span></div></div>
+      <div class="karte"><div class="z1"><span class="kasten gross"></span><span class="art stoer">Störung S-421</span></div><span class="foto gross"></span><div class="t">OF320 · Türkontakt sporadisch</div><div>Meldet alle paar Stunden „Tür offen“. Kabel am Schalter nachziehen, Stecker prüfen.</div><div style="margin-top:6px;font-size:11px;color:var(--grau)">erledigt am <span class="feld"></span> von <span class="feld"></span></div></div>
+      <div class="karte"><div class="z1"><span class="kasten gross"></span><span class="art back">Backlog KW 42</span></div><span class="foto gross"></span><div class="t">OF320 · Brennerdüsen tauschen</div><div>Teile liegen in Schrank 2, Fach „OF320“. Anleitung im Ordner Ofen, Seite 14.</div><div style="margin-top:6px;font-size:11px;color:var(--grau)">erledigt am <span class="feld"></span> von <span class="feld"></span></div></div>
+      <div class="karte"><div class="z1"><span class="kasten gross"></span><span class="art todo">To-do bis 14.10.</span></div><span class="foto gross"></span><div class="t">VSM1 · Ölstand prüfen</div><div>Schauglas unter der Mitte. Nachfüllen Mobil DTE 25 (Lager, Regal 1A).</div><div style="margin-top:6px;font-size:11px;color:var(--grau)">erledigt am <span class="feld"></span> von <span class="feld"></span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== D ===================== -->
+<div class="variante">
+  <h2>D · So sieht es digital aus (Zusammenstellen und Abhaken)</h2>
+  <p class="warum">Links die Mappe mit Fortschritt und Haken, rechts die Liste. Dieselbe Mappe liefert den Ausdruck A, B oder C – der Druck ist nur eine Ansicht derselben Daten.</p>
+  <div class="schirm">
+    <div class="leiste"><span>BTA-Cockpit</span><span>Berichte</span><b>Übergabe</b><span>Backlog</span><span>To-do</span><span>Störungen</span><span style="margin-left:auto">R. Ciraci · Verwalter</span></div>
+    <div class="flaeche">
+      <div class="box">
+        <h5>Mappe</h5>
+        <div style="font-weight:800">Vertretung 13.–24.10.2026</div>
+        <div style="font-size:12px;color:#5B6572">an A. Richter · erstellt 09.10.</div>
+        <div class="balken"><i></i></div>
+        <div style="font-size:12px">4 von 11 erledigt · 2 dringend offen</div>
+        <div style="margin-top:10px"><span class="knopf o">🖨 Drucken (A4)</span><span class="knopf w">Als PDF</span></div>
+        <div><span class="knopf w">+ Punkt aus Backlog</span><span class="knopf w">+ Notiz</span></div>
+        <h5 style="margin-top:16px">Zusammenstellen</h5>
+        <div style="font-size:12px;color:#5B6572">In Backlog, To-do, Störungen und Pinnwand steht an jeder Zeile ein Kästchen <span class="kasten" style="width:12px;height:12px"></span> „für die Übergabe“. Ein Klick legt den Punkt in die offene Mappe.</div>
+      </div>
+      <div class="box">
+        <h5>Punkte · nach Dringlichkeit</h5>
+        <div class="zeile"><span class="kasten"></span><span class="art stoer">STÖR</span><span><b>TS480</b> Leck Hydraulik – Schlauch Do.</span><span class="foto" style="width:34px;height:26px"></span><span class="fortschritt">dringend</span></div>
+        <div class="zeile"><span class="kasten"></span><span class="art stoer">STÖR</span><span><b>B2</b> Förderband unrund</span><span class="fortschritt">offen</span></div>
+        <div class="zeile"><span class="kasten ok"></span><span class="art stoer">STÖR</span><span class="fertig"><b>OF320</b> Türkontakt sporadisch</span><span class="fortschritt">✓ AR 14.10. 09:20 · „Stecker war lose“</span></div>
+        <div class="zeile"><span class="kasten ok"></span><span class="art todo">TODO</span><span class="fertig"><b>VSM1</b> Ölstand prüfen</span><span class="fortschritt">✓ automatisch (To-do erledigt 14.10.)</span></div>
+        <div class="zeile"><span class="kasten"></span><span class="art todo">TODO</span><span>Prüfprotokoll Hebebühne an BG</span><span class="fortschritt">bis 16.10.</span></div>
+        <div class="zeile"><span class="kasten"></span><span class="art todo">TODO</span><span><b>TS480</b> Quartalswartung</span><span class="fortschritt">bis 20.10.</span></div>
+        <div class="zeile"><span class="kasten ok"></span><span class="art todo">TODO</span><span class="fertig"><b>B2</b> Ersatzrolle aus Lager</span><span class="fortschritt">✓ AR 13.10.</span></div>
+        <div class="zeile"><span class="kasten"></span><span class="art back">BACK</span><span><b>OF320</b> Brennerdüsen tauschen</span><span class="foto" style="width:34px;height:26px"></span><span class="fortschritt">KW 42</span></div>
+        <div class="zeile"><span class="kasten"></span><span class="art back">BACK</span><span>Halle · Leuchten Reihe 3 auf LED</span><span class="fortschritt">KW 43</span></div>
+        <div class="zeile"><span class="kasten ok"></span><span class="art notiz">NOTIZ</span><span class="fertig">Zählerstände Druckluft montags</span><span class="fortschritt">✓ AR 13.10.</span></div>
+        <div class="zeile"><span class="kasten"></span><span class="art notiz">NOTIZ</span><span>Lieferung Hansa annehmen</span><span class="fortschritt">Do.</span></div>
+        <div style="margin-top:10px;font-size:12px;color:#5B6572">Neu während der Vertretung: <span class="knopf w" style="padding:3px 8px">+ hinzufügen</span> – geht nach dem Urlaub als Liste an Roberto zurück.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="vergleich">
+  <h2 style="margin:0 0 8px;font-size:16px">Vergleich</h2>
+  <table>
+    <tr><th>Vorlage</th><th>Stärke</th><th>Schwäche</th><th>Blätter bei 11 Punkten</th></tr>
+    <tr><td><b>A Mappe</b></td><td>Gliederung nach Art, Foto-Miniatur, Platz für Bemerkung, Übergabe-Kopf mit Zeitraum und Vertreter</td><td>Bei 30+ Punkten mehrere Blätter</td><td>1–2</td></tr>
+    <tr><td><b>B Kompakt</b></td><td>Alles auf einem Blatt, Pinnwand-tauglich</td><td>Fotos nur als Nummern mit Anhang, wenig Platz für Bemerkungen</td><td>1 + Foto-Anhang</td></tr>
+    <tr><td><b>C Karten</b></td><td>Bild groß, auch für Fremde sofort verständlich</td><td>Viele Blätter, Notizen ohne Bild wirken leer</td><td>2–3</td></tr>
+    <tr><td><b>D Digital</b></td><td>Live-Haken, automatisch erledigt, Rückmeldung an Roberto</td><td>Kein Ersatz für Papier in der Halle – deshalb Druck aus derselben Mappe</td><td>–</td></tr>
+  </table>
+  <p style="margin:10px 0 0"><strong>Empfehlung:</strong> D als Funktion, A als Standard-Ausdruck, B als zweite Druckansicht („kompakt“) per Schalter. C nur, wenn du es nach dem ersten Urlaub vermisst.</p>
+</div>
+
+</div>
+</body>
+</html>
