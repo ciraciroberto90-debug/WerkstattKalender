@@ -3,7 +3,7 @@
 // Download-Fallback greift, wenn das Popup blockiert wird.
 const { chromium } = require('playwright-core');
 const path = require('path');
-const APP = 'file://' + path.resolve('/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+const APP = 'file://' + path.resolve(process.env.APP_PFAD || '/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html'); // APP_PFAD: Rot-Nachweis gegen einen alten Bau
 const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
@@ -78,11 +78,23 @@ const seedTeam = (personName) => {
   {
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     page.on('pageerror', (e) => console.log('PAGEERROR (Planung):', e.message));
+    // Feste Woche (Mo 12.10.2026) mit allem, was eine Person-Tag-Zelle am Bildschirm zeigt:
+    // zugeteilter PitStop, zugeteilter R+I (erledigt), geplante Arbeit, Notiz, To-do mit Von/Bis.
+    // Robertos Vertreter 09.10.: „man kann es drucken, aber die Hälfte fehlt“ - PitStop/R+I und
+    // To-dos fehlten auf dem Blatt (Rot-Nachweis gegen den Bau b9504a2).
+    await page.clock.setFixedTime(new Date('2026-10-12T09:00:00'));
     await page.addInitScript((name) => {
       delete window.showOpenFilePicker; delete window.showSaveFilePicker;
       localStorage.setItem('werkstatt-kalender-config', JSON.stringify({
-        tpmAnlagen: [], riItems: [], team: [{ name, rolle: 'elek' }],
+        tpmAnlagen: [{ id: 'a1', name: 'B3', role: 'takt' }], riItems: [], team: [{ name, rolle: 'elek' }],
       }));
+      localStorage.setItem('werkstatt-kalender-entries', JSON.stringify([
+        { id: 'k1', date: '2026-10-13', category: 'TPM', name: 'B3', status: 'open', wer: name },
+        { id: 'k2', date: '2026-10-14', category: 'RI', name: 'Wasserrundgang', status: 'done', wer: name },
+        { id: 'a1', date: '2026-10-01', category: 'ARBEIT', name: 'Gebäude', status: 'open', note: 'Eingangstüre Zentrale klemmt', wer: name, geplant: '2026-10-13' },
+        { id: 'n1', date: '2026-10-15', category: 'PLANNOTIZ', name, note: 'Kärtchen für Sekundenkleber neu erstellen' },
+        { id: 't1', date: '2026-10-01', category: 'TODO', name: 'Brückentor Flexlift Wartung', status: 'offen', wer: name, von: '2026-10-14', bis: '2026-10-15' },
+      ]));
     }, 'Testperson Planung');
     // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
     // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
@@ -101,6 +113,8 @@ const seedTeam = (personName) => {
     ok('Planung-Druck: Popup-Titel enthält "Planung KW"', titel.includes('Planung KW'));
     ok('Planung-Druck: Team-Person erscheint in der Vorlage', inhalt.includes('Testperson Planung'));
     ok('Planung-Druck: Wartungsplan-Zeile ist enthalten', inhalt.includes('Wartungsplan'));
+    ok('Planung-Druck: zugeteilter PitStop B3 (Di) und erledigter R+I Wasserrundgang (Mi) stehen bei der Person - wie am Bildschirm', /PitStop B3/.test(inhalt) && /✓ R\+I Wasserrundgang/.test(inhalt), inhalt.replace(/\n/g, ' · ').slice(0, 300));
+    ok('Planung-Druck: Arbeit, Notiz und To-do (an beiden Tagen Mi+Do) stehen bei der Person', /Gebäude: Eingangstüre Zentrale klemmt/.test(inhalt) && /📝 Kärtchen für Sekundenkleber/.test(inhalt) && (inhalt.match(/📋 Brückentor Flexlift Wartung/g) || []).length === 2, String((inhalt.match(/📋 Brückentor/g) || []).length));
     // Hochformat und Zeilen-Layout: Der Ausdruck soll aussehen wie der
     // Bildschirm, damit man beim Nebeneinanderlegen nicht umdenken muss.
     const planungHtml = await popup.content();

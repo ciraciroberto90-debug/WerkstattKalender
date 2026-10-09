@@ -9404,9 +9404,17 @@ function App() {
             : chip(`${escapeHtml(a.name)}: ${escapeHtml(a.note || "")}`, a.art === "elek" ? ARBEIT_ART.elek.color : ARBEIT_ART.mech.color, "white"))).join("");
         const notizen = abwesend ? "" : notizenFuer(person, t.key)
           .map((n) => chip(`${n.status === "done" ? "✓" : "📝"} ${escapeHtml(n.note)}`, n.status === "done" ? "#8A9099" : "#8A7A1E", n.status === "done" ? "#F1F2F4" : "#FEF9C3")).join("");
+        // Robertos Vertreter 09.10.: „man kann es drucken, aber die Hälfte fehlt“ - auf dem Blatt
+        // fehlten die der Person ZUGETEILTEN PitStop/R+I-Punkte (am Bildschirm die vielen „PitStop B3“-
+        // Chips) und die To-dos. Jetzt dieselbe Reihenfolge wie am Bildschirm: Zuteilungen, Arbeiten,
+        // Notizen, To-dos.
+        const zuteilungen = abwesend ? "" : kalenderEntries.filter((e) => e.wer === person && e.date === t.key)
+          .map((e) => { const done = e.status === "done"; const c = done ? "#2F7D4F" : planGroupColor(e.name, tpmAnlagen, riItems); return chip(`${done ? "✓ " : ""}${e.uhrzeit ? escapeHtml(e.uhrzeit) + " " : ""}${escapeHtml(CATS[e.category] ? CATS[e.category].label : e.category)} ${escapeHtml(e.name || "")}`, c, done ? "#E5F3EA" : "white"); }).join("");
+        const todoChips = abwesend ? "" : todosFuer(person, t.key)
+          .map((td) => { const done = td.status === "done"; return chip(`${done ? "✓" : "📋"} ${escapeHtml(td.name || "")}`, done ? "#8A9099" : "#2F6690", done ? "#F1F2F4" : "#EEF3F8"); }).join("");
         const inhalt = abwesend
           ? `<span style="color:#A2AAB3;font-size:10px;font-style:italic;">abwesend</span>`
-          : (arbeiten + notizen) || `<span style="color:#C3C7CB;font-size:10px;">–</span>`;
+          : (zuteilungen + arbeiten + notizen + todoChips) || `<span style="color:#C3C7CB;font-size:10px;">–</span>`;
         return `<tr>
           <td style="padding:2px 8px;border-bottom:1px solid #E2E4E7;border-right:2px solid #22262B;white-space:nowrap;font-size:11px;font-weight:700;${abwesend ? "color:#A2AAB3;" : ""}">
             <span style="display:inline-block;width:15px;height:15px;border-radius:50%;background:${rolle.color};color:white;font-weight:800;font-size:8px;text-align:center;line-height:15px;margin-right:6px;">${escapeHtml(personKuerzel(person))}</span>${escapeHtml(person)}</td>
