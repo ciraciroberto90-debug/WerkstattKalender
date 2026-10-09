@@ -819,11 +819,12 @@ Störungen, nicht den Rest.
   PC ab (Name und Zeit stehen dran, live auf allen Rechnern); wird ein To-do,
   eine Arbeit oder eine Störung im Cockpit erledigt, hakt die Mappe von
   selbst ab („automatisch“). **Drucken:** „Mappe“ (A4 hoch) beginnt mit dem
-  Kopf (nur Seite 1), dann je Woche ein Terminblock Montag–Freitag, den die
-  Mappe **selbst aus dem Kalender** holt – PitStop, R+I, Termine, To-dos mit
-  Von/Bis, Arbeiten „geplant für“, Planungs-Notizen; darunter eine Liste der
-  gewählten Punkte ohne festes Datum nach Dringlichkeit, zum freien Verteilen;
-  ganz am Ende „neu dazukam“ und ein Notizfeld. „Kompakt-Checkliste“ ist
+  Kopf (nur Seite 1), dann je Woche eine Tabelle Montag–Sonntag, die die
+  Mappe **selbst aus dem Kalender** holt – nur PitStop, R+I und Termine;
+  darunter „Aufgaben – zum Abhaken“: alle gewählten Punkte je einmal nach
+  Dringlichkeit (Störungen, To-dos mit Frist, hohe Prio, Backlog, Planung,
+  Pinnwand, Notizen), Frist oder Zeitraum als Angabe; ganz am Ende „neu
+  dazukam“ und ein Notizfeld. „Kompakt-Checkliste“ ist
   dieselbe Gliederung mit Kästchen je Tag und Bildern als nummeriertem
   Anhang. Unten „Was während der Vertretung neu dazukam“ als Rückmeldung
   nach dem Urlaub.

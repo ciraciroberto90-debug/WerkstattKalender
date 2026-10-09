@@ -7736,11 +7736,12 @@ function App() {
     const ok = await uebergabeSchreiben({ ...mappe, punkte: [...mappe.punkte, ...neu] });
     if (ok) setUebergabeWahl(null);
   };
-  // Druck (Robertos Vorgabe 09.10., Vorlage A): OBEN die Wochentermine Montag–Freitag, automatisch aus dem
-  // Kalender für den Zeitraum der Mappe (PitStop/R+I, Termine, To-dos mit Von/Bis, Arbeiten mit „geplant
-  // für“, Planungs-Notizen) - nichts davon muss in die Mappe gelegt werden. DARUNTER eine Aufgabenliste
-  // nach Dringlichkeit: die gewählten Punkte ohne festes Datum, zum freien Verteilen. Kopfzeile nur auf
-  // Seite 1, fließender Umbruch (keine erzwungenen Seitenwechsel), Notizfeld ganz am Ende.
+  // Druck (Robertos Vorgabe 09.10., Vorlage A; Nachtrag 10.10. nach dem ersten echten Ausdruck: „To-dos,
+  // Notizen und Backlog einfach nach unten in die Liste, oben eine Tabelle Mo–So nur mit Terminen, PitStop
+  // und R+I - geplant wird eh in der Planung, der Druck ist zum Auflisten und Abhaken“): OBEN je Woche eine
+  // Tabelle Montag–Sonntag, automatisch aus dem Kalender für den Zeitraum der Mappe - NUR PitStop, R+I und
+  // Regel-/Einzeltermine. DARUNTER eine Aufgabenliste nach Dringlichkeit mit ALLEN gewählten Punkten, jeder
+  // genau einmal (Frist/Zeitraum als Angabe). Kopfzeile nur auf Seite 1, fließender Umbruch, Notizfeld am Ende.
   // kompakt = dieselben Daten als Checkliste mit Kästchen an jedem Termin, Bilder als Anhang.
   const uebergabeDrucken = (mappe, kompakt) => {
     const tagKeyVon = (d) => dateKey(d.getFullYear(), d.getMonth(), d.getDate());
@@ -7762,17 +7763,8 @@ function App() {
     const lege = (tag, t) => { if (!istTag(tag) || tag < von || tag > bis) return; if (!termine.has(tag)) termine.set(tag, []); termine.get(tag).push(t); };
     kalenderEntries.forEach((e) => lege(e.date, { kurz: e.category === "TPM" ? "PitStop" : "R+I", klasse: e.category === "TPM" ? "pit" : "ri", text: `${e.name || ""}${e.wer ? " · " + e.wer : ""}`, zeit: e.uhrzeit || "", done: e.status === "done", punkt: null }));
     entries.filter((e) => e.category === "TERMIN").forEach((e) => lege(e.date, { kurz: "Termin", klasse: "term", text: e.name || e.note || "", zeit: e.uhrzeit || "", done: false, punkt: null }));
-    arbeiten.forEach((a) => lege(a.geplant, { kurz: "Arbeit", klasse: "ab", text: `${a.name ? a.name + " · " : ""}${a.note || ""}${a.wer ? " · " + a.wer : ""}`, zeit: a.uhrzeit || "", done: a.status === "done", punkt: punktZu(a.id) }));
-    todos.forEach((t) => {
-      const a = t.von || t.bis, b = t.bis || t.von; if (!istTag(a) || !istTag(b)) return;
-      for (let d = new Date(a + "T12:00:00"); tagKeyVon(d) <= b && tagKeyVon(d) <= bis; d.setDate(d.getDate() + 1)) {
-        const k = tagKeyVon(d);
-        lege(k, { kurz: "To-do", klasse: "td", text: `${t.name || ""}${t.wer ? " · " + t.wer : ""}${a !== b ? (k === a ? " (Beginn)" : k === b ? " (bis)" : " (läuft)") : ""}`, zeit: k === b ? (t.uhrzeit || "") : "", done: t.status === "done", punkt: punktZu(t.id) });
-      }
-    });
-    entries.filter((e) => e.category === "PLANNOTIZ").forEach((n) => lege(n.date, { kurz: "Notiz", klasse: "pn", text: `${n.note || ""}${n.name ? " · " + n.name : ""}`, zeit: "", done: n.status === "done", punkt: punktZu(n.id) }));
     termine.forEach((l) => l.sort((x, y) => String(x.zeit).localeCompare(String(y.zeit)) || x.kurz.localeCompare(y.kurz)));
-    // ---- Wochenblöcke Mo–Fr (Sa/So nur mit Inhalt) ----
+    // ---- Wochenblöcke Montag–Sonntag, alle Tage im Zeitraum ----
     const wochen = [];
     for (let d = new Date(von + "T12:00:00"); tagKeyVon(d) <= bis; d.setDate(d.getDate() + 1)) {
       const k = tagKeyVon(d), wt = d.getDay();
@@ -7780,23 +7772,19 @@ function App() {
       const mk = tagKeyVon(montag);
       let w = wochen.find((x) => x.montag === mk);
       if (!w) { w = { montag: mk, kw: kwVon(montag), tage: [] }; wochen.push(w); }
-      const liste = termine.get(k) || [];
-      if ((wt === 0 || wt === 6) && !liste.length) continue;
-      w.tage.push({ k, wt, liste });
+      w.tage.push({ k, wt, liste: termine.get(k) || [] });
     }
     const chipHtml = (t) => `<span class="chip ${t.klasse}${t.done ? " done" : ""}">${t.done ? "✓ " : ""}${t.zeit ? htmlText(t.zeit) + " " : ""}<b>${htmlText(t.kurz)}</b> ${htmlText(t.text)}</span>${t.punkt ? (kompakt ? (bildNr(t.punkt) ? ` <small>Bild ${bildNr(t.punkt)}</small>` : "") : fotoListeVon(t.punkt).slice(0, 2).map((f) => bild(f, 36)).join("")) : ""}`;
     const zeileText = (t) => `${t.done ? "✓ " : ""}${t.zeit ? t.zeit + " " : ""}${t.kurz} ${t.text}${t.punkt && bildNr(t.punkt) ? ` (Bild ${bildNr(t.punkt)})` : ""}`;
     const terminBlock = wochen.map((w) => {
-      const ende = new Date(w.montag + "T12:00:00"); ende.setDate(ende.getDate() + 4);
-      return `<h4 class="block"><span>Termine KW ${w.kw} · ${kurzDatum(w.montag)} – ${kurzDatum(tagKeyVon(ende))}</span><span>Montag – Freitag</span></h4><table class="tage">${w.tage.map((t) => `<tr${t.wt === 0 || t.wt === 6 ? ' class="we"' : ""}>${kompakt ? `<td class="kz">${kasten(t.liste.length > 0 && t.liste.every((x) => x.done))}</td>` : ""}<td class="tag">${WT[t.wt]} ${kurzDatum(t.k)}</td><td>${t.liste.length ? (kompakt ? t.liste.map(zeileText).map(htmlText).join(" &nbsp;|&nbsp; ") : t.liste.map(chipHtml).join("")) : '<span class="frei">– keine Termine –</span>'}</td></tr>`).join("")}</table>`;
+      const ende = new Date(w.montag + "T12:00:00"); ende.setDate(ende.getDate() + 6);
+      return `<h4 class="block"><span>Termine KW ${w.kw} · ${kurzDatum(w.montag)} – ${kurzDatum(tagKeyVon(ende))}</span><span>PitStop · R+I · Termine</span></h4><table class="tage">${w.tage.map((t) => `<tr${t.wt === 0 || t.wt === 6 ? ' class="we"' : ""}>${kompakt ? `<td class="kz">${kasten(t.liste.length > 0 && t.liste.every((x) => x.done))}</td>` : ""}<td class="tag">${WT[t.wt]} ${kurzDatum(t.k)}</td><td>${t.liste.length ? (kompakt ? t.liste.map(zeileText).map(htmlText).join(" &nbsp;|&nbsp; ") : t.liste.map(chipHtml).join("")) : '<span class="frei">– keine Termine –</span>'}</td></tr>`).join("")}</table>`;
     }).join("");
-    // ---- Sonstige Aufgaben: gewählte Punkte ohne festes Datum im Zeitraum, nach Dringlichkeit ----
-    const imZeitraum = (p) => { const a = p.von || p.bis, b = p.bis || p.von; return istTag(a) && istTag(b) && a <= bis && b >= von; };
-    const imTerminblock = (p) => (p.art === "TODO" || p.art === "PLANNOTIZ" || (p.art === "ARBEIT" && istTag(p.bis))) && imZeitraum(p);
+    // ---- Aufgaben: ALLE gewählten Punkte, jeder genau einmal, nach Dringlichkeit ----
     const rang = (p) => (p.art === "STOERUNG" ? 0 : p.art === "TODO" && p.bis ? 1 : p.prio === "hoch" ? 2 : p.art === "TODO" ? 3 : p.art === "ARBEIT" ? 4 : p.art === "PLANNOTIZ" ? 5 : p.art === "NOTIZ" ? 6 : 7);
-    const aufgaben = mappe.punkte.filter((p) => !imTerminblock(p)).sort((a, b) => rang(a) - rang(b) || String(a.bis || "9").localeCompare(String(b.bis || "9")));
+    const aufgaben = [...mappe.punkte].sort((a, b) => rang(a) - rang(b) || String(a.bis || "9").localeCompare(String(b.bis || "9")));
     const fristText = (p) => (p.von && p.bis && p.von !== p.bis ? `${formatDateDE(p.von)} – ${formatDateDE(p.bis)}` : p.bis ? (istTag(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
-    const wannText = (p) => [p.nr, fristText(p), p.prio === "hoch" ? "hohe Prio" : ""].filter(Boolean).join(" · ");
+    const wannText = (p) => [p.nr, fristText(p), p.art === "PLANNOTIZ" && p.zusatz ? p.zusatz : "", p.prio === "hoch" ? "hohe Prio" : ""].filter(Boolean).join(" · ");
     const aufgabenRows = aufgaben.map((p) => {
       const st = uebergabeStatus(p);
       const nr = kompakt ? bildNr(p) : 0;
@@ -7830,7 +7818,7 @@ function App() {
     </style></head><body>
       <div class="titel"><div><h1>${htmlText(mappe.name)}</h1><small>Übergabe-Mappe${werkstattName ? " " + htmlText(werkstattName) : ""} · ${formatDateDE(von)} – ${formatDateDE(bis)} · Vertreter ${htmlText(mappe.vertreter || "–")} · erstellt ${formatDateDE(mappe.date)} von ${htmlText(mappe.ersteller)} · Stand ${new Date().toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</small></div><div style="text-align:right"><small>${mappe.punkte.length} Punkte · ${offen} offen<br>Erreichbar: ${htmlText(mappe.ersteller)}</small></div></div>
       ${terminBlock || '<div class="frei">Keine Termine im Zeitraum.</div>'}
-      <h4><span>Sonstige Aufgaben – frei über die Wochen verteilen</span><span>${aufgaben.length} · nach Dringlichkeit</span></h4>
+      <h4><span>Aufgaben – zum Abhaken</span><span>${aufgaben.length} · nach Dringlichkeit</span></h4>
       <table class="liste">${aufgabenRows || '<tr><td class="frei">Keine weiteren Punkte in der Mappe.</td></tr>'}</table>
       ${anhangHtml}
       <div class="schluss"><h4><span>Was während der Vertretung neu dazukam</span></h4>${neuListe}<div class="notizfeld"></div>

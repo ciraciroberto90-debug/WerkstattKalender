@@ -205,7 +205,11 @@ const inUebergabe = async (p) => {
 
   /* (4) Automatisch erledigt + (5) Druck + (6) Neu - mit erledigtem Ursprung */
   {
-    const entries2 = entriesStart.map((e) => (e.id === "arb-1" ? { ...e, status: "done", erledigtAm: "2026-10-15" } : e)).concat([mappeStand]);
+    // Kalender im Zeitraum: ein PitStop (Mi 14.10.) und ein erledigter R+I (Mo 19.10.) - nur die gehören in den Terminblock
+    const entries2 = entriesStart.map((e) => (e.id === "arb-1" ? { ...e, status: "done", erledigtAm: "2026-10-15" } : e)).concat([mappeStand,
+      { id: "k1", date: "2026-10-14", category: "TPM", name: "TS480", status: "open", wer: "GG", uhrzeit: "08:00" },
+      { id: "k2", date: "2026-10-19", category: "RI", name: "Wasserrundgang", status: "done", wer: "J" },
+      { id: "k3", date: "2026-10-11", category: "TPM", name: "B2", status: "open" }]);
     const stoer2 = stoerungenStart.map((s) => (s.id === "s-1" ? { ...s, offen: false, behobenAt: "2026-10-16T09:00:00.000Z" } : s));
     const w = await start(browser, { entries: entries2, stoerungen: stoer2 });
     await inUebergabe(w.p);
@@ -226,19 +230,19 @@ const inUebergabe = async (p) => {
     await blatt.waitForTimeout(700);
     const bText = await blatt.locator("body").innerText();
     const bildOk = await blatt.evaluate(() => [...document.querySelectorAll("img")].some((i) => i.naturalWidth > 0));
-    ok("(5) Blatt „Mappe“ (Vorlage A): Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; zwei Terminblöcke KW 42 (Di–Fr, der Zeitraum beginnt Dienstag) und KW 43 (Mo–Fr), Wochenende leer und darum weg; PitStop TS480 am Mo 12.10. liegt VOR dem Zeitraum und fehlt; das To-do (von 12.10. bis 14.10.) steht am 13. „läuft“ und am 14. „bis“, das zweite To-do (bis 16.10.) am Fr 16.10.",
-      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && /KW 42/.test(bText) && /KW 43/.test(bText) && (await blatt.locator("h4.block").count()) === 2 && (await blatt.locator(".tage tr").count()) === 9 && (await blatt.locator(".chip.td").count()) === 3 && /Fr 16\.10\.[^\n]*Prüfprotokoll/.test(bText) && /Ölstand prüfen[^\n]*\(läuft\)/.test(bText) && /Ölstand prüfen[^\n]*\(bis\)/.test(bText) && /Di 13\.10\./.test(bText) && /Fr 23\.10\./.test(bText) && !/Mo 12\.10\./.test(bText) && !/Sa 24\.10\./.test(bText), bText.replace(/\n/g, " · ").slice(0, 1400));
-    ok("(5) Blatt „Mappe“: darunter EINE Aufgabenliste nach Dringlichkeit - fünf Punkte ohne festes Datum (Störung zuerst, dann Backlog hohe Prio, Planungs-Notiz, Zettel, Notiz), das datierte To-do steht NICHT noch einmal; zwei Kästchen angehakt (Störung behoben, Arbeit erledigt); keine Spalte „Bemerkung“",
-      (await blatt.locator(".liste tr").count()) === 5 && (await blatt.locator(".liste .k").count()) === 5 && (await blatt.locator(".liste .k.ok").count()) === 2 && (await blatt.locator(".liste tr").first().innerText()).includes("STÖR") && (await blatt.locator(".liste").innerText()).split("Ölstand").length === 1 && !/Bemerkung/.test(bText), (await blatt.locator(".liste").innerText()).replace(/\n/g, " · ").slice(0, 200));
-    ok("(5) Blatt „Mappe“: das Foto des To-dos hängt klein (36 px) am Termin-Chip und ist geladen; „neu dazukam“ und das Notizfeld stehen EINMAL ganz am Ende", bildOk && (await blatt.locator(".tage img").first().evaluate((i) => i.style.height)) === "36px" && /Kompressor 2 tropft/.test(bText) && (await blatt.locator(".notizfeld").count()) === 1 && await blatt.evaluate(() => { const n = document.querySelector(".notizfeld"); const b = document.body; return !!n && n.getBoundingClientRect().top > [...b.querySelectorAll("table")].pop().getBoundingClientRect().top; }));
+    ok("(5) Blatt „Mappe“ (Vorlage A, Stand 10.10.): Kopf mit Titel, Zeitraum, Vertreter; Terminblöcke KW 42 (Di 13. – So 18.) und KW 43 (Mo 19. – Sa 24.) mit ALLEN Tagen Mo–So, NUR PitStop/R+I/Termine: PitStop TS480 08:00 am Mi 14.10., erledigter R+I am Mo 19.10.; PitStop B2 vom 11.10. liegt vor dem Zeitraum; keine To-do-Chips im Block",
+      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && /KW 42/.test(bText) && /KW 43/.test(bText) && (await blatt.locator("h4.block").count()) === 2 && (await blatt.locator(".tage tr").count()) === 12 && /Mi 14\.10\.[^\n]*08:00[^\n]*PitStop TS480/.test(bText) && /Mo 19\.10\.[^\n]*✓[^\n]*R\+I Wasserrundgang/.test(bText) && !/PitStop B2/.test(bText) && (await blatt.locator(".chip.td").count()) === 0 && (await blatt.locator(".tage tr.we").count()) === 3 && /Di 13\.10\./.test(bText) && /Sa 24\.10\./.test(bText) && !/Mo 12\.10\./.test(bText), bText.replace(/\n/g, " · ").slice(0, 1400));
+    ok("(5) Blatt „Mappe“: darunter EINE Aufgabenliste nach Dringlichkeit mit ALLEN sechs Punkten je einmal (Störung zuerst, dann das To-do mit Zeitraum 12.–14.10., Backlog hohe Prio, Planungs-Notiz mit Person, Zettel, Notiz); zwei Kästchen angehakt; keine Spalte „Bemerkung“",
+      (await blatt.locator(".liste tr").count()) === 6 && (await blatt.locator(".liste .k").count()) === 6 && (await blatt.locator(".liste .k.ok").count()) === 2 && (await blatt.locator(".liste tr").first().innerText()).includes("STÖR") && (await blatt.locator(".liste tr").nth(1).innerText()).includes("Ölstand") && /12\.10\.2026 – 14\.10\.2026/.test(await blatt.locator(".liste").innerText()) && /T Balles/.test(await blatt.locator(".liste").innerText()) && !/Bemerkung/.test(bText), (await blatt.locator(".liste").innerText()).replace(/\n/g, " · ").slice(0, 200));
+    ok("(5) Blatt „Mappe“: das Foto des To-dos steht klein (48 px) in der Aufgabenzeile und ist geladen; „neu dazukam“ und das Notizfeld stehen EINMAL ganz am Ende", bildOk && (await blatt.locator(".liste img").first().evaluate((i) => i.style.height)) === "48px" && /Kompressor 2 tropft/.test(bText) && (await blatt.locator(".notizfeld").count()) === 1 && await blatt.evaluate(() => { const n = document.querySelector(".notizfeld"); const b = document.body; return !!n && n.getBoundingClientRect().top > [...b.querySelectorAll("table")].pop().getBoundingClientRect().top; }));
     await blatt.close();
 
     /* (5) Druck kompakt */
     const [blatt2] = await Promise.all([w.p.waitForEvent("popup"), w.p.locator('[data-uebergabe-drucken="kompakt"]').click()]);
     await blatt2.waitForTimeout(700);
     const kText = await blatt2.locator("body").innerText();
-    ok("(5) Blatt „kompakt“: Terminblock mit Kästchen je Tag (9 Tage) und „(Bild 1)“ am To-do, darunter fünf Aufgabenzeilen mit Kürzeln STÖR/BACK/PLAN/ZETTEL/NOTIZ, Anhang mit Bild 1, zwei Kästchen angehakt",
-      (await blatt2.locator(".tage tr").count()) === 9 && (await blatt2.locator(".tage .k").count()) === 9 && /\(Bild 1\)/.test(kText) && (await blatt2.locator(".liste tr").count()) === 5 && /STÖR/.test(kText) && /BACK/.test(kText) && /PLAN/.test(kText) && /ZETTEL/.test(kText) && /NOTIZ/.test(kText) && (await blatt2.locator(".anhang img").count()) === 1 && (await blatt2.locator(".liste .k.ok").count()) === 2, kText.replace(/\n/g, " · ").slice(0, 220));
+    ok("(5) Blatt „kompakt“: Terminblock Mo–So mit Kästchen je Tag (12 Tage), darunter sechs Aufgabenzeilen mit Kürzeln STÖR/TODO/BACK/PLAN/ZETTEL/NOTIZ, „Bild 1“ am To-do und Anhang mit Bild 1, zwei Kästchen angehakt",
+      (await blatt2.locator(".tage tr").count()) === 12 && (await blatt2.locator(".tage .k").count()) === 12 && (await blatt2.locator(".liste tr").count()) === 6 && /STÖR/.test(kText) && /TODO/.test(kText) && /BACK/.test(kText) && /PLAN/.test(kText) && /ZETTEL/.test(kText) && /NOTIZ/.test(kText) && /Bild 1/.test(await blatt2.locator(".liste").innerText()) && (await blatt2.locator(".anhang img").count()) === 1 && (await blatt2.locator(".liste .k.ok").count()) === 2, kText.replace(/\n/g, " · ").slice(0, 220));
     await blatt2.close();
     ok("(4-6) Keine Skriptfehler", w.fehler.length === 0, w.fehler.slice(0, 2).join(" | "));
     await w.ctx.close();
