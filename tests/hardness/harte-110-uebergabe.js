@@ -34,7 +34,7 @@ const HEUTE = "2026-10-09";
 
 const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }, { id: "a2", name: "B2", role: "takt" }], riItems: [], team: [{ name: "A. Richter", rolle: "mech" }, { name: "T Balles", rolle: "mech" }] }; // Team wie im Zahnrad: name + rolle
 const entriesStart = [
-  { id: "todo-1", date: HEUTE, category: "TODO", name: "Ölstand prüfen, DTE 25 nachfüllen", status: "offen", bis: "2026-10-14", bemerkung: "Anlage VSM1", fotos: [{ datei: "foto-todo.jpg", wer: "RC", ts: "2026-10-08T06:00:00.000Z" }] },
+  { id: "todo-1", date: HEUTE, category: "TODO", name: "Ölstand prüfen, DTE 25 nachfüllen", status: "offen", von: "2026-10-12", bis: "2026-10-14", bemerkung: "Anlage VSM1", fotos: [{ datei: "foto-todo.jpg", wer: "RC", ts: "2026-10-08T06:00:00.000Z" }] },
   { id: "todo-2", date: HEUTE, category: "TODO", name: "Prüfprotokoll Hebebühne an BG", status: "offen", bis: "2026-10-16" },
   { id: "arb-1", date: HEUTE, category: "ARBEIT", name: "OF320", status: "open", note: "Brennerdüsen tauschen (Teile Schrank 2)", prio: "hoch", geplant: "KW 42" },
   { id: "notiz-1", date: HEUTE, category: "NOTIZ", name: "R. Ciraci", status: "open", note: "Lieferung Hansa annehmen, Lieferschein Ordner Einkauf", zeit: "2026-10-09T07:00:00.000Z", farbe: "gelb", sichtbar: "verwalter", konto: "R. Ciraci" },
@@ -138,7 +138,7 @@ const inUebergabe = async (p) => {
   const pk = (k) => (m2 ? m2.punkte.find((x) => x.key === k) : null);
   ok("(2) Fünf Punkte als Schnappschuss in der Datei: Störung mit Nr 412, Anlage TS480, Text + „Noch zu tun“; To-do mit Frist und Foto-Verweis; Backlog mit Anlage OF320, KW 42, „hohe Prio“; Planungs-Notiz mit Person T Balles und Tag; Zettel-Text",
     !!m2 && m2.punkte.length === 5 && pk("PLANNOTIZ:pn-1").zusatz === "T Balles" && pk("PLANNOTIZ:pn-1").bis === HEUTE && /Treppenhaus 1/.test(pk("PLANNOTIZ:pn-1").text) && pk("STOERUNG:s-1").nr === "412" && pk("STOERUNG:s-1").anlage === "TS480" && /Leck Hydraulik/.test(pk("STOERUNG:s-1").text) && /Noch zu tun: Schlauch/.test(pk("STOERUNG:s-1").text)
-    && pk("TODO:todo-1").bis === "2026-10-14" && pk("TODO:todo-1").fotos.length === 1 && pk("TODO:todo-1").fotos[0].datei === "foto-todo.jpg"
+    && pk("TODO:todo-1").von === "2026-10-12" && pk("TODO:todo-1").bis === "2026-10-14" && pk("TODO:todo-1").fotos.length === 1 && pk("TODO:todo-1").fotos[0].datei === "foto-todo.jpg"
     && pk("ARBEIT:arb-1").anlage === "OF320" && pk("ARBEIT:arb-1").bis === "KW 42" && pk("ARBEIT:arb-1").zusatz === "hohe Prio" && /Lieferung Hansa/.test(pk("NOTIZ:notiz-1").text),
     JSON.stringify(m2 && m2.punkte.map((x) => x.key)));
   await p.waitForFunction(() => { const i = document.querySelector("[data-uebergabe-bild]"); return !!i && i.naturalWidth > 0; }, null, { timeout: 8000 }).catch(() => {});
@@ -186,8 +186,8 @@ const inUebergabe = async (p) => {
     await blatt.waitForTimeout(700);
     const bText = await blatt.locator("body").innerText();
     const bildOk = await blatt.evaluate(() => [...document.querySelectorAll("img")].some((i) => i.naturalWidth > 0));
-    ok("(5) Blatt „Mappe“: Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; sechs Abschnitte; sechs Kästchen, zwei angehakt; Planungs-Notiz mit Person; keine Spalte „Bemerkung“",
-      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && (await blatt.locator("h4").count()) >= 6 && (await blatt.locator(".k").count()) === 6 && (await blatt.locator(".k.ok").count()) === 2 && /T Balles/.test(bText) && !/Bemerkung/.test(bText), bText.replace(/\n/g, " · ").slice(0, 200));
+    ok("(5) Blatt „Mappe“: Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; sechs Abschnitte; sechs Kästchen, zwei angehakt; Planungs-Notiz mit Person; To-do mit Zeitraum von – bis; keine Spalte „Bemerkung“",
+      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && (await blatt.locator("h4").count()) >= 6 && (await blatt.locator(".k").count()) === 6 && (await blatt.locator(".k.ok").count()) === 2 && /T Balles/.test(bText) && /12\.10\.2026 – 14\.10\.2026/.test(bText) && !/Bemerkung/.test(bText), bText.replace(/\n/g, " · ").slice(0, 200));
     ok("(5) Blatt „Mappe“: das Foto ist als Bild geladen (größer, 90 px hoch) und der neue Punkt steht unter „neu dazukam“", bildOk && (await blatt.locator("img").first().evaluate((i) => i.style.height)) === "90px" && /Kompressor 2 tropft/.test(bText));
     await blatt.close();
 
@@ -216,12 +216,18 @@ const inUebergabe = async (p) => {
     await w.p.waitForTimeout(400);
     // Vorbelegung steckt in den Feldwerten (value), nicht im sichtbaren Text
     const vorbelegt = await w.p.evaluate(() => [...document.querySelectorAll("input, textarea, select")].map((i) => i.value).filter(Boolean));
-    ok("(7) Der To-do-Dialog öffnet sich vorbelegt: Text als Titel, T Balles als Zuständiger, Frist 09.10.2026, Bemerkung nennt die Notiz", vorbelegt.some((v) => /^Treppenhaus 1 \(Zentrale\) Griffe/.test(v)) && vorbelegt.includes("T Balles") && vorbelegt.includes("2026-10-09") && vorbelegt.some((v) => /aus der Planungs-Notiz vom 09\.10\.2026/.test(v)), JSON.stringify(vorbelegt).slice(0, 200));
+    ok("(7) Der To-do-Dialog öffnet sich vorbelegt: Text als Titel, T Balles als Zuständiger, Von und Bis = 09.10.2026, Bemerkung nennt die Notiz", vorbelegt.some((v) => /^Treppenhaus 1 \(Zentrale\) Griffe/.test(v)) && vorbelegt.includes("T Balles") && vorbelegt.filter((v) => v === "2026-10-09").length === 2 && vorbelegt.some((v) => /aus der Planungs-Notiz vom 09\.10\.2026/.test(v)), JSON.stringify(vorbelegt).slice(0, 200));
+    // Mehrtägig (Roberto 09.10.): Bis auf den 11.10. setzen
+    await w.p.locator('input[aria-label="Bis wann"]').fill("2026-10-11");
     await w.p.getByRole("button", { name: "Speichern", exact: true }).first().click();
     await w.p.waitForTimeout(600);
     const alle = await gespeichert(w.p);
     const todo = alle.find((e) => e.category === "TODO" && /Treppenhaus 1/.test(e.name));
-    ok("(7) Speichern: neues To-do mit Text, wer T Balles, bis 09.10.2026, offen - die Planungs-Notiz bleibt stehen", !!todo && todo.wer === "T Balles" && todo.bis === "2026-10-09" && todo.status === "offen" && alle.some((e) => e.id === "pn-1"), JSON.stringify(todo && { name: todo.name, wer: todo.wer, bis: todo.bis }));
+    ok("(7) Speichern: neues To-do mit Text, wer T Balles, von 09.10. bis 11.10.2026 (mehrtägig), offen - die Planungs-Notiz bleibt stehen", !!todo && todo.wer === "T Balles" && todo.von === "2026-10-09" && todo.bis === "2026-10-11" && todo.status === "offen" && alle.some((e) => e.id === "pn-1"), JSON.stringify(todo && { name: todo.name, wer: todo.wer, von: todo.von, bis: todo.bis }));
+    await w.p.locator('button[data-hauptbereich="BERICHTE"]').click(); await w.p.waitForTimeout(300);
+    await w.p.getByRole("button", { name: /^To-do$/ }).first().click(); await w.p.waitForTimeout(400);
+    const listeText = await w.p.locator("body").innerText();
+    ok("(7) Die To-do-Liste zeigt den Zeitraum „09.10.2026 – 11.10.2026“ statt nur „bis“", /09\.10\.2026 – 11\.10\.2026/.test(listeText), (listeText.match(/[^\n]*Treppenhaus[^\n]*/) || [""])[0].slice(0, 120));
     ok("(7) Keine Skriptfehler", w.fehler.length === 0, w.fehler.slice(0, 2).join(" | "));
     await w.ctx.close();
   }

@@ -824,7 +824,11 @@ Störungen, nicht den Rest.
   Rechte-Schlüssel UEBERGABE (Bearbeiter: bearbeiten, Leser: ansehen).
   **Notiz → To-do:** Im Notiz-Dialog der Planung öffnet „To-do daraus
   erstellen“ den To-do-Dialog schon ausgefüllt (Text, Person als Zuständiger,
-  Tag als Frist); die Notiz bleibt in der Planung stehen.
+  Tag als Von und Bis); die Notiz bleibt in der Planung stehen.
+- **To-do von – bis (seit dem 09.10.):** Ein To-do kann einen Zeitraum
+  tragen („Von – bis wann“), weil manche Aufgaben mehrere Tage dauern. Die
+  Liste zeigt dann „12.10.2026 – 14.10.2026“; ohne Von bleibt es bei „bis“.
+  Überfällig und Vorwarnung richten sich weiter nach dem Bis-Tag.
 - **Aufnahme (seit dem 06.10., eigener Hauptbereich):** Bilder vom Handy und
   aus einem Ordner des PCs landen in **einem Eingangskorb** und werden von dort
   mit einem Griff in sechs Ziele sortiert: **Arbeit → Backlog**, **To-do**,

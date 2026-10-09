@@ -6363,13 +6363,13 @@ function App() {
   const todoUeberfaellige = todoOffene.filter(todoIstUeberfaellig);
   const todoNeu = () => {
     setTodoFehler(null);
-    setTodoModal({ titel: "", wer: "", bis: "", uhrzeit: "", prio: "", bemerkung: "", fotos: [], fotosNeu: [], fotosWeg: [] });
+    setTodoModal({ titel: "", wer: "", von: "", bis: "", uhrzeit: "", prio: "", bemerkung: "", fotos: [], fotosNeu: [], fotosWeg: [] });
   };
   const todoBearbeiten = (t) => {
     setTodoFehler(null);
     // Fotos (Roberto 07.10.: „beim Anklicken des To-dos wird das Bild nicht angezeigt") -
     // derselbe Foto-Bereich wie bei Arbeit und Störung: ansehen, anhängen, entfernen.
-    setTodoModal({ id: t.id, titel: t.name || "", wer: t.wer || "", bis: t.bis || "", uhrzeit: t.uhrzeit || "", prio: t.prio || "", bemerkung: t.bemerkung || "", fotos: fotoListeVon(t), fotosNeu: [], fotosWeg: [] });
+    setTodoModal({ id: t.id, titel: t.name || "", wer: t.wer || "", von: t.von || "", bis: t.bis || "", uhrzeit: t.uhrzeit || "", prio: t.prio || "", bemerkung: t.bemerkung || "", fotos: fotoListeVon(t), fotosNeu: [], fotosWeg: [] });
   };
   const todoSpeichern = async () => {
     const m = todoModal;
@@ -6389,7 +6389,7 @@ function App() {
       id: m.id || `todo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       category: "TODO", name: String(m.titel).trim(),
       date: alt ? alt.date : todayKey, // erteilt am
-      wer: String(m.wer || "").trim(), bis: m.bis || "", uhrzeit: m.uhrzeit || "", prio: m.prio || "",
+      wer: String(m.wer || "").trim(), von: m.von || "", bis: m.bis || "", uhrzeit: m.uhrzeit || "", prio: m.prio || "",
       bemerkung: String(m.bemerkung || "").trim(),
       erteiltVon: alt ? (alt.erteiltVon || "") : (angemeldet || ""),
       status: alt ? alt.status : "offen",
@@ -7670,7 +7670,7 @@ function App() {
   const uebergabePunktAus = (art, o) => {
     const basis = { key: `${art}:${o.id}`, art, refId: o.id, erledigt: null, fotos: fotoListeVon(o) };
     if (art === "STOERUNG") return { ...basis, nr: stoerNrLang(o), anlage: o.anlage || "", text: [o.stoerung, o.nochZuTun ? "Noch zu tun: " + o.nochZuTun : ""].filter(Boolean).join(" · "), bis: "" };
-    if (art === "TODO") return { ...basis, nr: "", anlage: "", text: o.name || "", bis: o.bis || "", zusatz: o.bemerkung || "" };
+    if (art === "TODO") return { ...basis, nr: "", anlage: "", text: o.name || "", von: o.von || "", bis: o.bis || "", zusatz: o.bemerkung || "" };
     if (art === "ARBEIT") return { ...basis, nr: "", anlage: o.name || "", text: o.note || "", bis: o.geplant || "", zusatz: o.prio === "hoch" ? "hohe Prio" : "" };
     if (art === "PLANNOTIZ") return { ...basis, nr: "", anlage: "", text: o.note || "", bis: o.date || "", zusatz: o.name || "" };
     return { ...basis, nr: "", anlage: "", text: o.note || "", bis: "" };
@@ -7728,7 +7728,7 @@ function App() {
     const zeitraum = [mappe.von ? formatDateDE(mappe.von) : "", mappe.bis ? formatDateDE(mappe.bis) : ""].filter(Boolean).join(" – ");
     const bild = (f, h) => { const u = fotoUrl(f.datei); return u ? `<img src="${u}" style="height:${h}px;max-width:${Math.round(h * 1.5)}px;object-fit:cover;border-radius:4px;margin:0 4px 4px 0">` : ""; };
     const kasten = (fertig) => `<span class="k${fertig ? " ok" : ""}"></span>`;
-    const fristText = (p) => (p.bis ? (/^\d{4}-\d{2}-\d{2}$/.test(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
+    const fristText = (p) => (p.von && p.bis && p.von !== p.bis ? `${formatDateDE(p.von)} – ${formatDateDE(p.bis)}` : p.bis ? (/^\d{4}-\d{2}-\d{2}$/.test(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
     let anhang = [], nr = 0;
     const zeilenA = UEBERGABE_REIHE.map((art) => {
       const liste = mappe.punkte.filter((p) => p.art === art); if (!liste.length) return "";
@@ -7745,7 +7745,8 @@ function App() {
     const neuListe = (mappe.neu || []).length ? `<ul>${mappe.neu.map((n) => `<li>${htmlText(n.text)} <small>(${htmlText(n.wer)} ${n.am ? formatDateDE(String(n.am).slice(0, 10)) : ""})</small></li>`).join("")}</ul>` : `<div class="frei"></div>`;
     const offen = mappe.punkte.filter((p) => !uebergabeStatus(p)).length;
     const html = `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${htmlText(mappe.name)}</title><style>
-      @page { size: A4 portrait; margin: 12mm; } ${DRUCK_FARBTREUE}
+      @page { size: A4 portrait; margin: 12mm; }
+      ${DRUCK_FARBTREUE}
       body { font-family: "Segoe UI", system-ui, sans-serif; color: #22262B; font-size: ${kompakt ? "11.5px" : "12.5px"}; margin: 0; }
       .titel { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #22262B; padding-bottom:6px; margin-bottom:8px; }
       h1 { margin:0; font-size:18px; } small { color:#8A9099; } .meta { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px 16px; margin-bottom:10px; font-size:12px; }
@@ -11831,7 +11832,7 @@ function App() {
         const m = uebergabeAktiv;
         const punkteMit = m ? m.punkte.map((p) => ({ ...p, st: uebergabeStatus(p) })) : [];
         const erledigtZahl = punkteMit.filter((p) => p.st).length;
-        const fristText = (p) => (p.bis ? (/^\d{4}-\d{2}-\d{2}$/.test(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
+        const fristText = (p) => (p.von && p.bis && p.von !== p.bis ? `${formatDateDE(p.von)} – ${formatDateDE(p.bis)}` : p.bis ? (/^\d{4}-\d{2}-\d{2}$/.test(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
         const eingabe = { borderColor: "#D7DCE1" };
         return (
           <div className="p-5" data-uebergabe>
@@ -12013,7 +12014,7 @@ function App() {
               {t.prio && (
                 <span className="rounded-full font-black uppercase" style={{ fontSize: "0.6rem", padding: "3px 8px", backgroundColor: t.prio === "hoch" ? "#FBEAE8" : "#FBF3DA", color: t.prio === "hoch" ? "#C0392B" : "#9A6B00" }}>{t.prio}</span>
               )}
-              {t.bis && <span className="font-mono text-xs font-bold" title={todoBaldFaellig(t) ? "Frist rückt näher (Vorwarnung aus ⚙ Regeln & Listen)" : undefined} style={{ color: todoIstUeberfaellig(t) ? "#C0392B" : todoBaldFaellig(t) ? "#C97A2B" : "#5B6572" }}>{todoBaldFaellig(t) ? "⏳ " : ""}bis {formatDateDE(t.bis)}</span>}
+              {(t.bis || t.von) && <span className="font-mono text-xs font-bold" title={todoBaldFaellig(t) ? "Frist rückt näher (Vorwarnung aus ⚙ Regeln & Listen)" : undefined} style={{ color: todoIstUeberfaellig(t) ? "#C0392B" : todoBaldFaellig(t) ? "#C97A2B" : "#5B6572" }}>{todoBaldFaellig(t) ? "⏳ " : ""}{t.von && t.bis && t.von !== t.bis ? `${formatDateDE(t.von)} – ${formatDateDE(t.bis)}` : t.bis ? `bis ${formatDateDE(t.bis)}` : `ab ${formatDateDE(t.von)}`}</span>}
               {t.wer && (
                 <span className="flex items-center justify-center rounded-full text-white font-black" style={{ width: "28px", height: "28px", fontSize: "0.62rem", backgroundColor: "#2F6690" }} title={t.wer}>{initialen(t.wer)}</span>
               )}
@@ -12087,9 +12088,12 @@ function App() {
                   {team.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
                 </select>
               </label>
-              <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Bis wann
+              <label className="text-xs font-bold" style={{ color: "#5B6572" }}>Von – bis wann
                 <div className="flex gap-1.5 mt-1">
-                  <input type="date" value={todoModal.bis} onChange={(e) => setTodoModal((m) => ({ ...m, bis: e.target.value }))} aria-label="Bis wann"
+                  {/* Von (Roberto 09.10.): To-dos können mehrere Tage dauern - leer = nur eine Frist */}
+                  <input type="date" value={todoModal.von || ""} onChange={(e) => setTodoModal((m) => ({ ...m, von: e.target.value, ...(m.bis && e.target.value && m.bis < e.target.value ? { bis: e.target.value } : {}) }))} aria-label="Von wann"
+                    title="Beginn (leer = nur eine Frist)" className="flex-1 text-sm border rounded px-2 py-1.5 font-normal" style={{ borderColor: "#D6D9DC", minWidth: 0 }} />
+                  <input type="date" value={todoModal.bis} min={todoModal.von || undefined} onChange={(e) => setTodoModal((m) => ({ ...m, bis: e.target.value }))} aria-label="Bis wann"
                     className="flex-1 text-sm border rounded px-2 py-1.5 font-normal" style={{ borderColor: "#D6D9DC", minWidth: 0 }} />
                   {/* Uhrzeit (05.10.): Platz im Tagesplan des Frist-Tages - leer = ganztags */}
                   <input type="time" value={todoModal.uhrzeit || ""} onChange={(e) => setTodoModal((m) => ({ ...m, uhrzeit: e.target.value }))} aria-label="Uhrzeit"
@@ -15145,7 +15149,7 @@ function App() {
                 onClick={() => {
                   const text = String(planNotiz.text || "").trim();
                   setTodoFehler(null);
-                  setTodoModal({ titel: text, wer: planNotiz.person || "", bis: planNotiz.datum || "", uhrzeit: "", prio: "", bemerkung: `aus der Planungs-Notiz vom ${formatDateDE(planNotiz.datum)}`, fotos: [], fotosNeu: [], fotosWeg: [] });
+                  setTodoModal({ titel: text, wer: planNotiz.person || "", von: planNotiz.datum || "", bis: planNotiz.datum || "", uhrzeit: "", prio: "", bemerkung: `aus der Planungs-Notiz vom ${formatDateDE(planNotiz.datum)}`, fotos: [], fotosNeu: [], fotosWeg: [] });
                   setPlanNotiz(null);
                 }}
                 data-notiz-todo
