@@ -1250,10 +1250,12 @@ const UEBERGABE_ARTEN = {
   STOERUNG: { label: "Offene Störungen", kurz: "STÖR", farbe: "#C0392B" },
   TODO: { label: "To-dos", kurz: "TODO", farbe: "#2F6690" },
   ARBEIT: { label: "Backlog – geplante Arbeiten", kurz: "BACK", farbe: "#C97A2B" },
+  // Planungs-Notizen (Roberto 09.10.: „sonst muss ich es doppelt schreiben“) - Person und Tag aus der Planung
+  PLANNOTIZ: { label: "Notizen aus der Planung", kurz: "PLAN", farbe: "#9A6B00" },
   NOTIZ: { label: "Pinnwand-Zettel", kurz: "ZETTEL", farbe: "#6B5B95" },
   FREI: { label: "Notizen – bitte eintragen / beachten", kurz: "NOTIZ", farbe: "#4B5259" },
 };
-const UEBERGABE_REIHE = ["STOERUNG", "TODO", "ARBEIT", "NOTIZ", "FREI"];
+const UEBERGABE_REIHE = ["STOERUNG", "TODO", "ARBEIT", "PLANNOTIZ", "NOTIZ", "FREI"];
 const htmlText = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 /* ---------- Reiter „Aufnahme" (Roll-out 61, Robertos Freigabe 06.10.) ----------
@@ -7670,6 +7672,7 @@ function App() {
     if (art === "STOERUNG") return { ...basis, nr: stoerNrLang(o), anlage: o.anlage || "", text: [o.stoerung, o.nochZuTun ? "Noch zu tun: " + o.nochZuTun : ""].filter(Boolean).join(" · "), bis: "" };
     if (art === "TODO") return { ...basis, nr: "", anlage: "", text: o.name || "", bis: o.bis || "", zusatz: o.bemerkung || "" };
     if (art === "ARBEIT") return { ...basis, nr: "", anlage: o.name || "", text: o.note || "", bis: o.geplant || "", zusatz: o.prio === "hoch" ? "hohe Prio" : "" };
+    if (art === "PLANNOTIZ") return { ...basis, nr: "", anlage: "", text: o.note || "", bis: o.date || "", zusatz: o.name || "" };
     return { ...basis, nr: "", anlage: "", text: o.note || "", bis: "" };
   };
   // Erledigt? Von Hand abgehakt - oder der Ursprung ist im Cockpit erledigt (dann automatisch)
@@ -7710,6 +7713,8 @@ function App() {
     ...stoerungen.filter((x) => x.offen).map((x) => uebergabePunktAus("STOERUNG", x)),
     ...todoOffene.map((x) => uebergabePunktAus("TODO", x)),
     ...arbeitenOffen.map((x) => uebergabePunktAus("ARBEIT", x)),
+    // Planungs-Notizen von heute an (Vergangenes gehört nicht in die Übergabe), nach Tag und Person
+    ...entries.filter((e) => e.category === "PLANNOTIZ" && e.date >= todayKey && e.status !== "done").sort((a, b) => a.date.localeCompare(b.date) || String(a.name).localeCompare(String(b.name))).map((x) => uebergabePunktAus("PLANNOTIZ", x)),
     ...entries.filter((e) => e.category === "NOTIZ").map((x) => uebergabePunktAus("NOTIZ", x)),
   ];
   const uebergabeWahlUebernehmen = async (mappe) => {
@@ -15132,6 +15137,23 @@ function App() {
               )}
               <button onClick={() => setPlanNotiz(null)} className="rounded px-3 py-2 text-sm font-bold" style={{ backgroundColor: "#F4F5F6", color: "#8A9099" }}>Abbrechen</button>
             </div>
+            {/* Roberto 09.10.: „eine Notiz anklicken und daraus einen To-do-Punkt erstellen“ - der
+                To-do-Dialog öffnet sich vorbelegt (Text, Person als Zuständiger, Tag als Frist);
+                die Notiz bleibt in der Planung stehen, bis man sie bewusst löscht. */}
+            {planNotiz.art !== "SCHICHT" && !readerMode && String(planNotiz.text || "").trim() && (
+              <button
+                onClick={() => {
+                  const text = String(planNotiz.text || "").trim();
+                  setTodoFehler(null);
+                  setTodoModal({ titel: text, wer: planNotiz.person || "", bis: planNotiz.datum || "", uhrzeit: "", prio: "", bemerkung: `aus der Planungs-Notiz vom ${formatDateDE(planNotiz.datum)}`, fotos: [], fotosNeu: [], fotosWeg: [] });
+                  setPlanNotiz(null);
+                }}
+                data-notiz-todo
+                className="w-full rounded px-3 py-2 text-sm font-bold mt-2"
+                style={{ backgroundColor: "#EEF3F8", color: "#2F6690", border: "1px solid #CFDCE8" }}
+                title="Öffnet ein neues To-do mit diesem Text, der Person als Zuständigem und dem Tag als Frist"
+              >📋 To-do daraus erstellen</button>
+            )}
           </ZiehbareKarte>
         </div>
       )}

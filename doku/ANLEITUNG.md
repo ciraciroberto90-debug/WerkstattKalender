@@ -811,7 +811,8 @@ Störungen, nicht den Rest.
 - **Backlog:** offene Arbeiten mit Gewerk, Priorität, Anlage, Zuständigem; filter- und durchsuchbar.
 - **Übergabe (seit dem 09.10., Roll-out 69) – die Mappe für die Vertretung:**
   „Neue Mappe“ mit Titel, Zeitraum und Vertreter; „Punkte wählen“ zeigt alles
-  Offene aus Störungen, To-do, Backlog und Pinnwand zum Ankreuzen, „+ Notiz“
+  Offene aus Störungen, To-do, Backlog, **Planungs-Notizen ab heute** (mit
+  Person und Tag) und Pinnwand zum Ankreuzen, „+ Notiz“
   ergänzt freie Hinweise („Zählerstände montags eintragen“). Jeder Punkt ist
   ein Schnappschuss mit Text, Anlage, Frist und Foto. Der Vertreter hakt am
   PC ab (Name und Zeit stehen dran, live auf allen Rechnern); wird ein To-do,
@@ -821,6 +822,9 @@ Störungen, nicht den Rest.
   Bilder als nummerierter Anhang) – beides aus derselben Mappe. Unten „Was
   während der Vertretung neu dazukam“ als Rückmeldung nach dem Urlaub.
   Rechte-Schlüssel UEBERGABE (Bearbeiter: bearbeiten, Leser: ansehen).
+  **Notiz → To-do:** Im Notiz-Dialog der Planung öffnet „To-do daraus
+  erstellen“ den To-do-Dialog schon ausgefüllt (Text, Person als Zuständiger,
+  Tag als Frist); die Notiz bleibt in der Planung stehen.
 - **Aufnahme (seit dem 06.10., eigener Hauptbereich):** Bilder vom Handy und
   aus einem Ordner des PCs landen in **einem Eingangskorb** und werden von dort
   mit einem Griff in sechs Ziele sortiert: **Arbeit → Backlog**, **To-do**,

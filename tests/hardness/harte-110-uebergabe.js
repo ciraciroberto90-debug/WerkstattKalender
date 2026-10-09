@@ -17,6 +17,11 @@
 //       (angehakt wo erledigt), Bilder geladen, keine Bemerkungsspalte.
 //       Drucken „kompakt“: eine Zeile je Punkt, Bilder als nummerierter Anhang.
 //   (6) Neu während der Vertretung: Zeile landet in der Datei und auf dem Blatt.
+//   (7) Planungs-Notizen (Roberto 09.10.: „sonst muss ich es doppelt schreiben“):
+//       die Auswahl bietet die Notizen ab heute mit Person und Tag; im Notiz-
+//       Dialog der Planung öffnet „To-do daraus erstellen“ den To-do-Dialog
+//       vorbelegt (Text, Person, Frist) - Speichern legt das To-do an, die
+//       Notiz bleibt.
 // Rot-Nachweis: gegen den Bau vor dem 09.10. (APP_PFAD) gibt es keine Kachel
 // „Übergabe“ - (1) und alles danach ist rot.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
@@ -27,12 +32,15 @@ const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (
 const JETZT = new Date("2026-10-09T10:00:00");
 const HEUTE = "2026-10-09";
 
-const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }, { id: "a2", name: "B2", role: "takt" }], riItems: [], team: [{ id: "t1", name: "A. Richter", gewerk: "mech" }] };
+const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }, { id: "a2", name: "B2", role: "takt" }], riItems: [], team: [{ name: "A. Richter", rolle: "mech" }, { name: "T Balles", rolle: "mech" }] }; // Team wie im Zahnrad: name + rolle
 const entriesStart = [
   { id: "todo-1", date: HEUTE, category: "TODO", name: "Ölstand prüfen, DTE 25 nachfüllen", status: "offen", bis: "2026-10-14", bemerkung: "Anlage VSM1", fotos: [{ datei: "foto-todo.jpg", wer: "RC", ts: "2026-10-08T06:00:00.000Z" }] },
   { id: "todo-2", date: HEUTE, category: "TODO", name: "Prüfprotokoll Hebebühne an BG", status: "offen", bis: "2026-10-16" },
   { id: "arb-1", date: HEUTE, category: "ARBEIT", name: "OF320", status: "open", note: "Brennerdüsen tauschen (Teile Schrank 2)", prio: "hoch", geplant: "KW 42" },
   { id: "notiz-1", date: HEUTE, category: "NOTIZ", name: "R. Ciraci", status: "open", note: "Lieferung Hansa annehmen, Lieferschein Ordner Einkauf", zeit: "2026-10-09T07:00:00.000Z", farbe: "gelb", sichtbar: "verwalter", konto: "R. Ciraci" },
+  // Planungs-Notizen: eine von heute (T Balles), eine von gestern (gehört nicht in die Übergabe)
+  { id: "pn-1", date: HEUTE, category: "PLANNOTIZ", name: "T Balles", note: "Treppenhaus 1 (Zentrale) Griffe hängen teilweise an jeder Türe", verfasser: "R. Ciraci" },
+  { id: "pn-alt", date: "2026-10-08", category: "PLANNOTIZ", name: "T Balles", note: "gestern erledigt", verfasser: "R. Ciraci" },
 ];
 const stoerungenStart = [
   { id: "s-1", nr: 412, date: HEUTE, schicht: "Früh", anlage: "TS480", stoerung: "Leck Hydraulik, Pfütze unter Aggregat", nochZuTun: "Schlauch kommt Do., Einbau mit Hansa", offen: true, ausfallzeit: 45, melder: "T. Balles", gemeldetAt: HEUTE + "T06:10:00.000Z" },
@@ -122,35 +130,35 @@ const inUebergabe = async (p) => {
   await p.locator("[data-uebergabe-waehlen]").click();
   await p.waitForTimeout(300);
   const angebot = await p.locator("[data-uebergabe-wahl-punkt]").evaluateAll((l) => l.map((i) => i.getAttribute("data-uebergabe-wahl-punkt")));
-  ok("(2) Auswahl bietet genau das Offene: 1 Störung (behobene fehlt), 2 To-dos, 1 Backlog-Arbeit, 1 Pinnwand-Zettel", angebot.length === 5 && angebot.includes("STOERUNG:s-1") && !angebot.includes("STOERUNG:s-2") && angebot.includes("TODO:todo-1") && angebot.includes("TODO:todo-2") && angebot.includes("ARBEIT:arb-1") && angebot.includes("NOTIZ:notiz-1"), angebot.join(","));
-  for (const k of ["STOERUNG:s-1", "TODO:todo-1", "ARBEIT:arb-1", "NOTIZ:notiz-1"]) await p.locator(`[data-uebergabe-wahl-punkt="${k}"]`).check();
+  ok("(2) Auswahl bietet genau das Offene: 1 Störung (behobene fehlt), 2 To-dos, 1 Backlog-Arbeit, 1 Planungs-Notiz ab heute (gestrige fehlt), 1 Pinnwand-Zettel", angebot.length === 6 && angebot.includes("STOERUNG:s-1") && !angebot.includes("STOERUNG:s-2") && angebot.includes("TODO:todo-1") && angebot.includes("TODO:todo-2") && angebot.includes("ARBEIT:arb-1") && angebot.includes("PLANNOTIZ:pn-1") && !angebot.includes("PLANNOTIZ:pn-alt") && angebot.includes("NOTIZ:notiz-1"), angebot.join(","));
+  for (const k of ["STOERUNG:s-1", "TODO:todo-1", "ARBEIT:arb-1", "PLANNOTIZ:pn-1", "NOTIZ:notiz-1"]) await p.locator(`[data-uebergabe-wahl-punkt="${k}"]`).check();
   await p.locator("[data-uebergabe-wahl-uebernehmen]").click();
   await p.waitForTimeout(600);
   const m2 = await mappeAus(p);
   const pk = (k) => (m2 ? m2.punkte.find((x) => x.key === k) : null);
-  ok("(2) Vier Punkte als Schnappschuss in der Datei: Störung mit Nr 412, Anlage TS480, Text + „Noch zu tun“; To-do mit Frist und Foto-Verweis; Backlog mit Anlage OF320, KW 42, „hohe Prio“; Zettel-Text",
-    !!m2 && m2.punkte.length === 4 && pk("STOERUNG:s-1").nr === "412" && pk("STOERUNG:s-1").anlage === "TS480" && /Leck Hydraulik/.test(pk("STOERUNG:s-1").text) && /Noch zu tun: Schlauch/.test(pk("STOERUNG:s-1").text)
+  ok("(2) Fünf Punkte als Schnappschuss in der Datei: Störung mit Nr 412, Anlage TS480, Text + „Noch zu tun“; To-do mit Frist und Foto-Verweis; Backlog mit Anlage OF320, KW 42, „hohe Prio“; Planungs-Notiz mit Person T Balles und Tag; Zettel-Text",
+    !!m2 && m2.punkte.length === 5 && pk("PLANNOTIZ:pn-1").zusatz === "T Balles" && pk("PLANNOTIZ:pn-1").bis === HEUTE && /Treppenhaus 1/.test(pk("PLANNOTIZ:pn-1").text) && pk("STOERUNG:s-1").nr === "412" && pk("STOERUNG:s-1").anlage === "TS480" && /Leck Hydraulik/.test(pk("STOERUNG:s-1").text) && /Noch zu tun: Schlauch/.test(pk("STOERUNG:s-1").text)
     && pk("TODO:todo-1").bis === "2026-10-14" && pk("TODO:todo-1").fotos.length === 1 && pk("TODO:todo-1").fotos[0].datei === "foto-todo.jpg"
     && pk("ARBEIT:arb-1").anlage === "OF320" && pk("ARBEIT:arb-1").bis === "KW 42" && pk("ARBEIT:arb-1").zusatz === "hohe Prio" && /Lieferung Hansa/.test(pk("NOTIZ:notiz-1").text),
     JSON.stringify(m2 && m2.punkte.map((x) => x.key)));
   await p.waitForFunction(() => { const i = document.querySelector("[data-uebergabe-bild]"); return !!i && i.naturalWidth > 0; }, null, { timeout: 8000 }).catch(() => {});
   ok("(2) Das Foto des To-dos ist in der Mappe sichtbar (geladen)", await p.evaluate(() => { const i = document.querySelector("[data-uebergabe-bild]"); return !!i && i.naturalWidth > 0; }));
-  ok("(2) Die Liste führt vier Punkte in vier Abschnitten, alle offen", (await p.locator("[data-uebergabe-punkt]").count()) === 4 && (await p.locator('[data-uebergabe-erledigt="offen"]').count()) === 4);
+  ok("(2) Die Liste führt fünf Punkte in fünf Abschnitten, alle offen", (await p.locator("[data-uebergabe-punkt]").count()) === 5 && (await p.locator('[data-uebergabe-erledigt="offen"]').count()) === 5);
 
   /* (3) Notiz + Haken */
   await p.locator('input[aria-label="Notiz für die Mappe"]').fill("Zählerstände Druckluft montags eintragen");
   await p.locator("[data-uebergabe-notiz-dazu]").click();
   await p.waitForTimeout(500);
   const m3 = await mappeAus(p);
-  ok("(3) „+ Notiz“: fünfter Punkt der Art FREI mit dem Text", !!m3 && m3.punkte.length === 5 && m3.punkte[4].art === "FREI" && m3.punkte[4].text === "Zählerstände Druckluft montags eintragen");
+  ok("(3) „+ Notiz“: sechster Punkt der Art FREI mit dem Text", !!m3 && m3.punkte.length === 6 && m3.punkte[5].art === "FREI" && m3.punkte[5].text === "Zählerstände Druckluft montags eintragen");
   await p.locator('[data-uebergabe-punkt="TODO:todo-1"] input[type="checkbox"]').check();
   await p.waitForTimeout(500);
   const m3b = await mappeAus(p);
   const h = m3b.punkte.find((x) => x.key === "TODO:todo-1").erledigt;
-  ok("(3) Haken am To-do-Punkt: erledigt {wer M. Weber, am heute} in der Datei, Fortschritt 1/5, Zeile als „hand“ markiert", !!h && h.wer === "M. Weber" && String(h.am).startsWith(HEUTE) && (await p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "1/5" && (await p.locator('[data-uebergabe-punkt="TODO:todo-1"]').getAttribute("data-uebergabe-erledigt")) === "hand", JSON.stringify(h));
+  ok("(3) Haken am To-do-Punkt: erledigt {wer M. Weber, am heute} in der Datei, Fortschritt 1/6, Zeile als „hand“ markiert", !!h && h.wer === "M. Weber" && String(h.am).startsWith(HEUTE) && (await p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "1/6" && (await p.locator('[data-uebergabe-punkt="TODO:todo-1"]').getAttribute("data-uebergabe-erledigt")) === "hand", JSON.stringify(h));
   await p.locator('[data-uebergabe-punkt="TODO:todo-1"] input[type="checkbox"]').uncheck();
   await p.waitForTimeout(500);
-  ok("(3) Haken weg: Punkt wieder offen, 0/5", (await mappeAus(p)).punkte.find((x) => x.key === "TODO:todo-1").erledigt === null && (await p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "0/5");
+  ok("(3) Haken weg: Punkt wieder offen, 0/6", (await mappeAus(p)).punkte.find((x) => x.key === "TODO:todo-1").erledigt === null && (await p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "0/6");
   ok("(1-3) Keine Skriptfehler", fehler.length === 0, fehler.slice(0, 2).join(" | "));
   const mappeStand = await mappeAus(p);
   await ctx.close();
@@ -162,7 +170,7 @@ const inUebergabe = async (p) => {
     const w = await start(browser, { entries: entries2, stoerungen: stoer2 });
     await inUebergabe(w.p);
     const arten = await w.p.locator("[data-uebergabe-punkt]").evaluateAll((l) => Object.fromEntries(l.map((i) => [i.getAttribute("data-uebergabe-punkt"), i.getAttribute("data-uebergabe-erledigt")])));
-    ok("(4) Arbeit erledigt und Störung behoben: beide Punkte „automatisch“ abgehakt, die anderen offen, Stand 2/5", arten["ARBEIT:arb-1"] === "automatisch" && arten["STOERUNG:s-1"] === "automatisch" && arten["TODO:todo-1"] === "offen" && arten["NOTIZ:notiz-1"] === "offen" && (await w.p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "2/5", JSON.stringify(arten));
+    ok("(4) Arbeit erledigt und Störung behoben: beide Punkte „automatisch“ abgehakt, die anderen offen, Stand 2/6", arten["ARBEIT:arb-1"] === "automatisch" && arten["STOERUNG:s-1"] === "automatisch" && arten["TODO:todo-1"] === "offen" && arten["NOTIZ:notiz-1"] === "offen" && (await w.p.locator("[data-uebergabe-stand]").getAttribute("data-uebergabe-stand")) === "2/6", JSON.stringify(arten));
     ok("(4) Das automatische Kästchen ist nicht klickbar, die Zeile nennt den Grund „Störung behoben“", await w.p.locator('[data-uebergabe-punkt="STOERUNG:s-1"] input[type="checkbox"]').isDisabled() && /Störung behoben/.test(await w.p.locator('[data-uebergabe-punkt="STOERUNG:s-1"]').innerText()));
 
     /* (6) Neu während der Vertretung */
@@ -178,8 +186,8 @@ const inUebergabe = async (p) => {
     await blatt.waitForTimeout(700);
     const bText = await blatt.locator("body").innerText();
     const bildOk = await blatt.evaluate(() => [...document.querySelectorAll("img")].some((i) => i.naturalWidth > 0));
-    ok("(5) Blatt „Mappe“: Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; fünf Abschnitte; fünf Kästchen, zwei angehakt; keine Spalte „Bemerkung“",
-      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && (await blatt.locator("h4").count()) >= 5 && (await blatt.locator(".k").count()) === 5 && (await blatt.locator(".k.ok").count()) === 2 && !/Bemerkung/.test(bText), bText.replace(/\n/g, " · ").slice(0, 200));
+    ok("(5) Blatt „Mappe“: Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; sechs Abschnitte; sechs Kästchen, zwei angehakt; Planungs-Notiz mit Person; keine Spalte „Bemerkung“",
+      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && (await blatt.locator("h4").count()) >= 6 && (await blatt.locator(".k").count()) === 6 && (await blatt.locator(".k.ok").count()) === 2 && /T Balles/.test(bText) && !/Bemerkung/.test(bText), bText.replace(/\n/g, " · ").slice(0, 200));
     ok("(5) Blatt „Mappe“: das Foto ist als Bild geladen (größer, 90 px hoch) und der neue Punkt steht unter „neu dazukam“", bildOk && (await blatt.locator("img").first().evaluate((i) => i.style.height)) === "90px" && /Kompressor 2 tropft/.test(bText));
     await blatt.close();
 
@@ -187,10 +195,34 @@ const inUebergabe = async (p) => {
     const [blatt2] = await Promise.all([w.p.waitForEvent("popup"), w.p.locator('[data-uebergabe-drucken="kompakt"]').click()]);
     await blatt2.waitForTimeout(700);
     const kText = await blatt2.locator("body").innerText();
-    ok("(5) Blatt „kompakt“: eine Tabelle mit fünf Zeilen, Art-Kürzel STÖR/TODO/BACK/ZETTEL/NOTIZ, „Bild 1“ als Verweis und Anhang mit Bild 1",
-      (await blatt2.locator("table.kompakt tr").count()) === 6 && /STÖR/.test(kText) && /TODO/.test(kText) && /BACK/.test(kText) && /ZETTEL/.test(kText) && /NOTIZ/.test(kText) && /Bild 1/.test(kText) && (await blatt2.locator(".anhang img").count()) === 1 && (await blatt2.locator(".k.ok").count()) === 2, kText.replace(/\n/g, " · ").slice(0, 200));
+    ok("(5) Blatt „kompakt“: eine Tabelle mit sechs Zeilen, Art-Kürzel STÖR/TODO/BACK/PLAN/ZETTEL/NOTIZ, „Bild 1“ als Verweis und Anhang mit Bild 1",
+      (await blatt2.locator("table.kompakt tr").count()) === 7 && /STÖR/.test(kText) && /TODO/.test(kText) && /BACK/.test(kText) && /PLAN/.test(kText) && /ZETTEL/.test(kText) && /NOTIZ/.test(kText) && /Bild 1/.test(kText) && (await blatt2.locator(".anhang img").count()) === 1 && (await blatt2.locator(".k.ok").count()) === 2, kText.replace(/\n/g, " · ").slice(0, 200));
     await blatt2.close();
     ok("(4-6) Keine Skriptfehler", w.fehler.length === 0, w.fehler.slice(0, 2).join(" | "));
+    await w.ctx.close();
+  }
+
+  /* (7) Planungs-Notiz -> To-do */
+  {
+    const w = await start(browser);
+    await w.p.locator('button[data-hauptbereich="WERKSTATT"]').click();
+    await w.p.waitForTimeout(400);
+    await w.p.getByRole("button", { name: "Planung", exact: true }).first().click();
+    await w.p.waitForTimeout(600);
+    await w.p.getByRole("button", { name: /Treppenhaus 1 \(Zentrale\)/ }).first().click();
+    await w.p.waitForTimeout(400);
+    ok("(7) Notiz-Dialog der Planung zeigt „To-do daraus erstellen“", (await w.p.locator("[data-notiz-todo]").count()) === 1 && /Notiz – T Balles, 09\.10\.2026/.test(await w.p.locator("body").innerText()));
+    await w.p.locator("[data-notiz-todo]").click();
+    await w.p.waitForTimeout(400);
+    // Vorbelegung steckt in den Feldwerten (value), nicht im sichtbaren Text
+    const vorbelegt = await w.p.evaluate(() => [...document.querySelectorAll("input, textarea, select")].map((i) => i.value).filter(Boolean));
+    ok("(7) Der To-do-Dialog öffnet sich vorbelegt: Text als Titel, T Balles als Zuständiger, Frist 09.10.2026, Bemerkung nennt die Notiz", vorbelegt.some((v) => /^Treppenhaus 1 \(Zentrale\) Griffe/.test(v)) && vorbelegt.includes("T Balles") && vorbelegt.includes("2026-10-09") && vorbelegt.some((v) => /aus der Planungs-Notiz vom 09\.10\.2026/.test(v)), JSON.stringify(vorbelegt).slice(0, 200));
+    await w.p.getByRole("button", { name: "Speichern", exact: true }).first().click();
+    await w.p.waitForTimeout(600);
+    const alle = await gespeichert(w.p);
+    const todo = alle.find((e) => e.category === "TODO" && /Treppenhaus 1/.test(e.name));
+    ok("(7) Speichern: neues To-do mit Text, wer T Balles, bis 09.10.2026, offen - die Planungs-Notiz bleibt stehen", !!todo && todo.wer === "T Balles" && todo.bis === "2026-10-09" && todo.status === "offen" && alle.some((e) => e.id === "pn-1"), JSON.stringify(todo && { name: todo.name, wer: todo.wer, bis: todo.bis }));
+    ok("(7) Keine Skriptfehler", w.fehler.length === 0, w.fehler.slice(0, 2).join(" | "));
     await w.ctx.close();
   }
 
