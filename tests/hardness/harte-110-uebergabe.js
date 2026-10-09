@@ -20,8 +20,10 @@
 //   (7) Planungs-Notizen (Roberto 09.10.: „sonst muss ich es doppelt schreiben“):
 //       die Auswahl bietet die Notizen ab heute mit Person und Tag; im Notiz-
 //       Dialog der Planung öffnet „To-do daraus erstellen“ den To-do-Dialog
-//       vorbelegt (Text, Person, Frist) - Speichern legt das To-do an, die
-//       Notiz bleibt.
+//       vorbelegt (Text, Person, Frist) - Speichern legt das To-do an und
+//       ERSETZT die Notiz: in der Planungszelle steht jetzt ein To-do-Chip
+//       (Roberto 09.10.). Oben rechts neben „Backlog“ der Knopf „To-do“ mit
+//       Fenster der offenen To-dos.
 // Rot-Nachweis: gegen den Bau vor dem 09.10. (APP_PFAD) gibt es keine Kachel
 // „Übergabe“ - (1) und alles danach ist rot.
 const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
@@ -41,6 +43,8 @@ const entriesStart = [
   // Planungs-Notizen: eine von heute (T Balles), eine von gestern (gehört nicht in die Übergabe)
   { id: "pn-1", date: HEUTE, category: "PLANNOTIZ", name: "T Balles", note: "Treppenhaus 1 (Zentrale) Griffe hängen teilweise an jeder Türe", verfasser: "R. Ciraci" },
   { id: "pn-alt", date: "2026-10-08", category: "PLANNOTIZ", name: "T Balles", note: "gestern erledigt", verfasser: "R. Ciraci" },
+  // Für (7): Notiz am Mittwoch 07.10. - Wochentage, damit die Planungszellen 07./08.10. sichtbar sind (10./11.10. sind Wochenende)
+  { id: "pn-2", date: "2026-10-07", category: "PLANNOTIZ", name: "T Balles", note: "Brückentor Flexlift Wartung", verfasser: "R. Ciraci" },
 ];
 const stoerungenStart = [
   { id: "s-1", nr: 412, date: HEUTE, schicht: "Früh", anlage: "TS480", stoerung: "Leck Hydraulik, Pfütze unter Aggregat", nochZuTun: "Schlauch kommt Do., Einbau mit Hansa", offen: true, ausfallzeit: 45, melder: "T. Balles", gemeldetAt: HEUTE + "T06:10:00.000Z" },
@@ -130,8 +134,32 @@ const inUebergabe = async (p) => {
   await p.locator("[data-uebergabe-waehlen]").click();
   await p.waitForTimeout(300);
   const angebot = await p.locator("[data-uebergabe-wahl-punkt]").evaluateAll((l) => l.map((i) => i.getAttribute("data-uebergabe-wahl-punkt")));
-  ok("(2) Auswahl bietet genau das Offene: 1 Störung (behobene fehlt), 2 To-dos, 1 Backlog-Arbeit, 1 Planungs-Notiz ab heute (gestrige fehlt), 1 Pinnwand-Zettel", angebot.length === 6 && angebot.includes("STOERUNG:s-1") && !angebot.includes("STOERUNG:s-2") && angebot.includes("TODO:todo-1") && angebot.includes("TODO:todo-2") && angebot.includes("ARBEIT:arb-1") && angebot.includes("PLANNOTIZ:pn-1") && !angebot.includes("PLANNOTIZ:pn-alt") && angebot.includes("NOTIZ:notiz-1"), angebot.join(","));
-  for (const k of ["STOERUNG:s-1", "TODO:todo-1", "ARBEIT:arb-1", "PLANNOTIZ:pn-1", "NOTIZ:notiz-1"]) await p.locator(`[data-uebergabe-wahl-punkt="${k}"]`).check();
+  ok("(2) Auswahl bietet genau das Offene: 1 Störung (behobene fehlt), 2 To-dos, 1 Backlog-Arbeit, 1 Planungs-Notiz ab heute (gestrige fehlt), 1 Pinnwand-Zettel", angebot.length === 6 && angebot.includes("STOERUNG:s-1") && !angebot.includes("STOERUNG:s-2") && angebot.includes("TODO:todo-1") && angebot.includes("TODO:todo-2") && angebot.includes("ARBEIT:arb-1") && angebot.includes("PLANNOTIZ:pn-1") && !angebot.includes("PLANNOTIZ:pn-alt") && !angebot.includes("PLANNOTIZ:pn-2") && angebot.includes("NOTIZ:notiz-1"), angebot.join(","));
+  // Filter (Roberto 09.10., 130 Backlog-Zeilen): Suchwort, Art, Anlage, Person, nur hohe Prio
+  await p.locator("[data-uebergabe-filter-text]").fill("ölstand");
+  await p.waitForTimeout(200);
+  const nachText = await p.locator("[data-uebergabe-wahl-punkt]").evaluateAll((l) => l.map((i) => i.getAttribute("data-uebergabe-wahl-punkt")));
+  await p.locator("[data-uebergabe-filter-text]").fill("");
+  await p.locator('[data-uebergabe-filter-art="ARBEIT"]').click();
+  const nachArt = await p.locator("[data-uebergabe-wahl-punkt]").evaluateAll((l) => l.map((i) => i.getAttribute("data-uebergabe-wahl-punkt")));
+  await p.locator('[data-uebergabe-filter-art="ALLE"]').click();
+  await p.locator("[data-uebergabe-filter-anlage]").selectOption("TS480");
+  const nachAnlage = await p.locator("[data-uebergabe-wahl-punkt]").evaluateAll((l) => l.map((i) => i.getAttribute("data-uebergabe-wahl-punkt")));
+  await p.locator("[data-uebergabe-filter-anlage]").selectOption("");
+  await p.locator("[data-uebergabe-filter-wer]").selectOption("T Balles");
+  const nachWer = await p.locator("[data-uebergabe-wahl-punkt]").evaluateAll((l) => l.map((i) => i.getAttribute("data-uebergabe-wahl-punkt")));
+  await p.locator("[data-uebergabe-filter-wer]").selectOption("");
+  await p.locator("[data-uebergabe-filter-prio]").check();
+  const nachPrio = await p.locator("[data-uebergabe-wahl-punkt]").evaluateAll((l) => l.map((i) => i.getAttribute("data-uebergabe-wahl-punkt")));
+  await p.locator("[data-uebergabe-filter-prio]").uncheck();
+  ok("(2) Filter: Suchwort „ölstand“ → nur das To-do; Art Backlog → nur die Arbeit; Anlage TS480 → nur die Störung; Person T Balles → nur die Planungs-Notiz (die Störung meldete „T. Balles“ mit Punkt); nur hohe Prio → nur die Arbeit; Zähler „6 von 6“ ohne Filter",
+    nachText.join() === "TODO:todo-1" && nachArt.join() === "ARBEIT:arb-1" && nachAnlage.join() === "STOERUNG:s-1" && nachWer.join() === "PLANNOTIZ:pn-1" && nachPrio.join() === "ARBEIT:arb-1" && (await p.locator("[data-uebergabe-filter-zahl]").innerText()) === "6 von 6", JSON.stringify({ nachText, nachArt, nachAnlage, nachWer, nachPrio }));
+  await p.locator('[data-uebergabe-filter-art="TODO"]').click();
+  await p.locator('[data-uebergabe-alle-waehlen="TODO"]').click();
+  await p.locator('[data-uebergabe-filter-art="ALLE"]').click();
+  ok("(2) „alle 2 wählen“ bei To-dos hakt beide an; der Übernehmen-Knopf zählt 2", (await p.locator('[data-uebergabe-wahl-punkt="TODO:todo-1"]').isChecked()) && (await p.locator('[data-uebergabe-wahl-punkt="TODO:todo-2"]').isChecked()) && /2 Punkt/.test(await p.locator("[data-uebergabe-wahl-uebernehmen]").innerText()));
+  await p.locator('[data-uebergabe-wahl-punkt="TODO:todo-2"]').uncheck();
+  for (const k of ["STOERUNG:s-1", "ARBEIT:arb-1", "PLANNOTIZ:pn-1", "NOTIZ:notiz-1"]) await p.locator(`[data-uebergabe-wahl-punkt="${k}"]`).check();
   await p.locator("[data-uebergabe-wahl-uebernehmen]").click();
   await p.waitForTimeout(600);
   const m2 = await mappeAus(p);
@@ -209,25 +237,33 @@ const inUebergabe = async (p) => {
     await w.p.waitForTimeout(400);
     await w.p.getByRole("button", { name: "Planung", exact: true }).first().click();
     await w.p.waitForTimeout(600);
-    await w.p.getByRole("button", { name: /Treppenhaus 1 \(Zentrale\)/ }).first().click();
+    await w.p.getByRole("button", { name: /Brückentor Flexlift/ }).first().click();
     await w.p.waitForTimeout(400);
-    ok("(7) Notiz-Dialog der Planung zeigt „To-do daraus erstellen“", (await w.p.locator("[data-notiz-todo]").count()) === 1 && /Notiz – T Balles, 09\.10\.2026/.test(await w.p.locator("body").innerText()));
+    ok("(7) Notiz-Dialog der Planung zeigt „To-do daraus erstellen“", (await w.p.locator("[data-notiz-todo]").count()) === 1 && /Notiz – T Balles, 07\.10\.2026/.test(await w.p.locator("body").innerText()));
     await w.p.locator("[data-notiz-todo]").click();
     await w.p.waitForTimeout(400);
     // Vorbelegung steckt in den Feldwerten (value), nicht im sichtbaren Text
     const vorbelegt = await w.p.evaluate(() => [...document.querySelectorAll("input, textarea, select")].map((i) => i.value).filter(Boolean));
-    ok("(7) Der To-do-Dialog öffnet sich vorbelegt: Text als Titel, T Balles als Zuständiger, Von und Bis = 09.10.2026, Bemerkung nennt die Notiz", vorbelegt.some((v) => /^Treppenhaus 1 \(Zentrale\) Griffe/.test(v)) && vorbelegt.includes("T Balles") && vorbelegt.filter((v) => v === "2026-10-09").length === 2 && vorbelegt.some((v) => /aus der Planungs-Notiz vom 09\.10\.2026/.test(v)), JSON.stringify(vorbelegt).slice(0, 200));
-    // Mehrtägig (Roberto 09.10.): Bis auf den 11.10. setzen
-    await w.p.locator('input[aria-label="Bis wann"]').fill("2026-10-11");
+    ok("(7) Der To-do-Dialog öffnet sich vorbelegt: Text als Titel, T Balles als Zuständiger, Von und Bis = 07.10.2026, Bemerkung nennt die Notiz", vorbelegt.some((v) => /^Brückentor Flexlift Wartung/.test(v)) && vorbelegt.includes("T Balles") && vorbelegt.filter((v) => v === "2026-10-07").length === 2 && vorbelegt.some((v) => /aus der Planungs-Notiz vom 07\.10\.2026/.test(v)), JSON.stringify(vorbelegt).slice(0, 200));
+    // Mehrtägig (Roberto 09.10.): Bis auf den 08.10. setzen
+    await w.p.locator('input[aria-label="Bis wann"]').fill("2026-10-08");
     await w.p.getByRole("button", { name: "Speichern", exact: true }).first().click();
     await w.p.waitForTimeout(600);
     const alle = await gespeichert(w.p);
-    const todo = alle.find((e) => e.category === "TODO" && /Treppenhaus 1/.test(e.name));
-    ok("(7) Speichern: neues To-do mit Text, wer T Balles, von 09.10. bis 11.10.2026 (mehrtägig), offen - die Planungs-Notiz bleibt stehen", !!todo && todo.wer === "T Balles" && todo.von === "2026-10-09" && todo.bis === "2026-10-11" && todo.status === "offen" && alle.some((e) => e.id === "pn-1"), JSON.stringify(todo && { name: todo.name, wer: todo.wer, von: todo.von, bis: todo.bis }));
+    const todo = alle.find((e) => e.category === "TODO" && /Brückentor Flexlift/.test(e.name));
+    ok("(7) Speichern: neues To-do mit Text, wer T Balles, von 07.10. bis 08.10.2026 (mehrtägig), offen - die Planungs-Notiz ist durch das To-do ersetzt, die andere Notiz bleibt", !!todo && todo.wer === "T Balles" && todo.von === "2026-10-07" && todo.bis === "2026-10-08" && todo.status === "offen" && !alle.some((e) => e.id === "pn-2") && alle.some((e) => e.id === "pn-1"), JSON.stringify(todo && { name: todo.name, wer: todo.wer, von: todo.von, bis: todo.bis }));
+    const chips = await w.p.locator('[data-planzelle="T Balles|2026-10-07"]').innerText();
+    ok("(7) In der Planungszelle von T Balles steht am 07.10. jetzt ein To-do-Chip (📋) statt der Notiz (📝)", (await w.p.locator(`[data-planzelle="T Balles|2026-10-07"] [data-plan-todo="${todo && todo.id}"]`).count()) === 1 && /📋 Brückentor/.test(chips) && !/📝/.test(chips), chips.replace(/\n/g, " · ").slice(0, 120));
+    ok("(7) Mehrtägig: der Chip steht auch am 08.10., nicht am 09.10.; die Notiz vom 09.10. bleibt ein 📝", (await w.p.locator('[data-planzelle="T Balles|2026-10-08"] [data-plan-todo]').count()) === 1 && (await w.p.locator('[data-planzelle="T Balles|2026-10-09"] [data-plan-todo]').count()) === 0 && /📝 Treppenhaus 1/.test(await w.p.locator('[data-planzelle="T Balles|2026-10-09"]').innerText()));
+    const knopf = w.p.locator("[data-planung-todos]");
+    ok("(7) Oben rechts neben „Backlog“ steht „To-do (3)“ - die offenen To-dos", (await knopf.count()) === 1 && /To-do \(3\)/.test(await knopf.innerText()), await knopf.innerText());
+    await knopf.click(); await w.p.waitForTimeout(400);
+    ok("(7) Das To-do-Fenster listet die drei offenen To-dos mit Zuständigem und Zeitraum", (await w.p.locator("[data-planung-todo-zeile]").count()) === 3 && /für T Balles · 07\.10\.2026 – 08\.10\.2026/.test(await w.p.locator("[data-planung-todo-fenster]").innerText()));
+    await knopf.click(); await w.p.waitForTimeout(200);
     await w.p.locator('button[data-hauptbereich="BERICHTE"]').click(); await w.p.waitForTimeout(300);
-    await w.p.getByRole("button", { name: /^To-do$/ }).first().click(); await w.p.waitForTimeout(400);
+    await w.p.getByRole("button", { name: /Aufgaben – erteilt/ }).first().click(); await w.p.waitForTimeout(400); // die To-do-Kachel
     const listeText = await w.p.locator("body").innerText();
-    ok("(7) Die To-do-Liste zeigt den Zeitraum „09.10.2026 – 11.10.2026“ statt nur „bis“", /09\.10\.2026 – 11\.10\.2026/.test(listeText), (listeText.match(/[^\n]*Treppenhaus[^\n]*/) || [""])[0].slice(0, 120));
+    ok("(7) Die To-do-Liste zeigt den Zeitraum „07.10.2026 – 08.10.2026“ statt nur „bis“", /07\.10\.2026 – 08\.10\.2026/.test(listeText), (listeText.match(/[^\n]*Brückentor[^\n]*/) || [""])[0].slice(0, 120));
     ok("(7) Keine Skriptfehler", w.fehler.length === 0, w.fehler.slice(0, 2).join(" | "));
     await w.ctx.close();
   }

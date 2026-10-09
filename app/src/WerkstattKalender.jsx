@@ -3317,6 +3317,8 @@ function App() {
   // Backlog-Fenster in der Planung zum direkten Zuweisen per Ziehen.
   const [kalenderPopup, setKalenderPopup] = useState(null); // null | {jahr, monat}
   const [backlogPopout, setBacklogPopout] = useState(false);
+  const [todoPopout, setTodoPopout] = useState(false); // To-do-Fenster neben dem Plan (Roberto 09.10.)
+  const [todoPopoutSuche, setTodoPopoutSuche] = useState("");
   const [popoutSuche, setPopoutSuche] = useState("");
   const [dropZiel, setDropZiel] = useState(null); // "person|tagKey" während des Ziehens
   const [restoreConfirm, setRestoreConfirm] = useState(null); // Sicherung, die bestätigt werden muss
@@ -6397,6 +6399,7 @@ function App() {
     };
     let basis = entries;
     if (m.ausAufnahme) basis = aufnahmeAbschliessen(basis, m.ausAufnahme, "TODO", eintrag.id);
+    if (m.ausNotizId) basis = basis.filter((e) => e.id !== m.ausNotizId); // die Planungs-Notiz geht im To-do auf
     const ok = await persist(m.id ? basis.map((e) => (e.id === m.id ? eintrag : e)) : [...basis, eintrag]);
     if (ok) fotosAufraeumen(m.fotosWeg); // mit ✕ entfernte Bilddateien erst NACH dem Speichern wegräumen
     if (fotoFehler) setErr(fotoFehler);
@@ -7661,6 +7664,17 @@ function App() {
   const [uebergabeId, setUebergabeId] = useState(null);
   const [uebergabeDialog, setUebergabeDialog] = useState(null); // { id?, titel, von, bis, vertreter, ersteller }
   const [uebergabeWahl, setUebergabeWahl] = useState(null);     // Auswahl-Dialog: Set der Schlüssel
+  // Filter im Auswahl-Dialog (Roberto 09.10. mit 130 Backlog-Zeilen: „ich benötige hier ein paar Filter“)
+  const UEBERGABE_FILTER_LEER = { text: "", art: "ALLE", anlage: "", wer: "", nurPrioHoch: false };
+  const [uebergabeFilter, setUebergabeFilter] = useState(UEBERGABE_FILTER_LEER);
+  const uebergabeFilterPasst = (p, f) => {
+    if (f.art !== "ALLE" && p.art !== f.art) return false;
+    if (f.anlage && String(p.anlage || "").toLowerCase() !== f.anlage.toLowerCase()) return false;
+    if (f.wer && String(p.wer || "") !== f.wer) return false;
+    if (f.nurPrioHoch && p.prio !== "hoch") return false;
+    const q = f.text.trim().toLowerCase();
+    return !q || `${p.anlage} ${p.text} ${p.nr} ${p.zusatz || ""} ${p.wer || ""}`.toLowerCase().includes(q);
+  };
   const [uebergabeNotiz, setUebergabeNotiz] = useState("");
   const [uebergabeNeuText, setUebergabeNeuText] = useState("");
   const uebergabeDarf = !nurLesen("UEBERGABE");
@@ -7669,10 +7683,10 @@ function App() {
   // Schnappschuss eines Punktes aus seinem Ursprung - Text, Anlage, Frist, Foto-Verweise
   const uebergabePunktAus = (art, o) => {
     const basis = { key: `${art}:${o.id}`, art, refId: o.id, erledigt: null, fotos: fotoListeVon(o) };
-    if (art === "STOERUNG") return { ...basis, nr: stoerNrLang(o), anlage: o.anlage || "", text: [o.stoerung, o.nochZuTun ? "Noch zu tun: " + o.nochZuTun : ""].filter(Boolean).join(" · "), bis: "" };
-    if (art === "TODO") return { ...basis, nr: "", anlage: "", text: o.name || "", von: o.von || "", bis: o.bis || "", zusatz: o.bemerkung || "" };
-    if (art === "ARBEIT") return { ...basis, nr: "", anlage: o.name || "", text: o.note || "", bis: o.geplant || "", zusatz: o.prio === "hoch" ? "hohe Prio" : "" };
-    if (art === "PLANNOTIZ") return { ...basis, nr: "", anlage: "", text: o.note || "", bis: o.date || "", zusatz: o.name || "" };
+    if (art === "STOERUNG") return { ...basis, nr: stoerNrLang(o), anlage: o.anlage || "", text: [o.stoerung, o.nochZuTun ? "Noch zu tun: " + o.nochZuTun : ""].filter(Boolean).join(" · "), bis: "", wer: o.melder || "", prio: "" };
+    if (art === "TODO") return { ...basis, nr: "", anlage: "", text: o.name || "", von: o.von || "", bis: o.bis || "", zusatz: o.bemerkung || "", wer: o.wer || "", prio: o.prio || "" };
+    if (art === "ARBEIT") return { ...basis, nr: "", anlage: o.name || "", text: o.note || "", bis: o.geplant || "", zusatz: o.prio === "hoch" ? "hohe Prio" : "", wer: o.wer || "", prio: o.prio || "" };
+    if (art === "PLANNOTIZ") return { ...basis, nr: "", anlage: "", text: o.note || "", bis: o.date || "", zusatz: o.name || "", wer: o.name || "", prio: "" };
     return { ...basis, nr: "", anlage: "", text: o.note || "", bis: "" };
   };
   // Erledigt? Von Hand abgehakt - oder der Ursprung ist im Cockpit erledigt (dann automatisch)
@@ -8551,6 +8565,18 @@ function App() {
   // eine EIGENE Datenart (SCHICHTNOTIZ) - beide teilen sich nur den Dialog.
   const notizenFuer = (person, tagKey) =>
     entries.filter((e) => e.category === "PLANNOTIZ" && e.name === person && e.date === tagKey);
+  // To-dos in der Planung (Roberto 09.10.): ein To-do mit Zuständigem und Von/Bis steht in der Zelle
+  // der Person an jedem Tag des Zeitraums - so wird aus einer Notiz sichtbar ein To-do.
+  const todosFuer = (person, tagKey) =>
+    todos.filter((t) => t.wer === person && (t.von || t.bis) && (t.von || t.bis) <= tagKey && tagKey <= (t.bis || t.von));
+  // Aus dem To-do-Fenster oder einer anderen Zelle auf Person + Tag gezogen: Zuständiger und Tag
+  // in einem Zug. Ohne Person/Tag (zurück ins Fenster) wird das To-do wieder „nicht eingeplant“.
+  const todoEinplanen = async (id, person, tagKey) => {
+    if (readerMode) return;
+    await persist(entries.map((t) => (t.id !== id ? t : person && tagKey
+      ? { ...t, wer: person, von: tagKey, bis: t.bis && t.bis >= tagKey ? t.bis : tagKey }
+      : { ...t, von: "", bis: "" })));
+  };
   const schichtNotizenFuer = (person, tagKey) =>
     entries.filter((e) => e.category === "SCHICHTNOTIZ" && e.name === person && e.date === tagKey && notizSichtbar(e));
   // Planungs-Notiz abhaken (Robertos Ansage vom 21.09.): eine Notiz in der
@@ -11857,7 +11883,7 @@ function App() {
                     </div>
                     {uebergabeDarf && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
-                        <button onClick={() => setUebergabeWahl(new Set())} className="text-xs font-bold rounded px-2.5 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }} data-uebergabe-waehlen>+ Punkte wählen</button>
+                        <button onClick={() => { setUebergabeFilter(UEBERGABE_FILTER_LEER); setUebergabeWahl(new Set()); }} className="text-xs font-bold rounded px-2.5 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }} data-uebergabe-waehlen>+ Punkte wählen</button>
                         <button onClick={() => setUebergabeDialog({ id: m.id, titel: m.name, von: m.von, bis: m.bis, vertreter: m.vertreter, ersteller: m.ersteller })} className="text-xs font-bold rounded px-2.5 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }}>Kopf ändern</button>
                         <button onClick={() => uebergabeSchreiben({ ...m, status: m.status === "done" ? "open" : "done" })} className="text-xs font-bold rounded px-2.5 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }}>{m.status === "done" ? "Wieder öffnen" : "Mappe abschließen"}</button>
                       </div>
@@ -11937,17 +11963,44 @@ function App() {
 
             {uebergabeWahl && m && (() => {
               const angebot = uebergabeAngebot();
+              const f = uebergabeFilter;
+              const sichtbar = angebot.filter((p) => uebergabeFilterPasst(p, f));
+              const anlagen = [...new Set(angebot.map((p) => String(p.anlage || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+              const personen = [...new Set(angebot.map((p) => String(p.wer || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+              const chip = (wert, label, farbe) => (
+                <button key={wert} onClick={() => setUebergabeFilter({ ...f, art: wert })} className="text-[11px] font-bold rounded px-2 py-1 border" data-uebergabe-filter-art={wert}
+                  style={{ borderColor: f.art === wert ? (farbe || "#22262B") : "#D6D9DC", backgroundColor: f.art === wert ? (farbe || "#22262B") : "#fff", color: f.art === wert ? "#fff" : (farbe || "#22262B") }}>{label}</button>
+              );
               return (
                 <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: "rgba(20,22,25,0.45)" }} onClick={() => setUebergabeWahl(null)}>
                   <div className="bg-white rounded-2xl p-5 w-full flex flex-col" style={{ maxWidth: "760px", maxHeight: "85vh" }} onClick={(e) => e.stopPropagation()} data-uebergabe-wahl>
                     <div className="font-black text-base mb-1" style={{ color: "#22262B" }}>Punkte für die Mappe wählen</div>
-                    <div className="text-xs mb-3" style={{ color: "#8A9099" }}>Alles Offene aus Störungen, To-do, Backlog und Pinnwand. Was schon in der Mappe liegt, ist ausgegraut.</div>
+                    <div className="text-xs mb-2" style={{ color: "#8A9099" }}>Alles Offene aus Störungen, To-do, Backlog, Planung und Pinnwand. Was schon in der Mappe liegt, ist ausgegraut.</div>
+                    {/* Filter (Roberto 09.10.): Suchwort, Art, Anlage, Person, nur hohe Prio - die Zahl sagt, was übrig bleibt */}
+                    <div className="flex flex-wrap items-center gap-1.5 mb-2 pb-2 border-b" style={{ borderColor: "#E2E4E7" }} data-uebergabe-filter>
+                      <input type="search" value={f.text} onChange={(e) => setUebergabeFilter({ ...f, text: e.target.value })} placeholder="🔍 Suchwort (Anlage, Text, Nr, Person)" aria-label="Suchwort" data-uebergabe-filter-text className="text-xs border rounded px-2 py-1" style={{ borderColor: "#D6D9DC", width: "240px" }} />
+                      {chip("ALLE", "Alle")}
+                      {UEBERGABE_REIHE.filter((a) => a !== "FREI").map((a) => chip(a, UEBERGABE_ARTEN[a].kurz, UEBERGABE_ARTEN[a].farbe))}
+                      <select value={f.anlage} onChange={(e) => setUebergabeFilter({ ...f, anlage: e.target.value })} aria-label="Anlage" data-uebergabe-filter-anlage className="text-xs border rounded px-2 py-1" style={{ borderColor: "#D6D9DC" }}>
+                        <option value="">Anlage: alle</option>{anlagen.map((a) => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                      <select value={f.wer} onChange={(e) => setUebergabeFilter({ ...f, wer: e.target.value })} aria-label="Person" data-uebergabe-filter-wer className="text-xs border rounded px-2 py-1" style={{ borderColor: "#D6D9DC" }}>
+                        <option value="">Person: alle</option>{personen.map((a) => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                      <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={f.nurPrioHoch} onChange={(e) => setUebergabeFilter({ ...f, nurPrioHoch: e.target.checked })} data-uebergabe-filter-prio /> nur hohe Prio</label>
+                      <span className="text-xs ml-auto" style={{ color: "#8A9099" }} data-uebergabe-filter-zahl={sichtbar.length}>{sichtbar.length} von {angebot.length}</span>
+                      {(f.text || f.art !== "ALLE" || f.anlage || f.wer || f.nurPrioHoch) && <button onClick={() => setUebergabeFilter(UEBERGABE_FILTER_LEER)} className="text-xs font-bold" style={{ color: "#2F6690" }}>Filter weg</button>}
+                    </div>
                     <div className="overflow-auto flex-1" style={{ minHeight: 0 }}>
                       {UEBERGABE_REIHE.filter((a) => a !== "FREI").map((art) => {
-                        const liste = angebot.filter((p) => p.art === art); if (!liste.length) return null;
+                        const liste = sichtbar.filter((p) => p.art === art); if (!liste.length) return null;
+                        const waehlbar = liste.filter((p) => !m.punkte.some((q) => q.key === p.key));
                         return (
                           <div key={art} className="mb-3">
-                            <div className="text-[11px] font-black uppercase mb-1" style={{ color: UEBERGABE_ARTEN[art].farbe }}>{UEBERGABE_ARTEN[art].label} ({liste.length})</div>
+                            <div className="text-[11px] font-black uppercase mb-1 flex items-center gap-2" style={{ color: UEBERGABE_ARTEN[art].farbe }}>
+                              <span>{UEBERGABE_ARTEN[art].label} ({liste.length})</span>
+                              {waehlbar.length > 1 && <button onClick={() => setUebergabeWahl((alt) => { const n = new Set(alt); waehlbar.forEach((p) => n.add(p.key)); return n; })} className="normal-case font-bold" style={{ color: "#2F6690" }} data-uebergabe-alle-waehlen={art}>alle {waehlbar.length} wählen</button>}
+                            </div>
                             {liste.map((p) => { const drin = m.punkte.some((q) => q.key === p.key); return (
                               <label key={p.key} className="flex items-start gap-2 py-1 border-b text-sm" style={{ borderColor: "#F0F1F3", opacity: drin ? 0.5 : 1 }}>
                                 <input type="checkbox" disabled={drin} checked={drin || uebergabeWahl.has(p.key)} onChange={(e) => setUebergabeWahl((alt) => { const n = new Set(alt); if (e.target.checked) n.add(p.key); else n.delete(p.key); return n; })} data-uebergabe-wahl-punkt={p.key} className="mt-1" />
@@ -11957,7 +12010,7 @@ function App() {
                           </div>
                         );
                       })}
-                      {angebot.length === 0 && <div className="text-sm italic" style={{ color: "#8A9099" }}>Nichts Offenes gefunden.</div>}
+                      {sichtbar.length === 0 && <div className="text-sm italic" style={{ color: "#8A9099" }}>{angebot.length === 0 ? "Nichts Offenes gefunden." : "Kein Punkt passt zu diesem Filter."}</div>}
                     </div>
                     <div className="flex justify-end gap-2 mt-3">
                       <button onClick={() => setUebergabeWahl(null)} className="text-xs font-bold rounded px-3 py-1.5 bg-white border" style={{ borderColor: "#D6D9DC" }}>Abbrechen</button>
@@ -14427,6 +14480,19 @@ function App() {
                 📋 Backlog {arbeitenOffen.length > 0 ? `(${arbeitenOffen.length})` : ""}
               </button>
             )}
+            {!readerMode && (
+              <button
+                onClick={() => setTodoPopout((o) => !o)}
+                className="px-3 py-1.5 rounded border text-xs font-bold"
+                style={todoPopout
+                  ? { backgroundColor: "#2F6690", color: "white", borderColor: "#2F6690" }
+                  : { backgroundColor: "white", color: "#2F6690", borderColor: "#D6D9DC" }}
+                title="Offene To-dos als Fenster neben dem Plan - zuweisen per Ziehen auf Person und Tag"
+                data-planung-todos
+              >
+                ☑ To-do {todoOffene.length > 0 ? `(${todoOffene.length})` : ""}
+              </button>
+            )}
           </div>
 
           {team.length === 0 ? (
@@ -14558,6 +14624,8 @@ function App() {
                                         if (readerMode || abwesend) return;
                                         const arbeitId = ev.dataTransfer.getData("text/wk-arbeit");
                                         if (arbeitId) einplanen(arbeitId, person, t.key);
+                                        const todoId = ev.dataTransfer.getData("text/wk-todo");
+                                        if (todoId) todoEinplanen(todoId, person, t.key);
                                         // PitStop/R+I aus der Wartungsplan-Zeile: nur am selben Tag zuteilen
                                         // (Verschieben auf einen anderen Tag bleibt dem Dialog vorbehalten).
                                         const planRoh = ev.dataTransfer.getData("text/wk-plan");
@@ -14616,6 +14684,24 @@ function App() {
                                           {n.status === "done" ? "✓" : "📝"} {String(n.note || "").length > 60 ? String(n.note || "").slice(0, 60) + "…" : String(n.note || "")}
                                         </button>
                                       ))}
+                                      {todosFuer(person, t.key).map((td) => {
+                                        const done = td.status === "done";
+                                        return (
+                                          <button
+                                            key={td.id}
+                                            onClick={() => { if (!readerMode) todoBearbeiten(td); }}
+                                            draggable={!readerMode && !done}
+                                            onDragStart={(ev) => { if (done) return; ev.dataTransfer.setData("text/wk-todo", td.id); ev.dataTransfer.effectAllowed = "move"; }}
+                                            disabled={readerMode}
+                                            className="rounded font-semibold text-left"
+                                            data-plan-todo={td.id}
+                                            style={{ display: "inline-block", fontSize: "0.68rem", padding: "0 6px", margin: "1px 4px 1px 0", color: done ? "#8A9099" : "#2F6690", border: `1px solid ${done ? "#C9CED5" : "#9FB9CF"}`, backgroundColor: done ? "#F4F5F6" : "#EEF3F8" }}
+                                            title={`To-do${td.von && td.bis && td.von !== td.bis ? ` ${formatDateDE(td.von)} – ${formatDateDE(td.bis)}` : ""}${done ? " (erledigt)" : ""}: ${td.name}`}
+                                          >
+                                            {done ? "✓" : "📋"} {String(td.name || "").length > 60 ? String(td.name || "").slice(0, 60) + "…" : String(td.name || "")}
+                                          </button>
+                                        );
+                                      })}
                                       {!abwesend && !readerMode && (
                                         <button
                                           onClick={() => { setPickerArt("ALLE"); setPickerSuche(""); setPlanungPicker({ person, datum: t.key }); }}
@@ -15149,7 +15235,10 @@ function App() {
                 onClick={() => {
                   const text = String(planNotiz.text || "").trim();
                   setTodoFehler(null);
-                  setTodoModal({ titel: text, wer: planNotiz.person || "", von: planNotiz.datum || "", bis: planNotiz.datum || "", uhrzeit: "", prio: "", bemerkung: `aus der Planungs-Notiz vom ${formatDateDE(planNotiz.datum)}`, fotos: [], fotosNeu: [], fotosWeg: [] });
+                  // ausNotizId: beim Speichern wird die Notiz durch das To-do ersetzt (Roberto 09.10.:
+                  // „die Notiz muss in der Planung automatisch zu einem To-do werden“) - gleiche Zelle,
+                  // weil Person = Zuständiger und Tag = Von/Bis.
+                  setTodoModal({ titel: text, wer: planNotiz.person || "", von: planNotiz.datum || "", bis: planNotiz.datum || "", uhrzeit: "", prio: "", bemerkung: `aus der Planungs-Notiz vom ${formatDateDE(planNotiz.datum)}`, fotos: [], fotosNeu: [], fotosWeg: [], ausNotizId: planNotiz.id || null });
                   setPlanNotiz(null);
                 }}
                 data-notiz-todo
@@ -15401,6 +15490,34 @@ function App() {
           neben dem Wochenplan und werden per Ziehen auf eine Person-Tag-Zeile
           zugewiesen. Zieht man einen Plan-Chip HIERHER, wird die Arbeit
           wieder ausgeplant (zurück in den offenen Vorrat). */}
+      {todoPopout && view === "COCKPIT" && cockpitTab === "PLANUNG" && !nurLesen("PLANUNG") && (
+        <SchwebeFenster id="planung-todo" titel="To-do – ziehen zum Zuweisen" onZu={() => setTodoPopout(false)} breite={360} hoehe={480}>
+          <div
+            className="p-2 flex flex-col gap-1"
+            style={{ minHeight: "100%" }}
+            data-planung-todo-fenster
+            onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }}
+            onDrop={(ev) => { ev.preventDefault(); const id = ev.dataTransfer.getData("text/wk-todo"); if (id) todoEinplanen(id, undefined, undefined); }}
+          >
+            <SuchFeld type="search" wert={todoPopoutSuche} onWert={setTodoPopoutSuche} placeholder="🔍 Suchen …" className="text-xs border rounded px-2 py-1.5 mb-1" style={{ borderColor: "#D6D9DC" }} />
+            <button onClick={todoNeu} className="text-xs font-bold rounded px-2 py-1.5 text-white mb-1" style={{ backgroundColor: "#2F6690" }}>+ Neues To-do</button>
+            {(() => {
+              const q = todoPopoutSuche.trim().toLowerCase();
+              const liste = todoOffene.filter((t) => !q || `${t.name} ${t.wer || ""} ${t.bemerkung || ""}`.toLowerCase().includes(q))
+                .sort((a, b) => String(a.bis || a.von || "9").localeCompare(String(b.bis || b.von || "9")));
+              if (liste.length === 0) return <div className="text-xs italic text-slate-400 p-2">Keine offenen To-dos{q ? " zu dieser Suche" : ""}.</div>;
+              return liste.map((t) => (
+                <div key={t.id} draggable onDragStart={(ev) => { ev.dataTransfer.setData("text/wk-todo", t.id); ev.dataTransfer.effectAllowed = "move"; }}
+                  onClick={() => todoBearbeiten(t)} className="rounded border px-2 py-1.5" style={{ borderColor: "#E2E4E7", backgroundColor: "white", cursor: "grab" }}
+                  title={`${t.name} – auf eine Person-Tag-Zeile im Plan ziehen (setzt Zuständigen und Tag)`} data-planung-todo-zeile={t.id}>
+                  <div className="font-bold" style={{ fontSize: "0.72rem", color: "#22262B" }}>{t.name}</div>
+                  <div style={{ fontSize: "0.66rem", color: "#5B6572" }}>{[t.wer ? `für ${t.wer}` : "noch niemand", t.von && t.bis && t.von !== t.bis ? `${formatDateDE(t.von)} – ${formatDateDE(t.bis)}` : t.bis ? `bis ${formatDateDE(t.bis)}` : "kein Tag", t.prio === "hoch" ? "hohe Prio" : ""].filter(Boolean).join(" · ")}</div>
+                </div>
+              ));
+            })()}
+          </div>
+        </SchwebeFenster>
+      )}
       {backlogPopout && view === "COCKPIT" && cockpitTab === "PLANUNG" && !nurLesen("PLANUNG") && (
         <SchwebeFenster id="planung-backlog" titel="Backlog – ziehen zum Zuweisen" onZu={() => setBacklogPopout(false)} breite={360} hoehe={480}>
           <div

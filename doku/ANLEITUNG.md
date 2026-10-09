@@ -812,7 +812,8 @@ Störungen, nicht den Rest.
 - **Übergabe (seit dem 09.10., Roll-out 69) – die Mappe für die Vertretung:**
   „Neue Mappe“ mit Titel, Zeitraum und Vertreter; „Punkte wählen“ zeigt alles
   Offene aus Störungen, To-do, Backlog, **Planungs-Notizen ab heute** (mit
-  Person und Tag) und Pinnwand zum Ankreuzen, „+ Notiz“
+  Person und Tag) und Pinnwand zum Ankreuzen – mit **Filtern** (Suchwort,
+  Art, Anlage, Person, nur hohe Prio) und „alle wählen“ je Abschnitt, „+ Notiz“
   ergänzt freie Hinweise („Zählerstände montags eintragen“). Jeder Punkt ist
   ein Schnappschuss mit Text, Anlage, Frist und Foto. Der Vertreter hakt am
   PC ab (Name und Zeit stehen dran, live auf allen Rechnern); wird ein To-do,
@@ -829,6 +830,14 @@ Störungen, nicht den Rest.
   tragen („Von – bis wann“), weil manche Aufgaben mehrere Tage dauern. Die
   Liste zeigt dann „12.10.2026 – 14.10.2026“; ohne Von bleibt es bei „bis“.
   Überfällig und Vorwarnung richten sich weiter nach dem Bis-Tag.
+- **To-dos in der Planung (seit dem 09.10.):** Ein To-do mit Zuständigem und
+  Zeitraum steht als blauer Chip „📋 …“ in der Planungszelle der Person, an
+  jedem Tag von – bis; erledigt wird er grau mit ✓. Klick öffnet das To-do,
+  Ziehen auf eine andere Person oder einen anderen Tag plant es um. Oben
+  rechts neben „Backlog“ öffnet **„☑ To-do (n)“** ein Fenster mit allen
+  offenen To-dos – per Ziehen auf Person und Tag einplanen, zurück ins
+  Fenster nimmt den Tag wieder weg. Wer aus einer Planungs-Notiz ein To-do
+  macht, sieht in derselben Zelle statt der Notiz den To-do-Chip.
 - **Aufnahme (seit dem 06.10., eigener Hauptbereich):** Bilder vom Handy und
   aus einem Ordner des PCs landen in **einem Eingangskorb** und werden von dort
   mit einem Griff in sechs Ziele sortiert: **Arbeit → Backlog**, **To-do**,
