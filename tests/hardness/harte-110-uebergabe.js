@@ -13,7 +13,11 @@
 //       Datei und zählt den Fortschritt; Haken weg = wieder offen.
 //   (4) Ursprung im Cockpit erledigt (To-do done, Störung behoben) -> die Mappe
 //       hakt von selbst ab („automatisch“), das Kästchen ist nicht klickbar.
-//   (5) Drucken „Mappe“: Blatt mit Kopf, fünf Abschnitten, Kästchen je Punkt
+//   (5) Drucken „Mappe“ (Vorlage A, Roberto 09.10.): Kopf nur oben, dann je
+//       Woche ein Terminblock Mo–Fr AUTOMATISCH aus dem Kalender (PitStop/R+I,
+//       Termine, To-dos mit Von/Bis, Arbeiten „geplant für“, Planungs-Notizen),
+//       darunter EINE Aufgabenliste nach Dringlichkeit mit den gewählten Punkten
+//       ohne festes Datum, ganz am Ende das Notizfeld. Alt: Blatt mit Kopf, fünf Abschnitten, Kästchen je Punkt
 //       (angehakt wo erledigt), Bilder geladen, keine Bemerkungsspalte.
 //       Drucken „kompakt“: eine Zeile je Punkt, Bilder als nummerierter Anhang.
 //   (6) Neu während der Vertretung: Zeile landet in der Datei und auf dem Blatt.
@@ -222,17 +226,19 @@ const inUebergabe = async (p) => {
     await blatt.waitForTimeout(700);
     const bText = await blatt.locator("body").innerText();
     const bildOk = await blatt.evaluate(() => [...document.querySelectorAll("img")].some((i) => i.naturalWidth > 0));
-    ok("(5) Blatt „Mappe“: Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; sechs Abschnitte; sechs Kästchen, zwei angehakt; Planungs-Notiz mit Person; To-do mit Zeitraum von – bis; keine Spalte „Bemerkung“",
-      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && (await blatt.locator("h4").count()) >= 6 && (await blatt.locator(".k").count()) === 6 && (await blatt.locator(".k.ok").count()) === 2 && /T Balles/.test(bText) && /12\.10\.2026 – 14\.10\.2026/.test(bText) && !/Bemerkung/.test(bText), bText.replace(/\n/g, " · ").slice(0, 200));
-    ok("(5) Blatt „Mappe“: das Foto ist als Bild geladen (110 px hoch) und der neue Punkt steht unter „neu dazukam“", bildOk && (await blatt.locator("img").first().evaluate((i) => i.style.height)) === "110px" && /Kompressor 2 tropft/.test(bText));
+    ok("(5) Blatt „Mappe“ (Vorlage A): Kopf mit Titel, Zeitraum 13.10.2026 – 24.10.2026, Vertreter; zwei Terminblöcke KW 42 (Di–Fr, der Zeitraum beginnt Dienstag) und KW 43 (Mo–Fr), Wochenende leer und darum weg; PitStop TS480 am Mo 12.10. liegt VOR dem Zeitraum und fehlt; das To-do (von 12.10. bis 14.10.) steht am 13. „läuft“ und am 14. „bis“, das zweite To-do (bis 16.10.) am Fr 16.10.",
+      /Vertretung 13\.–24\.10\./.test(bText) && /13\.10\.2026 – 24\.10\.2026/.test(bText) && /A\. Richter/.test(bText) && /KW 42/.test(bText) && /KW 43/.test(bText) && (await blatt.locator("h4.block").count()) === 2 && (await blatt.locator(".tage tr").count()) === 9 && (await blatt.locator(".chip.td").count()) === 3 && /Fr 16\.10\.[^\n]*Prüfprotokoll/.test(bText) && /Ölstand prüfen[^\n]*\(läuft\)/.test(bText) && /Ölstand prüfen[^\n]*\(bis\)/.test(bText) && /Di 13\.10\./.test(bText) && /Fr 23\.10\./.test(bText) && !/Mo 12\.10\./.test(bText) && !/Sa 24\.10\./.test(bText), bText.replace(/\n/g, " · ").slice(0, 1400));
+    ok("(5) Blatt „Mappe“: darunter EINE Aufgabenliste nach Dringlichkeit - fünf Punkte ohne festes Datum (Störung zuerst, dann Backlog hohe Prio, Planungs-Notiz, Zettel, Notiz), das datierte To-do steht NICHT noch einmal; zwei Kästchen angehakt (Störung behoben, Arbeit erledigt); keine Spalte „Bemerkung“",
+      (await blatt.locator(".liste tr").count()) === 5 && (await blatt.locator(".liste .k").count()) === 5 && (await blatt.locator(".liste .k.ok").count()) === 2 && (await blatt.locator(".liste tr").first().innerText()).includes("STÖR") && (await blatt.locator(".liste").innerText()).split("Ölstand").length === 1 && !/Bemerkung/.test(bText), (await blatt.locator(".liste").innerText()).replace(/\n/g, " · ").slice(0, 200));
+    ok("(5) Blatt „Mappe“: das Foto des To-dos hängt klein (36 px) am Termin-Chip und ist geladen; „neu dazukam“ und das Notizfeld stehen EINMAL ganz am Ende", bildOk && (await blatt.locator(".tage img").first().evaluate((i) => i.style.height)) === "36px" && /Kompressor 2 tropft/.test(bText) && (await blatt.locator(".notizfeld").count()) === 1 && await blatt.evaluate(() => { const n = document.querySelector(".notizfeld"); const b = document.body; return !!n && n.getBoundingClientRect().top > [...b.querySelectorAll("table")].pop().getBoundingClientRect().top; }));
     await blatt.close();
 
     /* (5) Druck kompakt */
     const [blatt2] = await Promise.all([w.p.waitForEvent("popup"), w.p.locator('[data-uebergabe-drucken="kompakt"]').click()]);
     await blatt2.waitForTimeout(700);
     const kText = await blatt2.locator("body").innerText();
-    ok("(5) Blatt „kompakt“: eine Tabelle mit sechs Zeilen, Art-Kürzel STÖR/TODO/BACK/PLAN/ZETTEL/NOTIZ, „Bild 1“ als Verweis und Anhang mit Bild 1",
-      (await blatt2.locator("table.kompakt tr").count()) === 7 && /STÖR/.test(kText) && /TODO/.test(kText) && /BACK/.test(kText) && /PLAN/.test(kText) && /ZETTEL/.test(kText) && /NOTIZ/.test(kText) && /Bild 1/.test(kText) && (await blatt2.locator(".anhang img").count()) === 1 && (await blatt2.locator(".k.ok").count()) === 2, kText.replace(/\n/g, " · ").slice(0, 200));
+    ok("(5) Blatt „kompakt“: Terminblock mit Kästchen je Tag (9 Tage) und „(Bild 1)“ am To-do, darunter fünf Aufgabenzeilen mit Kürzeln STÖR/BACK/PLAN/ZETTEL/NOTIZ, Anhang mit Bild 1, zwei Kästchen angehakt",
+      (await blatt2.locator(".tage tr").count()) === 9 && (await blatt2.locator(".tage .k").count()) === 9 && /\(Bild 1\)/.test(kText) && (await blatt2.locator(".liste tr").count()) === 5 && /STÖR/.test(kText) && /BACK/.test(kText) && /PLAN/.test(kText) && /ZETTEL/.test(kText) && /NOTIZ/.test(kText) && (await blatt2.locator(".anhang img").count()) === 1 && (await blatt2.locator(".liste .k.ok").count()) === 2, kText.replace(/\n/g, " · ").slice(0, 220));
     await blatt2.close();
     ok("(4-6) Keine Skriptfehler", w.fehler.length === 0, w.fehler.slice(0, 2).join(" | "));
     await w.ctx.close();

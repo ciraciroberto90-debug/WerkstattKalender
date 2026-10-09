@@ -818,10 +818,15 @@ Störungen, nicht den Rest.
   ein Schnappschuss mit Text, Anlage, Frist und Foto. Der Vertreter hakt am
   PC ab (Name und Zeit stehen dran, live auf allen Rechnern); wird ein To-do,
   eine Arbeit oder eine Störung im Cockpit erledigt, hakt die Mappe von
-  selbst ab („automatisch“). **Drucken:** „Mappe“ (A4 hoch, Abschnitte je
-  Art, Kästchen, Bilder) oder „Kompakt-Checkliste“ (eine Zeile je Punkt,
-  Bilder als nummerierter Anhang) – beides aus derselben Mappe. Unten „Was
-  während der Vertretung neu dazukam“ als Rückmeldung nach dem Urlaub.
+  selbst ab („automatisch“). **Drucken:** „Mappe“ (A4 hoch) beginnt mit dem
+  Kopf (nur Seite 1), dann je Woche ein Terminblock Montag–Freitag, den die
+  Mappe **selbst aus dem Kalender** holt – PitStop, R+I, Termine, To-dos mit
+  Von/Bis, Arbeiten „geplant für“, Planungs-Notizen; darunter eine Liste der
+  gewählten Punkte ohne festes Datum nach Dringlichkeit, zum freien Verteilen;
+  ganz am Ende „neu dazukam“ und ein Notizfeld. „Kompakt-Checkliste“ ist
+  dieselbe Gliederung mit Kästchen je Tag und Bildern als nummeriertem
+  Anhang. Unten „Was während der Vertretung neu dazukam“ als Rückmeldung
+  nach dem Urlaub.
   Rechte-Schlüssel UEBERGABE (Bearbeiter: bearbeiten, Leser: ansehen).
   **Notiz → To-do:** Im Notiz-Dialog der Planung öffnet „To-do daraus
   erstellen“ den To-do-Dialog schon ausgefüllt (Text, Person als Zuständiger,

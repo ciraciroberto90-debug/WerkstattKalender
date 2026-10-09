@@ -7736,50 +7736,105 @@ function App() {
     const ok = await uebergabeSchreiben({ ...mappe, punkte: [...mappe.punkte, ...neu] });
     if (ok) setUebergabeWahl(null);
   };
-  // Druck: A „Mappe“ (Abschnitte, Kästchen, größere Fotos - Robertos Wahl 09.10.: ohne Bemerkung/erledigt-am)
-  // und B „kompakt“ (eine Zeile je Punkt, Fotos als nummerierter Anhang). Beide aus derselben Mappe.
+  // Druck (Robertos Vorgabe 09.10., Vorlage A): OBEN die Wochentermine Montag–Freitag, automatisch aus dem
+  // Kalender für den Zeitraum der Mappe (PitStop/R+I, Termine, To-dos mit Von/Bis, Arbeiten mit „geplant
+  // für“, Planungs-Notizen) - nichts davon muss in die Mappe gelegt werden. DARUNTER eine Aufgabenliste
+  // nach Dringlichkeit: die gewählten Punkte ohne festes Datum, zum freien Verteilen. Kopfzeile nur auf
+  // Seite 1, fließender Umbruch (keine erzwungenen Seitenwechsel), Notizfeld ganz am Ende.
+  // kompakt = dieselben Daten als Checkliste mit Kästchen an jedem Termin, Bilder als Anhang.
   const uebergabeDrucken = (mappe, kompakt) => {
-    const zeitraum = [mappe.von ? formatDateDE(mappe.von) : "", mappe.bis ? formatDateDE(mappe.bis) : ""].filter(Boolean).join(" – ");
-    const bild = (f, h) => { const u = fotoUrl(f.datei); return u ? `<img src="${u}" style="height:${h}px;max-width:${Math.round(h * 1.5)}px;object-fit:cover;border-radius:4px;margin:0 4px 4px 0">` : ""; };
+    const tagKeyVon = (d) => dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const istTag = (x) => /^\d{4}-\d{2}-\d{2}$/.test(String(x || ""));
+    const von = istTag(mappe.von) ? mappe.von : todayKey;
+    let bis = istTag(mappe.bis) && mappe.bis >= von ? mappe.bis : null;
+    if (!bis) { const d = new Date(von + "T12:00:00"); d.setDate(d.getDate() + 13); bis = tagKeyVon(d); }
+    const kwVon = (d) => { const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const wt = x.getUTCDay() || 7; x.setUTCDate(x.getUTCDate() + 4 - wt); const j = new Date(Date.UTC(x.getUTCFullYear(), 0, 1)); return Math.ceil(((x - j) / 86400000 + 1) / 7); };
+    const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+    const kurzDatum = (k) => `${k.slice(8, 10)}.${k.slice(5, 7)}.`;
+    // Bilder der Mappen-Punkte, erreichbar über refId (für Termine, die auch als Punkt in der Mappe liegen)
+    const punktZu = (refId) => mappe.punkte.find((p) => p.refId === refId);
+    const anhang = []; // kompakt: nummerierte Bilder
+    const bildNr = (p) => { if (!p || !fotoListeVon(p).length) return 0; let a = anhang.find((x) => x.p === p); if (!a) { a = { nr: anhang.length + 1, p }; anhang.push(a); } return a.nr; };
+    const bild = (f, h) => { const u = fotoUrl(f.datei); return u ? `<img src="${u}" style="height:${h}px;max-width:${Math.round(h * 1.5)}px;object-fit:cover;border-radius:3px;vertical-align:middle;margin:1px 3px 1px 0">` : ""; };
     const kasten = (fertig) => `<span class="k${fertig ? " ok" : ""}"></span>`;
-    const fristText = (p) => (p.von && p.bis && p.von !== p.bis ? `${formatDateDE(p.von)} – ${formatDateDE(p.bis)}` : p.bis ? (/^\d{4}-\d{2}-\d{2}$/.test(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
-    let anhang = [], nr = 0;
-    const zeilenA = UEBERGABE_REIHE.map((art) => {
-      const liste = mappe.punkte.filter((p) => p.art === art); if (!liste.length) return "";
-      return `<div class="abschnitt"><h4><span>${htmlText(UEBERGABE_ARTEN[art].label)}</span><span>${liste.length}</span></h4><table>${liste.map((p) => {
-        const st = uebergabeStatus(p);
-        return `<tr><td class="kz">${kasten(!!st)}</td><td class="nr">${htmlText(p.nr || fristText(p))}</td><td class="an">${htmlText(p.anlage)}</td><td class="tx">${htmlText(p.text)}${p.zusatz ? `<br><small>${htmlText(p.zusatz)}</small>` : ""}${st && st.wer === "automatisch" ? `<br><small>✓ ${htmlText(st.grund || "erledigt")}</small>` : st ? `<br><small>✓ ${htmlText(st.wer)} ${st.am ? formatDateDE(String(st.am).slice(0, 10)) : ""}</small>` : ""}</td><td class="fo">${fotoListeVon(p).slice(0, 2).map((f) => bild(f, 110)).join("")}</td></tr>`;
-      }).join("")}</table></div>`;
+    // ---- Termine je Tag ----
+    const termine = new Map();
+    const lege = (tag, t) => { if (!istTag(tag) || tag < von || tag > bis) return; if (!termine.has(tag)) termine.set(tag, []); termine.get(tag).push(t); };
+    kalenderEntries.forEach((e) => lege(e.date, { kurz: e.category === "TPM" ? "PitStop" : "R+I", klasse: e.category === "TPM" ? "pit" : "ri", text: `${e.name || ""}${e.wer ? " · " + e.wer : ""}`, zeit: e.uhrzeit || "", done: e.status === "done", punkt: null }));
+    entries.filter((e) => e.category === "TERMIN").forEach((e) => lege(e.date, { kurz: "Termin", klasse: "term", text: e.name || e.note || "", zeit: e.uhrzeit || "", done: false, punkt: null }));
+    arbeiten.forEach((a) => lege(a.geplant, { kurz: "Arbeit", klasse: "ab", text: `${a.name ? a.name + " · " : ""}${a.note || ""}${a.wer ? " · " + a.wer : ""}`, zeit: a.uhrzeit || "", done: a.status === "done", punkt: punktZu(a.id) }));
+    todos.forEach((t) => {
+      const a = t.von || t.bis, b = t.bis || t.von; if (!istTag(a) || !istTag(b)) return;
+      for (let d = new Date(a + "T12:00:00"); tagKeyVon(d) <= b && tagKeyVon(d) <= bis; d.setDate(d.getDate() + 1)) {
+        const k = tagKeyVon(d);
+        lege(k, { kurz: "To-do", klasse: "td", text: `${t.name || ""}${t.wer ? " · " + t.wer : ""}${a !== b ? (k === a ? " (Beginn)" : k === b ? " (bis)" : " (läuft)") : ""}`, zeit: k === b ? (t.uhrzeit || "") : "", done: t.status === "done", punkt: punktZu(t.id) });
+      }
+    });
+    entries.filter((e) => e.category === "PLANNOTIZ").forEach((n) => lege(n.date, { kurz: "Notiz", klasse: "pn", text: `${n.note || ""}${n.name ? " · " + n.name : ""}`, zeit: "", done: n.status === "done", punkt: punktZu(n.id) }));
+    termine.forEach((l) => l.sort((x, y) => String(x.zeit).localeCompare(String(y.zeit)) || x.kurz.localeCompare(y.kurz)));
+    // ---- Wochenblöcke Mo–Fr (Sa/So nur mit Inhalt) ----
+    const wochen = [];
+    for (let d = new Date(von + "T12:00:00"); tagKeyVon(d) <= bis; d.setDate(d.getDate() + 1)) {
+      const k = tagKeyVon(d), wt = d.getDay();
+      const montag = new Date(d); montag.setDate(d.getDate() - ((wt + 6) % 7));
+      const mk = tagKeyVon(montag);
+      let w = wochen.find((x) => x.montag === mk);
+      if (!w) { w = { montag: mk, kw: kwVon(montag), tage: [] }; wochen.push(w); }
+      const liste = termine.get(k) || [];
+      if ((wt === 0 || wt === 6) && !liste.length) continue;
+      w.tage.push({ k, wt, liste });
+    }
+    const chipHtml = (t) => `<span class="chip ${t.klasse}${t.done ? " done" : ""}">${t.done ? "✓ " : ""}${t.zeit ? htmlText(t.zeit) + " " : ""}<b>${htmlText(t.kurz)}</b> ${htmlText(t.text)}</span>${t.punkt ? (kompakt ? (bildNr(t.punkt) ? ` <small>Bild ${bildNr(t.punkt)}</small>` : "") : fotoListeVon(t.punkt).slice(0, 2).map((f) => bild(f, 36)).join("")) : ""}`;
+    const zeileText = (t) => `${t.done ? "✓ " : ""}${t.zeit ? t.zeit + " " : ""}${t.kurz} ${t.text}${t.punkt && bildNr(t.punkt) ? ` (Bild ${bildNr(t.punkt)})` : ""}`;
+    const terminBlock = wochen.map((w) => {
+      const ende = new Date(w.montag + "T12:00:00"); ende.setDate(ende.getDate() + 4);
+      return `<h4 class="block"><span>Termine KW ${w.kw} · ${kurzDatum(w.montag)} – ${kurzDatum(tagKeyVon(ende))}</span><span>Montag – Freitag</span></h4><table class="tage">${w.tage.map((t) => `<tr${t.wt === 0 || t.wt === 6 ? ' class="we"' : ""}>${kompakt ? `<td class="kz">${kasten(t.liste.length > 0 && t.liste.every((x) => x.done))}</td>` : ""}<td class="tag">${WT[t.wt]} ${kurzDatum(t.k)}</td><td>${t.liste.length ? (kompakt ? t.liste.map(zeileText).map(htmlText).join(" &nbsp;|&nbsp; ") : t.liste.map(chipHtml).join("")) : '<span class="frei">– keine Termine –</span>'}</td></tr>`).join("")}</table>`;
     }).join("");
-    const zeilenB = `<table class="kompakt"><tr><th></th><th>Art</th><th>bis / Nr</th><th>Anlage</th><th>Was</th><th>Foto</th></tr>${UEBERGABE_REIHE.flatMap((art) => mappe.punkte.filter((p) => p.art === art)).map((p) => {
-      const st = uebergabeStatus(p); const fotos = fotoListeVon(p);
-      let ref = ""; if (fotos.length) { nr++; ref = String(nr); anhang.push({ nr, p }); }
-      return `<tr><td class="kz">${kasten(!!st)}</td><td><span class="art" style="background:${UEBERGABE_ARTEN[p.art].farbe}">${htmlText(UEBERGABE_ARTEN[p.art].kurz)}</span></td><td>${htmlText(p.nr || fristText(p))}</td><td>${htmlText(p.anlage)}</td><td>${htmlText(p.text)}</td><td>${ref ? "Bild " + ref : ""}</td></tr>`;
-    }).join("")}</table>${anhang.length ? `<div class="anhang"><h4>Anhang – Bilder</h4>${anhang.map((a) => `<div class="bildzeile"><b>Bild ${a.nr}</b> · ${htmlText(a.p.anlage)} ${htmlText(a.p.text).slice(0, 80)}<br>${fotoListeVon(a.p).map((f) => bild(f, 140)).join("")}</div>`).join("")}</div>` : ""}`;
-    const neuListe = (mappe.neu || []).length ? `<ul>${mappe.neu.map((n) => `<li>${htmlText(n.text)} <small>(${htmlText(n.wer)} ${n.am ? formatDateDE(String(n.am).slice(0, 10)) : ""})</small></li>`).join("")}</ul>` : `<div class="frei"></div>`;
+    // ---- Sonstige Aufgaben: gewählte Punkte ohne festes Datum im Zeitraum, nach Dringlichkeit ----
+    const imZeitraum = (p) => { const a = p.von || p.bis, b = p.bis || p.von; return istTag(a) && istTag(b) && a <= bis && b >= von; };
+    const imTerminblock = (p) => (p.art === "TODO" || p.art === "PLANNOTIZ" || (p.art === "ARBEIT" && istTag(p.bis))) && imZeitraum(p);
+    const rang = (p) => (p.art === "STOERUNG" ? 0 : p.art === "TODO" && p.bis ? 1 : p.prio === "hoch" ? 2 : p.art === "TODO" ? 3 : p.art === "ARBEIT" ? 4 : p.art === "PLANNOTIZ" ? 5 : p.art === "NOTIZ" ? 6 : 7);
+    const aufgaben = mappe.punkte.filter((p) => !imTerminblock(p)).sort((a, b) => rang(a) - rang(b) || String(a.bis || "9").localeCompare(String(b.bis || "9")));
+    const fristText = (p) => (p.von && p.bis && p.von !== p.bis ? `${formatDateDE(p.von)} – ${formatDateDE(p.bis)}` : p.bis ? (istTag(p.bis) ? formatDateDE(p.bis) : p.bis) : "");
+    const wannText = (p) => [p.nr, fristText(p), p.prio === "hoch" ? "hohe Prio" : ""].filter(Boolean).join(" · ");
+    const aufgabenRows = aufgaben.map((p) => {
+      const st = uebergabeStatus(p);
+      const nr = kompakt ? bildNr(p) : 0;
+      return `<tr${st ? ' class="done"' : ""}><td class="kz">${kasten(!!st)}</td><td class="ar"><span class="art" style="background:${UEBERGABE_ARTEN[p.art].farbe}">${htmlText(UEBERGABE_ARTEN[p.art].kurz)}</span></td><td class="an">${htmlText(p.anlage || "–")}</td><td class="tx">${htmlText(p.text)}${p.zusatz ? ` <small>· ${htmlText(p.zusatz)}</small>` : ""}${st ? ` <small>· ✓ ${htmlText(st.wer === "automatisch" ? (st.grund || "erledigt") : st.wer)}${st.am ? " " + formatDateDE(String(st.am).slice(0, 10)) : ""}</small>` : ""}</td><td class="wann">${htmlText(wannText(p))}</td><td class="fo">${kompakt ? (nr ? "Bild " + nr : "") : fotoListeVon(p).slice(0, 2).map((f) => bild(f, 48)).join("")}</td></tr>`;
+    }).join("");
+    const anhangHtml = kompakt && anhang.length ? `<div class="anhang"><h4><span>Anhang – Bilder</span></h4>${anhang.map((a) => `<div class="bildzeile"><b>Bild ${a.nr}</b> · ${htmlText(a.p.anlage || "")} ${htmlText(String(a.p.text || "").slice(0, 80))}<br>${fotoListeVon(a.p).map((f) => bild(f, 140)).join("")}</div>`).join("")}</div>` : "";
+    const neuListe = (mappe.neu || []).length ? `<ul>${mappe.neu.map((n) => `<li>${htmlText(n.text)} <small>(${htmlText(n.wer)} ${n.am ? formatDateDE(String(n.am).slice(0, 10)) : ""})</small></li>`).join("")}</ul>` : "";
     const offen = mappe.punkte.filter((p) => !uebergabeStatus(p)).length;
     const html = `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${htmlText(mappe.name)}</title><style>
       @page { size: A4 portrait; margin: 12mm; }
       ${DRUCK_FARBTREUE}
-      body { font-family: "Segoe UI", system-ui, sans-serif; color: #22262B; font-size: ${kompakt ? "11.5px" : "12.5px"}; margin: 0; }
-      .titel { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #22262B; padding-bottom:6px; margin-bottom:8px; }
-      h1 { margin:0; font-size:18px; } small { color:#8A9099; } .meta { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px 16px; margin-bottom:10px; font-size:12px; }
-      .meta b { display:block; font-size:10px; text-transform:uppercase; color:#8A9099; }
-      .abschnitt { margin-top:12px; page-break-inside:avoid; } h4 { margin:0 0 4px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#5B6572; border-bottom:1px solid #D6D9DC; padding-bottom:3px; display:flex; justify-content:space-between; }
-      table { width:100%; border-collapse:collapse; } td, th { padding:5px 6px; vertical-align:top; border-bottom:1px solid #E6E8EB; text-align:left; } th { font-size:10px; text-transform:uppercase; color:#8A9099; }
-      tr { page-break-inside:avoid; } td.kz { width:24px; } td.nr { width:64px; white-space:nowrap; } td.an { width:70px; font-weight:800; } td.fo { width:${kompakt ? "50" : "180"}px; text-align:right; }
-      .k { width:16px; height:16px; border:2px solid #22262B; border-radius:3px; display:inline-block; vertical-align:middle; position:relative; }
-      .k.ok { background:#22262B; } .k.ok::after { content:"✓"; color:#fff; position:absolute; left:2px; top:-4px; font-size:14px; font-weight:900; }
-      .art { font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; color:#fff; } .kompakt td { padding:4px 5px; }
-      .anhang { margin-top:14px; page-break-before:always; } .bildzeile { margin:8px 0; page-break-inside:avoid; }
-      .frei { border:1px dashed #D6D9DC; border-radius:6px; min-height:70px; } ul { margin:4px 0 0 18px; padding:0; }
-      .fuss { margin-top:14px; border-top:1px solid #D6D9DC; padding-top:5px; display:flex; justify-content:space-between; font-size:10px; color:#8A9099; }
+      body { font-family: "Segoe UI", system-ui, sans-serif; color: #22262B; font-size: ${kompakt ? "11px" : "12px"}; margin: 0; }
+      .titel { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #22262B; padding-bottom:6px; margin-bottom:8px; }
+      h1 { margin:0; font-size:18px; } small { color:#5B6572; } .meta { display:flex; gap:22px; margin-bottom:10px; font-size:11.5px; } .meta b { display:block; font-size:10px; text-transform:uppercase; color:#8A9099; }
+      h4 { margin:12px 0 4px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#5B6572; border-bottom:1px solid #D6D9DC; padding-bottom:3px; display:flex; justify-content:space-between; page-break-after:avoid; }
+      h4.block { background:#22262B; color:#fff; border:none; padding:4px 8px; border-radius:4px; }
+      table { width:100%; border-collapse:collapse; } td { padding:4px 6px; vertical-align:top; border-bottom:1px solid #E6E8EB; text-align:left; } tr { page-break-inside:avoid; }
+      .tage td.tag { width:${kompakt ? "72" : "84"}px; font-weight:800; white-space:nowrap; } .tage tr.we td { background:#F7F8F9; color:#8A9099; } .frei { color:#8A9099; font-style:italic; }
+      .chip { display:inline-block; font-size:10.5px; padding:0 5px; border-radius:3px; margin:1px 4px 1px 0; border:1px solid #D6D9DC; white-space:normal; }
+      .chip.pit { color:#C97A2B; border-color:#C97A2B; } .chip.ri { color:#2F6690; border-color:#2F6690; } .chip.term { color:#4B5259; border-color:#4B5259; }
+      .chip.td { color:#2F6690; border-color:#9FB9CF; background:#EEF3F8; } .chip.ab { color:#C97A2B; border-color:#E6C9A8; background:#FDF3E7; } .chip.pn { color:#9A6B00; border-color:#E5D77A; background:#FEF9C3; }
+      .chip.done { color:#8A9099; border-color:#D6D9DC; background:#F4F5F6; text-decoration:line-through; }
+      .k { width:${kompakt ? "12" : "15"}px; height:${kompakt ? "12" : "15"}px; border:2px solid #22262B; border-radius:3px; display:inline-block; vertical-align:middle; position:relative; }
+      .k.ok { background:#22262B; } .k.ok::after { content:"✓"; color:#fff; position:absolute; left:2px; top:-4px; font-size:${kompakt ? "11" : "13"}px; font-weight:900; }
+      .liste td.kz { width:24px; } .liste td.ar { width:52px; } .liste td.an { width:74px; font-weight:800; } .liste td.wann { width:92px; color:#8A9099; font-size:10.5px; } .liste td.fo { width:${kompakt ? "48" : "110"}px; text-align:right; }
+      .liste tr.done td { color:#8A9099; } .liste tr.done td.tx { text-decoration:line-through; }
+      .art { font-size:9px; font-weight:800; padding:1px 5px; border-radius:3px; color:#fff; white-space:nowrap; }
+      .anhang { margin-top:14px; } .bildzeile { margin:8px 0; page-break-inside:avoid; }
+      .schluss { page-break-inside:avoid; margin-top:14px; } .notizfeld { border:1px dashed #D6D9DC; border-radius:6px; min-height:110px; margin-top:4px; } ul { margin:4px 0 0 18px; padding:0; }
+      .fuss { margin-top:12px; border-top:1px solid #D6D9DC; padding-top:5px; display:flex; justify-content:space-between; font-size:10px; color:#8A9099; }
     </style></head><body>
-      <div class="titel"><div><h1>${htmlText(mappe.name)}</h1><small>Übergabe-Mappe ${htmlText(werkstattName || "")}${zeitraum ? " · " + htmlText(zeitraum) : ""} · erstellt ${formatDateDE(mappe.date)} von ${htmlText(mappe.ersteller)}</small></div><div style="text-align:right"><small>${kompakt ? "Kompakt-Checkliste" : "Mappe"}<br>Stand ${new Date().toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</small></div></div>
-      <div class="meta"><div><b>Vertreter</b>${htmlText(mappe.vertreter || "–")}</div><div><b>Erreichbar bei Fragen</b>${htmlText(mappe.ersteller)}</div><div><b>Punkte</b>${mappe.punkte.length} · offen ${offen}</div></div>
-      ${kompakt ? zeilenB : zeilenA}
-      <div class="abschnitt"><h4><span>Was während der Vertretung neu dazukam</span></h4>${neuListe}</div>
-      <div class="fuss"><span>BTA-Cockpit · Übergabe-Mappe</span><span>zurück am ________ · Unterschrift ________</span></div>
+      <div class="titel"><div><h1>${htmlText(mappe.name)}</h1><small>Übergabe-Mappe${werkstattName ? " " + htmlText(werkstattName) : ""} · ${formatDateDE(von)} – ${formatDateDE(bis)} · Vertreter ${htmlText(mappe.vertreter || "–")} · erstellt ${formatDateDE(mappe.date)} von ${htmlText(mappe.ersteller)} · Stand ${new Date().toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</small></div><div style="text-align:right"><small>${mappe.punkte.length} Punkte · ${offen} offen<br>Erreichbar: ${htmlText(mappe.ersteller)}</small></div></div>
+      ${terminBlock || '<div class="frei">Keine Termine im Zeitraum.</div>'}
+      <h4><span>Sonstige Aufgaben – frei über die Wochen verteilen</span><span>${aufgaben.length} · nach Dringlichkeit</span></h4>
+      <table class="liste">${aufgabenRows || '<tr><td class="frei">Keine weiteren Punkte in der Mappe.</td></tr>'}</table>
+      ${anhangHtml}
+      <div class="schluss"><h4><span>Was während der Vertretung neu dazukam</span></h4>${neuListe}<div class="notizfeld"></div>
+      <div class="fuss"><span>BTA-Cockpit · Übergabe-Mappe${kompakt ? " · Kompakt-Checkliste" : ""}</span><span>zurück am ________ · Unterschrift ________</span></div></div>
     </body></html>`;
     openPrintWindow(html, `Uebergabe-${String(mappe.name).replace(/[^\wäöüÄÖÜß-]+/g, "_")}.html`);
   };
