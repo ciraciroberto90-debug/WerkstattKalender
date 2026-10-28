@@ -1,6 +1,6 @@
 {
   "format": "werkstatt-stoerungen-v1",
-  "savedAt": "2026-07-27T06:07:20.926Z",
+  "savedAt": "2026-10-28T05:39:59.949Z",
   "entries": [
     {
       "id": "demo-st-1",
@@ -67,7 +67,7 @@
     },
     {
       "id": "demo-st-4",
-      "date": "2026-07-20",
+      "date": "2026-07-19",
       "schicht": "Nacht",
       "anlage": "HRO",
       "anlagenteil": "Trocknerkette",
@@ -214,7 +214,7 @@
     },
     {
       "id": "demo-st-11",
-      "date": "2026-07-12",
+      "date": "2026-07-11",
       "schicht": "Nacht",
       "anlage": "RRO",
       "anlagenteil": "Not-Aus-Kreis",
@@ -277,7 +277,7 @@
     },
     {
       "id": "demo-st-14",
-      "date": "2026-06-30",
+      "date": "2026-06-29",
       "schicht": "Nacht",
       "anlage": "TS320",
       "anlagenteil": "SPS",
@@ -445,7 +445,7 @@
     },
     {
       "id": "demo-st-22",
-      "date": "2026-07-17",
+      "date": "2026-07-16",
       "schicht": "Nacht",
       "anlage": "LTA2",
       "anlagenteil": "Ventilator",
@@ -487,7 +487,7 @@
     },
     {
       "id": "demo-st-24",
-      "date": "2026-07-15",
+      "date": "2026-07-14",
       "schicht": "Nacht",
       "anlage": "RRO",
       "anlagenteil": "Antrieb",
@@ -550,7 +550,7 @@
     },
     {
       "id": "demo-st-27",
-      "date": "2026-07-11",
+      "date": "2026-07-10",
       "schicht": "Nacht",
       "anlage": "Wikler",
       "anlagenteil": "Bremse",
@@ -676,7 +676,7 @@
     },
     {
       "id": "demo-st-33",
-      "date": "2026-06-29",
+      "date": "2026-06-28",
       "schicht": "Nacht",
       "anlage": "HRO",
       "anlagenteil": "Trocknerkette",
@@ -844,7 +844,7 @@
     },
     {
       "id": "demo-st-41",
-      "date": "2026-07-15",
+      "date": "2026-07-14",
       "schicht": "Nacht",
       "anlage": "LTA2",
       "anlagenteil": "Ventilator",
@@ -1012,7 +1012,7 @@
     },
     {
       "id": "demo-st-49",
-      "date": "2026-07-02",
+      "date": "2026-07-01",
       "schicht": "Nacht",
       "anlage": "TS200",
       "anlagenteil": "Endlage",

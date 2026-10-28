@@ -51,7 +51,10 @@ const pruef = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++
   const soll = STOER.filter((s) => s.date === "2026-07-15").reduce((a, s) => a + (Number(s.ausfallzeit) || 0), 0);
   const tagText = await zeile("15.07.2026").innerText();
   pruef(`Tagessumme 15.07. zeigt ${soll} min`, new RegExp(`${soll}\\s*min`).test(tagText));
-  pruef("Tag zeigt die Anzahl der Berichte", /8 Einträge/.test(tagText));
+  // Anzahl aus den Demo-Daten rechnen, nicht fest verdrahten - seit Roll-out 71 (28.10.) tragen
+  // Nacht-Berichte den Tag des Schichtbeginns, damit wanderten zwei Berichte vom 15.07. auf den 14.07.
+  const anzahl = STOER.filter((s) => s.date === "2026-07-15").length;
+  pruef(`Tag zeigt die Anzahl der Berichte (${anzahl})`, new RegExp(`${anzahl} Einträge`).test(tagText));
 
   let schichtSumme = 0;
   for (const sch of ["FRÜH", "SPÄT", "NACHT"]) {
