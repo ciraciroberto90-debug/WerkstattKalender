@@ -983,6 +983,12 @@ Der Reiter **Störungen** ist euer digitales Schichtbuch Instandhaltung.
 - Schicht aufklappen → **kompakte Zeilen**: Uhrzeit + Anlage (· Anlagenteil) links,
   Beschreibung rechts, Ausfallzeit (**Minuten**) und Status (offen / behoben).
 
+
+**Nachtschicht und Datum:** Die Nachtschicht gehört zu dem Tag, an dem sie
+begonnen hat. Ein Bericht, der nach Mitternacht erfasst wird (0–6 Uhr),
+bekommt deshalb den Vortag vorbelegt, und die Liste „nach Datum und Schicht“
+führt ihn dort unter „Nacht“ – auch ältere Berichte, die noch das
+Kalenderdatum der Meldung tragen. Der Schichtbericht rechnet genauso.
 ### Suche
 Ein **🔍 Suchfeld** über der Liste durchsucht **alle** Berichte quer durch die Historie
 (Anlage, Anlagenteil, Beschreibung, Ursache, Maßnahme, Bearbeiter, Fehlerart) und zeigt

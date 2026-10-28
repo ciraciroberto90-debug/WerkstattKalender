@@ -1626,6 +1626,20 @@ const normalisiereAnlagenteile = (arr) => (Array.isArray(arr) ? arr : [])
    kurze Nummer liest sich am Telefon schneller vor. Auf dem Ausdruck und in
    der Suche gilt die lange Form. */
 const stoerNrLang = (s) => String((s && s.nr) || "");
+/* Schichttag einer Störung (Roberto 28.10., 06:22: „die Nacht-Einträge gehören noch zum 27.10.“):
+   Die Nachtschicht zählt zu dem Tag, an dem sie begann - so führt es die Werkstatt, so rechnet der
+   Schichtbericht. Ein Bericht, der nach Mitternacht (0–6 Uhr) erfasst wurde und noch das Kalender-
+   datum der Meldung trägt, gehört deshalb zum Vortag. Trägt er den Vortag schon (neue Vorbelegung
+   oder von Hand gesetzt), bleibt es dabei. Ohne Meldezeit gilt das Datum, wie es steht. */
+const stoerSchichtTag = (s) => {
+  if (!s || !s.date || s.schicht !== "Nacht") return s ? s.date : "";
+  const g = s.gemeldetAt ? new Date(s.gemeldetAt) : null;
+  if (!g || Number.isNaN(g.getTime()) || g.getHours() >= 6) return s.date;
+  const k = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  if (k(g) !== s.date) return s.date;
+  const v = new Date(g); v.setDate(v.getDate() - 1);
+  return k(v);
+};
 const stoerNrKurz = (s) => {
   const teile = stoerNrLang(s).split("-");
   return teile.length === 2 ? teile[1] : teile[0];
@@ -4067,7 +4081,11 @@ function App() {
   const neuerStoerEntwurf = () => {
     const h = new Date().getHours();
     const schicht = h >= 6 && h < 14 ? "Früh" : h >= 14 && h < 22 ? "Spät" : "Nacht";
-    return { date: todayKey, schicht, anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "erledigt", melder: "", fotos: [], fotosNeu: [], fotosWeg: [] };
+    // Nach Mitternacht läuft noch die Nachtschicht vom Vortag - das Datum ist der Tag des Schichtbeginns
+    // (Roberto 28.10.: Berichte von 05:09 gehörten zum 27.10., standen aber unter dem 28.10.).
+    const gestern = new Date(); gestern.setDate(gestern.getDate() - 1);
+    const date = schicht === "Nacht" && h < 6 ? dateKey(gestern.getFullYear(), gestern.getMonth(), gestern.getDate()) : todayKey;
+    return { date, schicht, anlage: "", anlagenteil: "", gewerk: "", fehlerart: "", stoerung: "", ursache: "", getan: "", nochZuTun: "", ersatzteile: "", nachbestellt: false, ausfallzeit: "", behobenAt: "", status: "erledigt", melder: "", fotos: [], fotosNeu: [], fotosWeg: [] };
   };
   /* Robertos Befund 28.09.: "Berichte speichern teilweise doppelt, Klick auf
      Speichern beendet das Popout etwas langsam." Beides hatte eine Ursache:
@@ -4310,7 +4328,7 @@ function App() {
       return d.getDay() === 0 || d.getDay() === 6 || getHolidays(d.getFullYear()).has(key);
     };
     if (!slots.some((s) => freierTag(s.datum))) return { slots, nachFrei: false };
-    const hatEintrag = (s) => stoerungen.some((x) => x.date === s.datum && x.schicht === s.schicht);
+    const hatEintrag = (s) => stoerungen.some((x) => stoerSchichtTag(x) === s.datum && x.schicht === s.schicht);
     const mit = [];
     let lauf = { ...slots[0] };
     let idx2 = STOER_SCHICHTEN.indexOf(lauf.schicht);
@@ -4432,7 +4450,7 @@ function App() {
     const proSlot = slots.map((slot) => ({
       ...slot,
       liste: stoerungen
-        .filter((s) => s.date === slot.datum && s.schicht === slot.schicht)
+        .filter((s) => stoerSchichtTag(s) === slot.datum && s.schicht === slot.schicht)
         .sort((a, b) => (Number(!!b.offen) - Number(!!a.offen))
           || String(a.gemeldetAt || "").localeCompare(String(b.gemeldetAt || ""))),
     }));
@@ -5167,7 +5185,7 @@ function App() {
   const stoerGruppen = (() => {
     const proTag = new Map();
     stoerSichtbar.forEach((s) => {
-      const d = s.date || "—";
+      const d = stoerSchichtTag(s) || "—"; // Nachtschicht nach Mitternacht -> Tag des Schichtbeginns
       if (!proTag.has(d)) proTag.set(d, []);
       proTag.get(d).push(s);
     });
@@ -15958,7 +15976,8 @@ function App() {
                   </div>
                   <div>
                     {etikett("Datum")}
-                    <input type="date" value={sDraft.date || ""} onChange={(ev) => setSDraft({ ...sDraft, date: ev.target.value })} aria-label="Datum" className="text-sm border rounded-lg px-3 py-2" style={feldRand} />
+                    <input type="date" value={sDraft.date || ""} onChange={(ev) => setSDraft({ ...sDraft, date: ev.target.value })} aria-label="Datum" className="text-sm border rounded-lg px-3 py-2" style={feldRand} title={sDraft.schicht === "Nacht" ? "Nachtschicht: der Tag, an dem die Schicht begonnen hat (22 Uhr)" : undefined} />
+                    {sDraft.schicht === "Nacht" && <div className="text-[11px] mt-1" style={{ color: "#8A9099" }} data-stoer-nacht-hinweis>Nacht = Tag des Schichtbeginns</div>}
                   </div>
                   <div className="flex-1" style={{ minWidth: "280px" }}>
                     {etikett("Schicht", true)}
