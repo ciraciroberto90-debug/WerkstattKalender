@@ -1,5 +1,14 @@
 # Hinweise für die Arbeit an diesem Projekt
 
+## Neue Unterhaltung? Zuerst die Übergabe lesen
+
+Das Gedächtnis der bisherigen Entwicklungs-Unterhaltung steht in
+**[`doku/UEBERGABE-SITZUNG.md`](doku/UEBERGABE-SITZUNG.md)**: Stand auf
+Robertos Server, die offenen Einspiel-Schritte, wo Schlüssel und Dateien
+liegen, wie gebaut wird, was die Tests auf dem Laptop (noch) nicht können und
+welche Fallen schon einmal zugeschnappt sind. Wer diese Datei nicht gelesen
+hat, fängt bei null an – Roberto merkt das sofort.
+
 ## Die Roll-out-Liste
 
 Offene Aufgaben stehen in **[`ROLLOUT-LISTE.md`](ROLLOUT-LISTE.md)**, nicht im
