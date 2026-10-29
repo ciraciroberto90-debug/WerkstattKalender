@@ -18,8 +18,9 @@
 //  (S7) "Suche leeren" bringt die Kacheln zurück.
 //  (S8) Leser: kein Backlog-Halbkreis, keine Backlog-Pille, keine
 //       Backlog-Treffer - To-do- und Störungs-Treffer aber schon.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -53,7 +54,7 @@ const saat = () => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ================= Bearbeiter ================= */
   const p = await browser.newPage({ viewport: { width: 1400, height: 950 } });

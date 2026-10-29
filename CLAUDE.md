@@ -41,8 +41,8 @@ Gedächtnis einer Sitzung.
 
 ```bash
 cd app && npm run build                    # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # Härtetests
-bash tests/run-browser-reserve.sh          # vor einer Freigabe: Dateizugriff über den Browser
+node tests/run-hardness-tests.js           # Härtetests (läuft auf Windows und Linux; Bash-Fassung bleibt daneben)
+node tests/run-browser-reserve.js          # vor einer Freigabe: Dateizugriff über den Browser
 node tools/startpaket-bauen.js             # nach jeder Änderung in arbeitsplatz/
 ```
 

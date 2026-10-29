@@ -21,8 +21,9 @@
 //  (C)  Keine Skriptfehler.
 //
 // Rot-Nachweis: Gegen den Bau davor gibt es weder ▾ noch Tabelle (A2/B1 rot).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -39,7 +40,7 @@ for (let m = 0; m < 6; m++) for (let i = 0; i < 6; i++) { const d = new Date(202
 const stoer = [0, 1, 2, 3].map((i) => ({ id: `s${i}`, nr: 400 + i, date: `2026-09-${String(20 - i * 3).padStart(2, "0")}`, schicht: "Früh", anlage: i % 2 ? "KUKA I" : "TS480", stoerung: "Störung " + i, offen: i < 2, ausfallzeit: 30 + i * 20, melder: "T. Balles", gemeldetAt: `2026-09-${String(20 - i * 3).padStart(2, "0")}T08:00:00.000Z` }));
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   let konfig = JSON.stringify(config);
   const seite = async (benutzer, layout) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });

@@ -19,10 +19,11 @@
 //      Ein zweiter PC, der den Eintrag schon vorfindet, räumt nur die Datei.
 // Rot-Nachweis: gegen den Bau 52e7ae2 (APP_PFAD) kennt der Eingang weder
 // Begleitdatei noch Einzug - (B) und (E) rot; der Zettel ist eine neue Datei.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
-const ZETTEL = "file:///home/user/WerkstattKalender/handy/aufnahme-zettel.html";
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
+const ZETTEL = UMG.dateiUrl("handy/aufnahme-zettel.html");
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
@@ -39,7 +40,7 @@ const fotoBauen = (p, breite, text) => p.evaluate(({ breite, text }) => {
 }, { breite, text }).then((b64) => Buffer.from(b64, "base64"));
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ================= (Z) Der Aufnahme-Zettel ================= */
   {

@@ -13,9 +13,10 @@
 // Das ist bewusst KEIN Pass/Fail-Härtetest mit knappen Grenzen, sondern eine
 // Messfahrt: Jede Zahl wird ausgegeben, die Prüfungen markieren nur echte
 // Verluste (Eintrag weg, Skriptfehler, Funktion tot) als FAIL.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const { baueBestand, baueStoerungen, TEAM } = require("/home/user/WerkstattKalender/tools/langzeit-daten.js");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("./umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const { baueBestand, baueStoerungen, TEAM } = require(UMG.WURZEL + "/tools/langzeit-daten.js");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -74,7 +75,7 @@ async function archivWeg(p) {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   const mb = ((platte["kalender-daten.json"].length + platte["werkstatt-stoerungen.json"].length) / 1048576).toFixed(1);
   mess("Bestand", `${BESTAND.length} Einträge + ${STOERUNGEN.length} Störberichte über 15 Jahrgänge, ${mb} MB`);

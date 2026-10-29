@@ -16,13 +16,14 @@
 //       Früh/Spät/Nacht als Füll-Befehle. Gemessen am 09.09. ohne den
 //       Fix: 0 farbige Pixel, keine Füll-Befehle - der Test war rot.
 //  (F4) Auch die TPM-Plan-Vorlage (Übersicht) trägt die Anweisung.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const zlib = require("zlib");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
-const QUELLE = "/home/user/WerkstattKalender/app/src/WerkstattKalender.jsx";
+const APP = UMG.APP;
+const QUELLE = UMG.WURZEL + "/app/src/WerkstattKalender.jsx";
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -67,7 +68,7 @@ const fuellBefehl = (hex) => {
           vorlagen >= 15 && ohne.length === 0, vorlagen + " Vorlagen" + (ohne.length ? ", ohne: " + ohne.join(", ") : ""));
   }
 
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const p = await browser.newPage({ viewport: { width: 1400, height: 900 } });
   const fehler = [];
   p.on("pageerror", (e) => fehler.push(e.message));
@@ -114,7 +115,7 @@ const fuellBefehl = (hex) => {
   const pdfDatei = path.join(tmp, "schichtplan.pdf");
   fs.writeFileSync(htmlDatei, schichtHtml);
   const p2 = await browser.newPage();
-  await p2.goto("file://" + htmlDatei);
+  await p2.goto(UMG.dateiUrl(htmlDatei)); // Windows-tauglich: file:///C:/… statt file://C:\…
   await p2.waitForTimeout(300);
   // printBackground:false = das Häkchen "Hintergrundgrafiken", das im
   // Druckdialog standardmäßig AUS ist. Genau so entstand Robertos Ausdruck.

@@ -20,8 +20,9 @@
 //      die Brücken-Funktion liefert aus "stat" die richtigen Werte.
 //  (6) Kaputte Datei bleibt erkennbar: nach dem Abriss liest der Abgleich
 //      weiter (keine falsche "unverändert"-Kennkarte), die Meldung kommt.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -33,7 +34,7 @@ const START = { format: "werkstatt-kalender-v1", standort: "scheurich", savedAt:
   entries: [{ id: "n1", date: "2026-09-21", category: "NOTIZ", name: "Chef", note: "ERSTER ZETTEL", veroeffentlicht: true, zeit: "2026-09-21T05:00:00.000Z", updatedAt: "2026-09-21T05:00:00.000Z" }] };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   // "Laufwerk": Inhalt + Änderungszeit, getrennt steuerbar
   const platte = { text: JSON.stringify(START, null, 2), mtime: Date.now() - 60000 };
   const zaehler = { inhalt: 0, oeffnen: 0 };

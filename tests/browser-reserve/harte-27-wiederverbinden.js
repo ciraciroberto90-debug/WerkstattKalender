@@ -8,11 +8,12 @@
 // hochgefahrenen Rechner (kalte Platte, Virenscanner, Kopiervorgang) dauert das.
 //
 // Der Test stellt genau das nach: langsame IndexedDB, echter Klick.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const p = await (await b.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
   await p.addInitScript(() => {
     window.__idbVerzoegerung = 0;

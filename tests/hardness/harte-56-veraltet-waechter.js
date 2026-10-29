@@ -17,10 +17,11 @@
 //
 // Hausregel erfüllt: Gegen den Build ohne den Wächter schlägt (V1) fehl
 // (keine Leiste) und (V3) ebenso (kein bauStand in der Datei).
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const fsNode = require("fs");
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP_PFAD = "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
-const APP = "file://" + APP_PFAD;
+const { chromium } = require("playwright-core");
+const APP_PFAD = UMG.APP_PFAD;
+const APP = UMG.dateiUrl(APP_PFAD);
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -124,7 +125,7 @@ async function eintragAnlegen(p) {
   pruef("(V0) Der Build trägt einen Bau-Zeitstempel (Voraussetzung des Wächters)",
         !!EIGENE_BAU_ZEIT, EIGENE_BAU_ZEIT || "kein Stempel gefunden");
 
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (V1) Leser vor jüngerer Fassung: rote Leiste ---- */
   {

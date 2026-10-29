@@ -42,19 +42,20 @@
 // Kern 0.1.0 (git show 5ee5b47:briefkasten/kern.js) kennt /zettel nicht -
 // (H)-Kern/Worker/Node rot; der Zettel vor 07.10. nachmittags kennt weder
 // Einrichtungs-Link noch Erkennung - (H)-Browserfälle rot.
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { spawn } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const { chromium } = require("playwright-core");
 const { behandle, speicherAblage, MAX_BYTES, HALTEN_MS } = require("../../briefkasten/kern.js");
 const briefkasten = require("../../briefkasten/briefkasten.js");
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
 const WURZEL = path.resolve(__dirname, "..", "..");
-const APP = "file://" + (process.env.APP_PFAD || path.join(WURZEL, "Werkstatt_Kalender_TPM.html"));
-const ZETTEL = "file://" + path.join(WURZEL, "handy", "aufnahme-zettel.html");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || path.join(WURZEL, "Werkstatt_Kalender_TPM.html")));
+const ZETTEL = UMG.dateiUrl(path.join(WURZEL, "handy", "aufnahme-zettel.html"));
 const DIENST_JS = process.env.DIENST_PFAD || path.join(WURZEL, "server", "dienst.js");
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 const EINWURF = "einwurf-pruef-schluessel-123", ABHOL = "abhol-pruef-schluessel-456";
@@ -198,7 +199,7 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
   ok("(E) Erster Takt: Briefkasten erreichbar, 0 im Briefkasten, kein Fehler", status1.briefkasten.erreichbar === true && status1.briefkasten.imBriefkasten === 0 && !status1.briefkasten.letzterFehler, JSON.stringify(status1.briefkasten));
 
 
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const fehler = [];
   const handy = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const hp = await handy.newPage();

@@ -2,14 +2,15 @@
 // Verhalten simuliert). Die App muss vollständig im reinen Solo-/localStorage-
 // Modus funktionieren: TPM abhaken, Backlog anlegen, Schicht setzen, drucken,
 // Export/Import - alles ohne "Gemeinsame Datei".
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const path = require('path');
-const APP = 'file://' + path.resolve('/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));

@@ -17,8 +17,9 @@
 //
 // Rot-Nachweis: Gegen den Bau davor (Ablauf direkt in main.js) gibt es beim
 // Anlegen keinen zweiten Anlauf (A1 rot) und keinen Schritt im Fehler (A2 rot).
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const path = require("path");
-const { schreibeAtomar, ALT_MS } = require("/home/user/WerkstattKalender/programm/atomar.js");
+const { schreibeAtomar, ALT_MS } = require(UMG.WURZEL + "/programm/atomar.js");
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -29,8 +30,12 @@ const fehler = (code) => Object.assign(new Error(`${code}: operation not permitt
 const ZIEL = "/laufwerk/Werkstatt_Kalender/werkstatt-kalender-daten.json";
 
 // Dateisystem-Attrappe: Dateien als Map, Fehler nach Drehbuch je Schritt.
+// Schlüssel immer mit "/" - atomar.js baut Pfade mit path.join, das unter
+// Windows "\" liefert; ohne Angleich fände die Attrappe ihre eigenen Dateien
+// nicht wieder (harte-97 A4 war auf dem Laptop rot, Roll-out 73).
+const N = (p) => String(p).replace(/\\/g, "/");
 function attrappe({ writeFehler = [], renameFehler = [], vorhandene = {} } = {}) {
-  const dateien = new Map(Object.entries(vorhandene)); // pfad -> { inhalt, mtimeMs }
+  const dateien = new Map(Object.entries(vorhandene).map(([k, v]) => [N(k), v])); // pfad -> { inhalt, mtimeMs }
   const protokoll = [];
   let jetzt = 1_000_000_000;
   return {
@@ -38,21 +43,21 @@ function attrappe({ writeFehler = [], renameFehler = [], vorhandene = {} } = {})
     jetzt: () => jetzt,
     fs: {
       async writeFile(p, inhalt) {
-        protokoll.push("write " + path.basename(p));
+        protokoll.push("write " + path.posix.basename(N(p)));
         const f = writeFehler.shift();
-        if (f) { if (f !== "leer") throw fehler(f); dateien.set(p, { inhalt: "", mtimeMs: jetzt }); throw fehler("EPERM"); }
-        dateien.set(p, { inhalt: String(inhalt), mtimeMs: jetzt });
+        if (f) { if (f !== "leer") throw fehler(f); dateien.set(N(p), { inhalt: "", mtimeMs: jetzt }); throw fehler("EPERM"); }
+        dateien.set(N(p), { inhalt: String(inhalt), mtimeMs: jetzt });
       },
       async rename(a, b) {
-        protokoll.push("rename " + path.basename(a));
+        protokoll.push("rename " + path.posix.basename(N(a)));
         const f = renameFehler.shift();
         if (f) throw fehler(f);
-        if (!dateien.has(a)) throw fehler("ENOENT");
-        dateien.set(b, dateien.get(a)); dateien.delete(a);
+        if (!dateien.has(N(a))) throw fehler("ENOENT");
+        dateien.set(N(b), dateien.get(N(a))); dateien.delete(N(a));
       },
-      async unlink(p) { protokoll.push("unlink " + path.basename(p)); if (!dateien.has(p)) throw fehler("ENOENT"); dateien.delete(p); },
-      async readdir(ordner) { return [...dateien.keys()].filter((p) => path.dirname(p) === ordner).map((p) => path.basename(p)); },
-      async stat(p) { if (!dateien.has(p)) throw fehler("ENOENT"); return { mtimeMs: dateien.get(p).mtimeMs, size: dateien.get(p).inhalt.length }; },
+      async unlink(p) { protokoll.push("unlink " + path.posix.basename(N(p))); if (!dateien.has(N(p))) throw fehler("ENOENT"); dateien.delete(N(p)); },
+      async readdir(ordner) { return [...dateien.keys()].filter((p) => path.posix.dirname(p) === N(ordner)).map((p) => path.posix.basename(p)); },
+      async stat(p) { if (!dateien.has(N(p))) throw fehler("ENOENT"); return { mtimeMs: dateien.get(N(p)).mtimeMs, size: dateien.get(N(p)).inhalt.length }; },
     },
   };
 }
@@ -95,10 +100,10 @@ const pause = async (ms) => { pausen.push(ms); };
   /* (A4) alte Zwischendateien wegräumen */
   {
     const a = attrappe();
-    const ordner = path.dirname(ZIEL);
-    const alt = path.join(ordner, "werkstatt-kalender-daten.schreibe-22784.json");
-    const jung = path.join(ordner, "werkstatt-kalender-daten.schreibe-31337.json");
-    const fremd = path.join(ordner, "werkstatt-stoerungen.schreibe-22784.json");
+    const ordner = path.posix.dirname(ZIEL);
+    const alt = path.posix.join(ordner, "werkstatt-kalender-daten.schreibe-22784.json");
+    const jung = path.posix.join(ordner, "werkstatt-kalender-daten.schreibe-31337.json");
+    const fremd = path.posix.join(ordner, "werkstatt-stoerungen.schreibe-22784.json");
     a.dateien.set(alt, { inhalt: "", mtimeMs: a.jetzt() - ALT_MS - 1000 });
     a.dateien.set(jung, { inhalt: "", mtimeMs: a.jetzt() - 5000 });
     a.dateien.set(fremd, { inhalt: "", mtimeMs: a.jetzt() - ALT_MS - 1000 });

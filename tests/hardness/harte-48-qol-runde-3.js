@@ -15,10 +15,11 @@
 //      in 30 Tagen; ältere zählen nicht, fremde Anlagen auch nicht.
 //  (7) CSV-HERAUSGABE: Menü mit JSON + zwei CSV; die CSV öffnet deutsches
 //      Excel (BOM + Semikolon) und enthält die echten Daten.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
-const TMP = "/tmp/claude-0/-home-user-WerkstattKalender/8b2eab4a-3225-51dd-900c-dbf3d21c0a06/scratchpad";
+const APP = UMG.APP;
+const TMP = UMG.tmpOrdner("scratchpad");
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -72,7 +73,7 @@ const stoerBericht = (nr, tage, anlage, extra = {}) => ({
 });
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (7) CSV-Herausgabe ---- */
   {

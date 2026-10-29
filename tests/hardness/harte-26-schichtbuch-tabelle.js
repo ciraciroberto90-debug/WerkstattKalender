@@ -8,16 +8,17 @@
 //   - ein Klick auf eine Zeile öffnet den Bericht (nur lesend)
 //   - die Suche liefert eine flache Trefferliste mit Datumsspalte
 //   - behobene Berichte lassen sich aus- und wieder einblenden
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const STOER = require("/home/user/WerkstattKalender/tools/demo-stoerungen.js");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const STOER = require(UMG.WURZEL + "/tools/demo-stoerungen.js");
+const APP = UMG.APP;
 const CONFIG = { team: [{ name: "R. Ciraci", rolle: "mech" }] };
 
 let ok = 0, fail = 0;
 const pruef = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const ctx = await b.newContext({ viewport: { width: 1440, height: 1000 } });
   const p = await ctx.newPage();
   const fehler = []; p.on("pageerror", (e) => fehler.push(e.message));

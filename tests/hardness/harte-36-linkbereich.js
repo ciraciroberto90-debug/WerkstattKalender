@@ -17,10 +17,11 @@
 //   (7b) Der Streifen steht NUR auf der Übersicht und bleibt eine Zeile.
 //   (8) Ueber den Ausliefer-Dienst geoeffnet: Der Klick fragt ihn nach der
 //       Datei, mit der Kopfzeile, auf der seine Zugangspruefung beruht.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
 const http = require("http");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
   console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
@@ -84,7 +85,7 @@ async function legeAn(p, name, ziel) {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---------------- (1) Nur-Leser sieht nichts ---------------- */
   {
@@ -346,7 +347,7 @@ async function legeAn(p, name, ziel) {
      Der Dienst wird hier durch abgefangene Anfragen dargestellt; geprüft wird
      die App-Seite: Wird gefragt, mit welchem Pfad, und was passiert danach. */
   {
-    const html = fs.readFileSync("/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html", "utf8");
+    const html = fs.readFileSync(UMG.APP_PFAD, "utf8");
     const platte = {
       "kalender-daten.json": JSON.stringify({
         ...START,

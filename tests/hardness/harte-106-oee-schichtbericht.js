@@ -19,9 +19,10 @@
 //  (E)  Keine Skriptfehler.
 //
 // Rot-Nachweis: gegen den Bau vor dem 06.10. (APP_PFAD) ist (O1) rot - kein Knopf, kein Block.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const { arbeitsmappeBauen } = require("../hilfen/xlsx-bauen.js");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
@@ -48,7 +49,7 @@ const STOER = [
 ];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   /* Wie harte-40: gemeinsame Datei + Datenordner als Attrappe, die OEE-Tabelle
      liegt im Datenordner; die OEE-Quelle steht in der Konfiguration der Datei. */
   const seite = async ({ mitOee = true } = {}) => {

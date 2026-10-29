@@ -6,6 +6,7 @@
 //      dem Sync beide Störungen (Eintrag-für-Eintrag-Merge, nichts geht verloren).
 //  (3) Eine gelöschte Störung bleibt nach dem Abgleich gelöscht (Tombstone).
 //  (4) Die Hauptdatei (kalender-daten.json) wird dabei NICHT angefasst.
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const drive = { 'werkstatt-stoerungen.json': '', 'kalender-daten.json': '' };
 let ok = 0, fail = 0;
@@ -34,7 +35,7 @@ async function makeUser(browser, t) {
   // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
   // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
   await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
-  await page.goto('file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+  await page.goto(UMG.APP);
   await page.waitForTimeout(700);
   return page;
 }
@@ -79,7 +80,7 @@ async function meldeStoerung(page, anlage, text) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
 
   // Nutzer 1 legt die Störungen-Datei an (ist NICHT mit der Hauptdatei verbunden = reiner Leser)
   const u1 = await makeUser(browser, '2026-07-17T08:00:00Z');

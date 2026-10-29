@@ -24,8 +24,9 @@
 //
 // Rot-Nachweis: Gegen den Bau davor gibt es keinen Knopf "Schichtbericht
 // anzeigen" (S1 rot), und montags stünden Sonntag Nacht/Spät leer im Blatt (S2).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -43,7 +44,7 @@ const WOCHE = [bericht("2026-09-22", "Spät", "DiSpaet"), bericht("2026-09-23", 
 const MAI = [bericht("2026-05-21", "Nacht", "MaiDoNacht"), bericht("2026-05-22", "Früh", "MaiFrFrueh"), bericht("2026-05-22", "Spät", "MaiFrSpaet")];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const seite = async (benutzer, zeit, stoer) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
     const p = await ctx.newPage();

@@ -13,9 +13,10 @@
 //   (7) Benutzerwechsel über das Datei-Fenster (auch für Nur-Leser erreichbar)
 //   (8) Der letzte Verwalter kann nicht herabgestuft werden (Selbst-Aussperr-Wächter)
 //   (9) Ein "Bearbeiter" darf schreiben, sieht aber die Benutzerverwaltung nicht
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require("playwright-core");
 const path = require("path");
-const APP = "file://" + path.resolve("/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
   console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : ""));
@@ -23,7 +24,7 @@ const ok = (n, c, zusatz) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 
   // Dateiinhalt lebt in Node - so überlebt er den "Neustart" (zweite Seite)

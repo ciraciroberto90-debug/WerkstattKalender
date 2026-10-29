@@ -32,9 +32,10 @@
 //       nicht die GES-Zeile, nicht ein Mittel ueber alles.
 //       (Gemessen vor der Aenderung: nur 4 Spalten waehlbar, OEE_M statt
 //       OEE%n erkannt, Kachel zeigte 67,3 "gesamt" - alles falsch.)
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const { arbeitsmappeBauen } = require("../hilfen/xlsx-bauen.js");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
   console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
@@ -202,7 +203,7 @@ async function richteEin(p, datei, { eigenerOrdner = false } = {}) {
 const kachel = (p) => p.locator("button[title*='OEE']").first();
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (1)(2)(4)(5)(7)(8) Normalfall ---- */
   {

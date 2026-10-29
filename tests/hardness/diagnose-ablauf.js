@@ -8,8 +8,9 @@
 // Der Kern: Der Bericht muss das Neuladen ÜBERLEBEN. Genau daran sind die
 // Vorgängerfassungen gescheitert - die Ergebnisse von vor dem Neuladen waren
 // hinterher weg, und niemandem war es aufgefallen.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const SEITE = "file:///home/user/WerkstattKalender/tools/Werkstatt_Diagnose.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const SEITE = UMG.dateiUrl("tools/Werkstatt_Diagnose.html");
 let ok = 0, fail = 0;
 const pruef = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
 
@@ -162,7 +163,7 @@ async function durchlauf(browser, modus, titel) {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   const gut = await durchlauf(b, "gut", "Alles in Ordnung");
   pruef("Befund erkennt den unauffälligen Fall", /arbeiten/i.test(gut));

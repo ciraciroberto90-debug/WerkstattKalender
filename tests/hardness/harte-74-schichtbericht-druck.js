@@ -13,8 +13,9 @@
 //
 // Der Druck läuft über window.open + document.write; die Sonde faengt das
 // Fenster ab und liest den HTML-Text.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c, z) => { console.log((c ? "PASS | " : "FAIL | ") + n + (z ? "   (" + z + ")" : "")); c ? ok++ : fail++; };
 
@@ -36,7 +37,7 @@ const BERICHTE = [
 ];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, args: ["--no-sandbox"] });
   const platte = { "stoer.json": JSON.stringify({ entries: BERICHTE }) };
   const ctx = await b.newContext({ viewport: { width: 1500, height: 1100 } });
   const p = await ctx.newPage();

@@ -22,10 +22,11 @@
 //
 // Rot-Nachweis: Gegen den Bau davor zählt V1 einen Schreibvorgang, und L1
 // zeigt dem Bearbeiter die RC-Links.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
-const APP_PFAD = process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
-const APP = "file://" + APP_PFAD;
+const APP_PFAD = process.env.APP_PFAD || UMG.APP_PFAD;
+const APP = UMG.dateiUrl(APP_PFAD);
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -66,7 +67,7 @@ const dateiNeu = (mitBauStand = true) => JSON.stringify({
 });
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   // Ein "Rechner" = eigener Kontext mit Datei-Attrappe in Node; jeder Schreibvorgang wird gezählt.
   const rechner = async (benutzer, datei, lokaleEintraege) => {
     const zustand = { inhalt: datei, schreib: 0 };

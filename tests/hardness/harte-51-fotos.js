@@ -25,8 +25,9 @@
 //      einen ehrlichen Platzhalter statt zu crashen - seit dem 08.09.
 //      nennt er den GRUND ("Ordner nicht verbunden" / "lädt"), denn
 //      "Datei fehlt" wäre gelogen: Die Datei liegt ja im Ordner.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -126,7 +127,7 @@ const inBacklog = async (p) => {
 const gespeichert = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]"));
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (A) + (B) + (C) + (E): der Backlog-Hauptweg ---- */
   {

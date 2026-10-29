@@ -16,8 +16,9 @@
 //   (2) Der vorhandene Bestand bleibt dabei unangetastet.
 //   (3) OHNE verbundene Datei: Das Speichern scheitert LAUT, nicht still.
 //   (4) Kein "gespeichert" wird behauptet, wo nichts gespeichert wurde.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
   console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
@@ -82,7 +83,7 @@ const GROSS = (n) => JSON.stringify(
 );
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---------------- (1)(2) Mit verbundener Datei ---------------- */
   {

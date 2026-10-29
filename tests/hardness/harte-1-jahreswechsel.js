@@ -2,14 +2,15 @@
 // bereits zu KW01/2026 (Donnerstag dieser Woche, 01.01.2026, liegt in 2026).
 // Eine "ganze Woche"-Schicht dort MUSS unter dem Schlüssel 2026-W01 abgelegt
 // werden - sonst würde sie beim Blättern in die neue Jahres-KW verschwinden.
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const path = require('path');
-const APP = 'file://' + path.resolve('/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
   await page.clock.setFixedTime(new Date('2025-12-29T09:00:00')); // Montag, KW01/2026

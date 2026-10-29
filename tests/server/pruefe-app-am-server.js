@@ -16,16 +16,17 @@
 //       (IndexedDB), Meldung "nicht erreichbar".
 //  (C8) Störberichte gehen denselben Weg (zweite Speicherschicht).
 //  (E)  Keine Skriptfehler in beiden Fenstern.
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { spawn } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const { chromium } = require("playwright-core");
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
 const WURZEL = path.resolve(__dirname, "..", "..");
-const APP = "file://" + (process.env.APP_PFAD || path.join(WURZEL, "Werkstatt_Kalender_TPM.html"));
+const APP = UMG.dateiUrl((process.env.APP_PFAD || path.join(WURZEL, "Werkstatt_Kalender_TPM.html")));
 const PORT = 20765 + Math.floor(Math.random() * 1000);
 const B = `http://127.0.0.1:${PORT}`;
 const SCHLUESSEL = "pruef-schluessel";
@@ -67,7 +68,7 @@ async function dienstStoppen() {
   const i2 = await post("/api/scheurich/import?bereich=stoerungen", { format: "werkstatt-stoerungen-v1", standort: "scheurich", savedAt: T, entries: stoer, deleted: {}, config: {} });
   if (i1.status !== 200 || i2.status !== 200) { console.log("FAIL | Bestand nicht eingelesen", i1.status, i2.status); process.exit(1); }
 
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const fehler = { A: [], B: [], C: [], D: [] };
   const KEY = "werkstatt-kalender-entries";
   async function fenster(name, { mitSchluessel = true, kontext = null, angemeldet = true, ohneSubtle = false } = {}) {

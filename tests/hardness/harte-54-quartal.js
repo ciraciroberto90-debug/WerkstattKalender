@@ -17,8 +17,9 @@
 //       die Von/Bis-Felder gibt es dort nicht.
 //  (Q8) Mehr als 12 Monate lassen sich nicht wählen - die andere Seite
 //       rückt von selbst nach (mehr passt nicht lesbar auf ein Blatt).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -76,7 +77,7 @@ async function quartalsBlatt(p, umfang) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (Q1)-(Q4): Normalfall am 24.08. - Juni, Juli, August ---- */
   {

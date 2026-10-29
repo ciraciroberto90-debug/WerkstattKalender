@@ -23,8 +23,9 @@
 //
 // Hausregel (Rot-Nachweis): Gegen den Bau von VOR dem Umbau (APP_PFAD auf die
 // alte HTML) schlagen K1, K2 und K4 fehl - dort gibt es den Hinweis nicht.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -36,7 +37,7 @@ const platte = {};
 const BESTAND = [{ id: "X", date: "2026-09-23", category: "NOTIZ", name: "RC", status: "open", note: "Original", zeit: "2026-09-23T06:00:00.000Z", updatedAt: "2026-09-23T06:00:00.000Z", sichtbar: "alle", veroeffentlicht: true, farbe: "gelb" }];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   platte["kalender-daten.json"] = JSON.stringify({ format: "werkstatt-kalender-v1", savedAt: "2026-09-23T06:00:00.000Z", entries: BESTAND, deleted: {}, config: { tpmAnlagen: [], riItems: [], team: [{ name: "T. Balles", rolle: "mech" }] } });
   const fenster = async (wer) => {
     const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } });

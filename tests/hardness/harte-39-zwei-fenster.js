@@ -16,8 +16,9 @@
 //
 // Die Reparatur: Jedes Fenster merkt sich seinen EIGENEN letzten Stand.
 // Gelöscht wird nur, was dieses Fenster selbst entfernt hat.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
   console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
@@ -32,7 +33,7 @@ const fachlich = () => (datei().entries || [])
   .filter((e) => !String(e.id).startsWith("config|") && !String(e.id).startsWith("log|"));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   // EIN Kontext = ein Browserprofil = gemeinsamer Zwischenspeicher. Genau so
   // verhalten sich zwei Tabs derselben Seite.
   const ctx = await b.newContext({ viewport: { width: 1300, height: 900 } });

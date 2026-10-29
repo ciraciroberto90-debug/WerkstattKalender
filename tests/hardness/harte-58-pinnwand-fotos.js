@@ -18,8 +18,9 @@
 //
 // Hausregel erfüllt: Gegen den Build ohne die Änderung schlägt (Z1) fehl -
 // dort gibt es den Anhänge-Knopf im Verfasser nicht.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -121,7 +122,7 @@ const verfasserAuf = async (p) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (Z1)+(Z2)+(Z4)+(Z5): der volle Weg beim Bearbeiter ---- */
   {

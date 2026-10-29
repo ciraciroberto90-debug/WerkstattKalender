@@ -3,14 +3,15 @@
 // Gelöschtes wird NICHT wiederbelebt, (3) die Kopie wird danach gelöscht,
 // (4) eine grüne Info-Meldung erscheint, (5) fremde Dateien bleiben unangetastet,
 // (6) schlägt der Merge fehl, bleibt die Kopie liegen (kein Datenverlust).
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const path = require('path');
-const APP = 'file://' + path.resolve('/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
 

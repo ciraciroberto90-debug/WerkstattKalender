@@ -17,8 +17,9 @@
 //  (F) PFLEGE: Das 🎂-Feld je Person wohnt im ⚙ unter "Team & Schichten",
 //      wird mitgespeichert und überlebt das Neuladen (der Ladeweg
 //      normalisiert das Team - was er nicht kennt, wäre weg).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -47,7 +48,7 @@ async function start(browser, team, zeit) {
 const karte = (p) => p.locator("div", { has: p.locator('button[aria-label="Geburtstags-Erinnerung schließen"]') }).last();
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (A) Heute, mit und ohne Jahr + (B) Vorschau ---- */
   {

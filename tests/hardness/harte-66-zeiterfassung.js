@@ -26,9 +26,10 @@
 //       trägt die Berichtsnummer.
 //  (Z10) Im Bearbeiten-Dialog gibt es "Speichern + zur Zeiterfassung":
 //       erst speichern (Nummer steht fest), dann Formular vorbefüllt.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -37,7 +38,7 @@ const pruef = (n, c, zusatz) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const fehler = [];

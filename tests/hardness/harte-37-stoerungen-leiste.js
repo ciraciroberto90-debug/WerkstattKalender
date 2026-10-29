@@ -13,8 +13,9 @@
 // Dazu: die Ansichten der Leiste, die Zeitraeume, der Schnellzugriff, das
 // Nachtragen alter Nummern und das Loeschen aller Berichte (das ueber die
 // App laufen MUSS, weil nur dort Loeschvermerke entstehen).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
   console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
@@ -98,7 +99,7 @@ const klappeAlles = async (p) => {
 };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const leer = () => JSON.stringify({ format: "werkstatt-stoerungen-v1", savedAt: null, entries: [], deleted: {}, config: null });
 
   /* ---------------- (1) Zeilen sind nicht enger geworden ---------------- */

@@ -29,11 +29,12 @@
 //       Ordner und Datei in einem Rutsch übernommen
 //  (11) Update-Meldung des Rahmens erscheint als Leiste; "Jetzt
 //       aktualisieren" ruft die Übernahme, ein Fehler wird ehrlich gezeigt
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
   console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
@@ -59,7 +60,7 @@ const pruef = (n, c, zusatz) => {
   let dialogAufrufe = 0;
   let schreibSperre = false; // Fall (12): das Laufwerk verweigert das Schreiben
 
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
 
   // Die Brücke: identische Schnittstelle wie programm/vorspann.js, dahinter

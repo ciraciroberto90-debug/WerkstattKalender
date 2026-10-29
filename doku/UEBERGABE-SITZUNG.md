@@ -127,20 +127,30 @@ node tools/startpaket-bauen.js              # nach jeder Änderung in arbeitspla
 
 ## 5. Tests – die wichtigste Einschränkung für den Laptop
 
-- Die Suite (`bash tests/run-hardness-tests.sh`, 104 Dateien `harte-*.js`,
-  Playwright-core gegen Chromium) und die Server-Prüfstände
-  (`tests/server/pruefe-*.js`) sind **fest an die bisherige Cloud-Umgebung
-  gebunden**: 108 Dateien enthalten die festen Pfade
-  `/home/user/WerkstattKalender` und `/opt/pw-browsers/chromium`. **Auf dem
-  Windows-Laptop laufen sie so nicht** (gemessen 28.10. per Suche, nicht
-  durch einen Lauf unter Windows).
-- Bis die Suite tragbar ist (Roll-out 73): Änderungen am **Zusammenführen,
+- **Seit 29.10. (Roll-out 73) läuft die Suite auf dem Laptop:** erster
+  voller Lauf 100/103 in **192 min** (Cloud: 90–120 min), die drei roten
+  waren Windows-Eigenheiten im Test (harte-90/97/110, korrigiert, einzeln
+  grün; voller zweiter Lauf steht aus).
+  `node tests/run-hardness-tests.js` (Node-Lauf-Skript statt Bash), alle
+  Pfade kommen aus `tests/umgebung.js` (Repo über den eigenen Ort, Browser
+  aus `tests/browser/` oder `PW_CHROMIUM`, `APP_PFAD` für den Rot-Nachweis
+  wie bisher). Einmalig je Rechner: `cd tests && npm install && node
+  browser-holen.js` (hinter dem Proxy mit `NODE_EXTRA_CA_CERTS` auf die
+  PEM-Datei aus Roll-out 72). **Falle, gemessen 29.10.:** die Sandbox der
+  Desktop-App täuscht Schreibzugriffe unter `AppData` nur vor – was dort
+  „installiert“ wird, sieht kein anderes Programm. Im Repo-Ordner und in
+  `BTA-Werkzeuge` sind Schreibzugriffe echt.
+  Nicht tragbar gemacht: `tests/pruefe-programm.js` (Electron mit xvfb,
+  pkill) und `tests/pruefe-sicherung.sh` – beide nicht Teil der Suite.
+- Vorher (Stand 28.10.): Die Suite und die Server-Prüfstände waren **fest an
+  die Cloud-Umgebung gebunden**: 119 Dateien enthielten die festen Pfade
+  `/home/user/WerkstattKalender` und `/opt/pw-browsers/chromium`.
+- Solange die Suite auf einem Rechner nicht läuft: Änderungen am **Zusammenführen,
   Speichern oder an der Dateiverbindung** brauchen laut Hausregel einen
-  Rot-Nachweis-Test. Solche Änderungen gehören deshalb weiterhin in eine
-  Cloud-Unterhaltung auf demselben Repo (die hat alle Dateien, nur nicht
-  Robertos Rechner) oder warten auf Roll-out 73. Oberflächen-Änderungen ohne
-  Sync-Berührung kann der Laptop bauen und einspielen; der Test wird dann
-  als „ungemessen“ in die Liste geschrieben und nachgeholt.
+  Rot-Nachweis-Test – dann zuerst die Suite auf diesem Rechner lauffähig
+  machen (Abschnitt oben), nicht die Regel umgehen. Oberflächen-Änderungen
+  ohne Sync-Berührung dürfen ohne Suite gebaut und eingespielt werden; der
+  Test wird dann als „ungemessen“ in die Liste geschrieben und nachgeholt.
 - Regeln, die sich bewährt haben: nie bauen, während die Suite läuft (der
   Bau tauscht die HTML unter den laufenden Tests aus); keine eigenen
   Chromium-Läufe parallel zur Suite; harte-70 und harte-108 (6) sind unter
@@ -180,9 +190,11 @@ node tools/startpaket-bauen.js              # nach jeder Änderung in arbeitspla
 ## 7. Offen (Kurzfassung, Einzelheiten in der Roll-out-Liste)
 
 - ~~Einspielen: die drei Schritte aus Abschnitt 2.~~ Erledigt 29.10.
-- ~~72 Laptop-Unterhaltung einrichten~~ (erledigt 28./29.10.), 73 Suite tragbar
-  machen, 74 Abriss-Etappen R0–R8, 75 Stick-Bauer unter Windows, 76 Push-Token,
-  77 W: wird noch beschrieben (vor dem Umschalttag klären).
+- ~~72 Laptop-Unterhaltung einrichten~~ (erledigt 28./29.10.), ~~73 Suite
+  tragbar machen~~ (gebaut 29.10., voller zweiter Lauf 103/103 steht aus),
+  74 Abriss-Etappen R0–R8, 75 Stick-Bauer unter Windows, ~~76 Push~~ (läuft
+  seit 29.10. über den Credential Manager), 77 W: wird noch beschrieben (vor
+  dem Umschalttag klären).
 - 60 Tagesplan kompakt, 62, 63, 55, 56; 46/47/50/51 Umschalttag und
   Excel-Quellen am Server; 42 harte-70-Testfenster auf 24 s; iPhone-Messung
   des Zettels; 67 QR mit Anlagenliste; Angebot „Planungs-Druck auf zwei

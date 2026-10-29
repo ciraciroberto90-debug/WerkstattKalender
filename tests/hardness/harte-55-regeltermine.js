@@ -19,8 +19,9 @@
 //
 // Hausregel erfüllt: Gegen den Build vor dem Einbau schlägt der Test fehl -
 // dort gibt es weder den TERMIN-Knopf noch Archiv für Leser noch die Räumung.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -58,7 +59,7 @@ async function start(browser, eintraege, uhr) {
 const leseEintraege = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("werkstatt-kalender-entries") || "[]"));
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (R1)-(R5): Bearbeiter am 24.08. ---- */
   {

@@ -15,8 +15,9 @@
 //   (3) Der vorhandene Datei-Inhalt ueberlebt das.
 //   (4) Dasselbe gilt fuer die Stoerungen-Datei.
 //   (5) Nie behauptet die App, gespeichert zu haben, wenn sie es nicht hat.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
 
@@ -53,7 +54,7 @@ async function seite(browser) {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   // ---------- Hauptdatei ----------
   const p = await seite(b);

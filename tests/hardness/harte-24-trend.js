@@ -8,8 +8,9 @@
 //  (5) Er folgt dem Filter (Alle / nur Wartung / nur R+I).
 //  (6) Die Zahlen sind zusätzlich als Tabelle abrufbar (Ausdruck, Vorlesen).
 //  (7) Nur-Leser bekommen ihn nicht zu sehen (sie haben keine Auswertung).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
@@ -59,7 +60,7 @@ async function mach(browser, eintraege, uhr = "2026-12-15T10:00:00") {
 const text = (p) => p.locator("body").innerText();
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (1)(2) Steigende Entwicklung ---- */
   {

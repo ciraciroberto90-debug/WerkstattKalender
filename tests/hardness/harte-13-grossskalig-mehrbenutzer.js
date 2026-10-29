@@ -1,9 +1,10 @@
 // Prüft die Schnittstelle mit realistischer Datenmenge (wie nach dem
 // Excel-Import: ~1600+ Einträge, 21 Personen) UND gleichzeitigem Schreiben
 // von zwei Bearbeitern - genau das Szenario, das jetzt live läuft.
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const path = require('path');
-const APP = 'file://' + path.resolve('/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
 
@@ -68,7 +69,7 @@ const setzeSchicht = async (page, person, schicht) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
   const { team, entries } = grossbestand();
   console.log('Simulierter Bestand:', entries.length, 'Einträge,', team.length, 'Personen');
   drive['kalender-daten.json'] = JSON.stringify({

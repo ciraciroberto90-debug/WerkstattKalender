@@ -7,9 +7,10 @@
 //    werden intern durchgehalten - keine Fehlermeldung, wenn es am Ende klappt
 // D) Schnelles zweimaliges eigenes Speichern (Doppel-Klick-artig) verliert dabei
 //    nicht die zwischenzeitliche Änderung eines anderen Bearbeiters
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const path = require('path');
-const APP = 'file://' + path.resolve('/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
 
@@ -52,7 +53,7 @@ const setzeSchicht = async (page, person, schicht) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
 
   // ---- Situation A: drei Bearbeiter gleichzeitig ----
   {

@@ -28,17 +28,18 @@
 //
 // Rot-Nachweis: gegen den Bau VOR dieser Änderung (server-client.js ohne
 // Quellen) sind Q1-Q4 rot - gemessen 02.10. (APP_PFAD auf die alte HTML).
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { spawn } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const { chromium } = require("playwright-core");
 const { arbeitsmappeBauen } = require("../hilfen/xlsx-bauen.js");
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
 const WURZEL = path.resolve(__dirname, "..", "..");
-const APP = "file://" + (process.env.APP_PFAD || path.join(WURZEL, "Werkstatt_Kalender_TPM.html"));
+const APP = UMG.dateiUrl((process.env.APP_PFAD || path.join(WURZEL, "Werkstatt_Kalender_TPM.html")));
 const PORT = 21765 + Math.floor(Math.random() * 1000);
 const B = `http://127.0.0.1:${PORT}`;
 const SCHLUESSEL = "pruef-schluessel";
@@ -86,7 +87,7 @@ async function dienstStoppen() {
   const i1 = await post("/api/scheurich/import?bereich=kalender", { format: "werkstatt-kalender-v1", standort: "scheurich", savedAt: T, entries: [{ id: "e1", date: "2026-10-02", category: "TODO", name: "Aufgabe", status: "open", updatedAt: T }], deleted: {}, config });
   if (i1.status !== 200) { console.log("FAIL | Bestand nicht eingelesen", i1.status); process.exit(1); }
 
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const fehler = [];
   const LAUFWERK = "W:\\Instandhaltung\\OEE";
   /* Fenster: Browser (ohne Brücke) oder Programm (Brücken-Attrappe mit einem

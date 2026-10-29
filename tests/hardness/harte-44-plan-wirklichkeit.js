@@ -10,9 +10,10 @@
 // Slot seiner Anlage (TPM: je Monat genau ein Wartungstermin, R+I: je Woche);
 // gerechnet wird nur, was keinen echten Eintrag hat. Damit zeigen Plan,
 // Übersicht und Auswertung dieselben Termine.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const path = require("path");
-const APP = "file://" + path.resolve("/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -37,7 +38,7 @@ const config = {
 };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   async function planText(entries) {
     const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 } });

@@ -27,8 +27,9 @@
 //
 // Rot-Nachweis: gegen den Bau vor dem 05.10. (APP_PFAD) ist (1) rot - dort gibt
 // es die Tabelle nicht, sondern das Menü "Anwesende wählen".
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -56,7 +57,7 @@ const eintraege = [
 ];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const seite = async ({ benutzer, rechte, ohneTeam } = {}) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
     const p = await ctx.newPage();

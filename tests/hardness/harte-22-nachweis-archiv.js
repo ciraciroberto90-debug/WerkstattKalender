@@ -8,8 +8,9 @@
 //  (E) Archiv: Entfernen ist gesperrt, bis die Archivdatei gesichert wurde.
 //  (F) Archiv: nach dem Auslagern sind alte Jahrgänge weg, neuere unberührt.
 //  (G) "Später erinnern" hält die Meldung tatsächlich zurück.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
@@ -33,7 +34,7 @@ async function mach(browser, uhr, eintraege) {
 const RI = (id, datum, name, status) => ({ id, date: datum, category: "RI", name, status });
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (A)(B)(C) Prüfnachweis ---- */
   {

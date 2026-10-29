@@ -12,8 +12,9 @@
 //       Hinweis „Nacht = Tag des Schichtbeginns“; um 06:22 (Früh) bleibt es beim Tag.
 //   (4) Ein Nacht-Bericht, der den Vortag schon trägt, wird NICHT noch einmal zurückgesetzt.
 // Rot-Nachweis: gegen den Bau d360ef9 (APP_PFAD) steht der 05:09-Bericht unter dem 28.10.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
@@ -64,7 +65,7 @@ const inStoerungen = async (p) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* (1) + (2) + (3b): Morgen 06:22 */
   {

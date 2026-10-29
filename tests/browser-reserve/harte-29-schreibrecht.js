@@ -20,8 +20,9 @@
 //   2. Schreibfrage kommt nicht durch (Dialog zu lange offen)
 //      -> KEIN stiller Schreibschutz, sondern Hinweis + Knopf, und der Knopf hilft
 //   3. Der Rechner darf wirklich nicht schreiben -> ehrlicher Schreibschutz
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 let ok=0, fail=0; const pruef=(n,c)=>{console.log((c?"PASS | ":"FAIL | ")+n); c?ok++:fail++;};
 
 async function starte(b, { dialogDauer, ersteFrage, schreibenGeht, schreibFehler, nurErsterVersuch }) {
@@ -84,7 +85,7 @@ const gemerkterModus = (p) => p.evaluate(() => new Promise((fertig) => {
 }));
 
 (async()=>{
-  const b = await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
+  const b = await chromium.launch({executablePath: UMG.CHROMIUM,headless:true,args:["--no-sandbox"]});
 
   // (1) alles glatt
   { const {p,fehler} = await starte(b,{dialogDauer:300,ersteFrage:"ok",schreibenGeht:true});

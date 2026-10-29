@@ -12,11 +12,12 @@
 // dass der vorhandene Datei-Inhalt dabei NICHT verlorengeht.
 // Prueft den Ausweg fuer Browser, die das Nachfragen GRUNDSAETZLICH ablehnen
 // (requestPermission wirft immer, auch aus einem frischen Klick).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 let ok=0,fail=0; const pruef=(n,c)=>{console.log((c?"PASS | ":"FAIL | ")+n);c?ok++:fail++;};
 (async()=>{
-  const b = await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
+  const b = await chromium.launch({executablePath: UMG.CHROMIUM,headless:true,args:["--no-sandbox"]});
   const p = await (await b.newContext({viewport:{width:1400,height:950}})).newPage();
   await p.addInitScript(()=>{
     // Bestand, der in der Datei schon steht - der darf NICHT verlorengehen.

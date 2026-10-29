@@ -17,10 +17,11 @@
 //       ZiehbareKarte-Stil nutzt die overflow-Kurzform (Störbericht-Lehre).
 //
 // Hausregel erfüllt: Gegen den Build ohne den Fix schlägt (K1) fehl.
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const fsNode = require("fs");
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
-const QUELLE = "/home/user/WerkstattKalender/app/src/WerkstattKalender.jsx";
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
+const QUELLE = UMG.WURZEL + "/app/src/WerkstattKalender.jsx";
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -60,7 +61,7 @@ const pruef = (n, c, zusatz) => {
   }
 
   /* ---- (K1) Plan-Kachel behält die Kennfarben-Kante beim Abhaken ---- */
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const p = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
   const fehler = [];
   p.on("pageerror", (e) => fehler.push(e.message));

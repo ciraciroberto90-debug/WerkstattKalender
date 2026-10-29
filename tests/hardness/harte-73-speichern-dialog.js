@@ -18,8 +18,9 @@
 //
 // ROT-NACHWEIS: Gegen den Bau vor der Entkopplung stehen die Masken je
 // ~2,5 s+ - (D1) und (D2) fallen (gemessen am 16.09.).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -28,7 +29,7 @@ const pruef = (n, c, zusatz) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const p = await browser.newPage({ viewport: { width: 1400, height: 950 } });
   const fehler = [];
   p.on("pageerror", (e) => fehler.push(e.message));

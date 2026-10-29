@@ -18,8 +18,9 @@
 //
 // Rot-Nachweis: Gegen den Bau davor hat der Bearbeiter Zahnrad, Drucken und
 // Nachtmodus-Auge (K2 rot), die Matrix bietet Selects (K5 rot).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -37,7 +38,7 @@ const entries = [{ id: "t1", date: "2026-09-02", category: "TPM", name: "TS480",
 const KNOEPFE = ["Drucken", "Ansicht wechseln", "Nachtschicht-Modus", "Verwalten", "Werkstatt-Monitor", "Import", "Export", "Abmelden", "Gemeinsame Datei"];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const seite = async (benutzer) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
     const p = await ctx.newPage();

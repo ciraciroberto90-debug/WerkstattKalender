@@ -8,8 +8,9 @@
 // immer auch außerhalb der App ändern (Editor, Explorer). Diese Prüfungen
 // sichern deshalb den Fall ab, der wirklich zählt: Wer KEINE Schreibrechte
 // hat, darf über die App auf keinem Weg fremde Daten verändern.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
@@ -52,7 +53,7 @@ async function macheLeser(browser) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   globalThis.__datei = ORIGINAL;
   globalThis.__schreibversuch = null;
 

@@ -2,6 +2,7 @@
 // für verschiedene Personen (SCHICHT-Kategorie), dazu einer eine Planungs-Notiz
 // (PLANNOTIZ) - beide müssen nach dem Sync alle Änderungen des jeweils anderen
 // sehen, nichts darf verloren gehen (dieselbe Garantie wie für TPM/ARBEIT).
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const drive = { 'kalender-daten.json': '' };
 let ok = 0, fail = 0;
@@ -31,7 +32,7 @@ async function makeUser(browser) {
   // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
   // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
   await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
-  await page.goto('file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+  await page.goto(UMG.APP);
   await page.waitForTimeout(800);
   return page;
 }
@@ -42,7 +43,7 @@ async function connect(page, create) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
 
   const admin1 = await makeUser(browser);
   await connect(admin1, true);

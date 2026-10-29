@@ -22,8 +22,9 @@
 // Rot-Nachweis: Gegen den Bau davor ist die Karte 540 px breit, Status ist
 // nicht vorbelegt, das Kürzel vorausgefüllt, "Behoben am" da und die
 // Anlagenliste eine Browser-Liste ohne role=listbox.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -35,7 +36,7 @@ const anlagen = Array.from({ length: 40 }, (_, i) => ({ id: "a" + i, name: `Anla
 const config = { tpmAnlagen: anlagen, riItems: [], team: [{ name: "T. Balles", rolle: "mech" }], benutzer: [{ name: "Chef", rolle: "verwalter", kennwortHash: "" }] };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const seite = async (zeit) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
     const p = await ctx.newPage();

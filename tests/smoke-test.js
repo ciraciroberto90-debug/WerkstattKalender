@@ -1,9 +1,10 @@
 // Ultimativer Simulations-/Smoke-Test: klickt beide Modi (Bearbeiter solo + Leser)
 // durch ALLE Ansichten und Kern-Interaktionen und prüft auf JS-Fehler + erwartete Inhalte.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("./umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const path = require("path");
-const STOER = require("/home/user/WerkstattKalender/tools/demo-stoerungen.js");
-const APP = "file://" + path.resolve("/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const STOER = require(UMG.WURZEL + "/tools/demo-stoerungen.js");
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); c ? pass++ : fail++; };
@@ -56,7 +57,7 @@ const klick = async (page, name, exact = true) => { await page.getByRole("button
 const txt = async (page) => (await page.locator("body").innerText());
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ============ BEARBEITER (Solo) ============ */
   {

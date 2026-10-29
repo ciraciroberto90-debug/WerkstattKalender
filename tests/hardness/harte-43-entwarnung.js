@@ -18,11 +18,12 @@
 //   (3) Die rote Meldung MUSS verschwinden - ohne Klick, ohne Speichern.
 //   (4) Bestand: Die Poll-Warnung ("seit 90 s nicht erreichbar") heilt
 //       weiterhin wie bisher.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -43,7 +44,7 @@ const pruef = (n, c, zusatz) => {
   const einstellungen = {}; // gemerkte Pfade des "Programms" - überleben den Neustart
   let leseSperre = false;   // das "Laufwerk" verweigert das Lesen mit einem echten Fehler
 
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
   const fehler = [];
 

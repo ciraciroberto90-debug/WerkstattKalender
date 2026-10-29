@@ -2,12 +2,13 @@
 // Kann ein reiner Leser darüber die Sperre umgehen und den Backlog sehen?
 // Erwartung: nein - das Leser-Untermenü enthält kein Backlog, und die
 // Sicherheits-Klammer (useEffect) setzt unerlaubte Ansichten zurück.
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok++ : fail++; };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   page.on('dialog', (d) => d.accept());
 
@@ -33,7 +34,7 @@ const check = (n, c) => { console.log((c ? 'PASS' : 'FAIL') + ' | ' + n); c ? ok
   // Standort festnageln: seit der Werkstatt-Wahl (harte-68) bekämen frische
   // Rechner sonst zuerst die Frage - die ist hier nicht Gegenstand.
   await page.addInitScript(() => { try { localStorage.setItem("bta-standort", "scheurich"); } catch (e) {} });
-  await page.goto('file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+  await page.goto(UMG.APP);
   await page.waitForTimeout(600);
   await page.locator('button[aria-label="Gemeinsame Datei"]').click();
   await page.getByText('Vorhandene Datei öffnen …').click();

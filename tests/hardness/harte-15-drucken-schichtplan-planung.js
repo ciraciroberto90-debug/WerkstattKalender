@@ -1,9 +1,10 @@
 // Prüft die neuen Druck-Knöpfe für Schichtplan und Planung: Popup öffnet sich,
 // enthält die erwarteten Inhalte (Personen, Schichten, Wartungsplan), und der
 // Download-Fallback greift, wenn das Popup blockiert wird.
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const path = require('path');
-const APP = 'file://' + path.resolve(process.env.APP_PFAD || '/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html'); // APP_PFAD: Rot-Nachweis gegen einen alten Bau
+const APP = UMG.dateiUrl(path.resolve(process.env.APP_PFAD || UMG.APP_PFAD)); // APP_PFAD: Rot-Nachweis gegen einen alten Bau
 const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
@@ -28,7 +29,7 @@ const seedTeam = (personName) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
 
   // ---- Test 1: Schichtplan drucken (Popup erlaubt) ----
   {

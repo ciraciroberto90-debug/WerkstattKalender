@@ -6,8 +6,9 @@
 //  (2) Zwei Bearbeiter pflegen dasselbe Feld -> der Neuere gewinnt, nichts anderes kippt
 //  (3) Eine Datei im ALTEN Format (config als Block) wird verlustfrei übernommen
 //  (4) Fachliche Einträge und Config-Einträge vermischen sich nicht
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
@@ -69,7 +70,7 @@ const BASIS = {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (1) Zwei Bearbeiter, verschiedene Felder, gleichzeitig ---- */
   {

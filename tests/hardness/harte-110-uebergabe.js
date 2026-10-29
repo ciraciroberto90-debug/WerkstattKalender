@@ -30,8 +30,9 @@
 //       Fenster der offenen To-dos.
 // Rot-Nachweis: gegen den Bau vor dem 09.10. (APP_PFAD) gibt es keine Kachel
 // „Übergabe“ - (1) und alles danach ist rot.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (zusatz ? "   (" + zusatz + ")" : "")); c ? pass++ : fail++; };
@@ -113,7 +114,7 @@ const inUebergabe = async (p) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const { p, ctx, fehler } = await start(browser);
 
   /* (1) Kachel + neue Mappe */
@@ -277,7 +278,11 @@ const inUebergabe = async (p) => {
     ok("(7) Oben rechts neben „Backlog“ steht „To-do (3)“ - die offenen To-dos", (await knopf.count()) === 1 && /To-do \(3\)/.test(await knopf.innerText()), await knopf.innerText());
     await knopf.click(); await w.p.waitForTimeout(400);
     ok("(7) Das To-do-Fenster listet die drei offenen To-dos mit Zuständigem und Zeitraum", (await w.p.locator("[data-planung-todo-zeile]").count()) === 3 && /für T Balles · 07\.10\.2026 – 08\.10\.2026/.test(await w.p.locator("[data-planung-todo-fenster]").innerText()));
-    await knopf.click(); await w.p.waitForTimeout(200);
+    // Zweiter Klick schließt das Fenster. force: Unter Windows (Laptop, 29.10.)
+    // hält Playwright den Knopf nach dem ersten Klick für „nicht stabil“ und
+    // wartet 30 s, obwohl acht Messungen dieselbe Position zeigen (der Knopf
+    // trägt transition: all). Der erste Klick oben prüft die Bedienbarkeit.
+    await knopf.click({ force: true }); await w.p.waitForTimeout(200);
     await w.p.locator('button[data-hauptbereich="BERICHTE"]').click(); await w.p.waitForTimeout(300);
     await w.p.getByRole("button", { name: /Aufgaben – erteilt/ }).first().click(); await w.p.waitForTimeout(400); // die To-do-Kachel
     const listeText = await w.p.locator("body").innerText();

@@ -11,8 +11,9 @@
 // Pflicht-Nachweis nach Hausregel (Sync-/Dateiverbindungs-Änderung):
 // Dieser Test ist gegen einen Bau OHNE die Trennung gemessen ROT
 // (APP_PFAD auf den Alt-Bau zeigen lassen) - siehe S3/S4.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -38,7 +39,7 @@ async function seite(browser, init) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (S1) Frischer Rechner: erst die Frage, dann blanko Soendgen ---- */
   {

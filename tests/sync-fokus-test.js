@@ -1,7 +1,8 @@
 // SYNC-FOKUS-TEST: Gezielte Härte-Prüfung der Synchronisations-Sicherheit.
 // Testet komplexe Merge-Szenarien, Race Conditions, Konflikt-Behandlung.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("./umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let pass = 0, fail = 0;
 const ok = (n, c) => { console.log((c ? "✓ PASS " : "✗ FAIL ") + n); c ? pass++ : fail++; };
@@ -44,7 +45,7 @@ const getLocalEntries = (page) => page.evaluate(() => JSON.parse(localStorage.ge
 const A = (id, name, date="2026-07-10") => ({ id, date, category: "ARBEIT", name, status: "open", prio: "hoch", art: "mech" });
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   console.log("\n═══ SYNC-FOKUS-TEST: Komplexe Synchronisations-Szenarien ═══\n");
 

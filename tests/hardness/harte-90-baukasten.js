@@ -20,8 +20,9 @@
 //
 // Rot-Nachweis: Gegen den Bau davor gibt es weder "bausteine" im Layout noch
 // Zieh-Ecken an Bereichen (B1/B3 rot).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -40,7 +41,7 @@ const entries = [
 const stoer = [{ id: "s1", nr: 401, date: HEUTE, schicht: "Früh", anlage: "TS480", stoerung: "Testlauf", offen: true, ausfallzeit: 20, melder: "T. Balles", gemeldetAt: HEUTE + "T07:00:00.000Z" }];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   let konfig = JSON.stringify(config);
   const seite = async (benutzer, layout, breite = 1600) => {
     const ctx = await browser.newContext({ viewport: { width: breite, height: 1000 } });
@@ -100,6 +101,10 @@ const stoer = [{ id: "s1", nr: 401, date: HEUTE, schicht: "Früh", anlage: "TS48
       ["kennzahlen", "heuteDa", "stoerungen", "tagesliste", "pinnwand"].every((k) => griffe.includes(k)), griffe.join(","));
     const vor = await dom(p);
     const spalte = (await p.locator("[data-baukasten]").evaluate((el) => el.getBoundingClientRect().width + 16)) / 12;
+    // Die Ecke erst ins Fenster rollen: mit Windows-Schriften liegt die Tagesliste
+    // unterhalb der 1000 px (harte-90 B3 war auf dem Laptop rot, Roll-out 73) -
+    // Mausbewegungen außerhalb des Fensters treffen kein Element.
+    await p.locator('[data-groesse-griff="tagesliste"]').scrollIntoViewIfNeeded(); await p.waitForTimeout(200);
     const g = await p.locator('[data-groesse-griff="tagesliste"]').boundingBox();
     await p.mouse.move(g.x + g.width - 4, g.y + g.height - 4);
     await p.mouse.down();

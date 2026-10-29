@@ -24,8 +24,9 @@
 //   (1) Die Änderung kommt trotz nachgehender Uhr an
 //   (2) Der Rechner mit der falschen Uhr wird darauf hingewiesen
 //   (3) Bei gleich gehenden Uhren gibt es KEINE Warnung (kein Fehlalarm)
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
   console.log((c ? "PASS | " : "FAIL | ") + n + (zusatz ? "   (" + zusatz + ")" : ""));
@@ -68,7 +69,7 @@ const leer = () => JSON.stringify({ format: "werkstatt-kalender-v1", savedAt: nu
 const A = (id, name, status = "open") => ({ id, date: "2026-08-05", category: "ARBEIT", name, status, prio: "hoch", art: "mech" });
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (1)(2) Ein Rechner geht 40 Minuten nach ---- */
   {

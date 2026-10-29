@@ -21,9 +21,10 @@
 // Sekunden - der DAUERHAFTE Verlust war eine Regression des ersten
 // Tempo-Zwischenstands, die genau diese Messung gefangen hat, bevor
 // irgendetwas ausgeliefert wurde.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const { baueBestand, TEAM } = require("/home/user/WerkstattKalender/tools/langzeit-daten.js");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const { baueBestand, TEAM } = require(UMG.WURZEL + "/tools/langzeit-daten.js");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -36,7 +37,7 @@ const pruef = (n, c, zusatz) => {
   // örtliche Zweitschrift - ein Verlust wäre hier ENDGÜLTIG. Genau darum
   // wird in dieser Lage gemessen.
   const { entries: BESTAND } = baueBestand({ von: "2011-07-01", bis: "2026-09-11" });
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const platte = { "kalender-daten.json": JSON.stringify({ format: "werkstatt-kalender-v1", savedAt: "2026-09-11T05:00:00.000Z", entries: BESTAND, deleted: {}, config: null }) };
 
   async function fenster() {

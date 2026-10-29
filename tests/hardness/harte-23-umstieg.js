@@ -9,13 +9,14 @@
 //  (4) Die alte Fassung kommt mit den neuen Verwaltungs-Einträgen klar und
 //      zeigt sie nicht als Termine an.
 //  (5) Rückweg: Wer zur alten Fassung zurückmuss, verliert seine Termine nicht.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const NEU = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const NEU = UMG.APP;
 // Die eingefrorene Alt-Fassung liegt als Pruefmuster IM Repo (Stand 9e62715,
 // vor der Umstellung der Einstellungen auf Einzel-Eintraege). Vorher lag sie
 // unter /tmp und war nach jedem frischen Arbeitscontainer verschwunden -
 // der Test scheiterte dann an der Umgebung statt an der Sache.
-const ALT = "file:///home/user/WerkstattKalender/tests/hilfen/alt-fassung.html";
+const ALT = UMG.dateiUrl("tests/hilfen/alt-fassung.html");
 
 let ok = 0, fail = 0;
 const check = (n, c) => { console.log((c ? "PASS | " : "FAIL | ") + n); c ? ok++ : fail++; };
@@ -74,7 +75,7 @@ const fachlich = () => (datei().entries || []).filter((e) => !/^(log|config)\|/.
 const setze = (p, arr) => p.evaluate(async (a) => await window.storage.set("werkstatt-kalender-entries", JSON.stringify(a)), arr);
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
 
   /* ---- (1)(2) Neue Fassung öffnet die Datei aus dem Echtbetrieb ---- */
   {

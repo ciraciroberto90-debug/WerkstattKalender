@@ -21,8 +21,9 @@
 //     positioniert ist, gab es KEINEN Scrollraum. Jetzt hat es eine
 //     Höhen-Grenze mit eigenem Rollbalken; alle übrigen Dialog-Karten
 //     wurden auf dieselbe Grenze (88vh) gezogen.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -31,7 +32,7 @@ const pruef = (n, c, zusatz) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const p = await browser.newPage({ viewport: { width: 900, height: 1000 } });
   const fehler = [];
   p.on("pageerror", (e) => fehler.push(e.message));

@@ -1,9 +1,10 @@
 // Prüft die neue, strengere Regel: Nur-Lesen ist der SICHERE STANDARD, auch
 // BEVOR eine Verbindung zur gemeinsamen Datei besteht. Volle Rechte gibt es
 // nur nach BESTÄTIGTEM Schreibzugriff (oder in Solo-Browsern ohne FS-Access-API).
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require('playwright-core');
 const path = require('path');
-const APP = 'file://' + path.resolve('/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html');
+const APP = UMG.dateiUrl(path.resolve(UMG.APP_PFAD));
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log('PASS', n); } else { fail++; console.log('FAIL', n); } };
 
@@ -19,7 +20,7 @@ const mockHandle = (mode) => ({
 });
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ['--no-sandbox'] });
 
   // ---- Szenario 1: Frisch geöffnet, NOCH GAR NICHT verbunden ----
   {

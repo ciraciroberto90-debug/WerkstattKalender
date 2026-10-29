@@ -17,8 +17,9 @@
 //  (E)  Keine Skriptfehler.
 //
 // Rot-Nachweis: Gegen den Bau davor gibt es die Karte nicht (D1 rot).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -42,7 +43,7 @@ const BESTAND = [
 ];
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const seite = async (benutzer) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
     const p = await ctx.newPage();

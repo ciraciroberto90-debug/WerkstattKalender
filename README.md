@@ -131,8 +131,10 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-bash tests/run-hardness-tests.sh           # 103 Härtetests (vor jedem Push)
-bash tests/run-browser-reserve.sh          # 5 Browser-Reserve-Tests (vor einer Freigabe; Dateizugriff über den Browser)
+node tests/run-hardness-tests.js           # 104 Härtetests (vor jedem Push; Windows und Linux, Bash-Fassung .sh bleibt daneben)
+node tests/run-browser-reserve.js          # 5 Browser-Reserve-Tests (vor einer Freigabe; Dateizugriff über den Browser)
+#   Einmalig je Rechner: cd tests && npm install && node browser-holen.js
+#   (Chromium landet in tests/browser/, ohne Adminrechte). Pfade kommen aus tests/umgebung.js; APP_PFAD=<alte html> für den Rot-Nachweis.
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren

@@ -9,9 +9,10 @@
 //
 // Ehrlich dazugesagt: Die Datei liegt im Speicher des Test-Rechners -
 // gemessen ist die Arbeit der App, nicht das Netz des Firmenlaufwerks.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const { baueBestand, baueStoerungen, TEAM } = require("/home/user/WerkstattKalender/tools/langzeit-daten.js");
-const APP = "file://" + (process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html");
+const UMG = require("./umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const { baueBestand, baueStoerungen, TEAM } = require(UMG.WURZEL + "/tools/langzeit-daten.js");
+const APP = UMG.dateiUrl((process.env.APP_PFAD || UMG.APP_PFAD));
 
 const mess = (n, ms) => console.log("MESS | " + n.padEnd(42) + String(ms).padStart(6) + " ms");
 
@@ -25,7 +26,7 @@ const mess = (n, ms) => console.log("MESS | " + n.padEnd(42) + String(ms).padSta
     "kalender-daten.json": JSON.stringify({ format: "werkstatt-kalender-v1", savedAt: "2026-09-11T05:00:00.000Z", entries: BESTAND, deleted: {}, config: null }),
     "werkstatt-stoerungen.json": JSON.stringify({ format: "werkstatt-stoerungen-v1", savedAt: "2026-09-11T05:00:00.000Z", entries: STOERUNGEN, deleted: {} }),
   };
-  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const b = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 980 } })).newPage();
   await p.clock.setFixedTime(new Date("2026-09-11T09:00:00"));
   await p.exposeFunction("__lies", (n) => platte[n] ?? "");

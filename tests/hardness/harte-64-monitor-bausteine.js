@@ -11,8 +11,9 @@
 //  (M3) Häkchen weg = Baustein weg (Karte, Laufband) - und die Wahl steht
 //       in der Konfiguration (gemeinsame Datei), nicht nur am Bildschirm.
 //  (M4) Alles abgewählt: der Monitor sagt es ehrlich statt leer zu wirken.
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP = "file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP = UMG.APP;
 
 let ok = 0, fail = 0;
 const pruef = (n, c, zusatz) => {
@@ -21,7 +22,7 @@ const pruef = (n, c, zusatz) => {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
   const p = await ctx.newPage();
   const fehler = [];

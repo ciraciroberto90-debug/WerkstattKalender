@@ -20,10 +20,11 @@
 //
 // Rot-Nachweis: Gegen den Bau davor schreibt niemand programmStand (P1 rot)
 // und das Zahnrad kennt die Tabelle nicht (P2 rot).
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
 const fs = require("fs");
-const APP_PFAD = process.env.APP_PFAD || "/home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
-const APP = "file://" + APP_PFAD;
+const APP_PFAD = process.env.APP_PFAD || UMG.APP_PFAD;
+const APP = UMG.dateiUrl(APP_PFAD);
 
 let pass = 0, fail = 0;
 const ok = (n, c, zusatz) => {
@@ -44,7 +45,7 @@ const config = {
 };
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", headless: true, args: ["--no-sandbox"] });
+  const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const seite = async (benutzer, konfig) => {
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
     const p = await ctx.newPage();

@@ -8,8 +8,9 @@
 //   - was gesetzt ist, steht als Marke sichtbar da (sonst filtert es blind)
 //   - ein Klick daneben schliesst das Menue, hebt den Filter aber NICHT auf
 //   - jede Marke laesst sich einzeln abwerfen, "alle entfernen" raeumt auf
-const { chromium } = require("/home/user/WerkstattKalender/node_modules/playwright-core");
-const APP="file:///home/user/WerkstattKalender/Werkstatt_Kalender_TPM.html";
+const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
+const { chromium } = require("playwright-core");
+const APP=UMG.APP;
 const CONFIG={team:[{name:"R. Ciraci",rolle:"mech"},{name:"M. Weber",rolle:"elek"},{name:"T. Klein",rolle:"mech"}]};
 const A=[
  ["Lager tauschen","VSM1","hoch","mech","R. Ciraci"],
@@ -26,7 +27,7 @@ ENTRIES.push({id:"arb-fertig",date:"2026-07-02",category:"ARBEIT",name:"HRO",not
 let ok=0,fail=0;
 const pruef=(n,c)=>{console.log((c?"PASS | ":"FAIL | ")+n); c?ok++:fail++;};
 
-(async()=>{const b=await chromium.launch({executablePath:"/opt/pw-browsers/chromium",headless:true,args:["--no-sandbox"]});
+(async()=>{const b=await chromium.launch({executablePath: UMG.CHROMIUM,headless:true,args:["--no-sandbox"]});
 const ctx=await b.newContext({viewport:{width:1440,height:900}});
 const p=await ctx.newPage(); const fehler=[]; p.on("pageerror",e=>fehler.push(e.message));
 await p.clock.setFixedTime(new Date("2026-07-23T10:00:00"));

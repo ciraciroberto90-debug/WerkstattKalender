@@ -11,6 +11,8 @@ programm/app/
 programm/standard-einstellungen.json
 node_modules
 package-lock.json
+# Chromium für die Härtetests (node tests/browser-holen.js), rund 400 MB je Rechner
+tests/browser/
 
 # Bildschirmfotos der Präsentationen werden aus Beispieldaten erzeugt (shots.js) – nicht versionieren
 doku/vorstellung-bta-cockpit/shots/*.png
