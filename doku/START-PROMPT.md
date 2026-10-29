@@ -22,7 +22,7 @@ LIES IN DIESER REIHENFOLGE, BEVOR DU IRGENDETWAS VORSCHLÄGST:
 
 REGELN, DIE IMMER GELTEN:
 - Messen statt behaupten. Jede Aussage über Dateien, Zeiten, Anzeigen wird geprüft. Was du nicht gemessen hast, nennst du ungemessen.
-- Keine Adminrechte am PC, keine Installation, keine Anfrage an die IT. Auf dem Server v-btacockpit-01 bin ich Admin.
+- Keine Adminrechte am PC, keine Installation, keine Anfrage an die IT. Auf dem Server v-btacockpit-1 bin ich Admin.
 - Sync-, Speicher- und Verbindungsfehler sind ein No-Go. Jede Änderung am Zusammenführen, Speichern oder an der Verbindung braucht einen Test, der ohne die Änderung rot ist. Solange die Testsuite auf diesem PC nicht läuft (Roll-out 73), machst du solche Änderungen nicht, sondern sagst es mir.
 - Server, Cloudflare, Werkzeuge: ein Schritt je Nachricht mit Klickfolge, erwarteter Anzeige und Kontrolle. Erst nach meiner Rückmeldung der nächste. Entscheidungen einzeln abfragen, nicht als Liste.
 - Nichts löschen oder überschreiben ohne mein ausdrückliches Ja. Vorher zeigen, was dort liegt.
@@ -30,10 +30,10 @@ REGELN, DIE IMMER GELTEN:
 - Neue Aufgaben, die nicht sofort erledigt werden, kommen in derselben Sitzung in ROLLOUT-LISTE.md und in denselben Push. Erledigtes wird durchgestrichen und mit Datum ergänzt, nicht gelöscht.
 - Bei Gestaltungsfragen zeigst du mir erst Vorlagen (HTML in doku/vorlage-*.html), ich wähle, dann baust du.
 - Vor jedem Push: cd app && npm run build; die gebaute Werkstatt_Kalender_TPM.html gehört mit ins Repo. Keine Modell-Kennung in Commits.
-- Zum Einspielen kopierst du direkt aus dem Repo-Ordner auf den Server (\\v-btacockpit-01\BTA\BTA-Programm\App) oder über das Server-Werkzeug vom Stick; nie über Downloads oder Anhänge. Vorher Größe und ein Merkmal prüfen, nachher die Status-Seite http://v-btacockpit-01:8765/status.
+- Zum Einspielen kopierst du direkt aus dem Repo-Ordner auf den Server (\\v-btacockpit-1\BTA\BTA-Programm\App) oder über das Server-Werkzeug vom Stick; nie über Downloads oder Anhänge. Vorher Größe und ein Merkmal prüfen, nachher die Status-Seite http://v-btacockpit-1:8765/status.
 
 DEIN ERSTER ARBEITSTAG (Abschnitt 8 der Übergabe), ein Schritt je Nachricht:
-1. Messen: git/node/npm; Erreichbarkeit von \\v-btacockpit-01\BTA\BTA-Programm\App, http://v-btacockpit-01:8765/status (welche Dienst-Fassung?) und https://bta-briefkasten.roberto-ciraci.workers.dev/status (welche Fassung?). Tabelle an mich.
+1. Messen: git/node/npm; Erreichbarkeit von \\v-btacockpit-1\BTA\BTA-Programm\App, http://v-btacockpit-1:8765/status (welche Dienst-Fassung?) und https://bta-briefkasten.roberto-ciraci.workers.dev/status (welche Fassung?). Tabelle an mich.
 2. cd app && npm install && npm run build; Größe (erwartet 1.226.085 Bytes) und Merkmal data-stoer-nacht-hinweis prüfen.
 3. Die drei Einspiel-Schritte in der Reihenfolge Worker 0.3.0 → Dienst 0.6.1 → App-Datei, mit Kontrolle je Schritt; nach jedem Schritt die Roll-out-Liste fortschreiben und pushen.
 4. Danach Roll-out 73 (Testsuite auf diesem PC lauffähig machen), denn ohne sie darfst du am Speichern nichts ändern.

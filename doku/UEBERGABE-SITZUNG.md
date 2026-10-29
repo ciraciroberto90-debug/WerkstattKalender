@@ -34,17 +34,19 @@ Geschichte und steht da, falls Roberto danach fragt).
 - Antworten auf Deutsch, Code-Kommentare auf Deutsch und sie erklären das
   *Warum*. Keine Modell-Kennungen in Commits oder Dateien.
 
-## 2. Stand der Dinge am 28.10.2026
+## 2. Stand der Dinge am 29.10.2026
 
-| Was | Im Repo (Branch `claude/jolly-bell-qmnsv0`) | Auf Robertos Server / Geräten |
+**Nachtrag 29.10. (Laptop-Unterhaltung):** Alle drei Einspiel-Schritte sind erledigt und gemessen (Roll-out 68/72). Server: Dienst **0.6.1** (seit 29.10. 06:33), App **1.226.085 Bytes** (29.10. 06:36, alte als `vor-2026-10-29-06-36` aufgehoben), Worker **0.3.0**. Die Stick-Kopie auf dem Server (`C:\BTA\BTA-Programm\Installation\BTA-Cockpit-USB-Stick`) ist byte-gleich mit dem Repo-Stand. Die Tabelle und die Schritte darunter beschreiben den Stand **vor** dem Einspielen.
+
+| Was | Im Repo (Branch `claude/jolly-bell-qmnsv0`) | Auf Robertos Server / Geräten (Stand 28.10., vor dem Einspielen) |
 |---|---|---|
-| App-Datei `Werkstatt_Kalender_TPM.html` | Bau 16b4635, **1.226.085 Bytes** (Roll-outs bis 71: Übergabe-Mappe, To-do von–bis, To-dos in der Planung, Nachtschicht-Schichttag) | **älter** – zuletzt getauscht 02.10. (1095 kB). Gemessen 28.10. in Downloads des Laptops: nur eine Datei vom 09.07. (264.553 Bytes) und eine vom 10.10. (1.226.380 Bytes, Vorgänger-Bau) |
-| Dienst `server/dienst.js` | **0.6.1** (Abholer mit Marke statt Liste im Takt, automatisches Einsortieren) | **0.5.0** läuft (Status-Seite, Stand 07./08.10.; seither nicht neu gemessen) |
-| Cloudflare-Worker `briefkasten/worker.js` | **0.3.0** (Weg `/neu` mit Marke, eingebetteter Zettel) | **0.2.0** läuft (`/status`, 08.10.) – damit besteht das Kontingent-Problem aus Roll-out 68 dort weiter |
-| USB-Stick | `BTA-Cockpit-USB-Stick-0.6.1.zip` (Werkzeug mit `$DienstFassungStick = "0.6.1"`) | physischer Stick mit Werkzeug 0.3.0-Dienst (Zip vom 01.10. in Downloads) |
+| App-Datei `Werkstatt_Kalender_TPM.html` | Bau 16b4635, **1.226.085 Bytes** (Roll-outs bis 71: Übergabe-Mappe, To-do von–bis, To-dos in der Planung, Nachtschicht-Schichttag) | **älter** – zuletzt getauscht 07.10. (1.189.331 Bytes). Gemessen 28.10. in Downloads des Laptops: nur eine Datei vom 09.07. (264.553 Bytes) und eine vom 10.10. (1.226.380 Bytes, Vorgänger-Bau) |
+| Dienst `server/dienst.js` | **0.6.1** (Abholer mit Marke statt Liste im Takt, automatisches Einsortieren) | **0.5.0** lief bis 29.10. 06:33 |
+| Cloudflare-Worker `briefkasten/worker.js` | **0.3.0** (Weg `/neu` mit Marke, eingebetteter Zettel) | **0.3.0** gemessen 28.10. (`/status`) |
+| USB-Stick | `BTA-Cockpit-USB-Stick-0.6.1.zip` (Werkzeug mit `$DienstFassungStick = "0.6.1"`) | physischer Stick mit Werkzeug 0.3.0-Dienst (Zip vom 01.10. in Downloads); Kopie auf dem Server unter `BTA-Programm\Installation` ist aktuell (08.10.) |
 | Handy-Zettel | `handy/aufnahme-zettel.html`, kommt über `/zettel` vom Worker | läuft auf Robertos Android, Einrichtungs-Link/QR aus Roll-out 65 |
 
-**Die drei offenen Einspiel-Schritte** (seit 08.10., Reihenfolge so lassen):
+**Die drei Einspiel-Schritte** (seit 08.10., **erledigt 28./29.10.**, Reihenfolge so lassen):
 
 1. **Worker 0.3.0 in Cloudflare einfügen.** Dashboard → Workers & Pages →
    `bta-briefkasten` → Edit code → kompletten Inhalt von `briefkasten/worker.js`
@@ -65,7 +67,7 @@ Geschichte und steht da, falls Roberto danach fragt).
 
 ## 3. Wo alles liegt
 
-- **Server `v-btacockpit-01`:** `C:\BTA\BTA-Programm\Dienst\` (node.exe
+- **Server `v-btacockpit-1`** (gemessen 28.10.: 10.253.64.131; der Name `v-btacockpit-01` in älteren Texten löst nicht auf; die Adresse steht in `05-Server/server-adresse.txt`): `C:\BTA\BTA-Programm\Dienst\` (node.exe
   portabel, dienst.js, db.js, `einstellungen.json`, **`briefkasten.json`**,
   `protokoll\`), `C:\BTA\BTA-Programm\App\Werkstatt_Kalender_TPM.html`
   (ausgeliefert unter `/app/`, daneben `aufnahme-zettel.html`),
@@ -104,10 +106,16 @@ node tools/stick-bauen.js --mit-server      # Stick-Zip neu (--mit-node holt nod
 node tools/startpaket-bauen.js              # nach jeder Änderung in arbeitsplatz/
 ```
 
-- Node und npm werden ohne Adminrechte gebraucht (portables Node reicht,
-  es liegt im Stick-Ordner `05-Server`). **Ungemessen am 28.10.:** ob Git,
-  Node und npm auf Robertos Laptop vorhanden sind – das ist der erste Schritt
-  der neuen Unterhaltung (Roll-out 72).
+- Node und npm werden ohne Adminrechte gebraucht. **Gemessen 28.10.:** auf
+  dem Laptop fehlten Git, Node und npm. Jetzt liegen Node v22.23.3 in
+  `C:\Users\rciraci\BTA-Werkzeuge\node` und MinGit 2.56 in
+  `C:\Users\rciraci\BTA-Werkzeuge\git` (beides portabel, nicht im PATH – je
+  Shell `$env:Path = "C:\Users\rciraci\BTA-Werkzeuge\git\cmd;C:\Users\rciraci\BTA-Werkzeuge\node;" + $env:Path`).
+  Der Arbeitsordner `C:\Users\rciraci\BTA-Cockpit` ist seit 29.10. ein
+  Git-Ordner auf dem Branch; Git geht über OpenSSL mit den Windows-Wurzeln
+  (`.git/config`, Roll-out 72), Pushen braucht noch ein Token (Roll-out 76).
+- `tools/stick-bauen.js` bricht auf dem Laptop beim Zip-Schritt ab (bash und
+  zip fehlen), der Stick-Ordner wird vorher fertig gebaut (Roll-out 75).
 - Der Bau-Befehl kopiert seit 28.10. mit Node statt mit `cp`, läuft also
   auch unter Windows ohne Git-Bash.
 - Vor dem Einspielen die gebaute Datei gegen den Repo-Stand prüfen (Größe,
@@ -171,14 +179,18 @@ node tools/startpaket-bauen.js              # nach jeder Änderung in arbeitspla
 
 ## 7. Offen (Kurzfassung, Einzelheiten in der Roll-out-Liste)
 
-- Einspielen: die drei Schritte aus Abschnitt 2.
-- 72 Laptop-Unterhaltung einrichten, 73 Suite tragbar machen.
+- ~~Einspielen: die drei Schritte aus Abschnitt 2.~~ Erledigt 29.10.
+- ~~72 Laptop-Unterhaltung einrichten~~ (erledigt 28./29.10.), 73 Suite tragbar
+  machen, 74 Abriss-Etappen R0–R8, 75 Stick-Bauer unter Windows, 76 Push-Token,
+  77 W: wird noch beschrieben (vor dem Umschalttag klären).
 - 60 Tagesplan kompakt, 62, 63, 55, 56; 46/47/50/51 Umschalttag und
   Excel-Quellen am Server; 42 harte-70-Testfenster auf 24 s; iPhone-Messung
   des Zettels; 67 QR mit Anlagenliste; Angebot „Planungs-Druck auf zwei
   Seiten“; bewusst nicht gebaut: Kästchen „für die Übergabe“ in den Listen.
 
 ## 8. Erster Arbeitstag der neuen Unterhaltung
+
+**Stand 29.10.: Schritte 1–3 erledigt** (Einzelheiten Roll-out 72 und 68).
 
 1. `git --version`, `node --version`, `npm --version` messen; Erreichbarkeit
    von `\\v-btacockpit-01\BTA\BTA-Programm\App`, der Status-Seite und des
