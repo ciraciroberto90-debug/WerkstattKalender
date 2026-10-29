@@ -161,6 +161,14 @@ node tools/startpaket-bauen.js              # nach jeder Änderung in arbeitspla
   in Downloads an (Befund 28.10.). Mit der Laptop-Unterhaltung entfällt das:
   direkt aus dem Repo-Ordner auf den Server kopieren.
 
+## 6a. Zwei weitere Dateien vom 29.10.
+
+- [`NEUANFANG-AUSWERTUNG.md`](NEUANFANG-AUSWERTUNG.md): Robertos Frage „Was
+  würden wir heute weglassen?“ – Verzichtsliste mit gemessenem Umfang, die
+  einfachere Zielstruktur und der Abriss-Plan R0–R8.
+- [`START-PROMPT.md`](START-PROMPT.md): der Start-Text für eine neue
+  Unterhaltung auf dem Firmen-PC, zum Einfügen.
+
 ## 7. Offen (Kurzfassung, Einzelheiten in der Roll-out-Liste)
 
 - Einspielen: die drei Schritte aus Abschnitt 2.
