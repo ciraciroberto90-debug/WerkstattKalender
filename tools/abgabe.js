@@ -144,6 +144,9 @@ const holeJson = (url) => new Promise((ok, nein) => { http.get(url, { timeout: 1
         fs.copyFileSync(HTML, teil);
         fs.renameSync(teil, path.join(W_UPDATE, name));
         const dort = path.join(W_UPDATE, name);
+        /* Kopieren behält das Änderungsdatum der Quelle; die Hülle wählt nach
+         * dem jüngsten Datum - deshalb auf den Ablagezeitpunkt setzen. */
+        fs.utimesSync(dort, new Date(), new Date());
         if (sha(dort) !== meinSha) abbruch("Die Datei auf W: ist nach dem Kopieren nicht byte-gleich.");
         melde("W:-Update-Ordner", "abgelegt, byte-gleich", `${name}, ${fs.statSync(dort).size.toLocaleString("de-DE")} Bytes` + (juengste ? `; Vorgänger bleibt: ${juengste.n}` : ""));
       }
