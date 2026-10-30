@@ -139,6 +139,12 @@ node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…
   gebremst; die drei roten waren Windows-Eigenheiten im Test (harte-90/97/110,
   korrigiert). Ergebnis eines Laufs steht immer in
   `tests/protokolle/LETZTER-LAUF.txt` – dort nachlesen, nicht Roberto fragen.
+- **Nächtlicher Lauf seit 30.10.:** Aufgabe `BTA-Cockpit Haertetests` in der
+  Aufgabenplanung des Laptops, täglich 02:00, Benutzer rciraci, nur wenn
+  angemeldet (gesperrt reicht), weckt aus dem Standby. Morgens zuerst
+  `LETZTER-LAUF.txt` lesen; rot = Roberto sagen, nichts einspielen. Neu
+  anlegen ohne Admin (eine Zeile PowerShell):
+  `Register-ScheduledTask -TaskName "BTA-Cockpit Haertetests" -Action (New-ScheduledTaskAction -Execute "C:\Users\rciraci\BTA-Werkzeuge\node\node.exe" -Argument "tests\run-hardness-tests.js" -WorkingDirectory "C:\Users\rciraci\BTA-Cockpit") -Trigger (New-ScheduledTaskTrigger -Daily -At "02:00") -Settings (New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 3) -MultipleInstances IgnoreNew) -Force`
   `node tests/run-hardness-tests.js` (Node-Lauf-Skript statt Bash), alle
   Pfade kommen aus `tests/umgebung.js` (Repo über den eigenen Ort, Browser
   aus `tests/browser/` oder `PW_CHROMIUM`, `APP_PFAD` für den Rot-Nachweis
