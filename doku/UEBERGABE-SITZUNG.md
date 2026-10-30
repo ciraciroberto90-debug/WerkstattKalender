@@ -104,6 +104,7 @@ cd app && npm install && npm run build      # → Werkstatt_Kalender_TPM.html im
 node briefkasten/worker-bauen.js            # nach jeder Änderung an kern.js oder handy/aufnahme-zettel.html
 node tools/stick-bauen.js --mit-server      # Stick-Zip neu (--mit-node holt node.exe von nodejs.org, ~35 MB)
 node tools/startpaket-bauen.js              # nach jeder Änderung in arbeitsplatz/
+node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…" --push   # seit 30.10.: alles in einem Befehl (Roll-out 78)
 ```
 
 - Node und npm werden ohne Adminrechte gebraucht. **Gemessen 28.10.:** auf

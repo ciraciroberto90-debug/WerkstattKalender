@@ -135,6 +135,10 @@ node tests/run-hardness-tests.js           # 104 Härtetests (vor jedem Push; Wi
 node tests/run-browser-reserve.js          # 5 Browser-Reserve-Tests (vor einer Freigabe; Dateizugriff über den Browser)
 #   Einmalig je Rechner: cd tests && npm install && node browser-holen.js
 #   (Chromium landet in tests/browser/, ohne Adminrechte). Pfade kommen aus tests/umgebung.js; APP_PFAD=<alte html> für den Rot-Nachweis.
+#   Jeder Lauf schreibt tests/protokolle/<Zeit>-hardness.log und LETZTER-LAUF.txt.
+node tools/abgabe.js --merkmal <x> --tests <a,b|voll|keine> --einspielen --commit "…" --push
+#   Abgabe in einem Befehl: bauen → Größe/Merkmal → Härtetests → App-Datei auf den Server (alte als vor-<Zeit>) → Status-Seite
+#   fragen → commit → push. Bricht beim ersten roten Befund ab. --nur-pruefen zeigt nur, was passieren würde.
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren

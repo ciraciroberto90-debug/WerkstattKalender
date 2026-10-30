@@ -44,6 +44,11 @@ cd app && npm run build                    # erzeugt Werkstatt_Kalender_TPM.html
 node tests/run-hardness-tests.js           # Härtetests (läuft auf Windows und Linux; Bash-Fassung bleibt daneben)
 node tests/run-browser-reserve.js          # vor einer Freigabe: Dateizugriff über den Browser
 node tools/startpaket-bauen.js             # nach jeder Änderung in arbeitsplatz/
+node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…" --push   # alles in einem Befehl, bricht beim ersten roten Befund ab
 ```
+
+Testläufe immer über `tests/run-hardness-tests.js` (schreibt `tests/protokolle/`,
+`LETZTER-LAUF.txt` zeigt die Kurzzeile) – nie nur in ein Terminal, das
+verschwinden kann.
 
 Die vollständige Liste der Suiten steht im README unter „Für die Entwicklung".
