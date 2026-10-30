@@ -26,7 +26,9 @@ module.exports = function suiteLaufen(ordner, titel, nurDiese) {
   if (nurDiese && nurDiese.length) tests = tests.filter((n) => nurDiese.some((m) => n.includes(m)));
 
   fs.mkdirSync(PROTOKOLLE, { recursive: true });
-  const stempel = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
+  /* Mit Sekunden: zwei Läufe in derselben Minute (30.10.: Probelauf und voller
+   * Lauf) würden sonst dieselbe Datei überschreiben. */
+  const stempel = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
   const protokollPfad = path.join(PROTOKOLLE, `${stempel}-${ordner}.log`);
   const protokoll = fs.createWriteStream(protokollPfad);
   const sag = (s) => { process.stdout.write(s + "\n"); protokoll.write(s + "\n"); };

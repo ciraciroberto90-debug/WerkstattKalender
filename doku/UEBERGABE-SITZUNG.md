@@ -133,10 +133,12 @@ node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…
 
 ## 5. Tests – die wichtigste Einschränkung für den Laptop
 
-- **Seit 29.10. (Roll-out 73) läuft die Suite auf dem Laptop:** erster
-  voller Lauf 100/103 in **192 min** (Cloud: 90–120 min), die drei roten
-  waren Windows-Eigenheiten im Test (harte-90/97/110, korrigiert, einzeln
-  grün; voller zweiter Lauf steht aus).
+- **Seit 29.10. (Roll-out 73) läuft die Suite auf dem Laptop:** voller
+  Lauf am 30.10. **103/103 in 34 min** (Cloud: 90–120 min). Der erste Lauf
+  (100/103, 192 min) war durch einen parallelen Lauf und den Sophos-Erstscan
+  gebremst; die drei roten waren Windows-Eigenheiten im Test (harte-90/97/110,
+  korrigiert). Ergebnis eines Laufs steht immer in
+  `tests/protokolle/LETZTER-LAUF.txt` – dort nachlesen, nicht Roberto fragen.
   `node tests/run-hardness-tests.js` (Node-Lauf-Skript statt Bash), alle
   Pfade kommen aus `tests/umgebung.js` (Repo über den eigenen Ort, Browser
   aus `tests/browser/` oder `PW_CHROMIUM`, `APP_PFAD` für den Rot-Nachweis
@@ -197,7 +199,7 @@ node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…
 
 - ~~Einspielen: die drei Schritte aus Abschnitt 2.~~ Erledigt 29.10.
 - ~~72 Laptop-Unterhaltung einrichten~~ (erledigt 28./29.10.), ~~73 Suite
-  tragbar machen~~ (gebaut 29.10., voller zweiter Lauf 103/103 steht aus),
+  tragbar machen~~ (abgeschlossen 30.10., 103/103 in 34 min),
   74 Abriss-Etappen R0–R8, 75 Stick-Bauer unter Windows, ~~76 Push~~ (läuft
   seit 29.10. über den Credential Manager), 77 W: wird noch beschrieben (vor
   dem Umschalttag klären).
