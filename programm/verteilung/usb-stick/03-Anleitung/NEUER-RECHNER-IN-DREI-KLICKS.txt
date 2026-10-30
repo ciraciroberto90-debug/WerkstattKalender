@@ -1,0 +1,84 @@
+==========================================================
+ BTA-COCKPIT AUF EINEM NEUEN RECHNER - IN DREI KLICKS
+==========================================================
+Stand: 30.10.2026. Keine Adminrechte noetig, keine IT.
+Dauer: etwa zwei Minuten.
+
+Du brauchst: diesen Ordner (auf dem USB-Stick oder auf dem
+Firmenlaufwerk W:) und den Rechner, auf dem das Cockpit
+laufen soll. Dort angemeldet sein wie im Alltag.
+
+----------------------------------------------------------
+ 1. WERKZEUG STARTEN
+----------------------------------------------------------
+Doppelklick auf  BTA-Werkzeug.cmd  (in diesem Ordner, eine
+Ebene ueber 03-Anleitung).
+Ein schwarzes Fenster blitzt kurz auf, dann kommt ein
+blaues Fenster "BTA-Cockpit - Werkzeug".
+
+Fragt Windows "Moechten Sie diese Datei ausfuehren?" oder
+"SmartScreen": "Weitere Informationen" -> "Trotzdem
+ausfuehren". Das kommt nur beim ersten Mal.
+
+----------------------------------------------------------
+ 2. SCHRITT 1 - DAS WERKZEUG SCHAUT SICH UM
+----------------------------------------------------------
+Es zeigt vier bis fuenf Zeilen mit Ampeln: Rechnername,
+Programm-Paket gefunden, Firmenlaufwerk W: erreichbar,
+Cockpit noch nicht eingerichtet.
+Alles gruen oder gelb?  ->  "Weiter >"
+Eine rote Zeile? Dann steht daneben, was fehlt (meist:
+W: nicht erreichbar -> Netzwerkkabel/WLAN pruefen, dann
+"Noch einmal nachsehen").
+
+----------------------------------------------------------
+ 3. SCHRITT 2 - EINE FRAGE
+----------------------------------------------------------
+"Wofuer ist dieser Rechner?"  Eine Karte anklicken:
+   Arbeitsplatz in der Werkstatt   (der Normalfall)
+   Info-Bildschirm (Morgenrunde)   (startet mit Windows,
+                                    Vollbild, keine Bedienung)
+   Nur ansehen                     (wie Arbeitsplatz)
+Standort steht auf Scheurich. Fuer Soendgen Keramik auf
+"(aendern)" klicken.
+->  "Einrichten"
+
+Das Werkzeug entpackt das Programm (ca. 110 MB, 20-60 s),
+schreibt die Einstellungen, legt die Verknuepfung
+"Werkstatt-Cockpit" auf den Desktop (beim Info-Bildschirm
+auch in den Autostart) und prueft die Verbindung.
+
+----------------------------------------------------------
+ 4. SCHRITT 3 - FERTIG
+----------------------------------------------------------
+Gruener Haken "Fertig eingerichtet".
+->  "Cockpit jetzt oeffnen"   oder spaeter die Desktop-
+    Verknuepfung "Werkstatt-Cockpit" doppelklicken.
+Beim allerersten Start kann Windows-SmartScreen noch einmal
+fragen: "Weitere Informationen" -> "Trotzdem ausfuehren".
+
+Das Cockpit verbindet sich von selbst mit der Werkstatt-
+Datei. Wer kein Schreibrecht auf W: hat, bekommt
+automatisch "nur ansehen" - das ist richtig so.
+
+----------------------------------------------------------
+ WENN ETWAS NICHT KLAPPT
+----------------------------------------------------------
+- Rotes Ergebnis in Schritt 3: Die Meldung sagt, was fehlt.
+  "Noch einmal" nach dem Beheben.
+- "Protokoll speichern..." (unten rechts) legt eine Text-
+  datei auf den Desktop - die an Roberto Ciraci schicken.
+- "Mehr ..." (unten links) zeigt die Tafel: jede Zeile eine
+  Ampel, daneben ein Knopf, der genau das richtet. Oder
+  "Alles einrichten, was fehlt".
+
+----------------------------------------------------------
+ WAS NICHT GEHT
+----------------------------------------------------------
+- Das Programm NICHT direkt vom Stick oder vom Laufwerk W:
+  starten: 110 MB bei jedem Start ueber das Netz, Windows
+  warnt bei jedem Start, und ein Update blockiert alle, die
+  es gerade offen haben. Das Werkzeug kopiert es deshalb
+  auf den Rechner - das ist der ganze Sinn.
+- Updates kommen nicht ueber diesen Ordner: Das Cockpit
+  meldet neue Fassungen selbst mit dem gruenen Balken.
