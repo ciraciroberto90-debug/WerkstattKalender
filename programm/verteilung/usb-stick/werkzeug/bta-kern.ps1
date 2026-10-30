@@ -67,6 +67,10 @@ $Mitglieder = @{
 $FreigabeName = "BTA"
 $NodeFassung = "v22.23.3"
 $DienstFassungStick = "0.6.1"
+# Programm-Fassung im ZIP auf dem Stick (programm/package.json). Aeltere Fassungen
+# (31.08. = 1.1, 21.09. = 1.2) kennen den Server-Weg der Huelle nicht - solche
+# Rechner erneuert "Einrichten" ueber das vorhandene Programm hinweg.
+$ProgrammFassungStick = "1.3.0"
 $NodeUrl = "https://nodejs.org/dist/$NodeFassung/node-$NodeFassung-win-x64.zip"
 $WerkzeugStand = "30.10.2026"
 
@@ -302,6 +306,11 @@ function Erkenne-Lage {
   $exe = Finde-Exe
   $l.exe = $(if ($exe) { $exe.FullName } else { "" })
   $l.exeDatum = $(if ($exe) { $exe.LastWriteTime.ToString("dd.MM.yyyy HH:mm") } else { "" })
+  # Fassung aus der exe (Dateiversion, z. B. 1.3.0); leer = nicht lesbar (Attrappe, alte Bauweise)
+  $l.exeFassung = ""
+  if ($exe) { try { $l.exeFassung = [string]$exe.VersionInfo.FileVersion } catch { } }
+  $l.exeZuAlt = $false
+  if ($l.exeFassung -match "^\d+\.\d+") { try { $l.exeZuAlt = ([version]($l.exeFassung -replace "[^\d.].*$", "") -lt [version]$ProgrammFassungStick) } catch { } }
   $l.netzStart = Finde-NetzStart
   $desk = Ort "Desktop"
   $l.verknuepfungDesktop = $false; $l.vollbild = $false
@@ -347,7 +356,8 @@ function Tafel-Rechner($lage, [string]$zweck) {
   if ($lage.programmZipDa) { $z += @{ Id = "paket"; Titel = "Programm-Paket"; Farbe = "gruen"; Text = ("auf dem Stick, " + $lage.programmZipMB + " MB"); Reparatur = "" } }
   else { $z += @{ Id = "paket"; Titel = "Programm-Paket"; Farbe = "rot"; Text = "fehlt auf dem Stick - 'Programm laden' holt es aus dem Internet"; Reparatur = "programm-laden" } }
   # 2 Programm auf dem Rechner
-  if ($lage.exe) { $z += @{ Id = "programm"; Titel = "Programm auf diesem Rechner"; Farbe = "gruen"; Text = ("da, Stand " + $lage.exeDatum); Reparatur = "" } }
+  if ($lage.exe -and $lage.exeZuAlt) { $z += @{ Id = "programm"; Titel = "Programm auf diesem Rechner"; Farbe = "gelb"; Text = ("Fassung " + $lage.exeFassung + " - zu alt fuer den Server-Weg, Einrichten erneuert auf " + $ProgrammFassungStick); Reparatur = "einrichten" } }
+  elseif ($lage.exe) { $z += @{ Id = "programm"; Titel = "Programm auf diesem Rechner"; Farbe = "gruen"; Text = ("da, " + $(if ($lage.exeFassung) { "Fassung " + $lage.exeFassung + ", " } else { "" }) + "Stand " + $lage.exeDatum); Reparatur = "" } }
   elseif ($lage.netzStart) { $z += @{ Id = "programm"; Titel = "Programm auf diesem Rechner"; Farbe = "gelb"; Text = "startet vom Laufwerk (Verknuepfung) - besser lokal einrichten"; Reparatur = "einrichten" } }
   else { $z += @{ Id = "programm"; Titel = "Programm auf diesem Rechner"; Farbe = "rot"; Text = "fehlt"; Reparatur = "einrichten" } }
   # 3 Verbindung
@@ -490,7 +500,12 @@ function Richte-Rechner-Ein([string]$zweck, [string]$standort, [string]$weg) {
   if ($weg -eq "server" -and -not (Stick-ServerAdresse)) { throw "Der Stick sagt Server-Weg, aber 05-Server\server-adresse.txt fehlt." }
   # 1 Programm
   $exe = $null
-  if ($lage.exe) { $exe = Get-Item -LiteralPath $lage.exe; Sag ("Programm ist schon da: " + $exe.FullName) }
+  if ($lage.exe -and -not $lage.exeZuAlt) { $exe = Get-Item -LiteralPath $lage.exe; Sag ("Programm ist schon da: " + $exe.FullName + $(if ($lage.exeFassung) { " (Fassung " + $lage.exeFassung + ")" } else { "" })) }
+  elseif ($lage.exe) {
+    # Zu alt (vor 1.3): ueber dasselbe Verzeichnis hinweg erneuern - Verknuepfungen zeigen weiter dorthin.
+    Sag ("Programm ist zu alt (Fassung " + $lage.exeFassung + ") - wird erneuert auf " + $ProgrammFassungStick + ".")
+    $exe = Entpacke-Programm (Split-Path -Parent (Split-Path -Parent $lage.exe)); $getan += ("Programm erneuert von " + $lage.exeFassung)
+  }
   else { $exe = Entpacke-Programm $ZielVorgabe; $getan += "Programm entpackt" }
   # 2 Vorbelegung + gemerkte Einstellungen
   $vorb = Schreibe-Vorbelegung $exe.DirectoryName $weg $standort

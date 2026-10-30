@@ -45,6 +45,7 @@ node tests/run-hardness-tests.js           # Härtetests (läuft auf Windows und
 node tests/run-browser-reserve.js          # vor einer Freigabe: Dateizugriff über den Browser
 node tools/startpaket-bauen.js             # nach jeder Änderung in arbeitsplatz/
 node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…" --push   # alles in einem Befehl, bricht beim ersten roten Befund ab
+node tools/stick-verteilen.js --bauen      # nach jeder Änderung am Stick-Werkzeug: bauen + an Stick, Server-Kopie, W: verteilen
 ```
 
 Testläufe immer über `tests/run-hardness-tests.js` (schreibt `tests/protokolle/`,

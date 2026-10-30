@@ -141,6 +141,7 @@ node tools/abgabe.js --merkmal <x> --tests <a,b|voll|keine> --einspielen --commi
 #   fragen → commit → push. Bricht beim ersten roten Befund ab. --nur-pruefen zeigt nur, was passieren würde.
 node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install; nur Linux)
 node tests/pruefe-werkzeug.js              # DAS Stick-Werkzeug fensterlos + Fenster-Selbsttest (nur Windows, 19 Prüfungen, ~30 s)
+node tools/stick-verteilen.js --bauen      # Stick bauen und an USB-Stick, Server-Kopie und W: verteilen (SHA-256 nachgemessen, Programm-ZIP bleibt)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/stress-15-jahre.js              # Messfahrt: 15 Jahrgänge à 4 500 Einträge (67 800+)
