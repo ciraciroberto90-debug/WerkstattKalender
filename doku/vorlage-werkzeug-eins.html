@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vorlagen: Ein Werkzeug für alles</title>
+<style>
+  /* Vorlagen-Seite (Robertos Auftrag 30.10.): das USB-Stick-Werkzeug neu - EIN Werkzeug
+     für alles, so einfach, dass jemand ohne Vorkenntnisse einen fremden Rechner fertig
+     aufsetzt. Drei Entwürfe, nur Anschauung, keine Funktion. */
+  :root { --tinte:#22262B; --grau:#8A9099; --linie:#D6D9DC; --hell:#F4F5F7; --orange:#C97A2B; --rot:#B23A34; --gruen:#1F7A3D; --gelb:#C9A227; --blau:#1E2761; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI",system-ui,sans-serif; color:var(--tinte); background:#E9EBEE; }
+  .kopf { background:var(--tinte); color:#fff; padding:18px 28px; }
+  .kopf h1 { margin:0 0 6px; font-size:22px; }
+  .kopf p { margin:0; color:#C9CED5; font-size:14px; max-width:960px; }
+  .inhalt { max-width:1180px; margin:0 auto; padding:22px 16px 60px; }
+  .erklaer { background:#fff; border:1px solid var(--linie); border-radius:12px; padding:16px 20px; margin-bottom:22px; font-size:14px; }
+  .erklaer h2 { margin:0 0 8px; font-size:16px; }
+  .erklaer ul, .erklaer ol { margin:6px 0 0 18px; padding:0; } .erklaer li { margin:3px 0; }
+  .zwei { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .variante { margin:36px 0 10px; }
+  .variante h2 { margin:0 0 4px; font-size:19px; }
+  .variante .warum { color:#5B6572; font-size:13px; margin:0 0 12px; max-width:900px; }
+  .marke { display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; color:#fff; background:var(--orange); vertical-align:middle; margin-left:8px; }
+  /* Fenster-Attrappe (WinForms-Fenster) */
+  .fenster { background:#fff; border:1px solid #B9BEC5; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.14); overflow:hidden; font-size:13px; }
+  .fenster .titelleiste { background:#F0F1F3; border-bottom:1px solid var(--linie); padding:6px 12px; font-size:12px; display:flex; justify-content:space-between; color:#5B6572; }
+  .fenster .band { background:var(--blau); color:#fff; padding:12px 18px; display:flex; align-items:center; gap:12px; }
+  .fenster .band .s { background:var(--rot); color:#fff; font-weight:900; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:5px; }
+  .fenster .band b { font-size:16px; } .fenster .band small { color:#C9CED5; display:block; font-size:12px; }
+  .fenster .koerper { padding:16px 18px; }
+  .knopf { display:inline-block; padding:8px 14px; border-radius:6px; font-weight:800; font-size:13px; color:#fff; background:var(--tinte); margin:4px 6px 0 0; }
+  .knopf.g { background:var(--gruen); } .knopf.o { background:var(--orange); } .knopf.w { background:#fff; color:var(--tinte); border:1px solid var(--linie); } .knopf.gross { font-size:16px; padding:14px 26px; }
+  .knopf.aus { background:#E6E8EB; color:#9AA0A8; }
+  .protokoll { background:#000; color:#CFEAD0; font-family:Consolas,monospace; font-size:11.5px; padding:8px 10px; margin-top:12px; border-radius:4px; min-height:70px; white-space:pre; line-height:1.45; }
+  .ampel { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:middle; margin-right:8px; }
+  .ampel.gr { background:var(--gruen); } .ampel.ge { background:var(--gelb); } .ampel.ro { background:var(--rot); } .ampel.grau { background:#C9CED5; }
+  .zeile { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid #EEF0F2; }
+  .zeile .r { margin-left:auto; }
+  .zeile small { color:var(--grau); }
+  /* A: Assistent, drei Schirme nebeneinander */
+  .schritte { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+  .schritte .fenster { font-size:12.5px; }
+  .schrittnr { font-size:11px; color:var(--grau); font-weight:800; text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+  .frage { font-size:17px; font-weight:800; margin:4px 0 12px; }
+  .karte { border:2px solid var(--linie); border-radius:10px; padding:12px 14px; margin:8px 0; display:flex; gap:12px; align-items:center; }
+  .karte.gewaehlt { border-color:var(--gruen); background:#F1F8F3; }
+  .karte .sym { font-size:26px; width:36px; text-align:center; }
+  .karte b { display:block; font-size:14px; } .karte small { color:#5B6572; }
+  .haken { width:64px; height:64px; border-radius:50%; background:var(--gruen); color:#fff; font-size:38px; display:flex; align-items:center; justify-content:center; margin:6px auto 10px; }
+  .balken { height:10px; background:#E6E8EB; border-radius:999px; overflow:hidden; margin:10px 0; } .balken i { display:block; height:100%; width:62%; background:var(--gruen); }
+  /* B: Kacheln */
+  .kacheln { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .kachel { border:1px solid var(--linie); border-radius:12px; padding:16px; min-height:112px; display:flex; flex-direction:column; gap:4px; }
+  .kachel .sym { font-size:26px; } .kachel b { font-size:15px; } .kachel small { color:#5B6572; }
+  .kachel.haupt { background:var(--gruen); color:#fff; border-color:var(--gruen); } .kachel.haupt small { color:#D8EADC; }
+  .kachel.aus { background:#F4F5F7; color:#9AA0A8; } .kachel.aus small { color:#9AA0A8; }
+  .statuszeile { background:var(--hell); border:1px solid var(--linie); border-radius:8px; padding:8px 12px; margin-bottom:12px; display:flex; gap:18px; flex-wrap:wrap; font-size:12.5px; }
+  /* Vergleich */
+  .vergleich { background:#fff; border:1px solid var(--linie); border-radius:12px; padding:16px 20px; margin-top:30px; font-size:14px; }
+  .vergleich table { width:100%; border-collapse:collapse; } .vergleich td, .vergleich th { border-bottom:1px solid var(--linie); padding:7px 8px; font-size:13px; text-align:left; vertical-align:top; }
+  .vergleich th { font-size:11px; text-transform:uppercase; color:var(--grau); }
+  .empf { border-left:5px solid var(--gruen); background:#F1F8F3; padding:12px 16px; border-radius:8px; margin-top:16px; }
+  @media (max-width:900px) { .schritte, .zwei, .kacheln { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="kopf">
+  <h1>Vorlagen: Ein Werkzeug für alles (USB-Stick)</h1>
+  <p>Robertos Auftrag 30.10.: „Ein Werkzeug für alles, so einfach wie möglich. Es muss an einem fremden Rechner das Programm fertig installiert aufsetzen können – auch jemand ohne Vorkenntnisse.“ Drei Entwürfe zur Auswahl, danach Bau nach Freigabe.</p>
+</div>
+<div class="inhalt">
+
+<div class="erklaer">
+  <div class="zwei">
+    <div>
+      <h2>Ausgangslage, gemessen 30.10.</h2>
+      <ul>
+        <li>Stick D: trägt den Stand vom 01.10.: zwei Werkzeuge (<code>BTA-Cockpit-Werkzeug.cmd</code> für Rechner, <code>BTA-Server-Werkzeug.cmd</code> für den Server), zusammen <b>sieben Reiter</b> und rund 2.200 Zeilen PowerShell; Programm-ZIP 115 MB liegt drauf.</li>
+        <li>Ein neuer Rechner braucht heute: richtiges Werkzeug wählen, Standort wählen, vier Pfade prüfen, Rechner-Art wählen, Einrichten, Zusammenfassung bestätigen, SmartScreen wegklicken. Sieben Stellen, an denen ein Laie hängen bleibt.</li>
+        <li>Der Server-Teil (Einrichten, Import, Sicherung, Rückweg) gehört nicht in die Hand eines Werkstatt-Kollegen – muss aber auf demselben Stick bleiben.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Was alle drei Entwürfe gemeinsam haben</h2>
+      <ul>
+        <li><b>Ein Doppelklick</b> auf dem Stick, ein Fenster, keine Reiter-Wahl vorab.</li>
+        <li><b>Das Werkzeug erkennt selbst, wo es läuft:</b> Werkstatt-Rechner, Info-Bildschirm oder der Server (Rechnername <code>V-BTACOCKPIT-1</code> + Admin). Server-Funktionen erscheinen nur dort.</li>
+        <li><b>Es erkennt, was fehlt</b> (Programm, Pfade, Verknüpfung, Autostart, Server erreichbar) und tut nur das Fehlende – zweimal drücken schadet nie.</li>
+        <li><b>Keine Fachbegriffe</b> im Hauptweg: keine Pfade, kein Port, kein JSON. Alles Fachliche sitzt hinter „Mehr…“.</li>
+        <li><b>Ohne Internet</b> einsatzfähig (Programm-ZIP auf dem Stick); mit Internet holt es den neuesten Stand.</li>
+        <li><b>Protokoll</b> wie bisher mitlaufend, „Protokoll speichern“ für Rückfragen; Ergebnis am Ende als großer grüner Haken oder als klare rote Zeile mit dem einen nächsten Schritt.</li>
+        <li><b>Verbindungs-Weg:</b> bis zum Umschalttag richtet es den Datei-Weg (W:) ein, danach den Server-Weg – ein Schalter im Stick (eine Zeile in <code>standard-einstellungen.json</code>), keine Frage an den Laien.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== A ===================== -->
+<div class="variante">
+  <h2>A · Der Assistent <span class="marke">Empfehlung</span></h2>
+  <p class="warum">Drei Bildschirme nacheinander, jeder mit genau einer Sache. Der Laie liest nie mehr als eine Frage. Alles andere macht das Werkzeug selbst und zeigt am Ende den Haken.</p>
+  <div class="schritte">
+    <div class="fenster">
+      <div class="titelleiste"><span>BTA-Cockpit – Werkzeug</span><span>✕</span></div>
+      <div class="band"><div class="s">S</div><div><b>BTA-Cockpit</b><small>Schritt 1 von 3 · Rechner erkennen</small></div></div>
+      <div class="koerper">
+        <div class="schrittnr">Das Werkzeug schaut sich um</div>
+        <div class="zeile"><span class="ampel gr"></span>Windows-Rechner „WS-PC-07“, Benutzer Mitarbeiter</div>
+        <div class="zeile"><span class="ampel gr"></span>Programm-Paket auf dem Stick gefunden (115 MB)</div>
+        <div class="zeile"><span class="ampel gr"></span>Firmenlaufwerk W: erreichbar</div>
+        <div class="zeile"><span class="ampel ge"></span>Cockpit hier noch nicht eingerichtet</div>
+        <div class="zeile"><span class="ampel grau"></span>Kein Server-Rechner <small>(Server-Teil bleibt verborgen)</small></div>
+        <div style="margin-top:14px"><span class="knopf g gross">Weiter ▸</span></div>
+      </div>
+    </div>
+    <div class="fenster">
+      <div class="titelleiste"><span>BTA-Cockpit – Werkzeug</span><span>✕</span></div>
+      <div class="band"><div class="s">S</div><div><b>BTA-Cockpit</b><small>Schritt 2 von 3 · Eine Frage</small></div></div>
+      <div class="koerper">
+        <div class="frage">Wofür ist dieser Rechner?</div>
+        <div class="karte gewaehlt"><div class="sym">🖥️</div><div><b>Arbeitsplatz in der Werkstatt</b><small>Cockpit auf dem Desktop, normal bedienbar</small></div></div>
+        <div class="karte"><div class="sym">📺</div><div><b>Info-Bildschirm (Morgenrunde)</b><small>startet mit Windows, Vollbild, keine Bedienung</small></div></div>
+        <div class="karte"><div class="sym">👀</div><div><b>Nur ansehen</b><small>wie Arbeitsplatz, die App erkennt das Leserecht selbst</small></div></div>
+        <div style="margin-top:8px"><small style="color:#8A9099">Standort: Scheurich · <u>ändern</u></small></div>
+        <div style="margin-top:12px"><span class="knopf w">◂ Zurück</span><span class="knopf g gross">Einrichten</span></div>
+      </div>
+    </div>
+    <div class="fenster">
+      <div class="titelleiste"><span>BTA-Cockpit – Werkzeug</span><span>✕</span></div>
+      <div class="band"><div class="s">S</div><div><b>BTA-Cockpit</b><small>Schritt 3 von 3 · Fertig</small></div></div>
+      <div class="koerper" style="text-align:center">
+        <div class="haken">✓</div>
+        <div class="frage" style="margin-bottom:4px">Fertig eingerichtet</div>
+        <div style="color:#5B6572;margin-bottom:12px">Programm 1.3 · Verknüpfung auf dem Desktop · Verbindung geprüft (W:, 60 ms)</div>
+        <span class="knopf g gross">Cockpit jetzt öffnen</span>
+        <div style="margin-top:10px"><span class="knopf w">Protokoll speichern…</span><span class="knopf w">Mehr…</span></div>
+        <div class="protokoll" style="text-align:left">07:12:03  Programm entpackt nach %LOCALAPPDATA%\Werkstatt-Cockpit
+07:12:09  Einstellungen geschrieben (Scheurich, W:)
+07:12:09  Verknüpfung „BTA-Cockpit“ auf dem Desktop
+07:12:10  Verbindung: Laufwerk antwortet (60 ms)
+07:12:10  Fertig.</div>
+      </div>
+    </div>
+  </div>
+  <p class="warum" style="margin-top:12px"><b>Hinter „Mehr…“</b> liegt die heutige Fachansicht (Pfade, Server-Weg ein/aus, Entfernen, Update suchen). Am Server zeigt Schritt 1 „Server erkannt“ und Schritt 2 fragt stattdessen: Dienst einrichten/tauschen · App-Datei tauschen · Sicherung jetzt · Sicherung einspielen.</p>
+</div>
+
+<!-- ===================== B ===================== -->
+<div class="variante">
+  <h2>B · Die Startseite mit Kacheln</h2>
+  <p class="warum">Ein Bildschirm, vier große Kacheln. Die grüne ist für den Laien, die anderen für Roberto und seinen Vertreter. Kein Blättern, alles auf einen Blick – dafür muss man einmal lesen, welche Kachel man braucht.</p>
+  <div class="fenster" style="max-width:760px;margin:0 auto">
+    <div class="titelleiste"><span>BTA-Cockpit – Werkzeug</span><span>✕</span></div>
+    <div class="band"><div class="s">S</div><div><b>BTA-Cockpit – Werkzeug</b><small>Rechner WS-PC-07 · Stick-Stand 30.10.2026 · Programm 1.3 auf dem Stick</small></div></div>
+    <div class="koerper">
+      <div class="statuszeile"><span><span class="ampel ge"></span>Cockpit hier: <b>nicht eingerichtet</b></span><span><span class="ampel gr"></span>Laufwerk W:</span><span><span class="ampel gr"></span>Server v-btacockpit-1</span><span><span class="ampel grau"></span>Kein Server-Rechner</span></div>
+      <div class="kacheln">
+        <div class="kachel haupt"><div class="sym">▶</div><b>Diesen Rechner einrichten</b><small>Programm, Verbindung, Verknüpfung – alles in einem. Fragt nur: Arbeitsplatz oder Info-Bildschirm?</small></div>
+        <div class="kachel"><div class="sym">🩺</div><b>Prüfen &amp; reparieren</b><small>Neun Ampeln. Was gelb ist, richtet ein Klick.</small></div>
+        <div class="kachel"><div class="sym">⬇</div><b>Neuesten Stand holen</b><small>Programm-ZIP vom Release oder die aktuelle App-Datei – auch auf den Stick.</small></div>
+        <div class="kachel aus"><div class="sym">🗄</div><b>Server</b><small>Nur am Server sichtbar und bedienbar (Dienst, App-Datei, Sicherung, Import).</small></div>
+      </div>
+      <div style="margin-top:12px"><span class="knopf w">Mehr… (Pfade, Entfernen, Server-Weg)</span><span class="knopf w">Protokoll speichern…</span></div>
+      <div class="protokoll">07:10:41  Werkzeug gestartet vom Stick D:\BTA-Cockpit
+07:10:41  Rechner WS-PC-07 erkannt, kein Server
+07:10:42  W: erreichbar (48 ms), Server antwortet (Fassung 0.6.1)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== C ===================== -->
+<div class="variante">
+  <h2>C · Die Ampel-Tafel mit einem Knopf</h2>
+  <p class="warum">Kein Ablauf, kein Menü: eine Liste, was ein fertig eingerichteter Rechner braucht, je Zeile eine Ampel. Ein Knopf unten macht alles Fehlende auf einmal. Zweimal drücken schadet nie. Dieselbe Tafel dient später als Fehlersuche: Wo ist es rot?</p>
+  <div class="fenster" style="max-width:760px;margin:0 auto">
+    <div class="titelleiste"><span>BTA-Cockpit – Werkzeug</span><span>✕</span></div>
+    <div class="band"><div class="s">S</div><div><b>BTA-Cockpit – Werkzeug</b><small>So sieht dieser Rechner aus · WS-PC-07 · Standort Scheurich</small></div></div>
+    <div class="koerper">
+      <div class="zeile"><span class="ampel gr"></span>Programm-Paket <small>· auf dem Stick, 1.3</small><span class="r"></span></div>
+      <div class="zeile"><span class="ampel ro"></span>Programm auf diesem Rechner <small>· fehlt</small><span class="r knopf w" style="margin:0">Einrichten</span></div>
+      <div class="zeile"><span class="ampel ro"></span>Verbindung zur Werkstatt <small>· noch nicht eingestellt (W: erreichbar)</small><span class="r knopf w" style="margin:0">Einstellen</span></div>
+      <div class="zeile"><span class="ampel ro"></span>Verknüpfung auf dem Desktop <small>· fehlt</small><span class="r knopf w" style="margin:0">Anlegen</span></div>
+      <div class="zeile"><span class="ampel grau"></span>Autostart &amp; Vollbild <small>· nur für Info-Bildschirme</small><span class="r knopf w" style="margin:0">Einschalten</span></div>
+      <div class="zeile"><span class="ampel gr"></span>Neueste App-Fassung <small>· 28.10., liegt im Update-Ordner</small><span class="r"></span></div>
+      <div class="zeile"><span class="ampel grau"></span>Server-Dienst <small>· nicht dieser Rechner</small><span class="r"></span></div>
+      <div style="margin-top:16px;text-align:center"><span class="knopf g gross">Alles einrichten, was fehlt</span><div style="margin-top:6px;font-size:12px;color:#8A9099">3 von 7 Punkten werden erledigt · dauert etwa eine Minute</div></div>
+      <div class="balken"><i></i></div>
+      <div class="protokoll">07:14:20  Programm entpacken … 62 %</div>
+    </div>
+  </div>
+</div>
+
+<div class="vergleich">
+  <h2 style="margin:0 0 10px;font-size:16px">Vergleich</h2>
+  <table>
+    <tr><th></th><th>A Assistent</th><th>B Kacheln</th><th>C Ampel-Tafel</th></tr>
+    <tr><td>Laie an fremdem Rechner</td><td><b>sehr gut</b> – eine Frage, drei Klicks (Weiter · Einrichten · Öffnen)</td><td>gut – muss die grüne Kachel erkennen, dann eine Frage</td><td>gut – ein Knopf, aber sieben Zeilen Text davor</td></tr>
+    <tr><td>Roberto / Vertreter im Alltag</td><td>mittel – Fachliches hinter „Mehr…“</td><td><b>sehr gut</b> – alles auf einen Blick</td><td><b>sehr gut</b> – Fehlersuche direkt ablesbar</td></tr>
+    <tr><td>Fehlerfall erklären</td><td>gut – rote Zeile mit dem einen nächsten Schritt</td><td>gut – Kachel „Prüfen“</td><td><b>sehr gut</b> – die rote Zeile ist der Fehler</td></tr>
+    <tr><td>Server-Teil</td><td>eigener Ablauf, erscheint nur am Server</td><td>Kachel, nur am Server aktiv</td><td>zusätzliche Zeilen, nur am Server</td></tr>
+    <tr><td>Bauaufwand (ungemessen)</td><td>mittel – Ablauf neu, Funktionen aus den zwei Werkzeugen übernommen</td><td>klein – nahe am Heutigen, Reiter → Kacheln</td><td>mittel – jede Zeile braucht Prüfung + Reparatur</td></tr>
+  </table>
+  <div class="empf"><b>Empfehlung: A als Hauptweg, C als Rückseite.</b> Der Assistent ist der Weg für den fremden Rechner und den Laien (drei Klicks, kein Fachwort). Hinter „Mehr…“ liegt die Ampel-Tafel aus C – für Roberto, den Vertreter und jede Fehlersuche. Der Server bekommt denselben Assistenten mit eigenen Fragen; die zwei heutigen Skripte werden zu einem, die Funktionen bleiben. Alternative, wenn es schnell gehen soll: B, weil es dem Heutigen am nächsten ist.</div>
+</div>
+
+</div>
+</body>
+</html>
