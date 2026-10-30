@@ -76,9 +76,14 @@ Geschichte und steht da, falls Roberto danach fragt).
   Status-Seite `http://v-btacockpit-01:8765/status`. Autostart über die
   Aufgabenplanung, Firewall-Regel 8765 (Roberto als Admin gesetzt).
 - **Altes Firmenlaufwerk `W:`** = `\\SCHEUDC1\PSG_Gruppe\16_Technik\01_Scheurich\02_Werkstatt\Arbeitsplanung\Werkstatt_Kalender`
-  (Datendateien `werkstatt-kalender-daten.json`, `werkstatt-stoerungen.json`,
-  Update-Ordner). Seit dem Server-Weg (02.10.) nur noch Rückfallebene; der
-  Umschalttag (Roll-out 46/47/50/51) ist noch nicht gemacht.
+  (Datendateien `werkstatt-kalender-daten.json`, `werkstatt-stoerungen.json`;
+  der Ordner ist zugleich der **Update-Ordner** der Programm-Hülle: jüngste
+  `Werkstatt_Kalender_TPM*.html` dort = Angebot „Neue Version“, Klick am
+  Rechner übernimmt). **Gemessen 30.10.: Die Werkstatt arbeitet noch
+  vollständig über W:** (Datendateien werden täglich geschrieben, Server
+  „verbunden: 0“, Version 28 = Importstand 01./02.10.). Der Umschalttag
+  (Roll-out 46/47/50/51/77) ist noch nicht gemacht; bis dahin legt
+  `tools/abgabe.js --einspielen` jede neue Fassung an beide Orte.
 - **Cloudflare:** Konto von Roberto, Worker `bta-briefkasten`, KV-Namespace
   als Variable `ABLAGE` gebunden, zwei Geheimnisse unter „Settings →
   Variables and Secrets“: `EINWURF_SCHLUESSEL` (Handy wirft ein) und

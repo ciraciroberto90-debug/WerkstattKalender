@@ -16,7 +16,10 @@
  * Aufruf:  node tools/abgabe.js [Schalter]
  *   --merkmal <Text>      muss in der gebauten HTML stehen (z. B. ein data-Attribut des Roll-outs)
  *   --tests <a,b,…|voll|keine>   Namensteile der Härtetests (z. B. harte-70,harte-111), voll = alle (~3 h), keine = ohne
- *   --einspielen          App-Datei auf den Server kopieren (\\v-btacockpit-1\BTA\BTA-Programm\App)
+ *   --einspielen          App-Datei auf den Server kopieren (\\v-btacockpit-1\BTA\BTA-Programm\App) UND in den
+ *                         Update-Ordner auf W: legen (Werkstatt_Kalender_TPM - <Zeit>.html; die Programm-Hülle meldet
+ *                         dort „Neue Version“, ein Klick am Rechner übernimmt sie). Bis zum Umschalttag arbeitet die
+ *                         Werkstatt über W: (gemessen 30.10.: Datendateien dort werden geschrieben, Server „verbunden: 0“).
  *   --commit "<Text>"     alles committen (git add -A)
  *   --push                nach dem Commit pushen
  *   --ohne-bau            nicht bauen (nur prüfen/einspielen/pushen)
@@ -33,6 +36,9 @@ const WURZEL = path.resolve(__dirname, "..");
 const HTML = path.join(WURZEL, "Werkstatt_Kalender_TPM.html");
 const SERVER_APP = process.env.BTA_SERVER_APP || "\\\\v-btacockpit-1\\BTA\\BTA-Programm\\App";
 const STATUS_URL = process.env.BTA_STATUS_URL || "http://v-btacockpit-1:8765";
+/* Update-Ordner des Datei-Wegs = der Kalender-Ordner auf W: (so steht es in
+ * standard-einstellungen.json, Schlüssel programm:update-ordner). */
+const W_UPDATE = process.env.BTA_W_UPDATE || "\\\\SCHEUDC1\\PSG_Gruppe\\16_Technik\\01_Scheurich\\02_Werkstatt\\Arbeitsplanung\\Werkstatt_Kalender";
 const NODE_ORDNER = path.dirname(process.execPath);
 const NPM = process.platform === "win32" ? path.join(NODE_ORDNER, "npm.cmd") : "npm";
 const GIT = process.env.BTA_GIT || (fs.existsSync("C:\\Users\\rciraci\\BTA-Werkzeuge\\git\\cmd\\git.exe") ? "C:\\Users\\rciraci\\BTA-Werkzeuge\\git\\cmd\\git.exe" : "git");
@@ -104,21 +110,43 @@ const holeJson = (url) => new Promise((ok, nein) => { http.get(url, { timeout: 1
     const ziel = path.join(SERVER_APP, "Werkstatt_Kalender_TPM.html");
     if (!fs.existsSync(SERVER_APP)) abbruch(`Server-Freigabe nicht erreichbar: ${SERVER_APP}`);
     const alt = fs.existsSync(ziel) ? { groesse: fs.statSync(ziel).size, sha: sha(ziel) } : null;
-    if (alt && alt.sha === sha(HTML)) melde("Einspielen", "nichts zu tun - am Server liegt schon diese Datei");
-    else if (nurPruefen) melde("Einspielen", `würde kopieren nach ${ziel}`, alt ? `dort: ${alt.groesse.toLocaleString("de-DE")} Bytes` : "dort: keine Datei");
+    if (alt && alt.sha === sha(HTML)) melde("Server-App", "nichts zu tun - am Server liegt schon diese Datei");
+    else if (nurPruefen) melde("Server-App", `würde kopieren nach ${ziel}`, alt ? `dort: ${alt.groesse.toLocaleString("de-DE")} Bytes` : "dort: keine Datei");
     else {
       const stempel = new Date().toISOString().slice(0, 16).replace("T", "-").replace(":", "-");
       if (alt) { fs.copyFileSync(ziel, path.join(SERVER_APP, `Werkstatt_Kalender_TPM.vor-${stempel}.html`)); melde("Alte aufgehoben", `Werkstatt_Kalender_TPM.vor-${stempel}.html`, `${alt.groesse.toLocaleString("de-DE")} Bytes`); }
       fs.copyFileSync(HTML, ziel);
       const neu = { groesse: fs.statSync(ziel).size, sha: sha(ziel) };
       if (neu.sha !== sha(HTML)) abbruch("Die Datei am Server ist nach dem Kopieren nicht byte-gleich.");
-      melde("Einspielen", "kopiert, byte-gleich", `${neu.groesse.toLocaleString("de-DE")} Bytes`);
+      melde("Server-App", "kopiert, byte-gleich", `${neu.groesse.toLocaleString("de-DE")} Bytes`);
       try {
         const s = await holeJson(STATUS_URL + "/api/status");
         const passt = s.appDatei && s.appDatei.bytes === groesse;
         melde("Status-Seite", passt ? "sieht die neue Datei" : "ZEIGT ANDERE GRÖSSE", `Dienst ${s.fassung}, App ${s.appDatei && s.appDatei.bytes} Bytes`);
         if (!passt) abbruch("Die Status-Seite meldet eine andere Größe als die kopierte Datei.");
       } catch (e) { melde("Status-Seite", "nicht erreichbar", e.message); }
+    }
+
+    /* W:-Update-Ordner: neue Datei mit Zeit im Namen, nichts wird überschrieben
+     * oder gelöscht. Erst unter Zwischennamen schreiben, dann umbenennen - die
+     * Hülle nimmt die jüngste Datei und darf nie eine halbe sehen. */
+    if (!fs.existsSync(W_UPDATE)) melde("W:-Update-Ordner", "nicht erreichbar", W_UPDATE);
+    else {
+      const meinSha = sha(HTML);
+      const vorhandene = fs.readdirSync(W_UPDATE).filter((n) => /^Werkstatt_Kalender_TPM.*\.html$/i.test(n)).map((n) => ({ n, p: path.join(W_UPDATE, n), st: fs.statSync(path.join(W_UPDATE, n)) })).sort((a, b) => b.st.mtimeMs - a.st.mtimeMs);
+      const juengste = vorhandene[0];
+      if (juengste && juengste.st.size === groesse && sha(juengste.p) === meinSha) melde("W:-Update-Ordner", "nichts zu tun - jüngste Datei ist schon diese", juengste.n);
+      else if (nurPruefen) melde("W:-Update-Ordner", "würde ablegen", juengste ? `jüngste dort: ${juengste.n} (${juengste.st.size.toLocaleString("de-DE")} Bytes)` : "dort liegt keine");
+      else {
+        const stempel = new Date().toISOString().slice(0, 16).replace("T", "-").replace(":", "");
+        const name = `Werkstatt_Kalender_TPM - ${stempel}.html`;
+        const teil = path.join(W_UPDATE, name + ".teil");
+        fs.copyFileSync(HTML, teil);
+        fs.renameSync(teil, path.join(W_UPDATE, name));
+        const dort = path.join(W_UPDATE, name);
+        if (sha(dort) !== meinSha) abbruch("Die Datei auf W: ist nach dem Kopieren nicht byte-gleich.");
+        melde("W:-Update-Ordner", "abgelegt, byte-gleich", `${name}, ${fs.statSync(dort).size.toLocaleString("de-DE")} Bytes` + (juengste ? `; Vorgänger bleibt: ${juengste.n}` : ""));
+      }
     }
   }
 
