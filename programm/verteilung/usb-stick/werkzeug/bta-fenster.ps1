@@ -375,12 +375,14 @@ function Fuelle-Tafel {
   foreach ($z in $script:tafel) {
     $zeile = Neue-Ampelzeile $flTZeilen $y $z.Farbe ($z.Titel + "  -  " + $z.Text) 500
     if ($z.Reparatur -and $z.Farbe -ne "gruen") {
-      $k = Weisser-Knopf $(switch ($z.Reparatur) { "einrichten" { "Einrichten" } "pfade" { "Einstellen" } "serverweg-ein" { "Einstellen" } "serverweg-aus" { "Umstellen" } "verknuepfung" { "Anlegen" } "autostart-ein" { "Einschalten" } "autostart-aus" { "Ausschalten" } "programm-laden" { "Laden" } "server-einrichten" { "Einrichten" } "dienst-start" { "Starten" } "sicherung" { "Sichern" } "node-laden" { "Laden" } "als-admin" { "Neu starten" } default { "Beheben" } }) 530 ($y - 2) 110 26
+      $k = Weisser-Knopf $(switch ($z.Reparatur) { "einrichten" { "Einrichten" } "pfade" { "Einstellen" } "serverweg-ein" { "Einstellen" } "serverweg-aus" { "Umstellen" } "verknuepfung" { "Anlegen" } "autostart-ein" { "Einschalten" } "autostart-aus" { "Ausschalten" } "programm-laden" { "Laden" } "server-einrichten" { "Einrichten" } "dienst-start" { "Starten" } "sicherung" { "Sichern" } "node-laden" { "Laden" } "als-admin" { "Neu starten" } default { "Beheben" } }) 530 ($y - 1) 110 23
       $k.Tag = $z.Reparatur
       $k.Add_Click({ param($s, $e) Repariere ([string]$s.Tag) })
       $flTZeilen.Controls.Add($k)
     }
-    $y += 32
+    # 26 px je Zeile: neun Server-Zeilen muessen in die Flaeche passen (am 30.10.
+    # fehlte am Server die neunte Zeile "Letzte Sicherung" unter dem Rand).
+    $y += 26
   }
   $offen = @($script:tafel | Where-Object { $_.Reparatur -and $_.Farbe -in @("rot", "gelb") -and $_.Reparatur -ne "als-admin" -and $_.Reparatur -ne "serverweg-aus" -and $_.Reparatur -ne "autostart-aus" })
   $kAlles.Text = $(if ($offen.Count) { "Alles einrichten, was fehlt  (" + $offen.Count + " Punkte)" } else { "Alles gruen - nichts zu tun" })
