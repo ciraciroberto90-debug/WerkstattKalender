@@ -84,7 +84,7 @@ Ansage gedrueckt.
 So geht es:
 1. BTA-Cockpit-Komplettpaket.zip herunterladen (unten bei
    "Assets") und auf dem Rechner entpacken.
-2. Im entpackten Ordner BTA-Cockpit-Werkzeug.cmd
+2. Im entpackten Ordner BTA-Werkzeug.cmd
    doppelklicken und im Fenster den gruenen Knopf
    "Einrichten" druecken (die Pfade stehen schon drin).
 3. Desktop-Verknuepfung "Werkstatt-Cockpit" doppelklicken.

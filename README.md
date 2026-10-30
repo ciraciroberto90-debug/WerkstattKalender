@@ -139,7 +139,8 @@ node tests/run-browser-reserve.js          # 5 Browser-Reserve-Tests (vor einer 
 node tools/abgabe.js --merkmal <x> --tests <a,b|voll|keine> --einspielen --commit "…" --push
 #   Abgabe in einem Befehl: bauen → Größe/Merkmal → Härtetests → App-Datei auf den Server (alte als vor-<Zeit>) → Status-Seite
 #   fragen → commit → push. Bricht beim ersten roten Befund ab. --nur-pruefen zeigt nur, was passieren würde.
-node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install)
+node tests/pruefe-programm.js              # echtes Electron-Programm (braucht programm/npm install; nur Linux)
+node tests/pruefe-werkzeug.js              # DAS Stick-Werkzeug fensterlos + Fenster-Selbsttest (nur Windows, 19 Prüfungen, ~30 s)
 node tests/smoke-test.js                   # Grundfunktionen
 node tests/sync-fokus-test.js              # Zusammenführen und Sperren
 node tests/stress-15-jahre.js              # Messfahrt: 15 Jahrgänge à 4 500 Einträge (67 800+)

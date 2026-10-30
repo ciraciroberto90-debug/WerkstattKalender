@@ -1,87 +1,80 @@
 ==========================================================
- BTA-COCKPIT - KOMPLETTPAKET (Download oder USB-Stick)
+ BTA-COCKPIT - DER STICK (ein Werkzeug fuer alles)
 ==========================================================
-Stand: 01.10.2026 (Programm 1.3 - mit Server-Weg)
+Stand: 30.10.2026 (Programm 1.3, Dienst 0.6.1, Werkzeug neu)
 
 Dieser Ordner enthaelt ALLES, um das BTA-Cockpit auf einem
-neuen Windows-Rechner einzurichten - egal ob er als Download
-aus dem Release kam oder von einem USB-Stick. Keine
-Adminrechte, keine IT-Anfrage noetig.
+Windows-Rechner einzurichten - und den BTA-Server zu pflegen.
+Keine Adminrechte am Rechner, keine IT-Anfrage noetig.
 
 ----------------------------------------------------------
- DER SCHNELLE WEG: BTA-Cockpit-Werkzeug.cmd
+ SO GEHT ES - DREI KLICKS
 ----------------------------------------------------------
-1. Diesen Ordner oeffnen (einen Download vorher entpacken,
-   vom Stick geht es direkt).
-2. Doppelklick auf  BTA-Cockpit-Werkzeug.cmd
-   Es oeffnet sich ein richtiges Programmfenster (das schwarze
-   Fenster blitzt nur kurz auf). Oben stehen die Pfade schon
-   fertig ausgefuellt fuer die Werkstatt Scheurich - bei
-   Bedarf mit "Waehlen..." aendern. Darunter die Knoepfe:
+1. Doppelklick auf  BTA-Werkzeug.cmd
+   (Das schwarze Fenster blitzt nur kurz auf, dann kommt
+   ein richtiges Fenster.)
+2. Schritt 1: Das Werkzeug schaut sich um und zeigt, was es
+   gefunden hat (Stick, Laufwerk oder Server, Cockpit da?).
+   -> "Weiter"
+3. Schritt 2: EINE Frage - Wofuer ist dieser Rechner?
+     Arbeitsplatz in der Werkstatt
+     Info-Bildschirm (Morgenrunde)  = Autostart + Vollbild
+     Nur ansehen
+   -> "Einrichten"
+4. Schritt 3: Gruener Haken = fertig. "Cockpit jetzt oeffnen".
+   Windows-SmartScreen meldet sich nur beim allerersten
+   Start: "Weitere Informationen" -> "Trotzdem ausfuehren".
 
-     Einrichten              Programm + Pfade + Verknuepfung
-     Programm herunterladen  neuester Stand vom Release; gibt es
-                             das Release nicht, holt das Werkzeug
-                             die zwei Teil-Dateien und setzt sie
-                             selbst zusammen
-     Verbindung pruefen      kommt der Rechner ans Laufwerk?
-     Pfade speichern         gemerkte Pfade richten
-     Vom Rechner entfernen   sauber aufraeumen
-
-3. Fuer einen neuen Rechner: einfach den gruenen Knopf
-   "Einrichten" druecken und die Zusammenfassung bestaetigen.
-   Wichtig: als Programm-Ordner den Vorschlag im
-   Benutzerprofil lassen, nie vom Stick aus starten!
-4. Erster Start: Doppelklick auf die Desktop-Verknuepfung.
-   Windows-SmartScreen beim allerersten Mal:
-   "Weitere Informationen" -> "Trotzdem ausfuehren".
-
-Das Werkzeug hilft auch spaeter: "Verbindung pruefen" sagt
-bei Problemen sofort, ob der Rechner ans Laufwerk kommt,
-"Pfade speichern" richtet verstellte Pfade, "Vom Rechner
-entfernen" raeumt einen Rechner sauber ab.
+Mehr muss niemand wissen. Pfade, Verbindungsweg und Standort
+stehen auf dem Stick (02-Einstellungen). Ist etwas nicht in
+Ordnung, sagt es das Werkzeug in einer roten Zeile mit dem
+einen naechsten Schritt.
 
 ----------------------------------------------------------
- DER HAND-WEG (falls das Werkzeug nicht gewuenscht ist)
+ "MEHR ..." - DIE TAFEL (fuer Roberto und Vertretung)
 ----------------------------------------------------------
-1. 01-Programm\Werkstatt-Cockpit-Programm-win64.zip auf den
-   Rechner kopieren und DORT entpacken (nicht auf dem Stick,
-   nicht auf dem Netzlaufwerk).
-2. Aus 02-Einstellungen die Datei standard-einstellungen.json
-   NEBEN die Werkstatt-Cockpit.exe legen (Pfade vorher pruefen,
-   siehe 02-Einstellungen\PFADE-ERKLAERT.txt).
-3. Werkstatt-Cockpit.exe doppelklicken.
-Die Anleitung liegt unter 03-Anleitung (PDF, 3 Seiten - auch
-fuer den Aushang).
+Unten links im Fenster. Je Zeile eine Ampel (Programm,
+Verbindung, Verknuepfung, Autostart, neueste App-Fassung,
+Server) und ein Knopf, der genau das richtet. "Alles
+einrichten, was fehlt" macht alles Rote auf einmal. Darunter:
+Server-Weg ein/aus, Pfade neu speichern, Programm laden,
+Datenordner oeffnen, Vom Rechner entfernen.
+
+----------------------------------------------------------
+ AUF DEM BTA-SERVER
+----------------------------------------------------------
+Dasselbe BTA-Werkzeug.cmd, aber: Rechtsklick -> "Als
+Administrator ausfuehren". Das Werkzeug erkennt den Server
+selbst und fragt in Schritt 2: Dienst einrichten/tauschen,
+App-Datei tauschen, Sicherung jetzt, Sicherung einspielen.
+"Mehr ..." zeigt die neun Server-Ampeln, Dienst starten/
+stoppen, Status-Seite, Import von W:, Vom Server entfernen.
+Einzelheiten: 05-Server\LIESMICH-SERVER.txt
 
 ----------------------------------------------------------
  WAS LIEGT WO?
 ----------------------------------------------------------
-BTA-Cockpit-Werkzeug.cmd  das Werkzeug-Fenster (Doppelklick)
-werkzeug\             das Skript hinter dem Fenster
+BTA-Werkzeug.cmd      das Werkzeug (Doppelklick)
+werkzeug\             die drei Skripte dahinter (bta-kern,
+                      bta-fenster, bta-werkzeug)
 01-Programm\          das Programm als ZIP (ca. 110 MB)
-02-Einstellungen\     fertige Einstellungs-Datei + Erklaerung
-                      der Pfade
+02-Einstellungen\     Pfade, verbindungsweg.txt (datei/server)
+                      und die Erklaerungen dazu
 03-Anleitung\         die Aufsetz-Anleitung als PDF
-04-Download-Links\    alle Download-Adressen, falls das Paket
-                      mal nicht zur Hand ist
-BTA-Server-Werkzeug.cmd  NUR fuer den BTA-Server (nicht fuer Rechner)
-                      (Rechtsklick -> Als Administrator ausfuehren);
-                      auf einem Werkstatt-Rechner nicht starten
-05-Server\            der Dienst fuer den Server + node.exe
-                      (Erklaerung in 05-Server\LIESMICH-SERVER.txt)
+04-Download-Links\    alle Download-Adressen
+05-Server\            Dienst + node.exe + server-adresse.txt
 
 ----------------------------------------------------------
  GUT ZU WISSEN
 ----------------------------------------------------------
 - Leser-Rechner werden GENAU GLEICH eingerichtet. Ohne
-  Schreibrecht auf dem Laufwerk schaltet die App von selbst
-  auf "nur ansehen".
-- Updates kommen NICHT ueber dieses Paket: Sobald eine neue
+  Schreibrecht schaltet die App von selbst auf "nur ansehen".
+- Updates kommen NICHT ueber diesen Stick: Sobald eine neue
   Werkstatt_Kalender_TPM.html im Update-Ordner liegt, meldet
-  sich im Programm der gruene Balken.
-- Rechner mit einer aelteren Programm-Fassung (ZIP vom 31.08.
-  oder 21.09.): Werkzeug -> Reiter Wartung -> "Vom Rechner
-  entfernen", dann "Einrichten" - oder von Hand den Programm-
-  Ordner tauschen. Daten und gemerkte Pfade bleiben im Profil.
+  sich im Programm der gruene Balken (Datei-Weg); am Server-
+  Weg kommt die neue Fassung beim naechsten Oeffnen.
+- Umschalttag auf den Server: in 02-Einstellungen die Datei
+  verbindungsweg.txt auf "server" stellen, Stick neu bespielen.
+- Der Stick wird gebaut mit:  node tools/stick-bauen.js --mit-server
+  und geprueft mit:          node tests/pruefe-werkzeug.js
 - Fragen und Rueckmeldungen an Roberto Ciraci (Werkstatt).

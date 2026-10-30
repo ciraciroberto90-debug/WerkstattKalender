@@ -9,7 +9,7 @@ Hier muss die Datei
 liegen. Sie war zu gross fuer die Chat-Lieferung und wird
 einmalig heruntergeladen.
 
-DER EINFACHE WEG: BTA-Cockpit-Werkzeug.cmd doppelklicken und
+DER EINFACHE WEG: BTA-Werkzeug.cmd doppelklicken und
 "Programm herunterladen" druecken - das Werkzeug holt sie vom
 Release oder (falls es das noch nicht gibt) ueber die zwei
 Teil-Dateien und legt sie hierher. Danach diesen Zettel

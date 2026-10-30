@@ -93,9 +93,14 @@ Geschichte und steht da, falls Roberto danach fragt).
   sie braucht, findet den Abhol-Schlüssel in `briefkasten.json` auf dem Server
   und beide im Cloudflare-Dashboard. Im Einrichtungs-Link/QR für das Handy
   steckt der Einwurf-Schlüssel (`#kuerzel=…&adresse=…&schluessel=…`).
-- **Stick-Quellen:** `programm/verteilung/usb-stick/` (Werkzeuge
-  `werkzeug/cockpit-werkzeug.ps1` für PCs, `werkzeug/server-werkzeug.ps1` für
-  den Server, `02-Einstellungen/standard-einstellungen.json`, `05-Server/`).
+- **Stick-Quellen:** `programm/verteilung/usb-stick/` – seit 30.10. (Roll-out
+  79) EIN Werkzeug: `BTA-Werkzeug.cmd` → `werkzeug/bta-werkzeug.ps1`
+  (Einstieg, auch fensterlos `-OhneFenster` für den Prüfstand),
+  `bta-kern.ps1` (alle Aktionen für Rechner und Server), `bta-fenster.ps1`
+  (Assistent + Tafel); `02-Einstellungen/standard-einstellungen.json` und
+  `verbindungsweg.txt` (datei/server), `05-Server/`. Prüfstand:
+  `node tests/pruefe-werkzeug.js` (Windows). Die zwei alten Werkzeuge
+  (cockpit-werkzeug.ps1, server-werkzeug.ps1) sind nur noch in der Git-Historie.
 - **Doku:** `doku/ANLEITUNG.md` (Bedienung, wird mit jedem Roll-out
   ergänzt), `doku/BAUPLAN-SERVER-SYSTEM.md` (Architektur, Abschnitt 13 =
   Briefkasten), `doku/SERVER-AUFBAU.md` (Klickanleitung Server),

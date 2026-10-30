@@ -1,0 +1,22 @@
+==========================================================
+ VERBINDUNGSWEG.TXT - EIN WORT ENTSCHEIDET
+==========================================================
+Die Datei verbindungsweg.txt enthaelt genau ein Wort:
+
+  datei    Der Rechner arbeitet ueber das Firmenlaufwerk W:
+           (Datendateien im Werkstatt-Ordner, Updates aus dem
+           Update-Ordner). So laeuft die Werkstatt bis zum
+           Umschalttag.
+
+  server   Der Rechner holt die App vom BTA-Server
+           (Adresse steht in 05-Server\server-adresse.txt).
+           So laeuft es ab dem Umschalttag.
+
+Das Werkzeug liest dieses Wort beim Einrichten eines
+Rechners. Wer einen neuen Rechner aufsetzt, muss sich um
+den Weg nicht kuemmern - er ist auf dem Stick festgelegt.
+
+Am Umschalttag: das Wort auf "server" stellen, Stick neu
+bespielen (node tools/stick-bauen.js --mit-server), fertig.
+Einzelne Rechner lassen sich im Werkzeug unter "Mehr..."
+auch einzeln umstellen (Server-Weg ein/aus).

@@ -12,8 +12,9 @@ Stand: 08.10.2026, Dienst 0.6.1 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
         (Vorlage server/briefkasten.beispiel.json); Status-Seite zeigt den Abschnitt Briefkasten.
         Aufnahme-Zettel fuers Handy: aufnahme-zettel.html neben die App-Datei legen -> /zettel
 
-Dieser Ordner gehoert zum BTA-Server-Werkzeug (BTA-Server-Werkzeug.cmd
-eine Ebene hoeher). Er wird NICHT von Hand benutzt.
+Dieser Ordner gehoert zum BTA-Werkzeug (BTA-Werkzeug.cmd eine Ebene
+hoeher - seit 30.10. EIN Werkzeug fuer Rechner und Server). Er wird
+NICHT von Hand benutzt.
 
   LIESMICH-NOTFALL.txt  Notfallzettel: wo die Daten liegen, Rueckweg
                ohne Werkzeug, Export ins alte Format, wen fragen
@@ -29,14 +30,17 @@ eine Ebene hoeher). Er wird NICHT von Hand benutzt.
 
 So wird der Server eingerichtet (immer als Administrator):
   1. Stick an den Server (oder den Ordner per Remotedesktop
-     hinueberkopieren).
-  2. Rechtsklick auf BTA-Server-Werkzeug.cmd -> Als Administrator
-     ausfuehren.
-  3. Reiter Pruefen -> "Jetzt pruefen": alle Ampeln gruen oder gelb.
-  4. Reiter Einrichten -> erst "Nur pruefen (Vorschau)", dann
-     "Einrichten". Am Ende oeffnet sich die Status-Seite
-     http://<servername>:8765/status (steht nach dem Einrichten in
-     server-adresse.txt in diesem Ordner)
+     hinueberkopieren, z. B. nach C:\BTA\BTA-Programm\Installation).
+  2. Rechtsklick auf BTA-Werkzeug.cmd -> Als Administrator
+     ausfuehren. Das Werkzeug erkennt den Server selbst.
+  3. Schritt 1 zeigt die Lage (Admin? Dienst? Fassung?) -> "Weiter".
+  4. Schritt 2: Karte "Dienst einrichten/tauschen" -> erst
+     "Nur pruefen (Vorschau)", dann "Ausfuehren". Schritt 3 zeigt
+     den Haken; "Status-Seite oeffnen" zeigt
+     http://<servername>:8765/status (die Adresse schreibt das
+     Werkzeug in server-adresse.txt in diesem Ordner).
+  "Mehr ..." zeigt die neun Server-Ampeln und die Fachknoepfe
+  (Dienst starten/stoppen, Import von W:, Node laden, Entfernen).
 
 Was danach laeuft: Aufgabe "bta-cockpit-dienst" in der
 Aufgabenplanung (Beim Systemstart, Konto SYSTEM, Neustart bei
