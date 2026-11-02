@@ -144,11 +144,16 @@ node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…
   gebremst; die drei roten waren Windows-Eigenheiten im Test (harte-90/97/110,
   korrigiert). Ergebnis eines Laufs steht immer in
   `tests/protokolle/LETZTER-LAUF.txt` – dort nachlesen, nicht Roberto fragen.
-- **Nächtlicher Lauf seit 30.10.:** Aufgabe `BTA-Cockpit Haertetests` in der
-  Aufgabenplanung des Laptops, täglich 02:00, Benutzer rciraci, nur wenn
-  angemeldet (gesperrt reicht), weckt aus dem Standby. Morgens zuerst
-  `LETZTER-LAUF.txt` lesen; rot = Roberto sagen, nichts einspielen. Neu
-  anlegen ohne Admin (eine Zeile PowerShell):
+- **Nächtlicher Lauf seit 02.11. auf dem SERVER (Roll-out 82):** Prüfstand
+  `C:\BTA\BTA-Tests\WerkstattKalender` (vom Laptop per `tools/pruefstand-sync.js`,
+  die Abgabe macht das nach jedem Push selbst und wartet, solange dort eine
+  Suite läuft), Aufgabe `BTA-Cockpit Haertetests` täglich 03:00 als SYSTEM,
+  angelegt über das Werkzeug (Tafel, Knopf „Nachtlauf der Tests einrichten“).
+  Erster Lauf 104/104 in 39,7 min. **Morgens zuerst**
+  `\\v-btacockpit-1\BTA\BTA-Tests\WerkstattKalender\tests\protokolle\LETZTER-LAUF.txt`
+  lesen; rot = Roberto sagen, nichts einspielen. Die Laptop-Aufgabe vom 30.10.
+  ist entfernt (der Laptop schlief nachts, zwei Läufe brachen ab). Zur Not neu
+  anlegen auf dem Laptop (eine Zeile PowerShell, ohne Admin):
   `Register-ScheduledTask -TaskName "BTA-Cockpit Haertetests" -Action (New-ScheduledTaskAction -Execute "C:\Users\rciraci\BTA-Werkzeuge\node\node.exe" -Argument "tests\run-hardness-tests.js" -WorkingDirectory "C:\Users\rciraci\BTA-Cockpit") -Trigger (New-ScheduledTaskTrigger -Daily -At "02:00") -Settings (New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 3) -MultipleInstances IgnoreNew) -Force`
   `node tests/run-hardness-tests.js` (Node-Lauf-Skript statt Bash), alle
   Pfade kommen aus `tests/umgebung.js` (Repo über den eigenen Ort, Browser

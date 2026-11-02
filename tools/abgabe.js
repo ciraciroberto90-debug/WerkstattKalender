@@ -190,7 +190,7 @@ const holeJson = (url) => new Promise((ok, nein) => { http.get(url, { timeout: 1
   if (push && !nurPruefen) {
     const r = lauf(process.execPath, [path.join(__dirname, "pruefstand-sync.js")], { still: true });
     const letzte = (r.stdout || "").trim().split(/\r?\n/).pop() || "";
-    melde("Prüfstand am Server", r.status === 0 ? "gleichgezogen" : "NICHT gleichgezogen", letzte);
+    melde("Prüfstand am Server", r.status !== 0 ? "NICHT gleichgezogen" : (/ÜBERSPRUNGEN|nicht erreichbar/.test(letzte) ? "übersprungen" : "gleichgezogen"), letzte);
   }
 
   console.log("\nAbgabe fertig.");

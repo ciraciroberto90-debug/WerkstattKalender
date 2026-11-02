@@ -49,7 +49,8 @@ try {
   if (fs.existsSync(prot)) {
     const logs = fs.readdirSync(prot).filter((n) => n.endsWith(".log")).map((n) => ({ n, st: fs.statSync(path.join(prot, n)) })).sort((a, b) => b.st.mtimeMs - a.st.mtimeMs);
     if (logs.length && Date.now() - logs[0].st.mtimeMs < 3 * 60 * 1000 && !/Summary: \d+\/\d+ tests passed/.test(fs.readFileSync(path.join(prot, logs[0].n), "utf8"))) {
-      console.log(`Prüfstand läuft gerade (${logs[0].n}, zuletzt beschrieben vor ${Math.round((Date.now() - logs[0].st.mtimeMs) / 1000)} s) - Sync übersprungen, beim nächsten Push wieder.`);
+      /* Math.max: die Uhren von Laptop und Server gehen ein paar Sekunden auseinander (02.11.: -16 s). */
+      console.log(`ÜBERSPRUNGEN - Prüfstand läuft gerade (${logs[0].n}, zuletzt beschrieben vor ${Math.max(0, Math.round((Date.now() - logs[0].st.mtimeMs) / 1000))} s); Sync beim nächsten Push.`);
       process.exit(0);
     }
   }
