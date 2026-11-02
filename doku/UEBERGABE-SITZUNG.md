@@ -211,9 +211,12 @@ node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…
 - ~~Einspielen: die drei Schritte aus Abschnitt 2.~~ Erledigt 29.10.
 - ~~72 Laptop-Unterhaltung einrichten~~ (erledigt 28./29.10.), ~~73 Suite
   tragbar machen~~ (abgeschlossen 30.10., 103/103 in 34 min),
-  74 Abriss-Etappen R0–R8, 75 Stick-Bauer unter Windows, ~~76 Push~~ (läuft
-  seit 29.10. über den Credential Manager), 77 W: wird noch beschrieben (vor
-  dem Umschalttag klären).
+  74 Abriss-Etappen R0–R8 (R0 „Umschalttag im Hintergrund“ gebaut 02.11.,
+  Punkt 81 – die Umschalt-Datei kommt erst am Umschalttag in den Update-Ordner),
+  ~~75 Stick-Bauer unter Windows~~, ~~76 Push~~ (läuft seit 29.10. über den
+  Credential Manager), 77 W: wird noch beschrieben (vor dem Umschalttag klären),
+  79 EIN Stick-Werkzeug (gebaut, auf Stick, Server-Kopie und W:), 80
+  Werkstatt-Schlüssel zum Umschalttag, 82 Nachtlauf schläft ein.
 - 60 Tagesplan kompakt, 62, 63, 55, 56; 46/47/50/51 Umschalttag und
   Excel-Quellen am Server; 42 harte-70-Testfenster auf 24 s; iPhone-Messung
   des Zettels; 67 QR mit Anlagenliste; Angebot „Planungs-Druck auf zwei

@@ -6,6 +6,7 @@ import { STANDORT, STANDORTE, STANDORT_GEWAEHLT, standortWaehlen, nsKey, leseGru
 import { LOGO_GRUPPE, LOGO_SCHEURICH, LOGO_SOENDGEN } from "./logos.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen, leseOeeSchichten } from "./xlsx.js";
 import * as eingangsordner from "./eingangsordner.js";
+import { pruefeUmschaltDatei } from "./server-client.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -3184,6 +3185,23 @@ function App() {
      App-HTML liegt. Bleibender Zustand statt fluechtiger Meldung - ein
      Update soll nicht von der naechsten Erfolgsmeldung weggewischt werden. */
   const [programmUpdate, setProgrammUpdate] = useState(null); // {name, geaendert} | {laeuft} | {fehler}
+  // Umschalttag im Hintergrund (Roll-out 81, R0): Liegt im Update-Ordner eine
+  // Umschalt-Datei, merkt sich die App den Server und lädt neu - der Mitarbeiter
+  // sieht nur einen Hinweis. Nur in der Programm-Fassung, einmal je Start.
+  const [umschaltung, setUmschaltung] = useState(null); // {server} | {aus} | null
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.__werkstattDesktop) return;
+    let aktiv = true;
+    pruefeUmschaltDatei().then((r) => {
+      if (!aktiv || !r) return;
+      if (r.fehler) { console.warn("Umschalt-Datei:", r.fehler); return; }
+      if (r.wartet) { console.info("Umschalt-Datei: gilt ab", r.wartet); return; }
+      if (!r.umgestellt) return;
+      setUmschaltung(r);
+      setTimeout(() => { try { window.location.reload(); } catch (e) { /* egal */ } }, 4000);
+    }).catch(() => {});
+    return () => { aktiv = false; };
+  }, []);
   const [programmUpdateStatus, setProgrammUpdateStatus] = useState(null); // fuer ⚙
   const [oeeUebersichtOffen, setOeeUebersichtOffen] = useState(false);
   // Nachfrage, wenn die eben verbundene Datei keinen einzigen Eintrag hat.
@@ -11394,6 +11412,26 @@ function App() {
         </div>
       )}
       {err && <div className="no-print mx-4 mt-2 text-xs text-red-600">{err}</div>}
+
+      {/* Umschalttag (Roll-out 81): die App hat die Umschalt-Datei gelesen und lädt
+          gleich neu - als Vollbild-Hinweis, damit niemand mitten in einer Eingabe
+          überrascht wird. Danach läuft dieser Rechner am Server (oder zurück an der Datei). */}
+      {umschaltung && (
+        <div data-umschaltung={umschaltung.aus ? "aus" : umschaltung.server} className="no-print"
+             style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(30,39,97,0.96)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 32 }}>
+          <div style={{ maxWidth: 640 }}>
+            <div style={{ fontSize: 44, marginBottom: 12 }}>↻</div>
+            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 10 }}>
+              {umschaltung.aus ? "Die Werkstatt arbeitet wieder über die gemeinsame Datei." : "Die Werkstatt ist auf den BTA-Server umgestellt."}
+            </div>
+            <div style={{ fontSize: 15, opacity: 0.9 }}>
+              {umschaltung.aus
+                ? "Dieser Rechner schaltet zurück auf die Datei und lädt in wenigen Sekunden neu."
+                : <>Dieser Rechner holt Daten und Fassung ab jetzt von <code>{umschaltung.server}</code>. Das Cockpit lädt in wenigen Sekunden neu – nichts geht verloren, alle Daten liegen auf dem Server.</>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Programm-Update: Im Update-Ordner liegt eine neuere App-HTML. Ein
           Klick übernimmt sie und lädt neu - die Daten sind davon unberührt,

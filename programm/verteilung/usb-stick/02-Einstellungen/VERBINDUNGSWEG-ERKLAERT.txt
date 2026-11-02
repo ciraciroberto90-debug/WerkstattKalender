@@ -17,6 +17,16 @@ Rechners. Wer einen neuen Rechner aufsetzt, muss sich um
 den Weg nicht kuemmern - er ist auf dem Stick festgelegt.
 
 Am Umschalttag: das Wort auf "server" stellen, Stick neu
-bespielen (node tools/stick-bauen.js --mit-server), fertig.
-Einzelne Rechner lassen sich im Werkzeug unter "Mehr..."
-auch einzeln umstellen (Server-Weg ein/aus).
+verteilen (node tools/stick-verteilen.js --bauen), fertig -
+das gilt fuer NEUE Rechner. Einzelne Rechner lassen sich im
+Werkzeug unter "Mehr..." auch einzeln umstellen.
+
+BESTEHENDE Rechner stellen sich selbst um (Roll-out 81):
+Die Datei umschalten-auf-server.json (Vorlage daneben:
+umschalten-auf-server.beispiel.json) in den UPDATE-ORDNER
+auf W: legen. Jedes Cockpit liest sie beim naechsten Start,
+prueft, ob der Server antwortet, merkt sich die Adresse,
+zeigt einen Hinweis und laedt neu. Der Mitarbeiter sieht
+davor nur den gewohnten gruenen "Neue Version"-Balken.
+"server": "aus" in derselben Datei ist der Rueckweg.
+

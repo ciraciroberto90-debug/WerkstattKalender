@@ -57,7 +57,11 @@ const zeilen = [];
 const melde = (schritt, ergebnis, zusatz) => { const z = `${schritt.padEnd(26)} ${ergebnis}${zusatz ? "   (" + zusatz + ")" : ""}`; zeilen.push(z); console.log(z); };
 const abbruch = (grund) => { console.log("\nABBRUCH: " + grund + "\n\nBis hierher:\n" + zeilen.join("\n")); process.exit(1); };
 const sha = (p) => crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex").slice(0, 12);
-const lauf = (cmd, args, opts = {}) => spawnSync(cmd, args, { cwd: WURZEL, stdio: opts.still ? "pipe" : "inherit", encoding: "utf8", shell: /\.cmd$/i.test(cmd), ...opts });
+/* Kindprozesse bekommen den Ordner dieses Node vorn in den PATH: npm run build
+ * ruft intern "node" auf, und im Terminal-Panel steht das portable Node nicht im
+ * PATH (02.11.: "node ist entweder falsch geschrieben ..."). */
+const UMGEBUNG = { ...process.env, PATH: NODE_ORDNER + path.delimiter + (process.env.PATH || process.env.Path || "") };
+const lauf = (cmd, args, opts = {}) => spawnSync(cmd, args, { cwd: WURZEL, stdio: opts.still ? "pipe" : "inherit", encoding: "utf8", shell: /\.cmd$/i.test(cmd), env: UMGEBUNG, ...opts });
 const holeJson = (url) => new Promise((ok, nein) => { http.get(url, { timeout: 10000 }, (r) => { let s = ""; r.on("data", (d) => (s += d)); r.on("end", () => { try { ok(JSON.parse(s)); } catch (e) { nein(e); } }); }).on("error", nein).on("timeout", () => nein(new Error("Zeitüberschreitung"))); });
 
 (async () => {

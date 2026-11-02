@@ -65,6 +65,68 @@ export function setzeWerkstattSchluessel(s) {
   try { if (s) localStorage.setItem(SCHLUESSEL_KEY, String(s).trim()); else localStorage.removeItem(SCHLUESSEL_KEY); } catch (e) { /* egal */ }
 }
 
+/* ---------- Umschalt-Datei (Roll-out 81, Etappe R0: Umschalttag im Hintergrund) ----------
+ * Robertos Wunsch (30.10.): Die Mitarbeiter lassen ihr Programm auf dem Desktop,
+ * sehen nur den gewohnten grünen "Neue Version"-Balken - und die Umstellung auf
+ * den Server passiert im Hintergrund. Dafür liegt im Update-Ordner auf W: eine
+ * kleine Datei:
+ *   umschalten-auf-server.json  =  { "server": "http://v-btacockpit-1:8765",
+ *                                    "ab": "2026-11-10" (optional), "schluessel": "…" (optional) }
+ * Die App liest sie beim Start in der PROGRAMM-Fassung über die Brücke, solange
+ * sie noch über die Datei arbeitet. Antwortet der Server, merkt sie sich die
+ * Adresse zweimal: im Browser-Speicher (die App schaltet damit selbst um, auch in
+ * einer alten Hülle 1.1/1.2) und über die Brücke in den gemerkten Einstellungen
+ * der Hülle (programm:server-url - die Hülle 1.3 lädt beim nächsten Start gleich
+ * vom Server). Dann lädt die App neu. "server": "aus" ist der Rückweg.
+ * Nie umschalten, wenn der Server nicht antwortet (kein Rechner auf einem toten
+ * Weg - der Fehler vom 03.08. in neu). */
+export const UMSCHALT_DATEI = "umschalten-auf-server.json";
+export async function pruefeUmschaltDatei(opts = {}) {
+  const d = typeof window !== "undefined" ? window.__werkstattDesktop : null;
+  if (!d || typeof d.lese !== "function" || typeof d.gemerkt !== "function") return null; // nur Programm-Fassung
+  const jetztAmServer = !!serverAdresse();
+  let ordner = "";
+  try { ordner = String((await d.gemerkt("programm:update-ordner")) || "").trim(); } catch (e) { return null; }
+  if (!ordner) return null;
+  const pfad = ordner.replace(/[\\/]+$/, "") + "/" + UMSCHALT_DATEI;
+  let text = "";
+  try {
+    const r = await d.lese(pfad);
+    if (!r) return null; // keine Umschalt-Datei - der Normalfall bis zum Umschalttag
+    text = r.bytes ? new TextDecoder().decode(r.bytes) : String(r.text || "");
+  } catch (e) { return null; }
+  let u;
+  try { u = JSON.parse(text.replace(/^﻿/, "")); } catch (e) { return { fehler: "Umschalt-Datei ist kein gültiges JSON: " + e.message }; }
+  const server = String(u.server || "").trim().replace(/\/+$/, "");
+  if (server.toLowerCase() === "aus") {
+    // Rückweg: nur, wenn dieser Rechner über den Browser-Speicher am Server hängt
+    // (nicht, wenn die App vom Server selbst ausgeliefert wurde - dort ist "aus" sinnlos).
+    let gemerkt = ""; try { gemerkt = localStorage.getItem(URL_KEY) || ""; } catch (e) { /* egal */ }
+    if (!gemerkt) return null;
+    try { localStorage.removeItem(URL_KEY); } catch (e) { /* egal */ }
+    try { await d.merke("programm:server-url", null); } catch (e) { /* Hülle ohne merke */ }
+    return { aus: true, umgestellt: true };
+  }
+  if (jetztAmServer) return null; // schon umgestellt
+  if (u.ab && !isNaN(Date.parse(u.ab)) && Date.parse(u.ab) > Date.now()) return { wartet: String(u.ab) };
+  if (!/^https?:\/\//.test(server)) return { fehler: "Umschalt-Datei ohne gültige Server-Adresse" };
+  try {
+    const ac = new AbortController();
+    const frist = setTimeout(() => ac.abort(), opts.fristMs || 5000);
+    const r = await fetch(server + "/api/status", { signal: ac.signal, cache: "no-store" });
+    clearTimeout(frist);
+    if (!r.ok) return { fehler: "Server " + server + " antwortet mit " + r.status + " - nicht umgeschaltet" };
+  } catch (e) { return { fehler: "Server " + server + " nicht erreichbar - nicht umgeschaltet (" + ((e && e.message) || e) + ")" }; }
+  try { localStorage.setItem(URL_KEY, server); } catch (e) { /* egal */ }
+  const schluessel = String(u.schluessel || "").trim();
+  if (schluessel) setzeWerkstattSchluessel(schluessel);
+  try {
+    await d.merke("programm:server-url", server);
+    if (schluessel) await d.merke("bta-server:schluessel", schluessel);
+  } catch (e) { /* Hülle ohne merke - der Browser-Speicher genügt der App */ }
+  return { server, umgestellt: true };
+}
+
 /* ---------- IndexedDB-Spiegel (mit Frist - der Start darf nie hängen) ---------- */
 function idbOeffnen() {
   return new Promise((resolve, reject) => {

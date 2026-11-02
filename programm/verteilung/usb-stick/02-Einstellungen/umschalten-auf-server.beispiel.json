@@ -1,0 +1,5 @@
+{
+  "_was_ist_das": "VORLAGE fuer den Umschalttag (Roll-out 81). Diese Datei heisst im Einsatz umschalten-auf-server.json und wird in den UPDATE-ORDNER auf W: gelegt (Werkstatt_Kalender). Jedes Cockpit in der Programm-Fassung liest sie beim Start: antwortet der Server, merkt sich der Rechner die Adresse und arbeitet ab dann am Server. 'ab' (optional) = fruehestens ab diesem Tag. 'schluessel' (optional) = Werkstatt-Schluessel fuer schreibende Rechner. 'server': 'aus' = Rueckweg zur Datei. NICHT hier auf dem Stick umbenennen - der Stick ist nicht der Update-Ordner.",
+  "server": "http://v-btacockpit-1:8765",
+  "ab": "2026-11-10"
+}
