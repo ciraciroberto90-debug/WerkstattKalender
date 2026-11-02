@@ -41,6 +41,20 @@ let erreichbar = false;
 try { erreichbar = fs.existsSync(path.dirname(ZIEL)); } catch (e) { erreichbar = false; }
 if (!erreichbar) { console.log("Prüfstand nicht erreichbar: " + ZIEL + " - übersprungen."); process.exit(0); }
 
+/* Läuft auf dem Server gerade eine Suite? Dann nichts austauschen - ein Test
+ * würde sonst eine halb kopierte Datei laden. Erkennbar am jüngsten Protokoll:
+ * in den letzten 3 Minuten beschrieben und noch ohne Gesamt-Summary. */
+try {
+  const prot = path.join(ZIEL, "tests", "protokolle");
+  if (fs.existsSync(prot)) {
+    const logs = fs.readdirSync(prot).filter((n) => n.endsWith(".log")).map((n) => ({ n, st: fs.statSync(path.join(prot, n)) })).sort((a, b) => b.st.mtimeMs - a.st.mtimeMs);
+    if (logs.length && Date.now() - logs[0].st.mtimeMs < 3 * 60 * 1000 && !/Summary: \d+\/\d+ tests passed/.test(fs.readFileSync(path.join(prot, logs[0].n), "utf8"))) {
+      console.log(`Prüfstand läuft gerade (${logs[0].n}, zuletzt beschrieben vor ${Math.round((Date.now() - logs[0].st.mtimeMs) / 1000)} s) - Sync übersprungen, beim nächsten Push wieder.`);
+      process.exit(0);
+    }
+  }
+} catch (e) { /* Protokolle nicht lesbar - dann eben kopieren */ }
+
 const verfolgt = spawnSync(GIT, ["ls-files"], { cwd: WURZEL, encoding: "utf8" }).stdout.split(/\r?\n/).filter(Boolean).map((p) => p.replace(/\//g, path.sep)).filter((p) => !/\.teil$/.test(p));
 const module_ = dateienUnter(path.join(WURZEL, "tests", "node_modules"));
 const browser = dateienUnter(path.join(WURZEL, "tests", "browser"), (p) => /tests[\\/]browser[\\/](chromium_headless_shell-|winldd-|ffmpeg-)/.test(p));

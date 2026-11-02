@@ -439,7 +439,15 @@ function Tafel-Server {
   if (-not (Test-Path -LiteralPath (Join-Path $PruefstandOrdner "tests\run-hardness-tests.js"))) { $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = "grau"; Text = ("keine Testdateien unter " + $PruefstandOrdner + " - vom Laptop: node tools/pruefstand-sync.js"); Reparatur = "" } }
   elseif (-not $pa) { $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = "gelb"; Text = "Testdateien da, Aufgabe noch nicht angelegt"; Reparatur = "pruefstand-einrichten" } }
   elseif ($letzterKurz -match "rot:") { $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = "rot"; Text = $letzterKurz; Reparatur = "" } }
-  else { $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = "gruen"; Text = ("Aufgabe " + $pa.State + ", " + $PruefstandZeit + " Uhr" + $(if ($letzterKurz) { " - letzter Lauf: " + $letzterKurz } else { " - noch kein Lauf" })); Reparatur = "" } }
+  else {
+    # Letztes Ergebnis der Aufgabe selbst (0 = gut, 267011 = noch nie gelaufen, 267009 = laeuft gerade,
+    # sonst ein Windows-Fehlercode) - so sieht man, ob Node unter SYSTEM ueberhaupt losgelaufen ist.
+    $info = $null; try { $info = Get-ScheduledTaskInfo -TaskName $PruefstandAufgabe -ErrorAction Stop } catch { }
+    $erg = $(if ($info) { [int64]$info.LastTaskResult } else { -1 })
+    $ergText = $(switch ($erg) { 0 { "letztes Ergebnis 0 (gut)" } 267011 { "noch nie gelaufen" } 267009 { "laeuft gerade" } 267014 { "zuletzt abgebrochen" } default { "letztes Ergebnis 0x" + ("{0:X}" -f $erg) + " (Fehler - Node lief nicht durch)" } })
+    $farbe = $(if ($erg -eq 0 -or $erg -eq 267011 -or $erg -eq 267009) { "gruen" } else { "rot" })
+    $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = $farbe; Text = ("Aufgabe " + $pa.State + ", " + $PruefstandZeit + " Uhr, " + $ergText + $(if ($info -and $info.LastRunTime -and $info.LastRunTime.Year -gt 2000) { ", zuletzt " + $info.LastRunTime.ToString("dd.MM. HH:mm") } else { "" }) + $(if ($letzterKurz) { " - letzter Lauf: " + $letzterKurz } else { " - noch kein Protokoll" })); Reparatur = $(if ($farbe -eq "rot") { "pruefstand-start" } else { "" }) }
+  }
   return $z
 }
 function Tafel($lage, [string]$zweck) { if ($lage.istServer) { return (Tafel-Server) } else { return (Tafel-Rechner $lage $zweck) } }
@@ -947,13 +955,34 @@ function Pruefstand-Einrichten([bool]$gleichStarten) {
   $regeln = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 3) -MultipleInstances IgnoreNew
   Register-ScheduledTask -TaskName $PruefstandAufgabe -Action $aktion -Trigger $ausloeser -Principal $konto -Settings $regeln -Description ("BTA-Cockpit: Haertetest-Suite taeglich " + $PruefstandZeit + " Uhr. Ergebnis: " + $PruefstandOrdner + "\tests\protokolle\LETZTER-LAUF.txt. Angelegt vom BTA-Werkzeug (Roll-out 82).") | Out-Null
   Sag ("Aufgabe '" + $PruefstandAufgabe + "' angelegt: taeglich " + $PruefstandZeit + ", Konto SYSTEM, Ordner " + $PruefstandOrdner)
-  if ($gleichStarten) {
-    Start-ScheduledTask -TaskName $PruefstandAufgabe
-    Start-Sleep -Seconds 5
-    $i = Get-ScheduledTaskInfo -TaskName $PruefstandAufgabe
-    Sag ("Probestart: Zustand " + (Get-ScheduledTask -TaskName $PruefstandAufgabe).State + ", gestartet " + $i.LastRunTime + " - Ergebnis nach rund 35 Minuten in tests\protokolle\LETZTER-LAUF.txt")
-  }
+  if ($gleichStarten) { return (Pruefstand-Starten) }
   return $true
+}
+function Pruefstand-Starten {
+  # Startet die Aufgabe und schaut 20 s zu: Ist der Protokollordner da, laeuft Node.
+  # Steht die Aufgabe nach wenigen Sekunden wieder auf "Bereit" mit Fehlercode, kam
+  # Node nicht hoch - dann einmal direkt starten und die Meldung festhalten.
+  $pa = $null; try { $pa = Get-ScheduledTask -TaskName $PruefstandAufgabe -ErrorAction Stop } catch { }
+  if (-not $pa) { throw "Aufgabe fehlt - erst 'Nachtlauf der Tests einrichten'." }
+  $prot = Join-Path $PruefstandOrdner "tests\protokolle"
+  Start-ScheduledTask -TaskName $PruefstandAufgabe
+  Sag "Probestart ausgeloest ..."
+  for ($i = 0; $i -lt 20; $i++) { Start-Sleep -Seconds 1; Pump; if (Test-Path -LiteralPath $prot) { break } }
+  $info = Get-ScheduledTaskInfo -TaskName $PruefstandAufgabe
+  $zustand = (Get-ScheduledTask -TaskName $PruefstandAufgabe).State
+  if (Test-Path -LiteralPath $prot) { Sag ("Probestart laeuft: Zustand " + $zustand + ", Protokollordner angelegt - Ergebnis nach rund 35 Minuten in tests\protokolle\LETZTER-LAUF.txt"); return $true }
+  Sag ("Probestart: Zustand " + $zustand + ", letztes Ergebnis 0x" + ("{0:X}" -f [int64]$info.LastTaskResult) + ", kein Protokollordner nach 20 s - Node ist nicht losgelaufen.")
+  # Direktstart als Admin, 30 s Frist - die ersten Zeilen zeigen den Grund.
+  Sag "Direktstart zur Diagnose (30 s) ..."
+  $psi = New-Object System.Diagnostics.ProcessStartInfo
+  $psi.FileName = $nodeExe; $psi.Arguments = '"' + (Join-Path $PruefstandOrdner "tests\run-hardness-tests.js") + '" harte-1-'
+  $psi.WorkingDirectory = $PruefstandOrdner; $psi.UseShellExecute = $false; $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true; $psi.CreateNoWindow = $true
+  $pr = [System.Diagnostics.Process]::Start($psi)
+  if (-not $pr.WaitForExit(30000)) { try { $pr.Kill() } catch { } }
+  $aus = ($pr.StandardOutput.ReadToEnd() + "`n" + $pr.StandardError.ReadToEnd()) -split "`n" | Where-Object { $_.Trim() } | Select-Object -First 12
+  foreach ($zeile in $aus) { Sag ("  | " + $zeile.Trim()) }
+  Sag ("Direktstart Exit " + $pr.ExitCode + " - Protokoll speichern und an Roberto schicken.")
+  return $false
 }
 function Entferne-Server {
   if (-not (Frage-JaNein "Den Dienst vom Server entfernen?`n`nEntfernt: Aufgabe, Firewall-Regel, Dienst-Ordner (Node, dienst.js, Einstellungen, Protokoll).`nBLEIBT: die Datenbanken in BTA-Scheurich/BTA-Soendgen, die App-Datei, die Sicherungen." "Entfernen")) { return $false }
@@ -991,6 +1020,7 @@ function Tue-Aktion([string]$id, [hashtable]$p) {
     "import"           { return (Import-Laufen $p.Standort $p.Kalender $p.Stoerungen ($p.Fotos -ne $false) ([bool]$p.Vorschau)) }
     "node-laden"       { return (Node-Laden) }
     "pruefstand-einrichten" { return (Pruefstand-Einrichten $true) }
+    "pruefstand-start" { return (Pruefstand-Starten) }
     "server-entfernen" { return (Entferne-Server) }
     default            { throw ("Unbekannte Aktion: " + $id) }
   }
