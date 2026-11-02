@@ -131,7 +131,8 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-node tests/run-hardness-tests.js           # 105 Härtetests (vor jedem Push; Windows und Linux, Bash-Fassung .sh bleibt daneben)
+node tests/run-hardness-tests.js           # 104 Härtetests (vor jedem Push; Windows und Linux, Bash-Fassung .sh bleibt daneben)
+node tools/pruefstand-sync.js              # Prüfstand auf dem Server (C:\BTA\BTA-Tests) auf den Repo-Stand bringen; die Abgabe macht das nach jedem Push selbst
 node tests/run-browser-reserve.js          # 5 Browser-Reserve-Tests (vor einer Freigabe; Dateizugriff über den Browser)
 #   Einmalig je Rechner: cd tests && npm install && node browser-holen.js
 #   (Chromium landet in tests/browser/, ohne Adminrechte). Pfade kommen aus tests/umgebung.js; APP_PFAD=<alte html> für den Rot-Nachweis.

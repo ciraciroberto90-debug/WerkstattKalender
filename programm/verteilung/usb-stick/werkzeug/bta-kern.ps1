@@ -51,6 +51,11 @@ $SicherungOrdner = Join-Path $ServerOrdner "BTA-Sicherung"
 $PortVorgabe     = 8765
 $AufgabeName     = "bta-cockpit-dienst"
 $FirewallName    = "BTA-Cockpit-Dienst"
+# Pruefstand (Roll-out 82): die Haertetest-Suite laeuft nachts auf dem Server statt
+# auf dem schlafenden Laptop. Dateien kommen per tools/pruefstand-sync.js hierher.
+$PruefstandOrdner = Join-Path $ServerOrdner "BTA-Tests\WerkstattKalender"
+$PruefstandAufgabe = "BTA-Cockpit Haertetests"
+$PruefstandZeit = "03:00"
 $Standorte = @(
   @{ Id = "scheurich"; Name = "Scheurich";        Ordner = (Join-Path $ServerOrdner "BTA-Scheurich") },
   @{ Id = "soendgen";  Name = "Soendgen Keramik"; Ordner = (Join-Path $ServerOrdner "BTA-Soendgen") }
@@ -427,6 +432,14 @@ function Tafel-Server {
     } catch { $z += @{ Id = "sicherung"; Titel = "Letzte Sicherung"; Farbe = "gelb"; Text = ("Zeit nicht lesbar: " + $s.letzteSicherung.zeit); Reparatur = "" } }
   } elseif ($s) { $z += @{ Id = "sicherung"; Titel = "Letzte Sicherung"; Farbe = "gelb"; Text = "noch keine - die erste kommt nachts um 02:00"; Reparatur = "sicherung" } }
   else { $z += @{ Id = "sicherung"; Titel = "Letzte Sicherung"; Farbe = "gelb"; Text = "Dienst antwortet nicht - keine Auskunft"; Reparatur = "" } }
+  # 10 Pruefstand: Dateien da? Aufgabe da? Letzter Lauf?
+  $pa = $null; try { $pa = Get-ScheduledTask -TaskName $PruefstandAufgabe -ErrorAction Stop } catch { }
+  $letzter = Lese-Text (Join-Path $PruefstandOrdner "tests\protokolle\LETZTER-LAUF.txt")
+  $letzterKurz = $(if ($letzter) { ($letzter -split "`n")[0].Trim() } else { "" })
+  if (-not (Test-Path -LiteralPath (Join-Path $PruefstandOrdner "tests\run-hardness-tests.js"))) { $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = "grau"; Text = ("keine Testdateien unter " + $PruefstandOrdner + " - vom Laptop: node tools/pruefstand-sync.js"); Reparatur = "" } }
+  elseif (-not $pa) { $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = "gelb"; Text = "Testdateien da, Aufgabe noch nicht angelegt"; Reparatur = "pruefstand-einrichten" } }
+  elseif ($letzterKurz -match "rot:") { $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = "rot"; Text = $letzterKurz; Reparatur = "" } }
+  else { $z += @{ Id = "pruefstand"; Titel = "Naechtlicher Testlauf (Pruefstand)"; Farbe = "gruen"; Text = ("Aufgabe " + $pa.State + ", " + $PruefstandZeit + " Uhr" + $(if ($letzterKurz) { " - letzter Lauf: " + $letzterKurz } else { " - noch kein Lauf" })); Reparatur = "" } }
   return $z
 }
 function Tafel($lage, [string]$zweck) { if ($lage.istServer) { return (Tafel-Server) } else { return (Tafel-Rechner $lage $zweck) } }
@@ -918,6 +931,30 @@ function Node-Laden {
   Sag ("Node liegt im Dienst-Ordner: " + (& $nodeExe -v))
   return $true
 }
+function Pruefstand-Einrichten([bool]$gleichStarten) {
+  # Aufgabe "BTA-Cockpit Haertetests": taeglich 03:00 (nach der 02:00-Sicherung), Konto
+  # SYSTEM wie der Dienst, Zeitlimit 3 h, holt verpasste Starts nach. Laeuft mit dem
+  # Node aus dem Dienst-Ordner gegen den Pruefstand-Ordner.
+  if (-not (Ist-Admin)) { throw "Das Werkzeug muss als Administrator laufen." }
+  $lauf = Join-Path $PruefstandOrdner "tests\run-hardness-tests.js"
+  if (-not (Test-Path -LiteralPath $lauf)) { throw ("Keine Testdateien unter " + $PruefstandOrdner + " - erst vom Laptop: node tools/pruefstand-sync.js") }
+  if (-not (Test-Path -LiteralPath $nodeExe)) { throw ("Node fehlt im Dienst-Ordner: " + $nodeExe) }
+  $alt = $null; try { $alt = Get-ScheduledTask -TaskName $PruefstandAufgabe -ErrorAction Stop } catch { }
+  if ($alt) { Unregister-ScheduledTask -TaskName $PruefstandAufgabe -Confirm:$false; Sag "  Alte Aufgabe ersetzt." }
+  $aktion = New-ScheduledTaskAction -Execute $nodeExe -Argument ('"' + $lauf + '"') -WorkingDirectory $PruefstandOrdner
+  $ausloeser = New-ScheduledTaskTrigger -Daily -At $PruefstandZeit
+  $konto = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+  $regeln = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 3) -MultipleInstances IgnoreNew
+  Register-ScheduledTask -TaskName $PruefstandAufgabe -Action $aktion -Trigger $ausloeser -Principal $konto -Settings $regeln -Description ("BTA-Cockpit: Haertetest-Suite taeglich " + $PruefstandZeit + " Uhr. Ergebnis: " + $PruefstandOrdner + "\tests\protokolle\LETZTER-LAUF.txt. Angelegt vom BTA-Werkzeug (Roll-out 82).") | Out-Null
+  Sag ("Aufgabe '" + $PruefstandAufgabe + "' angelegt: taeglich " + $PruefstandZeit + ", Konto SYSTEM, Ordner " + $PruefstandOrdner)
+  if ($gleichStarten) {
+    Start-ScheduledTask -TaskName $PruefstandAufgabe
+    Start-Sleep -Seconds 5
+    $i = Get-ScheduledTaskInfo -TaskName $PruefstandAufgabe
+    Sag ("Probestart: Zustand " + (Get-ScheduledTask -TaskName $PruefstandAufgabe).State + ", gestartet " + $i.LastRunTime + " - Ergebnis nach rund 35 Minuten in tests\protokolle\LETZTER-LAUF.txt")
+  }
+  return $true
+}
 function Entferne-Server {
   if (-not (Frage-JaNein "Den Dienst vom Server entfernen?`n`nEntfernt: Aufgabe, Firewall-Regel, Dienst-Ordner (Node, dienst.js, Einstellungen, Protokoll).`nBLEIBT: die Datenbanken in BTA-Scheurich/BTA-Soendgen, die App-Datei, die Sicherungen." "Entfernen")) { return $false }
   if (-not (Frage-JaNein "Wirklich? Das laesst sich mit 'Einrichten' jederzeit wieder aufbauen." "Entfernen - zweite Nachfrage")) { return $false }
@@ -953,6 +990,7 @@ function Tue-Aktion([string]$id, [hashtable]$p) {
     "app-tauschen"     { return (App-Tauschen $p.Quelle) }
     "import"           { return (Import-Laufen $p.Standort $p.Kalender $p.Stoerungen ($p.Fotos -ne $false) ([bool]$p.Vorschau)) }
     "node-laden"       { return (Node-Laden) }
+    "pruefstand-einrichten" { return (Pruefstand-Einrichten $true) }
     "server-entfernen" { return (Entferne-Server) }
     default            { throw ("Unbekannte Aktion: " + $id) }
   }

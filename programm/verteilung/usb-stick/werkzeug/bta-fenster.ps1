@@ -357,9 +357,10 @@ $kImport = Weisser-Knopf "Import von W: ..." 168 60 150 30
 $kNode   = Weisser-Knopf "Node herunterladen" 324 60 150 30
 $kSEntf  = Weisser-Knopf "Vom Server entfernen" 480 60 146 30
 $kSEntf.ForeColor = $rot
+$kPruefstand = Weisser-Knopf "Nachtlauf der Tests einrichten (03:00)" 12 96 302 30
 $lblSrvHinweis = New-Object System.Windows.Forms.Label
-$lblSrvHinweis.Text = "Import: liest Kalender- und Stoerungs-Datei von W: in die Datenbank (erst Vorschau, dann Import). Rueckfragen kommen als Fenster."; $lblSrvHinweis.Location = New-Object System.Drawing.Point(12, 96); $lblSrvHinweis.Size = New-Object System.Drawing.Size(614, 30); $lblSrvHinweis.ForeColor = $grau; $lblSrvHinweis.Font = $fKlein
-$gbSrv.Controls.AddRange(@($kDStart, $kDStopp, $kDNeu, $kStatus, $kProtOrd, $kImport, $kNode, $kSEntf, $lblSrvHinweis))
+$lblSrvHinweis.Text = "Import: W:-Dateien in die Datenbank (erst Vorschau). Nachtlauf: legt die Aufgabe an und startet sie einmal."; $lblSrvHinweis.Location = New-Object System.Drawing.Point(320, 100); $lblSrvHinweis.Size = New-Object System.Drawing.Size(306, 30); $lblSrvHinweis.ForeColor = $grau; $lblSrvHinweis.Font = $fKlein
+$gbSrv.Controls.AddRange(@($kDStart, $kDStopp, $kDNeu, $kStatus, $kProtOrd, $kImport, $kNode, $kSEntf, $kPruefstand, $lblSrvHinweis))
 $flT.Controls.AddRange(@($gbFach, $gbSrv))
 
 $script:tafel = @()
@@ -375,7 +376,7 @@ function Fuelle-Tafel {
   foreach ($z in $script:tafel) {
     $zeile = Neue-Ampelzeile $flTZeilen $y $z.Farbe ($z.Titel + "  -  " + $z.Text) 500
     if ($z.Reparatur -and $z.Farbe -ne "gruen") {
-      $k = Weisser-Knopf $(switch ($z.Reparatur) { "einrichten" { "Einrichten" } "pfade" { "Einstellen" } "serverweg-ein" { "Einstellen" } "serverweg-aus" { "Umstellen" } "verknuepfung" { "Anlegen" } "autostart-ein" { "Einschalten" } "autostart-aus" { "Ausschalten" } "programm-laden" { "Laden" } "server-einrichten" { "Einrichten" } "dienst-start" { "Starten" } "sicherung" { "Sichern" } "node-laden" { "Laden" } "als-admin" { "Neu starten" } default { "Beheben" } }) 530 ($y - 1) 110 23
+      $k = Weisser-Knopf $(switch ($z.Reparatur) { "einrichten" { "Einrichten" } "pfade" { "Einstellen" } "serverweg-ein" { "Einstellen" } "serverweg-aus" { "Umstellen" } "verknuepfung" { "Anlegen" } "autostart-ein" { "Einschalten" } "autostart-aus" { "Ausschalten" } "programm-laden" { "Laden" } "server-einrichten" { "Einrichten" } "dienst-start" { "Starten" } "sicherung" { "Sichern" } "node-laden" { "Laden" } "pruefstand-einrichten" { "Einrichten" } "als-admin" { "Neu starten" } default { "Beheben" } }) 530 ($y - 1) 110 23
       $k.Tag = $z.Reparatur
       $k.Add_Click({ param($s, $e) Repariere ([string]$s.Tag) })
       $flTZeilen.Controls.Add($k)
@@ -421,6 +422,7 @@ $kDNeu.Add_Click({ Repariere "dienst-neustart" })
 $kStatus.Add_Click({ Start-Process ("http://localhost:" + (Port-Lesen) + "/status"); Sag "Status-Seite geoeffnet." })
 $kProtOrd.Add_Click({ $p = Join-Path $DienstOrdner "protokoll"; if (Test-Path -LiteralPath $p) { Start-Process explorer.exe $p } else { Melde "Es gibt noch keinen Protokoll-Ordner - der Dienst ist noch nicht eingerichtet." } })
 $kNode.Add_Click({ Repariere "node-laden" })
+$kPruefstand.Add_Click({ Repariere "pruefstand-einrichten" })
 $kSEntf.Add_Click({ Repariere "server-entfernen" })
 $kImport.Add_Click({
   try {

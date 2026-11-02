@@ -185,5 +185,13 @@ const holeJson = (url) => new Promise((ok, nein) => { http.get(url, { timeout: 1
     }
   }
 
+  /* 6. Prüfstand am Server auf denselben Stand bringen (Roll-out 82) - nur nach
+   * einem Push, damit dort nie ein Stand läuft, den es im Repo nicht gibt. */
+  if (push && !nurPruefen) {
+    const r = lauf(process.execPath, [path.join(__dirname, "pruefstand-sync.js")], { still: true });
+    const letzte = (r.stdout || "").trim().split(/\r?\n/).pop() || "";
+    melde("Prüfstand am Server", r.status === 0 ? "gleichgezogen" : "NICHT gleichgezogen", letzte);
+  }
+
   console.log("\nAbgabe fertig.");
 })().catch((e) => abbruch(e.message));
