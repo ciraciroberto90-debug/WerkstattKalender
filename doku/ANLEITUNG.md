@@ -33,7 +33,10 @@ Es bündelt die tägliche Werkstattorganisation an einem Ort:
 
 - **Übersicht (Cockpit)** – Kennzahlen, Uhr mit Schichtanzeige, was heute ansteht,
   offene Störungen, Pinnwand
-- **Schichtplan** – Früh/Spät/Nacht je Person, Monatsmatrix
+- **Schichtplan** – Früh/Spät/Nacht je Person; die Matrix läuft seit 05.11.
+  fortlaufend über Monats- und Jahresgrenzen (neun Wochen ab dem Montag vor dem
+  1. des gewählten Monats, Monatszeile oben), die Jahres-Kacheln 2026/2027/2028
+  neben „Heute“ springen in den Januar des Jahres
 - **Planung** – Arbeitsverteilung je Tag/Person (Excel-KW-Stil)
 - **Backlog** – Sammlung offener Arbeiten mit Prioritäten
 - **TPM-Plan & R+I** – wiederkehrende Wartungen und Inspektionen

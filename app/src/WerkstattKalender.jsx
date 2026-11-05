@@ -14870,12 +14870,30 @@ function App() {
         const readerMode = nurLesen("SCHICHTPLAN"); // Rechte-Matrix: Stufe des Bereichs statt globalem Schalter
         const my = matrixCursor.getFullYear();
         const mm = matrixCursor.getMonth();
-        const tageImMonat = new Date(my, mm + 1, 0).getDate();
-        const feiertage = getHolidays(my);
-        const tage = Array.from({ length: tageImMonat }, (_, i) => {
-          const d = new Date(my, mm, i + 1);
-          return { nr: i + 1, key: dateKey(my, mm, i + 1), dow: d.getDay(), kw: getISOWeek(d) };
+        // Fortlaufend statt Monat für Monat (Roberto 05.11.: "der Schichtplan muss
+        // für 2027 erweitert werden, bitte fortlaufend"): Die Tabelle beginnt am
+        // Montag der Woche, in der der 1. des gewählten Monats liegt, und läuft
+        // neun Wochen weiter - über Monats- und Jahresgrenzen hinweg. So ist der
+        // gewählte Monat immer ganz zu sehen plus rund vier Wochen danach, und
+        // Dezember/Januar stehen nebeneinander. Feiertage aus beiden Jahren.
+        const erster = new Date(my, mm, 1);
+        const start = montagVon(dateKey(my, mm, 1));
+        const WOCHEN = 9;
+        const feiertage = new Map([...getHolidays(my), ...getHolidays(my + 1)]);
+        const tage = Array.from({ length: WOCHEN * 7 }, (_, i) => {
+          const d = addDays(start, i);
+          return { nr: d.getDate(), key: dateKey(d.getFullYear(), d.getMonth(), d.getDate()), dow: d.getDay(), kw: getISOWeek(d), monat: d.getMonth(), jahr: d.getFullYear(), vorMonat: d < erster };
         });
+        // Monats-Abschnitte für die Kopfzeile ("November 2026 · Dezember 2026 · Januar 2027")
+        const monatSegmente = [];
+        tage.forEach((t) => {
+          const letzte = monatSegmente[monatSegmente.length - 1];
+          if (letzte && letzte.monat === t.monat && letzte.jahr === t.jahr) letzte.span++;
+          else monatSegmente.push({ monat: t.monat, jahr: t.jahr, span: 1 });
+        });
+        // Jahres-Kacheln: dieses Jahr und die zwei nächsten, dazu das angezeigte, falls es außerhalb liegt
+        const heuteJahr = new Date().getFullYear();
+        const jahresKacheln = Array.from(new Set([heuteJahr, heuteJahr + 1, heuteJahr + 2, my])).sort();
         const kwSegmente = [];
         tage.forEach((t) => {
           const letzte = kwSegmente[kwSegmente.length - 1];
@@ -14902,9 +14920,23 @@ function App() {
               <span className="font-mono text-sm font-bold ml-2">{MONTHS[mm]} {my}</span>
               <button onClick={() => setMatrixCursor(new Date(my, mm + 1, 1))} className="px-2.5 py-1.5 rounded border bg-white" style={{ borderColor: "#D6D9DC" }} aria-label="Nächster Monat">›</button>
               <button onClick={() => setMatrixCursor(new Date())} className="px-3 py-1.5 rounded border bg-white text-xs font-bold uppercase" style={{ borderColor: "#D6D9DC" }}>Heute</button>
+              {/* Jahres-Kacheln (Roberto 05.11.): ein Klick springt in den Januar des
+                  Jahres - beim laufenden Jahr in den aktuellen Monat. */}
+              <span className="ml-3 inline-flex items-center gap-1" aria-label="Jahr wählen">
+                {jahresKacheln.map((j) => (
+                  <button key={j} data-schichtplan-jahr={j}
+                    onClick={() => setMatrixCursor(j === heuteJahr ? new Date() : new Date(j, 0, 1))}
+                    className="px-2.5 py-1 rounded text-xs font-extrabold"
+                    style={j === my
+                      ? { backgroundColor: "#1E2761", color: "white", border: "1px solid #1E2761" }
+                      : { backgroundColor: "white", color: "#5B6572", border: "1px solid #D6D9DC" }}
+                    aria-pressed={j === my}
+                    title={`Schichtplan ${j}`}>{j}</button>
+                ))}
+              </span>
               <span className="ml-auto text-xs text-slate-400">{readerMode
                 ? "Werkstattschichtplan – nur ansehen"
-                : "Werkstattschichtplan – Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung"}</span>
+                : "Werkstattschichtplan – fortlaufend über Monats- und Jahresgrenzen · Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung"}</span>
             </div>
 
             {team.length === 0 ? (
@@ -14915,6 +14947,16 @@ function App() {
               <div ref={matrixScrollRef} className="rounded-xl" style={{ backgroundColor: "white", border: "1.5px solid #6B7280", overflowX: "auto", padding: "4px" }}>
                 <table style={{ borderCollapse: "collapse" }}>
                   <thead>
+                    <tr>
+                      <th style={{ border: "1.5px solid #6B7280", background: "#EEF1F4", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#5B6572", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>Monat</th>
+                      {monatSegmente.map((s, i) => (
+                        <th key={i} colSpan={s.span} data-schichtplan-monat={`${s.jahr}-${pad(s.monat + 1)}`} style={{ border: "1.5px solid #6B7280", borderLeft: i > 0 ? "3px solid #22262B" : "1.5px solid #6B7280", background: s.jahr === my && s.monat === mm ? "#1E2761" : "#EEF1F4", fontSize: "0.62rem", fontWeight: 800, color: s.jahr === my && s.monat === mm ? "white" : "#5B6572", padding: "3px 6px", textAlign: "left", whiteSpace: "nowrap" }}>
+                          {/* Der Name läuft beim seitlichen Scrollen mit (sticky), sonst stünde bei
+                              einem halb gescrollten Monat nur ein leerer Balken. */}
+                          <span style={{ position: "sticky", left: "128px", display: "inline-block" }}>{s.span >= 3 ? `${MONTHS[s.monat]} ${s.jahr}` : ""}</span>
+                        </th>
+                      ))}
+                    </tr>
                     <tr>
                       <th style={{ border: "1.5px solid #6B7280", background: "#F7F8F9", fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", color: "#8A9099", padding: "3px 8px", textAlign: "left", position: "sticky", left: 0, zIndex: 2 }}>KW</th>
                       {kwSegmente.map((s, i) => (
