@@ -221,7 +221,10 @@ node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…
   ~~75 Stick-Bauer unter Windows~~, ~~76 Push~~ (läuft seit 29.10. über den
   Credential Manager), 77 W: wird noch beschrieben (vor dem Umschalttag klären),
   79 EIN Stick-Werkzeug (gebaut, auf Stick, Server-Kopie und W:), 80
-  Werkstatt-Schlüssel zum Umschalttag, 82 Nachtlauf schläft ein.
+  Werkstatt-Schlüssel zum Umschalttag, ~~82 Nachtlauf~~ (läuft seit 02.11. auf
+  dem Server, 03:00), ~~83 Schichtplan fortlaufend~~ (05.11.), 84 Schichten
+  fortschreiben (gebaut 06.11.; das Eintragen in die echten Daten drückt
+  Roberto selbst im Cockpit – Vorschau vorher lesen, Yakar prüfen).
 - 60 Tagesplan kompakt, 62, 63, 55, 56; 46/47/50/51 Umschalttag und
   Excel-Quellen am Server; 42 harte-70-Testfenster auf 24 s; iPhone-Messung
   des Zettels; 67 QR mit Anlagenliste; Angebot „Planungs-Druck auf zwei

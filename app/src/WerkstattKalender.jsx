@@ -7,6 +7,7 @@ import { LOGO_GRUPPE, LOGO_SCHEURICH, LOGO_SOENDGEN } from "./logos.js";
 import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen, leseOeeSchichten } from "./xlsx.js";
 import * as eingangsordner from "./eingangsordner.js";
 import { pruefeUmschaltDatei } from "./server-client.js";
+import { fortschreibenFuer, vorlageKurz } from "./schichtmuster.js";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -3418,6 +3419,8 @@ function App() {
   const [sonstigeOffen, setSonstigeOffen] = useState(false); // Planung: Gruppe "Sonstige" (ohne Gewerk) aufgeklappt?
   const [matrixCursor, setMatrixCursor] = useState(() => new Date()); // Monat der Schichtplan-Matrix
   const [matrixPick, setMatrixPick] = useState(null); // {person, datum, links, oben} | null - Zellen-Dropdown
+  // Schichten fortschreiben (Roberto 06.11.): {bis, abgewaehlt:Set, fertig:{anzahl,personen}|null} | null
+  const [fortschreiben, setFortschreiben] = useState(null);
   const [matrixNotizHover, setMatrixNotizHover] = useState(null); // {links, oben, notizen} | null - Excel-artiger Notiz-Kasten beim Zeigen
   // Pinnwand (Cockpit-Übersicht): neuer Zettel
   const [zettelOpen, setZettelOpen] = useState(false);
@@ -14934,6 +14937,17 @@ function App() {
                     title={`Schichtplan ${j}`}>{j}</button>
                 ))}
               </span>
+              {/* Schichten fortschreiben (Roberto 06.11.): der Takt jeder Person wird aus
+                  dem Geplanten erkannt und bis Jahresende des Folgejahres weitergeschrieben. */}
+              {!readerMode && team.length > 0 && (
+                <button data-schichtplan-fortschreiben
+                  onClick={() => setFortschreiben({ bis: `${heuteJahr + 1}-12-31`, abgewaehlt: new Set(), fertig: null })}
+                  className="ml-3 px-3 py-1.5 rounded text-xs font-bold"
+                  style={{ backgroundColor: "#1F7A3D", color: "white", border: "1px solid #1F7A3D" }}
+                  title="Den Schicht-Takt jeder Person erkennen und bis Jahresende weiterschreiben">
+                  ↻ Schichten fortschreiben …
+                </button>
+              )}
               <span className="ml-auto text-xs text-slate-400">{readerMode
                 ? "Werkstattschichtplan – nur ansehen"
                 : "Werkstattschichtplan – fortlaufend über Monats- und Jahresgrenzen · Klick auf eine Zelle öffnet die Auswahl · gilt sofort auch in der Planung"}</span>
@@ -15154,6 +15168,124 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Schichten fortschreiben (Roberto 06.11.: "Die Schichten Früh / Spät / Spät mit
+          Bereitschaft / Nacht / Bereitschaft am Wochenende müssen für alle Mitarbeiter
+          kontinuierlich weiter gehen im selben Schema für 27"). Die Rechenlogik steht
+          in schichtmuster.js; hier nur Vorschau je Person, Abwahl und das Eintragen.
+          Nichts wird überschrieben, Feiertage bleiben frei. */}
+      {fortschreiben && !nurLesen("SCHICHTPLAN") && (() => {
+        const bis = /^\d{4}-\d{2}-\d{2}$/.test(fortschreiben.bis) ? fortschreiben.bis : `${new Date().getFullYear() + 1}-12-31`;
+        const jahrBis = Number(bis.slice(0, 4));
+        const feiertage = new Map([...getHolidays(jahrBis - 1), ...getHolidays(jahrBis)]);
+        const kuerzel = Object.fromEntries(Object.entries(SCHICHTEN).map(([n, s]) => [n, s.kurz]));
+        const rang = { mech: 0, elek: 1, azubi: 2, "": 3 };
+        const personen = [...team].sort((a, b) => rang[a.rolle || ""] - rang[b.rolle || ""]).map((m) => m.name);
+        const zeilen = personen.map((person) => fortschreibenFuer(entries, person, bis, todayKey, feiertage));
+        const gewaehlt = zeilen.filter((z) => z.periode && !fortschreiben.abgewaehlt.has(z.person));
+        const alleNeu = gewaehlt.flatMap((z) => z.neu);
+        const eintragen = async () => {
+          if (!alleNeu.length) return;
+          await persist([...entries, ...alleNeu]);
+          setFortschreiben({ ...fortschreiben, fertig: { anzahl: alleNeu.length, personen: gewaehlt.filter((z) => z.neu.length).map((z) => z.person) } });
+        };
+        return (
+          <div className="no-print" data-fortschreiben-dialog style={{ position: "fixed", inset: 0, backgroundColor: "rgba(20,22,25,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 75, padding: "16px" }}
+            onClick={() => setFortschreiben(null)}>
+            <div role="dialog" aria-label="Schichten fortschreiben" onClick={(ev) => ev.stopPropagation()}
+              style={{ backgroundColor: "white", borderRadius: "12px", padding: "18px 22px", width: "960px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.35)" }}>
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div>
+                  <div className="font-black" style={{ fontSize: "1.05rem", color: "#1E2761" }}>↻ Schichten fortschreiben</div>
+                  <div className="text-xs mt-1" style={{ color: "#5B6572", maxWidth: "720px" }}>
+                    Aus dem, was schon geplant ist, erkennt das Cockpit je Person den Takt (zum Beispiel Früh → Spät mit B → Nacht → … → Früh mit Bereitschaft Sa/So → Spät)
+                    und schreibt ihn in demselben Schema weiter. Urlaub, Krank, Schule und Mainsite gelten dabei nicht als Takt.
+                    <strong> Vorhandene Einträge bleiben unangetastet, Feiertage bleiben frei.</strong>
+                  </div>
+                </div>
+                <button onClick={() => setFortschreiben(null)} aria-label="Schließen" className="rounded p-1" style={{ color: "#8A9099" }}><X size={18} /></button>
+              </div>
+              {fortschreiben.fertig ? (
+                <div data-fortschreiben-fertig className="rounded-lg p-3 mt-3 text-sm" style={{ backgroundColor: "#EEF6F0", border: "1px solid #BFD9C7", color: "#1F5E33" }}>
+                  <div className="font-black">✓ {fortschreiben.fertig.anzahl} Schicht-Einträge eingetragen</div>
+                  <div className="text-xs mt-1">{fortschreiben.fertig.personen.join(", ")} – bis {formatDateDE(bis)}. Einzelne Tage lassen sich wie immer per Klick in der Zelle ändern.</div>
+                  <div className="mt-3"><button onClick={() => setFortschreiben(null)} className="px-4 py-1.5 rounded text-xs font-bold text-white" style={{ backgroundColor: "#1E2761" }}>Schließen</button></div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mt-3 mb-2 text-xs font-bold" style={{ color: "#22262B" }}>
+                    <label htmlFor="fortschreiben-bis">Fortschreiben bis</label>
+                    <input id="fortschreiben-bis" type="date" value={fortschreiben.bis} min={todayKey}
+                      onChange={(ev) => setFortschreiben({ ...fortschreiben, bis: ev.target.value })}
+                      className="rounded border px-2 py-1" style={{ borderColor: "#D6D9DC", fontWeight: 600 }} />
+                    <span className="font-normal" style={{ color: "#8A9099" }}>· ab der Woche nach dem letzten Eintrag der Person, frühestens ab dieser Woche</span>
+                  </div>
+                  <table className="w-full" style={{ borderCollapse: "collapse", fontSize: "0.74rem" }}>
+                    <thead>
+                      <tr style={{ color: "#8A9099", fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: ".03em" }}>
+                        <th className="text-left py-1 pr-2" style={{ borderBottom: "1.5px solid #C4CBD2" }}></th>
+                        <th className="text-left py-1 pr-2" style={{ borderBottom: "1.5px solid #C4CBD2" }}>Mitarbeiter</th>
+                        <th className="text-left py-1 pr-2" style={{ borderBottom: "1.5px solid #C4CBD2" }}>Takt</th>
+                        <th className="text-left py-1 pr-2" style={{ borderBottom: "1.5px solid #C4CBD2" }}>Schema ab der letzten geplanten Woche (eine Zelle = eine Woche)</th>
+                        <th className="text-left py-1 pr-2" style={{ borderBottom: "1.5px solid #C4CBD2", whiteSpace: "nowrap" }}>Ab</th>
+                        <th className="text-right py-1" style={{ borderBottom: "1.5px solid #C4CBD2", whiteSpace: "nowrap" }}>Neue Einträge</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {zeilen.map((z) => {
+                        const aktiv = !!z.periode && !fortschreiben.abgewaehlt.has(z.person);
+                        return (
+                          <tr key={z.person} data-fortschreiben-person={z.person} data-fortschreiben-takt={z.periode || ""} data-fortschreiben-neu={aktiv ? z.neu.length : 0}
+                            style={{ borderBottom: "1px solid #E5E9ED", opacity: z.periode ? 1 : 0.6 }}>
+                            <td className="py-1.5 pr-2">
+                              <input type="checkbox" checked={aktiv} disabled={!z.periode} aria-label={`${z.person} fortschreiben`}
+                                onChange={(ev) => {
+                                  const ab = new Set(fortschreiben.abgewaehlt);
+                                  if (ev.target.checked) ab.delete(z.person); else ab.add(z.person);
+                                  setFortschreiben({ ...fortschreiben, abgewaehlt: ab });
+                                }} />
+                            </td>
+                            <td className="py-1.5 pr-2 font-bold" style={{ whiteSpace: "nowrap" }}>{z.person}</td>
+                            {z.periode ? (
+                              <>
+                                <td className="py-1.5 pr-2" style={{ whiteSpace: "nowrap" }}>{z.periode} Wochen<br /><span style={{ color: "#8A9099", fontSize: "0.64rem" }}>{Math.round(z.quote * 100)} % Treffer</span></td>
+                                <td className="py-1.5 pr-2">
+                                  <span className="inline-flex flex-wrap gap-0.5">
+                                    {vorlageKurz(z.vorlage, kuerzel).map((k, i) => {
+                                      const basis = k.split("+")[0];
+                                      const name = Object.keys(SCHICHTEN).find((n) => SCHICHTEN[n].kurz === basis);
+                                      const s = name ? SCHICHTEN[name] : null;
+                                      return (
+                                        <span key={i} title={`Woche ${i + 1} des Takts`} className="inline-flex items-center justify-center rounded font-black"
+                                          style={{ minWidth: "26px", height: "20px", padding: "0 4px", fontSize: "0.62rem", color: s ? (s.text || "white") : "#8A9099", backgroundColor: s ? s.color : "#EEF1F4", border: s ? "none" : "1px solid #D6D9DC" }}>{k}</span>
+                                      );
+                                    })}
+                                  </span>
+                                </td>
+                                <td className="py-1.5 pr-2" style={{ whiteSpace: "nowrap" }}>{formatDateDE(z.start)}</td>
+                                <td className="py-1.5 text-right font-bold" style={{ whiteSpace: "nowrap" }}>{aktiv ? z.neu.length : "–"}</td>
+                              </>
+                            ) : (
+                              <td colSpan={4} className="py-1.5 pr-2" style={{ color: "#8A9099" }}>wird übersprungen: {z.grund}</td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="flex items-center justify-end gap-2 mt-4">
+                    <button onClick={() => setFortschreiben(null)} className="px-4 py-1.5 rounded text-xs font-bold border" style={{ borderColor: "#D6D9DC", color: "#5B6572", backgroundColor: "white" }}>Abbrechen</button>
+                    <button data-fortschreiben-eintragen onClick={eintragen} disabled={!alleNeu.length}
+                      className="px-4 py-1.5 rounded text-xs font-bold text-white" style={{ backgroundColor: alleNeu.length ? "#1F7A3D" : "#A8B0B8" }}>
+                      {alleNeu.length} Einträge jetzt eintragen
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Gelber Notiz-Kasten beim Zeigen auf eine Zelle mit rotem Eck -
           bewusst wie der Excel-Kommentar: Verfasser fett, darunter der

@@ -36,7 +36,13 @@ Es bündelt die tägliche Werkstattorganisation an einem Ort:
 - **Schichtplan** – Früh/Spät/Nacht je Person; die Matrix läuft seit 05.11.
   fortlaufend über Monats- und Jahresgrenzen (neun Wochen ab dem Montag vor dem
   1. des gewählten Monats, Monatszeile oben), die Jahres-Kacheln 2026/2027/2028
-  neben „Heute“ springen in den Januar des Jahres
+  neben „Heute“ springen in den Januar des Jahres. **„↻ Schichten
+  fortschreiben …“** (seit 06.11., nur mit Schreibrecht): erkennt je Person den
+  Takt aus dem schon Geplanten (z. B. 12 Wochen: Früh → Spät mit B → Nacht →
+  … → Früh mit Bereitschaft Sa/So → Spät) und schreibt ihn bis zum gewählten
+  Datum weiter – Vorschau je Person mit Takt, Trefferquote, Schema und Zahl
+  der neuen Einträge, Häkchen zum Abwählen; vorhandene Einträge bleiben,
+  Feiertage bleiben frei, Urlaub/Krank/Schule/Mainsite gelten nicht als Takt
 - **Planung** – Arbeitsverteilung je Tag/Person (Excel-KW-Stil)
 - **Backlog** – Sammlung offener Arbeiten mit Prioritäten
 - **TPM-Plan & R+I** – wiederkehrende Wartungen und Inspektionen
