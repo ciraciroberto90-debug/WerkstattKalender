@@ -956,6 +956,34 @@ Störungen, nicht den Rest.
   nicht aus dem Briefkasten kommen (PC-Ordner, Handy im WLAN), werden nicht
   automatisch sortiert. Die Status-Seite des Dienstes zählt „davon …
   automatisch einsortiert“.
+- **Tickets** (Roll-out 85, 24.11.): Meldungen der **Abteilungsleiter** an die
+  Werkstatt – alles, nicht nur Anlagen (auch „Defektes Fenster“).
+  - **Melden** geht ohne Cockpit: im Browser die Seite
+    `http://v-btacockpit-1:8765/melden` öffnen (Link auf den Desktop legen).
+    Beim ersten Mal Name und Abteilung eintragen, dann Kachel wählen
+    (Anlage/Maschine, Gebäude, Strom/Licht, Wasser/Heizung/Luft,
+    Auftrag/Umbau, Sonstiges), **Wo**, **Was ist los**, **Wie eilig**, wahlweise
+    ein Foto – abschicken. Es gibt eine Nummer (z. B. 2026-0147). Unter
+    **Meine Meldungen** steht der Stand; eine **Rückfrage** der Werkstatt
+    erscheint dort mit roter Zahl und wird dort beantwortet.
+    Die Liste „Meine Meldungen“ hängt an dem Browser, mit dem gemeldet wurde.
+  - **Nichts geht ins Internet:** Die Seite kommt vom BTA-Server im Haus und
+    spricht nur mit ihm. Kein Kennwort, keine Benutzerliste, keine E-Mail.
+  - **Im Cockpit** steht oben der Reiter **Tickets** mit roter Zahl (neue
+    Meldungen und neue Antworten). „Sofort“ steht oben. **Annehmen für …**
+    teilt das Ticket einer Person zu und legt für sie ein **To-do** an (Titel
+    „Ticket 2026-0147: …“, bei „Sofort“ mit hoher Prio, Foto im To-do, wenn die
+    Foto-Ablage verbunden ist). **Rückfrage** schickt eine Frage an den Melder,
+    **Erledigt** schließt mit einem Satz Rückmeldung. Ist das To-do abgehakt,
+    erinnert die Zeile daran, das Ticket noch zu schließen. Erledigte Tickets
+    bleiben 60 Tage in der Liste.
+  - Den Reiter sehen Bearbeiter und Verwalter (Rechte-Matrix, Zeile
+    „Tickets“); Leser nicht. Der Rechner findet den Server über die Datei
+    `ticket-server.json` im Update-Ordner; solange er ihn nicht kennt, sieht
+    nur der Verwalter den Reiter und kann die Adresse von Hand eintragen.
+  - Tickets liegen in einer eigenen Tabelle am Server, nicht in der
+    gemeinsamen Datei – der Abgleich der Rechner ist davon unberührt. Sie
+    sind in der nächtlichen Sicherung des Servers enthalten.
 - **TPM → Übersicht:** ein digitales **TPM-Board**, das beim Klick auf **TPM** zuerst öffnet.
   Oben die **Monats- und Jahresquote als Halbkreise**. Es holt das Team ab und erklärt kurz,
   **was** TPM und R+I sind und **warum** sie wichtig sind (Sicherheit, Verfügbarkeit, Nachweis).

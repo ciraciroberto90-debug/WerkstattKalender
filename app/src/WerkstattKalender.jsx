@@ -8,6 +8,7 @@ import { leseArbeitsmappe, findeKopfbereich, erkenneSpalten, leseOeeZeilen, lese
 import * as eingangsordner from "./eingangsordner.js";
 import { pruefeUmschaltDatei } from "./server-client.js";
 import { fortschreibenFuer, vorlageKurz } from "./schichtmuster.js";
+import { useTickets, TicketAnsicht } from "./tickets.jsx";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -2067,6 +2068,9 @@ const RECHTE_BEREICHE = [
   // Eingangsordner sortieren. Sortieren schreibt immer (Arbeit, To-do, …) -
   // deshalb für Leser aus.
   ["AUFNAHME", "Aufnahme", "Reiter Aufnahme – Bilder vom Handy und aus dem Eingangsordner in Arbeit, To-do, Störung, Zettel oder Akte sortieren", "bereich", "aus"],
+  // Reiter Tickets (Roll-out 85, 24.11.): Meldungen der Abteilungsleiter vom
+  // BTA-Server. Fremde Meldungen gehen nur die Werkstatt an - für Leser aus.
+  ["TICKETS", "Tickets", "Reiter Tickets – Meldungen der Abteilungsleiter annehmen, rückfragen, erledigen", "bereich", "aus"],
   ["MELDEN", "Störung melden", "neuen Störbericht erfassen – auch ohne Schreibrecht im Bereich", "aktion", "sehen"],
   // Seit dem 24.09. (Robertos Ansage) nur noch Verwaltersache - die Zeilen
   // bleiben in der Tabelle stehen, damit man sieht, dass es so gewollt ist.
@@ -2103,12 +2107,12 @@ function normalisiereProgrammStand(roh) {
 const RECHTE_STANDARD = {
   bearbeiter: {
     SCHICHTPLAN: "bearbeiten", PLANUNG: "bearbeiten", TODO: "bearbeiten", STOERUNGEN: "bearbeiten", BACKLOG: "bearbeiten", UEBERGABE: "bearbeiten",
-    ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten", AUFNAHME: "bearbeiten",
+    ZEIT: "bearbeiten", TPM: "bearbeiten", PINNWAND: "bearbeiten", LINKS: "bearbeiten", AUFNAHME: "bearbeiten", TICKETS: "bearbeiten",
     MELDEN: "sehen", DRUCKEN: "sehen", SCHICHTBERICHT: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
   leser: {
     SCHICHTPLAN: "sehen", PLANUNG: "aus", TODO: "sehen", STOERUNGEN: "bearbeiten", BACKLOG: "aus", UEBERGABE: "sehen",
-    ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus", AUFNAHME: "aus",
+    ZEIT: "sehen", TPM: "aus", PINNWAND: "sehen", LINKS: "aus", AUFNAHME: "aus", TICKETS: "aus",
     MELDEN: "sehen", DRUCKEN: "sehen", SCHICHTBERICHT: "sehen", MONITOR: "aus", DATEN: "aus", ZAHNRAD: "aus",
   },
 };
@@ -3982,8 +3986,14 @@ function App() {
     if (v === "BERICHTE") return bTab === "START" || sichtbar(bTab);
     if (v === "REGISTER") return sichtbar("TPM") && !readerMode;
     if (v === "AUFNAHME") return sichtbar("AUFNAHME") && !readerMode; // Sortieren schreibt immer
+    if (v === "TICKETS") return sichtbar("TICKETS") && !readerMode; // fremde Meldungen: nur die Werkstatt
     return sichtbar("TPM"); // TPMINFO, MONAT, JAHR
   };
+  /* Tickets (Roll-out 85): die Meldungen der Abteilungsleiter vom BTA-Server.
+     Eigener Weg neben der Speicherschicht (siehe tickets.jsx) - gefragt wird
+     nur, wenn dieser Benutzer den Reiter sehen darf und die Rechte geprüft sind. */
+  const ticketsDarfSehen = shareChecked && sichtbar("TICKETS") && !readerMode;
+  const ticketDaten = useTickets({ imBlick: view === "TICKETS", aus: !ticketsDarfSehen });
 
   /* Zurück-Pfeil in der Untermenü-Zeile (Robertos Ansage vom 14.09.): ein
      kleiner Ansichts-Verlauf über Hauptbereich + Unterreiter. Jede Änderung
@@ -6443,6 +6453,33 @@ function App() {
     if (ok) fotosAufraeumen(m.fotosWeg); // mit ✕ entfernte Bilddateien erst NACH dem Speichern wegräumen
     if (fotoFehler) setErr(fotoFehler);
     if (ok) { setTodoModal(null); setTodoFehler(null); }
+  };
+  /* Ticket annehmen (Roll-out 85): aus der Meldung eines Abteilungsleiters wird
+     ein To-do für die zuständige Person - über denselben Weg wie jedes andere
+     To-do (persist), damit Abgleich und Verlauf nichts Neues lernen müssen. Das
+     To-do trägt die Ticket-Nummer, das Ticket die To-do-Kennung. Das Foto der
+     Meldung wandert in die Foto-Ablage; scheitert das, entsteht das To-do
+     trotzdem (der Text ist wichtiger als das Bild) und sagt, wo das Foto liegt. */
+  const ticketAlsTodo = async (t, person, todoId, fotoBlob) => {
+    const ersteZeile = String(t.text || "").split("\n")[0].trim();
+    let fotos = [];
+    let fotoHinweis = "";
+    if (t.foto) {
+      fotoHinweis = "\nFoto: am Ticket (Reiter Tickets)";
+      if (fotoBlob && sharedFile.fotosVerfuegbar && sharedFile.fotosVerfuegbar()) {
+        const datei = `ticket-${t.nr}${(String(t.foto).match(/\.(jpg|png|webp)$/) || [".jpg"])[0]}`;
+        try { await sharedFile.fotoSpeichern(datei, fotoBlob); fotos = [{ datei, wer: t.melder || "", ts: t.angelegt || new Date().toISOString() }]; fotoHinweis = ""; } catch (e) { /* bleibt beim Hinweis */ }
+      }
+    }
+    const eintrag = {
+      id: todoId, category: "TODO",
+      name: `Ticket ${t.nr}: ${ersteZeile.length > 90 ? ersteZeile.slice(0, 89) + "…" : ersteZeile}`,
+      date: todayKey, wer: person || "", von: "", bis: "", uhrzeit: "", prio: t.eile === "sofort" ? "hoch" : "",
+      bemerkung: `${t.art} · ${t.ort}\n${t.text}\nGemeldet von ${t.melder} (${t.abteilung})${fotoHinweis}`,
+      erteiltVon: angemeldet || "", status: "offen", ticketNr: t.nr,
+      ...(fotos.length > 0 ? { fotos } : {}),
+    };
+    return !!(await persist([...entries, eintrag]));
   };
   const todoLoeschen = async () => {
     if (!todoModal || !todoModal.id) return;
@@ -10504,6 +10541,10 @@ function App() {
                 if (sichtbar("TPM")) tabs.push(["TPM", "TPM"]);
                 // Aufnahme (Roll-out 61): Bilder sortieren - nur mit Schreibrecht
                 if (sichtbar("AUFNAHME") && !readerMode) tabs.push(["AUFNAHME", "Aufnahme"]);
+                // Tickets (Roll-out 85): Meldungen der Abteilungsleiter - nur mit Schreibrecht.
+                // Solange der Rechner den BTA-Server nicht kennt, sieht nur der Verwalter den
+                // Reiter (er kann die Adresse eintragen) - die Werkstatt bekommt keinen toten Knopf.
+                if (ticketsDarfSehen && (ticketDaten.adresse || istVerwalter)) tabs.push(["TICKETS", "Tickets"]);
                 return tabs;
               })().map(([v, label]) => {
                 const active =
@@ -10511,9 +10552,10 @@ function App() {
                   : v === "SCHICHTPLAN" ? (view === "COCKPIT" && cockpitTab === "SCHICHTPLAN")
                   : v === "BERICHTE" ? view === "BERICHTE"
                   : v === "AUFNAHME" ? view === "AUFNAHME"
+                  : v === "TICKETS" ? view === "TICKETS"
                   : v === "WERKSTATT" ? (view === "COCKPIT" && cockpitTab !== "UEBERSICHT")
-                  : (view !== "COCKPIT" && view !== "BERICHTE" && view !== "AUFNAHME");
-                const badge = v === "BERICHTE" ? stoerOffenCount + todoUeberfaellige.length : v === "AUFNAHME" ? aufnahmeOffenZahl : 0;
+                  : (view !== "COCKPIT" && view !== "BERICHTE" && view !== "AUFNAHME" && view !== "TICKETS");
+                const badge = v === "BERICHTE" ? stoerOffenCount + todoUeberfaellige.length : v === "AUFNAHME" ? aufnahmeOffenZahl : v === "TICKETS" ? ticketDaten.offenZahl : 0;
                 return (
                   <button
                     key={v}
@@ -10523,6 +10565,7 @@ function App() {
                       else if (v === "SCHICHTPLAN") { setView("COCKPIT"); setCockpitTab("SCHICHTPLAN"); }
                       else if (v === "BERICHTE") { setView("BERICHTE"); setBerichtTab("START"); }
                       else if (v === "AUFNAHME") { setView("AUFNAHME"); }
+                      else if (v === "TICKETS") { setView("TICKETS"); }
                       else if (v === "WERKSTATT") { setView("COCKPIT"); setCockpitTab(sichtbar("SCHICHTPLAN") ? "SCHICHTPLAN" : "PLANUNG"); }
                       else setView("TPMINFO");
                     }}
@@ -10834,7 +10877,7 @@ function App() {
               </button>
             ))}
           </div>
-        ) : view === "AUFNAHME" ? (
+        ) : view === "TICKETS" ? null /* Tickets haben kein Untermenü */ : view === "AUFNAHME" ? (
           <div className="flex" style={{ scrollbarWidth: "none" }}>
             {/* Aufnahme (Roll-out 61): drei Blicke auf denselben Eingangskorb */}
             {[["EINGANG", "Eingang"], ["BLAETTERN", "Durchblättern"], ["FILM", "Tagesfilm"]].map(([v, label]) => (
@@ -11483,6 +11526,16 @@ function App() {
         <div className="font-mono text-sm">{printSuffix}</div>
         <div className="font-mono text-xs mt-1">{doneCount} erledigt · {openCount} offen{donePercent !== null ? ` · ${donePercent} %` : ""}</div>
       </div>
+
+      {/* ================= Bereich TICKETS (Roll-out 85, 24.11.) =========
+          Meldungen der Abteilungsleiter vom BTA-Server - Anzeige und Logik in tickets.jsx.
+          Hier nur das, was die App beisteuert: Team, To-dos und das Anlegen eines To-dos. */}
+      {view === "TICKETS" && ticketsDarfSehen && (
+        <div className="no-print max-w-7xl mx-auto px-4 mt-4 mb-10">
+          <TicketAnsicht daten={ticketDaten} team={team} angemeldet={angemeldet} darf={!nurLesen("TICKETS")} istVerwalter={istVerwalter}
+            todos={todos} todoAnlegen={ticketAlsTodo} todoOeffnen={(t) => { setView("BERICHTE"); setBerichtTab("TODO"); todoBearbeiten(t); }} />
+        </div>
+      )}
 
       {/* ================= Bereich AUFNAHME (Roll-out 61, Robertos Freigabe 06.10.) =========
           Robertos Wunsch: „eine Kombi aus allen" Vorlagen - Eingangskorb mit

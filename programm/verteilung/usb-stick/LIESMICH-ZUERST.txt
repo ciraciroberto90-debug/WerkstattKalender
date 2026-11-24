@@ -1,7 +1,7 @@
 ==========================================================
  BTA-COCKPIT - DER STICK (ein Werkzeug fuer alles)
 ==========================================================
-Stand: 30.10.2026 (Programm 1.3, Dienst 0.6.1, Werkzeug neu)
+Stand: 24.11.2026 (Programm 1.3, Dienst 0.7.0 mit Tickets, Werkzeug vom 30.10.)
 
 Dieser Ordner enthaelt ALLES, um das BTA-Cockpit auf einem
 Windows-Rechner einzurichten - und den BTA-Server zu pflegen.

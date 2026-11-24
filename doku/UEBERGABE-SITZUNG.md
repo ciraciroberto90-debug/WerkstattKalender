@@ -224,7 +224,15 @@ node tools/abgabe.js --merkmal <x> --tests <a,b|voll> --einspielen --commit "…
   Werkstatt-Schlüssel zum Umschalttag, ~~82 Nachtlauf~~ (läuft seit 02.11. auf
   dem Server, 03:00), ~~83 Schichtplan fortlaufend~~ (05.11.), 84 Schichten
   fortschreiben (gebaut 06.11.; das Eintragen in die echten Daten drückt
-  Roberto selbst im Cockpit – Vorschau vorher lesen, Yakar prüfen).
+  Roberto selbst im Cockpit – Vorschau vorher lesen, Yakar prüfen),
+  **85 Ticketsystem** (gebaut 24.11.: Dienst **0.7.0** im Repo, am Server läuft
+  noch 0.6.1; Melde-Seite `melden/ticket-melden.html` → `/melden`, Reiter
+  „Tickets“ im Cockpit über `app/src/tickets.jsx`, eigener Weg neben der
+  Speicherschicht – funktioniert auch über W:. Einspiel-Schritte E1–E5 in der
+  Roll-out-Liste, **ein Schritt je Nachricht**; Werkstatt-Rechner sehen den
+  Reiter erst, wenn `ticket-server.json` im Update-Ordner liegt), 86
+  Status-Seite 24 h (in 0.7.0 gebaut). Prüfstand:
+  `node --no-warnings tests/server/pruefe-tickets.js` (43) und harte-115 (13).
 - 60 Tagesplan kompakt, 62, 63, 55, 56; 46/47/50/51 Umschalttag und
   Excel-Quellen am Server; 42 harte-70-Testfenster auf 24 s; iPhone-Messung
   des Zettels; 67 QR mit Anlagenliste; Angebot „Planungs-Druck auf zwei

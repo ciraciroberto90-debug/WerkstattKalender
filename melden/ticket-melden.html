@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meldung an die Werkstatt</title>
+<!-- MELDE-SEITE (Roll-out 85, Roberto 23./24.11.: "Abteilungsleiter melden darüber alles, nicht nur
+     Anlage, sondern auch z. B. 'Defektes Fenster'; QR-Codes benötigen wir nicht; ungern, dass Daten
+     ins Netz gehen").
+     Eine einzige Datei ohne fremde Bausteine: Sie lädt nichts aus dem Internet und spricht nur mit dem
+     BTA-Cockpit-Dienst, der sie ausgeliefert hat (http://v-btacockpit-1:8765/melden). Der Dienst setzt
+     beim Ausliefern den Standort in die zwei data-Angaben am body ein.
+     WARUM keine Anmeldung: Der Browser merkt sich Name, Abteilung und eine Zufallskennung. Über die
+     Kennung findet "Meine Meldungen" die eigenen Tickets wieder - ohne Kennwort, ohne Benutzerliste.
+     Die KACHELN stehen hier (nicht im Dienst), damit sie ohne Dienst-Tausch geändert werden können. -->
+<style>
+  :root { --blau: #1E2761; --orange: #C97A2B; --gruen: #1F7A3D; --rot: #B23A34; --grau: #5B6572; --rand: #D6D9DC; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #E4E7EA; color: #22262B; font-family: "Segoe UI", system-ui, Arial, sans-serif; font-size: 15px; line-height: 1.4; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 14px 16px 30px; }
+  .reiter { display: flex; gap: 6px; flex-wrap: wrap; }
+  .reiter button { border: 1px solid var(--rand); border-bottom: 0; background: #F4F6F8; padding: 10px 16px; border-radius: 10px 10px 0 0; font: inherit; font-weight: 700; color: var(--grau); cursor: pointer; }
+  .reiter button[aria-selected="true"] { background: #fff; color: var(--blau); border-color: #9AA3AD; }
+  .reiter .zahl { background: var(--rot); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 11px; font-weight: 800; margin-left: 6px; }
+  .buehne { background: #fff; border: 1px solid #9AA3AD; border-radius: 0 12px 12px 12px; }
+  .seite { padding: 18px 20px 22px; }
+  .kopf { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .kopf .logo { width: 34px; height: 34px; border-radius: 9px; background: var(--orange); color: #fff; font-weight: 900; display: flex; align-items: center; justify-content: center; flex: none; }
+  .kopf b.t { font-size: 18px; color: var(--blau); }
+  .kopf span { color: var(--grau); font-size: 13px; }
+  .kopf .wer { margin-left: auto; text-align: right; font-size: 13px; color: var(--grau); }
+  .zwei { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; }
+  @media (max-width: 820px) { .zwei { grid-template-columns: minmax(0, 1fr); } }
+  label.t { display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--grau); margin: 14px 0 5px; }
+  label.t:first-child { margin-top: 0; }
+  .feld { width: 100%; border: 1px solid var(--rand); border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; color: inherit; }
+  textarea.feld { min-height: 84px; resize: vertical; }
+  .kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  @media (max-width: 520px) { .kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .kachel { border: 1.5px solid var(--rand); border-radius: 12px; background: #fff; padding: 10px 8px; text-align: center; cursor: pointer; font: inherit; color: inherit; }
+  .kachel .bild { font-size: 22px; display: block; }
+  .kachel b { display: block; font-size: 13.5px; }
+  .kachel small { color: #8A9099; font-size: 11px; }
+  .kachel[aria-pressed="true"] { border-color: var(--blau); background: #EDF0FA; box-shadow: inset 0 0 0 1px var(--blau); }
+  .dring { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .dring button { border: 1.5px solid var(--rand); border-radius: 10px; background: #fff; padding: 8px 6px; font: inherit; color: inherit; cursor: pointer; text-align: center; }
+  .dring b { display: block; font-size: 13.5px; }
+  .dring small { color: #8A9099; font-size: 11px; }
+  .dring button[aria-pressed="true"][data-d="sofort"] { border-color: var(--rot); background: #FBE9E7; }
+  .dring button[aria-pressed="true"][data-d="woche"] { border-color: var(--orange); background: #FDF3E7; }
+  .dring button[aria-pressed="true"][data-d="zeit"] { border-color: var(--gruen); background: #EEF6F0; }
+  .foto { border: 1.5px dashed #B8C0C8; border-radius: 10px; padding: 10px; text-align: center; color: var(--grau); font-size: 13px; cursor: pointer; }
+  .foto.drueber { border-color: var(--blau); background: #EDF0FA; }
+  .foto img { max-width: 100%; max-height: 180px; border-radius: 8px; display: block; margin: 0 auto 6px; }
+  .senden { margin-top: 16px; width: 100%; border: 0; border-radius: 12px; background: var(--gruen); color: #fff; font: inherit; font-weight: 800; font-size: 16px; padding: 13px; cursor: pointer; }
+  .senden:disabled { background: #A8B0B8; cursor: default; }
+  .fehlt { color: var(--rot); font-size: 13px; margin-top: 6px; min-height: 18px; font-weight: 600; }
+  .kasten { border: 1px solid var(--rand); border-radius: 12px; padding: 12px 14px; background: #F7F9FB; }
+  .kasten h3 { margin: 0 0 6px; font-size: 14px; color: var(--blau); }
+  .kasten ul { margin: 0; padding-left: 18px; color: #4B5259; font-size: 13.5px; }
+  .kasten li { margin-bottom: 4px; }
+  .danke { border: 1px solid #BFD9C7; border-left: 4px solid var(--gruen); background: #EEF6F0; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+  .danke b { font-size: 17px; color: #1F5E33; }
+  .warn { border: 1px solid #E3B7B3; border-left: 4px solid var(--rot); background: #FBEFED; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; color: #7A2620; }
+  .chip { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .chip.neu { background: #E7ECF8; color: var(--blau); }
+  .chip.angenommen { background: #FDF3E7; color: #8A4E12; }
+  .chip.arbeit { background: #FFF4C2; color: #6B5310; }
+  .chip.erledigt { background: #E3F2E8; color: #1F5E33; }
+  .chip.frage { background: #FBE9E7; color: var(--rot); }
+  .chip.sofort { background: var(--rot); color: #fff; }
+  .chip.woche { background: var(--orange); color: #fff; }
+  .chip.zeit { background: #DDE2E7; color: #4B5259; }
+  .karte { border: 1px solid var(--rand); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: #fff; }
+  .karte.frage { border-color: #E3B7B3; box-shadow: inset 4px 0 0 var(--rot); }
+  .karte .oben { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .karte .nr { font-family: Consolas, monospace; font-size: 12.5px; color: #8A9099; }
+  .karte .titel { font-weight: 800; margin: 4px 0 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .karte .zeile { color: var(--grau); font-size: 13px; overflow-wrap: anywhere; }
+  .karte .antwort { margin-top: 8px; border-left: 3px solid var(--orange); background: #FDF8F1; padding: 6px 10px; font-size: 13.5px; border-radius: 0 8px 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .karte .meine { margin-top: 6px; border-left: 3px solid #9AA3AD; background: #F4F6F8; padding: 6px 10px; font-size: 13.5px; border-radius: 0 8px 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .karte .bild img { max-width: 100%; max-height: 320px; border-radius: 8px; margin-top: 8px; display: block; }
+  .stufen { display: flex; gap: 4px; margin-top: 8px; }
+  .stufen i { flex: 1; height: 5px; border-radius: 3px; background: #E3E7EB; }
+  .stufen i.an { background: var(--gruen); }
+  .tu { border: 1px solid var(--rand); background: #fff; border-radius: 8px; padding: 6px 11px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; color: inherit; }
+  .tu.b { background: var(--blau); border-color: var(--blau); color: #fff; }
+  .tu.g { background: var(--gruen); border-color: var(--gruen); color: #fff; }
+  .link { background: none; border: 0; padding: 0; font: inherit; font-size: 12px; color: #2952CC; text-decoration: underline; cursor: pointer; }
+  .leer { color: var(--grau); padding: 18px 4px; text-align: center; }
+  .fuss { color: #8A9099; font-size: 12px; text-align: center; margin-top: 12px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body data-standort="__BTA_STANDORT__" data-standort-name="__BTA_STANDORT_NAME__">
+<div class="wrap">
+  <div class="reiter" role="tablist">
+    <button type="button" role="tab" aria-selected="true" data-reiter="melden">Melden</button>
+    <button type="button" role="tab" aria-selected="false" data-reiter="meine">Meine Meldungen<span class="zahl" id="zahlFrage" hidden></span></button>
+  </div>
+
+  <div class="buehne">
+    <!-- MELDEN -->
+    <section data-seite="melden">
+      <div class="seite">
+        <div class="kopf"><div class="logo">W</div><div><b class="t">Meldung an die Werkstatt</b><br><span id="standortZeile"></span></div>
+          <div class="wer" id="werZeile" hidden>gemeldet von<br><b style="font-size:14px;color:#22262B" id="werName"></b> <button type="button" class="link" id="werAendern">ändern</button></div></div>
+        <div id="nichtAmServer" class="warn" hidden><b>Diese Seite ist nicht über den BTA-Server geöffnet.</b><br>So kann sie nichts abschicken. Bitte den Link der Werkstatt benutzen.</div>
+        <div id="danke" class="danke" hidden></div>
+        <div id="werKasten" class="kasten" style="margin-bottom:14px" hidden>
+          <h3>Wer meldet?</h3>
+          <div class="zwei" style="gap:10px">
+            <div><label class="t" for="werN">Name</label><input class="feld" id="werN" maxlength="60" autocomplete="name"></div>
+            <div><label class="t" for="werA">Abteilung</label><input class="feld" id="werA" maxlength="60" autocomplete="organization-title"></div>
+          </div>
+          <p style="margin:8px 0 0;font-size:12.5px;color:#5B6572">Nur beim ersten Mal. Dieser Browser merkt sich beides.</p>
+        </div>
+        <div class="zwei">
+          <div>
+            <label class="t">Worum geht es?</label>
+            <div class="kacheln" id="arten">
+              <button type="button" class="kachel" aria-pressed="false" data-art="Anlage / Maschine"><span class="bild">⚙</span><b>Anlage / Maschine</b><small>steht, läuft falsch</small></button>
+              <button type="button" class="kachel" aria-pressed="false" data-art="Gebäude"><span class="bild">🏠</span><b>Gebäude</b><small>Fenster, Tür, Tor, Dach</small></button>
+              <button type="button" class="kachel" aria-pressed="false" data-art="Strom / Licht"><span class="bild">💡</span><b>Strom / Licht</b><small>Lampe, Steckdose</small></button>
+              <button type="button" class="kachel" aria-pressed="false" data-art="Wasser / Heizung / Luft"><span class="bild">🚿</span><b>Wasser / Heizung / Luft</b><small>auch Druckluft</small></button>
+              <button type="button" class="kachel" aria-pressed="false" data-art="Auftrag / Umbau"><span class="bild">🔧</span><b>Auftrag / Umbau</b><small>etwas bauen, ändern</small></button>
+              <button type="button" class="kachel" aria-pressed="false" data-art="Sonstiges"><span class="bild">✎</span><b>Sonstiges</b><small>alles andere</small></button>
+            </div>
+            <label class="t" for="ort">Wo?</label>
+            <input class="feld" id="ort" list="orte" maxlength="120" placeholder="z. B. Halle 3, Tor 2 · oder die Anlage">
+            <datalist id="orte"></datalist>
+            <label class="t" for="text">Was ist los?</label>
+            <textarea class="feld" id="text" maxlength="2000" placeholder="z. B. Fenster neben Tor 2 schließt nicht mehr, Griff abgebrochen"></textarea>
+            <label class="t">Wie eilig?</label>
+            <div class="dring" id="dring">
+              <button type="button" data-d="sofort" aria-pressed="false"><b>Sofort</b><small>steht oder Gefahr</small></button>
+              <button type="button" data-d="woche" aria-pressed="true"><b>Diese Woche</b><small>stört die Arbeit</small></button>
+              <button type="button" data-d="zeit" aria-pressed="false"><b>Wenn Zeit ist</b><small>kann warten</small></button>
+            </div>
+            <label class="t">Foto (wenn es hilft)</label>
+            <div class="foto" id="fotoFeld" tabindex="0" role="button">📷 Bild auswählen oder hierher ziehen</div>
+            <input type="file" id="fotoDatei" accept="image/*" hidden>
+            <button type="button" class="senden" id="senden">Meldung abschicken</button>
+            <div class="fehlt" id="fehlt" role="alert"></div>
+          </div>
+          <div>
+            <div class="kasten">
+              <h3>So geht es</h3>
+              <ul>
+                <li>Drei Angaben reichen: worum, wo, was.</li>
+                <li>Nach dem Abschicken gibt es eine Nummer.</li>
+                <li>Unter „Meine Meldungen“ steht, wie weit die Werkstatt ist. Dort kommt auch eine Rückfrage an.</li>
+                <li>Bei Gefahr für Menschen zusätzlich sofort anrufen.</li>
+              </ul>
+            </div>
+            <div class="kasten" style="margin-top:12px">
+              <h3>Wohin gehen die Daten?</h3>
+              <ul>
+                <li>Vom Browser direkt zum BTA-Server im Haus.</li>
+                <li>Kein Internet, keine Cloud, keine E-Mail.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MEINE MELDUNGEN -->
+    <section data-seite="meine" hidden>
+      <div class="seite">
+        <div class="kopf"><div class="logo">W</div><div><b class="t">Meine Meldungen</b><br><span id="meineWer"></span></div>
+          <div class="wer"><button type="button" class="tu b" data-gehe="melden">＋ Neue Meldung</button></div></div>
+        <div id="meineFehler" class="warn" hidden></div>
+        <div id="meineListe"></div>
+        <p class="fuss" id="meineStand"></p>
+      </div>
+    </section>
+  </div>
+  <p class="fuss">Die Liste „Meine Meldungen“ hängt an diesem Browser auf diesem Rechner.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const h = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const STANDORT = document.body.dataset.standort || "";
+  // Der Dienst ersetzt die Platzhalter beim Ausliefern. Stehen sie noch da, wurde
+  // die Datei direkt geöffnet (Doppelklick) - dann gibt es keinen Server dahinter.
+  const AM_SERVER = !!STANDORT && !/^__/.test(STANDORT) && /^https?:$/.test(location.protocol);
+  const API = "/api/" + encodeURIComponent(STANDORT) + "/tickets";
+  const STAND = { neu: ["Neu", 1], angenommen: ["Angenommen", 2], arbeit: ["In Arbeit", 3], frage: ["Rückfrage", 2], erledigt: ["Erledigt", 4] };
+  const EILE = { sofort: "Sofort", woche: "Diese Woche", zeit: "Wenn Zeit ist" };
+
+  /* ---------- Wer meldet (Name, Abteilung, Kennung) ---------- */
+  const MERK = "bta-melder";
+  let speicherGeht = true;
+  const lies = (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } };
+  const merke = (k, w) => { try { localStorage.setItem(k, JSON.stringify(w)); } catch (e) { speicherGeht = false; } };
+  // crypto.randomUUID gibt es unter http:// (kein „sicherer Kontext“) nicht - getRandomValues schon.
+  const neueKennung = () => Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => b.toString(16).padStart(2, "0")).join("");
+  let wer = lies(MERK);
+  if (!wer || typeof wer !== "object" || !/^[A-Za-z0-9-]{16,64}$/.test(wer.kennung || "")) { wer = { name: "", abteilung: "", kennung: neueKennung() }; merke(MERK, wer); }
+  const werBekannt = () => !!(wer.name && wer.abteilung);
+  function zeigeWer(bearbeiten) {
+    const offen = bearbeiten || !werBekannt();
+    $("werKasten").hidden = !offen;
+    $("werZeile").hidden = offen;
+    $("werN").value = wer.name; $("werA").value = wer.abteilung;
+    $("werName").textContent = wer.name + " · " + wer.abteilung;
+    $("meineWer").textContent = werBekannt() ? wer.name + " · " + wer.abteilung : "";
+  }
+  $("werAendern").addEventListener("click", () => { zeigeWer(true); $("werN").focus(); });
+  function uebernimmWer() {
+    const n = $("werN").value.trim(), a = $("werA").value.trim();
+    if ($("werKasten").hidden) return;
+    wer.name = n; wer.abteilung = a; merke(MERK, wer);
+  }
+
+  /* ---------- Orte, die dieser Browser schon gemeldet hat (Vorschläge) ---------- */
+  const ORTE = "bta-melder-orte";
+  function zeigeOrte() { $("orte").innerHTML = (lies(ORTE) || []).map((o) => `<option>${h(o)}</option>`).join(""); }
+  function merkeOrt(o) { const alle = [o, ...(lies(ORTE) || []).filter((x) => x !== o)].slice(0, 15); merke(ORTE, alle); zeigeOrte(); }
+
+  /* ---------- Reiter ---------- */
+  function zeige(name) {
+    document.querySelectorAll("[data-seite]").forEach((s) => { s.hidden = s.dataset.seite !== name; });
+    document.querySelectorAll("[data-reiter]").forEach((b) => b.setAttribute("aria-selected", b.dataset.reiter === name));
+    if (name === "meine") ladeMeine();
+  }
+  const aktiverReiter = () => (document.querySelector('[data-reiter][aria-selected="true"]') || {}).dataset.reiter;
+  document.querySelectorAll("[data-reiter]").forEach((b) => b.addEventListener("click", () => zeige(b.dataset.reiter)));
+  document.addEventListener("click", (ev) => {
+    const g = ev.target.closest("[data-gehe]"); if (g) { ev.preventDefault(); zeige(g.dataset.gehe); }
+    const k = ev.target.closest(".kachel"); if (k) document.querySelectorAll(".kachel").forEach((x) => x.setAttribute("aria-pressed", x === k));
+    const d = ev.target.closest("#dring button"); if (d) document.querySelectorAll("#dring button").forEach((x) => x.setAttribute("aria-pressed", x === d));
+  });
+
+  /* ---------- Foto: im Browser auf 1600 px verkleinern, dann als JPG mitschicken ---------- */
+  let foto = ""; // Daten-Adresse (data:image/jpeg;base64,…) oder leer
+  function zeigeFoto() {
+    $("fotoFeld").innerHTML = foto
+      ? `<img src="${foto}" alt="Vorschau"><button type="button" class="link" id="fotoWeg">Foto entfernen</button>`
+      : "📷 Bild auswählen oder hierher ziehen";
+  }
+  function nimmFoto(datei) {
+    if (!datei) return;
+    if (!/^image\//.test(datei.type)) { $("fehlt").textContent = "Das ist kein Bild."; return; }
+    const adresse = URL.createObjectURL(datei);
+    const bild = new Image();
+    bild.onload = () => {
+      const f = Math.min(1, 1600 / Math.max(bild.naturalWidth, bild.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(bild.naturalWidth * f)); c.height = Math.max(1, Math.round(bild.naturalHeight * f));
+      c.getContext("2d").drawImage(bild, 0, 0, c.width, c.height);
+      foto = c.toDataURL("image/jpeg", 0.82);
+      URL.revokeObjectURL(adresse);
+      $("fehlt").textContent = "";
+      zeigeFoto();
+    };
+    bild.onerror = () => { URL.revokeObjectURL(adresse); $("fehlt").textContent = "Dieses Bild kann der Browser nicht lesen. Bitte ein JPG oder PNG nehmen."; };
+    bild.src = adresse;
+  }
+  $("fotoFeld").addEventListener("click", (ev) => { if (ev.target.id === "fotoWeg") { foto = ""; $("fotoDatei").value = ""; zeigeFoto(); return; } if (!foto) $("fotoDatei").click(); });
+  $("fotoFeld").addEventListener("keydown", (ev) => { if ((ev.key === "Enter" || ev.key === " ") && !foto) { ev.preventDefault(); $("fotoDatei").click(); } });
+  $("fotoDatei").addEventListener("change", () => nimmFoto($("fotoDatei").files[0]));
+  ["dragenter", "dragover"].forEach((n) => $("fotoFeld").addEventListener(n, (ev) => { ev.preventDefault(); $("fotoFeld").classList.add("drueber"); }));
+  ["dragleave", "drop"].forEach((n) => $("fotoFeld").addEventListener(n, (ev) => { ev.preventDefault(); $("fotoFeld").classList.remove("drueber"); }));
+  $("fotoFeld").addEventListener("drop", (ev) => nimmFoto(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]));
+
+  /* ---------- Mit dem Dienst sprechen ---------- */
+  async function frage(weg, opt = {}, fristMs = 20000) {
+    const ac = new AbortController();
+    const frist = setTimeout(() => ac.abort(), fristMs);
+    try {
+      const r = await fetch(API + weg, { ...opt, cache: "no-store", signal: ac.signal, headers: { "X-BTA-Melder": wer.kennung, ...(opt.body ? { "Content-Type": "application/json" } : {}) } });
+      let k = null; try { k = await r.json(); } catch (e) { k = null; }
+      return { ok: r.ok, status: r.status, k };
+    } catch (e) {
+      return { ok: false, status: 0, k: null, netz: true };
+    } finally { clearTimeout(frist); }
+  }
+
+  /* ---------- Abschicken ---------- */
+  let sendet = false;
+  $("senden").addEventListener("click", async () => {
+    if (sendet) return;
+    uebernimmWer();
+    const art = document.querySelector('.kachel[aria-pressed="true"]');
+    const ort = $("ort").value.trim();
+    const text = $("text").value.trim();
+    const fehlt = [!wer.name && "dein Name", !wer.abteilung && "deine Abteilung", !art && "worum es geht", !ort && "wo", !text && "was los ist"].filter(Boolean);
+    if (fehlt.length) { $("fehlt").textContent = "Es fehlt noch: " + fehlt.join(", ") + "."; if (!werBekannt()) zeigeWer(true); return; }
+    if (!AM_SERVER) { $("fehlt").textContent = "Diese Seite ist nicht über den BTA-Server geöffnet - Abschicken geht so nicht."; return; }
+    $("fehlt").textContent = "";
+    sendet = true; $("senden").disabled = true; $("senden").textContent = "Wird gesendet …";
+    const eile = document.querySelector('#dring button[aria-pressed="true"]').dataset.d;
+    const koerper = { art: art.dataset.art, ort, text, eile, melder: wer.name, abteilung: wer.abteilung, ...(foto ? { foto } : {}) };
+    let r = await frage("", { method: "POST", body: JSON.stringify(koerper) });
+    /* Kam keine Antwort (Netz weg, Frist), kann die Meldung trotzdem angekommen sein.
+       Bevor der Melder ein zweites Mal drückt und die Werkstatt zwei Tickets bekommt:
+       in den eigenen Meldungen nachsehen, ob sie schon da ist. */
+    if (r.netz) {
+      const m = await frage("", {}, 8000);
+      const da = m.ok && (m.k.tickets || []).find((t) => t.text === text && t.ort === ort && Date.now() - Date.parse(t.angelegt) < 5 * 60 * 1000);
+      if (da) r = { ok: true, status: 200, k: { ticket: da } };
+    }
+    sendet = false; $("senden").disabled = false; $("senden").textContent = "Meldung abschicken";
+    if (!r.ok) {
+      const grund = r.netz ? "Der BTA-Server antwortet nicht." : ((r.k && r.k.fehler) || "Der Server meldet einen Fehler (" + r.status + ").");
+      $("fehlt").textContent = "Die Meldung ist NICHT angekommen. " + grund + " Dein Text steht noch hier - bitte gleich noch einmal versuchen oder die Werkstatt anrufen.";
+      return;
+    }
+    const t = r.k.ticket;
+    merkeOrt(ort);
+    zeigeWer(false);
+    const danke = $("danke");
+    danke.hidden = false;
+    danke.innerHTML = `<b>✓ Meldung ${h(t.nr)} liegt bei der Werkstatt.</b><br>Du musst nichts weiter tun. Den Stand siehst du unter <a href="#" data-gehe="meine">Meine Meldungen</a>.`
+      + (r.k.fotoFehler ? `<br><span style="color:#7A2620">${h(r.k.fotoFehler)}</span>` : "");
+    $("ort").value = ""; $("text").value = ""; foto = ""; $("fotoDatei").value = ""; zeigeFoto();
+    document.querySelectorAll(".kachel").forEach((x) => x.setAttribute("aria-pressed", "false"));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    ladeMeine(true);
+  });
+
+  /* ---------- Meine Meldungen ---------- */
+  const zeit = (iso) => { const d = new Date(iso); const z = (n) => String(n).padStart(2, "0"); return isNaN(d) ? "" : `${z(d.getDate())}.${z(d.getMonth() + 1)}. ${z(d.getHours())}:${z(d.getMinutes())}`; };
+  let meine = [];
+  const offeneAntwort = new Map(); // nr -> angefangener Text, damit das Nachladen ihn nicht wegwischt
+  const offeneBilder = new Map();  // nr -> Blob-Adresse des schon geladenen Fotos
+  function zeichneMeine() {
+    const fragen = meine.filter((t) => t.stand === "frage").length;
+    $("zahlFrage").hidden = !fragen; $("zahlFrage").textContent = fragen ? String(fragen) : "";
+    if (!meine.length) { $("meineListe").innerHTML = '<div class="leer">Von diesem Browser wurde noch nichts gemeldet.</div>'; return; }
+    // Eine Rückfrage der Werkstatt wartet auf den Melder - die gehört nach oben, nicht unter neuere Meldungen.
+    const reihe = [...meine].sort((a, b) => (b.stand === "frage") - (a.stand === "frage") || String(b.angelegt).localeCompare(String(a.angelegt)));
+    $("meineListe").innerHTML = reihe.map((t) => {
+      const [name, stufe] = STAND[t.stand] || [t.stand, 1];
+      const tippt = offeneAntwort.has(t.nr);
+      return `<div class="karte ${t.stand === "frage" ? "frage" : ""}" data-nr="${h(t.nr)}"><div class="oben"><span class="nr">${h(t.nr)}</span><span class="chip ${h(t.stand)}">${t.stand === "erledigt" ? "✓ " : ""}${h(name)}</span><span class="chip ${h(t.eile)}">${h(EILE[t.eile] || t.eile)}</span><span class="zeile" style="margin-left:auto">${h(zeit(t.angelegt))}</span></div>
+        <div class="titel">${h(t.text)}</div><div class="zeile">${h(t.art)} · ${h(t.ort)}${t.zustaendig ? " · bei " + h(t.zustaendig) : (t.stand === "erledigt" ? "" : " · wartet auf die Werkstatt")}${t.foto ? ` · <button type="button" class="link" data-bild="${h(t.nr)}">📷 Foto zeigen</button>` : ""}</div>
+        <div class="bild" data-bildplatz="${h(t.nr)}">${offeneBilder.has(t.nr) ? `<img src="${offeneBilder.get(t.nr)}" alt="Foto zur Meldung">` : ""}</div>
+        ${t.antwort ? `<div class="antwort"><b>Werkstatt:</b> ${h(t.antwort)}</div>` : ""}
+        ${t.melderAntwort ? `<div class="meine"><b>Deine Antwort:</b> ${h(t.melderAntwort)}</div>` : ""}
+        ${t.stand === "frage" || tippt ? `<div style="margin-top:8px"><textarea class="feld" data-antwort="${h(t.nr)}" maxlength="2000" placeholder="Antwort an die Werkstatt" style="min-height:60px">${h(offeneAntwort.get(t.nr) || "")}</textarea><div style="margin-top:6px"><button type="button" class="tu g" data-antworten="${h(t.nr)}">Antwort senden</button> <span class="fehlt" data-antwortfehler="${h(t.nr)}" style="display:inline"></span></div></div>`
+          : (t.stand !== "erledigt" ? `<div style="margin-top:6px"><button type="button" class="link" data-nachtrag="${h(t.nr)}">Etwas nachtragen …</button></div>` : "")}
+        <div class="stufen">${[1, 2, 3, 4].map((i) => `<i class="${i <= stufe ? "an" : ""}"></i>`).join("")}</div></div>`;
+    }).join("");
+  }
+  let laedt = false;
+  async function ladeMeine(still) {
+    if (!AM_SERVER || laedt) return;
+    laedt = true;
+    const r = await frage("", {}, 12000);
+    laedt = false;
+    if (!r.ok) {
+      if (!still) { $("meineFehler").hidden = false; $("meineFehler").textContent = r.netz ? "Der BTA-Server antwortet gerade nicht. Die Liste zeigt den letzten bekannten Stand." : "Die Liste konnte nicht geladen werden (" + ((r.k && r.k.fehler) || r.status) + ")."; }
+      return;
+    }
+    $("meineFehler").hidden = true;
+    meine = r.k.tickets || [];
+    // Nicht neu zeichnen, während jemand gerade eine Antwort tippt - sonst springt der Cursor weg.
+    const tipptGerade = document.activeElement && document.activeElement.matches && document.activeElement.matches("[data-antwort]");
+    if (!tipptGerade) zeichneMeine();
+    $("meineStand").textContent = "Stand " + zeit(new Date().toISOString()) + " Uhr";
+  }
+  $("meineListe").addEventListener("input", (ev) => { const f = ev.target.closest("[data-antwort]"); if (f) offeneAntwort.set(f.dataset.antwort, f.value); });
+  $("meineListe").addEventListener("click", async (ev) => {
+    const n = ev.target.closest("[data-nachtrag]");
+    if (n) { offeneAntwort.set(n.dataset.nachtrag, ""); zeichneMeine(); const f = document.querySelector(`[data-antwort="${n.dataset.nachtrag}"]`); if (f) f.focus(); return; }
+    const b = ev.target.closest("[data-bild]");
+    if (b) {
+      const nr = b.dataset.bild;
+      if (!offeneBilder.has(nr)) {
+        // Das Foto braucht die Kennung im Kopf - ein schlichtes <img src> kann die nicht mitschicken.
+        try {
+          const r = await fetch(API + "/" + encodeURIComponent(nr) + "/foto", { headers: { "X-BTA-Melder": wer.kennung } });
+          if (r.ok) offeneBilder.set(nr, URL.createObjectURL(await r.blob()));
+        } catch (e) { /* bleibt ohne Bild */ }
+      }
+      zeichneMeine();
+      return;
+    }
+    const a = ev.target.closest("[data-antworten]");
+    if (a) {
+      const nr = a.dataset.antworten;
+      const feld = document.querySelector(`[data-antwort="${nr}"]`);
+      const fehler = document.querySelector(`[data-antwortfehler="${nr}"]`);
+      const text = (feld.value || "").trim();
+      if (!text) { fehler.textContent = "Bitte erst etwas schreiben."; return; }
+      a.disabled = true;
+      const r = await frage("/" + encodeURIComponent(nr) + "/antwort", { method: "POST", body: JSON.stringify({ text }) });
+      a.disabled = false;
+      if (!r.ok) { fehler.textContent = "NICHT angekommen: " + (r.netz ? "der BTA-Server antwortet nicht." : ((r.k && r.k.fehler) || r.status)); return; }
+      offeneAntwort.delete(nr);
+      meine = meine.map((t) => (t.nr === nr ? r.k.ticket : t));
+      zeichneMeine();
+    }
+  });
+
+  /* ---------- Start ---------- */
+  $("standortZeile").textContent = AM_SERVER ? (document.body.dataset.standortName || STANDORT) + " · Betriebstechnik" : "";
+  $("nichtAmServer").hidden = AM_SERVER;
+  zeigeWer(false);
+  zeigeOrte();
+  zeigeFoto();
+  if (location.hash === "#meine") zeige("meine"); else ladeMeine(true);
+  // Ein Lesezeichen auf …/melden#meine soll auch dann wirken, wenn die Seite schon offen ist.
+  window.addEventListener("hashchange", () => { if (location.hash === "#meine") zeige("meine"); });
+  // Alle 60 s nachsehen, ob die Werkstatt etwas getan hat - nur, wenn das Fenster zu sehen ist.
+  setInterval(() => { if (!document.hidden) ladeMeine(true); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) ladeMeine(true); });
+  if (!speicherGeht) { const p = document.createElement("div"); p.className = "warn"; p.textContent = "Dieser Browser darf sich nichts merken. Melden geht, aber „Meine Meldungen“ ist nach dem Schließen leer."; $("danke").before(p); }
+})();
+</script>
+</body>
+</html>

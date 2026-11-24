@@ -23,6 +23,12 @@
  *   POST /api/:standort/briefkasten          (0.5.0) Briefkasten jetzt abholen (sonst im Takt, Vorgabe 30 s)
  *   GET  /app/                               die App (eine HTML)
  *   GET  /zettel                             (0.5.0) der Aufnahme-Zettel fürs Handy (handy/aufnahme-zettel.html), falls neben der App hinterlegt
+ *   GET  /melden[/:standort]                 (0.7.0) die Melde-Seite für Abteilungsleiter (ticket-melden.html neben der App)
+ *   POST /api/:standort/tickets              (0.7.0) Ticket anlegen - OHNE Werkstatt-Schlüssel, Kopf X-BTA-Melder = Kennung des Browsers
+ *   GET  /api/:standort/tickets              mit X-BTA-Melder: nur die eigenen; sonst die Liste der Werkstatt (Schlüssel, falls gesetzt)
+ *   POST /api/:standort/tickets/:nr/antwort  Antwort des Melders auf eine Rückfrage (X-BTA-Melder muss passen)
+ *   POST /api/:standort/tickets/:nr          Werkstatt ändert Stand/Zuständigen/Antwort (Schlüssel, falls gesetzt); 409 bei Konflikt
+ *   GET  /api/:standort/tickets/:nr/foto     das Foto zum Ticket (Melder oder Werkstatt)
  */
 "use strict";
 const http = require("http");
@@ -58,6 +64,10 @@ function ladeEinstellungen(pfad) {
     // Firmennetz darf schreiben (wie heute die Datei auf W:). Gesetzt = jede
     // schreibende Anfrage braucht den Kopf X-BTA-Schluessel; Lesen bleibt frei.
     schluessel: typeof roh.schluessel === "string" ? roh.schluessel.trim() : "",
+    // Tickets (0.7.0): so viele Meldungen darf EIN Rechner in zehn Minuten anlegen.
+    // Die Melde-Seite braucht keinen Schlüssel - die Bremse verhindert, dass ein
+    // hängendes Skript oder ein Scherz die Liste der Werkstatt flutet.
+    ticketsJe10Min: Math.max(1, Number(roh.ticketsJe10Min) || 30),
     standorte: roh.standorte || {},
     // Briefkasten im Internet (0.5.0, Roll-out 65): der Dienst holt dort ab,
     // was der Aufnahme-Zettel vom Handy eingeworfen hat. Leer = aus.
@@ -91,17 +101,21 @@ function ortsZeit(d = new Date()) {
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
 }
 
-function protokollierer(ordner) {
+/* jetzt: die Uhr, nur für den Prüfstand austauschbar (Roll-out 86). */
+function protokollierer(ordner, jetzt = () => Date.now()) {
   fs.mkdirSync(ordner, { recursive: true });
   const fehlerLetzte24h = [];
   const schreibe = (stufe, text) => {
-    const zeit = ortsZeit();
+    const zeit = ortsZeit(new Date(jetzt()));
     const zeile = `${zeit} ${stufe.padEnd(5)} ${text}`;
     try { fs.appendFileSync(path.join(ordner, `dienst-${zeit.slice(0, 10)}.log`), zeile + "\n"); } catch (e) { /* Protokoll darf den Dienst nicht stoppen */ }
-    if (stufe === "FEHL") { fehlerLetzte24h.push({ zeit, text, ms: Date.now() }); while (fehlerLetzte24h.length && Date.now() - fehlerLetzte24h[0].ms > 86400000) fehlerLetzte24h.shift(); }
+    if (stufe === "FEHL") { fehlerLetzte24h.push({ zeit, text, ms: jetzt() }); while (fehlerLetzte24h.length && jetzt() - fehlerLetzte24h[0].ms > 86400000) fehlerLetzte24h.shift(); }
     if (process.stdout.isTTY || process.env.DIENST_LAUT) console.log(zeile);
   };
-  return { info: (t) => schreibe("INFO", t), fehler: (t) => schreibe("FEHL", t), fehlerLetzte24h: () => fehlerLetzte24h.slice() };
+  /* Beim LESEN filtern (Roll-out 86, gemessen 23.11.): Bisher flogen alte Fehler
+     nur heraus, wenn ein neuer dazukam - die Status-Seite zeigte unter „Fehler der
+     letzten 24 Stunden“ zwei Briefkasten-Fehler, die zwei und drei Tage alt waren. */
+  return { info: (t) => schreibe("INFO", t), fehler: (t) => schreibe("FEHL", t), fehlerLetzte24h: () => fehlerLetzte24h.filter((f) => jetzt() - f.ms <= 86400000) };
 }
 
 /* ---------- Hilfen ---------- */
@@ -149,10 +163,10 @@ function quellenListe(ordner) {
   }).sort((a, b) => a.name.localeCompare(b.name, "de"));
 }
 
-function koerperLesen(req) {
+function koerperLesen(req, maxBytes = MAX_KOERPER) {
   return new Promise((resolve, reject) => {
     const teile = []; let groesse = 0;
-    req.on("data", (d) => { groesse += d.length; if (groesse > MAX_KOERPER) { reject(new Error("Anfrage zu groß")); req.destroy(); return; } teile.push(d); });
+    req.on("data", (d) => { groesse += d.length; if (groesse > maxBytes) { reject(new Error("Anfrage zu groß")); req.destroy(); return; } teile.push(d); });
     // Eine BOM (EF BB BF) am Anfang lässt JSON.parse scheitern - Dateien, die
     // Windows-Werkzeuge geschrieben haben, tragen sie manchmal (Import, Etappe B).
     req.on("end", () => { try { resolve(teile.length ? JSON.parse(Buffer.concat(teile).toString("utf8").replace(/^﻿/, "")) : {}); } catch (e) { reject(new Error("Anfrage ist kein gültiges JSON")); } });
@@ -160,6 +174,54 @@ function koerperLesen(req) {
   });
 }
 const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* ---------- Tickets (0.7.0, Roll-out 85) ----------
+   Eine Meldung kommt von einem Browser OHNE Werkstatt-Schlüssel - deshalb wird
+   hier alles geprüft, was hereinkommt, und nichts still gekürzt: was nicht
+   passt, wird mit einem lesbaren Satz abgewiesen und der Melder behält seinen
+   Text im Formular. Die Arten (Kacheln) stehen bewusst NICHT hier, sondern in
+   der Melde-Seite: Roberto kann sie ändern, ohne den Dienst zu tauschen. */
+const TICKET_EILE = ["sofort", "woche", "zeit"];
+const TICKET_KENNUNG = /^[A-Za-z0-9-]{16,64}$/;
+const MAX_TICKET = 8 * 1024 * 1024;       // ganze Anfrage (Foto steckt als Text darin)
+const MAX_TICKET_FOTO = 5 * 1024 * 1024;  // das Foto selbst; die Seite verkleinert vorher auf 1600 px
+function ticketFotoLesen(datenUrl) {
+  const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=\s]+)$/.exec(String(datenUrl || ""));
+  if (!m) return { fehler: "Foto: nur JPG, PNG oder WebP" };
+  const bytes = Buffer.from(m[2], "base64");
+  if (!bytes.length) return { fehler: "Foto: leere Datei" };
+  if (bytes.length > MAX_TICKET_FOTO) return { fehler: "Foto zu groß (höchstens 5 MB)" };
+  // Nicht der Angabe trauen - die ersten Bytes sagen, was es wirklich ist.
+  const jpg = bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+  const png = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]));
+  const webp = bytes.subarray(0, 4).toString("latin1") === "RIFF" && bytes.subarray(8, 12).toString("latin1") === "WEBP";
+  if (!jpg && !png && !webp) return { fehler: "Foto: die Datei ist kein Bild" };
+  return { bytes, endung: jpg ? ".jpg" : png ? ".png" : ".webp" };
+}
+function ticketPruefen(a, kennung) {
+  const fehlt = [];
+  const feld = (name, wert, max, pflicht, wort) => {
+    // Steuerzeichen heraus (außer Zeilenumbruch und Tabulator), Ränder weg
+    const t = String(wert == null ? "" : wert).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim();
+    if (pflicht && !t) fehlt.push(wort + " fehlt");
+    if (t.length > max) fehlt.push(wort + " ist zu lang (höchstens " + max + " Zeichen)");
+    return t;
+  };
+  const t = {
+    art: feld("art", a && a.art, 60, true, "Worum es geht"),
+    ort: feld("ort", a && a.ort, 120, true, "Wo"),
+    text: feld("text", a && a.text, 2000, true, "Was los ist"),
+    melder: feld("melder", a && a.melder, 60, true, "Name"),
+    abteilung: feld("abteilung", a && a.abteilung, 60, true, "Abteilung"),
+    eile: TICKET_EILE.includes(a && a.eile) ? a.eile : "",
+    kennung,
+  };
+  if (!t.eile) fehlt.push("Wie eilig fehlt");
+  if (!TICKET_KENNUNG.test(kennung)) fehlt.push("Kennung des Browsers fehlt (Seite neu laden)");
+  let foto = null;
+  if (a && a.foto) { foto = ticketFotoLesen(a.foto); if (foto.fehler) fehlt.push(foto.fehler); else t.fotoEndung = foto.endung; }
+  return { ticket: t, foto, fehlt };
+}
 
 /* ---------- Der Dienst ---------- */
 function starten(einstellungen, { still = false } = {}) {
@@ -405,9 +467,114 @@ function starten(einstellungen, { still = false } = {}) {
   const briefkastenUhr = bk ? setInterval(() => { briefkastenAbholen("Takt"); }, bk.taktSek * 1000) : null;
   if (bk) { log.info(`Briefkasten: ${bk.adresse} -> Standort ${bk.standort}, alle ${bk.taktSek} s nachfragen, Liste bei neuer Marke oder alle ${bk.listeAlleSek} s`); setTimeout(() => briefkastenAbholen("Start"), 1500); }
 
+  /* ---------- Tickets (0.7.0, Roll-out 85) ----------
+     Zwei Seiten sprechen diesen Weg an:
+       - die Melde-Seite (Abteilungsleiter, kein Schlüssel): anlegen, die EIGENEN
+         lesen, auf eine Rückfrage antworten. „Eigene“ = dieselbe Browser-Kennung
+         im Kopf X-BTA-Melder; es gibt bewusst keine Benutzerverwaltung.
+       - das Cockpit (Werkstatt): alle lesen, Stand ändern. Ist ein Werkstatt-
+         Schlüssel gesetzt, braucht BEIDES den Schlüssel - anders als beim
+         Kalender (dort ist Lesen frei), weil fremde Meldungen niemanden außer
+         der Werkstatt etwas angehen. */
+  const werkstattDarf = (req) => !e.schluessel || String(req.headers["x-bta-schluessel"] || "") === e.schluessel;
+  const ticketBremse = new Map(); // Adresse -> Zeitpunkte der letzten Meldungen
+  function ticketZuViele(adresse) {
+    const jetzt = Date.now();
+    const zeiten = (ticketBremse.get(adresse) || []).filter((z) => jetzt - z < 10 * 60 * 1000);
+    if (zeiten.length >= e.ticketsJe10Min) { ticketBremse.set(adresse, zeiten); return true; }
+    zeiten.push(jetzt); ticketBremse.set(adresse, zeiten);
+    if (ticketBremse.size > 500) for (const [k, v] of ticketBremse) if (!v.some((z) => jetzt - z < 10 * 60 * 1000)) ticketBremse.delete(k);
+    return false;
+  }
+  async function ticketWeg(req, res, u, teile, st) {
+    const nr = teile[3] ? decodeURIComponent(teile[3]) : "";
+    const tat = teile[4] || "";
+    const kennung = String(req.headers["x-bta-melder"] || "").trim();
+    const fotoOrdner = path.join(st.datenOrdner, "ticket-fotos");
+    const abgewiesen = () => { log.info(`${req.method} ${u.pathname} abgewiesen: Werkstatt-Schlüssel fehlt oder falsch`); return json(res, 401, { fehler: "Werkstatt-Schlüssel fehlt oder ist falsch" }); };
+
+    if (!nr) {
+      if (req.method === "GET") {
+        if (TICKET_KENNUNG.test(kennung)) return json(res, 200, { tickets: st.db.ticketsLesen({ kennung }) });
+        if (!werkstattDarf(req)) return abgewiesen();
+        return json(res, 200, { tickets: st.db.ticketsLesen(), zahlen: st.db.ticketsZaehlen() });
+      }
+      if (req.method === "POST") {
+        const adresse = String(req.socket.remoteAddress || "?");
+        if (ticketZuViele(adresse)) { log.info(`${st.id}: Ticket von ${adresse} abgewiesen - mehr als ${e.ticketsJe10Min} in zehn Minuten`); return json(res, 429, { fehler: "Zu viele Meldungen in kurzer Zeit. Bitte in ein paar Minuten noch einmal versuchen." }); }
+        const p = ticketPruefen(await koerperLesen(req, MAX_TICKET), kennung);
+        if (p.fehlt.length) return json(res, 400, { fehler: p.fehlt.join(". ") + ".", fehlt: p.fehlt });
+        let ticket = st.db.ticketAnlegen(p.ticket);
+        let fotoFehler = null;
+        if (p.foto) {
+          // Erst das Ticket, dann das Foto: scheitert die Bilddatei, bleibt die
+          // Meldung trotzdem bei der Werkstatt - nur ohne Bild, und der Melder erfährt es.
+          try {
+            fs.mkdirSync(fotoOrdner, { recursive: true });
+            const pfad = path.join(fotoOrdner, ticket.foto);
+            fs.writeFileSync(pfad + ".teil", p.foto.bytes);
+            fs.renameSync(pfad + ".teil", pfad);
+            if (fs.statSync(pfad).size !== p.foto.bytes.length) throw new Error("unvollständig geschrieben");
+          } catch (x) {
+            fotoFehler = "Das Foto konnte nicht gespeichert werden - die Meldung ist ohne Foto angekommen.";
+            log.fehler(`${st.id}: Ticket ${ticket.nr}: Foto nicht gespeichert: ${x.message}`);
+            ticket = st.db.ticketAendern(ticket.nr, { fotoEntfernt: true, wer: "Dienst" }) || ticket;
+          }
+        }
+        log.info(`${st.id}: Ticket ${ticket.nr} von ${ticket.melder} (${ticket.abteilung}), ${ticket.art}, Eile ${ticket.eile}${ticket.foto ? ", mit Foto" : ""}`);
+        return json(res, 200, { ticket, ...(fotoFehler ? { fotoFehler } : {}) });
+      }
+      return json(res, 405, { fehler: "Tickets: nur GET und POST" });
+    }
+
+    if (!/^\d{4}-\d{4,}$/.test(nr)) return json(res, 400, { fehler: "Ticket: ungültige Nummer" });
+    const meins = TICKET_KENNUNG.test(kennung) && st.db.ticketGehoert(nr, kennung);
+
+    if (tat === "foto" && req.method === "GET") {
+      if (!meins && !werkstattDarf(req)) return abgewiesen();
+      const t = st.db.ticketLesen(nr);
+      const pfad = t && t.foto ? path.join(fotoOrdner, t.foto) : null;
+      if (!pfad || !fs.existsSync(pfad)) return json(res, 404, { fehler: "Zu diesem Ticket gibt es kein Foto" });
+      res.writeHead(200, { "Content-Type": FOTO_TYPEN[path.extname(pfad).toLowerCase()] || "application/octet-stream", "Content-Length": fs.statSync(pfad).size, "Cache-Control": "private, max-age=3600", "Access-Control-Allow-Origin": "*" });
+      return fs.createReadStream(pfad).pipe(res);
+    }
+    if (tat === "antwort" && req.method === "POST") {
+      // Fremde Nummer und unbekannte Nummer sehen gleich aus - niemand kann Nummern abklopfen.
+      if (!meins) return json(res, 404, { fehler: "Diese Meldung gehört nicht zu diesem Browser" });
+      const a = await koerperLesen(req, 64 * 1024);
+      const text = String((a && a.text) || "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim();
+      if (!text) return json(res, 400, { fehler: "Die Antwort ist leer." });
+      if (text.length > 2000) return json(res, 400, { fehler: "Die Antwort ist zu lang (höchstens 2000 Zeichen)." });
+      const t = st.db.ticketAntwortMelder(nr, kennung, text);
+      log.info(`${st.id}: Ticket ${nr}: Antwort vom Melder`);
+      return json(res, 200, { ticket: t });
+    }
+    if (!tat && req.method === "GET") {
+      if (!meins && !werkstattDarf(req)) return abgewiesen();
+      const t = st.db.ticketLesen(nr);
+      return t ? json(res, 200, { ticket: t }) : json(res, 404, { fehler: "Ticket nicht gefunden" });
+    }
+    if (!tat && req.method === "POST") {
+      if (!werkstattDarf(req)) return abgewiesen();
+      const a = await koerperLesen(req, 64 * 1024);
+      const kurz = (w, max) => (w == null ? null : String(w).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max));
+      try {
+        const t = st.db.ticketAendern(nr, { stand: a.stand == null ? null : String(a.stand), zustaendig: kurz(a.zustaendig, 60), antwort: kurz(a.antwort, 2000), todoId: kurz(a.todoId, 200), wer: kurz(a.wer, 60), basisGeaendert: a.basisGeaendert });
+        if (!t) return json(res, 404, { fehler: "Ticket nicht gefunden" });
+        log.info(`${st.id}: Ticket ${nr} -> ${t.stand}${t.zustaendig ? " (" + t.zustaendig + ")" : ""} von ${a.wer || "?"}`);
+        return json(res, 200, { ticket: t });
+      } catch (x) {
+        if (x instanceof KonfliktFehler) return json(res, 409, { fehler: "Das Ticket wurde inzwischen von jemand anderem geändert.", ticket: x.konflikte[0].server });
+        if (/unbekannter Stand/.test(x.message)) return json(res, 400, { fehler: x.message });
+        throw x;
+      }
+    }
+    return json(res, 404, { fehler: "Unbekannter Weg: " + u.pathname });
+  }
+
   function statusDaten() {
     const out = { dienst: "bta-cockpit-dienst", fassung: FASSUNG, gestartet: new Date(START).toISOString(), laufzeitSek: Math.round((Date.now() - START) / 1000), port: e.port, standorte: {}, letzteSicherung, fehlerLetzte24h: log.fehlerLetzte24h(), appDatei: e.appDatei && fs.existsSync(e.appDatei) ? { pfad: e.appDatei, bytes: fs.statSync(e.appDatei).size, geaendert: fs.statSync(e.appDatei).mtime.toISOString() } : null, briefkasten: briefkastenStand };
-    for (const st of Object.values(standorte)) out.standorte[st.id] = { name: st.name, ...st.db.zaehlen(), verbunden: st.lauscher.size, datenbank: st.db.pfad, quellen: quellenListe(path.join(st.datenOrdner, "quellen")) };
+    for (const st of Object.values(standorte)) out.standorte[st.id] = { name: st.name, ...st.db.zaehlen(), verbunden: st.lauscher.size, datenbank: st.db.pfad, tickets: st.db.ticketsZaehlen(), quellen: quellenListe(path.join(st.datenOrdner, "quellen")) };
     return out;
   }
 
@@ -426,6 +593,8 @@ function starten(einstellungen, { still = false } = {}) {
     const sich = s.letzteSicherung ? `${esc(ortszeit(s.letzteSicherung.zeit))} (${esc(s.letzteSicherung.grund)})` : "noch keine seit dem Start";
     const fehler = s.fehlerLetzte24h.length ? `<ul>${s.fehlerLetzte24h.slice(-10).map((f) => `<li><code>${esc(f.zeit)}</code> ${esc(f.text)}</li>`).join("")}</ul>` : "<p class=ok>keine</p>";
     const quellen = Object.entries(s.standorte).flatMap(([id, st]) => (st.quellen || []).map((q) => `<li>${esc(id)}: <code>${esc(q.name)}</code> · ${(q.bytes / 1024).toFixed(0)} kB · Stand der Vorlage ${esc(ortszeit(q.standIso))}</li>`));
+    const meldeSeite = e.appDatei && fs.existsSync(path.join(path.dirname(e.appDatei), "ticket-melden.html"));
+    const ticketsHtml = Object.entries(s.standorte).map(([id, st]) => `<li>${esc(st.name)}: ${st.tickets.offen} offen, davon ${st.tickets.neu} neu · ${st.tickets.gesamt} insgesamt${meldeSeite ? ` · Melde-Seite <a href="/melden/${esc(id)}">/melden/${esc(id)}</a>` : ""}</li>`).join("");
     const quellenHtml = quellen.length ? `<ul>${quellen.join("")}</ul>` : "<p>noch keine - ein Cockpit-Programm mit Zugriff auf das Laufwerk spielt sie ein (⚙ → OEE → Ordner mit der Tabelle).</p>";
     return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>BTA-Cockpit-Dienst</title>
 <style>body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#1F2933}h1{color:#1E2761}table{border-collapse:collapse}td,th{padding:6px 12px;border-bottom:1px solid #E5E9ED;text-align:left}th{font-size:12px;text-transform:uppercase;color:#5B6572}.ok{color:#1F7A3D;font-weight:bold}code{background:#EEF1F4;padding:0 4px}</style></head>
@@ -434,6 +603,7 @@ function starten(einstellungen, { still = false } = {}) {
 <table><tr><th>Standort</th><th>Version</th><th>Einträge</th><th>Störberichte</th><th>Verlauf</th><th>Einstellungen</th><th>gelöscht</th><th>Datenbank</th><th>verbunden</th></tr>${zeilen}</table>
 <p><small>Einträge und Störberichte wie die Kennkarte der App: nur fachliche Zeilen. Verlauf = Zeilen „wer hat wann was geändert“ (90 Tage), Einstellungen = Team, Anlagen, Listen.</small></p>
 <h2>Fehler der letzten 24 Stunden</h2>${fehler}
+<h2>Tickets (Meldungen an die Werkstatt)</h2><ul>${ticketsHtml}</ul>${meldeSeite ? "" : "<p>Melde-Seite nicht hinterlegt (ticket-melden.html neben der App-Datei).</p>"}
 <h2>Excel-Quellen</h2>${quellenHtml}
 <h2>Briefkasten (Aufnahme vom Handy über das Internet)</h2>${s.briefkasten.aktiv
     ? `<p>${esc(s.briefkasten.adresse)} → Standort <code>${esc(s.briefkasten.standort)}</code> · ${s.briefkasten.erreichbar === null ? "noch nicht abgefragt" : s.briefkasten.erreichbar ? '<span class=ok>erreichbar</span>' : '<strong style="color:#B23A34">nicht erreichbar</strong>'}${s.briefkasten.letzterTakt ? ` · letzter Takt ${esc(ortszeit(s.briefkasten.letzterTakt))}` : ""}</p>
@@ -446,7 +616,7 @@ function starten(einstellungen, { still = false } = {}) {
   async function behandle(req, res) {
     const u = url.parse(req.url, true);
     const teile = u.pathname.split("/").filter(Boolean);
-    if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS", "Access-Control-Allow-Headers": "Content-Type, X-BTA-Schluessel" }); return res.end(); }
+    if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS", "Access-Control-Allow-Headers": "Content-Type, X-BTA-Schluessel, X-BTA-Melder" }); return res.end(); }
     try {
       if (teile.length === 0) { res.writeHead(302, { Location: "/status" }); return res.end(); }
       if (teile[0] === "status") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }); return res.end(statusSeite()); }
@@ -463,11 +633,25 @@ function starten(einstellungen, { still = false } = {}) {
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
         return fs.createReadStream(zettel).pipe(res);
       }
+      // Die Melde-Seite (0.7.0): liegt als ticket-melden.html neben der App-Datei, damit
+      // sie ohne Dienst-Tausch erneuert werden kann. Der Dienst setzt nur den Standort
+      // ein - /melden ist der erste Standort der Einstellungen, /melden/soendgen der andere.
+      if (teile[0] === "melden") {
+        const seite = e.appDatei ? path.join(path.dirname(e.appDatei), "ticket-melden.html") : null;
+        if (!seite || !fs.existsSync(seite)) return json(res, 404, { fehler: "Keine Melde-Seite hinterlegt (ticket-melden.html neben der App-Datei)" });
+        const stId = teile[1] || Object.keys(standorte)[0];
+        if (!standorte[stId]) return json(res, 404, { fehler: "Unbekannter Standort: " + stId, bekannt: Object.keys(standorte) });
+        const html = fs.readFileSync(seite, "utf8").replace(/__BTA_STANDORT_NAME__/g, esc(standorte[stId].name)).replace(/__BTA_STANDORT__/g, esc(stId));
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+        return res.end(html);
+      }
       if (teile[0] !== "api") return json(res, 404, { fehler: "Unbekannter Weg" });
       if (teile[1] === "status") return json(res, 200, statusDaten());
       const st = standorte[teile[1]];
       if (!st) return json(res, 404, { fehler: "Unbekannter Standort: " + teile[1], bekannt: Object.keys(standorte) });
       const weg = teile[2] || "";
+      // Tickets haben ihre eigene Zugangsregel (Melder ohne Schlüssel) - deshalb VOR der Schlüssel-Prüfung.
+      if (weg === "tickets") return await ticketWeg(req, res, u, teile, st);
       // Schreibende Wege nur mit Werkstatt-Schlüssel (wenn einer gesetzt ist).
       if ((req.method === "POST" || req.method === "DELETE") && e.schluessel && String(req.headers["x-bta-schluessel"] || "") !== e.schluessel) {
         log.info(`${req.method} ${u.pathname} abgewiesen: Werkstatt-Schlüssel fehlt oder falsch`);
@@ -622,7 +806,7 @@ function starten(einstellungen, { still = false } = {}) {
   });
 }
 
-const FASSUNG = "0.6.1"; // 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.); 0.5.0 = Briefkasten-Abholer (06.10.); 0.6.0 = automatisches Einsortieren aus dem Briefkasten (07.10.); 0.6.1 = Marke statt Liste im Takt (Cloudflare-Kontingent, 08.10.)
+const FASSUNG = "0.7.0"; // 0.7.0 = Tickets: Melde-Seite /melden, eigene Tabelle, Werkstatt-Liste; Status-Seite filtert Fehler beim Lesen (24.11.) · 0.2.x = Etappe B (Import); 0.3.0 = Etappe C: Werkstatt-Schlüssel, Fotos über den Server, letzte Sicherung aus dem Ordner (30.09.); 0.4.0 = Excel-Quellen auf dem Server (02.10.); 0.5.0 = Briefkasten-Abholer (06.10.); 0.6.0 = automatisches Einsortieren aus dem Briefkasten (07.10.); 0.6.1 = Marke statt Liste im Takt (Cloudflare-Kontingent, 08.10.)
 
 /* Import-Nachweis: eingelesene Datei gegen den Export aus der Datenbank.
    Einträge Feld für Feld (JSON-Text je id), Löschliste nach Kennung, Konfig je
@@ -651,7 +835,7 @@ function vergleicheV1(datei, exportiert) {
   return { abweichungen, beispiele, eintraegeVerglichen: gesehen.size, exportEintraege: exp.size };
 }
 
-module.exports = { starten, ladeEinstellungen, vergleicheV1, FASSUNG };
+module.exports = { starten, ladeEinstellungen, vergleicheV1, protokollierer, ticketPruefen, FASSUNG };
 
 if (require.main === module) {
   const pfad = process.argv[2] || path.join(HIER, "einstellungen.json");

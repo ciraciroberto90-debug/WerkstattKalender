@@ -1,7 +1,14 @@
 ==========================================================
  05-SERVER - DER DIENST FUER DEN BTA-SERVER
 ==========================================================
-Stand: 08.10.2026, Dienst 0.6.1 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
+Stand: 24.11.2026, Dienst 0.7.0 (Bauplan doku/BAUPLAN-SERVER-SYSTEM.md)
+0.7.0 = Tickets (Roll-out 85): Abteilungsleiter melden im Browser ueber /melden - ohne Programm,
+        ohne Kennwort, nichts geht ins Internet. Die Melde-Seite ticket-melden.html liegt NEBEN der
+        App-Datei (die Abgabe vom Laptop legt sie dort ab). Tickets stehen in einer eigenen Tabelle
+        der Datenbank (der Abgleich der Cockpit-Rechner bleibt unberuehrt) und sind in der
+        naechtlichen Sicherung enthalten; Fotos im Ordner ticket-fotos des Standorts.
+        Status-Seite: neuer Abschnitt "Tickets"; "Fehler der letzten 24 Stunden" zeigt jetzt
+        wirklich nur die letzten 24 Stunden (Roll-out 86).
 0.6.1 = Briefkasten: im Takt nur die billige Marke (/neu) abfragen, Liste nur bei neuer Marke
         oder alle listeAlleSek (600) - Cloudflare erlaubt kostenlos 1.000 Listen am Tag, der
         30-s-Takt mit Liste (2.880) hat das Konto am 07.10. gesperrt. Braucht Worker 0.3.0.

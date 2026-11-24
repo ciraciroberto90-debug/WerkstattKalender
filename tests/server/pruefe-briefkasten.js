@@ -193,7 +193,9 @@ const begleitKopf = (o) => encodeURIComponent(JSON.stringify(o));
   const config = { tpmAnlagen: [{ id: "a1", name: "TS480", role: "takt" }], riItems: [], team: [], benutzer: [{ name: "Chef", rolle: "verwalter" }] };
   await fetch(D + "/api/scheurich/import?bereich=kalender", { method: "POST", headers: { "Content-Type": "application/json", "X-BTA-Schluessel": SCHLUESSEL }, body: JSON.stringify({ format: "werkstatt-kalender-v1", standort: "scheurich", savedAt: "2026-10-06T05:00:00.000Z", entries: [{ id: "e1", date: "2026-10-06", category: "TODO", name: "Aufgabe", status: "open", updatedAt: "2026-10-06T05:00:00.000Z" }], deleted: {}, config }) });
   const status0 = await (await fetch(D + "/api/status")).json();
-  ok("(E) Dienst 0.6.1 liest briefkasten.json: Briefkasten aktiv, Adresse, Standort scheurich", status0.fassung === "0.6.1" && status0.briefkasten && status0.briefkasten.aktiv && status0.briefkasten.adresse === BK && status0.briefkasten.standort === "scheurich", JSON.stringify(status0.briefkasten));
+  // Die Fassung kommt aus dienst.js selbst - eine feste Zahl hier wurde bei jedem Dienst-Roll-out rot (0.7.0, 24.11.).
+  const FASSUNG_DIENST = require(path.join(__dirname, "..", "..", "server", "dienst.js")).FASSUNG;
+  ok("(E) Dienst " + FASSUNG_DIENST + " liest briefkasten.json: Briefkasten aktiv, Adresse, Standort scheurich", status0.fassung === FASSUNG_DIENST &&status0.briefkasten && status0.briefkasten.aktiv && status0.briefkasten.adresse === BK && status0.briefkasten.standort === "scheurich", JSON.stringify(status0.briefkasten));
   await warte(2000);
   const status1 = await (await fetch(D + "/api/status")).json();
   ok("(E) Erster Takt: Briefkasten erreichbar, 0 im Briefkasten, kein Fehler", status1.briefkasten.erreichbar === true && status1.briefkasten.imBriefkasten === 0 && !status1.briefkasten.letzterFehler, JSON.stringify(status1.briefkasten));

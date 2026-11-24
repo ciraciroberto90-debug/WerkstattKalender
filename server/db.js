@@ -68,7 +68,25 @@ CREATE TABLE IF NOT EXISTS aenderungen (
   art TEXT NOT NULL               -- 'neu' | 'geaendert' | 'geloescht' | 'import'
 );
 CREATE INDEX IF NOT EXISTS ix_aenderungen_version ON aenderungen(version);
+CREATE TABLE IF NOT EXISTS tickets (
+  nr TEXT PRIMARY KEY,            -- "2026-0147": Jahr + laufende Nummer je Jahr
+  angelegt TEXT NOT NULL,
+  geaendert TEXT NOT NULL,
+  stand TEXT NOT NULL,            -- neu | angenommen | arbeit | frage | erledigt
+  kennung TEXT NOT NULL,          -- Zufallskennung des Browsers, der gemeldet hat ("Meine Meldungen")
+  daten TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_tickets_kennung ON tickets(kennung);
+CREATE INDEX IF NOT EXISTS ix_tickets_stand ON tickets(stand);
 `;
+
+/* Tickets (Dienst 0.7.0, Roll-out 85): Meldungen der Abteilungsleiter an die
+ * Werkstatt. WARUM eine EIGENE Tabelle und nicht „Einträge mit Kategorie
+ * TICKET“: Der Abgleich der Cockpit-Rechner (standSeit, aenderungenAnwenden,
+ * Export/Import) bleibt damit unberührt - kein Ticket kann je einen Konflikt,
+ * eine Versionsnummer oder eine Export-Datei verändern. Die Werkstatt sieht
+ * Tickets über einen eigenen Weg, auch solange sie noch über W: arbeitet. */
+const TICKET_STAENDE = ["neu", "angenommen", "arbeit", "frage", "erledigt"];
 
 const TABELLEN = { eintraege: "eintraege", stoerungen: "stoerungen" };
 
@@ -379,7 +397,115 @@ function oeffnen(dateiPfad, { standort } = {}) {
     try { return JSON.parse(r.daten); } catch (e) { return null; }
   }
 
-  return { pfad: dateiPfad, version, standSeit, aenderungenAnwenden, eintragVorhanden, konfigWert, exportV1, importV1, sicherungNach, zaehlen, schliessen, meta, KonfliktFehler };
+  /* ---------- Tickets (0.7.0, Roll-out 85) ---------- */
+  const tStmts = {
+    lesen: db.prepare("SELECT * FROM tickets WHERE nr = ?"),
+    anlegen: db.prepare("INSERT INTO tickets(nr, angelegt, geaendert, stand, kennung, daten) VALUES (?, ?, ?, ?, ?, ?)"),
+    aendern: db.prepare("UPDATE tickets SET geaendert = ?, stand = ?, daten = ? WHERE nr = ?"),
+    eigene: db.prepare("SELECT daten FROM tickets WHERE kennung = ? ORDER BY angelegt DESC LIMIT 200"),
+    werkstatt: db.prepare("SELECT daten FROM tickets WHERE stand != 'erledigt' OR geaendert >= ? ORDER BY angelegt DESC"),
+  };
+
+  /* Neues Ticket. Die Nummer zählt je Jahr hoch (Serverzeit) und wird in
+     DERSELBEN Transaktion vergeben wie das Ticket - zwei Meldungen im selben
+     Augenblick bekommen nie dieselbe Nummer, und eine Nummer ohne Ticket gibt
+     es nicht. t ist schon geprüft (dienst.js, ticketPruefen). */
+  function ticketAnlegen(t) {
+    return transaktion(() => {
+      const zeit = jetztIso();
+      const jahr = new Date().getFullYear();
+      const zaehler = "ticketZaehler-" + jahr;
+      const lfd = Number(meta.get(zaehler) || 0) + 1;
+      meta.set(zaehler, lfd);
+      const nr = jahr + "-" + String(lfd).padStart(4, "0");
+      const ticket = {
+        nr, angelegt: zeit, geaendert: zeit, stand: "neu",
+        art: t.art, ort: t.ort, text: t.text, eile: t.eile, melder: t.melder, abteilung: t.abteilung,
+        zustaendig: "", antwort: "", melderAntwort: "", neuVomMelder: false, todoId: "",
+        foto: t.fotoEndung ? nr + t.fotoEndung : "",
+        verlauf: [{ zeit, wer: t.melder, was: "gemeldet" }],
+      };
+      tStmts.anlegen.run(nr, zeit, zeit, "neu", String(t.kennung), JSON.stringify(ticket));
+      return ticket;
+    });
+  }
+
+  const ticketLesen = (nr) => { const r = tStmts.lesen.get(String(nr)); return r ? JSON.parse(r.daten) : null; };
+  /* Gehört das Ticket zu diesem Browser? (Foto und Antwort des Melders) */
+  const ticketGehoert = (nr, kennung) => { const r = tStmts.lesen.get(String(nr)); return !!(r && kennung && r.kennung === String(kennung)); };
+
+  /* kennung gesetzt = „Meine Meldungen“ eines Browsers (alle, auch erledigte).
+     Ohne kennung = die Liste der Werkstatt: alles Offene, Erledigtes noch
+     `erledigtTage` Tage - damit die Liste nicht über Jahre wächst. */
+  function ticketsLesen({ kennung, erledigtTage = 60 } = {}) {
+    const zeilen = kennung
+      ? tStmts.eigene.all(String(kennung))
+      : tStmts.werkstatt.all(new Date(Date.now() - erledigtTage * 86400000).toISOString());
+    return zeilen.map((r) => JSON.parse(r.daten));
+  }
+
+  /* Änderung durch die Werkstatt: Stand, Zuständiger, Antwort, verknüpftes To-do.
+     a.basisGeaendert ist der Stand, den der Rechner gesehen hat - hat inzwischen
+     ein anderer geändert, wird NICHTS geschrieben (Konflikt mit dem Server-Stand),
+     wie bei den Einträgen. null = Ticket gibt es nicht. */
+  function ticketAendern(nr, a) {
+    return transaktion(() => {
+      const r = tStmts.lesen.get(String(nr));
+      if (!r) return null;
+      const t = JSON.parse(r.daten);
+      if (a.basisGeaendert && String(a.basisGeaendert) !== t.geaendert) throw new KonfliktFehler([{ tabelle: "tickets", id: t.nr, server: t }]);
+      const zeit = jetztIso();
+      const wer = a.wer ? String(a.wer) : "Werkstatt";
+      const schritte = [];
+      if (a.zustaendig != null && String(a.zustaendig) !== t.zustaendig) { t.zustaendig = String(a.zustaendig); schritte.push(t.zustaendig ? "zugeteilt an " + t.zustaendig : "Zuteilung aufgehoben"); }
+      if (a.stand != null && a.stand !== t.stand) {
+        if (!TICKET_STAENDE.includes(a.stand)) throw new Error("Ticket: unbekannter Stand „" + a.stand + "“");
+        t.stand = a.stand;
+        schritte.push({ neu: "wieder offen", angenommen: "angenommen", arbeit: "in Arbeit", frage: "Rückfrage an den Melder", erledigt: "erledigt" }[a.stand]);
+      }
+      if (a.antwort != null && String(a.antwort) !== t.antwort) t.antwort = String(a.antwort);
+      if (a.todoId != null) t.todoId = String(a.todoId);
+      if (a.fotoEntfernt) t.foto = "";
+      // Die Werkstatt hat das Ticket angefasst - eine Antwort des Melders gilt damit als gesehen.
+      t.neuVomMelder = false;
+      if (schritte.length || a.antwort != null) t.verlauf.push({ zeit, wer, was: schritte.join(", ") || "Nachricht", ...(a.antwort ? { text: String(a.antwort) } : {}) });
+      t.geaendert = zeit;
+      tStmts.aendern.run(zeit, t.stand, JSON.stringify(t), t.nr);
+      return t;
+    });
+  }
+
+  /* Antwort oder Nachtrag des Melders. Stand „frage“ geht zurück an die
+     Werkstatt (angenommen, wenn schon jemand zuständig ist, sonst neu); das
+     Kennzeichen neuVomMelder zeigt der Werkstatt, dass etwas dazugekommen ist.
+     null = Ticket gibt es nicht oder es gehört einem anderen Browser. */
+  function ticketAntwortMelder(nr, kennung, text) {
+    return transaktion(() => {
+      const r = tStmts.lesen.get(String(nr));
+      if (!r || r.kennung !== String(kennung)) return null;
+      const t = JSON.parse(r.daten);
+      const zeit = jetztIso();
+      t.melderAntwort = String(text);
+      t.neuVomMelder = true;
+      if (t.stand === "frage") t.stand = t.zustaendig ? "angenommen" : "neu";
+      t.verlauf.push({ zeit, wer: t.melder, was: "Antwort vom Melder", text: String(text) });
+      t.geaendert = zeit;
+      tStmts.aendern.run(zeit, t.stand, JSON.stringify(t), t.nr);
+      return t;
+    });
+  }
+
+  function ticketsZaehlen() {
+    const z = (sql) => db.prepare(sql).get().n;
+    return {
+      gesamt: z("SELECT COUNT(*) AS n FROM tickets"),
+      offen: z("SELECT COUNT(*) AS n FROM tickets WHERE stand != 'erledigt'"),
+      neu: z("SELECT COUNT(*) AS n FROM tickets WHERE stand = 'neu'"),
+    };
+  }
+
+  return { pfad: dateiPfad, version, standSeit, aenderungenAnwenden, eintragVorhanden, konfigWert, exportV1, importV1, sicherungNach, zaehlen, schliessen, meta, KonfliktFehler,
+    ticketAnlegen, ticketLesen, ticketGehoert, ticketsLesen, ticketAendern, ticketAntwortMelder, ticketsZaehlen };
 }
 
-module.exports = { oeffnen, KonfliktFehler, TABELLEN };
+module.exports = { oeffnen, KonfliktFehler, TABELLEN, TICKET_STAENDE };

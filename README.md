@@ -131,7 +131,7 @@ schaltet die App von selbst auf „nur ansehen" um.
 
 ```bash
 cd app && npm install && npm run build     # erzeugt Werkstatt_Kalender_TPM.html
-node tests/run-hardness-tests.js           # 106 Härtetests (vor jedem Push; Windows und Linux, Bash-Fassung .sh bleibt daneben)
+node tests/run-hardness-tests.js           # 107 Härtetests (vor jedem Push; Windows und Linux, Bash-Fassung .sh bleibt daneben)
 node tools/pruefstand-sync.js              # Prüfstand auf dem Server (C:\BTA\BTA-Tests) auf den Repo-Stand bringen; die Abgabe macht das nach jedem Push selbst
 node tests/run-browser-reserve.js          # 5 Browser-Reserve-Tests (vor einer Freigabe; Dateizugriff über den Browser)
 #   Einmalig je Rechner: cd tests && npm install && node browser-holen.js
@@ -159,6 +159,7 @@ node --no-warnings tests/server/pruefe-dienst-last.js   # Dienst unter Last (16.
 node --no-warnings tests/server/pruefe-app-am-server.js   # die gebaute App gegen den echten Dienst (Etappe C; C14/C15 = Handy-Aufnahme)
 node --no-warnings tests/server/pruefe-quellen-am-server.js   # Excel-Quellen im Server-Betrieb: Kopie, Zubringer, Browser (Roll-out 54)
 node --no-warnings tests/server/pruefe-briefkasten.js   # Briefkasten: Kern, Worker-Attrappe, Zettel -> Briefkasten -> Dienst 0.6.0 -> PC, Warteschlange ohne Netz, Zettel vom Briefkasten (/zettel, Einrichtungs-Link), automatisches Einsortieren, Marke statt Liste im Takt (Roll-out 65/66/68)
+node --no-warnings tests/server/pruefe-tickets.js   # Tickets (Roll-out 85/86): Melden ohne Schlüssel, eigene Meldungen, Werkstatt-Liste, Konflikt, Foto, Bremse, Neustart, Melde-Seite im Browser (43 Prüfungen); Rot-Nachweis mit DIENST_ORDNER=<alter Dienst>
 node briefkasten/worker-bauen.js --pruefen   # ist worker.js auf dem Stand von kern.js und handy/aufnahme-zettel.html? (ohne --pruefen: neu bauen)
 ```
 

@@ -131,6 +131,24 @@ const holeJson = (url) => new Promise((ok, nein) => { http.get(url, { timeout: 1
       } catch (e) { melde("Status-Seite", "nicht erreichbar", e.message); }
     }
 
+    /* Melde-Seite der Tickets (Roll-out 85): liegt neben der App-Datei am Server und
+     * wird vom Dienst unter /melden ausgeliefert. Gleiche Regeln wie bei der App:
+     * alte aufheben, kopieren, byte-gleich prüfen. Kein Dienst-Neustart nötig. */
+    const MELDE = path.join(WURZEL, "melden", "ticket-melden.html");
+    if (fs.existsSync(MELDE) && fs.existsSync(SERVER_APP)) {
+      const zielM = path.join(SERVER_APP, "ticket-melden.html");
+      const altM = fs.existsSync(zielM) ? sha(zielM) : null;
+      if (altM === sha(MELDE)) melde("Melde-Seite", "nichts zu tun - am Server liegt schon diese Datei");
+      else if (nurPruefen) melde("Melde-Seite", `würde kopieren nach ${zielM}`, altM ? "dort liegt eine andere Fassung" : "dort: keine Datei");
+      else {
+        const stempel = new Date().toISOString().slice(0, 16).replace("T", "-").replace(":", "-");
+        if (altM) fs.copyFileSync(zielM, path.join(SERVER_APP, `ticket-melden.vor-${stempel}.html`));
+        fs.copyFileSync(MELDE, zielM);
+        if (sha(zielM) !== sha(MELDE)) abbruch("Die Melde-Seite am Server ist nach dem Kopieren nicht byte-gleich.");
+        melde("Melde-Seite", "kopiert, byte-gleich", `${fs.statSync(zielM).size.toLocaleString("de-DE")} Bytes` + (altM ? `, alte als ticket-melden.vor-${stempel}.html` : ""));
+      }
+    }
+
     /* W:-Update-Ordner: neue Datei mit Zeit im Namen, nichts wird überschrieben
      * oder gelöscht. Erst unter Zwischennamen schreiben, dann umbenennen - die
      * Hülle nimmt die jüngste Datei und darf nie eine halbe sehen. */

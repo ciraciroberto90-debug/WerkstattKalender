@@ -71,7 +71,7 @@ $Mitglieder = @{
 }
 $FreigabeName = "BTA"
 $NodeFassung = "v22.23.3"
-$DienstFassungStick = "0.6.1"
+$DienstFassungStick = "0.7.0"
 # Programm-Fassung im ZIP auf dem Stick (programm/package.json). Aeltere Fassungen
 # (31.08. = 1.1, 21.09. = 1.2) kennen den Server-Weg der Huelle nicht - solche
 # Rechner erneuert "Einrichten" ueber das vorhandene Programm hinweg.
