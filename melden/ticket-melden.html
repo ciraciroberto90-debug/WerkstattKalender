@@ -35,6 +35,10 @@
   label.t:first-child { margin-top: 0; }
   .feld { width: 100%; border: 1px solid var(--rand); border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; color: inherit; }
   textarea.feld { min-height: 84px; resize: vertical; }
+  .wo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .wo.mitWahl { grid-template-columns: minmax(170px, 2fr) minmax(0, 3fr); }
+  @media (max-width: 520px) { .wo.mitWahl { grid-template-columns: minmax(0, 1fr); } }
+  select.feld { cursor: pointer; }
   /* Fünf Kacheln (Robertos Ansage 25.11.: „Anlage muss raus, dafür die Kästchen etwas
      größer und sortiert“): oben drei, unten zwei breitere - so bleibt keine Lücke.
      Sechs Rasterspalten, damit sich 3 × 2 und 2 × 3 Spalten sauber teilen. */
@@ -125,8 +129,15 @@
               <button type="button" class="kachel" aria-pressed="false" data-art="Wasser / Heizung / Luft"><span class="bild">🚿</span><b>Wasser / Heizung / Luft</b><small>auch Druckluft</small></button>
               <button type="button" class="kachel" aria-pressed="false" data-art="Sonstiges"><span class="bild">✎</span><b>Sonstiges</b><small>alles andere</small></button>
             </div>
-            <label class="t" for="ort">Wo?</label>
-            <input class="feld" id="ort" list="orte" maxlength="120" placeholder="z. B. Halle 3, Tor 2">
+            <label class="t" for="ortWahl">Wo?</label>
+            <!-- Bereich aus der Liste UND/ODER freier Text (Roberto 25.11.: Dropdown dazu,
+                 „die Funktion, händisch etwas einzutragen, darf trotzdem nicht weg“).
+                 Die Liste steht unten im Skript (BEREICHE). maxlength 95: Bereich + „ · “ +
+                 Text müssen unter die 120 Zeichen des Dienstes passen - er kürzt nicht, er weist ab. -->
+            <div class="wo">
+              <select class="feld" id="ortWahl" hidden></select>
+              <input class="feld" id="ort" list="orte" maxlength="95" placeholder="z. B. Halle 3, Tor 2">
+            </div>
             <datalist id="orte"></datalist>
             <label class="t" for="text">Was ist los?</label>
             <textarea class="feld" id="text" maxlength="2000" placeholder="z. B. Fenster neben Tor 2 schließt nicht mehr, Griff abgebrochen"></textarea>
@@ -209,6 +220,32 @@
     wer.name = n; wer.abteilung = a; merke(MERK, wer);
   }
 
+  /* ---------- Bereiche für das Dropdown bei „Wo?“ ----------
+     Robertos Liste vom 25.11., nach dem Abc; je Standort eine eigene. Ändern: hier
+     eine Zeile dazu oder weg, Datei einspielen - der Dienst muss dafür nicht neu
+     starten. Ein Standort ohne Liste bekommt kein Dropdown, nur das Textfeld. */
+  const BEREICHE = {
+    scheurich: ["Außengelände", "Berreshalle", "Beschichtung", "Dreherei", "Lager / Versand", "Masseaufbereitung", "Ofenhalle", "Sortiererei", "Sozialräume / WC", "Verwaltung", "Werkstatt", "Zentrale"],
+  };
+  const ANDERER_ORT = "Anderer Ort";
+  const bereiche = BEREICHE[STANDORT] || [];
+  if (bereiche.length) {
+    $("ortWahl").innerHTML = `<option value="">Bereich wählen …</option>` + bereiche.map((b) => `<option>${h(b)}</option>`).join("") + `<option>${h(ANDERER_ORT)}</option>`;
+    $("ortWahl").hidden = false;
+    $("ortWahl").parentElement.classList.add("mitWahl");
+    const platzhalter = () => { const w = $("ortWahl").value; $("ort").placeholder = !w ? "oder hier eintragen, z. B. Halle 3, Tor 2" : w === ANDERER_ORT ? "Ort eintragen" : "genauer, z. B. Tor 2 (darf leer bleiben)"; };
+    $("ortWahl").addEventListener("change", platzhalter);
+    platzhalter();
+  }
+  /* Aus Dropdown und Text wird EIN Ort fürs Ticket: „Bereich · Text“, oder nur eines
+     von beiden. „Anderer Ort“ allein ist keine Ortsangabe - dann zählt nur der Text. */
+  function ortAngabe() {
+    const wahl = bereiche.length ? $("ortWahl").value : "";
+    const bereich = wahl === ANDERER_ORT ? "" : wahl;
+    const genau = $("ort").value.trim();
+    return { genau, ort: bereich && genau ? bereich + " · " + genau : bereich || genau };
+  }
+
   /* ---------- Orte, die dieser Browser schon gemeldet hat (Vorschläge) ---------- */
   const ORTE = "bta-melder-orte";
   function zeigeOrte() { $("orte").innerHTML = (lies(ORTE) || []).map((o) => `<option>${h(o)}</option>`).join(""); }
@@ -278,7 +315,7 @@
     if (sendet) return;
     uebernimmWer();
     const art = document.querySelector('.kachel[aria-pressed="true"]');
-    const ort = $("ort").value.trim();
+    const { ort, genau } = ortAngabe();
     const text = $("text").value.trim();
     const fehlt = [!wer.name && "dein Name", !wer.abteilung && "deine Abteilung", !art && "worum es geht", !ort && "wo", !text && "was los ist"].filter(Boolean);
     if (fehlt.length) { $("fehlt").textContent = "Es fehlt noch: " + fehlt.join(", ") + "."; if (!werBekannt()) zeigeWer(true); return; }
@@ -306,13 +343,14 @@
       return;
     }
     const t = r.k.ticket;
-    merkeOrt(ort);
+    if (genau) merkeOrt(genau); // als Vorschlag nur der getippte Teil - den Bereich gibt das Dropdown
     zeigeWer(false);
     const danke = $("danke");
     danke.hidden = false;
     danke.innerHTML = `<b>✓ Meldung ${h(t.nr)} liegt bei der Werkstatt.</b><br>Du musst nichts weiter tun. Den Stand siehst du unter <a href="#" data-gehe="meine">Meine Meldungen</a>.`
       + (r.k.fotoFehler ? `<br><span style="color:#7A2620">${h(r.k.fotoFehler)}</span>` : "");
-    $("ort").value = ""; $("text").value = ""; foto = ""; $("fotoDatei").value = ""; zeigeFoto();
+    $("ort").value = ""; $("text").value = ""; foto = "";
+    if (bereiche.length) { $("ortWahl").value = ""; $("ortWahl").dispatchEvent(new Event("change")); } $("fotoDatei").value = ""; zeigeFoto();
     document.querySelectorAll(".kachel").forEach((x) => x.setAttribute("aria-pressed", "false"));
     window.scrollTo({ top: 0, behavior: "smooth" });
     ladeMeine(true);

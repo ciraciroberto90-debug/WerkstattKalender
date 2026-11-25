@@ -962,7 +962,10 @@ Störungen, nicht den Rest.
     `http://v-btacockpit-1:8765/melden` öffnen (Link auf den Desktop legen).
     Beim ersten Mal Name und Abteilung eintragen, dann Kachel wählen
     (Auftrag/Umbau, Gebäude, Strom/Licht, Wasser/Heizung/Luft, Sonstiges –
-    Störungen an Anlagen laufen über die Störberichte im Cockpit), **Wo**, **Was ist los**, wahlweise
+    Störungen an Anlagen laufen über die Störberichte im Cockpit), **Wo**
+    (Bereich aus dem Dropdown und/oder von Hand – im Ticket steht z. B.
+    „Beschichtung · WC Damen“; die Bereiche stehen als Liste `BEREICHE` in
+    `melden/ticket-melden.html` und lassen sich ohne Dienst-Neustart ändern), **Was ist los**, wahlweise
     ein Foto – abschicken. Nach der Eile wird der Melder seit dem 25.11. nicht
     mehr gefragt; wie dringend etwas ist, entscheidet die Werkstatt.
     Es gibt eine Nummer (z. B. 2026-0147). Unter

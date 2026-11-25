@@ -48,6 +48,10 @@
 //        die Seite schickt deshalb immer denselben Wert mit).
 //  (B11) Robertos Ansage 25.11.: fünf Kacheln ohne „Anlage / Maschine“, nach dem
 //        Abc sortiert („Sonstiges“ zuletzt) und größer als bisher.
+//  (B12) Robertos Ansage 25.11.: „Wo?“ hat zusätzlich ein Dropdown mit seinen zwölf
+//        Bereichen; das Handeintragen bleibt („darf trotzdem nicht weg“). Bereich
+//        allein, Text allein oder beides („Bereich · Text“); „Anderer Ort“ ohne
+//        Text ist keine Ortsangabe; ein Standort ohne Liste bekommt kein Dropdown.
 //
 // Rot-Nachweis: DIENST_ORDNER=<Ordner mit dienst.js/db.js vom Stand 0.6.1>
 // node --no-warnings tests/server/pruefe-tickets.js  -> T1 ff. rot (kein Ticket-Weg),
@@ -235,6 +239,22 @@ const beende = (kind) => new Promise((r) => { kind.once("exit", r); kind.kill();
   ok("(B11) Fünf Kacheln ohne „Anlage / Maschine“, nach dem Abc, „Sonstiges“ zuletzt", namen.length === 5 && !namen.some((n) => /Anlage|Maschine/.test(n)) && namen[4] === "Sonstiges" && namen.slice(0, -1).join("|") === sortiertSoll.join("|"), namen.join(" | "));
   ok("(B11) Kacheln größer als bisher (gemessen 25.11.: bisher 93 px hoch): mindestens 110 px, im Platzhalter von „Wo?“ keine Anlage", kacheln.every((k) => k.h >= 110) && !/Anlage/.test(await p.locator("#ort").getAttribute("placeholder")), kacheln.map((k) => `${k.b}×${k.h}`).join(" "));
 
+  /* (B12) Robertos Ansage 25.11.: Dropdown bei „Wo?“ - das Handeintragen bleibt */
+  const hatWahl = (await p.locator("#ortWahl").count()) === 1 && (await p.locator("#ortWahl").isVisible());
+  const wahlListe = hatWahl ? await p.locator("#ortWahl option").evaluateAll((z) => z.map((o) => o.textContent)) : [];
+  const BEREICHE_SOLL = ["Außengelände", "Berreshalle", "Beschichtung", "Dreherei", "Lager / Versand", "Masseaufbereitung", "Ofenhalle", "Sortiererei", "Sozialräume / WC", "Verwaltung", "Werkstatt", "Zentrale"];
+  ok("(B12) Dropdown bei „Wo?“: Robertos zwölf Bereiche nach dem Abc, davor „Bereich wählen …“, zuletzt „Anderer Ort“; das Textfeld steht daneben", hatWahl && wahlListe.join("|") === ["Bereich wählen …", ...BEREICHE_SOLL, "Anderer Ort"].join("|") && (await p.locator("#ort").isVisible()), wahlListe.length + " Einträge");
+  if (hatWahl) {
+    await p.locator("#ortWahl").selectOption("Anderer Ort");
+    await p.locator("#senden").click();
+    const fehltAnderer = await p.locator("#fehlt").innerText();
+    await p.locator("#ortWahl").selectOption("Zentrale");
+    await p.locator("#senden").click();
+    const fehltZentrale = await p.locator("#fehlt").innerText();
+    ok("(B12) „Anderer Ort“ ohne Text gilt nicht als Ort („wo“ fehlt); ein gewählter Bereich allein reicht", /\bwo\b/.test(fehltAnderer) && !/\bwo\b/.test(fehltZentrale) && /worum es geht/.test(fehltZentrale), fehltAnderer + " || " + fehltZentrale);
+    await p.locator("#ortWahl").selectOption(""); // (B2) prüft danach das reine Handeintragen
+  } else ok("(B12) „Anderer Ort“ ohne Text gilt nicht als Ort („wo“ fehlt); ein gewählter Bereich allein reicht", false, "kein Dropdown");
+
   /* (B10) erster Teil: das Formular kennt keine Eile mehr */
   const formularText = (await p.locator('[data-seite="melden"]').innerText()).replace(/\s+/g, " ");
   const eileKnoepfe = await p.locator("#dring, [data-d]").count();
@@ -254,6 +274,7 @@ const beende = (kind) => new Promise((r) => { kind.once("exit", r); kind.kill();
   const amServer = (await holen("/api/scheurich/tickets", { headers: alsWerkstatt })).k.tickets.find((t) => t.nr === nrB);
   ok("(B2) Dank mit Nummer; das Ticket liegt am Server mit Name, Abteilung, Art, Eile „woche“", !!nrB && amServer && amServer.melder === "B. Browser" && amServer.abteilung === "Brennerei" && amServer.art === "Gebäude" && amServer.eile === "woche" && amServer.ort === "Halle 1, Sozialraum", danke.slice(0, 60));
   ok("(B2) Kein einziger Abruf an eine fremde Adresse", fremd.length === 0, fremd.join(", "));
+  ok("(B12) Handeintragen ohne Dropdown geht weiter: der Ort steht wie getippt am Server", !!amServer && amServer.ort === "Halle 1, Sozialraum", amServer && amServer.ort);
 
   /* (B3) */
   await p.locator('[data-reiter="meine"]').click();
@@ -284,6 +305,7 @@ const beende = (kind) => new Promise((r) => { kind.once("exit", r); kind.kill();
 
   /* (B6) */
   await p.locator('.kachel[data-art="Sonstiges"]').click();
+  if (hatWahl) await p.locator("#ortWahl").selectOption("Beschichtung"); // (B12) Bereich + Text
   await p.locator("#ort").fill("Lager");
   await p.locator("#text").fill("Meldung mit Bild");
   await p.locator("#fotoDatei").setInputFiles({ name: "bild.png", mimeType: "image/png", buffer: PNG });
@@ -298,6 +320,12 @@ const beende = (kind) => new Promise((r) => { kind.once("exit", r); kind.kill();
   const mitBild = (await holen("/api/scheurich/tickets", { headers: alsWerkstatt })).k.tickets.find((t) => t.text === "Meldung mit Bild");
   const bildOk = await p.locator("#meineListe .bild img").first().evaluate((img) => new Promise((f) => { if (img.complete) f(img.naturalWidth > 0); else { img.onload = () => f(img.naturalWidth > 0); img.onerror = () => f(false); } }));
   ok("(B6) Foto: als JPG am Server, „Foto zeigen“ zeigt es", mitBild && /\.jpg$/.test(mitBild.foto) && fs.existsSync(path.join(einst.standorte.scheurich.datenOrdner, "ticket-fotos", mitBild.foto)) && bildOk, mitBild && mitBild.foto);
+  const wahlNachSenden = hatWahl ? await p.locator("#ortWahl").inputValue() : "?";
+  ok("(B12) Bereich + Text: am Server „Beschichtung · Lager“; nach dem Abschicken steht das Dropdown wieder auf „Bereich wählen …“", !!mitBild && mitBild.ort === "Beschichtung · Lager" && wahlNachSenden === "", (mitBild && mitBild.ort) + " | Dropdown danach: „" + wahlNachSenden + "“");
+  const pSo = await kontext.newPage();
+  await pSo.goto(B + "/melden/soendgen");
+  ok("(B12) Standort ohne Liste (Soendgen): kein Dropdown, das Textfeld bleibt", (await pSo.locator("#ortWahl").count()) === 0 || !(await pSo.locator("#ortWahl").isVisible()) ? (await pSo.locator("#ort").isVisible()) && hatWahl : false);
+  await pSo.close();
 
   /* (B7) */
   await p.setViewportSize({ width: 390, height: 800 });
