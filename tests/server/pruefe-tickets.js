@@ -42,6 +42,10 @@
 //  (B7)  390 px Breite: kein seitliches Rollen; keine Skriptfehler.
 //  (B8)  Ein zweiter Browser sieht keine fremden Meldungen.
 //  (B9)  Dienst weg: „NICHT angekommen“, der Text bleibt im Formular.
+//  (B10) Robertos Ansage 25.11. („wie eilig muss weg“): Die Melde-Seite fragt
+//        nicht nach der Eile und zeigt sie auch in „Meine Meldungen“ nicht -
+//        die Meldung kommt trotzdem an (der Dienst 0.7.0 verlangt die Angabe,
+//        die Seite schickt deshalb immer denselben Wert mit).
 //
 // Rot-Nachweis: DIENST_ORDNER=<Ordner mit dienst.js/db.js vom Stand 0.6.1>
 // node --no-warnings tests/server/pruefe-tickets.js  -> T1 ff. rot (kein Ticket-Weg),
@@ -59,7 +63,8 @@ const ok = (n, c, zusatz) => { console.log((c ? "PASS" : "FAIL") + " | " + n + (
 const WURZEL = UMG.WURZEL;
 const DIENST_ORDNER = process.env.DIENST_ORDNER || path.join(WURZEL, "server");
 const DIENST = path.join(DIENST_ORDNER, "dienst.js");
-const SEITE = path.join(WURZEL, "melden", "ticket-melden.html");
+// MELDE_SEITE=<ältere ticket-melden.html> für den Rot-Nachweis zu (B10).
+const SEITE = process.env.MELDE_SEITE || path.join(WURZEL, "melden", "ticket-melden.html");
 const PORT = 19765 + Math.floor(Math.random() * 1000);
 const ORDNER = fs.mkdtempSync(path.join(os.tmpdir(), "bta-tickets-"));
 const APP_ORDNER = path.join(ORDNER, "app");
@@ -221,6 +226,11 @@ const beende = (kind) => new Promise((r) => { kind.once("exit", r); kind.kill();
   const fehlt = await p.locator("#fehlt").innerText();
   ok("(B1) Leer abschicken nennt Name, Abteilung, worum, wo, was", /dein Name/.test(fehlt) && /deine Abteilung/.test(fehlt) && /worum es geht/.test(fehlt) && /\bwo\b/.test(fehlt) && /was los ist/.test(fehlt), fehlt);
 
+  /* (B10) erster Teil: das Formular kennt keine Eile mehr */
+  const formularText = (await p.locator('[data-seite="melden"]').innerText()).replace(/\s+/g, " ");
+  const eileKnoepfe = await p.locator("#dring, [data-d]").count();
+  ok("(B10) Formular ohne „Wie eilig?“: keine Auswahl, kein Wort davon", eileKnoepfe === 0 && !/Wie eilig|steht oder Gefahr|Diese Woche|Wenn Zeit ist/.test(formularText), `${eileKnoepfe} Knöpfe`);
+
   /* (B2) */
   await p.locator("#werN").fill("B. Browser");
   await p.locator("#werA").fill("Brennerei");
@@ -241,6 +251,7 @@ const beende = (kind) => new Promise((r) => { kind.once("exit", r); kind.kill();
   await p.locator("#meineListe .karte").first().waitFor({ timeout: 10000 });
   let karte = (await p.locator("#meineListe .karte").first().innerText()).replace(/\s+/g, " ");
   ok("(B3) Meine Meldungen: 1 Karte, „Neu“, „wartet auf die Werkstatt“", (await p.locator("#meineListe .karte").count()) === 1 && /Neu/.test(karte) && /wartet auf die Werkstatt/.test(karte) && karte.includes(nrB), karte.slice(0, 110));
+  ok("(B10) Meine Meldungen: die Karte nennt keine Eile", !/Sofort|Diese Woche|Wenn Zeit ist/.test(karte) && (await p.locator("#meineListe .chip.sofort, #meineListe .chip.woche, #meineListe .chip.zeit").count()) === 0, karte.slice(0, 110));
 
   /* (B4) */
   await post(`/api/scheurich/tickets/${nrB}`, { stand: "frage", zustaendig: "T Balles", antwort: "Welches Fenster genau?", wer: "T Balles" }, alsWerkstatt);

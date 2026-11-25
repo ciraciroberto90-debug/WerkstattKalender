@@ -962,15 +962,19 @@ Störungen, nicht den Rest.
     `http://v-btacockpit-1:8765/melden` öffnen (Link auf den Desktop legen).
     Beim ersten Mal Name und Abteilung eintragen, dann Kachel wählen
     (Anlage/Maschine, Gebäude, Strom/Licht, Wasser/Heizung/Luft,
-    Auftrag/Umbau, Sonstiges), **Wo**, **Was ist los**, **Wie eilig**, wahlweise
-    ein Foto – abschicken. Es gibt eine Nummer (z. B. 2026-0147). Unter
+    Auftrag/Umbau, Sonstiges), **Wo**, **Was ist los**, wahlweise
+    ein Foto – abschicken. Nach der Eile wird der Melder seit dem 25.11. nicht
+    mehr gefragt; wie dringend etwas ist, entscheidet die Werkstatt.
+    Es gibt eine Nummer (z. B. 2026-0147). Unter
     **Meine Meldungen** steht der Stand; eine **Rückfrage** der Werkstatt
     erscheint dort mit roter Zahl und wird dort beantwortet.
     Die Liste „Meine Meldungen“ hängt an dem Browser, mit dem gemeldet wurde.
   - **Nichts geht ins Internet:** Die Seite kommt vom BTA-Server im Haus und
     spricht nur mit ihm. Kein Kennwort, keine Benutzerliste, keine E-Mail.
   - **Im Cockpit** steht oben der Reiter **Tickets** mit roter Zahl (neue
-    Meldungen und neue Antworten). „Sofort“ steht oben. **Annehmen für …**
+    Meldungen und neue Antworten). Die Spalte „Eile“ zeigt bei Meldungen ab
+    dem 25.11. immer „Diese Woche“ (fester Wert der Melde-Seite, keine Aussage
+    des Melders); ältere „Sofort“-Meldungen stehen oben. **Annehmen für …**
     teilt das Ticket einer Person zu und legt für sie ein **To-do** an (Titel
     „Ticket 2026-0147: …“, bei „Sofort“ mit hoher Prio, Foto im To-do, wenn die
     Foto-Ablage verbunden ist). **Rückfrage** schickt eine Frage an den Melder,

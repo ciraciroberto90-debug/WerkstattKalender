@@ -42,13 +42,6 @@
   .kachel b { display: block; font-size: 13.5px; }
   .kachel small { color: #8A9099; font-size: 11px; }
   .kachel[aria-pressed="true"] { border-color: var(--blau); background: #EDF0FA; box-shadow: inset 0 0 0 1px var(--blau); }
-  .dring { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .dring button { border: 1.5px solid var(--rand); border-radius: 10px; background: #fff; padding: 8px 6px; font: inherit; color: inherit; cursor: pointer; text-align: center; }
-  .dring b { display: block; font-size: 13.5px; }
-  .dring small { color: #8A9099; font-size: 11px; }
-  .dring button[aria-pressed="true"][data-d="sofort"] { border-color: var(--rot); background: #FBE9E7; }
-  .dring button[aria-pressed="true"][data-d="woche"] { border-color: var(--orange); background: #FDF3E7; }
-  .dring button[aria-pressed="true"][data-d="zeit"] { border-color: var(--gruen); background: #EEF6F0; }
   .foto { border: 1.5px dashed #B8C0C8; border-radius: 10px; padding: 10px; text-align: center; color: var(--grau); font-size: 13px; cursor: pointer; }
   .foto.drueber { border-color: var(--blau); background: #EDF0FA; }
   .foto img { max-width: 100%; max-height: 180px; border-radius: 8px; display: block; margin: 0 auto 6px; }
@@ -68,9 +61,6 @@
   .chip.arbeit { background: #FFF4C2; color: #6B5310; }
   .chip.erledigt { background: #E3F2E8; color: #1F5E33; }
   .chip.frage { background: #FBE9E7; color: var(--rot); }
-  .chip.sofort { background: var(--rot); color: #fff; }
-  .chip.woche { background: var(--orange); color: #fff; }
-  .chip.zeit { background: #DDE2E7; color: #4B5259; }
   .karte { border: 1px solid var(--rand); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: #fff; }
   .karte.frage { border-color: #E3B7B3; box-shadow: inset 4px 0 0 var(--rot); }
   .karte .oben { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -131,12 +121,6 @@
             <datalist id="orte"></datalist>
             <label class="t" for="text">Was ist los?</label>
             <textarea class="feld" id="text" maxlength="2000" placeholder="z. B. Fenster neben Tor 2 schließt nicht mehr, Griff abgebrochen"></textarea>
-            <label class="t">Wie eilig?</label>
-            <div class="dring" id="dring">
-              <button type="button" data-d="sofort" aria-pressed="false"><b>Sofort</b><small>steht oder Gefahr</small></button>
-              <button type="button" data-d="woche" aria-pressed="true"><b>Diese Woche</b><small>stört die Arbeit</small></button>
-              <button type="button" data-d="zeit" aria-pressed="false"><b>Wenn Zeit ist</b><small>kann warten</small></button>
-            </div>
             <label class="t">Foto (wenn es hilft)</label>
             <div class="foto" id="fotoFeld" tabindex="0" role="button">📷 Bild auswählen oder hierher ziehen</div>
             <input type="file" id="fotoDatei" accept="image/*" hidden>
@@ -190,7 +174,6 @@
   const AM_SERVER = !!STANDORT && !/^__/.test(STANDORT) && /^https?:$/.test(location.protocol);
   const API = "/api/" + encodeURIComponent(STANDORT) + "/tickets";
   const STAND = { neu: ["Neu", 1], angenommen: ["Angenommen", 2], arbeit: ["In Arbeit", 3], frage: ["Rückfrage", 2], erledigt: ["Erledigt", 4] };
-  const EILE = { sofort: "Sofort", woche: "Diese Woche", zeit: "Wenn Zeit ist" };
 
   /* ---------- Wer meldet (Name, Abteilung, Kennung) ---------- */
   const MERK = "bta-melder";
@@ -233,7 +216,6 @@
   document.addEventListener("click", (ev) => {
     const g = ev.target.closest("[data-gehe]"); if (g) { ev.preventDefault(); zeige(g.dataset.gehe); }
     const k = ev.target.closest(".kachel"); if (k) document.querySelectorAll(".kachel").forEach((x) => x.setAttribute("aria-pressed", x === k));
-    const d = ev.target.closest("#dring button"); if (d) document.querySelectorAll("#dring button").forEach((x) => x.setAttribute("aria-pressed", x === d));
   });
 
   /* ---------- Foto: im Browser auf 1600 px verkleinern, dann als JPG mitschicken ---------- */
@@ -294,8 +276,11 @@
     if (!AM_SERVER) { $("fehlt").textContent = "Diese Seite ist nicht über den BTA-Server geöffnet - Abschicken geht so nicht."; return; }
     $("fehlt").textContent = "";
     sendet = true; $("senden").disabled = true; $("senden").textContent = "Wird gesendet …";
-    const eile = document.querySelector('#dring button[aria-pressed="true"]').dataset.d;
-    const koerper = { art: art.dataset.art, ort, text, eile, melder: wer.name, abteilung: wer.abteilung, ...(foto ? { foto } : {}) };
+    /* Die Abfrage „Wie eilig?“ ist weg (Robertos Ansage 25.11.: „wie eilig muss weg“) -
+       wie dringend etwas ist, entscheidet die Werkstatt, nicht der Melder. Der Dienst
+       0.7.0 verlangt die Angabe aber noch und weist eine Meldung ohne sie ab; deshalb
+       geht immer derselbe Wert mit (der, der bisher vorbelegt war). */
+    const koerper = { art: art.dataset.art, ort, text, eile: "woche", melder: wer.name, abteilung: wer.abteilung, ...(foto ? { foto } : {}) };
     let r = await frage("", { method: "POST", body: JSON.stringify(koerper) });
     /* Kam keine Antwort (Netz weg, Frist), kann die Meldung trotzdem angekommen sein.
        Bevor der Melder ein zweites Mal drückt und die Werkstatt zwei Tickets bekommt:
@@ -338,7 +323,7 @@
     $("meineListe").innerHTML = reihe.map((t) => {
       const [name, stufe] = STAND[t.stand] || [t.stand, 1];
       const tippt = offeneAntwort.has(t.nr);
-      return `<div class="karte ${t.stand === "frage" ? "frage" : ""}" data-nr="${h(t.nr)}"><div class="oben"><span class="nr">${h(t.nr)}</span><span class="chip ${h(t.stand)}">${t.stand === "erledigt" ? "✓ " : ""}${h(name)}</span><span class="chip ${h(t.eile)}">${h(EILE[t.eile] || t.eile)}</span><span class="zeile" style="margin-left:auto">${h(zeit(t.angelegt))}</span></div>
+      return `<div class="karte ${t.stand === "frage" ? "frage" : ""}" data-nr="${h(t.nr)}"><div class="oben"><span class="nr">${h(t.nr)}</span><span class="chip ${h(t.stand)}">${t.stand === "erledigt" ? "✓ " : ""}${h(name)}</span><span class="zeile" style="margin-left:auto">${h(zeit(t.angelegt))}</span></div>
         <div class="titel">${h(t.text)}</div><div class="zeile">${h(t.art)} · ${h(t.ort)}${t.zustaendig ? " · bei " + h(t.zustaendig) : (t.stand === "erledigt" ? "" : " · wartet auf die Werkstatt")}${t.foto ? ` · <button type="button" class="link" data-bild="${h(t.nr)}">📷 Foto zeigen</button>` : ""}</div>
         <div class="bild" data-bildplatz="${h(t.nr)}">${offeneBilder.has(t.nr) ? `<img src="${offeneBilder.get(t.nr)}" alt="Foto zur Meldung">` : ""}</div>
         ${t.antwort ? `<div class="antwort"><b>Werkstatt:</b> ${h(t.antwort)}</div>` : ""}
