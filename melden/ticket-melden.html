@@ -35,12 +35,20 @@
   label.t:first-child { margin-top: 0; }
   .feld { width: 100%; border: 1px solid var(--rand); border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; color: inherit; }
   textarea.feld { min-height: 84px; resize: vertical; }
-  .kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  @media (max-width: 520px) { .kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  .kachel { border: 1.5px solid var(--rand); border-radius: 12px; background: #fff; padding: 10px 8px; text-align: center; cursor: pointer; font: inherit; color: inherit; }
-  .kachel .bild { font-size: 22px; display: block; }
-  .kachel b { display: block; font-size: 13.5px; }
-  .kachel small { color: #8A9099; font-size: 11px; }
+  /* Fünf Kacheln (Robertos Ansage 25.11.: „Anlage muss raus, dafür die Kästchen etwas
+     größer und sortiert“): oben drei, unten zwei breitere - so bleibt keine Lücke.
+     Sechs Rasterspalten, damit sich 3 × 2 und 2 × 3 Spalten sauber teilen. */
+  .kacheln { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+  .kachel { grid-column: span 2; border: 1.5px solid var(--rand); border-radius: 12px; background: #fff; padding: 16px 10px; text-align: center; cursor: pointer; font: inherit; color: inherit; }
+  .kachel:nth-child(n+4) { grid-column: span 3; }
+  @media (max-width: 520px) {
+    .kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kachel, .kachel:nth-child(n+4) { grid-column: span 1; }
+    .kachel:last-child { grid-column: span 2; }
+  }
+  .kachel .bild { font-size: 28px; display: block; margin-bottom: 2px; }
+  .kachel b { display: block; font-size: 15px; }
+  .kachel small { color: #8A9099; font-size: 12px; }
   .kachel[aria-pressed="true"] { border-color: var(--blau); background: #EDF0FA; box-shadow: inset 0 0 0 1px var(--blau); }
   .foto { border: 1.5px dashed #B8C0C8; border-radius: 10px; padding: 10px; text-align: center; color: var(--grau); font-size: 13px; cursor: pointer; }
   .foto.drueber { border-color: var(--blau); background: #EDF0FA; }
@@ -109,15 +117,16 @@
           <div>
             <label class="t">Worum geht es?</label>
             <div class="kacheln" id="arten">
-              <button type="button" class="kachel" aria-pressed="false" data-art="Anlage / Maschine"><span class="bild">⚙</span><b>Anlage / Maschine</b><small>steht, läuft falsch</small></button>
+              <!-- Nach dem Abc sortiert, „Sonstiges“ als Auffangbecken zuletzt. Störungen an
+                   Anlagen laufen über die Störberichte im Cockpit, nicht über diese Seite. -->
+              <button type="button" class="kachel" aria-pressed="false" data-art="Auftrag / Umbau"><span class="bild">🔧</span><b>Auftrag / Umbau</b><small>etwas bauen, ändern</small></button>
               <button type="button" class="kachel" aria-pressed="false" data-art="Gebäude"><span class="bild">🏠</span><b>Gebäude</b><small>Fenster, Tür, Tor, Dach</small></button>
               <button type="button" class="kachel" aria-pressed="false" data-art="Strom / Licht"><span class="bild">💡</span><b>Strom / Licht</b><small>Lampe, Steckdose</small></button>
               <button type="button" class="kachel" aria-pressed="false" data-art="Wasser / Heizung / Luft"><span class="bild">🚿</span><b>Wasser / Heizung / Luft</b><small>auch Druckluft</small></button>
-              <button type="button" class="kachel" aria-pressed="false" data-art="Auftrag / Umbau"><span class="bild">🔧</span><b>Auftrag / Umbau</b><small>etwas bauen, ändern</small></button>
               <button type="button" class="kachel" aria-pressed="false" data-art="Sonstiges"><span class="bild">✎</span><b>Sonstiges</b><small>alles andere</small></button>
             </div>
             <label class="t" for="ort">Wo?</label>
-            <input class="feld" id="ort" list="orte" maxlength="120" placeholder="z. B. Halle 3, Tor 2 · oder die Anlage">
+            <input class="feld" id="ort" list="orte" maxlength="120" placeholder="z. B. Halle 3, Tor 2">
             <datalist id="orte"></datalist>
             <label class="t" for="text">Was ist los?</label>
             <textarea class="feld" id="text" maxlength="2000" placeholder="z. B. Fenster neben Tor 2 schließt nicht mehr, Griff abgebrochen"></textarea>

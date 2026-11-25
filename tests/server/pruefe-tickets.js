@@ -46,6 +46,8 @@
 //        nicht nach der Eile und zeigt sie auch in „Meine Meldungen“ nicht -
 //        die Meldung kommt trotzdem an (der Dienst 0.7.0 verlangt die Angabe,
 //        die Seite schickt deshalb immer denselben Wert mit).
+//  (B11) Robertos Ansage 25.11.: fünf Kacheln ohne „Anlage / Maschine“, nach dem
+//        Abc sortiert („Sonstiges“ zuletzt) und größer als bisher.
 //
 // Rot-Nachweis: DIENST_ORDNER=<Ordner mit dienst.js/db.js vom Stand 0.6.1>
 // node --no-warnings tests/server/pruefe-tickets.js  -> T1 ff. rot (kein Ticket-Weg),
@@ -225,6 +227,13 @@ const beende = (kind) => new Promise((r) => { kind.once("exit", r); kind.kill();
   await p.locator("#senden").click();
   const fehlt = await p.locator("#fehlt").innerText();
   ok("(B1) Leer abschicken nennt Name, Abteilung, worum, wo, was", /dein Name/.test(fehlt) && /deine Abteilung/.test(fehlt) && /worum es geht/.test(fehlt) && /\bwo\b/.test(fehlt) && /was los ist/.test(fehlt), fehlt);
+
+  /* (B11) Robertos Ansage 25.11.: „Anlage muss raus, dafür die Kästchen etwas größer und sortiert“ */
+  const kacheln = await p.locator("#arten .kachel").evaluateAll((z) => z.map((k) => ({ art: k.dataset.art, h: Math.round(k.getBoundingClientRect().height), b: Math.round(k.getBoundingClientRect().width) })));
+  const namen = kacheln.map((k) => k.art);
+  const sortiertSoll = [...namen.slice(0, -1)].sort((a, b) => a.localeCompare(b, "de"));
+  ok("(B11) Fünf Kacheln ohne „Anlage / Maschine“, nach dem Abc, „Sonstiges“ zuletzt", namen.length === 5 && !namen.some((n) => /Anlage|Maschine/.test(n)) && namen[4] === "Sonstiges" && namen.slice(0, -1).join("|") === sortiertSoll.join("|"), namen.join(" | "));
+  ok("(B11) Kacheln größer als bisher (gemessen 25.11.: bisher 93 px hoch): mindestens 110 px, im Platzhalter von „Wo?“ keine Anlage", kacheln.every((k) => k.h >= 110) && !/Anlage/.test(await p.locator("#ort").getAttribute("placeholder")), kacheln.map((k) => `${k.b}×${k.h}`).join(" "));
 
   /* (B10) erster Teil: das Formular kennt keine Eile mehr */
   const formularText = (await p.locator('[data-seite="melden"]').innerText()).replace(/\s+/g, " ");

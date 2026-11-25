@@ -961,8 +961,8 @@ Störungen, nicht den Rest.
   - **Melden** geht ohne Cockpit: im Browser die Seite
     `http://v-btacockpit-1:8765/melden` öffnen (Link auf den Desktop legen).
     Beim ersten Mal Name und Abteilung eintragen, dann Kachel wählen
-    (Anlage/Maschine, Gebäude, Strom/Licht, Wasser/Heizung/Luft,
-    Auftrag/Umbau, Sonstiges), **Wo**, **Was ist los**, wahlweise
+    (Auftrag/Umbau, Gebäude, Strom/Licht, Wasser/Heizung/Luft, Sonstiges –
+    Störungen an Anlagen laufen über die Störberichte im Cockpit), **Wo**, **Was ist los**, wahlweise
     ein Foto – abschicken. Nach der Eile wird der Melder seit dem 25.11. nicht
     mehr gefragt; wie dringend etwas ist, entscheidet die Werkstatt.
     Es gibt eine Nummer (z. B. 2026-0147). Unter
