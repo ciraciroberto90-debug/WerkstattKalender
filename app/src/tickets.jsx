@@ -148,8 +148,13 @@ export function useTickets({ imBlick, aus }) {
 }
 
 const STAND = { neu: ["Neu", "#E7ECF8", "#1E2761"], angenommen: ["Angenommen", "#FDF3E7", "#8A4E12"], arbeit: ["In Arbeit", "#FFF4C2", "#6B5310"], frage: ["Rückfrage", "#FBE9E7", "#B23A34"], erledigt: ["Erledigt", "#E3F2E8", "#1F5E33"] };
-const EILE = { sofort: ["Sofort", "#B23A34", "#fff"], woche: ["Diese Woche", "#C97A2B", "#fff"], zeit: ["Wenn Zeit ist", "#DDE2E7", "#4B5259"] };
-const RANG = { sofort: 0, woche: 1, zeit: 2 };
+/* Keine Eile mehr (Roberto 25.11.: „wie eilig muss weg“, Spalte „ganz weg“): Der
+   Melder stuft nicht ein, also zeigt und sortiert das Cockpit auch nicht danach.
+   Das Feld `eile` steht weiter in den Tickets am Server (Dienst 0.7.0 verlangt
+   es), wird hier aber nicht mehr gelesen. */
+// Vorschlag für das Adressfeld des Verwalters. Nur ein Text im Feld - abgerufen
+// wird erst nach „Merken“ (sonst träfe jeder Test den echten Server).
+const SERVER_VORSCHLAG = "http://v-btacockpit-1:8765";
 const zeitText = (iso) => { const d = new Date(iso); const z = (n) => String(n).padStart(2, "0"); return isNaN(d) ? "" : `${z(d.getDate())}.${z(d.getMonth() + 1)}. ${z(d.getHours())}:${z(d.getMinutes())}`; };
 const chip = (text, bg, fg) => <span style={{ display: "inline-block", borderRadius: "999px", padding: "2px 10px", fontSize: "0.72rem", fontWeight: 800, whiteSpace: "nowrap", backgroundColor: bg, color: fg }}>{text}</span>;
 const knopf = { border: "1px solid #D6D9DC", backgroundColor: "#fff", borderRadius: "8px", padding: "4px 9px", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", margin: "0 4px 4px 0" };
@@ -165,7 +170,9 @@ export function TicketAnsicht({ daten, team, angemeldet, darf, istVerwalter, tod
   const [meldung, setMeldung] = useState(null); // { nr, text } - Fehler/Hinweis an der Zeile
   const [arbeitet, setArbeitet] = useState(null); // nr, an der gerade gespeichert wird
   const [bilder, setBilder] = useState({}); // nr -> Blob-Adresse | "fehlt"
-  const [adresseEntwurf, setAdresseEntwurf] = useState("");
+  // Vorbelegt statt leer (Robertos Bild 24.11.): Der graue Beispieltext im leeren
+  // Feld sah aus wie schon ausgefüllt, „Merken“ blieb aber grau.
+  const [adresseEntwurf, setAdresseEntwurf] = useState(SERVER_VORSCHLAG);
   const wer = angemeldet || "Werkstatt";
 
   const tu = async (t, datenNeu) => {
@@ -217,7 +224,7 @@ export function TicketAnsicht({ daten, team, angemeldet, darf, istVerwalter, tod
         <div className="font-black" style={{ color: "#1E2761", fontSize: "1.05rem" }}>Tickets: dieser Rechner kennt den BTA-Server noch nicht</div>
         <p style={{ color: "#5B6572", fontSize: "0.85rem", margin: "6px 0 12px" }}>
           Die Meldungen der Abteilungsleiter liegen am BTA-Server im Haus. Normalerweise findet das Programm ihn selbst über die Datei <code>{TICKET_SERVER_DATEI}</code> im Update-Ordner.
-          {istVerwalter ? " Als Verwalter kannst du die Adresse hier auch von Hand eintragen - sie gilt nur für diesen Rechner." : " Bitte dem Verwalter Bescheid geben."}
+          {istVerwalter ? " Als Verwalter kannst du die Adresse hier auch von Hand eintragen - sie gilt nur für diesen Rechner. Die übliche Adresse steht schon im Feld: mit „Merken“ bestätigen." : " Bitte dem Verwalter Bescheid geben."}
         </p>
         {istVerwalter && (
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -231,7 +238,7 @@ export function TicketAnsicht({ daten, team, angemeldet, darf, istVerwalter, tod
 
   const sortiert = [...tickets]
     .filter((t) => (filter === "alle" ? true : filter === "erledigt" ? t.stand === "erledigt" : t.stand !== "erledigt"))
-    .sort((a, b) => (a.stand === "erledigt") - (b.stand === "erledigt") || (b.neuVomMelder === true) - (a.neuVomMelder === true) || (RANG[a.eile] ?? 9) - (RANG[b.eile] ?? 9) || String(b.angelegt).localeCompare(String(a.angelegt)));
+    .sort((a, b) => (a.stand === "erledigt") - (b.stand === "erledigt") || (b.neuVomMelder === true) - (a.neuVomMelder === true) || String(b.angelegt).localeCompare(String(a.angelegt)));
   const zahl = (f) => tickets.filter((t) => (f === "erledigt" ? t.stand === "erledigt" : f === "offen" ? t.stand !== "erledigt" : true)).length;
   const meldeAdresse = adresse + "/melden" + (STANDORT.id === "scheurich" ? "" : "/" + STANDORT.id);
 
@@ -257,21 +264,20 @@ export function TicketAnsicht({ daten, team, angemeldet, darf, istVerwalter, tod
       <div className="rounded-lg border bg-white" style={{ borderColor: "#D6D9DC", overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.84rem" }}>
           <thead>
-            <tr>{["Nr. · Eingang", "Von", "Meldung", "Eile", "Stand", "Tun"].map((k) => <th key={k} style={{ textAlign: "left", fontSize: "0.66rem", textTransform: "uppercase", letterSpacing: ".03em", color: "#8A9099", borderBottom: "1.5px solid #C4CBD2", padding: "7px 9px" }}>{k}</th>)}</tr>
+            <tr>{["Nr. · Eingang", "Von", "Meldung", "Stand", "Tun"].map((k) => <th key={k} data-tickets-spalte={k} style={{ textAlign: "left", fontSize: "0.66rem", textTransform: "uppercase", letterSpacing: ".03em", color: "#8A9099", borderBottom: "1.5px solid #C4CBD2", padding: "7px 9px" }}>{k}</th>)}</tr>
           </thead>
           <tbody>
             {sortiert.length === 0 && (
-              <tr><td colSpan={6} data-tickets-leer style={{ padding: "22px", textAlign: "center", color: "#5B6572" }}>{tickets.length === 0 ? (stand ? "Noch keine Meldungen." : "Die Liste wird geladen …") : "In dieser Auswahl ist nichts."}</td></tr>
+              <tr><td colSpan={5} data-tickets-leer style={{ padding: "22px", textAlign: "center", color: "#5B6572" }}>{tickets.length === 0 ? (stand ? "Noch keine Meldungen." : "Die Liste wird geladen …") : "In dieser Auswahl ist nichts."}</td></tr>
             )}
             {sortiert.map((t) => {
               const [standName, sBg, sFg] = STAND[t.stand] || [t.stand, "#EEF1F4", "#4B5259"];
-              const [eileName, eBg, eFg] = EILE[t.eile] || [t.eile, "#DDE2E7", "#4B5259"];
               const todo = t.todoId ? (todos || []).find((x) => x.id === t.todoId) : null;
               const todoFertig = todo && todo.status === "done";
               const beschaeftigt = arbeitet === t.nr;
               const offen = t.stand !== "erledigt";
               return (
-                <tr key={t.nr} data-ticket={t.nr} data-ticket-stand={t.stand} style={{ opacity: offen ? 1 : 0.6, backgroundColor: t.neuVomMelder ? "#FFF9E8" : t.stand === "neu" && t.eile === "sofort" ? "#FDF1EF" : "transparent" }}>
+                <tr key={t.nr} data-ticket={t.nr} data-ticket-stand={t.stand} style={{ opacity: offen ? 1 : 0.6, backgroundColor: t.neuVomMelder ? "#FFF9E8" : "transparent" }}>
                   <td style={{ borderBottom: "1px solid #E5E9ED", padding: "9px", verticalAlign: "top", whiteSpace: "nowrap" }}>
                     <span style={{ fontFamily: "Consolas, monospace" }}>{t.nr}</span>
                     <div style={{ color: "#8A9099", fontSize: "0.74rem" }}>{zeitText(t.angelegt)}</div>
@@ -299,7 +305,6 @@ export function TicketAnsicht({ daten, team, angemeldet, darf, istVerwalter, tod
                     )}
                     {meldung && meldung.nr === t.nr && <div data-ticket-meldung={t.nr} style={{ marginTop: "6px", color: "#B23A34", fontSize: "0.78rem", fontWeight: 700 }}>{meldung.text}</div>}
                   </td>
-                  <td style={{ borderBottom: "1px solid #E5E9ED", padding: "9px", verticalAlign: "top" }}>{chip(eileName, eBg, eFg)}</td>
                   <td style={{ borderBottom: "1px solid #E5E9ED", padding: "9px", verticalAlign: "top" }}>
                     {chip(standName, sBg, sFg)}
                     <div style={{ color: "#8A9099", fontSize: "0.74rem" }}>{t.zustaendig}</div>

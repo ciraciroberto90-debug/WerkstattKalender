@@ -972,12 +972,12 @@ Störungen, nicht den Rest.
   - **Nichts geht ins Internet:** Die Seite kommt vom BTA-Server im Haus und
     spricht nur mit ihm. Kein Kennwort, keine Benutzerliste, keine E-Mail.
   - **Im Cockpit** steht oben der Reiter **Tickets** mit roter Zahl (neue
-    Meldungen und neue Antworten). Die Spalte „Eile“ zeigt bei Meldungen ab
-    dem 25.11. immer „Diese Woche“ (fester Wert der Melde-Seite, keine Aussage
-    des Melders); ältere „Sofort“-Meldungen stehen oben. **Annehmen für …**
+    Meldungen und neue Antworten). Neue Antworten der Melder stehen oben,
+    danach die jüngste Meldung zuerst; eine Spalte „Eile“ gibt es seit dem
+    25.11. nicht mehr. **Annehmen für …**
     teilt das Ticket einer Person zu und legt für sie ein **To-do** an (Titel
-    „Ticket 2026-0147: …“, bei „Sofort“ mit hoher Prio, Foto im To-do, wenn die
-    Foto-Ablage verbunden ist). **Rückfrage** schickt eine Frage an den Melder,
+    „Ticket 2026-0147: …“, ohne Prio – die setzt die Werkstatt am To-do selbst;
+    Foto im To-do, wenn die Foto-Ablage verbunden ist). **Rückfrage** schickt eine Frage an den Melder,
     **Erledigt** schließt mit einem Satz Rückmeldung. Ist das To-do abgehakt,
     erinnert die Zeile daran, das Ticket noch zu schließen. Erledigte Tickets
     bleiben 60 Tage in der Liste.

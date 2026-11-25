@@ -6474,7 +6474,9 @@ function App() {
     const eintrag = {
       id: todoId, category: "TODO",
       name: `Ticket ${t.nr}: ${ersteZeile.length > 90 ? ersteZeile.slice(0, 89) + "…" : ersteZeile}`,
-      date: todayKey, wer: person || "", von: "", bis: "", uhrzeit: "", prio: t.eile === "sofort" ? "hoch" : "",
+      // Prio bleibt leer: Die Eile des Melders gibt es seit dem 25.11. nicht mehr
+      // (Roberto: „wie eilig muss weg“) - wie dringend, entscheidet die Werkstatt am To-do.
+      date: todayKey, wer: person || "", von: "", bis: "", uhrzeit: "", prio: "",
       bemerkung: `${t.art} · ${t.ort}\n${t.text}\nGemeldet von ${t.melder} (${t.abteilung})${fotoHinweis}`,
       erteiltVon: angemeldet || "", status: "offen", ticketNr: t.nr,
       ...(fotos.length > 0 ? { fotos } : {}),

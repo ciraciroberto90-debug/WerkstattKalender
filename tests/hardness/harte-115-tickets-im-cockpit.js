@@ -5,10 +5,13 @@
 // gemeldet (eine "Sofort"-Meldung, eine für "Wenn Zeit ist").
 //
 //  (K1) Reiter „Tickets“ mit roter Zahl = Zahl der neuen Meldungen (2).
-//  (K2) Liste: beide Meldungen, „Sofort“ steht oben; die Melde-Adresse wird genannt.
+//  (K2) Liste: beide Meldungen, die neueste oben; die Melde-Adresse wird genannt.
+//       Seit dem 25.11. (Roberto: „wie eilig muss weg“, Spalte „ganz weg“) gibt es
+//       KEINE Spalte „Eile“ und keine Eile-Marke mehr - auch nicht bei Tickets, die
+//       am Server noch „sofort“ tragen; sortiert wird nicht mehr danach.
 //  (K3) „Annehmen für Test Person“: am Server angenommen + zuständig + To-do-Kennung;
-//       in der App ein To-do mit derselben Kennung, Ticket-Nummer, Person, Prio hoch
-//       (Sofort) - gespeichert über den gewohnten Weg (persist).
+//       in der App ein To-do mit derselben Kennung, Ticket-Nummer, Person, OHNE Prio
+//       (auch bei altem „sofort“) - gespeichert über den gewohnten Weg (persist).
 //  (K4) Rückfrage: ohne Text ein Hinweis, mit Text steht sie am Server.
 //  (K5) Antwort des Melders: Zeile zeigt „NEU vom Melder“, die rote Zahl zählt sie.
 //  (K6) Erledigt mit Rückmeldung: am Server erledigt, in der App unter „Erledigt“.
@@ -18,10 +21,13 @@
 //       die Schicht-Einträge stehen wie vorher.
 //  (K9) Leser sehen den Reiter nicht und fragen den Server nicht nach Tickets.
 //  (K10) Ohne bekannte Server-Adresse: Hinweis statt Liste, kein Abruf nach außen.
+//        Das Adressfeld des Verwalters ist vorbelegt und „Merken“ ist bedienbar
+//        (Robertos Bild 24.11.: der graue Beispieltext sah aus wie ausgefüllt).
 //  (K11) Dienst weg: gelber Balken, die Liste bleibt stehen.
 //  (E)  Keine Skriptfehler.
 //
 // Rot-Nachweis: APP_PFAD=<Bau vor Roll-out 85> -> K1 rot (kein Reiter „Tickets“).
+// Rot-Nachweis 25.11.: APP_PFAD=<Bau mit Spalte „Eile“> -> K2, K3 (Prio), K10 rot.
 const UMG = require("../umgebung"); // Repo-Ort, App-Datei, Browser (Roll-out 73)
 const { chromium } = require("playwright-core");
 const { spawn } = require("child_process");
@@ -52,8 +58,11 @@ let kind = null;
   for (let i = 0; i < 80 && !bereit; i++) { await new Promise((r) => setTimeout(r, 100)); try { bereit = (await fetch(B + "/api/status")).ok; } catch (e) { /* noch nicht */ } }
   if (!bereit) { console.log("FAIL | Dienst kam nicht hoch"); kind.kill(); process.exit(1); }
 
-  const zeit = (await post("/api/scheurich/tickets", { art: "Gebäude", ort: "Halle 3, Tor 2", text: "Defektes Fenster", eile: "zeit", melder: "M. Beispiel", abteilung: "Versand" }, { "X-BTA-Melder": KA })).k.ticket;
+  // Reihenfolge mit Absicht: erst die alte „Sofort“-Meldung, dann die jüngere. Ein Bau,
+  // der noch nach Eile sortiert, zeigt „sofort“ oben - der neue zeigt die jüngste oben.
   const sofort = (await post("/api/scheurich/tickets", { art: "Anlage / Maschine", ort: "Anlage B2", text: "Band steht\nseit der Spätschicht", eile: "sofort", melder: "K. Muster", abteilung: "Glasur" }, { "X-BTA-Melder": KB })).k.ticket;
+  await new Promise((r) => setTimeout(r, 50)); // die Eingangszeit soll sich sicher unterscheiden
+  const zeit = (await post("/api/scheurich/tickets", { art: "Gebäude", ort: "Halle 3, Tor 2", text: "Defektes Fenster", eile: "zeit", melder: "M. Beispiel", abteilung: "Versand" }, { "X-BTA-Melder": KA })).k.ticket;
 
   const browser = await chromium.launch({ executablePath: UMG.CHROMIUM, headless: true, args: ["--no-sandbox"] });
   const vorbereiten = (wer) => (name) => {
@@ -87,7 +96,10 @@ let kind = null;
   await zeile(sofort.nr).waitFor({ timeout: 8000 });
   const reihenfolge = await p.locator("tr[data-ticket]").evaluateAll((z) => z.map((x) => x.dataset.ticket));
   const meldeAdresse = await p.locator("[data-tickets-meldeadresse]").innerText();
-  ok("(K2) Beide Meldungen da, „Sofort“ oben; Melde-Adresse genannt", reihenfolge.length === 2 && reihenfolge[0] === sofort.nr && meldeAdresse === B + "/melden", reihenfolge.join(",") + " | " + meldeAdresse);
+  ok("(K2) Beide Meldungen da, die neueste oben; Melde-Adresse genannt", reihenfolge.length === 2 && reihenfolge[0] === zeit.nr && meldeAdresse === B + "/melden", reihenfolge.join(",") + " | " + meldeAdresse);
+  const spalten = await p.locator("[data-tickets] thead th").evaluateAll((z) => z.map((x) => x.textContent.trim()));
+  const tabellenText = (await p.locator("[data-tickets] tbody").innerText()).replace(/\s+/g, " ");
+  ok("(K2) Keine Spalte „Eile“, keine Eile-Marke in den Zeilen", spalten.length === 5 && !spalten.some((s) => /eile/i.test(s)) && !/Sofort|Diese Woche|Wenn Zeit ist/.test(tabellenText), spalten.join(" | "));
 
   /* (K3) */
   await zeile(sofort.nr).locator("select[data-ticket-annehmen]").selectOption("Test Person");
@@ -96,7 +108,7 @@ let kind = null;
   let alle = await eintraege();
   const todo = alle.find((e) => e.category === "TODO" && e.id === s1.todoId);
   ok("(K3) Server: angenommen, zuständig Test Person, To-do-Kennung, Verlauf nennt „Chef“", s1.stand === "angenommen" && s1.zustaendig === "Test Person" && /^todo-/.test(s1.todoId) && s1.verlauf.slice(-1)[0].wer === "Chef", JSON.stringify(s1.verlauf.slice(-1)[0]));
-  ok("(K3) App: To-do mit derselben Kennung, Nummer im Titel, Person, Prio hoch, Melder in der Bemerkung", !!todo && todo.name === `Ticket ${sofort.nr}: Band steht` && todo.wer === "Test Person" && todo.prio === "hoch" && todo.ticketNr === sofort.nr && todo.status === "offen" && /Gemeldet von K\. Muster \(Glasur\)/.test(todo.bemerkung) && /seit der Spätschicht/.test(todo.bemerkung), todo ? todo.name : "kein To-do");
+  ok("(K3) App: To-do mit derselben Kennung, Nummer im Titel, Person, ohne Prio, Melder in der Bemerkung", !!todo && todo.name === `Ticket ${sofort.nr}: Band steht` && todo.wer === "Test Person" && todo.prio === "" && todo.ticketNr === sofort.nr && todo.status === "offen" && /Gemeldet von K\. Muster \(Glasur\)/.test(todo.bemerkung) && /seit der Spätschicht/.test(todo.bemerkung), todo ? todo.name : "kein To-do");
 
   /* (K4) */
   await zeile(zeit.nr).locator('[data-ticket-tu="frage"]').click();
@@ -160,7 +172,10 @@ let kind = null;
   await po.locator('button[data-hauptbereich="TICKETS"]').click({ timeout: 8000 });
   await po.locator("[data-tickets-ohne-server]").waitFor({ timeout: 8000 });
   await po.waitForTimeout(1500);
+  const vorbelegt = await po.locator("[data-tickets-adresse]").inputValue();
+  const merkenBedienbar = await po.locator("[data-tickets-adresse-merken]").isEnabled();
   ok("(K10) Ohne Server-Adresse: Hinweis mit Eingabefeld (Verwalter), kein einziger Abruf nach außen", (await po.locator("[data-tickets-adresse]").count()) === 1 && aussen.length === 0, aussen.join(", "));
+  ok("(K10) Adressfeld vorbelegt, „Merken“ bedienbar - und trotzdem kein Abruf, solange niemand klickt", vorbelegt === "http://v-btacockpit-1:8765" && merkenBedienbar && aussen.length === 0, vorbelegt + " | Merken: " + merkenBedienbar);
   await ctxO.close();
 
   /* (K11) */
